@@ -595,11 +595,13 @@ describe('FeatureFlagModel', () => {
         });
 
         it.each([
-            [true, false],
-            [false, true],
+            [FeatureFlags.StoredResultsPages, true, false],
+            [FeatureFlags.StoredResultsPages, false, true],
+            [FeatureFlags.ResultsPageWorkers, true, false],
+            [FeatureFlags.ResultsPageWorkers, false, true],
         ])(
-            'stored-results-pages ignores a user override of %s and follows the org override of %s',
-            async (userEnabled, orgEnabled) => {
+            '%s ignores a user override of %s and follows the org override of %s',
+            async (flagId, userEnabled, orgEnabled) => {
                 const model = buildModel(
                     {},
                     buildFakeDatabase({
@@ -610,12 +612,12 @@ describe('FeatureFlagModel', () => {
                 );
 
                 const result = await model.get({
-                    featureFlagId: FeatureFlags.StoredResultsPages,
+                    featureFlagId: flagId,
                     user: dbUser,
                 });
 
                 expect(result).toEqual({
-                    id: FeatureFlags.StoredResultsPages,
+                    id: flagId,
                     enabled: orgEnabled,
                 });
             },

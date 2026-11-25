@@ -678,3 +678,73 @@ describe('StoredResultsPages outstanding work', () => {
         expect(pages.decompressingBytes).toBe(0);
     });
 });
+
+describe('StoredResultsPages modes and build counts', () => {
+    test('with store off, builds in a worker with no store read, check or write', async () => {
+        const { storage, pages, readPageLines, args, settle } = setup();
+
+        const first = await pages.getRows({ ...args, store: false });
+        await settle();
+        const second = await pages.getRows({ ...args, store: false });
+
+        expect(first.source).toBe('built');
+        expect(second.source).toBe('built');
+        expect(first.rows.equals(expectedRows)).toBe(true);
+        expect(readPageLines).toHaveBeenCalledTimes(2);
+        expect(storage.getObjectBytesIfExists).not.toHaveBeenCalled();
+        expect(storage.resultsFileExists).not.toHaveBeenCalled();
+        expect(storage.putObjectBytes).not.toHaveBeenCalled();
+    });
+
+    test('a caller that joins a build in flight is told the rows were shared', async () => {
+        const { pages, args } = setup();
+
+        const [first, joined] = await Promise.all([
+            pages.getRows(args),
+            pages.getRows(args),
+        ]);
+
+        expect(first.source).toBe('built');
+        expect(joined.source).toBe('shared');
+        expect(joined.rows.equals(expectedRows)).toBe(true);
+    });
+
+    test('counts one build for concurrent callers', async () => {
+        const onBuild = vi.fn();
+        const { pages, args, settle } = setup({ onBuild });
+
+        await Promise.all([
+            pages.getRows(args),
+            pages.getRows(args),
+            pages.getRows(args),
+        ]);
+        await settle();
+        await pages.getRows(args);
+
+        expect(onBuild).toHaveBeenCalledExactlyOnceWith('ok');
+    });
+
+    test('a failed build is counted once and every caller gets the same worker error', async () => {
+        const onBuild = vi.fn();
+        const { pages, build, args } = setup({ onBuild });
+        build.mockImplementationOnce(() => {
+            const rejected = Promise.reject(
+                new ResultsPageWorkerError('crashed'),
+            );
+            rejected.catch(() => undefined);
+            return { rows: rejected, compressed: rejected };
+        });
+
+        const results = await Promise.allSettled([
+            pages.getRows(args),
+            pages.getRows(args),
+        ]);
+
+        expect(results.map((result) => result.status)).toEqual([
+            'rejected',
+            'rejected',
+        ]);
+        expect(build).toHaveBeenCalledTimes(1);
+        expect(onBuild).toHaveBeenCalledExactlyOnceWith('error');
+    });
+});

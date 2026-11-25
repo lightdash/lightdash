@@ -1,6 +1,7 @@
 import {
     FeatureFlags,
     ForbiddenError,
+    ResultsPageBusyError,
     NotFoundError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -90,10 +91,18 @@ const inlineBuildPool = () => {
 const buildService = ({
     history,
     flagEnabled,
+    workersEnabled = flagEnabled,
+    storedEnabled = flagEnabled,
+    resultsCacheEnabled = true,
+    workerMinCells = 0,
     pool = new ResultsPageWorkerPool({ size: 1, brotliQuality: 4 }),
 }: {
     history: QueryHistory;
     flagEnabled: boolean;
+    workersEnabled?: boolean;
+    storedEnabled?: boolean;
+    resultsCacheEnabled?: boolean;
+    workerMinCells?: number;
     pool?: ResultsPageWorkerPool;
 }) => {
     const objects = new Map<
@@ -124,7 +133,10 @@ const buildService = ({
     const featureFlagModel = {
         get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
             id: featureFlagId,
-            enabled: flagEnabled,
+            enabled:
+                featureFlagId === FeatureFlags.ResultsPageWorkers
+                    ? workersEnabled
+                    : storedEnabled,
         })),
     };
     const queryHistoryModel = {
@@ -141,10 +153,19 @@ const buildService = ({
     };
     const assertCanReadStoredResults = vi.fn(async () => undefined);
     const service = Object.assign(Object.create(AsyncQueryService.prototype), {
-        lightdashConfig: lightdashConfigMock,
+        lightdashConfig: {
+            ...lightdashConfigMock,
+            query: {
+                ...lightdashConfigMock.query,
+                resultsPageWorkerMinCells: workerMinCells,
+            },
+        },
         projectModel: {
             getSummary: vi.fn(async () => ({
                 organizationUuid: account.organization.organizationUuid,
+            })),
+            getResultsCacheState: vi.fn(async () => ({
+                enabled: resultsCacheEnabled,
             })),
         },
         queryHistoryModel,
@@ -287,7 +308,7 @@ describe('AsyncQueryService stored results pages', () => {
         expect(response.kind).toBe('results');
         expect(featureFlagModel.get).toHaveBeenCalledWith(
             expect.objectContaining({
-                featureFlagId: FeatureFlags.StoredResultsPages,
+                featureFlagId: FeatureFlags.ResultsPageWorkers,
             }),
         );
         expect(
@@ -394,7 +415,7 @@ describe('AsyncQueryService stored results pages', () => {
         ).rejects.toThrow(ResultsExpiredError);
     });
 
-    test("flag on: a worker error falls back to today's inline path", async () => {
+    test('flag on: a worker error gives one retryable busy error and formats nothing inline', async () => {
         const [, format] = formatCases[1];
         const { pool, build } = inlineBuildPool();
         build.mockImplementation(() => {
@@ -404,30 +425,27 @@ describe('AsyncQueryService stored results pages', () => {
             rejected.catch(() => undefined);
             return { rows: rejected, compressed: rejected };
         });
-        const { service, logger, resultsStorageClient } = buildService({
+        const { service, resultsStorageClient } = buildService({
             history: buildHistory(format),
             flagEnabled: true,
             pool,
         });
 
-        const response = await service.getAsyncQueryResultsResponse(args);
+        const results = await Promise.allSettled([
+            service.getAsyncQueryResultsResponse(args),
+            service.getAsyncQueryResultsResponse(args),
+        ]);
 
-        expect(response.kind).toBe('results');
-        expect(logger.warn).toHaveBeenCalledWith(
-            expect.stringContaining('formatting the page inline'),
+        for (const result of results) {
+            expect(result.status).toBe('rejected');
+            expect(
+                result.status === 'rejected' && result.reason,
+            ).toBeInstanceOf(ResultsPageBusyError);
+        }
+        expect(resultsStorageClient.getDownloadStream).toHaveBeenCalledTimes(
+            1,
         );
         expect(resultsStorageClient.putObjectBytes).not.toHaveBeenCalled();
-        expect(
-            maskExecutionMs(
-                Buffer.from(
-                    JSON.stringify({
-                        status: 'ok',
-                        results:
-                            response.kind === 'results' && response.results,
-                    }),
-                ),
-            ),
-        ).toBe(maskExecutionMs(await todaysBody(service)));
     });
 
     test.each([
@@ -471,9 +489,9 @@ describe('AsyncQueryService stored results pages', () => {
         30_000,
     );
 
-    test("flag on: a results read that stalls is destroyed and the request gets today's body inline", async () => {
+    test('flag on: a results read that stalls is destroyed and the request gets a retryable busy error', async () => {
         const [, format] = formatCases[1];
-        const { service, logger, resultsStorageClient, prometheusMetrics } =
+        const { service, resultsStorageClient, prometheusMetrics } =
             buildService({
                 history: buildHistory(format),
                 flagEnabled: true,
@@ -486,30 +504,25 @@ describe('AsyncQueryService stored results pages', () => {
         const stalled = new Readable({ read() {} });
         resultsStorageClient.getDownloadStream.mockResolvedValueOnce(stalled);
 
-        const response = await service.getAsyncQueryResultsResponse(args);
+        const error = await service
+            .getAsyncQueryResultsResponse(args)
+            .catch((e: unknown) => e);
 
+        expect(error).toBeInstanceOf(ResultsPageBusyError);
+        expect((error as ResultsPageBusyError).statusCode).toBe(503);
+        expect(
+            (error as ResultsPageBusyError).data.retryAfterSeconds,
+        ).toBeGreaterThan(0);
         expect(stalled.destroyed).toBe(true);
-        expect(response.kind).toBe('results');
-        expect(logger.warn).toHaveBeenCalledWith(
-            expect.stringContaining('formatting the page inline'),
+        expect(resultsStorageClient.getDownloadStream).toHaveBeenCalledTimes(
+            1,
         );
         expect(prometheusMetrics.observeResultsPage).toHaveBeenCalledWith(
-            'fallback',
+            'busy',
             expect.any(Number),
         );
         await settle();
         expect(resultsStorageClient.putObjectBytes).not.toHaveBeenCalled();
-        expect(
-            maskExecutionMs(
-                Buffer.from(
-                    JSON.stringify({
-                        status: 'ok',
-                        results:
-                            response.kind === 'results' && response.results,
-                    }),
-                ),
-            ),
-        ).toBe(maskExecutionMs(await todaysBody(service)));
     });
 
     test('flag on: counts a built page, then a stored page', async () => {
@@ -538,7 +551,7 @@ describe('AsyncQueryService stored results pages', () => {
         ]);
     });
 
-    test('flag on: counts a worker error as a fallback', async () => {
+    test('flag on: counts a worker error as busy', async () => {
         const [, format] = formatCases[0];
         const { pool, build } = inlineBuildPool();
         build.mockImplementation(() => {
@@ -554,11 +567,11 @@ describe('AsyncQueryService stored results pages', () => {
             pool,
         });
 
-        await service.getAsyncQueryResultsResponse(args);
+        await service.getAsyncQueryResultsResponse(args).catch(() => undefined);
 
         expect(
             prometheusMetrics.observeResultsPage,
-        ).toHaveBeenCalledExactlyOnceWith('fallback', expect.any(Number));
+        ).toHaveBeenCalledExactlyOnceWith('busy', expect.any(Number));
     });
 
     test('flag off: counts nothing', async () => {
@@ -584,7 +597,7 @@ describe('AsyncQueryService stored results pages', () => {
 
         expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
             user: { organizationUuid: account.organization.organizationUuid },
-            featureFlagId: FeatureFlags.StoredResultsPages,
+            featureFlagId: FeatureFlags.ResultsPageWorkers,
         });
     });
 
@@ -650,10 +663,11 @@ describe('AsyncQueryService stored results pages', () => {
             },
         );
 
-        const response = await service.getAsyncQueryResultsResponse(args);
+        await expect(
+            service.getAsyncQueryResultsResponse(args),
+        ).rejects.toBeInstanceOf(ResultsPageBusyError);
 
         expect(readSignal?.aborted).toBe(true);
-        expect(response.kind).toBe('results');
     });
 
     test('flag on: a request whose client has gone reads nothing', async () => {
@@ -675,5 +689,164 @@ describe('AsyncQueryService stored results pages', () => {
             resultsStorageClient.getObjectBytesIfExists,
         ).not.toHaveBeenCalled();
         expect(resultsStorageClient.getDownloadStream).not.toHaveBeenCalled();
+    });
+
+    test('workers on, stored pages off: builds in a worker with no store read, check or write', async () => {
+        const [, format] = formatCases[0];
+        const { service, resultsStorageClient, prometheusMetrics } =
+            buildService({
+                history: buildHistory(format),
+                flagEnabled: true,
+                storedEnabled: false,
+            });
+
+        const built = await bodyOf(service);
+        await settle();
+        await bodyOf(service);
+
+        expect(maskExecutionMs(built)).toBe(
+            maskExecutionMs(await todaysBody(service)),
+        );
+        expect(
+            resultsStorageClient.getObjectBytesIfExists,
+        ).not.toHaveBeenCalled();
+        expect(resultsStorageClient.resultsFileExists).not.toHaveBeenCalled();
+        expect(resultsStorageClient.putObjectBytes).not.toHaveBeenCalled();
+        expect(prometheusMetrics.observeResultsPage.mock.calls).toEqual([
+            ['built', expect.any(Number)],
+            ['built', expect.any(Number)],
+        ]);
+    }, 30_000);
+
+    test('stored pages on, workers off: runs today\'s path', async () => {
+        const [, format] = formatCases[0];
+        const { pool } = inlineBuildPool();
+        const { service, resultsStorageClient } = buildService({
+            history: buildHistory(format),
+            flagEnabled: false,
+            storedEnabled: true,
+            pool,
+        });
+
+        const response = await service.getAsyncQueryResultsResponse(args);
+
+        expect(response.kind).toBe('results');
+        expect(pool.withWorker).not.toHaveBeenCalled();
+        expect(
+            resultsStorageClient.getObjectBytesIfExists,
+        ).not.toHaveBeenCalled();
+        expect(resultsStorageClient.putObjectBytes).not.toHaveBeenCalled();
+    });
+
+    test('both flags on, results cache off: no store read, check or write', async () => {
+        const [, format] = formatCases[0];
+        const { service, resultsStorageClient } = buildService({
+            history: buildHistory(format),
+            flagEnabled: true,
+            resultsCacheEnabled: false,
+        });
+
+        await bodyOf(service);
+        await settle();
+
+        expect(
+            resultsStorageClient.getObjectBytesIfExists,
+        ).not.toHaveBeenCalled();
+        expect(resultsStorageClient.resultsFileExists).not.toHaveBeenCalled();
+        expect(resultsStorageClient.putObjectBytes).not.toHaveBeenCalled();
+    }, 30_000);
+
+    test('a page below the cell budget is formatted inline with no worker and no store call', async () => {
+        const [, format] = formatCases[0];
+        const { pool } = inlineBuildPool();
+        const { service, resultsStorageClient, prometheusMetrics } =
+            buildService({
+                history: buildHistory(format),
+                flagEnabled: true,
+                workerMinCells: 1000,
+                pool,
+            });
+
+        const response = await service.getAsyncQueryResultsResponse(args);
+
+        expect(response.kind).toBe('results');
+        expect(pool.withWorker).not.toHaveBeenCalled();
+        expect(
+            resultsStorageClient.getObjectBytesIfExists,
+        ).not.toHaveBeenCalled();
+        expect(
+            prometheusMetrics.observeResultsPage,
+        ).toHaveBeenCalledExactlyOnceWith('inline', expect.any(Number));
+        expect(
+            maskExecutionMs(
+                Buffer.from(
+                    JSON.stringify({
+                        status: 'ok',
+                        results:
+                            response.kind === 'results' && response.results,
+                    }),
+                ),
+            ),
+        ).toBe(maskExecutionMs(await todaysBody(service)));
+    });
+
+    test('a full build queue gives a retryable busy error and formats nothing inline', async () => {
+        const [, format] = formatCases[0];
+        const pool = new ResultsPageWorkerPool({
+            size: 1,
+            brotliQuality: 4,
+            maxQueued: 0,
+        });
+        let release!: () => void;
+        const held = pool.withWorker(
+            () =>
+                new Promise<void>((resolve) => {
+                    release = resolve;
+                }),
+        );
+        const { service, resultsStorageClient, prometheusMetrics } =
+            buildService({
+                history: buildHistory(format),
+                flagEnabled: true,
+                pool,
+            });
+
+        const error = await service
+            .getAsyncQueryResultsResponse(args)
+            .catch((e: unknown) => e);
+        release();
+        await held;
+
+        expect(error).toBeInstanceOf(ResultsPageBusyError);
+        expect((error as ResultsPageBusyError).statusCode).toBe(503);
+        expect(resultsStorageClient.getDownloadStream).not.toHaveBeenCalled();
+        expect(
+            prometheusMetrics.observeResultsPage,
+        ).toHaveBeenCalledExactlyOnceWith('busy', expect.any(Number));
+    });
+
+    test('a request that joins a build in flight is counted as shared', async () => {
+        const [, format] = formatCases[0];
+        const { pool, build } = inlineBuildPool();
+        build.mockImplementation((lines) => {
+            const rows = Buffer.from(`[${lines.join(',')}]`);
+            return {
+                rows: Promise.resolve({ rows, rowCount: lines.length }),
+                compressed: Promise.resolve(zlib.brotliCompressSync(rows)),
+            };
+        });
+        const { service, prometheusMetrics } = buildService({
+            history: buildHistory(format),
+            flagEnabled: true,
+            pool,
+        });
+
+        await Promise.all([bodyOf(service), bodyOf(service)]);
+
+        expect(
+            prometheusMetrics.observeResultsPage.mock.calls
+                .map(([source]) => source)
+                .sort(),
+        ).toEqual(['built', 'shared']);
     });
 });

@@ -1,5 +1,8 @@
 import { Ability } from '@casl/ability';
-import { type PossibleAbilities } from '@lightdash/common';
+import {
+    ResultsPageBusyError,
+    type PossibleAbilities,
+} from '@lightdash/common';
 import express, {
     type ErrorRequestHandler,
     type RequestHandler,
@@ -48,7 +51,7 @@ type RawResponse = {
     body: Buffer;
 };
 
-let mode: 'body' | 'results' | 'hang' = 'body';
+let mode: 'body' | 'results' | 'hang' | 'busy' = 'body';
 let sendDelayMs = 0;
 let lastSignal: AbortSignal | undefined;
 let errorsSeen = 0;
@@ -75,6 +78,9 @@ beforeAll(async () => {
         getAsyncQueryResultsResponse: vi.fn(
             async ({ signal }: { signal?: AbortSignal }) => {
                 lastSignal = signal;
+                if (mode === 'busy') {
+                    throw new ResultsPageBusyError(3);
+                }
                 if (mode === 'hang') {
                     return new Promise((_resolve, reject) => {
                         const fallback = setTimeout(
@@ -250,5 +256,17 @@ describe('stored results page body through the generated route', () => {
         await request();
 
         expect(lastSignal?.aborted).toBe(false);
+    });
+
+    test('a busy results page answers 503 with Retry-After', async () => {
+        mode = 'busy';
+
+        const response = await request();
+
+        expect(response.status).toBe(503);
+        expect(response.headers['retry-after']).toBe('3');
+        expect(JSON.parse(response.body.toString()).error).toContain(
+            'busy',
+        );
     });
 });

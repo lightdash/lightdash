@@ -11,6 +11,13 @@ const serverError = {
 };
 const synthesizedQueryError = { error: { name: 'Error', statusCode: 500 } };
 const notFound = { error: { name: 'NotFoundError', statusCode: 404 } };
+const resultsPageBusy = {
+    error: {
+        name: 'ResultsPageBusyError',
+        statusCode: 503,
+        data: { retryAfterSeconds: 3 },
+    },
+};
 
 describe('shouldRetryQuery', () => {
     it('retries transient NetworkError up to 5 times', () => {
@@ -28,6 +35,29 @@ describe('shouldRetryQuery', () => {
     it('does not retry malformed errors', () => {
         expect(shouldRetryQuery(0, undefined)).toBe(false);
         expect(shouldRetryQuery(0, {})).toBe(false);
+    });
+});
+
+describe('busy results pages', () => {
+    it('retries a busy results page up to 10 times', () => {
+        expect(shouldRetryQuery(0, resultsPageBusy)).toBe(true);
+        expect(shouldRetryQuery(9, resultsPageBusy)).toBe(true);
+        expect(shouldRetryQuery(10, resultsPageBusy)).toBe(false);
+    });
+
+    it('waits at least the Retry-After the server asked for, capped at 8s', () => {
+        expect(getQueryRetryDelay(0, resultsPageBusy)).toBe(3000);
+        expect(getQueryRetryDelay(2, resultsPageBusy)).toBe(4000);
+        expect(getQueryRetryDelay(5, resultsPageBusy)).toBe(8000);
+        expect(
+            getQueryRetryDelay(0, {
+                error: {
+                    name: 'ResultsPageBusyError',
+                    statusCode: 503,
+                    data: { retryAfterSeconds: 60 },
+                },
+            }),
+        ).toBe(8000);
     });
 });
 

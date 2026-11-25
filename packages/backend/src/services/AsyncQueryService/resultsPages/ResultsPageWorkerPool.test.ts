@@ -5,6 +5,8 @@ import zlib from 'zlib';
 import { buildResultsPageRowsJson } from './buildResultsPageRows';
 import { formatCases, resultsPageLines } from './resultsPageFixtures.mock';
 import {
+    createResultsPageWorker,
+    RESULTS_PAGE_WORKER_RESOURCE_LIMITS,
     ResultsPageWorkerError,
     ResultsPageWorkerPool,
     type ResultsPageBuildJob,
@@ -433,6 +435,131 @@ describe('ResultsPageWorkerPool outstanding work', () => {
         expect(Date.now() - queuedAt).toBeLessThan(150);
         expect(pool.queuedBuilds).toBe(0);
     });
+});
+
+describe('ResultsPageWorkerPool worker lifetime and metrics', () => {
+    test('retires a worker that stays idle past its idle limit and starts a new one for the next build', async () => {
+        const workers: FakeWorker[] = [];
+        const pool = new ResultsPageWorkerPool({
+            size: 1,
+            brotliQuality: 4,
+            idleWorkerTimeoutMs: 30,
+            createWorker: () => {
+                const worker = new FakeWorker();
+                workers.push(worker);
+                return worker;
+            },
+        });
+
+        const first = buildAll(pool, ['{"a":1}']);
+        await flush();
+        workers[0].reply();
+        await first;
+        await new Promise<void>((resolve) => {
+            setTimeout(resolve, 80);
+        });
+        expect(workers[0].terminated).toBe(true);
+
+        const second = buildAll(pool, ['{"a":2}']);
+        await flush();
+        expect(workers).toHaveLength(2);
+        workers[1].reply();
+        await expect(second).resolves.toMatchObject({ rowCount: 1 });
+    });
+
+    test('keeps a worker that builds again before its idle limit', async () => {
+        const workers: FakeWorker[] = [];
+        const pool = new ResultsPageWorkerPool({
+            size: 1,
+            brotliQuality: 4,
+            idleWorkerTimeoutMs: 60,
+            createWorker: () => {
+                const worker = new FakeWorker();
+                workers.push(worker);
+                return worker;
+            },
+        });
+
+        for (let index = 0; index < 3; index += 1) {
+            const build = buildAll(pool, [`{"a":${index}}`]);
+            await flush();
+            workers[0].reply();
+            await build;
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, 20);
+            });
+        }
+
+        expect(workers).toHaveLength(1);
+        expect(workers[0].terminated).toBe(false);
+    });
+
+    test('reports how long each build waited for a worker', async () => {
+        const waits: number[] = [];
+        const pool = new ResultsPageWorkerPool({
+            size: 1,
+            brotliQuality: 4,
+            createWorker: () => new FakeWorker(),
+            onQueueWait: (waitMs) => waits.push(waitMs),
+        });
+        let release!: () => void;
+        const held = pool.withWorker(
+            () =>
+                new Promise<void>((resolve) => {
+                    release = resolve;
+                }),
+        );
+        const queued = pool.withWorker(async () => 'queued');
+        await new Promise<void>((resolve) => {
+            setTimeout(resolve, 40);
+        });
+        release();
+        await held;
+        await queued;
+
+        expect(waits).toHaveLength(2);
+        expect(waits[0]).toBeLessThan(20);
+        expect(waits[1]).toBeGreaterThanOrEqual(30);
+    });
+
+    test('starts workers with heap limits', () => {
+        expect(
+            RESULTS_PAGE_WORKER_RESOURCE_LIMITS.maxOldGenerationSizeMb,
+        ).toBeGreaterThan(0);
+    });
+
+    test('a worker that runs out of heap gives a worker error and the pool keeps building', async () => {
+        const pool = new ResultsPageWorkerPool({
+            size: 1,
+            brotliQuality: 4,
+            createWorker: () =>
+                createResultsPageWorker({ maxOldGenerationSizeMb: 48 }),
+        });
+        const wide = JSON.stringify(
+            Object.fromEntries(
+                Array.from({ length: 400 }, (_, index) => [
+                    `orders_status_${index}`,
+                    `value ${index} `.repeat(20),
+                ]),
+            ),
+        );
+        const fields = Object.fromEntries(
+            Array.from({ length: 400 }, (_, index) => [
+                `orders_status_${index}`,
+                plainFormat.fields.orders_status,
+            ]),
+        );
+
+        await expect(
+            buildAll(pool, Array.from({ length: 3000 }, () => wide), {
+                ...plainFormat,
+                fields: fields as typeof plainFormat.fields,
+            }),
+        ).rejects.toBeInstanceOf(ResultsPageWorkerError);
+        await expect(
+            buildAll(pool, [...resultsPageLines], plainFormat),
+        ).resolves.toMatchObject({ rowCount: resultsPageLines.length });
+    }, 60_000);
 });
 
 describe('the real results page worker entry', () => {
