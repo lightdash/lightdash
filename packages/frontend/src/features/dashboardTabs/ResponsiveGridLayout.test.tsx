@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
+import { Activity } from 'react';
 import { ResponsiveGridLayout } from './ResponsiveGridLayout';
 
 const stubResizeObserver = () => {
@@ -194,6 +195,48 @@ describe('dashboard container resizing', () => {
             left: '200px',
             top: '0px',
             width: '200px',
+        });
+    });
+
+    it('lays a hidden tab out on the cols it is revealed with', () => {
+        const resize = stubResizeObserver();
+        const grid = (
+            mode: 'visible' | 'hidden',
+            cols: number,
+            tileWidth: number,
+        ) => (
+            <Activity mode={mode}>
+                <ResponsiveGridLayout
+                    breakpoints={{ wide: 0 }}
+                    cols={{ wide: cols }}
+                    margin={[0, 0]}
+                    containerPadding={[0, 0]}
+                    rowHeight={40}
+                    compactType={null}
+                    layouts={{
+                        wide: [
+                            { i: 'a', x: 0, y: 0, w: tileWidth, h: 1 },
+                            { i: 'b', x: tileWidth, y: 0, w: tileWidth, h: 1 },
+                        ],
+                    }}
+                    useCSSTransforms={false}
+                >
+                    <div key="a" data-testid="first-tile" />
+                    <div key="b" data-testid="second-tile" />
+                </ResponsiveGridLayout>
+            </Activity>
+        );
+
+        const { rerender } = render(grid('visible', 2, 1));
+        resize(400);
+        rerender(grid('hidden', 2, 1));
+        rerender(grid('hidden', 4, 2));
+        rerender(grid('visible', 4, 2));
+
+        // A freshly mounted grid sizes tiles in percent until it measures
+        expect(screen.getByTestId('second-tile')).toHaveStyle({
+            left: '50%',
+            width: '50%',
         });
     });
 });

@@ -39,6 +39,14 @@ export const ResponsiveGridLayout: FC<Props> = ({
         widest !== undefined &&
         committed.current.cols?.[widest] !== cols?.[widest];
     const layouts = isAwaitingCols ? committed.current.layouts : props.layouts;
+    // A hidden tab runs no effects, so its grid misses a cols change and
+    // remounts on reveal; this runs on mount and on every reveal
+    const [gridKey, remountGrid] = useReducer((n: number) => n + 1, 0);
+    const isAwaitingColsRef = useRef(isAwaitingCols);
+    isAwaitingColsRef.current = isAwaitingCols;
+    useLayoutEffect(() => {
+        if (isAwaitingColsRef.current) remountGrid();
+    }, []);
     useLayoutEffect(() => {
         committed.current = { cols, layouts: props.layouts };
         if (isAwaitingCols) renderLayouts();
@@ -78,6 +86,7 @@ export const ResponsiveGridLayout: FC<Props> = ({
 
     const grid = (
         <Responsive
+            key={gridKey}
             {...props}
             layouts={layouts}
             innerRef={ref}
