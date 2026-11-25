@@ -13,6 +13,11 @@ export const scopesForOAuthRecord = (scopes: readonly string[]): string[] => [
     ),
 ];
 
+export const isReadOnlyOAuthGrant = (scopes: readonly string[]): boolean =>
+    scopes.length > 0 &&
+    !scopes.includes('write') &&
+    !scopes.includes('mcp:write');
+
 export const resolveOAuthScopeMode = async (
     featureFlagModel: Pick<FeatureFlagModel, 'get'>,
     user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
