@@ -378,6 +378,13 @@ const saveErrorText = ({ error }: ApiError) =>
         : 'This file could not be saved. Try again in a moment.';
 
 /** One file as code: edit it, see what the change does to it, save it into the change, or add lines to the chat. */
+// The linter knows model and source properties; dbt's own project files are another shape.
+const isDbtPropertiesFile = (path: string) =>
+    /\.ya?ml$/.test(path) &&
+    !/(^|\/)(dbt_project|packages|dependencies|profiles|selectors)\.ya?ml$/.test(
+        path,
+    );
+
 export const SourcePane: FC<{
     target: SourcesTarget;
     onSaved: (prUrl: string, thread: StoredThread | null) => void;
@@ -514,7 +521,7 @@ export const SourcePane: FC<{
     const linted = useDeferredValue(value);
     const markers = useMemo(
         () =>
-            path && /\.ya?ml$/.test(path)
+            path && isDbtPropertiesFile(path)
                 ? lintDbtYaml(linted).map((problem) => ({
                       ...problem,
                       severity: 'error' as const,
