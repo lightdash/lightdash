@@ -1,3 +1,11 @@
+# [3.402.0](https://github.com/lightdash/lightdash/compare/3.401.1...3.402.0) (2026-11-25)
+
+
+### Features
+
+* **mcp:** pinned agent with data access off gets content-only query path ([#33434](https://github.com/lightdash/lightdash/issues/33434)) ([2de4140](https://github.com/lightdash/lightdash/commit/2de4140de846a3779b71a31b8f50260eee81b75a))
+* **mcp:** query tool description lists merge nodes and teaches when to merge ([#33432](https://github.com/lightdash/lightdash/issues/33432)) ([71c95bc](https://github.com/lightdash/lightdash/commit/71c95bcfef138f884548f98801d2d5efd54e3fbd))
+
 ## [3.401.1](https://github.com/lightdash/lightdash/compare/3.401.0...3.401.1) (2026-11-25)
 
 
