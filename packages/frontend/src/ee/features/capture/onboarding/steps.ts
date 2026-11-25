@@ -10,15 +10,14 @@ export const DESIGN_MODE_VOICE_TOUR_ID = 'design-mode-voice';
 /** From this step on the tour needs the toolbar, so it turns the mode on. */
 export const FIRST_TOOLBAR_STEP = 1;
 
+const THREADS = {
+    title: 'Conversational threads',
+    body: 'Each new set of marks gets its own bubble. You can carry on threads by opening them and using the hotkey to add more marks and voice transcriptions.',
+};
+
 const AFTER_SEND: Record<DesignModeSurface, { title: string; body: string }> = {
-    dashboard: {
-        title: 'The answer comes back in place',
-        body: 'The AI agent replies in the bubble beside your marks. To carry on, click the bubble, then hold Option again. It stays selected until you click the page or press Esc.',
-    },
-    app: {
-        title: 'The answer comes back in place',
-        body: 'The AI agent replies in the bubble beside your marks, and can change the app if you ask and you can edit it. To carry on, click the bubble, then hold Option again.',
-    },
+    dashboard: THREADS,
+    app: THREADS,
     builder: {
         title: 'Send your marks to the builder',
         body: 'Each bubble waits in a tray under the preview. Mark as many things as you like, then send them to the builder together as one prompt.',
@@ -41,8 +40,8 @@ export const designModeTourSteps = (
     },
     {
         target: `[data-tour="${DESIGN_MODE_VOICE_TOUR_ID}"]`,
-        title: 'Say it or type it',
-        body: 'With the mic on, talk while you hold Option and release to send. With the mic off, a bubble opens beside your marks: type what you want and press Enter.',
+        title: 'Voice Mode',
+        body: 'When toggled on, using the hotkey will also activate the microphone, and anything you say while making annotations will be automatically transcribed to the agent bubble opened on release.',
     },
     { target: null, ...AFTER_SEND[surface] },
 ];

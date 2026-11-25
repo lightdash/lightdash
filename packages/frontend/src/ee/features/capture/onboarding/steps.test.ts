@@ -22,17 +22,17 @@ describe('designModeTourSteps', () => {
         expect(say.target).toBe('[data-tour="design-mode-voice"]');
     });
 
-    it('explains holding Option, and talking or typing, on every surface', () => {
+    it('explains the hotkey and Voice Mode on every surface', () => {
         for (const surface of SURFACES) {
             expect(text(surface)).toContain('Hold Option/Alt to mark');
-            expect(text(surface)).toContain('release to send');
-            expect(text(surface)).toContain('press Enter');
+            expect(text(surface)).toContain('Voice Mode');
+            expect(text(surface)).toContain('activate the microphone');
         }
     });
 
     it('tells each surface where its marks go', () => {
-        expect(text('dashboard')).toContain('replies in the bubble');
-        expect(text('app')).toContain('can change the app');
+        expect(text('dashboard')).toContain('Conversational threads');
+        expect(text('app')).toContain('Conversational threads');
         expect(text('builder')).toContain('as one prompt');
     });
 

@@ -217,9 +217,14 @@ export const BubbleThread: FC<Props> = ({
         let tries = 0;
         let frame = 0;
         const focusReply = () => {
-            const box = bodyRef.current?.querySelector<HTMLElement>(
-                'textarea, [contenteditable]:not([contenteditable="false"])',
-            );
+            // The reply box is the last one: a question card has its own.
+            const box = [
+                ...(bodyRef.current?.querySelectorAll<HTMLElement>(
+                    'textarea, [contenteditable]:not([contenteditable="false"])',
+                ) ?? []),
+            ]
+                .filter((element) => element.offsetParent !== null)
+                .at(-1);
             if (box) {
                 box.focus({ preventScroll: true });
                 return;
