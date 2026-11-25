@@ -29,9 +29,20 @@ import { analyticsHomepage } from './analyticsHomepage';
 import { AnalyticsProjectService } from './AnalyticsProjectService';
 import { managedAdoptionAppSlug } from './managedAdoptionApp';
 
-const { mockedBindings } = vi.hoisted(() => ({
-    mockedBindings: new Map<string, LibraryChartBinding>(),
-}));
+const { mockedBindings, removeRetired, actualRemoveRetired } = vi.hoisted(
+    () => ({
+        mockedBindings: new Map<string, LibraryChartBinding>(),
+        removeRetired: vi.fn(),
+        actualRemoveRetired: { current: vi.fn() },
+    }),
+);
+// The real removal by default (set again before each test); one test makes it report a failed delete
+vi.mock('./retiredAnalyticsContent', async (orig) => {
+    const actual = await orig<typeof import('./retiredAnalyticsContent')>();
+    actualRemoveRetired.current =
+        actual.removeRetiredAnalyticsContent as typeof actualRemoveRetired.current;
+    return { ...actual, removeRetiredAnalyticsContent: removeRetired };
+});
 vi.mock('../../../analytics/systemExplores/sampleContent', async (orig) => ({
     ...(await orig<
         typeof import('../../../analytics/systemExplores/sampleContent')
@@ -152,6 +163,8 @@ describe('AnalyticsProjectService', () => {
                 flushBatchSize: 1000,
                 bufferMaxSize: 1000,
             },
+            // Off, as by default: nothing retired is removed in these tests
+            softDelete: { enabled: false, retentionDays: 30 },
         },
         schedulerClient: {
             getUsageHistoryBackfillJob,
@@ -169,6 +182,8 @@ describe('AnalyticsProjectService', () => {
         coderService: { getOrCreateSpace, upsertChart, upsertDashboard },
         contentVerificationModel: { getByContentUuids: getVerifications },
         dashboardModel: { find: findDashboard, getByIdOrSlug: getDashboard },
+        getDashboardService: () => ({ softDelete: vi.fn() }),
+        getSavedChartService: () => ({ softDelete: vi.fn() }),
         projectHomepageModel: { createPublishedDefaultIfAbsent },
         savedChartModel: {
             get: getChart,
@@ -209,6 +224,7 @@ describe('AnalyticsProjectService', () => {
         dataAppsEnabledFor.mockResolvedValue(false);
         ensureRegistryChartTypes.mockResolvedValue(new Map());
         mockedBindings.clear();
+        removeRetired.mockImplementation(actualRemoveRetired.current);
         findAllAgents.mockResolvedValue([]);
         getSnapshot.mockResolvedValue({ snapshotHash: hash });
         isAnalyticsProjectEnabled.mockReturnValue(true);
@@ -410,6 +426,7 @@ describe('AnalyticsProjectService', () => {
             new AnalyticsProjectService({
                 ...service['dependencies'],
                 lightdashConfig: {
+                    ...service['dependencies'].lightdashConfig,
                     usageEvents: {
                         ...service['dependencies'].lightdashConfig.usageEvents,
                         enabled: true,
@@ -492,6 +509,19 @@ describe('AnalyticsProjectService', () => {
             await expect(
                 configured().syncContent({ organizationUuid: 'org' }),
             ).rejects.toThrow('upload failed');
+            expect(saveSnapshot).not.toHaveBeenCalled();
+            await configured().syncContent({ organizationUuid: 'org' });
+            expect(saveSnapshot).toHaveBeenCalledOnce();
+        });
+
+        it('leaves the bundle out of date when retired content could not be removed, so the next sync retries', async () => {
+            removeRetired.mockResolvedValueOnce({
+                dashboards: [],
+                charts: [],
+                failed: ['lightdash-analytics-people'],
+            });
+            await configured().syncContent({ organizationUuid: 'org' });
+            expect(upsertDashboard).toHaveBeenCalled();
             expect(saveSnapshot).not.toHaveBeenCalled();
             await configured().syncContent({ organizationUuid: 'org' });
             expect(saveSnapshot).toHaveBeenCalledOnce();
@@ -703,6 +733,7 @@ describe('AnalyticsProjectService', () => {
             new AnalyticsProjectService({
                 ...service['dependencies'],
                 lightdashConfig: {
+                    ...service['dependencies'].lightdashConfig,
                     usageEvents: {
                         ...service['dependencies'].lightdashConfig.usageEvents,
                         enabled: true,
@@ -787,6 +818,7 @@ describe('AnalyticsProjectService', () => {
                 const configured = new AnalyticsProjectService({
                     ...service['dependencies'],
                     lightdashConfig: {
+                        ...service['dependencies'].lightdashConfig,
                         usageEvents: {
                             ...service['dependencies'].lightdashConfig
                                 .usageEvents,
