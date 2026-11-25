@@ -5138,7 +5138,7 @@ export class McpService extends BaseService {
                     .string()
                     .optional()
                     .describe(
-                        'The sessionId of an earlier query result: pass it to reuse that session\'s nodes by node id in "references". Omit it to start a new session.',
+                        'The sessionId of an earlier query result: pass it to reuse that session\'s nodes by node id in "references" or merge "sources". Omit it to start a new session.',
                     ),
             });
             this.registerTrackedTool(

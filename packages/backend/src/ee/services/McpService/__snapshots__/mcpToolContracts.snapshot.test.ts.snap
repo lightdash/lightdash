@@ -10842,7 +10842,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
-- "sql": raw SQL against the project warehouse; needs SQL Runner permission.
+- "sql": raw SQL against the project warehouse; needs SQL Runner access.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
 - "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice. Prefer it to a duckdb join of semanticLayer nodes.
 - "duckdb": DuckDB SQL over other results declared in "references".
@@ -11436,7 +11436,7 @@ A result holds every row of the terminal node. While it is running, call get_que
                       "type": "string",
                     },
                     "sources": {
-                      "description": "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused. Fix a refused merge by narrowing a source with a filter, raising its limit or adding the missing join key, rather than joining the same nodes in a duckdb node, which can count a metric twice.",
+                      "description": "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused. Fix a refused merge by narrowing a source with a filter, raising its limit or adding the missing join key, rather than joining the same nodes in a duckdb node.",
                       "items": {
                         "properties": {
                           "nodeId": {
@@ -11640,7 +11640,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
             "type": "array",
           },
           "sessionId": {
-            "description": "The sessionId of an earlier query result: pass it to reuse that session's nodes by node id in "references". Omit it to start a new session.",
+            "description": "The sessionId of an earlier query result: pass it to reuse that session's nodes by node id in "references" or merge "sources". Omit it to start a new session.",
             "type": "string",
           },
           "terminalNodeId": {

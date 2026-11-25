@@ -137,7 +137,7 @@ export const MCP_TOOL_QUERY_DESCRIPTION = `Run one query, or a pipeline of up to
 
 ${getComposerNodeKindsDescription({
     enablePythonNodes: true,
-    sqlNote: 'needs SQL Runner permission',
+    sqlNote: 'needs SQL Runner access',
 })}
 
 A python node's "code" defines \`def run(inputs, params)\`; semanticLayer "filters" are flat expression strings.
@@ -437,7 +437,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             )
             .min(2)
             .describe(
-                "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused. Fix a refused merge by narrowing a source with a filter, raising its limit or adding the missing join key, rather than joining the same nodes in a duckdb node, which can count a metric twice.",
+                "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused. Fix a refused merge by narrowing a source with a filter, raising its limit or adding the missing join key, rather than joining the same nodes in a duckdb node.",
             ),
         joinKey: z
             .array(
