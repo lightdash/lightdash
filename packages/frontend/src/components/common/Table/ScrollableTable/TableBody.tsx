@@ -169,8 +169,11 @@ const TableRow: FC<TableRowProps> = ({
                 const cell = column
                     ? createCell(table, row, column, column.id)
                     : cells![columnIndex];
+                const columnSpans = rowSpanMergesByColumnId?.get(
+                    cell.column.id,
+                );
                 const rowSpanMerge = getWindowedRowSpanMerge(
-                    rowSpanMergesByColumnId?.get(cell.column.id),
+                    columnSpans,
                     index,
                     firstRenderedRowIndex,
                     lastRenderedRowIndex,
@@ -180,6 +183,10 @@ const TableRow: FC<TableRowProps> = ({
                 if (rowSpanMerge && !rowSpanMerge.isBlockStart) {
                     return null;
                 }
+                const blockRowCount =
+                    rowSpanMerge && columnSpans
+                        ? columnSpans[rowSpanMerge.blockStartRow].rowSpan
+                        : 1;
 
                 const meta = cell.column.columnDef.meta;
                 const field = meta?.item;
@@ -280,6 +287,7 @@ const TableRow: FC<TableRowProps> = ({
                         columnIndex={columnWindow ? columnIndex + 1 : undefined}
                         minimal={minimal}
                         rowSpan={rowSpanMerge?.rowSpan}
+                        isMergedBlock={blockRowCount > 1}
                         key={cell.id}
                         styleProps={meta?.styleProps}
                         backgroundColor={backgroundColor}

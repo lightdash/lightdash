@@ -4,3 +4,14 @@
        row's centered content (cells are 32px tall) */
     padding-top: var(--mantine-spacing-xs);
 }
+
+/* A merged value shows at most one line per row it covers. A taller value
+   would grow those rows, and the rows it covers change as the table scrolls. */
+.mergedDimValue {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--merged-row-span);
+    line-clamp: var(--merged-row-span);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

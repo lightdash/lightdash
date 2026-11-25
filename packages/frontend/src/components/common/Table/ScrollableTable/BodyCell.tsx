@@ -8,6 +8,7 @@ import {
     type RawResultRow,
     type ResultRow,
 } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import {
     getHotkeyHandler,
     useClipboard,
@@ -50,6 +51,9 @@ interface CommonBodyCellProps {
     minimal?: boolean;
     // Set on a row-grouping block-start cell that vertically merges >1 row.
     rowSpan?: number;
+    // Set on a cell of a row-grouping block of more than one row, also when the
+    // rendered rows clip the cell to one row.
+    isMergedBlock?: boolean;
 }
 
 const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
@@ -69,6 +73,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     tooltipContent,
     minimal = false,
     rowSpan,
+    isMergedBlock = false,
 }) => {
     const isMerged = !!rowSpan && rowSpan > 1;
     const elementRef = useRef<HTMLTableCellElement>(null);
@@ -210,7 +215,17 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                         : undefined
                 }
             >
-                <span>{children}</span>
+                {isMergedBlock ? (
+                    <Box
+                        component="span"
+                        className={bodyCellStyles.mergedDimValue}
+                        __vars={{ '--merged-row-span': String(rowSpan ?? 1) }}
+                    >
+                        {children}
+                    </Box>
+                ) : (
+                    <span>{children}</span>
+                )}
             </Td>
 
             {shouldRenderMenu ? (
