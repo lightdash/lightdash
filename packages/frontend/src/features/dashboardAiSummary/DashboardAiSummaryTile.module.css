@@ -14,20 +14,25 @@
 
 .footer {
     flex-shrink: 0;
-    margin-top: var(--mantine-spacing-xs);
-    padding-top: var(--mantine-spacing-xs);
+    margin-top: calc(var(--mantine-spacing-xs) / 2);
+    padding-top: calc(var(--mantine-spacing-xs) / 2);
     border-top: 1px solid var(--mantine-color-default-border);
+    color: var(--mantine-color-ldGray-5);
 }
 
 .footerStatus {
     display: flex;
     align-items: center;
-    padding: 0 var(--mantine-spacing-xxs, 4px);
+    padding: 0 var(--mantine-spacing-xxs);
 }
 
-.updating {
-    opacity: 0.5;
-    transition: opacity 150ms ease-out;
+.footerControl {
+    color: var(--mantine-color-ldGray-5);
+    font-weight: 400;
+
+    &:hover {
+        color: var(--mantine-color-ldGray-7);
+    }
 }
 
 .instructions {

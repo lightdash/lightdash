@@ -5,7 +5,6 @@ import {
     Button,
     Group,
     List,
-    Loader,
     Menu,
     Stack,
     Text,
@@ -66,7 +65,10 @@ const SummarySkeleton: FC<{ label: string }> = ({ label }) => (
     </Stack>
 );
 
-const SourceCharts: FC<{ charts: AiSummaryChart[] }> = ({ charts }) => {
+const SourceCharts: FC<{ charts: AiSummaryChart[]; disabled: boolean }> = ({
+    charts,
+    disabled,
+}) => {
     const [opened, setOpened] = useState(false);
     const stopHighlight = useRef<(() => void) | null>(null);
     const clearHighlight = () => {
@@ -96,7 +98,11 @@ const SourceCharts: FC<{ charts: AiSummaryChart[] }> = ({ charts }) => {
                         variant="subtle"
                         color="gray"
                         size="compact-xs"
-                        leftSection={<MantineIcon icon={IconChartBar} />}
+                        className={styles.footerControl}
+                        disabled={disabled}
+                        leftSection={
+                            <MantineIcon icon={IconChartBar} size={14} />
+                        }
                         onMouseEnter={() => highlight(allTileUuids)}
                         onMouseLeave={clearHighlight}
                     >
@@ -137,29 +143,24 @@ const SummaryFooter: FC<{
             wrap="nowrap"
             gap="xs"
         >
-            <Group gap={4} wrap="nowrap">
-                <SourceCharts charts={charts} />
-                <Tooltip
-                    label={isUpdating ? 'Updating' : `Updated ${generatedAgo}`}
-                >
+            <Group gap={2} wrap="nowrap">
+                <SourceCharts charts={charts} disabled={isUpdating} />
+                <Tooltip label={`Updated ${generatedAgo}`}>
                     <Box className={styles.footerStatus}>
-                        {isUpdating ? (
-                            <Loader size={14} />
-                        ) : (
-                            <MantineIcon icon={IconClock} color="ldGray.6" />
-                        )}
+                        <MantineIcon icon={IconClock} size={14} />
                     </Box>
                 </Tooltip>
             </Group>
             <Tooltip label="Regenerate">
                 <ActionIcon
                     color="gray"
-                    size="sm"
+                    size="xs"
+                    className={styles.footerControl}
                     aria-label="Regenerate"
                     disabled={!canRegenerate || isUpdating}
                     onClick={onRegenerate}
                 >
-                    <MantineIcon icon={IconRefresh} />
+                    <MantineIcon icon={IconRefresh} size={14} />
                 </ActionIcon>
             </Tooltip>
         </Group>
@@ -221,30 +222,30 @@ const SummaryBody: FC<{ tile: AiSummaryTile; isEditMode: boolean }> = ({
     if (summary) {
         return (
             <>
-                <Stack
-                    gap="xs"
-                    className={clsx(
-                        styles.content,
-                        isUpdating && styles.updating,
+                <Box className={styles.content}>
+                    {isUpdating ? (
+                        <SummarySkeleton label="Updating summary" />
+                    ) : (
+                        <Stack gap="xs">
+                            <Text fw={600}>{summary.headline}</Text>
+                            <Text fz="sm">{summary.summary}</Text>
+                            {summary.anomalies.length > 0 && (
+                                <List size="sm" spacing={4}>
+                                    {summary.anomalies.map((anomaly) => (
+                                        <List.Item key={anomaly.id}>
+                                            {anomaly.text}
+                                        </List.Item>
+                                    ))}
+                                </List>
+                            )}
+                            {error && (
+                                <Text fz="xs" c="red">
+                                    {error.error.message}
+                                </Text>
+                            )}
+                        </Stack>
                     )}
-                >
-                    <Text fw={600}>{summary.headline}</Text>
-                    <Text fz="sm">{summary.summary}</Text>
-                    {summary.anomalies.length > 0 && (
-                        <List size="sm" spacing={4}>
-                            {summary.anomalies.map((anomaly) => (
-                                <List.Item key={anomaly.id}>
-                                    {anomaly.text}
-                                </List.Item>
-                            ))}
-                        </List>
-                    )}
-                    {error && (
-                        <Text fz="xs" c="red">
-                            {error.error.message}
-                        </Text>
-                    )}
-                </Stack>
+                </Box>
                 <SummaryFooter
                     charts={charts}
                     generatedAt={summary.generatedAt}
