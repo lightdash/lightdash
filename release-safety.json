@@ -1,41 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.395.4",
-  "previousVersion": "3.395.3",
-  "releaseDate": "2026-11-25T10:09:07.030Z",
+  "version": "3.395.5",
+  "previousVersion": "3.395.4",
+  "releaseDate": "2026-11-25T10:26:04.251Z",
   "migrations": {
-    "present": true,
-    "count": 2,
-    "coreCount": 1,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261125120000_index_user_delete_foreign_keys.ts",
-        "edition": "core",
-        "tables": [
-          "pg_class",
-          "pg_index"
-        ],
-        "heaviness": {
-          "locksTable": "unknown",
-          "rewritesTable": "unknown",
-          "scansTable": true
-        }
-      },
-      {
-        "name": "20261125120100_index_ee_user_delete_foreign_keys.ts",
-        "edition": "ee",
-        "tables": [
-          "pg_class",
-          "pg_index"
-        ],
-        "heaviness": {
-          "locksTable": "unknown",
-          "rewritesTable": "unknown",
-          "scansTable": true
-        }
-      }
-    ]
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

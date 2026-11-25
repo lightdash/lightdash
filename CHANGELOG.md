@@ -1,3 +1,10 @@
+## [3.395.5](https://github.com/lightdash/lightdash/compare/3.395.4...3.395.5) (2026-11-25)
+
+
+### Performance Improvements
+
+* **results:** load a smaller first page of rows for very wide tables ([#33387](https://github.com/lightdash/lightdash/issues/33387)) ([fa6230a](https://github.com/lightdash/lightdash/commit/fa6230a43eda101a66ec6078d705416e01097aa8))
+
 ## [3.395.4](https://github.com/lightdash/lightdash/compare/3.395.3...3.395.4) (2026-11-25)
 
 
