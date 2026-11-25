@@ -1,3 +1,12 @@
+# [3.409.0](https://github.com/lightdash/lightdash/compare/3.408.0...3.409.0) (2026-11-25)
+
+
+### Features
+
+* **ai-agents:** limit an agent's integrations by tags, like dbt explores ([#33175](https://github.com/lightdash/lightdash/issues/33175)) ([ba05532](https://github.com/lightdash/lightdash/commit/ba055324dc7152db8987ab3de80235440437cf69))
+* **permissions:** give integrations their own manage:LiveSource permission ([#33176](https://github.com/lightdash/lightdash/issues/33176)) ([206b917](https://github.com/lightdash/lightdash/commit/206b917ac3ef73db9fe7c15c53b5c38f233221a6))
+* **permissions:** limit who can query an integration with an access rule ([#33178](https://github.com/lightdash/lightdash/issues/33178)) ([13f7aa1](https://github.com/lightdash/lightdash/commit/13f7aa17ad0e84b37706363c016cc5a7aaca5086))
+
 # [3.408.0](https://github.com/lightdash/lightdash/compare/3.407.0...3.408.0) (2026-11-25)
 
 
