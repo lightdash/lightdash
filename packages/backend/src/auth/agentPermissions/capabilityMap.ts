@@ -981,6 +981,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.updateLiveSourceFields': [
         AgentCapability.Administration,
     ],
+    'ExternalConnectionController.updateLiveSourceRateLimits': [
+        AgentCapability.Administration,
+    ],
     'ExternalSourceController.commitUpload': [
         AgentCapability.DeployUpload,
         AgentCapability.Administration,

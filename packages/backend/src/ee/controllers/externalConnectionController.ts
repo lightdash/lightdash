@@ -22,6 +22,7 @@ import {
     type ApiTestExternalConnectionResponse,
     type ApiUpdateLiveSourceCacheRequest,
     type ApiUpdateLiveSourceFieldsRequest,
+    type ApiUpdateLiveSourceRateLimitsRequest,
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionListItem,
@@ -177,7 +178,7 @@ export class ExternalConnectionController extends BaseController {
     }
 
     /**
-     * Lightdash's calls against the live source's declared rate limits: each limit's usage and when it resets, and whether the vendor has paused the integration. Other apps on the same vendor account aren't counted.
+     * Lightdash's calls against the live source's rate limits: each limit in force, its usage and when it resets, the integration's own limit and any an admin set, and whether the vendor has paused the integration. Other apps on the same vendor account aren't counted.
      * @summary Get live source rate-limit usage
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -362,6 +363,39 @@ export class ExternalConnectionController extends BaseController {
         return {
             status: 'ok',
             results: await this.getService().updateLiveSourceCache(
+                req.account,
+                projectUuid,
+                connectionUuid,
+                body,
+            ),
+        };
+    }
+
+    /**
+     * Lower a live data source's rate limits below the integration's own. The
+     * body replaces every limit set before: a window left out of `buckets`, or
+     * a null value, goes back to the integration's.
+     * @summary Update live data source rate limits
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('external-connections/{connectionUuid}/rate-limits')
+    @OperationId('updateLiveSourceRateLimits')
+    async updateLiveSourceRateLimits(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+        @Body() body: ApiUpdateLiveSourceRateLimitsRequest,
+    ): Promise<ApiExternalConnectionResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().updateLiveSourceRateLimits(
                 req.account,
                 projectUuid,
                 connectionUuid,

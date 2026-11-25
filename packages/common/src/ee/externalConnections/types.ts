@@ -1,5 +1,6 @@
 import { type UUID } from '../../types/api/uuid';
 import { type ApiConnectorType } from '../../types/querySources';
+import { type LiveSourceRateLimitSettings } from './liveSourceRateLimits';
 
 export type ExternalConnectionAuthType =
     | 'none'
@@ -528,6 +529,8 @@ export type ExternalConnection = {
     cacheTtlSeconds?: number | null;
     /** Live sources: results fetched before this are never reused. */
     cachePurgedAt?: Date | null;
+    /** Live sources: the lower rate limits an admin set; null when none are set. */
+    adminRateLimits?: LiveSourceRateLimitSettings | null;
     hasSecret: boolean;
     createdByUserUuid: string | null;
     updatedByUserUuid: string | null;
@@ -852,13 +855,16 @@ export type ApiExternalConnectionApiUsageResponse = {
     results: ExternalConnectionApiUsage[];
 };
 
-/** One of an integration's declared limits, with Lightdash's calls in its current window. */
+/** One limit on calls in a time window, with Lightdash's calls in its current window. */
 export type ExternalConnectionRateLimitBucket = {
     id: string;
     /** As declared, such as "per hour". */
     label: string;
     windowMs: number;
+    /** The limit in force: the integration's, or an admin's lower one. */
     capacity: number;
+    /** The integration's own limit; null for a daily limit only an admin set. */
+    defaultCapacity: number | null;
     /** Calls in the current window; 0 when no window is open. */
     used: number;
     /** When the current window ends, ISO; null when no window is open. */
@@ -866,8 +872,8 @@ export type ExternalConnectionRateLimitBucket = {
 };
 
 /**
- * Lightdash's own calls against an integration's declared rate limits, as of
- * `checkedAt`. Other apps on the same vendor account aren't counted.
+ * A live data source's rate limits, with Lightdash's own calls against them as
+ * of `checkedAt`. Other apps on the same vendor account aren't counted.
  */
 export type ExternalConnectionRateLimitUsage = {
     /** The integration's name, such as HubSpot. */
@@ -877,6 +883,16 @@ export type ExternalConnectionRateLimitUsage = {
     buckets: ExternalConnectionRateLimitBucket[];
     /** When the vendor's pause ends, ISO; null when it hasn't paused the integration. */
     limitedUntil: string | null;
+    /** What an admin set, as saved; null when nothing is set. */
+    adminRateLimits: LiveSourceRateLimitSettings | null;
+    /** The integration's own limit; null when it has no per-second limit. */
+    defaultCallsPerSecond: number | null;
+    /** The integration's own limit on calls in flight at once. */
+    defaultConcurrentCalls: number;
+    /** Calls in flight, never above the concurrency limit now in force. */
+    runningCalls: number;
+    /** What admins are told alongside the limits they can lower. */
+    note: string | null;
 };
 
 export type ApiExternalConnectionRateLimitUsageResponse = {

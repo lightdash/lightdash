@@ -13,7 +13,14 @@ const WINDOW = new Date(NOW);
 
 const target = (
     rateLimits: Partial<RateLimitTarget['rateLimits']> = {},
+    setByAdmin: Partial<RateLimitTarget['setByAdmin']> = {},
 ): RateLimitTarget => ({
+    setByAdmin: {
+        bucketIds: [],
+        callsPerSecond: false,
+        concurrentCalls: false,
+        ...setByAdmin,
+    },
     limitKey: 'connection-1',
     integration: 'hubspot',
     label: 'HubSpot',
@@ -36,7 +43,7 @@ const target = (
 const charged = (now: number): ApiSourceRateCharge => ({
     charged: true,
     now: new Date(now),
-    windows: [{ bucketId: 'hour', windowStartedAt: WINDOW }],
+    windows: [{ bucketId: 'hour', windowStartedAt: WINDOW, used: 1 }],
 });
 
 const buildLimiter = ({
@@ -235,6 +242,80 @@ describe('ApiSourceCallLimiter', () => {
         );
     });
 
+    it('says an admin set the limit that refused the call, and counts up to it', async () => {
+        const { limiter } = buildLimiter({
+            charges: [
+                (now) => ({
+                    charged: false,
+                    now: new Date(now),
+                    bucketId: 'hour',
+                    // Lowered after more calls than this were made
+                    used: 410,
+                    resumesAt: new Date(now + 20 * 60_000),
+                    isHeldByVendor: false,
+                }),
+            ],
+        });
+        const lowered = target(
+            {
+                buckets: [
+                    {
+                        id: 'hour',
+                        label: 'per hour',
+                        windowMs: 3_600_000,
+                        capacity: 100,
+                    },
+                ],
+            },
+            { bucketIds: ['hour'] },
+        );
+
+        const error = await refusal(limiter.run(lowered, vi.fn()));
+
+        expect(error.message).toBe(
+            'HubSpot limit set by your admin reached (100/100 calls per hour). Resumes at 14:20 UTC.',
+        );
+        expect(error.data).toMatchObject({ used: 100, limit: 100 });
+    });
+
+    it('says an admin set the per-second limit that queued the call too long', async () => {
+        const { limiter } = buildLimiter({
+            turns: [
+                (now) => ({
+                    booked: false,
+                    turnAt: new Date(now + 90_000),
+                    now: new Date(now),
+                }),
+            ],
+        });
+
+        const error = await refusal(
+            limiter.run(
+                target({ callsPerSecond: 2 }, { callsPerSecond: true }),
+                vi.fn(),
+            ),
+        );
+
+        expect(error.message).toBe(
+            'Too many HubSpot calls are queued (2 a second allowed by your admin). Resumes at 14:01:30 UTC.',
+        );
+    });
+
+    it('says an admin set the concurrency limit that kept the call waiting', async () => {
+        const { limiter } = buildLimiter({ slots: 0 });
+
+        const error = await refusal(
+            limiter.run(
+                target({ concurrentCalls: 1 }, { concurrentCalls: true }),
+                vi.fn(),
+            ),
+        );
+
+        expect(error.message).toBe(
+            'HubSpot is already running as many concurrent requests as your admin allows (1). Retry in 5 seconds.',
+        );
+    });
+
     it('waits for its paced turn', async () => {
         const { limiter, model, sleep } = buildLimiter({
             turns: [
@@ -275,7 +356,7 @@ describe('ApiSourceCallLimiter', () => {
         expect(error.data.resumesAt).toBe('2026-11-22T14:01:30.000Z');
         expect(model.refundApiSourceRateBuckets).toHaveBeenCalledWith(
             'connection-1',
-            [{ bucketId: 'hour', windowStartedAt: WINDOW }],
+            [{ bucketId: 'hour', windowStartedAt: WINDOW, used: 1 }],
         );
         expect(call).not.toHaveBeenCalled();
     });
@@ -292,7 +373,7 @@ describe('ApiSourceCallLimiter', () => {
             'live_source.internal.concurrency_limit',
         );
         expect(error.message).toBe(
-            'HubSpot is already running 2 calls at once. Retry in 5 seconds.',
+            'HubSpot is already running 2 concurrent requests. Retry in 5 seconds.',
         );
         expect(model.refundApiSourceRateBuckets).toHaveBeenCalledOnce();
         expect(call).not.toHaveBeenCalled();
@@ -304,6 +385,91 @@ describe('ApiSourceCallLimiter', () => {
         await limiter.run(target({ buckets: [] }), async () => 'rows');
 
         expect(model.chargeApiSourceRateBuckets).not.toHaveBeenCalled();
+    });
+
+    describe('when a call fills a limit', () => {
+        const minute = {
+            id: 'minute',
+            label: 'per minute',
+            windowMs: 60_000,
+            capacity: 60,
+        };
+        const hour = {
+            id: 'hour',
+            label: 'per hour',
+            windowMs: 3_600_000,
+            capacity: 100,
+        };
+        const day = {
+            id: 'day',
+            label: 'per day',
+            windowMs: 86_400_000,
+            capacity: 500,
+        };
+        const filled =
+            (used: Record<string, number>) =>
+            (now: number): ApiSourceRateCharge => ({
+                charged: true,
+                now: new Date(now),
+                windows: Object.entries(used).map(([bucketId, count]) => ({
+                    bucketId,
+                    windowStartedAt: WINDOW,
+                    used: count,
+                })),
+            });
+
+        it('reports each limit of an hour or longer, saying who set it', async () => {
+            const { limiter } = buildLimiter({
+                charges: [filled({ minute: 60, hour: 100, day: 500 })],
+            });
+            const onLimitReached = vi.fn();
+
+            await limiter.run(
+                target(
+                    { buckets: [minute, hour, day] },
+                    { bucketIds: ['day'] },
+                ),
+                async () => 'rows',
+                { onLimitReached },
+            );
+
+            expect(onLimitReached.mock.calls).toEqual([
+                [{ bucket: hour, isSetByAdmin: false }],
+                [{ bucket: day, isSetByAdmin: true }],
+            ]);
+        });
+
+        it('says nothing while a limit has room', async () => {
+            const { limiter } = buildLimiter({
+                charges: [filled({ hour: 99, day: 499 })],
+            });
+            const onLimitReached = vi.fn();
+
+            await limiter.run(
+                target({ buckets: [hour, day] }),
+                async () => 'rows',
+                { onLimitReached },
+            );
+
+            expect(onLimitReached).not.toHaveBeenCalled();
+        });
+
+        it('says nothing when the charge is given back', async () => {
+            const { limiter } = buildLimiter({
+                charges: [filled({ hour: 100 })],
+                slots: 0,
+            });
+            const onLimitReached = vi.fn();
+
+            await refusal(
+                limiter.run(target({ buckets: [hour] }), vi.fn(), {
+                    deadlineMs: 1_000,
+                    onLimitReached,
+                }),
+            );
+
+            expect(onLimitReached).not.toHaveBeenCalled();
+        });
     });
 
     describe('deadlines per caller', () => {
@@ -417,8 +583,16 @@ describe('ApiSourceCallLimiter', () => {
                         charged: true,
                         now: new Date(now),
                         windows: [
-                            { bucketId: 'minute', windowStartedAt: WINDOW },
-                            { bucketId: 'day', windowStartedAt: WINDOW },
+                            {
+                                bucketId: 'minute',
+                                windowStartedAt: WINDOW,
+                                used: 1,
+                            },
+                            {
+                                bucketId: 'day',
+                                windowStartedAt: WINDOW,
+                                used: 1,
+                            },
                         ],
                     }),
                 ],
