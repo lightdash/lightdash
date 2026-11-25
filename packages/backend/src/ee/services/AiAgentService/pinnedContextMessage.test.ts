@@ -169,7 +169,7 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
             ].join('\n'),
         );
         expect(content).toContain(
-            "Listed overrides are what the user sees: apply them when the question is about the dashboard or a chart as shown there; start a saved-chart edit from the chart's saved definition, and give a standalone question only the filters the user asks for.",
+            "Listed overrides are what the user sees: apply them to questions about the dashboard or chart as shown, including a delivered chart; start a saved-chart edit from the chart's saved definition, and give a standalone question only the filters the user asks for.",
         );
     });
 
@@ -197,7 +197,7 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
                 '  Parameter values: {"region":"EU"}',
                 '  Date zoom: {"granularity":"Week"}',
                 '',
-                "Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). Listed overrides are what the user sees: apply them when the question is about the dashboard or a chart as shown there; start a saved-chart edit from the chart's saved definition, and give a standalone question only the filters the user asks for.",
+                "Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). Listed overrides are what the user sees: apply them to questions about the dashboard or chart as shown, including a delivered chart; start a saved-chart edit from the chart's saved definition, and give a standalone question only the filters the user asks for.",
             ].join('\n'),
         );
     });

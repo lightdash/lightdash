@@ -12853,7 +12853,7 @@ export class AiAgentService extends BaseService {
                     (item.type === 'chart' || item.type === 'dashboard') &&
                     item.runtimeOverrides !== null,
             )
-                ? "Listed overrides are what the user sees: apply them when the question is about the dashboard or a chart as shown there; start a saved-chart edit from the chart's saved definition, and give a standalone question only the filters the user asks for."
+                ? "Listed overrides are what the user sees: apply them to questions about the dashboard or chart as shown, including a delivered chart; start a saved-chart edit from the chart's saved definition, and give a standalone question only the filters the user asks for."
                 : null,
         ].filter((sentence): sentence is string => sentence !== null);
         const guidanceSection =
