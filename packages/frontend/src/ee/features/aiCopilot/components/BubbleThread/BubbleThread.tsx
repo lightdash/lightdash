@@ -233,7 +233,23 @@ export const BubbleThread: FC<Props> = ({
             if (tries < 60) frame = window.requestAnimationFrame(focusReply);
         };
         focusReply();
-        return () => window.cancelAnimationFrame(frame);
+        // The click that opened it puts focus on what was clicked: take it
+        // back once that click is over.
+        let timer = 0;
+        const afterClick = () => {
+            timer = window.setTimeout(focusReply, 0);
+        };
+        window.addEventListener('click', afterClick, { once: true });
+        const stopWaiting = window.setTimeout(
+            () => window.removeEventListener('click', afterClick),
+            500,
+        );
+        return () => {
+            window.cancelAnimationFrame(frame);
+            window.clearTimeout(timer);
+            window.clearTimeout(stopWaiting);
+            window.removeEventListener('click', afterClick);
+        };
     }, [armed, isOpen]);
 
     return (
