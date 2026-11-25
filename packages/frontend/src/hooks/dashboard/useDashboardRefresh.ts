@@ -3,6 +3,7 @@ import {
     useQueryClient,
     type Query,
     type QueryClient,
+    type QueryKey,
 } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 
@@ -37,6 +38,23 @@ export const dashboardResultsQueryPredicate = getPredicateFunction(
     DASHBOARD_RESULTS_QUERIES,
 );
 
+// Tiles queued behind the tile-query cap send their request only once a slot frees
+const waitingForSlot = new WeakSet<Query>();
+
+export const waitForTileSlot = async <T>(
+    queryClient: QueryClient,
+    queryKey: QueryKey,
+    acquire: Promise<T>,
+) => {
+    const query = queryClient.getQueryCache().find(queryKey);
+    if (query) waitingForSlot.add(query);
+    try {
+        return await acquire;
+    } finally {
+        if (query) waitingForSlot.delete(query);
+    }
+};
+
 // A save keeps on-screen results, so tiles don't reload; each is dropped once
 // its tile unmounts, unless refetched since, so a later visit fetches fresh
 export const evictSavedDashboardResults = (queryClient: QueryClient) => {
@@ -59,7 +77,9 @@ export const evictSavedDashboardResults = (queryClient: QueryClient) => {
     // tile fetches once more when it lands
     const startedBeforeSave = new Set(
         [...onScreen.keys()].filter(
-            (query) => query.state.fetchStatus === 'fetching',
+            (query) =>
+                query.state.fetchStatus === 'fetching' &&
+                !waitingForSlot.has(query),
         ),
     );
     const release = (query: Query) => {

@@ -1,5 +1,8 @@
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
-import { evictSavedDashboardResults } from './useDashboardRefresh';
+import {
+    evictSavedDashboardResults,
+    waitForTileSlot,
+} from './useDashboardRefresh';
 
 const tileKey = (chartUuid: string) => [
     'dashboard_chart_ready_query',
@@ -97,5 +100,30 @@ describe('evictSavedDashboardResults', () => {
 
         expect(queryClient.getQueryData(tileKey('shown'))).toBe('old');
         remounted();
+    });
+
+    it('does not fetch again for a tile still queued for a slot at the save', async () => {
+        let freeSlot: () => void = () => {};
+        const slot = new Promise<void>((resolve) => {
+            freeSlot = resolve;
+        });
+        let calls = 0;
+        const unmount = new QueryObserver(queryClient, {
+            queryKey: tileKey('queued'),
+            queryFn: async ({ queryKey }) => {
+                await waitForTileSlot(queryClient, queryKey, slot);
+                calls += 1;
+                return 'sent after save';
+            },
+        }).subscribe(() => {});
+        await flush();
+        evictSavedDashboardResults(queryClient);
+
+        freeSlot();
+        await flush();
+        await flush();
+
+        expect(calls).toBe(1);
+        unmount();
     });
 });

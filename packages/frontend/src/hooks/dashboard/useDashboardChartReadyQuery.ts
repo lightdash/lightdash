@@ -14,7 +14,7 @@ import {
     type ExecuteAsyncDashboardChartRequestParams,
     type SavedChart,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { type LightdashApi } from '../../api';
 import {
@@ -43,6 +43,7 @@ import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import { useSessionTimezone } from '../useSessionTimezone';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
+import { waitForTileSlot } from './useDashboardRefresh';
 import { useTileVirtualViewSavedParameters } from './useTileVirtualViewSavedParameters';
 
 const executeAsyncDashboardChartQuery = async (
@@ -102,6 +103,7 @@ export const useDashboardChartReadyQuery = (
     const lightdashApi = useLightdashApi();
     const retryConfig = useQueryRetryConfig();
     const tileQueryQueue = useTileQueryQueue();
+    const queryClient = useQueryClient();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardSelector(selectInvalidateCache);
     const refreshCounter = useDashboardSelector(selectRefreshCounter);
@@ -370,7 +372,11 @@ export const useDashboardChartReadyQuery = (
             // Read the signal only here: reading it opts the query into
             // cancellation, which uncapped dashboards don't need.
             const releaseSlot = tileQueryQueue
-                ? await tileQueryQueue.acquire(tileUuid, queryContext.signal)
+                ? await waitForTileSlot(
+                      queryClient,
+                      queryContext.queryKey,
+                      tileQueryQueue.acquire(tileUuid, queryContext.signal),
+                  )
                 : undefined;
 
             const requestedContext =
