@@ -1,3 +1,10 @@
+## [3.409.3](https://github.com/lightdash/lightdash/compare/3.409.2...3.409.3) (2026-11-25)
+
+
+### Bug Fixes
+
+* **oauth:** apply granted scopes to every OAuth token ([#33423](https://github.com/lightdash/lightdash/issues/33423)) ([600d235](https://github.com/lightdash/lightdash/commit/600d2354dc5eb6508578efea9c75fbb585a0d308))
+
 ## [3.409.2](https://github.com/lightdash/lightdash/compare/3.409.1...3.409.2) (2026-11-25)
 
 
