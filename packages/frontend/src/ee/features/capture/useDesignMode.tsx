@@ -186,6 +186,15 @@ const boxInRegion = (rect: DOMRect, region: DOMRect): MarkBox => {
     };
 };
 
+const MIC_ON_KEY = 'design-mode-mic-on';
+const readMicOn = (): boolean => {
+    try {
+        return window.localStorage.getItem(MIC_ON_KEY) === '1';
+    } catch {
+        return false;
+    }
+};
+
 const holdPoint = (hold: Hold, point: Point) => ({
     x: hold.rect.left + point.x * hold.rect.width,
     y: hold.rect.top + point.y * hold.rect.height,
@@ -284,8 +293,9 @@ export const useDesignMode = (
 
     const [on, setOnState] = useState(false);
     const onRef = useRef(false);
-    const [micOn, setMicOnState] = useState(false);
-    const micOnRef = useRef(false);
+    // The mic choice is kept across visits, so it never has to be set twice.
+    const [micOn, setMicOnState] = useState(readMicOn);
+    const micOnRef = useRef(micOn);
     const [rect, setRect] = useState<DOMRect | null>(null);
     const [holding, setHolding] = useState(false);
     // The mic is recording the hold that is down.
@@ -1450,6 +1460,11 @@ export const useDesignMode = (
     const setMicOn = useCallback((value: boolean) => {
         micOnRef.current = value;
         setMicOnState(value);
+        try {
+            window.localStorage.setItem(MIC_ON_KEY, value ? '1' : '0');
+        } catch {
+            // Storage is blocked: the choice lasts for this visit only.
+        }
     }, []);
 
     const setOn = useCallback(

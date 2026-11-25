@@ -210,6 +210,7 @@ describe('useDesignMode', () => {
     beforeEach(() => {
         scroll = { x: 0, y: 0 };
         scrollContainer = null;
+        window.localStorage.clear();
         tab = null;
         composeImage.mockClear();
         startVoice.mockReset();
@@ -454,6 +455,17 @@ describe('useDesignMode', () => {
             { startMs: 600, endMs: 900, text: 'blue' },
         ]);
     };
+
+    it('the mic choice is remembered for the next visit', async () => {
+        const first = renderWithProviders(<Harness />);
+        expect(api.micOn).toBe(false);
+        await act(async () => {
+            api.setMicOn(true);
+        });
+        first.unmount();
+        renderWithProviders(<Harness />);
+        expect(api.micOn).toBe(true);
+    });
 
     it('a spoken reply needs no new mark: holding and talking sends the words to the thread', async () => {
         await turnOn();
