@@ -32,6 +32,7 @@ import { SectionName } from '../../../types/Events';
 import PivotTable from '../../common/PivotTable';
 import RunningBar from '../../common/RunningBar';
 import Table from '../../common/Table';
+import RowsExpansionRetry from '../../SimpleTable/RowsExpansionRetry';
 import { useIsResultsStale } from '../useIsResultsStale';
 import CellContextMenu from './CellContextMenu';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
@@ -259,6 +260,8 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                 status: getQueryStatus(unpivotedQuery, unpivotedQueryResults),
                 apiError: unpivotedQuery.error ?? unpivotedQueryResults.error,
                 queryStatus: unpivotedQueryResults.queryStatus,
+                rowsExpansionError: unpivotedQueryResults.rowsExpansionError,
+                retryFetchRows: unpivotedQueryResults.retryFetchRows,
             };
         }
 
@@ -271,6 +274,8 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
             status: finalStatus,
             apiError: query.error ?? queryResults.error,
             queryStatus: queryResults.queryStatus,
+            rowsExpansionError: queryResults.rowsExpansionError,
+            retryFetchRows: queryResults.retryFetchRows,
         };
 
         return result;
@@ -299,6 +304,8 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         status,
         apiError,
         queryStatus,
+        rowsExpansionError,
+        retryFetchRows,
     } = resultsData;
 
     // Grouped results data - uses the main query which has pivoted data when backend pivoting is enabled
@@ -653,6 +660,13 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                         footer={footer}
                         showSubtotals={false}
                         columnProperties={columnProperties}
+                        notice={
+                            !previous &&
+                            rowsExpansionError &&
+                            retryFetchRows ? (
+                                <RowsExpansionRetry onRetry={retryFetchRows} />
+                            ) : undefined
+                        }
                     />
                 )}
             </Box>
