@@ -57,6 +57,10 @@ describe('live integration specs', () => {
             ),
         ).toMatchInlineSnapshot(`
           {
+            "amplitude": {
+              "rating": "easy",
+              "score": 7,
+            },
             "attio": {
               "rating": "easy",
               "score": 7,
@@ -74,6 +78,10 @@ describe('live integration specs', () => {
               "score": 1,
             },
             "hubspot": {
+              "rating": "easy",
+              "score": 6,
+            },
+            "hydra": {
               "rating": "easy",
               "score": 6,
             },

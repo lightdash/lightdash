@@ -310,7 +310,7 @@ When no field matches literally, the result lists the closest catalog matches (f
             "type": "string",
           },
           "patterns": {
-            "description": "Up to 5 case-insensitive keyword patterns, not full regexes, matched against field names, labels, descriptions, hints and tags. Use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status"). Use short keywords: long natural-language phrases do not match. The patterns run together, so cover every angle of the question in one call (e.g. ["revenue|sales", "country|region", "segment|tier"]).",
+            "description": "Up to 5 case-insensitive keyword patterns, not full regexes, matched against field names, labels, descriptions, hints and tags. Use \`|\` to OR synonyms ("<term>|<synonym>") and a space or \`.*\` between words to require all of them ("<word>.*<word>"). Use short keywords: long natural-language phrases do not match. The patterns run together, so cover every angle of the question in one call (e.g. ["<measure>|<synonym>", "<dimension>|<synonym>", "<filter>|<synonym>"]).",
             "items": {
               "minLength": 1,
               "type": "string",
@@ -632,62 +632,6 @@ When no field matches literally, the result lists the closest catalog matches (f
             },
             "type": "array",
           },
-          "relevantVerifiedAnswers": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "artifactType": {
-                  "enum": [
-                    "chart",
-                    "dashboard",
-                  ],
-                  "type": "string",
-                },
-                "artifactVersionUuid": {
-                  "type": "string",
-                },
-                "chartConfig": {
-                  "additionalProperties": {},
-                  "propertyNames": {
-                    "type": "string",
-                  },
-                  "type": "object",
-                },
-                "description": {
-                  "type": [
-                    "string",
-                    "null",
-                  ],
-                },
-                "similarity": {
-                  "type": "number",
-                },
-                "title": {
-                  "type": [
-                    "string",
-                    "null",
-                  ],
-                },
-                "verifiedQuestion": {
-                  "type": [
-                    "string",
-                    "null",
-                  ],
-                },
-              },
-              "required": [
-                "artifactVersionUuid",
-                "chartConfig",
-                "artifactType",
-                "verifiedQuestion",
-                "title",
-                "description",
-                "similarity",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
         },
         "required": [
           "description",
@@ -718,8 +662,8 @@ Call this for the explores and fields you intend to use whose full detail you do
 
 Inputs:
 Each entry in \`requests\` is one of:
-- \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` for whole explores.
-- \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` for specific fields.
+- \`{ "type": "explore", "exploreIds": ["<explore>", "<other explore>"] }\` for whole explores.
+- \`{ "type": "field", "fields": [{ "exploreId": "<explore>", "fieldId": "<table>_<field>" }] }\` for specific fields.
 
 Applying the result:
 Use a metric's default time dimension unless the user asks for a different one.
@@ -777,7 +721,7 @@ Use a metric's default time dimension unless the user asks for a different one.
                             "type": "string",
                           },
                           "fieldId": {
-                            "description": "The fieldId, e.g. \`orders_status\`.",
+                            "description": "The fieldId, e.g. \`<table>_<field>\`.",
                             "minLength": 1,
                             "type": "string",
                           },
@@ -2480,7 +2424,7 @@ A custom chart type is chosen the same way: by its own description first, then a
         "readOnlyHint": true,
         "title": "List agents",
       },
-      "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
+      "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -2616,12 +2560,6 @@ A custom chart type is chosen the same way: by its own description first, then a
           "reasoning": {
             "type": "string",
           },
-          "verifiedQuestions": {
-            "items": {
-              "type": "string",
-            },
-            "type": "array",
-          },
         },
         "required": [
           "agentUuid",
@@ -2631,7 +2569,6 @@ A custom chart type is chosen the same way: by its own description first, then a
           "agentSpaceAccess",
           "agentProjectUuid",
           "explores",
-          "verifiedQuestions",
           "instruction",
           "confidence",
           "reasoning",
@@ -7785,7 +7722,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
       "description": "Tool: search_field_values
 
 Purpose:
-Validate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.
+Validate or disambiguate a candidate value for a specific dimension (e.g. a name or status) before filtering on it. Returns up to 100 unique values matching the query.
 
 Usage Tips:
 - Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly
@@ -14905,7 +14842,7 @@ exports[`MCP tool contracts > matches the filter-expression search_field_values 
   "description": "Tool: search_field_values
 
 Purpose:
-Validate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.
+Validate or disambiguate a candidate value for a specific dimension (e.g. a name or status) before filtering on it. Returns up to 100 unique values matching the query.
 
 Usage Tips:
 - Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly

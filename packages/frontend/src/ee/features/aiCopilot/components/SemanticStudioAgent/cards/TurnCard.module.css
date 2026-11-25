@@ -1,0 +1,132 @@
+.card {
+    overflow: hidden;
+    border-radius: var(--mantine-radius-lg);
+}
+
+.card > * + * {
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.head,
+.foot,
+.section {
+    padding: 8px var(--mantine-spacing-sm);
+}
+
+/* The card's menu shows on hover or focus, so a settled card stays quiet. */
+.headAction {
+    flex: none;
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.card:hover .headAction,
+.headAction:focus-within,
+.headAction:has([aria-expanded='true']) {
+    opacity: 1;
+}
+
+/* The header sits on the page's own tone, a shade off the card. */
+.head {
+    background: var(--ld-color-page);
+}
+
+/* A draft is not live yet, so its light is amber. */
+.dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--mantine-color-yellow-filled);
+}
+
+/* Each model the turn touched is a step, on a line that runs from one icon to the next. */
+.steps {
+    display: flex;
+    flex-direction: column;
+    padding: 8px var(--mantine-spacing-sm);
+}
+
+.step {
+    position: relative;
+    display: flex;
+    gap: var(--mantine-spacing-xs);
+    padding-bottom: var(--mantine-spacing-sm);
+}
+
+.step:last-child {
+    padding-bottom: 0;
+}
+
+.step:not(:last-child)::before {
+    position: absolute;
+    top: 20px;
+    bottom: 2px;
+    left: 6.5px;
+    width: 1px;
+    background: var(--mantine-color-default-border);
+    content: '';
+}
+
+/* Holds an icon on the first line of the text beside it. */
+.node {
+    display: flex;
+    flex: none;
+    align-items: center;
+    width: 14px;
+    height: 18px;
+}
+
+.card[data-gone='true'] .steps {
+    opacity: 0.6;
+}
+
+.card[data-gone='true'] .label {
+    text-decoration: line-through;
+}
+
+.row {
+    display: flex;
+    gap: var(--mantine-spacing-xs);
+    align-items: baseline;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.row:hover .label,
+.row:focus-visible .label {
+    color: var(--mantine-color-text);
+    text-decoration: underline;
+}
+
+.label {
+    min-width: 0;
+}
+
+.wrap {
+    overflow-wrap: anywhere;
+}
+
+/* An earlier turn's card, folded to its header until it is opened. */
+.fold {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+}
+
+.fold:hover,
+.fold:focus-visible {
+    background: var(--mantine-color-default-hover);
+}
+
+.toggle {
+    margin-top: 2px;
+}
+
+.toggle:hover p,
+.toggle:focus-visible p {
+    color: var(--mantine-color-text);
+    text-decoration: underline;
+}

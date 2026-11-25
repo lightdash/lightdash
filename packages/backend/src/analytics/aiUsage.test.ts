@@ -1,7 +1,6 @@
 import Logger from '../logging/logger';
 import {
     AiUsageEvent,
-    embeddingModelUsageToTokens,
     emitAiUsage,
     getAiUsageChannel,
     languageModelUsageToTokens,
@@ -108,19 +107,6 @@ describe('languageModelUsageToTokens', () => {
             cacheWriteTokens: null,
             reasoningTokens: null,
             totalTokens: null,
-        });
-    });
-});
-
-describe('embeddingModelUsageToTokens', () => {
-    it('maps embedding tokens to input and total', () => {
-        expect(embeddingModelUsageToTokens({ tokens: 42 })).toEqual({
-            inputTokens: 42,
-            outputTokens: null,
-            cacheReadTokens: null,
-            cacheWriteTokens: null,
-            reasoningTokens: null,
-            totalTokens: 42,
         });
     });
 });

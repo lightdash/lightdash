@@ -350,8 +350,6 @@ describe('Slack AI agent blocks', () => {
             description: null,
             dashboardConfig: null,
             versionCreatedAt: new Date(),
-            verifiedByUserUuid: null,
-            verifiedAt: null,
             chartConfig: {
                 source: 'semantic',
                 config: {
@@ -457,8 +455,6 @@ describe('Slack AI agent blocks', () => {
             description: null,
             dashboardConfig: null,
             versionCreatedAt: new Date(),
-            verifiedByUserUuid: null,
-            verifiedAt: null,
             chartConfig: {
                 source: 'composer',
                 schemaVersion: 2,
@@ -542,8 +538,6 @@ describe('Slack AI agent blocks', () => {
                     description: 'All paid orders',
                     dashboardConfig: null,
                     versionCreatedAt: new Date(),
-                    verifiedByUserUuid: null,
-                    verifiedAt: null,
                     chartConfig: {
                         source: 'composer',
                         schemaVersion: 2,
@@ -603,8 +597,6 @@ describe('Slack AI agent blocks', () => {
                     description: null,
                     dashboardConfig: null,
                     versionCreatedAt: new Date(),
-                    verifiedByUserUuid: null,
-                    verifiedAt: null,
                     chartConfig: {
                         title: 'Orders Over Time',
                         description: 'Orders by month',
@@ -694,8 +686,6 @@ describe('Slack AI agent blocks', () => {
                     description: null,
                     dashboardConfig: null,
                     versionCreatedAt: new Date(),
-                    verifiedByUserUuid: null,
-                    verifiedAt: null,
                     chartConfig: {
                         source: 'customChartType',
                         schemaVersion: 1,
@@ -816,8 +806,6 @@ describe('Slack AI agent blocks', () => {
                     description: null,
                     dashboardConfig: null,
                     versionCreatedAt: new Date(),
-                    verifiedByUserUuid: null,
-                    verifiedAt: null,
                     chartConfig: {
                         source: 'customChartType',
                         schemaVersion: 1,
@@ -894,8 +882,6 @@ describe('Slack AI agent blocks', () => {
                     description: null,
                     dashboardConfig: null,
                     versionCreatedAt: new Date(),
-                    verifiedByUserUuid: null,
-                    verifiedAt: null,
                     chartConfig: {
                         source: 'customChartType',
                         schemaVersion: 1,
@@ -940,8 +926,6 @@ describe('Slack AI agent blocks', () => {
                     description: null,
                     dashboardConfig: {},
                     versionCreatedAt: new Date(),
-                    verifiedByUserUuid: null,
-                    verifiedAt: null,
                     chartConfig: null,
                 },
             ] as never,
@@ -1004,8 +988,6 @@ describe('Slack AI agent blocks', () => {
                     description: null,
                     dashboardConfig: null,
                     versionCreatedAt: new Date(),
-                    verifiedByUserUuid: null,
-                    verifiedAt: null,
                     chartConfig: {
                         title: 'Orders Over Time',
                         description: 'Orders by month',
@@ -1075,8 +1057,6 @@ describe('Slack AI agent blocks', () => {
             description: null,
             dashboardConfig: null,
             versionCreatedAt: new Date(),
-            verifiedByUserUuid: null,
-            verifiedAt: null,
             chartConfig: {
                 title: 'Orders Over Time',
                 description: 'Orders by month',
@@ -1179,8 +1159,6 @@ describe('Slack AI agent blocks', () => {
                 description: null,
                 dashboardConfig: null,
                 versionCreatedAt: new Date(),
-                verifiedByUserUuid: null,
-                verifiedAt: null,
                 chartConfig: {
                     title: versionUuid,
                     description: versionUuid,
@@ -1272,8 +1250,6 @@ describe('Slack AI agent blocks', () => {
             description: null,
             dashboardConfig: null,
             versionCreatedAt: new Date(),
-            verifiedByUserUuid: null,
-            verifiedAt: null,
             chartConfig: {
                 title,
                 description: title,
@@ -1376,8 +1352,6 @@ describe('Slack AI agent blocks', () => {
             description: null,
             dashboardConfig: null,
             versionCreatedAt: new Date(),
-            verifiedByUserUuid: null,
-            verifiedAt: null,
             chartConfig: {
                 title: 'Placed vs completed orders',
                 description: 'Placed vs completed orders',
@@ -1460,8 +1434,6 @@ describe('Slack AI agent blocks', () => {
                 description: null,
                 dashboardConfig: null,
                 versionCreatedAt: new Date(),
-                verifiedByUserUuid: null,
-                verifiedAt: null,
                 chartConfig: {
                     title: 'Unique order count over time by status',
                     description: 'Unique order count over time by status',
@@ -1534,8 +1506,6 @@ describe('Slack AI agent blocks', () => {
             description: null,
             dashboardConfig: null,
             versionCreatedAt: new Date(),
-            verifiedByUserUuid: null,
-            verifiedAt: null,
             chartConfig: {
                 title,
                 description: title,
@@ -1617,8 +1587,6 @@ describe('Slack AI agent blocks', () => {
             description: null,
             dashboardConfig: null,
             versionCreatedAt: new Date(),
-            verifiedByUserUuid: null,
-            verifiedAt: null,
             chartConfig: {
                 title: 'Unique Order Count Over Time',
                 description: 'Unique Order Count Over Time',
@@ -1701,8 +1669,6 @@ describe('Slack AI agent blocks', () => {
                     description: null,
                     dashboardConfig: null,
                     versionCreatedAt: new Date(),
-                    verifiedByUserUuid: null,
-                    verifiedAt: null,
                     chartConfig: {
                         title: 'Order count over time',
                         description: 'Order count by order date',
@@ -1785,8 +1751,6 @@ describe('Slack AI agent blocks', () => {
                     description: null,
                     dashboardConfig: null,
                     versionCreatedAt: new Date(),
-                    verifiedByUserUuid: null,
-                    verifiedAt: null,
                     chartConfig: {
                         title: 'Order count over time',
                         description: 'Order count by order date',
@@ -1848,8 +1812,6 @@ describe('Slack AI agent blocks', () => {
                     description: null,
                     dashboardConfig: null,
                     versionCreatedAt: new Date(),
-                    verifiedByUserUuid: null,
-                    verifiedAt: null,
                     chartConfig: {
                         title: 'Order count over time',
                         description: 'Order count by order date',

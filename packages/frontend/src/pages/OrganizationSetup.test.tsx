@@ -5,13 +5,8 @@ import nock from 'nock';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BASE_API_URL } from '../api';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import OrganizationSetup from './OrganizationSetup';
-
-vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: vi.fn(),
-}));
 
 vi.mock('../ee/features/homepageBuilder/hooks/useProjectHomepage', () => ({
     useHomepageBuilderFlag: () => ({ isEnabled: false, isLoading: false }),
@@ -135,10 +130,6 @@ const selectRole = async (user: ReturnType<typeof userEvent.setup>) => {
 describe('OrganizationSetup', () => {
     beforeEach(() => {
         Object.values(toasterMocks).forEach((mock) => mock.mockReset());
-        vi.mocked(useServerFeatureFlag).mockReturnValue({
-            data: { id: 'organization-setup-page', enabled: true },
-            isLoading: false,
-        } as ReturnType<typeof useServerFeatureFlag>);
     });
 
     it('does not ask invited members how they heard about us', async () => {

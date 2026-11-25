@@ -2,10 +2,10 @@ import { CiMergeState } from '@lightdash/common';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { usePullRequestCiChecks } from '../../../../../../features/writeback/usePullRequestCiChecks';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
-import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import { AiEditDbtProjectToolCall } from './AiEditDbtProjectToolCall';
-import { QuietCardsContext, StudioAskContext } from './quietCards';
+import { InStudioChatContext, StudioAskContext } from './studioChatContext';
 
 const held = vi.hoisted(
     (): {
@@ -22,7 +22,7 @@ const held = vi.hoisted(
         workspaces: [],
     }),
 );
-vi.mock('../../../hooks/usePullRequestCiChecks', () => ({
+vi.mock('../../../../../../features/writeback/usePullRequestCiChecks', () => ({
     usePullRequestCiChecks: vi.fn(() => ({ data: held.ciChecks })),
 }));
 vi.mock(
@@ -43,7 +43,7 @@ vi.mock('./WritebackDiffModal', () => ({ WritebackDiffModal: () => null }));
 vi.mock('../../../../../../features/semanticStudio/ModelFieldChanges', () => ({
     ModelFieldChanges: () => null,
 }));
-vi.mock('../../SemanticStudioAgent/TryItButton', () => ({
+vi.mock('../../../../../../features/semanticStudio/TryItButton', () => ({
     TryIt: () => null,
 }));
 vi.mock('../../SemanticStudioAgent/PublishDraftModal', () => ({
@@ -51,13 +51,6 @@ vi.mock('../../SemanticStudioAgent/PublishDraftModal', () => ({
 }));
 vi.mock('../../SemanticStudioAgent/useSemanticStudioChat', () => ({
     useFinishDiscardedWork: () => vi.fn(),
-}));
-vi.mock('../../SemanticStudioAgent/useStudioPublish', () => ({
-    useStudioPublish: () => ({
-        destination: 'pull request #7',
-        compile: held.compile,
-        blocker: null,
-    }),
 }));
 vi.mock('../../SemanticStudioAgent/useStudioPullRequest', () => ({
     useStudioPullRequest: () => held.pullRequest,
@@ -80,7 +73,7 @@ vi.mock(
         }),
     }),
 );
-vi.mock('../../../hooks/usePullRequestDiff', () => ({
+vi.mock('../../../../../../features/writeback/usePullRequestDiff', () => ({
     usePullRequestDiff: () => ({ data: { diff: held.diff } }),
 }));
 
@@ -168,7 +161,7 @@ describe('the quiet pull request card of a side panel', () => {
         };
         renderWithProviders(
             <MemoryRouter>
-                <QuietCardsContext.Provider value>
+                <InStudioChatContext.Provider value>
                     <AiEditDbtProjectToolCall
                         projectUuid="project"
                         metadata={{
@@ -176,7 +169,7 @@ describe('the quiet pull request card of a side panel', () => {
                             prUrl: 'https://github.com/acme/analytics/pull/7',
                         }}
                     />
-                </QuietCardsContext.Provider>
+                </InStudioChatContext.Provider>
             </MemoryRouter>,
         );
         // The card is one line until it is opened; its link is inside.
@@ -217,7 +210,7 @@ describe('the quiet pull request card of a side panel', () => {
             };
             renderWithProviders(
                 <MemoryRouter>
-                    <QuietCardsContext.Provider value>
+                    <InStudioChatContext.Provider value>
                         <AiEditDbtProjectToolCall
                             projectUuid="project"
                             metadata={{
@@ -225,7 +218,7 @@ describe('the quiet pull request card of a side panel', () => {
                                 prUrl: 'https://github.com/acme/analytics/pull/7',
                             }}
                         />
-                    </QuietCardsContext.Provider>
+                    </InStudioChatContext.Provider>
                 </MemoryRouter>,
             );
             expect(screen.getAllByText(word)[0]).toBeVisible();
@@ -272,7 +265,7 @@ describe('the quiet pull request card of a side panel', () => {
         const ask = vi.fn();
         renderWithProviders(
             <MemoryRouter>
-                <QuietCardsContext.Provider value>
+                <InStudioChatContext.Provider value>
                     <StudioAskContext.Provider value={ask}>
                         <AiEditDbtProjectToolCall
                             projectUuid="project"
@@ -283,7 +276,7 @@ describe('the quiet pull request card of a side panel', () => {
                             }}
                         />
                     </StudioAskContext.Provider>
-                </QuietCardsContext.Provider>
+                </InStudioChatContext.Provider>
             </MemoryRouter>,
         );
         expect(screen.getByText("Draft doesn't compile")).toBeVisible();

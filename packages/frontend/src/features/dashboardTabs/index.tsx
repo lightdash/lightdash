@@ -741,7 +741,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [isFiltersCollapsed, setIsFiltersCollapsed] =
         useState<boolean>(false);
 
-    const isFiltersSummaryShown = isEditMode
+    // Without the edit toolbar there is no visibility switch to stay in sync with
+    const isVisibilitySetByEditToolbar = isEditMode && isEditErgonomicsEnabled;
+    const isFiltersSummaryShown = isVisibilitySetByEditToolbar
         ? editFiltersVisibility === 'summary'
         : isFiltersCollapsed;
 
@@ -1519,7 +1521,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                         )
                                             }
                                             onExpand={() =>
-                                                isEditMode
+                                                isVisibilitySetByEditToolbar
                                                     ? onEditFiltersVisibilityChange(
                                                           'all',
                                                       )
@@ -1565,7 +1567,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                 isDateZoomDisabled
                                             }
                                             onCollapse={() =>
-                                                isEditMode
+                                                isVisibilitySetByEditToolbar
                                                     ? onEditFiltersVisibilityChange(
                                                           'summary',
                                                       )

@@ -33,6 +33,7 @@ vi.mock('fs/promises', () => ({
     mkdir: vi.fn(),
     mkdtemp: vi.fn(),
     rm: vi.fn(),
+    stat: vi.fn(),
 }));
 vi.mock('execa');
 
@@ -423,13 +424,17 @@ describe('independent source partial parsing', () => {
         'does not read or write the digest or invalidate partial parsing without external nodes (baseline %s)',
         async (baseline) => {
             vi.mocked(fs.readdir).mockResolvedValue([]);
+            vi.mocked(fs.stat).mockResolvedValue({ size: 0 } as never);
             vi.mocked(fs.readFile).mockResolvedValue(
                 JSON.stringify(manifestMock),
             );
             const client = new DbtCliClient({
                 ...cliArgsWithoutVersion,
                 dbtVersion: SupportedDbtVersions.V1_9,
-                partialParseBaselinePath: baseline,
+                partialParseBaseline:
+                    baseline === null
+                        ? null
+                        : { path: baseline, access: 'read-write' },
             });
             await client.getDbtManifest({});
             expect(

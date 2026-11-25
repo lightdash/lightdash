@@ -1070,11 +1070,6 @@ describe('Enable multiple connections on the real schema', () => {
 
         test.each([
             { name: 'a preview', type: ProjectType.PREVIEW, source: null },
-            {
-                name: 'a playground',
-                type: ProjectType.DEFAULT,
-                source: 'playground',
-            },
         ])('refuses $name', async ({ type, source }) => {
             const fixture = await createProject({
                 type,
@@ -1098,6 +1093,20 @@ describe('Enable multiple connections on the real schema', () => {
                 fixture,
                 new ForbiddenError(
                     'The training project keeps the sample data it shipped with; its connection cannot be changed',
+                ),
+            );
+            expect(await state(fixture.projectUuid)).toEqual(singleState);
+        });
+
+        test('refuses the sample data project through the credential policy', async () => {
+            const fixture = await createProject({
+                provisioningSource: 'playground',
+            });
+
+            await refusesBoth(
+                fixture,
+                new ForbiddenError(
+                    "The sample data project can't be reconnected. Connect your data to create your own project",
                 ),
             );
             expect(await state(fixture.projectUuid)).toEqual(singleState);

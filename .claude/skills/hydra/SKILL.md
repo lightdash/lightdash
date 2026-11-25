@@ -41,7 +41,7 @@ Decide whether a tool we don't have yet is worth an integration, and how hard it
 Check that the integration still answers what its use cases say. How far to go is up to you. A few cases on a connected instance are usually enough, but go deeper when something looks off.
 
 - Run `hydra.sh specs <integration>`. Pick a handful of cases, mixing possible and not possible, and lean towards whatever recent changes touched.
-- Ask them the way a customer would, on a local instance or a Rainbow Machine env with the integration connected. When a number matters, check it against the vendor directly.
+- Ask them the way a customer would, on a local instance or a Rainbow Machine env with the integration connected. To test the shared engine without vendor credentials (the cache, limits, 429s, failed sign-in), connect `hydra` instead: `packages/backend/src/services/QuerySourceService/live/integrations/hydra/AGENTS.md`. When a number matters, check it against the vendor directly.
 - Judge each case against `possible`:
   - `pass` when it matches.
   - `regression` when a possible case fails.

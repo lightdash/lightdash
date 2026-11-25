@@ -21,8 +21,11 @@ import DiffsWorkerUrl from '@pierre/diffs/worker/worker.js?worker&url';
 import { IconFileDiff } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
 import MantineModal from '../../../../../../components/common/MantineModal';
-import { usePullRequestDiff } from '../../../hooks/usePullRequestDiff';
-import { recountHunks, splitPatchIntoFiles } from './splitPatch';
+import {
+    recountHunks,
+    splitPatchIntoFiles,
+} from '../../../../../../features/writeback/splitPatch';
+import { usePullRequestDiff } from '../../../../../../features/writeback/usePullRequestDiff';
 import classes from './WritebackDiffModal.module.css';
 
 // Tokenize with both Pierre themes; the diff renders via CSS `light-dark()`.

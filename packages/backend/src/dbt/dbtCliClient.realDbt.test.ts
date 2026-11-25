@@ -94,10 +94,10 @@ describe.skipIf(!executables)('empty selectors with real dbt', () => {
                     explicitCredentials: false,
                     dbtVersion,
                     selector: 'tag:absent',
-                    partialParseBaselinePath: path.join(
-                        directory,
-                        'baseline.msgpack',
-                    ),
+                    partialParseBaseline: {
+                        path: path.join(directory, 'baseline.msgpack'),
+                        access: 'read-write',
+                    },
                 });
                 calls = 0;
                 vi.spyOn(client, 'getDbtExec').mockImplementation(() => {
@@ -187,10 +187,14 @@ describe.skipIf(!executables)('empty selectors with real dbt', () => {
                     if (partial) {
                         expect(client.partialParseSeeded).toBe(true);
                         expect(info).toHaveBeenCalledWith(
-                            'dbt.partialParse command=ls seeded=true reused=true',
+                            expect.stringMatching(
+                                /^dbt\.partialParse command=ls seeded=true reused=true status=saved /,
+                            ),
                             expect.objectContaining({
                                 seeded: true,
                                 reused: true,
+                                status: 'saved',
+                                prunedOwnBaseline: false,
                             }),
                         );
                     }

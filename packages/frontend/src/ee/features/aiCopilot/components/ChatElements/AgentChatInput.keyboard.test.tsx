@@ -242,6 +242,26 @@ describe('AgentChatInput keyboard handling', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('sends pasted indented lines as a fenced code block', () => {
+        const { onSubmit, element } = renderInput();
+        const yaml = 'metrics:\n  - name: revenue\n    expr: SUM(amount)';
+        fireEvent.paste(element, {
+            clipboardData: {
+                items: [],
+                getData: (type: string) => (type === 'text/plain' ? yaml : ''),
+            },
+        });
+        expect(element.querySelector('pre')).toHaveTextContent('metrics:');
+
+        fireEvent.keyDown(element, { key: 'Enter' });
+
+        expect(onSubmit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining(`\`\`\`\n${yaml}\n\`\`\``),
+            }),
+        );
+    });
+
     it('does not send on Shift+Enter', () => {
         const { onSubmit, element } = renderInput();
 

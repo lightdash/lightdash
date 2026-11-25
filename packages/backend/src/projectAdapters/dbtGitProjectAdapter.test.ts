@@ -108,7 +108,7 @@ describe('Git explore compilation', () => {
     afterEach(() => vi.restoreAllMocks());
 
     it.each(['prepareExploreStream', 'compileAllExplores'] as const)(
-        '%s refreshes the checkout before preparing the compile',
+        '%s refreshes the checkout, then forwards every compile argument',
         async (method) => {
             const adapter = buildGitAdapter();
             const refresh = vi.fn(async () => undefined);
@@ -135,7 +135,7 @@ describe('Git explore compilation', () => {
                     })();
                 });
 
-            const result = await adapter[method](undefined, false, true);
+            const result = await adapter[method](undefined, false, true, true);
             const collected = [];
             for await (const item of result) collected.push(item);
 
@@ -143,6 +143,7 @@ describe('Git explore compilation', () => {
             expect(prepare).toHaveBeenCalledExactlyOnceWith(
                 undefined,
                 false,
+                true,
                 true,
             );
             expect(refresh).toHaveBeenCalledTimes(1);

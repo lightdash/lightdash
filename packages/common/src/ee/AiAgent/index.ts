@@ -41,6 +41,7 @@ import {
     type AiThreadBinding,
     type AiThreadBindingSummary,
     type AiThreadCreatedFrom,
+    type AiThreadMetadata,
 } from './requestTypes';
 import { type AgentToolOutput } from './schemas';
 import type {
@@ -76,6 +77,7 @@ export * from './skillValidation';
 export * from './filterExploreByTags';
 export * from './projectContext';
 export * from './requestTypes';
+export * from './semanticStudioProposals';
 export * from './schemas';
 export * from './schemas/agentReadiness';
 export * from './schemas/agentSuggestions';
@@ -402,7 +404,6 @@ export type AiAgentMessageAssistant = {
     savedQueryUuid: string | null;
 
     artifacts: AiAgentMessageAssistantArtifact[] | null;
-    referencedArtifacts: AiAgentMessageAssistantArtifact[] | null;
     modelConfig: AiAgentModelConfig | null;
     tokenUsage: AiPromptTokenUsage | null;
     responseTiming: AiPromptResponseTiming | null;
@@ -448,6 +449,8 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     binding: AiThreadBindingSummary | null;
     /** Initial context set at creation. */
     threadContext: string | null;
+    /** Caller-supplied labels set at creation; null when none were sent. */
+    metadata: AiThreadMetadata | null;
 };
 
 export type AiAgentThreadShare = {
@@ -716,6 +719,25 @@ export type ApiCreateAiAgent = Pick<
     threadRetentionHours?: number | null;
 };
 
+/** The agent a project gets when none exists yet, so people can start without configuring one. */
+export const getDefaultAiAgent = (projectUuid: string): ApiCreateAiAgent => ({
+    name: 'Analytics agent',
+    projectUuid,
+    description: null,
+    integrations: [],
+    tags: null,
+    instruction: `You are this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.`,
+    imageUrl: null,
+    groupAccess: [],
+    userAccess: [],
+    spaceAccess: [],
+    enableDataAccess: true,
+    enableSelfImprovement: false,
+    enableContentTools: true,
+    enableUserContext: true,
+    version: 2,
+});
+
 export type ApiUpdateAiAgent = Partial<
     Pick<
         AiAgent,
@@ -917,10 +939,15 @@ export type ApiAiAgentThreadWorkstreamsResponse = ApiSuccess<
 
 export const AI_THREAD_CONTEXT_MAX_LENGTH = 10_000;
 
+export const AI_THREAD_METADATA_MAX_KEYS = 20;
+export const AI_THREAD_METADATA_KEY_MAX_LENGTH = 255;
+export const AI_THREAD_METADATA_VALUE_MAX_LENGTH = 4_000;
+
 export type ApiAiAgentThreadCreateRequest = {
     /** First message. Optional when `binding` or `threadContext` is set; the thread then starts empty. */
     prompt?: string;
     context?: AiPromptContextInput;
+    /** Model and reasoning settings for the first prompt. The thread keeps its first recorded configuration. */
     modelConfig?: AiAgentModelConfig;
     originatingInstallationUuid?: string;
     /** Internal feature-speed battle; accepted only behind battle mode. */
@@ -929,6 +956,11 @@ export type ApiAiAgentThreadCreateRequest = {
     binding?: AiThreadBinding;
     /** Initial context for the agent, up to 10,000 characters. Cannot be changed after creation. */
     threadContext?: string;
+    /**
+     * Labels saved on the thread, such as an end user id or environment. At most 20 keys,
+     * keys up to 255 characters, values up to 4,000 characters. Cannot be changed after creation.
+     */
+    metadata?: AiThreadMetadata;
     /** Starts a Semantic Studio thread, whose agent drafts model changes for the person to apply. Only the app may set it. */
     createdFrom?: Extract<AiThreadCreatedFrom, 'semantic_studio'>;
 };
@@ -938,6 +970,7 @@ export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;
 export type ApiAiAgentThreadMessageCreateRequest = {
     prompt: string;
     context?: AiPromptContextInput;
+    /** Must match the thread's recorded model and reasoning settings, otherwise returns HTTP 400. Omit to reuse them; start a new thread to change them. If no configuration is recorded yet, selects it for this prompt. */
     modelConfig?: AiAgentModelConfig;
     originatingInstallationUuid?: string;
     /**
@@ -1283,8 +1316,6 @@ export type AiArtifact = {
     chartConfig: AiChartArtifactConfig | null;
     dashboardConfig: ToolDashboardV2Args | null;
     versionCreatedAt: Date;
-    verifiedByUserUuid: string | null;
-    verifiedAt: Date | null;
 };
 
 export const isAiSqlChartArtifactConfig = (
@@ -1358,31 +1389,6 @@ export type ApiAiAgentVisualizeSlackSendResponse = {
         permalink: string | null;
     };
 };
-
-export type AiAgentVerifiedArtifact = {
-    artifactUuid: string;
-    versionUuid: string;
-    artifactType: 'chart' | 'dashboard';
-    title: string | null;
-    description: string | null;
-    verifiedAt: Date;
-    verifiedBy: {
-        userUuid: string;
-        firstName: string;
-        lastName: string;
-    };
-    referenceCount: number;
-    threadUuid: string;
-    promptUuid: string | null;
-};
-
-export type ApiAiAgentVerifiedArtifactsResponse = ApiSuccess<
-    KnexPaginatedData<AiAgentVerifiedArtifact[]>
->;
-
-export type ApiAiAgentVerifiedQuestionsResponse = ApiSuccess<
-    { question: string; uuid: string }[]
->;
 
 export type AiAgentEvaluationPrompt = {
     evalPromptUuid: string;
@@ -1537,7 +1543,6 @@ export type AgentSummaryContext = {
     name: string;
     description: string | null;
     explores: string[];
-    verifiedQuestions: string[];
     instruction: string | null;
 };
 

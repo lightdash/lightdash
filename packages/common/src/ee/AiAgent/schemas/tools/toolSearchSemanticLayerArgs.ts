@@ -8,7 +8,7 @@ import { createToolSchema } from '../toolSchemaBuilder';
 export const TOOL_SEARCH_SEMANTIC_LAYER_DESCRIPTION = `Tool: searchSemanticLayer
 
 Purpose:
-Search or list metrics and dimensions across every explore at once, as one flat, paginated inventory, so you can compare names, labels and descriptions across the whole project: an inventory, duplicate or confusingly similar metrics, which explores define a "revenue" metric. To find the fields that answer a data question, use grepFields, which groups matches by explore.
+Search or list metrics and dimensions across every explore at once, as one flat, paginated inventory, so you can compare names, labels and descriptions across the whole project: an inventory, duplicate or confusingly similar metrics, which explores define a "<metric>" metric. To find the fields that answer a data question, use grepFields, which groups matches by explore.
 `;
 
 export const toolSearchSemanticLayerArgsSchema = createToolSchema()

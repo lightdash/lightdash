@@ -24,6 +24,8 @@ export type TokenLiveSourceForm = {
         isValid: (normalizedValue: string) => boolean;
     } | null;
     tokenLabel: string;
+    /** Shown under the token field; defaults to "Read access is enough". */
+    tokenHint?: string;
     toApiSource: (accountId: string) => ExternalConnectionApiSource;
     /** The account id of a saved source, or blank for another integration's. */
     getAccountId: (connection: ExternalConnection) => string;
