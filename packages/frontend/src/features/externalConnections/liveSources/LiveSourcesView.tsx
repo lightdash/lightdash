@@ -145,11 +145,6 @@ export const LiveSourcesTable: FC<{
     const rows = toLiveSourceRows(connections ?? [], usage);
     if (rows.length === 0) return <EmptyLiveSources />;
     const open = (connectionUuid: string) => () => onOpen(connectionUuid);
-    const isUsed = ({ externalConnectionUuid }: LiveSourceConnection) =>
-        (usage?.find(
-            (source) =>
-                source.externalConnectionUuid === externalConnectionUuid,
-        )?.apiCalls ?? 0) > 0;
     const onKeyDown =
         (connectionUuid: string) => (event: KeyboardEvent<HTMLElement>) => {
             if (event.target !== event.currentTarget) return;
@@ -214,16 +209,16 @@ export const LiveSourcesTable: FC<{
                     <span
                         role="cell"
                         className={tableClasses.number}
-                        data-empty={!isUsed(connection) || undefined}
+                        data-empty={!used.isUsed || undefined}
                     >
-                        {isUsed(connection) ? used.dataRead : '—'}
+                        {used.dataRead}
                     </span>
                     <span
                         role="cell"
                         className={tableClasses.number}
-                        data-empty={!isUsed(connection) || undefined}
+                        data-empty={!used.isUsed || undefined}
                     >
-                        {isUsed(connection) ? used.apiCalls : '—'}
+                        {used.apiCalls}
                     </span>
                     <span
                         role="cell"
@@ -293,17 +288,7 @@ export const LiveSourceSummary: FC<{
             <Stat label="Integration" value={row.integration} />
             <Stat
                 label="Queries"
-                value={
-                    usage
-                        ? (
-                              usage.find(
-                                  ({ externalConnectionUuid }) =>
-                                      externalConnectionUuid ===
-                                      connection.externalConnectionUuid,
-                              )?.queries ?? 0
-                          ).toLocaleString()
-                        : '—'
-                }
+                value={row.usage.queries}
                 labelExtra={
                     <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
                 }

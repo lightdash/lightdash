@@ -39,6 +39,7 @@ import {
 import { type LiveSourceConnection } from './liveSourceRows';
 import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
 import rowClasses from './LiveSourceSettingsRows.module.css';
+import { SETTINGS_FIELD_WIDTH } from './settingsLayout';
 
 type Condition = { name: string | null; values: string[] };
 type Conditions = { required: Condition[]; any: Condition[] };
@@ -120,7 +121,7 @@ const ConditionList: FC<{
                                     : undefined
                             }
                             size="xs"
-                            w={320}
+                            w={SETTINGS_FIELD_WIDTH}
                             value={condition.values}
                             onChange={(values) => update(index, { values })}
                         />
@@ -247,7 +248,7 @@ const AccessForm: FC<{
                     >
                         <SegmentedControl
                             size="xs"
-                            w={320}
+                            w={SETTINGS_FIELD_WIDTH}
                             data={[
                                 { value: 'everyone', label: 'Everyone' },
                                 {

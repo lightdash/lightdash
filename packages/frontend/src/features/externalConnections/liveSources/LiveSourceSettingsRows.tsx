@@ -53,17 +53,6 @@ export const SettingsValue: FC<{
     </Text>
 );
 
-/** Content that brings its own surface (a table), titled like a card. */
-export const SettingsSection: FC<{
-    title: string;
-    children: ReactNode;
-}> = ({ title, children }) => (
-    <Stack gap={6}>
-        <span className={classes.settingsTitle}>{title}</span>
-        {children}
-    </Stack>
-);
-
 /** A raised card, one row per setting, under an optional title. */
 export const SettingsCard: FC<{
     title?: string;

@@ -10,6 +10,7 @@ import { Badge, Group, TagsInput } from '@mantine/core';
 import { type FC } from 'react';
 import { SettingsRow, SettingsValue } from './LiveSourceSettingsRows';
 import classes from './LiveSourceSettingsRows.module.css';
+import { SETTINGS_FIELD_WIDTH } from './settingsLayout';
 
 export const LiveSourceTagsRow: FC<{
     isEditing: boolean;
@@ -19,7 +20,7 @@ export const LiveSourceTagsRow: FC<{
     <SettingsRow label="Tags" hint="AI agents can be filtered using tags">
         {isEditing ? (
             <TagsInput
-                w={320}
+                w={SETTINGS_FIELD_WIDTH}
                 classNames={{ inputField: classes.tagsField }}
                 size="xs"
                 aria-label="Tags"
