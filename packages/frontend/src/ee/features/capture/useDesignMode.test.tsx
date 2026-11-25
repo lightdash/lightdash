@@ -26,6 +26,7 @@ vi.mock('./useVoiceRecorder', () => ({
     useVoiceRecorder: () => ({
         start: startVoice,
         stop: stopVoice,
+        setWarm: () => {},
         listening: false,
         offReason: null,
     }),

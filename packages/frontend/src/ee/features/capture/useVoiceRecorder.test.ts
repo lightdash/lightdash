@@ -109,6 +109,32 @@ describe('useVoiceRecorder', () => {
         expect(result.current.offReason).toBe('unsupported');
     });
 
+    it('kept warm, the microphone opens once and stays open across recordings', async () => {
+        const liveStream = {
+            getTracks: () => [{ stop: trackStop, readyState: 'live' }],
+        };
+        const getUserMedia = vi.fn(() => Promise.resolve(liveStream));
+        setGetUserMedia(getUserMedia);
+        trackStop.mockClear();
+        const { result } = renderHook(() => useVoiceRecorder({ now: () => 0 }));
+        await act(async () => {
+            result.current.setWarm(true);
+        });
+        expect(getUserMedia).toHaveBeenCalledTimes(1);
+        for (let i = 0; i < 2; i++) {
+            await act(async () => {
+                await result.current.start({ available: true });
+            });
+            await act(async () => {
+                await result.current.stop();
+            });
+        }
+        expect(getUserMedia).toHaveBeenCalledTimes(1);
+        expect(trackStop).not.toHaveBeenCalled();
+        act(() => result.current.setWarm(false));
+        expect(trackStop).toHaveBeenCalledTimes(1);
+    });
+
     it('is off without asking for the microphone when voice is not set up', async () => {
         const getUserMedia = vi.fn(() => Promise.resolve(fakeStream));
         setGetUserMedia(getUserMedia);

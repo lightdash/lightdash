@@ -361,9 +361,18 @@ export const useDesignMode = (
     const toolbarRef = useRef<HTMLDivElement | null>(null);
 
     const absoluteNow = useCallback(() => performance.now(), []);
-    const { start: startVoice, stop: stopVoice } = useVoiceRecorder({
+    const {
+        start: startVoice,
+        stop: stopVoice,
+        setWarm: setVoiceWarm,
+    } = useVoiceRecorder({
         now: absoluteNow,
     });
+    // The mic is opened ahead of the key, so the first words are not lost.
+    const canTranscribe = (surface?.transcribe ?? null) !== null;
+    useEffect(() => {
+        setVoiceWarm(on && micOn && canTranscribe);
+    }, [canTranscribe, micOn, on, setVoiceWarm]);
 
     // Straight onto the layers: a render per scroll event would trail it.
     const refreshScroll = useCallback(() => {
