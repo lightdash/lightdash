@@ -109,6 +109,10 @@
     --notice-color: var(--mantine-color-yellow-light-color);
 }
 
+.gutter[data-tone='neutral'] {
+    --notice-color: var(--mantine-color-anchor);
+}
+
 .gutter[data-tone='info'] {
     --notice-color: var(--mantine-color-indigo-light-color);
 }
@@ -121,6 +125,14 @@
 .noticeTitle {
     flex: none;
     color: var(--notice-color);
+}
+
+.noticeHint {
+    flex: none;
+    display: inline-flex;
+    align-self: center;
+    margin-left: var(--mantine-spacing-xs);
+    color: var(--mantine-color-dimmed);
 }
 
 .noticeAction {
