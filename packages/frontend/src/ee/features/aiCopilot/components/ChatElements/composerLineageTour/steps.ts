@@ -12,16 +12,16 @@ type Highlight = 'python' | 'merge' | 'default';
 
 const GRAPH_COPY: Record<Highlight, { title: string; body: string }> = {
     python: {
-        title: 'This chart uses Python',
-        body: 'The agent wrote and ran Python code for one of these steps. You get the custom calculation without writing any code.',
+        title: 'This answer uses Python',
+        body: 'See how each step feeds into your chart. The agent can run Python for custom calculations and analysis.',
     },
     merge: {
-        title: 'Built from trusted metrics',
-        body: 'One of these steps combines or reshapes the results of earlier steps. The agent works from your trusted metrics instead of writing its own database queries.',
+        title: 'Flexible analysis, governed data',
+        body: 'See how each step feeds into your chart. The agent can combine and reshape governed query results instead of reaching for raw SQL.',
     },
     default: {
-        title: 'Every step behind this chart',
-        body: "Each box is a query the agent ran. A line means one step uses another step's result.",
+        title: 'How each step connects',
+        body: 'Follow how each step builds toward your final chart. Breaking complex questions into steps lets the agent handle one part of the analysis at a time.',
     },
 };
 
@@ -73,8 +73,8 @@ export const getComposerLineageTourSteps = ({
     return [
         {
             target: `${scope} ${TARGETS.viewToggle}`,
-            title: 'See how this chart was built',
-            body: 'Open Lineage to see every step the agent ran. The steps run outside the chat, so their results stay out of your conversation.',
+            title: 'See how this was built',
+            body: 'Switch to Lineage to trace every step behind this answer.',
         },
         {
             target: `${scope} ${TARGETS.graph}`,
@@ -84,12 +84,12 @@ export const getComposerLineageTourSteps = ({
             target: `${scope} ${TARGETS.steps} [data-node-id="${CSS.escape(focus.nodeId)}"]`,
             ...(canAddToChat
                 ? {
-                      title: 'Check or question any step',
-                      body: 'Each step shows what it ran and the rows it returned. Click Add to chat to ask the agent about a step.',
+                      title: 'Check any step',
+                      body: 'Each step shows what it did and its result table. Use Add to chat on any step to ask follow-up questions.',
                   }
                 : {
                       title: 'Check any step',
-                      body: 'Each step shows what it ran and the rows it returned, so you can check the numbers behind the chart.',
+                      body: 'Each step shows what it did and its result table, so you can verify the numbers behind the chart.',
                   }),
         },
         {
@@ -97,11 +97,11 @@ export const getComposerLineageTourSteps = ({
             ...(saveInMenu
                 ? {
                       target: `${scope} ${TARGETS.actions}`,
-                      body: 'Save this chart to a dashboard from this menu, or ask the agent to save it.',
+                      body: 'Add the chart to a dashboard from this menu, or just ask the agent to save it for you.',
                   }
                 : {
                       target: null,
-                      body: 'Ask the agent to save this chart to a dashboard.',
+                      body: 'To keep this chart, just ask the agent in chat to save it for you.',
                   }),
         },
     ];
