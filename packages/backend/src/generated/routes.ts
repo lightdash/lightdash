@@ -16611,66 +16611,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string-Array_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: {
-                dataType: 'array',
-                array: { dataType: 'string' },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    LiveSourceAccessRule: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                any: { ref: 'Record_string.string-Array_', required: true },
-                required: {
-                    ref: 'Record_string.string-Array_',
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    LiveSourceRateLimitSettings: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                concurrentCalls: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                callsPerSecond: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                buckets: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {},
-                    additionalProperties: { dataType: 'double' },
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalConnection: {
         dataType: 'refAlias',
         type: {
@@ -16695,20 +16635,6 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 hasSecret: { dataType: 'boolean', required: true },
-                adminRateLimits: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'LiveSourceRateLimitSettings' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                accessRule: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'LiveSourceAccessRule' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
                 cachePurgedAt: {
                     dataType: 'union',
                     subSchemas: [
@@ -16727,13 +16653,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                tags: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'array', array: { dataType: 'string' } },
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
@@ -17506,14 +17425,6 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 used: { dataType: 'double', required: true },
-                defaultCapacity: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
                 capacity: { dataType: 'double', required: true },
                 windowMs: { dataType: 'double', required: true },
                 label: { dataType: 'string', required: true },
@@ -17528,32 +17439,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                note: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                runningCalls: { dataType: 'double', required: true },
-                defaultConcurrentCalls: { dataType: 'double', required: true },
-                defaultCallsPerSecond: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                adminRateLimits: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'LiveSourceRateLimitSettings' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
                 limitedUntil: {
                     dataType: 'union',
                     subSchemas: [
@@ -17873,16 +17758,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        tags: {
-                            dataType: 'union',
-                            subSchemas: [
-                                {
-                                    dataType: 'array',
-                                    array: { dataType: 'string' },
-                                },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                        },
                         aiHint: {
                             dataType: 'union',
                             subSchemas: [
@@ -17913,11 +17788,6 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiUpdateLiveSourceRateLimitsRequest: {
-        dataType: 'refAlias',
-        type: { ref: 'LiveSourceRateLimitSettings', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     LiveSourceFieldEditor: {
@@ -21137,6 +21007,19 @@ const models: TsoaRoute.Models = {
     PreAggregateSort: {
         dataType: 'refAlias',
         type: { ref: 'Pick_SortField.fieldId-or-descending_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.string-Array_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: {
+                dataType: 'array',
+                array: { dataType: 'string' },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UserAttributeValueMap: {
@@ -97616,79 +97499,6 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'updateLiveSourceCache',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsExternalConnectionController_updateLiveSourceRateLimits: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            dataType: 'string',
-        },
-        connectionUuid: {
-            in: 'path',
-            name: 'connectionUuid',
-            required: true,
-            dataType: 'string',
-        },
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            ref: 'ApiUpdateLiveSourceRateLimitsRequest',
-        },
-    };
-    app.patch(
-        '/api/v1/ee/projects/:projectUuid/external-connections/:connectionUuid/rate-limits',
-        ...fetchMiddlewares<RequestHandler>(ExternalConnectionController),
-        ...fetchMiddlewares<RequestHandler>(
-            ExternalConnectionController.prototype.updateLiveSourceRateLimits,
-        ),
-
-        async function ExternalConnectionController_updateLiveSourceRateLimits(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsExternalConnectionController_updateLiveSourceRateLimits,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<ExternalConnectionController>(
-                        ExternalConnectionController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'updateLiveSourceRateLimits',
                     controller,
                     response,
                     next,
