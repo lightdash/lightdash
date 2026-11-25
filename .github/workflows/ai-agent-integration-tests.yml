@@ -239,9 +239,6 @@ jobs:
                   S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
                   S3_REGION: ${{ secrets.S3_REGION }}
                   S3_BUCKET: ${{ secrets.S3_BUCKET }}
-                  # TODO :: Support embeddings (Verifying Answers)
-                  AI_EMBEDDING_ENABLED: false
-                  AI_DEFAULT_EMBEDDING_PROVIDER: 'openai'
 
             - name: Upload test results
               uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7

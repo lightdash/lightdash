@@ -42,6 +42,7 @@ const CHART_TOOLS = new Set([
     'runSavedChart',
     'runContentQuery',
     'searchFieldValues',
+    'editContent',
 ]);
 
 const CHART_EXPORT_TOOLS = new Set(['loadAgentTools', 'exportChartAsCode']);

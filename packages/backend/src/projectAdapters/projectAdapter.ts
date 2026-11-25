@@ -10,6 +10,7 @@ import {
     type WarehouseClient,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import type { DbtPartialParseBaseline } from '../dbt/dbtPartialParseBaseline';
 import Logger from '../logging/logger';
 import type {
     DbtTargetPolicy,
@@ -41,7 +42,7 @@ export const projectAdapterFromConfig = async (
     cachedWarehouse: CachedWarehouse,
     dbtVersionOption: DbtVersionOption,
     environmentVariableAllowlist: string[],
-    partialParseBaselinePath: string | null,
+    partialParseBaseline: DbtPartialParseBaseline | null,
     dbtTarget: {
         resolve: () => DbtTargetResult;
         policy: DbtTargetPolicy;
@@ -73,7 +74,7 @@ export const projectAdapterFromConfig = async (
     switch (config.type) {
         case DbtProjectType.DBT:
             return new DbtLocalCredentialsProjectAdapter({
-                partialParseBaselinePath,
+                partialParseBaseline,
                 analytics,
                 warehouseClient,
                 projectDir: config.project_dir || '/usr/app/dbt',
@@ -143,7 +144,7 @@ export const projectAdapterFromConfig = async (
                 });
             }
             return new DbtGithubProjectAdapter({
-                partialParseBaselinePath,
+                partialParseBaseline,
                 analytics,
                 warehouseClient,
                 githubPersonalAccessToken: githubToken,
@@ -166,7 +167,7 @@ export const projectAdapterFromConfig = async (
             });
         case DbtProjectType.GITLAB:
             return new DbtGitlabProjectAdapter({
-                partialParseBaselinePath,
+                partialParseBaseline,
                 analytics,
                 warehouseClient,
                 gitlabPersonalAccessToken: config.personal_access_token,
@@ -197,7 +198,7 @@ export const projectAdapterFromConfig = async (
                 });
             }
             return new DbtBitBucketProjectAdapter({
-                partialParseBaselinePath,
+                partialParseBaseline,
                 analytics,
                 warehouseClient,
                 username: config.username,
@@ -217,7 +218,7 @@ export const projectAdapterFromConfig = async (
             });
         case DbtProjectType.AZURE_DEVOPS:
             return new DbtAzureDevOpsProjectAdapter({
-                partialParseBaselinePath,
+                partialParseBaseline,
                 analytics,
                 warehouseClient,
                 personalAccessToken: config.personal_access_token,

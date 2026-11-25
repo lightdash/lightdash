@@ -7,6 +7,10 @@ import {
     type SemanticLayerDraftItemResult,
     type SemanticStudioWorkspacePullRequestState,
 } from '@lightdash/common';
+import {
+    isNativeModelType,
+    NATIVE_MODEL_DIRECTORIES,
+} from '@lightdash/common/lightdash/loader';
 import { randomBytes } from 'node:crypto';
 import { parseDocument } from 'yaml';
 import {
@@ -49,9 +53,6 @@ export type RepoModels = {
 
 type GithubAccess = { installationId: string; token: string };
 
-const MODEL_TYPES = new Set(['model', 'model/v1beta', 'model/v1']);
-// The same two places, in the same order, that a native project is loaded from.
-const MODEL_DIRECTORIES = ['models', 'lightdash/models'];
 const YAML_FILE = /\.ya?ml$/;
 // Every file is one API call the first time a commit is read; read the tree's blobs in one request if a repo outgrows this.
 const MAX_MODEL_FILES = 500;
@@ -133,7 +134,7 @@ const readModelName = (content: string): string | null => {
     }
     const { type, name } = parsed;
     return typeof type === 'string' &&
-        MODEL_TYPES.has(type) &&
+        isNativeModelType(type) &&
         typeof name === 'string'
         ? name
         : null;
@@ -269,7 +270,7 @@ export class RepoModelSource {
                 'This repository is too large to read its models from',
             );
         }
-        const directories = MODEL_DIRECTORIES.map((directory) =>
+        const directories = NATIVE_MODEL_DIRECTORIES.map((directory) =>
             joinPath(connection.projectSubPath, directory),
         );
         const modelsDirectory =

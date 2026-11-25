@@ -41,7 +41,6 @@ How to use the context (PROMPT chips):
 - pinnedContext: PRIMARY SIGNAL. When present, every chip must ask a useful question about the pinned chart or dashboard. Use its real field labels and metadata to propose drill-downs, comparisons, explanations, or related analyses. Do not emit navigate chips when pinnedContext is present.
 - recentUserConversations: TOPIC SIGNAL. If the user has been digging into "product events", propose a NEW angle as a prompt chip ("Compare conversion rate across product surfaces"). For resumption, emit a navigate chip instead.
 - verifiedContent: TOPIC SIGNAL. If there's a "Revenue Summary" verified chart, propose a fresh angle on revenue ("Break down revenue by month").
-- verifiedQuestions: these ARE complete prompts. Use them verbatim as prompt chips when they fit — they're the highest-quality chip you can produce.
 - explores: catalog-driven question chips when no curated signal applies.
 - warehouseTables: RAW SCHEMA SIGNAL for projects with no semantic layer yet. Each entry is a fully-qualified \`database.schema.table\` name. When <explores> is empty but <warehouseTables> is present, write prompt chips grounded in these real table names using the \`runSql\` tool (e.g. "Count orders per month in analytics.public.orders"). Only reference table names that appear verbatim in <warehouseTables>; never invent columns — keep chips about whole tables, row counts, recency, and simple groupings the agent can express in SQL. In this mode NEVER write chips that ask for charts, visualizations, dashboards, or dashboard tiles — visualization tools require semantic-layer explores, which this project does not have yet, so the agent would fail and apologise. Every chip must be a plain data question answerable with a SQL result.
 
@@ -51,7 +50,7 @@ Tool guide (PROMPT chips):
 - \`generateDashboard\`: multi-chart overview ("Build me an executive summary").
 - \`findContent\`: "Is there already a chart for monthly revenue?" — locates existing saved content.
 
-If the project has zero explores, no warehouseTables, no verified questions AND no recent conversations, return three generic prompt chips that nudge the user to set up data.`;
+If the project has zero explores, no warehouseTables AND no recent conversations, return three generic prompt chips that nudge the user to set up data.`;
 
 const POST_RESPONSE_PROMPT = `You write 2-5 chips that appear above the chat input AFTER the agent has just replied. Each chip is what the user is most likely to click NEXT in this conversation.
 
@@ -70,9 +69,9 @@ PREFERRED CONTEXT:
 
 HARD RULES:
 - Never reference a field name, segment, tier, or metric that does not appear in <pinnedContext>, <thread.latestAssistantTurn.latestQueryExplore>, <explores>, <thread.latestAssistantTurn.text>, or <verifiedContent>. This is the #1 failure mode.
-- If <thread.latestAssistantTurn.refused> is true (the agent just said it couldn't do something): do NOT repeat the refused line. Pivot — propose a different explore, a related verified question, or an adjacent angle the data actually supports.
+- If <thread.latestAssistantTurn.refused> is true (the agent just said it couldn't do something): do NOT repeat the refused line. Pivot — propose a different explore or an adjacent angle the data actually supports.
 - 3 chips is ideal. 5 is the maximum.
-- Verified questions, verified content, and content tags reflect the user's curated workflow — prefer them when they fit the next-step slot. A chip that points at a verified chart ("Find the {name} chart") via \`findContent\` is often stronger than a new query.
+- Verified content and content tags reflect the user's curated workflow — prefer them when they fit the next-step slot. A chip that points at a verified chart ("Find the {name} chart") via \`findContent\` is often stronger than a new query.
 - No trailing punctuation on labels. Imperative or interrogative tense.
 
 For each chip, set defaults.explore, defaults.dimensions, defaults.metrics, defaults.timeframe based on what the chip implies. Use nulls / empty arrays when not applicable. Set tool to the best-fit enabled tool from <enabledTools>.
@@ -206,7 +205,6 @@ export type SuggestionPromptContext = {
         dimensions: SuggestionFieldContext[];
         metrics: SuggestionFieldContext[];
     }>;
-    verifiedQuestions: string[];
     verifiedContentTags: string[];
     verifiedContent: VerifiedContentItem[];
     pinnedContext?: SuggestionPinnedContext[];
@@ -271,7 +269,6 @@ export async function generateAgentSuggestions(
             enabledTools: context.enabledTools,
             explores: context.explores,
             warehouseTables: context.warehouseTables ?? null,
-            verifiedQuestions: context.verifiedQuestions,
             verifiedContentTags: context.verifiedContentTags,
             verifiedContent: context.verifiedContent,
             pinnedContext: context.pinnedContext ?? null,

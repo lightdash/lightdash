@@ -148,6 +148,67 @@ describe('reconcileModel', () => {
     });
 });
 
+describe('two people drafting the same part', () => {
+    const based = [
+        'type: model',
+        'name: things',
+        'sql_from: things',
+        'dimensions:',
+        '  - name: id',
+        '    type: number',
+        '    sql: id',
+        'metrics:',
+        '  total:',
+        '    type: sum',
+        '    sql: a',
+        '',
+    ].join('\n');
+    const draftOf = (sql: string) => [
+        [
+            {
+                name: 'things',
+                yaml: `metrics:\n  total:\n    sql: ${sql}\n`,
+                remove: [],
+                removeModel: false,
+            },
+        ],
+    ];
+
+    it.each([
+        ['first', 'second'],
+        ['second', 'first'],
+    ])(
+        'shows the overlap to whoever publishes second, when %s publishes first',
+        (first, second) => {
+            const published = foldDraft(
+                new Map([['things', based]]),
+                draftOf(first),
+            ).writes.get('things');
+            if (!published) throw new Error('The first draft wrote nothing');
+            const later = draftOf(second);
+            const replayed = foldDraft(new Map([['things', published]]), later);
+            const results = replayed.results.flat();
+            const { state, conflicts } = reconcileModel({
+                base: based,
+                live: published,
+                mine: replayed.writes.get('things') ?? published,
+                draftedPaths: findDraftedPaths('things', results),
+                refusedPaths: findRefusedPaths('things', results),
+                wanted: null,
+            });
+            expect(state).toBe('conflict');
+            expect(conflicts).toEqual([
+                {
+                    path: 'metrics.total.sql',
+                    base: 'a',
+                    live: first,
+                    mine: second,
+                },
+            ]);
+        },
+    );
+});
+
 describe('findDraftedPaths', () => {
     it('reads creating a model as the whole model', () => {
         expect(

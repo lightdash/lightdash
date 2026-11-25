@@ -1,9 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    FeatureFlags,
-    OrganizationAccessStatus,
-    ProjectType,
-} from '@lightdash/common';
+import { OrganizationAccessStatus, ProjectType } from '@lightdash/common';
 import { type ReactNode } from 'react';
 import { useDraftCheckoutView } from '../../features/semanticStudio/useSemanticLayerModel';
 import { useOrganizationAccess } from '../../hooks/organization/useOrganizationAccess';
@@ -11,7 +7,6 @@ import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useImpersonation } from '../../hooks/user/useImpersonation';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { getProjectUrlIdentifier } from '../../utils/projectUrl';
@@ -73,9 +68,7 @@ export const useNavBarState = (): NavBarState => {
                 OrganizationAccessStatus.TRIAL_EXPIRED);
 
     const { user } = useApp();
-    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const showSampleDataBanner =
-        newOnboardingFlag.data?.enabled === true &&
         !isImpersonating &&
         isCurrentProjectPlayground &&
         user.data?.ability.can(

@@ -106,7 +106,7 @@ export const useSettingsNavigation = (
         embeddingEnabled,
         dataAppsFlag,
         isChartStudioAvailable,
-        isApiQuerySourcesEnabled,
+        isLiveSourcesAvailable,
         isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,
@@ -1175,7 +1175,7 @@ export const useSettingsNavigation = (
                 });
             }
 
-            if (isApiQuerySourcesEnabled && canManageProjectConnections) {
+            if (isLiveSourcesAvailable && canManageProjectConnections) {
                 // Managed on the Semantic Layer page; still listed here so
                 // people who look for it in settings find their way.
                 projectItems.push({
@@ -1419,7 +1419,7 @@ export const useSettingsNavigation = (
         isEmbeddingEnabled,
         isDataAppsEnabled,
         isChartStudioAvailable,
-        isApiQuerySourcesEnabled,
+        isLiveSourcesAvailable,
         isExternalSourcesEnabled,
         isResultsCacheAvailable,
         isGitProject,

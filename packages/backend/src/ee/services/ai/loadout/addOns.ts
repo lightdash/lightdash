@@ -16,7 +16,7 @@ const hasContentTools = (input: LoadoutInput): boolean =>
 const hasDocumentTools = (input: LoadoutInput): boolean =>
     input.enableDataAccess && input.enableDocuments;
 
-const hasProjectContextTool = (input: LoadoutInput): boolean =>
+export const hasProjectContextTool = (input: LoadoutInput): boolean =>
     input.projectContextEnabled || input.aiAgentMemoryEnabled;
 
 export const hasDecisionsInStandardMode = (

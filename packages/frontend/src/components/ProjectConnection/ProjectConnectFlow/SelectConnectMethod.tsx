@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import { Button, Stack, Text, Avatar } from '@mantine/core';
 import {
     IconChecklist,
@@ -8,7 +7,6 @@ import {
     IconTerminal,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -31,12 +29,6 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
 }) => {
     const { track } = useTracking();
 
-    const warehouseConnectFlag = useServerFeatureFlag(
-        FeatureFlags.NewOnboarding,
-    );
-    const isWarehouseConnectEnabled =
-        warehouseConnectFlag.data?.enabled ?? false;
-
     return (
         <OnboardingWrapper>
             <Button
@@ -57,9 +49,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                     />
 
                     <Text c="dimmed">
-                        {isWarehouseConnectEnabled
-                            ? 'To get started, choose how you want to connect:'
-                            : 'To get started, choose how you want to upload your dbt project:'}
+                        To get started, choose how you want to connect:
                     </Text>
 
                     <Stack>
@@ -124,34 +114,32 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                             Manually
                         </OnboardingButton>
 
-                        {isWarehouseConnectEnabled && (
-                            <OnboardingButton
-                                onClick={() => {
-                                    track({
-                                        name: EventName.CREATE_PROJECT_WAREHOUSE_BUTTON_CLICKED,
-                                    });
-                                    onSelect(ConnectMethod.WAREHOUSE);
-                                }}
-                                leftIcon={
-                                    <Avatar radius="xl">
-                                        <MantineIcon
-                                            icon={IconDatabase}
-                                            color="black"
-                                            size="lg"
-                                        />
-                                    </Avatar>
-                                }
-                                rightIcon={
+                        <OnboardingButton
+                            onClick={() => {
+                                track({
+                                    name: EventName.CREATE_PROJECT_WAREHOUSE_BUTTON_CLICKED,
+                                });
+                                onSelect(ConnectMethod.WAREHOUSE);
+                            }}
+                            leftIcon={
+                                <Avatar radius="xl">
                                     <MantineIcon
-                                        icon={IconChevronRight}
+                                        icon={IconDatabase}
                                         color="black"
+                                        size="lg"
                                     />
-                                }
-                                description="Fastest way to get started — connect directly and query your tables"
-                            >
-                                Connect to your warehouse
-                            </OnboardingButton>
-                        )}
+                                </Avatar>
+                            }
+                            rightIcon={
+                                <MantineIcon
+                                    icon={IconChevronRight}
+                                    color="black"
+                                />
+                            }
+                            description="Fastest way to get started: connect directly and query your tables"
+                        >
+                            Connect to your warehouse
+                        </OnboardingButton>
                     </Stack>
                 </Stack>
             </ProjectCreationCard>

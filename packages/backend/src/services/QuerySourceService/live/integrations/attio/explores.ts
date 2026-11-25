@@ -33,7 +33,7 @@ const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
         name: 'record_id',
         apiName: 'record_id',
         label: 'Record ID',
-        description: "The record's id in Attio.",
+        description: "Attio's ID for the record.",
         type: DimensionType.STRING,
         filterOperators: [FilterOperator.EQUALS, FilterOperator.NOT_EQUALS],
     },
@@ -41,7 +41,7 @@ const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
         name: 'web_url',
         apiName: 'web_url',
         label: 'URL',
-        description: 'Link to the record in Attio.',
+        description: 'Link to open the record in Attio.',
         type: DimensionType.STRING,
         filterOperators: [],
     },
@@ -49,7 +49,7 @@ const BUILT_IN_DIMENSIONS: LiveDimensionDefinition[] = [
         name: 'created_at',
         apiName: 'created_at',
         label: 'Created',
-        description: 'The day the record was created, in UTC.',
+        description: 'Day the record was created, in UTC.',
         type: DimensionType.DATE,
         filterOperators: ATTIO_DATE_FILTERS,
     },
@@ -64,6 +64,20 @@ const OBJECT_LABELS: Record<AttioObject, string> = {
     workspaces: 'Workspaces',
 };
 
+/** What each object's records are, for people browsing the explore. */
+const OBJECT_DESCRIPTIONS: Record<AttioObject, string> = {
+    companies:
+        'Company records in Attio, one row per company, with their attributes.',
+    people: 'People records in Attio, one row per person, with their attributes.',
+    deals: 'Deal records in Attio, one row per deal, with their attributes.',
+    users: "User records in Attio (users of your product, from Attio's Users object), one row per user, with their attributes.",
+    workspaces:
+        "Workspace records in Attio (your product's customer workspaces, from Attio's Workspaces object), one row per workspace, with their attributes.",
+};
+
+const MULTISELECT_HINT =
+    'Multi-select attribute: values are joined with commas.';
+
 /**
  * One object's built-in fields, which every record has; a scan adds the
  * object's attributes. The explore is named by the object's slug.
@@ -71,9 +85,10 @@ const OBJECT_LABELS: Record<AttioObject, string> = {
 const toObjectExplore = (object: AttioObject): LiveExploreDefinition => ({
     name: object,
     label: OBJECT_LABELS[object],
-    description: `Attio ${object} records, read live from Attio, one row per record, at most ${ATTIO_MAX_RECORDS.toLocaleString(
+    description: OBJECT_DESCRIPTIONS[object],
+    aiHint: `Read live, one row per record; a query lists at most ${ATTIO_MAX_RECORDS.toLocaleString(
         'en-US',
-    )} per query.`,
+    )} records. There is no Count metric: count or sum by aggregating rows in the query. Multi-select attributes join several values with commas. Owner name fields are empty when the access token lacks the user_management:read scope.`,
     dimensions: BUILT_IN_DIMENSIONS,
     metrics: [],
     maxDimensions: null,
@@ -193,36 +208,33 @@ export const withAttioAttributeFields = (
             const rule = ATTIO_ATTRIBUTE_RULES[type];
             const name = toDimensionName(slug);
             const derived = (ATTIO_DERIVED_FIELDS[type] ?? []).map(
-                (field): LiveDimensionDefinition => ({
-                    name: `${name}__${field.suffix}`,
-                    apiName: toAttioApiName(slug, field.property),
-                    label: field.label(title),
-                    description: [
-                        field.description(title),
-                        isMultiselect
-                            ? 'Several values are joined with commas.'
-                            : '',
+                (field): LiveDimensionDefinition => {
+                    const aiHint = [
+                        isMultiselect ? MULTISELECT_HINT : '',
+                        field.aiHint ?? '',
                     ]
                         .filter(Boolean)
-                        .join(' '),
-                    type: field.type,
-                    filterOperators: [],
-                }),
+                        .join(' ');
+                    return {
+                        name: `${name}__${field.suffix}`,
+                        apiName: toAttioApiName(slug, field.property),
+                        label: field.label(title),
+                        description: field.description(title),
+                        ...(aiHint ? { aiHint } : {}),
+                        type: field.type,
+                        filterOperators: [],
+                    };
+                },
             );
             return [
                 {
                     name,
                     apiName: toAttioApiName(slug, rule.property),
                     label: title,
-                    description: [
+                    description:
                         description?.trim() ||
-                            `The ${title} attribute in Attio.`,
-                        isMultiselect
-                            ? 'Several values are joined with commas.'
-                            : '',
-                    ]
-                        .filter(Boolean)
-                        .join(' '),
+                        `The ${title} attribute in Attio.`,
+                    ...(isMultiselect ? { aiHint: MULTISELECT_HINT } : {}),
                     type: rule.type,
                     filterOperators: rule.filterOperators,
                 },
