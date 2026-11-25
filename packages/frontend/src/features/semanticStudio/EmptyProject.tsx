@@ -18,14 +18,21 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
+import { IconArrowRight, IconFileSpreadsheet } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { WarehouseLogoStack } from '../../components/ProjectConnection/ProjectConnectFlow/WarehouseLogoStack';
+import MantineIcon from '../../components/common/MantineIcon';
+import { WarehouseTypeLabels } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useProjectCreateAiAgentMutation } from '../../ee/features/aiCopilot/hooks/useProjectAiAgents';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import {
+    getLiveSourceIconClass,
+    isAvailableLiveSource,
+    LIVE_SOURCE_CATALOG,
+} from '../externalConnections/liveSources/liveSourceCatalog';
 import { TableListingFailureNotice } from '../sqlRunner/components/TableListingFailureNotice';
 import classes from './EmptyProject.module.css';
 import sharedClasses from './shared.module.css';
@@ -35,7 +42,11 @@ import { useAddSource, WAREHOUSE_OPTION } from './useAddSource';
 import { useSemanticLayerStatus } from './useSemanticLayerModel';
 import { type ViewModel } from './useSemanticStudio';
 import { WarehouseHeading } from './WarehouseStatusLine';
-import { modelTablePrompt, useWarehouseSummary } from './warehouseSummary';
+import {
+    modelTablePrompt,
+    useWarehouseSummary,
+    warehouseDetails,
+} from './warehouseSummary';
 
 // ---------------------------------------------------------------------------
 // Empty project
@@ -48,9 +59,7 @@ const STARTER_MODEL = [
     { key: 'type:', value: 'sum', indent: 2 },
 ];
 
-const StarterModelCode: FC<{ showWarehouses: boolean }> = ({
-    showWarehouses,
-}) => (
+const StarterModelCode: FC = () => (
     <Box className={classes.starterWindow} aria-hidden>
         <Group gap={5} className={classes.starterBar}>
             <Box className={classes.starterDot} />
@@ -77,13 +86,112 @@ const StarterModelCode: FC<{ showWarehouses: boolean }> = ({
                 </Box>
             ))}
         </Box>
-        {showWarehouses ? (
-            <Box className={classes.starterLogos}>
-                <WarehouseLogoStack size="md" monochrome={false} />
-            </Box>
-        ) : null}
     </Box>
 );
+
+const WAREHOUSE_LOGOS = WarehouseTypeLabels.flatMap((warehouse) =>
+    warehouse.iconType === 'image'
+        ? [{ label: warehouse.label, image: warehouse.image }]
+        : [],
+);
+
+const LIVE_SOURCE_ICONS = LIVE_SOURCE_CATALOG.filter(isAvailableLiveSource).map(
+    ({ label, icon }) => ({ label, icon }),
+);
+
+const LIVE_ICONS_SHOWN = 3;
+
+/** Every supported warehouse as a tile on a faint isometric floor. */
+const WarehouseFloor: FC = () => (
+    <Box className={classes.isoStage} aria-hidden>
+        <Box className={classes.isoPlane}>
+            {WAREHOUSE_LOGOS.map(({ label, image }) => (
+                <Box key={label} className={classes.isoTile}>
+                    <img src={image} alt="" />
+                </Box>
+            ))}
+        </Box>
+    </Box>
+);
+
+const AltOption: FC<{
+    icon: ReactNode;
+    title: string;
+    description: string;
+    onClick: () => void;
+}> = ({ icon, title, description, onClick }) => (
+    <Box
+        component="button"
+        type="button"
+        className={classes.altOption}
+        onClick={onClick}
+    >
+        <Box className={classes.altIcon} aria-hidden>
+            {icon}
+        </Box>
+        <Text fz="sm" fw={500}>
+            {title}
+        </Text>
+        <Text fz="xs" c="dimmed">
+            {description}
+        </Text>
+    </Box>
+);
+
+/** Ways in that need no warehouse: live data sources and files. */
+const StartWithoutWarehouse: FC<{ view: ViewModel }> = ({ view }) => {
+    const { options, addInPlace } = useAddSource(view);
+    const live = options.find(({ key }) => key === 'live');
+    const file = options.find(({ key }) => key === 'file');
+    if (!live && !file) return null;
+    return (
+        <Stack gap="xs" w="100%" mt="lg" align="center">
+            <Text fz="xs" c="dimmed">
+                Or start without one
+            </Text>
+            <Box className={classes.altOptions}>
+                {live ? (
+                    <AltOption
+                        icon={
+                            <Box className={classes.liveIcons}>
+                                {LIVE_SOURCE_ICONS.slice(
+                                    0,
+                                    LIVE_ICONS_SHOWN,
+                                ).map(({ label, icon }) => (
+                                    <Box
+                                        key={label}
+                                        className={classes.liveIcon}
+                                    >
+                                        <img
+                                            src={icon}
+                                            alt=""
+                                            className={getLiveSourceIconClass(
+                                                icon,
+                                            )}
+                                        />
+                                    </Box>
+                                ))}
+                            </Box>
+                        }
+                        title="Connect a live source"
+                        description="PostHog, HubSpot and more"
+                        onClick={() => addInPlace(live)}
+                    />
+                ) : null}
+                {file ? (
+                    <AltOption
+                        icon={
+                            <MantineIcon icon={IconFileSpreadsheet} size={18} />
+                        }
+                        title="Upload a file"
+                        description="A CSV or a spreadsheet"
+                        onClick={() => addInPlace(file)}
+                    />
+                ) : null}
+            </Box>
+        </Stack>
+    );
+};
 
 /** Other ways in, for anyone who would rather not start from the warehouse. */
 const StartFromSources: FC<{ view: ViewModel }> = ({ view }) => {
@@ -160,7 +268,7 @@ const WarehouseCard: FC<{
     const showsSchema = summary?.location?.includes('.') !== true;
     return (
         <Paper p="md" w="100%" ta="left" aria-label="Warehouse">
-            <WarehouseHeading type={type} summary={summary} />
+            <WarehouseHeading type={type} details={warehouseDetails(summary)} />
             {listingFailure ? (
                 <Box mt="xs">
                     <TableListingFailureNotice failure={listingFailure} />
@@ -243,24 +351,34 @@ export const BuildFirstModel: FC<{
     onAsk: ((prompt: string) => void) | null;
     /** The chat's own composer, left out with onAsk. */
     firstRequest: ReactNode;
-}> = ({ view, onAsk, firstRequest }) => (
-    <Box className={classes.starter}>
-        <Stack align="center" gap="lg" w="100%" maw={640}>
-            <StudioDraftIllustration width={180} />
-            <Stack gap="xs" align="center" ta="center" maw={480}>
-                <Title order={3}>Build your semantic layer</Title>
-                <Text c="dimmed" fz="sm">
-                    {SEMANTIC_LAYER_LINE}
-                </Text>
+}> = ({ view, onAsk, firstRequest }) => {
+    const { isListing, summary } = useWarehouseSummary(view.project.id);
+    // The rail's card lists the tables; this one only explains why there are none
+    const showsWarehouse = !isListing && !summary?.tables.length;
+    return (
+        <Box className={classes.starter}>
+            <Stack align="center" gap="lg" w="100%" maw={640}>
+                <StudioDraftIllustration width={180} />
+                <Stack gap="xs" align="center" ta="center" maw={480}>
+                    <Title order={3}>Build your semantic layer</Title>
+                    <Text c="dimmed" fz="sm">
+                        {SEMANTIC_LAYER_LINE}
+                    </Text>
+                </Stack>
+                {firstRequest}
+                {showsWarehouse ? (
+                    <Box w="100%" maw={520}>
+                        <WarehouseCard
+                            projectUuid={view.project.id}
+                            onModel={onAsk}
+                        />
+                    </Box>
+                ) : null}
+                <StartFromLiveSource view={view} />
             </Stack>
-            {firstRequest}
-            <Box w="100%" maw={520}>
-                <WarehouseCard projectUuid={view.project.id} onModel={onAsk} />
-            </Box>
-            <StartFromLiveSource view={view} />
-        </Stack>
-    </Box>
-);
+        </Box>
+    );
+};
 
 type EmptyState =
     | 'loading'
@@ -329,6 +447,42 @@ export const EmptyProject: FC<{
         case 'loading':
             return <EmptyProjectSkeleton />;
         case 'noWarehouse':
+            return (
+                <Box className={classes.starter}>
+                    <Stack
+                        align="center"
+                        gap="lg"
+                        w="100%"
+                        maw={460}
+                        ta="center"
+                    >
+                        <WarehouseFloor />
+                        <Stack gap="xs" align="center">
+                            <Title order={3}>
+                                Connect a warehouse to start
+                            </Title>
+                            <Text c="dimmed" fz="sm">
+                                {`Your tables and metrics are built from the data in your warehouse. ${connect ? 'Add its credentials in project settings.' : 'Ask a project admin to connect one.'}`}
+                            </Text>
+                        </Stack>
+                        {connect ? (
+                            <Button
+                                component={Link}
+                                to={pathOf(connect) ?? ''}
+                                rightSection={
+                                    <MantineIcon
+                                        icon={IconArrowRight}
+                                        size={16}
+                                    />
+                                }
+                            >
+                                Connect a warehouse
+                            </Button>
+                        ) : null}
+                        <StartWithoutWarehouse view={view} />
+                    </Stack>
+                </Box>
+            );
         case 'connectedProject':
             return (
                 <Box className={classes.starter}>
@@ -339,33 +493,14 @@ export const EmptyProject: FC<{
                         maw={460}
                         ta="center"
                     >
-                        <StarterModelCode
-                            showWarehouses={state === 'noWarehouse'}
-                        />
-                        {state === 'noWarehouse' ? (
-                            <Stack gap="xs" align="center">
-                                <Title order={3}>
-                                    Connect a warehouse to start
-                                </Title>
-                                <Text c="dimmed" fz="sm">
-                                    {`Your metrics are built from the data in your warehouse. ${connect ? 'Add its credentials in project settings.' : 'Ask a project admin to connect one.'}`}
-                                </Text>
-                            </Stack>
-                        ) : (
-                            <Stack gap="xs" align="center">
-                                <Title order={3}>No models yet</Title>
-                                <Text c="dimmed" fz="sm">
-                                    Your tables and metrics come from the
-                                    connected project. They show up here after
-                                    it refreshes.
-                                </Text>
-                            </Stack>
-                        )}
-                        {connect ? (
-                            <Button component={Link} to={pathOf(connect) ?? ''}>
-                                Connect a warehouse
-                            </Button>
-                        ) : null}
+                        <StarterModelCode />
+                        <Stack gap="xs" align="center">
+                            <Title order={3}>No models yet</Title>
+                            <Text c="dimmed" fz="sm">
+                                Your tables and metrics come from the connected
+                                project. They show up here after it refreshes.
+                            </Text>
+                        </Stack>
                         <StartFromSources view={view} />
                     </Stack>
                 </Box>

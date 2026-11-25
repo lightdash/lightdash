@@ -1,0 +1,226 @@
+.dock {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 8px;
+    padding: 10px 8px 9px 10px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 12px;
+    background: light-dark(
+        linear-gradient(
+            180deg,
+            var(--mantine-color-white) 0%,
+            var(--mantine-color-ldGray-0) 100%
+        ),
+        linear-gradient(
+            180deg,
+            var(--mantine-color-dark-6) 0%,
+            var(--mantine-color-dark-7) 100%
+        )
+    );
+    color: var(--mantine-color-text);
+    font: inherit;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 1px 2px
+        color-mix(in srgb, var(--mantine-color-black) 6%, transparent);
+    transition:
+        border-color 150ms ease,
+        box-shadow 150ms ease,
+        transform 150ms ease;
+}
+
+.dock:hover {
+    border-color: color-mix(
+        in srgb,
+        var(--mantine-color-text) 22%,
+        transparent
+    );
+    box-shadow: 0 4px 14px
+        color-mix(in srgb, var(--mantine-color-black) 10%, transparent);
+    transform: translateY(-1px);
+}
+
+.marquee {
+    overflow: hidden;
+    mask-image: linear-gradient(
+        90deg,
+        transparent 0,
+        black 18px,
+        black calc(100% - 18px),
+        transparent 100%
+    );
+}
+
+.track {
+    display: flex;
+    gap: 6px;
+    width: max-content;
+    animation: drift 28s linear infinite;
+}
+
+.dock:hover .track {
+    animation-play-state: paused;
+}
+
+.chip {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    flex: none;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 8px;
+    background: var(--mantine-color-body);
+}
+
+.chip img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+}
+
+.label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2px;
+    min-width: 0;
+}
+
+.arrow {
+    flex: none;
+    color: var(--mantine-color-dimmed);
+    transition:
+        transform 150ms ease,
+        color 150ms ease;
+}
+
+.dock:hover .arrow {
+    color: var(--mantine-color-text);
+    transform: translateX(2px);
+}
+
+.suggestion {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 8px 8px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    color: var(--mantine-color-dimmed);
+    text-decoration: none;
+    transition:
+        background 120ms ease,
+        color 120ms ease;
+}
+
+.suggestion {
+    width: calc(100% - 16px);
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.miniLogos {
+    display: flex;
+    flex: none;
+}
+
+.miniLogos img {
+    width: 14px;
+    height: 14px;
+    padding: 1px;
+    border-radius: 50%;
+    background: var(--mantine-color-body);
+    object-fit: contain;
+    box-shadow: 0 0 0 1px var(--mantine-color-default-border);
+}
+
+.miniLogos img + img {
+    margin-left: -4px;
+}
+
+.suggestion:hover {
+    background: color-mix(in srgb, var(--mantine-color-text) 4%, transparent);
+    color: var(--mantine-color-text);
+}
+
+@keyframes drift {
+    to {
+        transform: translateX(calc(-50% - 3px));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .track {
+        animation: none;
+    }
+
+    .dock,
+    .dock:hover {
+        transform: none;
+    }
+}
+
+.slot {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    margin: 8px;
+    padding: 10px;
+    border: 1px dashed
+        color-mix(in srgb, var(--mantine-color-text) 22%, transparent);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--mantine-color-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        border-color 150ms ease,
+        background-color 150ms ease;
+}
+
+.slot:hover {
+    border-color: color-mix(
+        in srgb,
+        var(--mantine-color-text) 40%,
+        transparent
+    );
+    background: color-mix(in srgb, var(--mantine-color-text) 3%, transparent);
+}
+
+.slot:hover .arrow {
+    color: var(--mantine-color-text);
+    transform: translateX(2px);
+}
+
+.slotLabel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.logoTile {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 8px;
+    background: var(--mantine-color-body);
+}
+
+.logoTile img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}

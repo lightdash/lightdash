@@ -126,9 +126,13 @@ export const NodeIcon: FC<{
 }> = ({ project, nodeRef, size = 16, fieldKind = 'dimension' }) => {
     switch (nodeRef.type) {
         case 'kind':
-            return <KindIcon kind={nodeRef.kind} size={size} />;
+            // The semantic layer is the warehouse it runs on.
+            return nodeRef.kind === 'modelled' && project.warehouse ? (
+                <WarehouseLogo type={project.warehouse.type} size={size} />
+            ) : (
+                <KindIcon kind={nodeRef.kind} size={size} />
+            );
         case 'source': {
-            // Under Warehouse, the semantic layer is the warehouse it runs on.
             const source = getSource(project, nodeRef.sourceId);
             const warehouse =
                 source.kind === 'modelled'

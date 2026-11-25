@@ -60,6 +60,7 @@ import {
     type Field,
     type Source,
     type TreeNode,
+    sourceWarehouse,
 } from './model';
 import {
     CHANGE_KIND_LABELS,
@@ -87,6 +88,7 @@ import {
 } from './useSemanticLayerModel';
 import { type ViewModel } from './useSemanticStudio';
 import { findCheckedOutModel, useStudioCheckout } from './useStudioCheckout';
+import { WarehouseStatusLine } from './WarehouseStatusLine';
 import classes from './WorkbenchMainPane.module.css';
 
 /** Opens the source's existing settings page; labelled, never a bare gear. */
@@ -483,6 +485,11 @@ export const MainPane: FC<{
             ? source.id
             : undefined,
     );
+    // The warehouse's own page says what it is and links to its connection
+    const isWarehousePage =
+        ref?.type !== 'explore' &&
+        source?.kind === 'modelled' &&
+        !!sourceWarehouse(view.project, source);
     const trail = node ? trailTo(view.tree.nodes, node.key) : [];
     // A page sits under its parent.
     const crumbs = trail.slice(0, -1);
@@ -577,7 +584,9 @@ export const MainPane: FC<{
                                     source={externalSource}
                                 />
                             ) : null}
-                            {source && ref?.type !== 'explore' ? (
+                            {source &&
+                            ref?.type !== 'explore' &&
+                            !isWarehousePage ? (
                                 <SettingsLink
                                     view={view}
                                     source={source}
@@ -590,6 +599,17 @@ export const MainPane: FC<{
                 <Box className={classes.mainBody}>
                     {onBuildModel && !ref ? (
                         <SemanticLayerNudge onBuild={onBuildModel} />
+                    ) : null}
+                    {isWarehousePage ? (
+                        <WarehouseStatusLine
+                            projectUuid={view.project.id}
+                            named={!node}
+                            settingsPath={
+                                view.canOpenSettings && source?.settingsPath
+                                    ? addPath(view, source.settingsPath)
+                                    : null
+                            }
+                        />
                     ) : null}
                     {liveConnection ? (
                         <LiveSourceSummary

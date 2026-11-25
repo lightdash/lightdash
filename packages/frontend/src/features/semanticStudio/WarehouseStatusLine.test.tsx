@@ -29,10 +29,12 @@ const listingError = (data: { [key: string]: unknown }) => ({
 const renderLine = ({
     listsTables,
     settingsPath,
+    named = false,
     failureData = {},
 }: {
-    listsTables: boolean;
+    listsTables: boolean | 'pending';
     settingsPath: string | null;
+    named?: boolean;
     failureData?: { [key: string]: unknown };
 }) => {
     api.mockImplementation(({ url }: { url: string }) => {
@@ -43,6 +45,7 @@ const renderLine = ({
             });
         }
         if (url === '/projects/project/sqlRunner/tables') {
+            if (listsTables === 'pending') return new Promise(() => {});
             return listsTables
                 ? Promise.resolve({
                       db: { schema_a: { table_a: {}, table_b: {} } },
@@ -55,6 +58,7 @@ const renderLine = ({
         <MemoryRouter>
             <WarehouseStatusLine
                 projectUuid="project"
+                named={named}
                 settingsPath={settingsPath}
             />
         </MemoryRouter>,
@@ -66,20 +70,21 @@ beforeEach(() => {
 });
 
 describe('WarehouseStatusLine', () => {
-    it('shows the warehouse, where its tables are, how many, and a link to edit it', async () => {
+    it('shows where the tables are, how many, and a link to edit the connection', async () => {
         renderLine({ listsTables: true, settingsPath: SETTINGS_PATH });
         expect(
             await screen.findByText('db.schema_a · 2 tables'),
         ).toBeInTheDocument();
-        expect(screen.getByText('PostgreSQL')).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: 'Edit connection' }),
         ).toHaveAttribute('href', SETTINGS_PATH);
     });
 
-    it('shows the warehouse without a count when its tables cannot be listed', async () => {
+    it('shows no count when the tables cannot be listed', async () => {
         renderLine({ listsTables: false, settingsPath: SETTINGS_PATH });
-        expect(await screen.findByText('PostgreSQL')).toBeInTheDocument();
+        expect(
+            await screen.findByRole('link', { name: 'Edit connection' }),
+        ).toBeInTheDocument();
         await vi.waitFor(() =>
             expect(api).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -122,6 +127,21 @@ describe('WarehouseStatusLine', () => {
         expect(
             screen.getByRole('link', { name: 'Edit connection' }),
         ).toBeInTheDocument();
+    });
+
+    it('names the warehouse where the page title does not', async () => {
+        renderLine({
+            listsTables: true,
+            settingsPath: SETTINGS_PATH,
+            named: true,
+        });
+        expect(await screen.findByText('PostgreSQL')).toBeInTheDocument();
+        expect(screen.getByText('db.schema_a · 2 tables')).toBeInTheDocument();
+    });
+
+    it('says the tables are being listed while they are', async () => {
+        renderLine({ listsTables: 'pending', settingsPath: SETTINGS_PATH });
+        expect(await screen.findByText('Listing tables…')).toBeInTheDocument();
     });
 
     it('asks for an admin instead of linking to settings it cannot open', async () => {

@@ -59,9 +59,10 @@ type Setup = {
     status: SemanticLayerStatus | 'pending';
     warehouse: boolean;
     dbtType: DbtProjectType;
+    tables: boolean;
 };
 
-const mockApi = ({ status, warehouse, dbtType }: Setup) =>
+const mockApi = ({ status, warehouse, dbtType, tables }: Setup) =>
     api.mockImplementation(({ url }: { url: string }) => {
         if (url === '/projects/project') {
             return Promise.resolve({
@@ -73,9 +74,11 @@ const mockApi = ({ status, warehouse, dbtType }: Setup) =>
             });
         }
         if (url === '/projects/project/sqlRunner/tables') {
-            return Promise.resolve({
-                db: { schema_a: { table_a: {}, table_b: {} } },
-            });
+            return Promise.resolve(
+                tables
+                    ? { db: { schema_a: { table_a: {}, table_b: {} } } }
+                    : {},
+            );
         }
         if (url === '/projects/project/semantic-studio/status') {
             return status === 'pending' ? PENDING : Promise.resolve(status);
@@ -131,6 +134,7 @@ const renderEmpty = ({
         status: EDITABLE,
         warehouse: true,
         dbtType: DbtProjectType.NONE,
+        tables: true,
         ...setup,
     });
     renderWithProviders(
@@ -308,11 +312,23 @@ describe('EmptyProject', () => {
         expect(screen.queryByText(/Prefer code\?/)).not.toBeInTheDocument();
     });
 
-    it('asks to connect a warehouse when there is none', async () => {
+    it('asks to connect a warehouse when there is none, offering only sources that need none', async () => {
         renderEmpty({ warehouse: false });
         expect(
             await screen.findByText('Connect a warehouse to start'),
         ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: /Connect a warehouse/ }),
+        ).toBeInTheDocument();
+        expect(
+            await screen.findByRole('button', {
+                name: /Connect a live source/,
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: /Upload a file/ }),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Virtual view')).not.toBeInTheDocument();
     });
 
     it('waits for a connected dbt project to refresh', async () => {
@@ -322,15 +338,10 @@ describe('EmptyProject', () => {
 });
 
 describe('BuildFirstModel', () => {
-    it('starts the chat on a table from the warehouse card', async () => {
-        const user = userEvent.setup();
-        const onAsk = vi.fn();
-        renderEmpty({ onAsk });
-        await user.click(
-            await screen.findByRole('button', { name: 'Model table_b' }),
-        );
-        expect(onAsk).toHaveBeenCalledWith(
-            expect.stringContaining('schema_a.table_b'),
-        );
+    it('says why when the warehouse has no tables to model', async () => {
+        renderEmpty({ onAsk: vi.fn(), tables: false });
+        expect(
+            await screen.findByText('No tables this connection can see'),
+        ).toBeInTheDocument();
     });
 });

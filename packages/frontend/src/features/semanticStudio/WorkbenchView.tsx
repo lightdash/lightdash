@@ -266,9 +266,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const {
         agent: studioAgent,
         thread: studioThread,
-        isEnabled: hasChat,
+        isEnabled: isChatEnabled,
         isLoadingAgents,
     } = useStudioAgent(view.project.id);
+    // Nothing to build from until a warehouse is connected
+    const hasChat = isChatEnabled && !(project && !project.warehouseConnection);
     const isCopilotEnabled =
         useAiOrganizationSettings().data?.isCopilotEnabled === true;
     const [isChatOpen, setIsChatOpen] = useChatOpen(view.project.id);
@@ -682,7 +684,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         dbt.opensInSources || (readsSources && studioView === 'sources');
     if (isSources && sourceFile) lastSourceFile.current = sourceFile;
 
-    const canBuildFirstModel = isEmpty && canBuildModels;
+    // Views, files or live sources alone still leave the first model to build
+    const canBuildFirstModel =
+        (isEmpty ||
+            (hasWarehouse && modelled.length === 0 && !view.selected)) &&
+        canBuildModels;
     const canNudge = canBuildModels && modelled.length === 0;
     const pane = ((): Pane => {
         if (studioView === 'workspaces') return 'workspaces';
@@ -691,9 +697,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         if (isSources) return 'sources';
         if (isChanges) return 'changes';
         if (isReviewingDraft) return 'review';
-        if (!isEmpty) return 'browse';
-        if (!canBuildFirstModel) return 'empty';
-        return 'buildFirst';
+        if (canBuildFirstModel) return 'buildFirst';
+        return isEmpty ? 'empty' : 'browse';
     })();
     // An empty project asks its first question in the page, and the chat opens once it is asked.
     const waitsForFirstAsk =
@@ -1361,6 +1366,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 expanded={expanded}
                                                 onToggle={toggle}
                                                 onOpen={open}
+                                                onBuildModel={
+                                                    canNudge
+                                                        ? () =>
+                                                              askAgent(
+                                                                  BUILD_MODEL_PROMPT,
+                                                              )
+                                                        : null
+                                                }
                                             />
                                         )}
                                         {pane === 'browse' ? (

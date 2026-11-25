@@ -81,18 +81,19 @@ describe('summaryOf', () => {
 });
 
 describe('buildProjectTree', () => {
-    it('opens a warehouse-only project straight on its explores', () => {
+    it('keeps a warehouse-only project under its warehouse group', () => {
         const tree = buildProjectTree(
             project(
                 [warehouse],
                 [explore('orders', 'warehouse'), explore('items', 'warehouse')],
             ),
         );
-        expect(tree.nodes.map(({ label }) => label)).toEqual([
+        expect(tree.nodes.map(({ label }) => label)).toEqual(['PostgreSQL']);
+        expect(tree.nodes[0].children.map(({ label }) => label)).toEqual([
             'items',
             'orders',
         ]);
-        expect(tree.rootSource?.id).toBe('warehouse');
+        expect(tree.rootSource).toBeNull();
     });
 
     it('groups explores by their group path, folders first then by label', () => {
@@ -110,25 +111,19 @@ describe('buildProjectTree', () => {
             ),
         );
         expect(tree.nodes.map(({ label }) => label)).toEqual([
-            'Warehouse',
+            'PostgreSQL',
             'Virtual views',
         ]);
-        const pg = tree.nodes[0].children[0];
-        expect(pg.label).toBe('PostgreSQL');
-        expect(pg.children.map(({ label }) => label)).toEqual([
+        // A project has one warehouse, so the group is the warehouse itself.
+        expect(tree.nodes[0].children.map(({ label }) => label)).toEqual([
             'finance',
             'alpha',
             'zeta',
         ]);
         const billing = findNode(tree.nodes, 'group:warehouse:finance/billing');
-        expect(billing?.path).toEqual([
-            'Warehouse',
-            'PostgreSQL',
-            'finance',
-            'billing',
-        ]);
+        expect(billing?.path).toEqual(['PostgreSQL', 'finance', 'billing']);
         expect(billing?.children[0].label).toBe('payments');
-        // A one-source kind other than Warehouse shows its explores directly.
+        // Any one-source kind shows its explores directly.
         expect(tree.nodes[1].children.map(({ label }) => label)).toEqual([
             'big_orders',
         ]);
@@ -144,7 +139,10 @@ describe('buildProjectTree', () => {
                 ],
             ),
         );
-        expect(tree.nodes.map(({ label }) => label)).toEqual(['a', 'a/b']);
+        expect(tree.nodes[0].children.map(({ label }) => label)).toEqual([
+            'a',
+            'a/b',
+        ]);
         expect(
             findNode(tree.nodes, 'group:warehouse:a%2Fb')?.children,
         ).toHaveLength(1);
@@ -206,11 +204,14 @@ describe('buildProjectTree', () => {
         ]);
     });
 
-    it('folds a warehouse with one explore into that explore', () => {
+    it('shows a warehouse with one explore as its group with that explore', () => {
         const tree = buildProjectTree(
             project([warehouse], [explore('orders', 'warehouse')]),
         );
-        expect(tree.nodes.map(({ ref }) => ref.type)).toEqual(['explore']);
+        expect(tree.nodes.map(({ ref }) => ref.type)).toEqual(['kind']);
+        expect(tree.nodes[0].children.map(({ ref }) => ref.type)).toEqual([
+            'explore',
+        ]);
     });
 
     it('leaves out sources without explores', () => {
@@ -286,7 +287,7 @@ describe('refs', () => {
     it('builds the breadcrumb trail', () => {
         expect(
             trailTo(tree.nodes, 'explore:orders').map(({ label }) => label),
-        ).toEqual(['Warehouse', 'PostgreSQL', 'orders']);
+        ).toEqual(['PostgreSQL', 'orders']);
     });
 });
 
@@ -329,12 +330,7 @@ describe('searchProject', () => {
             exploreId: 'orders',
             fieldId: 'orders_sales_total',
         });
-        expect(results[1].path).toEqual([
-            'Warehouse',
-            'PostgreSQL',
-            'sales',
-            'Orders',
-        ]);
+        expect(results[1].path).toEqual(['PostgreSQL', 'sales', 'Orders']);
     });
 
     it('matches explores by name as well as label, case-insensitively', () => {

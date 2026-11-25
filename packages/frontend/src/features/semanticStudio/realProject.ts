@@ -26,7 +26,7 @@ import { type Explore, type Project, type Source } from './model';
 const SETTINGS = '/generalSettings/projectManagement/:projectUuid';
 
 export const WAREHOUSE_SOURCE_ID = 'warehouse';
-export const WAREHOUSE_SETTINGS_PATH = `${SETTINGS}/settings`;
+const WAREHOUSE_SETTINGS_PATH = `${SETTINGS}/settings`;
 const VIRTUAL_VIEWS_SOURCE_ID = 'virtual-views';
 
 const DBT_ORIGINS: Partial<Record<DbtProjectType, string>> = {
