@@ -50,6 +50,10 @@ import {
     QUERY_POLLING_SOURCES,
     type QueryPollingSource,
 } from '../services/AsyncQueryService/queryPollingSource';
+import {
+    RESULTS_PAGE_SOURCES,
+    type ResultsPageSource,
+} from '../services/AsyncQueryService/resultsPages/resultsPageSource';
 import type { WarehouseExecutionSource } from '../services/AsyncQueryService/types';
 import {
     LIVE_QUERY_OUTCOMES,
@@ -406,6 +410,11 @@ export default class PrometheusMetrics {
     private queryPollingTimeoutCounter: prometheus.Counter<'source'> | null =
         null;
 
+    private resultsPagesCounter: prometheus.Counter<'source'> | null = null;
+
+    private resultsPageDurationHistogram: prometheus.Histogram<'source'> | null =
+        null;
+
     private queueWaitHistogram: prometheus.Histogram | null = null;
 
     private totalDurationHistogram: prometheus.Histogram | null = null;
@@ -499,6 +508,24 @@ export default class PrometheusMetrics {
                 for (const source of QUERY_POLLING_SOURCES) {
                     this.queryPollingTimeoutCounter.inc({ source }, 0);
                 }
+
+                this.resultsPagesCounter = new prometheus.Counter({
+                    name: 'lightdash_query_results_pages_total',
+                    help: 'Results pages served with stored results pages on, by source: stored (hit), built (miss) or fallback (inline after a worker error or timeout)',
+                    labelNames: ['source'],
+                    ...rest,
+                });
+                for (const source of RESULTS_PAGE_SOURCES) {
+                    this.resultsPagesCounter.inc({ source }, 0);
+                }
+
+                this.resultsPageDurationHistogram = new prometheus.Histogram({
+                    name: 'lightdash_query_results_page_duration_seconds',
+                    help: 'Time to get the rows of a results page with stored results pages on, by source',
+                    labelNames: ['source'],
+                    buckets: [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 120],
+                    ...rest,
+                });
 
                 this.queueWaitHistogram = new prometheus.Histogram({
                     name: 'lightdash_query_queue_wait_duration_seconds',
@@ -1936,6 +1963,14 @@ export default class PrometheusMetrics {
 
     public incrementQueryPollingTimeout(source: QueryPollingSource) {
         this.queryPollingTimeoutCounter?.inc({ source });
+    }
+
+    public observeResultsPage(source: ResultsPageSource, durationMs: number) {
+        this.resultsPagesCounter?.inc({ source });
+        this.resultsPageDurationHistogram?.observe(
+            { source },
+            durationMs / 1000,
+        );
     }
 
     public observeQueueWaitDuration(durationMs: number, context: string) {

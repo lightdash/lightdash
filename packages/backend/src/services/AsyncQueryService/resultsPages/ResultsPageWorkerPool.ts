@@ -6,6 +6,8 @@ import type {
     ResultsPageWorkerResponse,
 } from './resultsPageWorkerProtocol';
 
+export const RESULTS_PAGE_BUILD_TIMEOUT_MS = 120_000;
+
 export class ResultsPageWorkerError extends Error {
     constructor(message: string) {
         super(message);
@@ -145,7 +147,11 @@ class PooledWorker implements ResultsPageWorkerHandle {
         pending?.compressed.reject(error);
     }
 
-    private onMessage(response: ResultsPageWorkerResponse) {
+    private onMessage(
+        worker: ResultsPageWorkerLike,
+        response: ResultsPageWorkerResponse,
+    ) {
+        if (this.worker !== worker) return;
         const { pending } = this;
         if (!pending || pending.id !== response.id) return;
         if (!response.ok) {
@@ -167,7 +173,7 @@ class PooledWorker implements ResultsPageWorkerHandle {
         if (this.worker) return this.worker;
         const worker = this.createWorker();
         this.onWorkerStarted();
-        worker.on('message', (response) => this.onMessage(response));
+        worker.on('message', (response) => this.onMessage(worker, response));
         worker.on('error', (error) => {
             this.discard(
                 worker,
@@ -185,6 +191,15 @@ class PooledWorker implements ResultsPageWorkerHandle {
         return worker;
     }
 
+    abort(message: string) {
+        if (!this.pending) return;
+        if (this.worker) {
+            this.discard(this.worker, message);
+            return;
+        }
+        this.fail(message);
+    }
+
     private discard(worker: ResultsPageWorkerLike, message: string) {
         if (this.worker !== worker) return;
         this.worker = undefined;
@@ -195,6 +210,8 @@ class PooledWorker implements ResultsPageWorkerHandle {
 
 export class ResultsPageWorkerPool {
     private readonly size: number;
+
+    private readonly buildTimeoutMs: number;
 
     private readonly idle: PooledWorker[] = [];
 
@@ -208,10 +225,13 @@ export class ResultsPageWorkerPool {
         private readonly options: {
             size: number;
             brotliQuality: number;
+            buildTimeoutMs?: number;
             createWorker?: () => ResultsPageWorkerLike;
         },
     ) {
         this.size = Math.max(1, Math.floor(options.size) || 1);
+        this.buildTimeoutMs =
+            options.buildTimeoutMs ?? RESULTS_PAGE_BUILD_TIMEOUT_MS;
     }
 
     get workersStarted() {
@@ -219,12 +239,42 @@ export class ResultsPageWorkerPool {
     }
 
     async withWorker<T>(
-        run: (worker: ResultsPageWorkerHandle) => Promise<T>,
+        run: (
+            worker: ResultsPageWorkerHandle,
+            signal: AbortSignal,
+        ) => Promise<T>,
     ): Promise<T> {
         const worker = await this.acquire();
+        const controller = new AbortController();
+        const handle: ResultsPageWorkerHandle = {
+            build: (lines, format) => {
+                if (controller.signal.aborted) {
+                    throw new ResultsPageWorkerError(
+                        'The results page build already timed out',
+                    );
+                }
+                return worker.build(lines, format);
+            },
+        };
+        let timer: NodeJS.Timeout | undefined;
+        const timeout = new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => {
+                const error = new ResultsPageWorkerError(
+                    `Results page build took longer than ${this.buildTimeoutMs}ms`,
+                );
+                controller.abort(error);
+                worker.abort(error.message);
+                reject(error);
+            }, this.buildTimeoutMs);
+            timer.unref();
+        });
         try {
-            return await run(worker);
+            return await Promise.race([
+                run(handle, controller.signal),
+                timeout,
+            ]);
         } finally {
+            clearTimeout(timer);
             this.release(worker);
         }
     }

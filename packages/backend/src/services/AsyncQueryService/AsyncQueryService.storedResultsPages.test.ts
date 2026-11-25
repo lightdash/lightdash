@@ -75,8 +75,12 @@ const inlineBuildPool = () => {
     const build = vi.fn<ResultsPageWorkerHandle['build']>();
     const pool = {
         withWorker: vi.fn(
-            async <T>(run: (worker: ResultsPageWorkerHandle) => Promise<T>) =>
-                run({ build }),
+            async <T>(
+                run: (
+                    worker: ResultsPageWorkerHandle,
+                    signal: AbortSignal,
+                ) => Promise<T>,
+            ) => run({ build }, new AbortController().signal),
         ),
     };
     return { pool: pool as unknown as ResultsPageWorkerPool, build };

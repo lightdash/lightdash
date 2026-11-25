@@ -554,6 +554,7 @@ import {
     composeResultsPageBody,
     type ReadyResultsPageEnvelope,
 } from './resultsPages/composeResultsPageBody';
+import type { ResultsPageSource } from './resultsPages/resultsPageSource';
 import {
     ResultsPageWorkerError,
     ResultsPageWorkerPool,
@@ -615,8 +616,13 @@ const COMPOSE_MERGE_JOIN_NODE_ID = 'merge';
 const STORED_RESULTS_PAGE_BROTLI_QUALITY = 5;
 
 type ResultsPageRows =
-    | { kind: 'objects'; rows: ResultRow[] }
-    | { kind: 'bytes'; rows: Buffer; rowCount: number };
+    | { kind: 'objects'; rows: ResultRow[]; source?: 'fallback' }
+    | {
+          kind: 'bytes';
+          rows: Buffer;
+          rowCount: number;
+          source: Exclude<ResultsPageSource, 'fallback'>;
+      };
 
 /** A compiled merge that can run: no errors, the join core and full metadata. */
 export type RunnableCompiledMergeQuery = ApiCompiledMergeQueryResults & {
@@ -1782,28 +1788,46 @@ export class AsyncQueryService extends ProjectService {
         page: number,
         pageSize: number,
         onLine: (line: string) => void,
+        signal?: AbortSignal,
     ) {
         const cacheStream =
             await resultsStorageClient.getDownloadStream(fileName);
+        const stopRead = () => {
+            destroyS3Body(
+                cacheStream,
+                signal?.reason instanceof Error
+                    ? signal.reason
+                    : new Error('Results page read was stopped'),
+            );
+        };
+        if (signal?.aborted) {
+            stopRead();
+            signal.throwIfAborted();
+        }
+        signal?.addEventListener('abort', stopRead, { once: true });
 
         const startLine = (page - 1) * pageSize;
         const endLine = startLine + pageSize;
         let nonEmptyLineCount = 0;
 
-        for await (const line of splitJsonlStream(cacheStream)) {
-            if (line.trim()) {
-                if (nonEmptyLineCount >= endLine) {
-                    destroyS3Body(cacheStream);
-                    break;
+        try {
+            for await (const line of splitJsonlStream(cacheStream)) {
+                if (line.trim()) {
+                    if (nonEmptyLineCount >= endLine) {
+                        destroyS3Body(cacheStream);
+                        break;
+                    }
+                    if (
+                        nonEmptyLineCount >= startLine &&
+                        nonEmptyLineCount < endLine
+                    ) {
+                        onLine(line);
+                    }
+                    nonEmptyLineCount += 1;
                 }
-                if (
-                    nonEmptyLineCount >= startLine &&
-                    nonEmptyLineCount < endLine
-                ) {
-                    onLine(line);
-                }
-                nonEmptyLineCount += 1;
             }
+        } finally {
+            signal?.removeEventListener('abort', stopRead);
         }
     }
 
@@ -1860,7 +1884,7 @@ export class AsyncQueryService extends ProjectService {
                 page,
                 pageSize,
                 format,
-                readPageLines: async () => {
+                readPageLines: async (signal) => {
                     const lines: string[] = [];
                     await AsyncQueryService.readResultsPageLines(
                         resultsStorageClient,
@@ -1870,6 +1894,7 @@ export class AsyncQueryService extends ProjectService {
                         (line) => {
                             lines.push(line);
                         },
+                        signal,
                     );
                     return lines;
                 },
@@ -1878,6 +1903,7 @@ export class AsyncQueryService extends ProjectService {
                 kind: 'bytes',
                 rows: stored.rows,
                 rowCount: stored.rowCount,
+                source: stored.source,
             };
         } catch (error) {
             if (!(error instanceof ResultsPageWorkerError)) throw error;
@@ -1893,7 +1919,7 @@ export class AsyncQueryService extends ProjectService {
             pageSize,
             formatter,
         );
-        return { kind: 'objects', rows };
+        return { kind: 'objects', rows, source: 'fallback' };
     }
 
     private async isStoredResultsPagesEnabled(
@@ -3133,6 +3159,12 @@ export class AsyncQueryService extends ProjectService {
             this.logger,
             context,
         );
+        if (pageRows.source) {
+            this.prometheusMetrics?.observeResultsPage(
+                pageRows.source,
+                durationMs,
+            );
+        }
         const rowCount =
             pageRows.kind === 'objects'
                 ? pageRows.rows.length

@@ -44,7 +44,7 @@ export type GetStoredResultsPageRowsArgs = {
     page: number;
     pageSize: number;
     format: ResultsPageFormatInputs;
-    readPageLines: () => Promise<string[]>;
+    readPageLines: (signal: AbortSignal) => Promise<string[]>;
 };
 
 export class StoredResultsPages {
@@ -100,12 +100,13 @@ export class StoredResultsPages {
                 return;
             }
             const { built, compressed } = await this.options.pool.withWorker(
-                async (worker) => {
+                async (worker, signal) => {
                     const job = worker.build(
-                        await args.readPageLines(),
+                        await args.readPageLines(signal),
                         args.format,
                     );
                     const builtRows = await job.rows;
+                    signal.throwIfAborted();
                     state.rowsSent = true;
                     resolveRows({ ...builtRows, source: 'built' });
                     return {
@@ -197,7 +198,7 @@ export class StoredResultsPages {
                 [rowCountMetadataKey]: String(built.rowCount),
                 [rawBytesMetadataKey]: String(built.rows.length),
             });
-            Logger.info(
+            Logger.debug(
                 `Stored results page ${key}: ${built.rowCount} rows, ${built.rows.length} bytes, ${compressed.length} bytes stored`,
             );
         } catch (error) {
