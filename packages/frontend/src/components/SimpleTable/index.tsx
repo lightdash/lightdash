@@ -127,7 +127,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
             isCalculatingGrandTotals ||
             isCalculatingSubtotals;
 
-        if (pivotTableData.error) {
+        if (pivotTableData.error || resultsData?.rowsExpansionError) {
             onScreenshotError?.();
             hasSignaledScreenshotReady.current = true;
             return;
@@ -158,6 +158,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         loadResultsStatus,
         resultsData?.hasFetchedAllRows,
         resultsData?.isExpandingFirstPage,
+        resultsData?.rowsExpansionError,
         onScreenshotReady,
         onScreenshotError,
     ]);
@@ -329,6 +330,30 @@ const SimpleTable: FC<SimpleTableProps> = ({
         !isLoading
     ) {
         return <PivotRerunState />;
+    }
+
+    if (
+        !shouldPaginateResults &&
+        resultsData?.rowsExpansionError &&
+        resultsData.retryFetchRows
+    ) {
+        return (
+            <SuboptimalState
+                icon={IconAlertCircle}
+                title="The rest of the rows did not load"
+                description="This table needs every row to show its results."
+                action={
+                    <Button
+                        variant="default"
+                        size="xs"
+                        leftSection={<IconRefresh size={16} />}
+                        onClick={resultsData.retryFetchRows}
+                    >
+                        Retry
+                    </Button>
+                }
+            />
+        );
     }
 
     if (pivotTableData.loading || pivotTableData.data) {

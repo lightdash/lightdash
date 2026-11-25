@@ -730,9 +730,13 @@ export const useInfiniteQueryResults = (
         );
     }, [fetchAll, fetchedPages]);
 
+    const isFetchingAllPages =
+        !!queryUuid && fetchAll && !hasFetchedAllRows && !rowsExpansionError;
+
     const isInitialLoading = useMemo(() => {
+        if (rowsExpansionError) return false;
         return fetchAll ? !hasFetchedAllRows : fetchedPages.length < 1;
-    }, [fetchedPages, fetchAll, hasFetchedAllRows]);
+    }, [fetchedPages, fetchAll, hasFetchedAllRows, rowsExpansionError]);
 
     return useMemo(
         () => ({
@@ -755,7 +759,7 @@ export const useInfiniteQueryResults = (
                 dependenciesChanged ||
                 (!!queryUuid && !fetchedPages.length) ||
                 (!!queryUuid && fetchedPages[0]?.totalResults === undefined),
-            isFetchingAllPages: !!queryUuid && fetchAll && !hasFetchedAllRows,
+            isFetchingAllPages,
             isExpandingFirstPage:
                 !dependenciesChanged &&
                 hasPartialFirstPage &&
@@ -778,6 +782,7 @@ export const useInfiniteQueryResults = (
             nextPage.refetch,
             totalClientFetchTimeMs,
             isInitialLoading,
+            isFetchingAllPages,
             nextPage.error,
             fetchAll,
             hasPartialFirstPage,
