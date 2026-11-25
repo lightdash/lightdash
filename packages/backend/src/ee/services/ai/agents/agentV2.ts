@@ -1922,6 +1922,13 @@ export const getAgentTools = (
 
     const runnableMcpTools = getRunnableMcpTools(args, mcpToolSetup);
     const mcpToolNames = Object.keys(runnableMcpTools);
+    const studioTools = getStudioToolBuilders({
+        dependencies,
+        canRunMetrics: getStudioAbilities(loadout).canRunMetrics,
+        runSqlJob: loadout.toolNames.has('runSql')
+            ? queryDependencies.runSqlJob
+            : null,
+    });
     // Ordered as tools are offered to the model.
     const toolBuilders: Record<NativeAgentToolName, () => Tool> = {
         findContent: () =>
@@ -2188,13 +2195,10 @@ export const getAgentTools = (
             getEditProjectContext({
                 editProjectContext: dependencies.editProjectContext,
             }),
-        ...getStudioToolBuilders({
-            dependencies,
-            canRunMetrics: getStudioAbilities(loadout).canRunMetrics,
-            runSqlJob: loadout.toolNames.has('runSql')
-                ? queryDependencies.runSqlJob
-                : null,
-        }),
+        proposeSemanticLayerChange: studioTools.proposeSemanticLayerChange,
+        listChanges: studioTools.listChanges,
+        readSemanticModel: studioTools.readSemanticModel,
+        draftProjectContext: studioTools.draftProjectContext,
         read: () =>
             getRead({
                 read: dependencies.read,
