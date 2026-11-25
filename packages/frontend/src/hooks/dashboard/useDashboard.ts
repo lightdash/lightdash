@@ -545,20 +545,18 @@ export const useUpdateDashboard = (
         {
             mutationKey: ['dashboard_update'],
             onSuccess: async (updatedDashboard, variables) => {
-                // Cached by uuid or slug, so matched on the dashboard itself
-                const previous = queryClient
-                    .getQueriesData<Dashboard>(['saved_dashboard_query'])
-                    .find(
-                        ([, dashboard]) =>
-                            dashboard?.uuid === updatedDashboard.uuid,
-                    )?.[1];
                 // Tile results aren't keyed on which tiles a control targets,
-                // so a control change reloads the dashboard as before
-                const shouldReload =
-                    previous !== undefined &&
-                    !isEqual(
-                        previous.config?.parameterControls,
-                        updatedDashboard.config?.parameterControls,
+                // so a control change reloads the dashboard as before. Any
+                // cached copy counts: uuid, slug, draft and published differ
+                const shouldReload = queryClient
+                    .getQueriesData<Dashboard>(['saved_dashboard_query'])
+                    .some(
+                        ([, dashboard]) =>
+                            dashboard?.uuid === updatedDashboard.uuid &&
+                            !isEqual(
+                                dashboard.config?.parameterControls,
+                                updatedDashboard.config?.parameterControls,
+                            ),
                     );
                 if (shouldReload) {
                     queryClient.removeQueries({
