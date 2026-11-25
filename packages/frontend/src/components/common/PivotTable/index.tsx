@@ -1394,6 +1394,14 @@ const PivotTable: FC<PivotTableProps> = ({
             {...tableProps}
             containerRef={containerRef}
             isDashboard={isDashboard}
+            renderedRows={
+                virtualRows.length > 0
+                    ? {
+                          firstRow: firstRenderedRowIndex,
+                          lastRow: lastRenderedRowIndex,
+                      }
+                    : undefined
+            }
         >
             <ColumnWindowColGroup columnWindow={columnWindow} />
             {!columnWindow && hasCustomWidths && (
@@ -2089,10 +2097,12 @@ const PivotTable: FC<PivotTableProps> = ({
                                 // the rest of the block within the rendered
                                 // rows; absorbed rows render no <td> so the
                                 // span covers their position.
-                                const rowSpanMerge = getWindowedRowSpanMerge(
+                                const columnSpans =
                                     rowSpanMergesByColumnId?.get(
                                         cell.column.id,
-                                    ),
+                                    );
+                                const rowSpanMerge = getWindowedRowSpanMerge(
+                                    columnSpans,
                                     renderIndex,
                                     firstRenderedRowIndex,
                                     lastRenderedRowIndex,
@@ -2103,6 +2113,12 @@ const PivotTable: FC<PivotTableProps> = ({
                                 ) {
                                     return null;
                                 }
+                                const blockRowCount =
+                                    rowSpanMerge && columnSpans
+                                        ? columnSpans[
+                                              rowSpanMerge.blockStartRow
+                                          ].rowSpan
+                                        : 1;
 
                                 const meta = cell.column.columnDef.meta;
                                 const isRowTotal = meta?.type === 'rowTotal';
@@ -2441,9 +2457,17 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 ? rowSpanMerge.rowSpan
                                                 : undefined
                                         }
-                                        selectionId={
+                                        mergedRows={
                                             rowSpanMerge
-                                                ? `merged:${cell.column.id}:${rowSpanMerge.blockStartRow}`
+                                                ? {
+                                                      key: `merged:${cell.column.id}:${rowSpanMerge.blockStartRow}`,
+                                                      firstRow:
+                                                          rowSpanMerge.blockStartRow,
+                                                      lastRow:
+                                                          rowSpanMerge.blockStartRow +
+                                                          blockRowCount -
+                                                          1,
+                                                  }
                                                 : undefined
                                         }
                                         className={

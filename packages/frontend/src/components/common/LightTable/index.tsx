@@ -42,9 +42,13 @@ const SECTION_TYPE_ATTRS = {
 
 type BoxProps = Omit<BoxPropsBase, 'component' | 'children'>;
 
+type RowRange = { firstRow: number; lastRow: number };
+
 type TableProps = PolymorphicComponentProps<'table', BoxProps> & {
     containerRef: React.RefObject<HTMLDivElement | null>;
     isDashboard?: boolean;
+    /** The rows a virtualized body renders. A selected merged cell loses its selection when its rows leave them. */
+    renderedRows?: RowRange;
 };
 type TableSectionProps = PolymorphicComponentProps<
     'thead' | 'tbody' | 'tfoot',
@@ -78,8 +82,11 @@ type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
     withValue?: string;
     /** Hints that the cell menu offers link actions, like the results table's dotted underline. */
     withUrls?: boolean;
-    /** Keeps the cell selected when it mounts again, e.g. a merged cell that moves to another rendered row. */
-    selectionId?: string;
+    /**
+     * The rows of a merged cell. The cell keeps its selection when it mounts
+     * again on another rendered row, until these rows leave the rendered rows.
+     */
+    mergedRows?: RowRange & { key: string };
 };
 
 interface TableCompoundComponents {
@@ -106,9 +113,11 @@ interface TableCompoundComponents {
     >;
 }
 
+type SelectedCell = { id: string; rows?: RowRange };
+
 type TableContextType = {
     selectedCell: string | null;
-    toggleCell: (cellId: string | null) => void;
+    toggleCell: (cell: SelectedCell | null) => void;
 
     scrollPositions: {
         isAtTop: boolean;
@@ -129,13 +138,27 @@ const useTableContext = () => {
 };
 
 const TableProvider: FC<
-    React.PropsWithChildren<Pick<TableContextType, 'scrollPositions'>>
-> = ({ children, scrollPositions }) => {
-    const [selectedCell, setSelectedCell] = useState<string | null>(null);
+    React.PropsWithChildren<
+        Pick<TableContextType, 'scrollPositions'> & { renderedRows?: RowRange }
+    >
+> = ({ children, scrollPositions, renderedRows }) => {
+    const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
+
+    // A merged cell keeps its id when it mounts again, so clear its selection
+    // when its rows leave the rendered rows. Otherwise it is selected again
+    // when its rows come back.
+    if (
+        selectedCell?.rows &&
+        renderedRows &&
+        (selectedCell.rows.lastRow < renderedRows.firstRow ||
+            selectedCell.rows.firstRow > renderedRows.lastRow)
+    ) {
+        setSelectedCell(null);
+    }
 
     const handleToggleCell = useCallback(
-        (cellId: string | null) => {
-            setSelectedCell(cellId);
+        (cell: SelectedCell | null) => {
+            setSelectedCell(cell);
         },
         [setSelectedCell],
     );
@@ -151,7 +174,7 @@ const TableProvider: FC<
     return (
         <TableContext.Provider
             value={{
-                selectedCell,
+                selectedCell: selectedCell?.id ?? null,
                 toggleCell: handleDebouncedToggleCell,
                 scrollPositions,
             }}
@@ -168,6 +191,7 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
             component = 'table',
             containerRef,
             isDashboard = false,
+            renderedRows,
             ...rest
         },
         ref,
@@ -237,7 +261,10 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
                     {...rest}
                     className={clsx(classes.table, rest.className)}
                 >
-                    <TableProvider scrollPositions={{ isAtBottom, isAtTop }}>
+                    <TableProvider
+                        scrollPositions={{ isAtBottom, isAtTop }}
+                        renderedRows={renderedRows}
+                    >
                         {children}
                     </TableProvider>
                 </Box>
@@ -402,13 +429,13 @@ const BaseCell = (
                 withMenu = false,
                 withValue = undefined,
                 withUrls = false,
-                selectionId,
+                mergedRows,
                 ...rest
             },
             ref,
         ) => {
             const generatedCellId = useId();
-            const cellId = selectionId ?? generatedCellId;
+            const cellId = mergedRows?.key ?? generatedCellId;
             const clipboard = useClipboard({ timeout: 200 });
 
             const { selectedCell, toggleCell } = useTableContext();
@@ -511,7 +538,14 @@ const BaseCell = (
                         onClick={
                             withInteractions
                                 ? () => {
-                                      toggleCell(isSelected ? null : cellId);
+                                      toggleCell(
+                                          isSelected
+                                              ? null
+                                              : {
+                                                    id: cellId,
+                                                    rows: mergedRows,
+                                                },
+                                      );
                                   }
                                 : undefined
                         }
@@ -555,6 +589,7 @@ const BaseCell = (
                     withTooltip,
                     toggleCell,
                     cellId,
+                    mergedRows,
                 ],
             );
 
