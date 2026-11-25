@@ -118,6 +118,7 @@ import {
 import { getPivotColumnWindows } from './getPivotColumnWindow';
 import {
     getGroupedDimColumnIds,
+    getMergedValueLineClamp,
     getRowSpanMerges,
     getWindowedRowSpanMerge,
 } from './getRowSpanMerges';
@@ -132,6 +133,8 @@ import ValueCellMenu from './ValueCellMenu';
 
 const MIN_AUTO_COL_WIDTH = 50;
 const DEFAULT_COLUMN_WIDTH = 100;
+// A merged cell's padding: 8px at the top, 1px at the bottom.
+const MERGED_CELL_PADDING_Y_PX = 9;
 const EMPTY_COLUMN_PROPERTIES: Record<string, ColumnProperties> = {};
 
 const getStickyCellProps = (frozen: FrozenColumnEntry | undefined) => {
@@ -2508,6 +2511,16 @@ const PivotTable: FC<PivotTableProps> = ({
                                             enableContextMenu &&
                                             !!allowInteractions &&
                                             hasUrlActions
+                                        }
+                                        withLineClamp={
+                                            blockRowCount > 1
+                                                ? getMergedValueLineClamp(
+                                                      rowSpanMerge?.rowSpan ??
+                                                          1,
+                                                      CELL_HEIGHT,
+                                                      MERGED_CELL_PADDING_Y_PX,
+                                                  )
+                                                : undefined
                                         }
                                         {...getPivotCellInteractionProps({
                                             enabled: enableContextMenu,

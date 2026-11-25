@@ -197,7 +197,7 @@ it('starts a new merged cell at a group boundary inside the rendered rows', asyn
 const getValueLineLimit = (cell: HTMLTableCellElement) => {
     const limit = cell
         .querySelector<HTMLElement>(':scope > span')
-        ?.style.getPropertyValue('--merged-line-clamp');
+        ?.style.getPropertyValue('--lt-line-clamp');
     return limit ? Number(limit) : undefined;
 };
 

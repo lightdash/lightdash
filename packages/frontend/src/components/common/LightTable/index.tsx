@@ -82,6 +82,8 @@ type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
     withValue?: string;
     /** Hints that the cell menu offers link actions, like the results table's dotted underline. */
     withUrls?: boolean;
+    /** Shows at most this number of lines, with an ellipsis on the last line. */
+    withLineClamp?: number;
     /**
      * The rows of a merged cell. The cell keeps its selection when it mounts
      * again on another rendered row, until these rows leave the rendered rows.
@@ -429,6 +431,7 @@ const BaseCell = (
                 withMenu = false,
                 withValue = undefined,
                 withUrls = false,
+                withLineClamp,
                 mergedRows,
                 ...rest
             },
@@ -507,8 +510,24 @@ const BaseCell = (
                 }
             }, []);
 
-            const cellElement = useMemo(
-                () => (
+            const cellElement = useMemo(() => {
+                const content =
+                    children && withTooltip ? (
+                        <Tooltip
+                            position="top"
+                            disabled={isSelected}
+                            maw={400}
+                            label={withTooltip}
+                            openDelay={500}
+                        >
+                            <Text span inherit>
+                                {children}
+                            </Text>
+                        </Tooltip>
+                    ) : (
+                        <>{children}</>
+                    );
+                return (
                     <Box
                         component={component}
                         ref={ref}
@@ -550,48 +569,46 @@ const BaseCell = (
                                 : undefined
                         }
                     >
-                        {children && withTooltip ? (
-                            <Tooltip
-                                position="top"
-                                disabled={isSelected}
-                                maw={400}
-                                label={withTooltip}
-                                openDelay={500}
-                            >
-                                <Text span inherit>
-                                    {children}
-                                </Text>
-                            </Tooltip>
+                        {withLineClamp === undefined ? (
+                            content
                         ) : (
-                            <>{children}</>
+                            <Box
+                                component="span"
+                                className={classes.withLineClamp}
+                                __vars={{
+                                    '--lt-line-clamp': String(withLineClamp),
+                                }}
+                            >
+                                {content}
+                            </Box>
                         )}
                     </Box>
-                ),
-                [
-                    component,
-                    ref,
-                    rest,
-                    isSelected,
-                    cellStyleVars,
-                    withSticky,
-                    cellHasLargeContent,
-                    isMinimal,
-                    withMinimalWidth,
-                    withAlignRight,
-                    withBoldFont,
-                    withColor,
-                    withTextStyle,
-                    withInteractions,
-                    withUrls,
-                    withBackground,
-                    clipboard.copied,
-                    children,
-                    withTooltip,
-                    toggleCell,
-                    cellId,
-                    mergedRows,
-                ],
-            );
+                );
+            }, [
+                component,
+                ref,
+                rest,
+                isSelected,
+                cellStyleVars,
+                withSticky,
+                cellHasLargeContent,
+                isMinimal,
+                withMinimalWidth,
+                withAlignRight,
+                withBoldFont,
+                withColor,
+                withTextStyle,
+                withInteractions,
+                withUrls,
+                withBackground,
+                clipboard.copied,
+                children,
+                withTooltip,
+                toggleCell,
+                cellId,
+                mergedRows,
+                withLineClamp,
+            ]);
 
             return withMenu
                 ? withMenu(
