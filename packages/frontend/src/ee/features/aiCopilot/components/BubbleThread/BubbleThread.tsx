@@ -10,6 +10,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type FC,
     type ReactNode,
@@ -207,6 +208,18 @@ export const BubbleThread: FC<Props> = ({
         else if (isWorking) setCameWhileMinimised(true);
     }, [isWorking, minimised]);
 
+    // Opened or picked as the place to reply: the reply box is ready to type in.
+    const bodyRef = useRef<HTMLDivElement>(null);
+    const isOpen = !minimised && Boolean(thread);
+    useEffect(() => {
+        if (!armed || !isOpen) return;
+        bodyRef.current
+            ?.querySelector<HTMLElement>(
+                'textarea, [contenteditable="true"], input[type="text"]',
+            )
+            ?.focus({ preventScroll: true });
+    }, [armed, isOpen]);
+
     return (
         <AgentContainerWidthContext.Provider value={BUBBLE_WIDTH_PX}>
             {pill && (
@@ -266,7 +279,7 @@ export const BubbleThread: FC<Props> = ({
                             <Loader size="sm" color="gray" />
                         </Center>
                     ) : (
-                        <Box className={classes.body}>
+                        <Box ref={bodyRef} className={classes.body}>
                             <AgentChatDisplay
                                 thread={thread}
                                 agentName={agentName}
