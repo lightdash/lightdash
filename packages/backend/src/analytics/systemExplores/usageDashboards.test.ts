@@ -24,7 +24,11 @@ import {
     usageDimensionTable,
 } from '../eventStream/usageDimensions';
 import { userActivityColumns } from '../eventStream/userActivity';
-import { analyticsContentAsCode } from './sampleContent';
+import {
+    analyticsContentAsCode,
+    analyticsLibraryChartBindings,
+} from './sampleContent';
+import { usageDashboardSpecs } from './usageDashboardDefinitions';
 
 const charts = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
 const explores = createAnalyticsExplores();
@@ -560,6 +564,265 @@ describe('built-in usage dashboards', () => {
                 return populationCharts.map(({ metricQuery }) => metricQuery);
             });
         expect(inactivityCharts[0]).toEqual(inactivityCharts[1]);
+    });
+
+    it('lists the Agent adoption charts in order with their fallback types', () => {
+        const { dashboard, charts: overviewCharts } =
+            analyticsContentAsCode.find(
+                ({ dashboard: item }) =>
+                    item.slug === 'lightdash-analytics-overview',
+            )!;
+        const prefix = 'lightdash-analytics-overview-';
+        const slugs = dashboard.tiles
+            .filter(
+                (tile) =>
+                    tile.type === DashboardTileTypes.SAVED_CHART &&
+                    tile.tabSlug === 'adoption',
+            )
+            .map(
+                (tile) => (tile.properties as { chartSlug: string }).chartSlug,
+            );
+        expect(slugs).toEqual(
+            [
+                'agent-requests-trend',
+                'agent-requesters-trend',
+                'agent-requests-by-agent-and-day',
+                'agent-daily-requests-per-agent',
+                'agent-adoption-by-week',
+            ].map((key) => `${prefix}${key}`),
+        );
+        const fallbackType = (key: string) =>
+            overviewCharts.find(({ slug }) => slug === `${prefix}${key}`)!
+                .chartConfig.type;
+        expect(fallbackType('agent-requests-trend')).toBe(ChartType.BIG_NUMBER);
+        expect(fallbackType('agent-requesters-trend')).toBe(
+            ChartType.BIG_NUMBER,
+        );
+        expect(fallbackType('agent-requests-by-agent-and-day')).toBe(
+            ChartType.TABLE,
+        );
+        expect(fallbackType('agent-daily-requests-per-agent')).toBe(
+            ChartType.TABLE,
+        );
+        expect(fallbackType('agent-adoption-by-week')).toBe(ChartType.TABLE);
+    });
+
+    it('lays the Agent adoption sections out as explicit rows', () => {
+        const { dashboard } = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-overview',
+        )!;
+        const tile = (key: string) =>
+            dashboard.tiles.find(
+                (item) =>
+                    item.type === DashboardTileTypes.SAVED_CHART &&
+                    item.tabSlug === 'adoption' &&
+                    (item.properties as { chartSlug: string }).chartSlug ===
+                        `lightdash-analytics-overview-${key}`,
+            )!;
+        const [a, b] = ['agent-requests-trend', 'agent-requesters-trend'].map(
+            tile,
+        );
+        expect([a.x, b.x, a.w, b.w, a.h, b.h]).toEqual([0, 18, 18, 18, 4, 4]);
+        expect(a.y).toBe(b.y);
+        const heatmap = tile('agent-requests-by-agent-and-day');
+        expect([heatmap.x, heatmap.w, heatmap.h]).toEqual([0, 36, 7]);
+        const trellis = tile('agent-daily-requests-per-agent');
+        expect([trellis.x, trellis.w, trellis.h]).toEqual([0, 36, 9]);
+        expect(tile('agent-adoption-by-week').w).toBe(36);
+    });
+
+    it('lists the Outcomes and Retries & consumption charts in order with their fallback types', () => {
+        const { dashboard, charts: overviewCharts } =
+            analyticsContentAsCode.find(
+                ({ dashboard: item }) =>
+                    item.slug === 'lightdash-analytics-overview',
+            )!;
+        const prefix = 'lightdash-analytics-overview-';
+        const slugsFor = (tabSlug: string) =>
+            dashboard.tiles
+                .filter(
+                    (tile) =>
+                        tile.type === DashboardTileTypes.SAVED_CHART &&
+                        tile.tabSlug === tabSlug,
+                )
+                .map(
+                    (tile) =>
+                        (tile.properties as { chartSlug: string }).chartSlug,
+                );
+        expect(slugsFor('outcomes')).toEqual(
+            [
+                'agent-requests-and-completion-by-day',
+                'agent-request-outcomes',
+                'agent-feedback-rating-and-sample-coverage',
+            ].map((key) => `${prefix}${key}`),
+        );
+        expect(slugsFor('consumption')).toEqual(
+            [
+                'agent-retries-latency-and-consumption',
+                'ai-consumption-by-person-feature-and-model',
+                'ai-tokens-by-feature-and-model',
+                'request-consumption-by-outcome-and-feedback',
+            ].map((key) => `${prefix}${key}`),
+        );
+        const find = (key: string) =>
+            overviewCharts.find(({ slug }) => slug === `${prefix}${key}`)!;
+        expect(
+            find('agent-requests-and-completion-by-day').chartConfig.type,
+        ).toBe(ChartType.CARTESIAN);
+        expect(find('ai-tokens-by-feature-and-model').chartConfig.type).toBe(
+            ChartType.TABLE,
+        );
+        expect(find('agent-request-outcomes').chartConfig.type).toBe(
+            ChartType.PIE,
+        );
+        expect(
+            analyticsLibraryChartBindings.has(
+                `${prefix}agent-request-outcomes`,
+            ),
+        ).toBe(false);
+        expect(
+            analyticsLibraryChartBindings.get(
+                `${prefix}agent-requests-and-completion-by-day`,
+            )?.slug,
+        ).toBe('customizable-cartesian-chart');
+        expect(
+            analyticsLibraryChartBindings.get(
+                `${prefix}ai-tokens-by-feature-and-model`,
+            )?.slug,
+        ).toBe('heatmap');
+        for (const key of [
+            'agent-feedback-rating-and-sample-coverage',
+            'ai-consumption-by-person-feature-and-model',
+        ]) {
+            expect(
+                analyticsLibraryChartBindings.get(`${prefix}${key}`)?.slug,
+            ).toBe('customizable-cartesian-chart');
+        }
+        expect(
+            analyticsLibraryChartBindings.get(
+                `${prefix}request-consumption-by-outcome-and-feedback`,
+            )?.slug,
+        ).toBe('customizable-cartesian-chart');
+    });
+
+    it('lays out the Outcomes and Retries sections as explicit rows', () => {
+        const { dashboard } = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-overview',
+        )!;
+        const tile = (tabSlug: string, key: string) =>
+            dashboard.tiles.find(
+                (item) =>
+                    item.type === DashboardTileTypes.SAVED_CHART &&
+                    item.tabSlug === tabSlug &&
+                    (item.properties as { chartSlug: string }).chartSlug ===
+                        `lightdash-analytics-overview-${key}`,
+            )!;
+        const [a, b] = [
+            'agent-requests-and-completion-by-day',
+            'agent-request-outcomes',
+        ].map((key) => tile('outcomes', key));
+        expect([a.x, b.x, a.w, b.w, a.h, b.h]).toEqual([0, 18, 18, 18, 8, 8]);
+        expect(a.y).toBe(b.y);
+        const retries = tile(
+            'consumption',
+            'agent-retries-latency-and-consumption',
+        );
+        expect([retries.x, retries.w, retries.h]).toEqual([0, 36, 7]);
+        const [person, tokens] = [
+            'ai-consumption-by-person-feature-and-model',
+            'ai-tokens-by-feature-and-model',
+        ].map((key) => tile('consumption', key));
+        expect([person.x, tokens.x, person.w, tokens.w]).toEqual([
+            0, 18, 18, 18,
+        ]);
+        expect([person.h, tokens.h]).toEqual([8, 8]);
+        expect(person.y).toBe(tokens.y);
+    });
+
+    it('renders Agents & AI sections as one-line captions and leaves other dashboards headed', () => {
+        const dashboardBySlug = (slug: string) =>
+            analyticsContentAsCode.find(
+                ({ dashboard }) => dashboard.slug === slug,
+            )!.dashboard;
+        const spec = usageDashboardSpecs.find(
+            ({ key }) => key === 'lightdash-analytics-overview',
+        )!;
+        const overview = dashboardBySlug('lightdash-analytics-overview');
+        spec.tabs.forEach((tab) => {
+            const notes = overview.tiles.filter(
+                (tile) =>
+                    tile.tabSlug === tab.key &&
+                    tile.type === DashboardTileTypes.MARKDOWN,
+            );
+            expect(notes).toHaveLength(tab.sections.length);
+            tab.sections.forEach((section, index) => {
+                expect(section.caption).toBe(true);
+                expect(notes[index].h).toBe(1);
+                expect(
+                    (notes[index].properties as { content: string }).content,
+                ).toBe(section.description);
+            });
+        });
+        const [firstNote] = overview.tiles.filter(
+            (tile) =>
+                tile.tabSlug === 'adoption' &&
+                tile.type === DashboardTileTypes.MARKDOWN,
+        );
+        const firstChart = overview.tiles.find(
+            (tile) =>
+                tile.tabSlug === 'adoption' &&
+                tile.type === DashboardTileTypes.SAVED_CHART,
+        )!;
+        expect([firstNote.y, firstChart.y]).toEqual([0, 1]);
+        const adoption = dashboardBySlug('lightdash-analytics-adoption');
+        const [heading] = adoption.tiles.filter(
+            (tile) =>
+                tile.tabSlug === 'app-outcomes' &&
+                tile.type === DashboardTileTypes.MARKDOWN,
+        );
+        expect(heading.h).toBe(2);
+        expect((heading.properties as { content: string }).content).toMatch(
+            /^### /,
+        );
+    });
+
+    it('orders the per-agent panels by agent then day and shows summed totals compactly', () => {
+        const trellis = charts.find(
+            ({ slug }) =>
+                slug ===
+                'lightdash-analytics-overview-agent-daily-requests-per-agent',
+        )!;
+        expect(trellis.metricQuery.sorts).toEqual([
+            { fieldId: 'agent_requests_agent_name', descending: false },
+            { fieldId: 'agent_requests_requested_at_day', descending: false },
+        ]);
+        expect(trellis.metricQuery.limit).toBe(5000);
+        const summed = [...analyticsLibraryChartBindings.values()].filter(
+            (binding) =>
+                binding.slug === 'big-number-with-sparkline-trend' &&
+                binding.optionValues.valueAggregation === 'sum',
+        );
+        expect(summed.length).toBeGreaterThan(0);
+        summed.forEach((binding) =>
+            expect(binding.optionValues.style).toBe('compact'),
+        );
+    });
+
+    it('keeps tile geometry for sections without a layout hint', () => {
+        const { dashboard } = analyticsContentAsCode.find(
+            ({ dashboard: item }) =>
+                item.slug === 'lightdash-analytics-adoption',
+        )!;
+        const geometry = dashboard.tiles
+            .filter((tile) => tile.tabSlug === 'app-outcomes')
+            .map((tile) => [tile.x, tile.y, tile.w, tile.h]);
+        expect(geometry).toEqual([
+            [0, 0, 36, 2],
+            [0, 2, 36, 7],
+            [0, 9, 36, 7],
+        ]);
     });
 
     it('scopes outcome filters and the default date range to the two outcome charts', () => {
@@ -1169,5 +1432,64 @@ describe('built-in usage dashboards', () => {
             db.closeSync();
             instance.closeSync();
         }
+    });
+});
+
+describe('display fixes', () => {
+    const prefix = 'lightdash-analytics-overview-';
+    const byKey = (key: string) =>
+        charts.find(({ slug }) => slug === `${prefix}${key}`)!;
+
+    it('shows millisecond metrics as whole numbers and leaves others alone', () => {
+        const retries = byKey('agent-retries-latency-and-consumption');
+        expect(retries.metricQuery.metricOverrides).toEqual({
+            agent_requests_total_retry_overhead_ms: {
+                formatOptions: { type: 'number', round: 0 },
+            },
+            agent_requests_average_request_latency_ms: {
+                formatOptions: { type: 'number', round: 0 },
+            },
+        });
+        expect(
+            byKey('agent-requests-trend').metricQuery.metricOverrides,
+        ).toEqual({});
+    });
+
+    it('keeps percent formatting for rate metrics', () => {
+        const rated = charts.flatMap(({ metricQuery }) =>
+            metricQuery.metrics
+                .filter((field) => field.endsWith('_rate'))
+                .map((field) => metricQuery.metricOverrides?.[field]),
+        );
+        expect(rated.length).toBeGreaterThan(0);
+        rated.forEach((override) =>
+            expect(override).toEqual({
+                formatOptions: { type: 'percent', round: 1 },
+            }),
+        );
+    });
+
+    it('titles the retries axes', () => {
+        expect(
+            analyticsLibraryChartBindings.get(
+                `${prefix}agent-retries-latency-and-consumption`,
+            )?.optionValues,
+        ).toMatchObject({
+            xName: 'Retries',
+            yName: 'Requests',
+            yRightName: 'Average latency (ms)',
+        });
+    });
+
+    it('splits request consumption by outcome only, without a feedback legend', () => {
+        const binding = analyticsLibraryChartBindings.get(
+            `${prefix}request-consumption-by-outcome-and-feedback`,
+        )!;
+        expect(binding.fieldMapping).toEqual({
+            x: 'agent_requests_status',
+            m1: 'agent_requests_total_request_tokens',
+        });
+        expect(binding.query?.dimensions).toEqual(['agent_requests_status']);
+        expect(binding.query?.limit).toBe(30);
     });
 });

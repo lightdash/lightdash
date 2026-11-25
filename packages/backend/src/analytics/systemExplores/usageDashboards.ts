@@ -270,6 +270,22 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
     };
 };
 
+/** Millisecond metrics show as whole numbers: decimals add noise, not signal. */
+export const wholeMillisecondOverrides = (metrics: string[]) =>
+    Object.fromEntries(
+        metrics
+            .filter((field) => field.endsWith('_ms'))
+            .map((field) => [
+                field,
+                {
+                    formatOptions: {
+                        type: CustomFormatType.NUMBER,
+                        round: 0,
+                    },
+                },
+            ]),
+    );
+
 const buildChart = (
     spec: UsageChartSpec,
     dashboardSlug: string,
@@ -286,23 +302,26 @@ const buildChart = (
         exploreName: spec.explore,
         dimensions: spec.dimensions,
         metrics: spec.metrics,
-        metricOverrides: Object.fromEntries(
-            spec.metrics
-                .filter((field) =>
-                    ['_rate', '_coverage', '_share'].some((suffix) =>
-                        field.endsWith(suffix),
-                    ),
-                )
-                .map((field) => [
-                    field,
-                    {
-                        formatOptions: {
-                            type: CustomFormatType.PERCENT,
-                            round: 1,
+        metricOverrides: {
+            ...Object.fromEntries(
+                spec.metrics
+                    .filter((field) =>
+                        ['_rate', '_coverage', '_share'].some((suffix) =>
+                            field.endsWith(suffix),
+                        ),
+                    )
+                    .map((field) => [
+                        field,
+                        {
+                            formatOptions: {
+                                type: CustomFormatType.PERCENT,
+                                round: 1,
+                            },
                         },
-                    },
-                ]),
-        ),
+                    ]),
+            ),
+            ...wholeMillisecondOverrides(spec.metrics),
+        },
         filters: spec.filters
             ? {
                   dimensions: {
@@ -417,13 +436,17 @@ export const buildUsageDashboards = (
             });
             let y = 0;
             for (const section of tab.sections) {
-                const noteHeight = section.noteHeight ?? 2;
+                const noteHeight = section.caption
+                    ? 1
+                    : (section.noteHeight ?? 2);
                 dashboard.tiles.push(
                     note(
                         tab.key,
                         y,
                         noteHeight,
-                        `### ${section.title}\n\n${section.description}`,
+                        section.caption
+                            ? section.description
+                            : `### ${section.title}\n\n${section.description}`,
                     ),
                 );
                 y += noteHeight;
@@ -448,6 +471,7 @@ export const buildUsageDashboards = (
                     (item) => item.chartConfig.type === ChartType.BIG_NUMBER,
                 );
                 const sectionY = y;
+                const isRow = section.layout === 'row';
                 const hasSummaryTrend =
                     sectionCharts[0]?.chartConfig.type ===
                         ChartType.BIG_NUMBER &&
@@ -463,7 +487,8 @@ export const buildUsageDashboards = (
                 sectionCharts.forEach((item, index) => {
                     const summary = hasSummaryTrend && index < 2;
                     let h = 7;
-                    if (isKpiRow) h = 3;
+                    if (isRow) h = section.rowHeight ?? 7;
+                    else if (isKpiRow) h = 3;
                     // Compact breakdowns keep a short viewport; longer results
                     // remain available through the table's existing scroll.
                     else if (
@@ -476,7 +501,11 @@ export const buildUsageDashboards = (
                     let w = 36;
                     let x = 0;
                     let tileY = nextY;
-                    if (isKpiRow) {
+                    if (isRow) {
+                        w = 36 / sectionCharts.length;
+                        x = index * w;
+                        tileY = sectionY;
+                    } else if (isKpiRow) {
                         w = 36 / sectionCharts.length;
                         x = index * w;
                         tileY = sectionY;
@@ -500,10 +529,16 @@ export const buildUsageDashboards = (
                         h,
                         properties: { chartSlug: item.slug },
                     });
-                    if (!isKpiRow && !isVisualPair && (!summary || index === 1))
+                    if (
+                        !isRow &&
+                        !isKpiRow &&
+                        !isVisualPair &&
+                        (!summary || index === 1)
+                    )
                         nextY += h;
                 });
-                if (isKpiRow) y = sectionY + 3;
+                if (isRow) y = sectionY + (section.rowHeight ?? 7);
+                else if (isKpiRow) y = sectionY + 3;
                 else if (isVisualPair) y = sectionY + 7;
                 else y = nextY;
             }

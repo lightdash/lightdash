@@ -14,8 +14,39 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 sections: [
                     {
                         title: 'Observed request activity',
+                        caption: true,
                         description:
-                            'Requests by agent, person and week. This is not an eligible-user adoption rate or a comparison with external assistants.',
+                            'Requests by agent, person and day. This is not an eligible-user adoption rate or a comparison with external assistants.',
+                        charts: [
+                            'agent-requests-trend',
+                            'agent-requesters-trend',
+                        ],
+                        layout: 'row',
+                        rowHeight: 4,
+                    },
+                    {
+                        title: 'Requests by agent',
+                        caption: true,
+                        description:
+                            'Requests by agent and day. All retained captured history. Recent capture is not a full historical census.',
+                        charts: ['agent-requests-by-agent-and-day'],
+                        layout: 'row',
+                        rowHeight: 7,
+                    },
+                    {
+                        title: 'Daily requests per agent',
+                        caption: true,
+                        description:
+                            'One panel per agent, each on its own scale. All retained captured history. Recent capture is not a full historical census.',
+                        charts: ['agent-daily-requests-per-agent'],
+                        layout: 'row',
+                        rowHeight: 9,
+                    },
+                    {
+                        title: 'Requests by person',
+                        caption: true,
+                        description:
+                            'Requests by person and agent. This is not an eligible-user adoption rate or a comparison with external assistants.',
                         charts: ['agent-adoption-by-week'],
                     },
                 ],
@@ -26,12 +57,19 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 sections: [
                     {
                         title: 'Technical outcomes',
+                        caption: true,
                         description:
                             "Captured request outcomes describe technical completion, not whether the answer solved the user's problem. Pending and unknown outcomes remain visible.",
-                        charts: ['agent-request-outcomes'],
+                        charts: [
+                            'agent-requests-and-completion-by-day',
+                            'agent-request-outcomes',
+                        ],
+                        layout: 'row',
+                        rowHeight: 8,
                     },
                     {
                         title: 'Feedback coverage',
+                        caption: true,
                         description:
                             'Interpret ratings alongside the feedback sample and outcome coverage. Unrated requests are not positive feedback.',
                         charts: ['agent-feedback-rating-and-sample-coverage'],
@@ -44,18 +82,28 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 sections: [
                     {
                         title: 'Retries',
+                        caption: true,
                         description:
                             'Retry overhead and request-linked tokens identify retry-heavy groups; precise incremental tokens per attempt are not captured.',
                         charts: ['agent-retries-latency-and-consumption'],
+                        layout: 'row',
+                        rowHeight: 7,
                     },
                     {
                         title: 'AI consumption',
+                        caption: true,
                         description:
                             'Tokens by person, feature and model. Tokens are not monetary cost; team history, model pricing and external assistant spending are not included.',
-                        charts: ['ai-consumption-by-person-feature-and-model'],
+                        charts: [
+                            'ai-consumption-by-person-feature-and-model',
+                            'ai-tokens-by-feature-and-model',
+                        ],
+                        layout: 'row',
+                        rowHeight: 8,
                     },
                     {
                         title: 'Consumption by outcome',
+                        caption: true,
                         description:
                             'Request-linked tokens grouped by technical outcome and feedback. Unknown invocation-to-request linkage must not be interpreted as zero consumption.',
                         charts: ['request-consumption-by-outcome-and-feedback'],

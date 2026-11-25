@@ -14,6 +14,7 @@ import { buildQueryCalendarChart } from './queryCalendarChart';
 import {
     buildUsageDashboards,
     usageLibraryChartBindings,
+    wholeMillisecondOverrides,
 } from './usageDashboards';
 
 type SampleChart = Omit<
@@ -23,6 +24,9 @@ type SampleChart = Omit<
     key: string;
     libraryChart?: LibraryChartBinding;
 };
+
+const defaultChartDescription =
+    'Based on all available usage events for this organization.';
 
 const chart = (
     key: string,
@@ -51,14 +55,13 @@ const chart = (
         key,
         libraryChart: options.libraryChart,
         name,
-        description:
-            options.description ??
-            'Based on all available usage events for this organization.',
+        description: options.description ?? defaultChartDescription,
         tableName,
         metricQuery: {
             exploreName: tableName,
             dimensions: dimensionId ? [dimensionId] : [],
             metrics,
+            metricOverrides: wholeMillisecondOverrides(metrics),
             filters: {},
             sorts: [
                 {
@@ -150,14 +153,152 @@ const aiUsageContent = {
     description:
         'AI calls, token consumption, adoption and model usage. Duplicate this dashboard to keep a customized copy separate from future built-in updates.',
     charts: [
-        chart('ai-calls', 'AI calls', 'ai_usage', 'total_ai_calls'),
-        chart('tokens', 'Tokens used', 'ai_usage', 'total_tokens_used'),
-        chart('ai-users', 'Users using AI', 'ai_usage', 'unique_users'),
+        chart('ai-calls', 'AI calls', 'ai_usage', 'total_ai_calls', undefined, {
+            libraryChart: {
+                slug: 'big-number-with-sparkline-trend',
+                minVersion: '0.7.1',
+                fieldMapping: {
+                    value: 'ai_usage_total_ai_calls',
+                    sparklineMetric: 'ai_usage_total_ai_calls',
+                    time: 'ai_usage_event_ts_day',
+                },
+                optionValues: {
+                    valueAggregation: 'sum',
+                    style: 'compact',
+                    colorSparklineByTrend: false,
+                    showLabel: true,
+                    label: 'Selected period',
+                    showCardBorder: false,
+                    showCardShadow: false,
+                },
+                query: {
+                    dimensions: ['ai_usage_event_ts_day'],
+                    metrics: ['ai_usage_total_ai_calls'],
+                    sorts: [
+                        { fieldId: 'ai_usage_event_ts_day', descending: false },
+                    ],
+                    limit: 500,
+                    description: defaultChartDescription,
+                },
+            },
+        }),
+        chart(
+            'tokens',
+            'Tokens used',
+            'ai_usage',
+            'total_tokens_used',
+            undefined,
+            {
+                libraryChart: {
+                    slug: 'big-number-with-sparkline-trend',
+                    minVersion: '0.7.1',
+                    fieldMapping: {
+                        value: 'ai_usage_total_tokens_used',
+                        sparklineMetric: 'ai_usage_total_tokens_used',
+                        time: 'ai_usage_event_ts_day',
+                    },
+                    optionValues: {
+                        valueAggregation: 'sum',
+                        style: 'compact',
+                        colorSparklineByTrend: false,
+                        showLabel: true,
+                        label: 'Selected period',
+                        showCardBorder: false,
+                        showCardShadow: false,
+                    },
+                    query: {
+                        dimensions: ['ai_usage_event_ts_day'],
+                        metrics: ['ai_usage_total_tokens_used'],
+                        sorts: [
+                            {
+                                fieldId: 'ai_usage_event_ts_day',
+                                descending: false,
+                            },
+                        ],
+                        limit: 500,
+                        description: defaultChartDescription,
+                    },
+                },
+            },
+        ),
+        chart(
+            'ai-users',
+            'Users using AI',
+            'ai_usage',
+            'unique_users',
+            undefined,
+            {
+                libraryChart: {
+                    slug: 'big-number-with-sparkline-trend',
+                    minVersion: '0.7.1',
+                    fieldMapping: {
+                        value: 'ai_usage_unique_users',
+                        sparklineMetric: 'ai_usage_unique_users',
+                        time: 'ai_usage_event_ts_day',
+                    },
+                    optionValues: {
+                        valueAggregation: 'latest',
+                        showComparison: false,
+                        colorSparklineByTrend: false,
+                        showLabel: true,
+                        label: 'Latest day',
+                        showCardBorder: false,
+                        showCardShadow: false,
+                    },
+                    query: {
+                        dimensions: ['ai_usage_event_ts_day'],
+                        metrics: ['ai_usage_unique_users'],
+                        sorts: [
+                            {
+                                fieldId: 'ai_usage_event_ts_day',
+                                descending: false,
+                            },
+                        ],
+                        limit: 500,
+                        description:
+                            'People who used AI on the latest day in the selected period, with the daily trend. A person active on several days is counted on each of those days.',
+                    },
+                },
+            },
+        ),
         chart(
             'output-tokens',
             'Output tokens',
             'ai_usage',
             'total_output_tokens',
+            undefined,
+            {
+                libraryChart: {
+                    slug: 'big-number-with-sparkline-trend',
+                    minVersion: '0.7.1',
+                    fieldMapping: {
+                        value: 'ai_usage_total_output_tokens',
+                        sparklineMetric: 'ai_usage_total_output_tokens',
+                        time: 'ai_usage_event_ts_day',
+                    },
+                    optionValues: {
+                        valueAggregation: 'sum',
+                        style: 'compact',
+                        colorSparklineByTrend: false,
+                        showLabel: true,
+                        label: 'Selected period',
+                        showCardBorder: false,
+                        showCardShadow: false,
+                    },
+                    query: {
+                        dimensions: ['ai_usage_event_ts_day'],
+                        metrics: ['ai_usage_total_output_tokens'],
+                        sorts: [
+                            {
+                                fieldId: 'ai_usage_event_ts_day',
+                                descending: false,
+                            },
+                        ],
+                        limit: 500,
+                        description: defaultChartDescription,
+                    },
+                },
+            },
         ),
         chart(
             'ai-calls-by-day',
@@ -165,7 +306,38 @@ const aiUsageContent = {
             'ai_usage',
             'total_ai_calls',
             'event_ts_day',
-            { colors: ['#7950F2'], axisLabel: 'Calls' },
+            {
+                colors: ['#7950F2'],
+                axisLabel: 'Calls',
+                libraryChart: {
+                    slug: 'customizable-cartesian-chart',
+                    minVersion: '0.17.1',
+                    fieldMapping: {
+                        x: 'ai_usage_event_ts_day',
+                        m1: 'ai_usage_total_ai_calls',
+                        splitBy: 'ai_usage_model',
+                    },
+                    optionValues: {
+                        seriesType: 'bar',
+                        stack: 'normal',
+                        xAxisType: 'time',
+                        xTimeFormat: '{MMM} {d}',
+                    },
+                    query: {
+                        dimensions: ['ai_usage_event_ts_day', 'ai_usage_model'],
+                        metrics: ['ai_usage_total_ai_calls'],
+                        sorts: [
+                            { fieldId: 'ai_usage_model', descending: false },
+                            {
+                                fieldId: 'ai_usage_event_ts_day',
+                                descending: false,
+                            },
+                        ],
+                        limit: 5000,
+                        description: defaultChartDescription,
+                    },
+                },
+            },
         ),
         chart(
             'tokens-by-day',
@@ -173,7 +345,38 @@ const aiUsageContent = {
             'ai_usage',
             'total_tokens_used',
             'event_ts_day',
-            { colors: ['#339AF0'], axisLabel: 'Tokens' },
+            {
+                colors: ['#339AF0'],
+                axisLabel: 'Tokens',
+                libraryChart: {
+                    slug: 'customizable-cartesian-chart',
+                    minVersion: '0.17.1',
+                    fieldMapping: {
+                        x: 'ai_usage_event_ts_day',
+                        m1: 'ai_usage_total_tokens_used',
+                        splitBy: 'ai_usage_model',
+                    },
+                    optionValues: {
+                        seriesType: 'bar',
+                        stack: 'normal',
+                        xAxisType: 'time',
+                        xTimeFormat: '{MMM} {d}',
+                    },
+                    query: {
+                        dimensions: ['ai_usage_event_ts_day', 'ai_usage_model'],
+                        metrics: ['ai_usage_total_tokens_used'],
+                        sorts: [
+                            { fieldId: 'ai_usage_model', descending: false },
+                            {
+                                fieldId: 'ai_usage_event_ts_day',
+                                descending: false,
+                            },
+                        ],
+                        limit: 5000,
+                        description: defaultChartDescription,
+                    },
+                },
+            },
         ),
         chart(
             'tokens-by-model',
@@ -203,7 +406,67 @@ const aiUsageContent = {
                     'Top 10 models by AI calls across all available events. Compare with token volume to distinguish frequent calls from token-heavy calls.',
             },
         ),
+        chart(
+            'tokens-by-feature',
+            'Token use by feature',
+            'ai_usage',
+            'total_tokens_used',
+            'feature',
+            {
+                visualization: 'bar',
+                colors: ['#7950F2'],
+                axisLabel: 'Tokens',
+                description:
+                    'Tokens by feature over the selected period. Token volume is not monetary cost.',
+                libraryChart: {
+                    slug: 'heatmap',
+                    minVersion: '0.4.2',
+                    fieldMapping: {
+                        x: 'ai_usage_event_ts_day',
+                        y: 'ai_usage_feature',
+                        value: 'ai_usage_total_tokens_used',
+                    },
+                    optionValues: {},
+                    query: {
+                        dimensions: [
+                            'ai_usage_feature',
+                            'ai_usage_event_ts_day',
+                        ],
+                        metrics: ['ai_usage_total_tokens_used'],
+                        sorts: [
+                            {
+                                fieldId: 'ai_usage_feature',
+                                descending: false,
+                            },
+                            {
+                                fieldId: 'ai_usage_event_ts_day',
+                                descending: false,
+                            },
+                        ],
+                        limit: 5000,
+                        description:
+                            'Tokens per feature per day over the selected period. Token volume is not monetary cost.',
+                    },
+                },
+            },
+        ),
     ],
+};
+
+// Overview tile positions by chart key.
+const aiUsageTilePositions: Record<
+    string,
+    { x: number; y: number; w: number; h: number }
+> = {
+    'ai-calls': { x: 0, y: 0, w: 9, h: 3 },
+    tokens: { x: 9, y: 0, w: 9, h: 3 },
+    'ai-users': { x: 18, y: 0, w: 9, h: 3 },
+    'output-tokens': { x: 27, y: 0, w: 9, h: 3 },
+    'tokens-by-feature': { x: 0, y: 3, w: 36, h: 7 },
+    'ai-calls-by-day': { x: 0, y: 10, w: 18, h: 7 },
+    'tokens-by-day': { x: 18, y: 10, w: 18, h: 7 },
+    'tokens-by-model': { x: 0, y: 17, w: 18, h: 8 },
+    'calls-by-model': { x: 18, y: 17, w: 18, h: 8 },
 };
 
 export const analyticsSampleDashboards = [
@@ -351,6 +614,23 @@ const legacyContentAsCode: {
             tabs: [],
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
             tiles: charts.map(({ slug }, index) => {
+                if (bundle.key === aiUsageContent.key) {
+                    const key = slug.slice(bundle.key.length + 1);
+                    const position = aiUsageTilePositions[key];
+                    if (!position) {
+                        throw new Error(
+                            `No Overview position for chart ${key}`,
+                        );
+                    }
+                    return {
+                        uuid: undefined,
+                        tileSlug: slug,
+                        type: DashboardTileTypes.SAVED_CHART,
+                        ...position,
+                        tabSlug: null,
+                        properties: { chartSlug: slug },
+                    };
+                }
                 if (
                     bundle.key === 'lightdash-analytics-query-activity' &&
                     index >= 4

@@ -7,6 +7,7 @@ import { createAnalyticsExplores } from '../../services/ProjectService/analytics
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
+    analyticsLibraryChartBindings,
     analyticsSampleDashboards,
 } from './sampleContent';
 
@@ -114,7 +115,7 @@ describe('analytics sample content', () => {
         const aiDashboard = analyticsSampleDashboards[0];
         expect(aiDashboard.name).toBe('AI usage');
         expect(aiDashboard.spaceSlug).toBe('lightdash-usage-overview');
-        expect(aiDashboard.charts).toHaveLength(8);
+        expect(aiDashboard.charts).toHaveLength(9);
         expect(
             aiDashboard.charts.every(
                 ({ tableName }) => tableName === 'ai_usage',
@@ -129,5 +130,87 @@ describe('analytics sample content', () => {
                 ({ tableName }) => tableName === 'query_events',
             ),
         ).toBe(true);
+    });
+
+    describe('Agents & AI overview tab', () => {
+        const overviewTiles = (dashboardSlug: string) =>
+            analyticsContentAsCode
+                .find(({ dashboard }) => dashboard.slug === dashboardSlug)!
+                .dashboard.tiles.filter((tile) => tile.tabSlug === 'overview')
+                .map(({ properties, x, y, w, h }) => ({
+                    chartSlug:
+                        'chartSlug' in properties ? properties.chartSlug : null,
+                    x,
+                    y,
+                    w,
+                    h,
+                }));
+
+        it('lays out the overview tiles at their explicit positions', () => {
+            const prefix = 'lightdash-analytics-overview-';
+            expect(overviewTiles('lightdash-analytics-overview')).toEqual(
+                expect.arrayContaining(
+                    [
+                        ['ai-calls', 0, 0, 9, 3],
+                        ['tokens', 9, 0, 9, 3],
+                        ['ai-users', 18, 0, 9, 3],
+                        ['output-tokens', 27, 0, 9, 3],
+                        ['tokens-by-feature', 0, 3, 36, 7],
+                        ['ai-calls-by-day', 0, 10, 18, 7],
+                        ['tokens-by-day', 18, 10, 18, 7],
+                        ['tokens-by-model', 0, 17, 18, 8],
+                        ['calls-by-model', 18, 17, 18, 8],
+                    ].map(([key, x, y, w, h]) => ({
+                        chartSlug: `${prefix}${key}`,
+                        x,
+                        y,
+                        w,
+                        h,
+                    })),
+                ),
+            );
+            expect(overviewTiles('lightdash-analytics-overview')).toHaveLength(
+                9,
+            );
+        });
+
+        it('falls back to a bar chart for tokens by feature and binds the heatmap', () => {
+            const slug = 'lightdash-analytics-overview-tokens-by-feature';
+            const tokensByFeature = analyticsContentAsCode
+                .flatMap(({ charts }) => charts)
+                .find((item) => item.slug === slug)!;
+            expect(tokensByFeature.chartConfig.type).toBe(ChartType.CARTESIAN);
+            expect(tokensByFeature.metricQuery.dimensions).toEqual([
+                'ai_usage_feature',
+            ]);
+            expect(analyticsLibraryChartBindings.get(slug)).toMatchObject({
+                slug: 'heatmap',
+                minVersion: '0.4.2',
+            });
+        });
+
+        it('keeps the query activity overview geometry', () => {
+            const prefix = 'lightdash-analytics-query-activity-';
+            expect(overviewTiles('lightdash-analytics-query-activity')).toEqual(
+                [
+                    ['queries', 0, 0, 9, 3],
+                    ['query-users', 9, 0, 9, 3],
+                    ['avg-execution-time', 18, 0, 9, 3],
+                    ['p90-execution-time', 27, 0, 9, 3],
+                    ['queries-by-day', 0, 9, 18, 8],
+                    ['active-users-by-day', 18, 9, 18, 8],
+                    ['query-cache', 0, 17, 18, 8],
+                    ['queries-by-context', 18, 17, 18, 8],
+                    ['query-latency-by-day', 0, 25, 36, 8],
+                    ['query-calendar', 0, 3, 36, 6],
+                ].map(([key, x, y, w, h]) => ({
+                    chartSlug: `${prefix}${key}`,
+                    x,
+                    y,
+                    w,
+                    h,
+                })),
+            );
+        });
     });
 });
