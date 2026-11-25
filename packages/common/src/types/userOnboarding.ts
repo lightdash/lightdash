@@ -5,6 +5,7 @@
 export const USER_ONBOARDING_TOURS = [
     'memoryTour',
     'dashboardEditTour',
+    'composerLineageTour',
 ] as const;
 
 export type UserOnboardingTour = (typeof USER_ONBOARDING_TOURS)[number];

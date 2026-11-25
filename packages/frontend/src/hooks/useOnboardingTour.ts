@@ -72,7 +72,8 @@ export const useOnboardingTour = ({
     const { mutate } = useMutation<undefined, ApiError, UserOnboardingTour>({
         mutationFn: (tour: UserOnboardingTour) =>
             completeUserOnboardingTour(lightdashApi, tour),
-        onSuccess: (_result, completedTour) => {
+        // Written before the request lands, so other mounted copies of a tour close at once.
+        onMutate: (completedTour) => {
             queryClient.setQueryData<UserOnboarding>(
                 [USER_ONBOARDING_QUERY_KEY],
                 (previous) =>
