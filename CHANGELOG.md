@@ -1,3 +1,15 @@
+# [3.404.0](https://github.com/lightdash/lightdash/compare/3.403.0...3.404.0) (2026-11-25)
+
+
+### Bug Fixes
+
+* virtualize grouped tables when subtotals are off ([#33427](https://github.com/lightdash/lightdash/issues/33427)) ([853c0a5](https://github.com/lightdash/lightdash/commit/853c0a53b0c89007d4caca5633c4ad7c7d26fc25)), closes [#31499](https://github.com/lightdash/lightdash/issues/31499)
+
+
+### Features
+
+* **scheduler:** export chart deliveries as a chart image in XLSX ([#33430](https://github.com/lightdash/lightdash/issues/33430)) ([3ac78eb](https://github.com/lightdash/lightdash/commit/3ac78eb36886b666dc0a000ad33ff81176554a8f))
+
 # [3.403.0](https://github.com/lightdash/lightdash/compare/3.402.0...3.403.0) (2026-11-25)
 
 
