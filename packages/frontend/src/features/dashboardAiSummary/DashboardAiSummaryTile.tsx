@@ -11,8 +11,9 @@ import {
     Stack,
     Text,
     Tooltip,
+    VisuallyHidden,
 } from '@mantine/core';
-import { IconRefresh, IconSparkles } from '@tabler/icons-react';
+import { IconRefresh } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { type ComponentProps, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -37,6 +38,22 @@ const Message: FC<{ children: string }> = ({ children }) => (
     <Text fz="sm" c="dimmed">
         {children}
     </Text>
+);
+
+const SKELETON_LINE_WIDTHS = ['45%', '100%', '96%', '100%', '88%', '62%'];
+
+const SummarySkeleton: FC<{ label: string }> = ({ label }) => (
+    <Stack gap="xs" role="status">
+        <VisuallyHidden>{label}</VisuallyHidden>
+        {SKELETON_LINE_WIDTHS.map((width, index) => (
+            <Box
+                key={index}
+                className={styles.skeletonLine}
+                w={width}
+                mb={index === 0 ? 'xs' : 0}
+            />
+        ))}
+    </Stack>
 );
 
 const SummaryFooter: FC<{
@@ -116,7 +133,9 @@ const SummaryBody: FC<{ tile: AiSummaryTile; isEditMode: boolean }> = ({
             </Stack>
         );
     }
-    if (availability.status === 'loading') return <Loader size="sm" />;
+    if (availability.status === 'loading') {
+        return <SummarySkeleton label="Loading summary" />;
+    }
     if (availability.status === 'unavailable') {
         return <Message>{UNAVAILABLE_COPY[availability.reason]}</Message>;
     }
@@ -158,23 +177,18 @@ const SummaryBody: FC<{ tile: AiSummaryTile; isEditMode: boolean }> = ({
         return <Message>The charts in this summary have no results.</Message>;
     }
     return (
-        <Group gap="xs">
-            <Loader size="sm" />
-            <Message>
-                {isWaitingForCharts
-                    ? 'Waiting for charts to load…'
-                    : 'Writing summary…'}
-            </Message>
-        </Group>
+        <SummarySkeleton
+            label={
+                isWaitingForCharts
+                    ? 'Waiting for charts to load'
+                    : 'Writing summary'
+            }
+        />
     );
 };
 
 const DashboardAiSummaryTile: FC<Props> = (props) => (
-    <TileBase
-        title={props.tile.properties.title}
-        titleLeftIcon={<MantineIcon icon={IconSparkles} color="violet.6" />}
-        {...props}
-    >
+    <TileBase title={props.tile.properties.title} {...props}>
         <Box className={clsx('non-draggable', styles.body)}>
             <SummaryBody tile={props.tile} isEditMode={props.isEditMode} />
         </Box>

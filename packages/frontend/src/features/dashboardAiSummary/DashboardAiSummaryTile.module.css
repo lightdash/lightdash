@@ -11,3 +11,33 @@
 .instructions {
     white-space: pre-wrap;
 }
+
+.skeletonLine {
+    height: 12px;
+    border-radius: var(--mantine-radius-sm);
+    background: linear-gradient(
+            90deg,
+            var(--mantine-color-ldGray-2) 0%,
+            var(--mantine-color-ldGray-2) 40%,
+            var(--mantine-color-ldGray-0) 50%,
+            var(--mantine-color-ldGray-2) 60%,
+            var(--mantine-color-ldGray-2) 100%
+        )
+        0 0 / 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes shimmer {
+    from {
+        background-position: 100% 0;
+    }
+    to {
+        background-position: -100% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skeletonLine {
+        animation: none;
+    }
+}

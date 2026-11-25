@@ -8,10 +8,10 @@ import {
 import {
     IconAppWindow,
     IconChartBar,
+    IconFileTextSpark,
     IconHeading,
     IconMarkdown,
     IconPlus,
-    IconSparkles,
     IconVideo,
     type Icon,
 } from '@tabler/icons-react';
@@ -201,8 +201,8 @@ export const useAddTileOptions = ({
         {
             id: 'aiSummary',
             label: 'AI summary',
-            icon: IconSparkles,
-            hint: 'Written from the charts on this dashboard and updated with its filters',
+            icon: IconFileTextSpark,
+            hint: null,
             onSelect: () => setFormTileType(DashboardTileTypes.AI_SUMMARY),
             isShown:
                 aiSummaryEnabled &&

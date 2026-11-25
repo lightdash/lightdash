@@ -13,9 +13,9 @@ import { Button, Stack, type ModalProps } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import {
     IconAppWindow,
+    IconFileTextSpark,
     IconHeading,
     IconMarkdown,
-    IconSparkles,
     IconVideo,
 } from '@tabler/icons-react';
 import { produce } from 'immer';
@@ -102,7 +102,7 @@ const TileUpdateModal = <T extends Tile>({
             case DashboardTileTypes.DATA_APP:
                 return IconAppWindow;
             case DashboardTileTypes.AI_SUMMARY:
-                return IconSparkles;
+                return IconFileTextSpark;
             case DashboardTileTypes.SAVED_CHART:
                 return undefined;
             case DashboardTileTypes.SQL_CHART:

@@ -13,8 +13,8 @@ import { Button, Stack, Text } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import {
     IconAppWindow,
+    IconFileTextSpark,
     IconMarkdown,
-    IconSparkles,
     IconVideo,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -101,7 +101,7 @@ export const TileAddModal: FC<AddProps> = ({
             case DashboardTileTypes.DATA_APP:
                 return IconAppWindow;
             case DashboardTileTypes.AI_SUMMARY:
-                return IconSparkles;
+                return IconFileTextSpark;
             default:
                 return assertUnreachable(type, 'Tile type not supported');
         }
