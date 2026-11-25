@@ -555,6 +555,17 @@ export const SourcePane: FC<{
                 : null,
         [proposal, path, loaded],
     );
+    // What the person's edits would replace: a pending proposal, or a newer version saved since they started.
+    const pending =
+        proposed !== null && proposed !== offered && hasOwnEdits
+            ? proposed
+            : null;
+    const isBehind =
+        hasOwnEdits &&
+        file?.content != null &&
+        sourceRevision.current !== null &&
+        file.revision !== sourceRevision.current;
+    const incoming = pending ?? (isBehind ? loaded : null);
     const proposalKey = useRef<string | null>(null);
     // Like an editor's agent: a proposal for the open file lands in it as an unsaved edit, once.
     useEffect(() => {
@@ -1055,13 +1066,15 @@ export const SourcePane: FC<{
                     <CopyActionIcon value={value} copyLabel="Copy" />
                 </Group>
             </Group>
-            {proposed !== null && proposed !== offered && hasOwnEdits ? (
+            {incoming !== null ? (
                 <Alert color="violet" radius={0} py={8}>
                     <Group gap="xs" justify="space-between" wrap="nowrap">
                         <Text fz="xs">
-                            {isSaving
-                                ? 'The agent is saving a change to this file. Your edits are kept here.'
-                                : 'The agent proposed a change to this file. Your edits are kept here.'}
+                            {pending === null
+                                ? 'This file changed since you started editing. Your edits are kept here.'
+                                : isSaving
+                                  ? 'The agent is saving a change to this file. Your edits are kept here.'
+                                  : 'The agent proposed a change to this file. Your edits are kept here.'}
                         </Text>
                         <Button
                             size="compact-xs"
@@ -1075,19 +1088,35 @@ export const SourcePane: FC<{
                 </Alert>
             ) : null}
             <MantineModal
-                opened={isComparingProposal && proposed !== null && hasOwnEdits}
+                opened={isComparingProposal && incoming !== null}
                 onClose={() => setIsComparingProposal(false)}
-                title="Your edits → the agent's proposal"
+                onCancel={() => {
+                    setIsComparingProposal(false);
+                    // Kept over a newer version, the edits save over it.
+                    if (pending === null && file?.content != null && text) {
+                        sourceRevision.current = file.revision;
+                        keepUnsaved(editKey, text, file.revision);
+                    }
+                }}
+                title={
+                    pending === null
+                        ? 'Your edits → the latest version'
+                        : "Your edits → the agent's proposal"
+                }
                 size="xl"
                 cancelLabel="Keep my edits"
-                confirmLabel="Use the proposal"
+                confirmLabel={
+                    pending === null
+                        ? 'Use the latest version'
+                        : 'Use the proposal'
+                }
                 onConfirm={() => {
                     setIsComparingProposal(false);
                     reset();
                     setNotice(null);
                 }}
             >
-                {proposed !== null ? (
+                {incoming !== null ? (
                     <WorkerPoolContextProvider
                         poolOptions={PIERRE_POOL_OPTIONS}
                         highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
@@ -1096,7 +1125,7 @@ export const SourcePane: FC<{
                             oldFile={{ name: fileName(path), contents: value }}
                             newFile={{
                                 name: fileName(path),
-                                contents: proposed,
+                                contents: incoming,
                             }}
                             options={{
                                 ...options,
