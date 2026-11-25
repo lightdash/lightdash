@@ -1,3 +1,10 @@
+# [3.405.0](https://github.com/lightdash/lightdash/compare/3.404.0...3.405.0) (2026-11-25)
+
+
+### Features
+
+* **scheduler:** choose charts as images for XLSX scheduled deliveries ([#33431](https://github.com/lightdash/lightdash/issues/33431)) ([90a1d4f](https://github.com/lightdash/lightdash/commit/90a1d4f82a15a8cf3b7102d813d257cb29657bc0))
+
 # [3.404.0](https://github.com/lightdash/lightdash/compare/3.403.0...3.404.0) (2026-11-25)
 
 
