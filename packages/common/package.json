@@ -73,6 +73,7 @@
     "check:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts --check",
     "generate:mcp-tools-snapshot": "tsx src/schemas/generateMcpToolsSnapshot.ts && pnpm run formatter --write src/schemas/json/mcp-tools-1.0.json",
     "benchmark:data-app-references": "tsx scripts/benchmarkDataAppReferences.ts",
+    "benchmark:number-formatting": "TZ=UTC LANG=en_US.UTF-8 tsx scripts/benchmarkNumberFormatting.ts",
     "check:mcp-tools-snapshot": "tsx src/schemas/generateMcpToolsSnapshot.ts --check",
     "test": "vitest run --config vitest.config.ts",
     "test:dev": "vitest watch --config vitest.config.ts --changed",
