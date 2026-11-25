@@ -533,7 +533,6 @@ import {
     resolveKeyManagement,
     resolveModelConfigForPrompt,
 } from '../ai/models';
-import { findSemanticStudioPreset } from '../ai/models/modelPreference';
 import {
     OrgAiCopilotConfigResolver,
     type AiConfigScope,
@@ -801,7 +800,7 @@ import {
     getPinnedSuggestionContextInput,
 } from './suggestionPinnedContext';
 import { parseThreadMetadata } from './threadMetadata';
-import { getThreadPolicy } from './threadPolicy';
+import { getThreadPolicy, type ThreadPolicy } from './threadPolicy';
 import {
     getPromptUsageAttribution,
     type AiUsageViewerAttribution,
@@ -1554,7 +1553,7 @@ export class AiAgentService extends BaseService {
         threadModelConfig,
         agentModelConfig,
         requestedModelConfig,
-        prefersStudioModel,
+        findPreferredModel,
     }: {
         organizationUuid: string;
         projectUuid: string;
@@ -1562,8 +1561,8 @@ export class AiAgentService extends BaseService {
         threadModelConfig: AiAgentModelConfig | null;
         agentModelConfig: AiAgentModelConfig | null;
         requestedModelConfig: AiAgentModelConfig | null;
-        /** Whether the thread is a Studio one, which has its own model when nobody chose one. */
-        prefersStudioModel: boolean;
+        /** The thread's own model when nobody chose one; null keeps the org's default. */
+        findPreferredModel: ThreadPolicy['findPreferredModel'];
     }): Promise<AiAgentModelConfig | null> {
         if (threadModelConfig) {
             if (
@@ -1587,7 +1586,7 @@ export class AiAgentService extends BaseService {
             (await this.aiOrganizationSettingsService.getDefaultModelConfig(
                 organizationUuid,
             ));
-        if (!modelConfig && !prefersStudioModel) return null;
+        if (!modelConfig && !findPreferredModel) return null;
         const { catalogue, copilotConfig } =
             await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
@@ -1605,8 +1604,8 @@ export class AiAgentService extends BaseService {
             ? reconcileInheritedModelConfig(copilotConfig, resolved)
             : null;
         // A preference only replaces a model nobody chose, among those the org is offered.
-        const preferred = prefersStudioModel
-            ? findSemanticStudioPreset(
+        const preferred = findPreferredModel
+            ? findPreferredModel(
                   catalogue,
                   inherited?.modelProvider ??
                       getDefaultModel(copilotConfig)?.provider ??
@@ -5943,24 +5942,11 @@ export class AiAgentService extends BaseService {
         await this.assertAgentServesThread(agentUuid, body.createdFrom);
 
         if (isSemanticStudioThread(body.createdFrom)) {
-            // Only the app starts these; an embed or scheduler keeps its own origin.
-            if (createdFrom !== 'web_app') {
-                throw new ParameterError(
-                    'A Semantic Studio thread can only be started from the app',
-                );
-            }
-            if (
-                !(
-                    await this.semanticStudioService.getStatus(
-                        user,
-                        agent.projectUuid,
-                    )
-                ).enabled
-            ) {
-                throw new ForbiddenError(
-                    'You cannot change the semantic layer of this project',
-                );
-            }
+            await this.semanticStudioService.assertCanStartThread(
+                user,
+                agent.projectUuid,
+                createdFrom,
+            );
         }
 
         const context = body.prompt
@@ -6032,7 +6018,8 @@ export class AiAgentService extends BaseService {
             threadModelConfig: null,
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            prefersStudioModel: isSemanticStudioThread(body.createdFrom),
+            findPreferredModel: getThreadPolicy(body.createdFrom ?? createdFrom)
+                .findPreferredModel,
         });
 
         if (body.prompt) {
@@ -6260,7 +6247,8 @@ export class AiAgentService extends BaseService {
                 await this.aiAgentModel.findThreadModelConfig(threadUuid),
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            prefersStudioModel: isSemanticStudioThread(thread.createdFrom),
+            findPreferredModel: getThreadPolicy(thread.createdFrom)
+                .findPreferredModel,
         });
 
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
@@ -13665,6 +13653,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 );
                 return;
             }
+            const { worksOnThreadPullRequest } = getThreadPolicy(
+                prompt.threadCreatedFrom,
+            );
 
             // This job is enqueued mid-step, so it can outrun the onStepEnd
             // insert of its own tool-result row — wait for it before any
@@ -13676,7 +13667,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             let changedModels: string[] | null = null;
             try {
                 const runArgs = {
-                    ...(isSemanticStudioThread(prompt.threadCreatedFrom)
+                    ...(worksOnThreadPullRequest
                         ? { continuesThreadPullRequest: true }
                         : {}),
                     agentPermissionsApply: true,
@@ -13855,11 +13846,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     });
             }
 
-            if (
-                result.prUrl &&
-                result.commitSha &&
-                isSemanticStudioThread(prompt.threadCreatedFrom)
-            ) {
+            if (result.prUrl && result.commitSha && worksOnThreadPullRequest) {
                 await this.semanticStudioCheckoutService
                     .queueBranchCompile(
                         user,
@@ -13921,7 +13908,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     !reviewRemediation
                 ) {
                     // Studio shows the pull request now; building its preview can take a minute.
-                    if (isSemanticStudioThread(prompt.threadCreatedFrom)) {
+                    if (worksOnThreadPullRequest) {
                         if (assertPublishAllowed) await assertPublishAllowed();
                         await storeResult(null, new Date().toISOString());
                         toolResultWritten = true;
@@ -18956,7 +18943,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 : null,
             agentModelConfig: agent?.modelConfig ?? null,
             requestedModelConfig: data.modelConfig ?? null,
-            prefersStudioModel: false,
+            findPreferredModel: null,
         });
 
         if (!threadUuid) {

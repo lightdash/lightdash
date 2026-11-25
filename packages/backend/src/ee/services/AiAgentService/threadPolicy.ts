@@ -2,6 +2,7 @@ import {
     isSemanticStudioThread,
     type AiThreadCreatedFrom,
 } from '@lightdash/common';
+import { findSemanticStudioPreset } from '../ai/models/modelPreference';
 import { type TurnCard } from '../ai/types/aiAgent';
 import { studioTurnCard } from '../SemanticStudioService/studioTurnCard';
 
@@ -16,6 +17,10 @@ export type ThreadPolicy = {
     /** Offers questions as choices without the ask-user flag. */
     asksWithoutFlag: boolean;
     turnCard: TurnCard | null;
+    /** Saves keep to the thread's own pull request, compile its branch, and show it before its preview is built. */
+    worksOnThreadPullRequest: boolean;
+    /** The model for a thread nobody chose one for; null keeps the org's default. */
+    findPreferredModel: typeof findSemanticStudioPreset | null;
 };
 
 const DEFAULT_THREAD_POLICY: ThreadPolicy = {
@@ -24,6 +29,8 @@ const DEFAULT_THREAD_POLICY: ThreadPolicy = {
     waitsOnMcpServers: true,
     asksWithoutFlag: false,
     turnCard: null,
+    worksOnThreadPullRequest: false,
+    findPreferredModel: null,
 };
 
 // A Studio thread only edits models, takes no MCP tools, and offers each change as a choice on a card.
@@ -33,6 +40,8 @@ const STUDIO_THREAD_POLICY: ThreadPolicy = {
     waitsOnMcpServers: false,
     asksWithoutFlag: true,
     turnCard: studioTurnCard,
+    worksOnThreadPullRequest: true,
+    findPreferredModel: findSemanticStudioPreset,
 };
 
 export const getThreadPolicy = (

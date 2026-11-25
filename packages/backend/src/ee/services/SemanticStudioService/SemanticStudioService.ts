@@ -512,6 +512,25 @@ export class SemanticStudioService extends BaseService {
         return blocker ? { ...status, enabled: false, blocker } : status;
     }
 
+    /** A Studio thread starts from the app, for someone who can change this project's semantic layer. */
+    async assertCanStartThread(
+        user: SessionUser,
+        projectUuid: string,
+        startedFrom: string,
+    ): Promise<void> {
+        // Only the app starts these; an embed or scheduler keeps its own origin.
+        if (startedFrom !== 'web_app') {
+            throw new ParameterError(
+                'A Semantic Studio thread can only be started from the app',
+            );
+        }
+        if (!(await this.getStatus(user, projectUuid)).enabled) {
+            throw new ForbiddenError(
+                'You cannot change the semantic layer of this project',
+            );
+        }
+    }
+
     /** Whether this person can change this project's models here, and what applying a draft would do. */
     async getStatus(
         user: SessionUser,
