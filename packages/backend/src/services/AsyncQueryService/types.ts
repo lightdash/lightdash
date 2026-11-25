@@ -120,6 +120,7 @@ export type GetAsyncQueryResultsArgs = Omit<
         reader?: QueryResultReader;
         // Defaults to query.maxPageSize
         maxPageSize?: number;
+        signal?: AbortSignal;
     };
 
 export type AsyncQueryResultsResponse =

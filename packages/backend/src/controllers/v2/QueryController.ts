@@ -74,6 +74,7 @@ import { getContextFromHeader } from '../../analytics/LightdashAnalytics';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import { pipeS3BodyToResponse } from '../../clients/Aws/s3Streams';
 import { compressResultsPage } from '../../middlewares/responseCompression/responseCompression';
+import type { AsyncQueryResultsResponse } from '../../services/AsyncQueryService/types';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -206,18 +207,39 @@ export class QueryController extends BaseController {
     ): Promise<ApiGetAsyncQueryResultsResponse> {
         this.setStatus(200);
 
-        const response = await this.services
-            .getAsyncQueryService()
-            .getAsyncQueryResultsResponse({
-                account: req.account!,
-                projectUuid,
-                queryUuid,
-                page,
-                pageSize,
-            });
+        const res = req.res!;
+        const clientGone = new AbortController();
+        const onClose = () => {
+            if (!res.writableFinished) {
+                clientGone.abort(
+                    new Error('The client closed the results page request'),
+                );
+            }
+        };
+        res.once('close', onClose);
+        let response: AsyncQueryResultsResponse;
+        try {
+            response = await this.services
+                .getAsyncQueryService()
+                .getAsyncQueryResultsResponse({
+                    account: req.account!,
+                    projectUuid,
+                    queryUuid,
+                    page,
+                    pageSize,
+                    signal: clientGone.signal,
+                });
+        } catch (error) {
+            if (clientGone.signal.aborted) {
+                return undefined as unknown as ApiGetAsyncQueryResultsResponse;
+            }
+            throw error;
+        } finally {
+            res.off('close', onClose);
+        }
 
         if (response.kind === 'body') {
-            await sendSerialisedJson(req.res!, response.body);
+            await sendSerialisedJson(res, response.body);
             return undefined as unknown as ApiGetAsyncQueryResultsResponse;
         }
         return {

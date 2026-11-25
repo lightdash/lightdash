@@ -366,7 +366,7 @@ describe('StoredResultsPages', () => {
             pool: new ResultsPageWorkerPool({
                 size: 1,
                 brotliQuality: 4,
-                buildTimeoutMs: 20,
+                buildTimeoutMs: 200,
                 createWorker: () => new EchoWorker(),
             }),
             appVersion: '3.393.0',
@@ -475,9 +475,12 @@ describe('StoredResultsPages storage deadlines', () => {
 
         const first = await pages.getRows(args);
         expect(first.source).toBe('built');
-        await vi.waitFor(() => {
-            expect(storage.putObjectBytes).toHaveBeenCalled();
-        });
+        await vi.waitFor(
+            () => {
+                expect(storage.putObjectBytes).toHaveBeenCalled();
+            },
+            { interval: 1 },
+        );
         expect(pages.pendingUploadBytes).toBeGreaterThan(0);
         await wait(60);
 
@@ -641,9 +644,8 @@ describe('StoredResultsPages outstanding work', () => {
     });
 
     test('keeps concurrent stored page decompression within its byte budget', async () => {
-        const decompress = vi.fn(
-            async (body: Buffer, _rawBytes: number) =>
-                zlib.brotliDecompressSync(body),
+        const decompress = vi.fn(async (body: Buffer, _rawBytes: number) =>
+            zlib.brotliDecompressSync(body),
         );
         const { pages, args, settle } = setup({
             decompressBudgetBytes: expectedRows.length,

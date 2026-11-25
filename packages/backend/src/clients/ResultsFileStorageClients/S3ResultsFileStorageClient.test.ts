@@ -1,7 +1,7 @@
+import { NotFound } from '@aws-sdk/client-s3';
 import { PassThrough } from 'stream';
 import type { LightdashConfig } from '../../config/parseConfig';
 import { ChecksumStreamStandIn } from '../Aws/s3Streams.testUtils';
-import { NotFound } from '@aws-sdk/client-s3';
 import { S3ResultsFileStorageClient } from './S3ResultsFileStorageClient';
 
 vi.mock('../../logging/logger', () => ({

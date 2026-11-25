@@ -1790,15 +1790,13 @@ export class AsyncQueryService extends ProjectService {
         onLine: (line: string) => void,
         signal?: AbortSignal,
     ) {
-        const cacheStream =
-            await resultsStorageClient.getDownloadStream(fileName);
+        const cacheStream = await resultsStorageClient.getDownloadStream(
+            fileName,
+            'jsonl',
+            { abortSignal: signal },
+        );
         const stopRead = () => {
-            destroyS3Body(
-                cacheStream,
-                signal?.reason instanceof Error
-                    ? signal.reason
-                    : new Error('Results page read was stopped'),
-            );
+            destroyS3Body(cacheStream);
         };
         if (signal?.aborted) {
             stopRead();
@@ -1826,9 +1824,13 @@ export class AsyncQueryService extends ProjectService {
                     nonEmptyLineCount += 1;
                 }
             }
+        } catch (error) {
+            signal?.throwIfAborted();
+            throw error;
         } finally {
             signal?.removeEventListener('abort', stopRead);
         }
+        signal?.throwIfAborted();
     }
 
     private async getResultsPageFromS3(
@@ -1866,6 +1868,7 @@ export class AsyncQueryService extends ProjectService {
         pageSize,
         format,
         formatter,
+        signal,
     }: {
         queryUuid: string;
         fileName: string | null;
@@ -1874,6 +1877,7 @@ export class AsyncQueryService extends ProjectService {
         pageSize: number;
         format: ResultsPageFormatInputs;
         formatter: (row: ResultRow) => ResultRow;
+        signal: AbortSignal | undefined;
     }): Promise<ResultsPageRows> {
         const { resultsStorageClient, fileName: resultsFileName } =
             this.getResultsPageStorage(queryUuid, fileName, queryContext);
@@ -1884,7 +1888,8 @@ export class AsyncQueryService extends ProjectService {
                 page,
                 pageSize,
                 format,
-                readPageLines: async (signal) => {
+                signal,
+                readPageLines: async (buildSignal) => {
                     const lines: string[] = [];
                     await AsyncQueryService.readResultsPageLines(
                         resultsStorageClient,
@@ -1894,7 +1899,7 @@ export class AsyncQueryService extends ProjectService {
                         (line) => {
                             lines.push(line);
                         },
-                        signal,
+                        buildSignal,
                     );
                     return lines;
                 },
@@ -1906,7 +1911,8 @@ export class AsyncQueryService extends ProjectService {
                 source: stored.source,
             };
         } catch (error) {
-            if (!(error instanceof ResultsPageWorkerError)) throw error;
+            if (signal?.aborted || !(error instanceof ResultsPageWorkerError))
+                throw error;
             this.logger.warn(
                 `Results page worker failed for query ${queryUuid}, formatting the page inline: ${error.message}`,
             );
@@ -1927,12 +1933,7 @@ export class AsyncQueryService extends ProjectService {
     ): Promise<boolean> {
         assertIsAccountWithOrg(account);
         const { enabled } = await this.featureFlagModel.get({
-            user: {
-                organizationUuid: account.organization.organizationUuid,
-                ...(account.isRegisteredUser()
-                    ? { userUuid: account.user.id }
-                    : {}),
-            },
+            user: { organizationUuid: account.organization.organizationUuid },
             featureFlagId: FeatureFlags.StoredResultsPages,
         });
         return enabled;
@@ -3005,6 +3006,7 @@ export class AsyncQueryService extends ProjectService {
             aiAccessOnly = false,
             reader,
             maxPageSize = this.lightdashConfig.query.maxPageSize,
+            signal,
         }: GetAsyncQueryResultsArgs,
         allowStoredPages: boolean,
     ): Promise<AsyncQueryResultsResponse> {
@@ -3146,6 +3148,7 @@ export class AsyncQueryService extends ProjectService {
                               timezone: displayTimezone,
                           },
                           formatter,
+                          signal,
                       })
                     : this.getResultsPageFromS3(
                           queryUuid,

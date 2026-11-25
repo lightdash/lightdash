@@ -8,6 +8,8 @@ import type {
 
 export const RESULTS_PAGE_BUILD_TIMEOUT_MS = 120_000;
 
+export const RESULTS_PAGE_QUEUED_BUILDS_PER_WORKER = 8;
+
 export class ResultsPageWorkerError extends Error {
     constructor(message: string) {
         super(message);
@@ -208,14 +210,20 @@ class PooledWorker implements ResultsPageWorkerHandle {
     }
 }
 
+type QueuedBuild = {
+    grant: (worker: PooledWorker) => void;
+};
+
 export class ResultsPageWorkerPool {
     private readonly size: number;
 
     private readonly buildTimeoutMs: number;
 
+    private readonly maxQueued: number;
+
     private readonly idle: PooledWorker[] = [];
 
-    private readonly waiting: Array<(worker: PooledWorker) => void> = [];
+    private readonly waiting: QueuedBuild[] = [];
 
     private created = 0;
 
@@ -226,16 +234,28 @@ export class ResultsPageWorkerPool {
             size: number;
             brotliQuality: number;
             buildTimeoutMs?: number;
+            maxQueued?: number;
             createWorker?: () => ResultsPageWorkerLike;
         },
     ) {
         this.size = Math.max(1, Math.floor(options.size) || 1);
         this.buildTimeoutMs =
             options.buildTimeoutMs ?? RESULTS_PAGE_BUILD_TIMEOUT_MS;
+        this.maxQueued = Math.max(
+            0,
+            Math.floor(
+                options.maxQueued ??
+                    this.size * RESULTS_PAGE_QUEUED_BUILDS_PER_WORKER,
+            ),
+        );
     }
 
     get workersStarted() {
         return this.startedWorkers;
+    }
+
+    get queuedBuilds() {
+        return this.waiting.length;
     }
 
     async withWorker<T>(
@@ -243,19 +263,11 @@ export class ResultsPageWorkerPool {
             worker: ResultsPageWorkerHandle,
             signal: AbortSignal,
         ) => Promise<T>,
+        { signal }: { signal?: AbortSignal } = {},
     ): Promise<T> {
-        const worker = await this.acquire();
+        signal?.throwIfAborted();
         const controller = new AbortController();
-        const handle: ResultsPageWorkerHandle = {
-            build: (lines, format) => {
-                if (controller.signal.aborted) {
-                    throw new ResultsPageWorkerError(
-                        'The results page build already timed out',
-                    );
-                }
-                return worker.build(lines, format);
-            },
-        };
+        let worker: PooledWorker | undefined;
         let timer: NodeJS.Timeout | undefined;
         const timeout = new Promise<never>((_resolve, reject) => {
             timer = setTimeout(() => {
@@ -263,23 +275,42 @@ export class ResultsPageWorkerPool {
                     `Results page build took longer than ${this.buildTimeoutMs}ms`,
                 );
                 controller.abort(error);
-                worker.abort(error.message);
+                worker?.abort(error.message);
                 reject(error);
             }, this.buildTimeoutMs);
             timer.unref();
         });
+        timeout.catch(() => undefined);
         try {
+            worker = await Promise.race([
+                this.acquire(controller.signal, signal),
+                timeout,
+            ]);
+            const acquired = worker;
+            const handle: ResultsPageWorkerHandle = {
+                build: (lines, format) => {
+                    if (controller.signal.aborted) {
+                        throw new ResultsPageWorkerError(
+                            'The results page build already timed out',
+                        );
+                    }
+                    return acquired.build(lines, format);
+                },
+            };
             return await Promise.race([
                 run(handle, controller.signal),
                 timeout,
             ]);
         } finally {
             clearTimeout(timer);
-            this.release(worker);
+            if (worker) this.release(worker);
         }
     }
 
-    private acquire(): Promise<PooledWorker> {
+    private acquire(
+        deadline: AbortSignal,
+        signal: AbortSignal | undefined,
+    ): Promise<PooledWorker> {
         const idle = this.idle.pop();
         if (idle) return Promise.resolve(idle);
         if (this.created < this.size) {
@@ -294,15 +325,43 @@ export class ResultsPageWorkerPool {
                 ),
             );
         }
-        return new Promise((resolve) => {
-            this.waiting.push(resolve);
+        if (this.waiting.length >= this.maxQueued) {
+            return Promise.reject(
+                new ResultsPageWorkerError(
+                    `The results page build queue is full (${this.maxQueued} builds)`,
+                ),
+            );
+        }
+        return new Promise((resolve, reject) => {
+            const stopListening: Array<() => void> = [];
+            const queued: QueuedBuild = {
+                grant: (worker) => {
+                    stopListening.forEach((stop) => stop());
+                    resolve(worker);
+                },
+            };
+            const leave = (reason: unknown) => {
+                const index = this.waiting.indexOf(queued);
+                if (index !== -1) this.waiting.splice(index, 1);
+                stopListening.forEach((stop) => stop());
+                reject(reason);
+            };
+            const onDeadline = () => leave(deadline.reason);
+            const onSignal = () => leave(signal?.reason);
+            deadline.addEventListener('abort', onDeadline, { once: true });
+            signal?.addEventListener('abort', onSignal, { once: true });
+            stopListening.push(
+                () => deadline.removeEventListener('abort', onDeadline),
+                () => signal?.removeEventListener('abort', onSignal),
+            );
+            this.waiting.push(queued);
         });
     }
 
     private release(worker: PooledWorker) {
         const next = this.waiting.shift();
         if (next) {
-            next(worker);
+            next.grant(worker);
             return;
         }
         this.idle.push(worker);

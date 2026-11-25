@@ -18,6 +18,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import { S3BaseClient } from './S3BaseClient';
+import { untilAborted } from './s3Streams';
 
 export type S3CacheClientArguments = {
     lightdashConfig: LightdashConfig;
@@ -166,7 +167,11 @@ export class S3CacheClient extends S3BaseClient {
         return entry.Body?.transformToString();
     }
 
-    async getResults(key: string, extension: string = 'json') {
+    async getResults(
+        key: string,
+        extension: string = 'json',
+        { abortSignal }: { abortSignal?: AbortSignal } = {},
+    ) {
         return wrapSentryTransaction('s3.getResults', { key }, async (span) => {
             if (!this.configuration || !this.s3) {
                 throw new MissingConfigError('S3 configuration is not set');
@@ -177,6 +182,12 @@ export class S3CacheClient extends S3BaseClient {
                     Bucket: this.configuration.bucket,
                     Key: `${key}.${extension}`,
                 });
+                if (abortSignal) {
+                    return await untilAborted(
+                        this.s3.send(command, { abortSignal }),
+                        abortSignal,
+                    );
+                }
                 return await this.s3.send(command);
             } catch (error) {
                 if (error instanceof NoSuchKey || error instanceof NotFound) {

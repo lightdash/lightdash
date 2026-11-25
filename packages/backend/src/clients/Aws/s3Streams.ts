@@ -46,3 +46,48 @@ export async function pipeS3BodyToResponse(
         }
     }
 }
+
+export function untilAborted<T>(
+    work: Promise<T>,
+    abortSignal: AbortSignal | undefined,
+): Promise<T> {
+    if (!abortSignal) return work;
+    return new Promise<T>((resolve, reject) => {
+        const onAbort = () => reject(abortSignal.reason);
+        if (abortSignal.aborted) {
+            onAbort();
+            return;
+        }
+        abortSignal.addEventListener('abort', onAbort, { once: true });
+        work.then(resolve, reject).finally(() => {
+            abortSignal.removeEventListener('abort', onAbort);
+        });
+    });
+}
+
+export async function readWholeBody(
+    body: Readable,
+    abortSignal: AbortSignal | undefined,
+): Promise<Buffer> {
+    const stop = () => {
+        destroyS3Body(body);
+    };
+    if (abortSignal?.aborted) {
+        stop();
+        abortSignal.throwIfAborted();
+    }
+    abortSignal?.addEventListener('abort', stop, { once: true });
+    try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of body) {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        abortSignal?.throwIfAborted();
+        return Buffer.concat(chunks);
+    } catch (error) {
+        abortSignal?.throwIfAborted();
+        throw error;
+    } finally {
+        abortSignal?.removeEventListener('abort', stop);
+    }
+}
