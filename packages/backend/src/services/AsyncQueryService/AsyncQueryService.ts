@@ -3640,11 +3640,13 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         queryHistory,
         attachmentDownloadName,
+        schedulerFilters,
     }: {
         account: Account;
         projectUuid: string;
         queryHistory: QueryHistory;
         attachmentDownloadName: string | undefined;
+        schedulerFilters: Filters | undefined;
     }): Promise<{ fileUrl: string; s3Key: string }> {
         // The headless browser signs in as a registered user to render the chart
         assertRegisteredAccount(account);
@@ -3669,6 +3671,7 @@ export class AsyncQueryService extends ProjectService {
             chartUuid: chart.uuid,
             user: toSessionUser(account),
             projectUuid,
+            schedulerFilters,
             ...getChartImageRenderOverrides(requestParameters),
         });
 
@@ -3700,6 +3703,7 @@ export class AsyncQueryService extends ProjectService {
             showSubtotals = false,
             accessMode,
             xlsxContent = XlsxExportContent.DATA,
+            chartImageSchedulerFilters,
         }: DownloadAsyncQueryResultsArgs,
         dashboardExportUuid?: string,
     ): Promise<DownloadAsyncQueryResultsInternal> {
@@ -3997,6 +4001,7 @@ export class AsyncQueryService extends ProjectService {
                         projectUuid,
                         queryHistory,
                         attachmentDownloadName,
+                        schedulerFilters: chartImageSchedulerFilters,
                     });
                     const chartImagePersistentUrl =
                         await this.persistentDownloadFileService.createPersistentUrl(

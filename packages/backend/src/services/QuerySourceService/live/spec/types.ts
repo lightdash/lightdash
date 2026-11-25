@@ -84,6 +84,8 @@ export type LiveRateLimits = {
     buckets: readonly LiveRateLimitBucket[];
     /** Only for something a reader must know that the numbers can't say. */
     note?: string;
+    /** Shown to admins with the limits they can lower; unlike `note`, written for customers. */
+    cardNote?: string;
 };
 
 /**

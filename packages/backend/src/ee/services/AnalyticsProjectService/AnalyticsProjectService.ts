@@ -4,6 +4,8 @@ import {
     AnalyticsProjectStatus,
     AnalyticsProjectView,
     assertIsAccountWithOrg,
+    assertUnreachable,
+    compareSemverVersions,
     ConflictError,
     ContentType,
     EnsureAnalyticsProjectResult,
@@ -16,16 +18,23 @@ import {
     NotFoundError,
     RegisteredAccount,
     SessionUser,
+    type ChartAsCode,
     type DataAppCode,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
-import { memoize } from 'es-toolkit/compat';
+import { isEqual, memoize } from 'es-toolkit/compat';
 import { z } from 'zod';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import { analyticsColorPalette } from '../../../analytics/systemExplores/analyticsColorPalette';
+import {
+    withLibraryCharts,
+    type UsableLibraryChartType,
+} from '../../../analytics/systemExplores/libraryCharts';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
+    analyticsLibraryChartBindings,
 } from '../../../analytics/systemExplores/sampleContent';
 import { trackSafely } from '../../../analytics/trackSafely';
 import { toSessionUser } from '../../../auth/account';
@@ -39,6 +48,7 @@ import {
 import { type ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { type DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import type { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
+import type { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { type SpaceModel } from '../../../models/SpaceModel';
@@ -48,11 +58,13 @@ import { UserModel } from '../../../models/UserModel';
 import type { SchedulerClient } from '../../../scheduler/SchedulerClient';
 import { BaseService } from '../../../services/BaseService';
 import { type CoderService } from '../../../services/CoderService/CoderService';
+import type { DashboardService } from '../../../services/DashboardService/DashboardService';
 import {
     analyticsExploreNames,
     createAnalyticsExplores,
 } from '../../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { AiAgentModel } from '../../models/AiAgentModel';
 import type { ProjectHomepageModel } from '../../models/ProjectHomepageModel';
 import type { AiAgentService } from '../AiAgentService/AiAgentService';
@@ -64,10 +76,11 @@ import {
     getManagedAdoptionAppCode,
     managedAdoptionAppSlug,
 } from './managedAdoptionApp';
+import { removeRetiredAnalyticsContent } from './retiredAnalyticsContent';
 
 type Dependencies = {
     analytics: Pick<LightdashAnalytics, 'track'>;
-    lightdashConfig: Pick<LightdashConfig, 'usageEvents'>;
+    lightdashConfig: Pick<LightdashConfig, 'usageEvents' | 'softDelete'>;
     appModel: Pick<
         AppModel,
         | 'getAppIncludingDeleted'
@@ -77,7 +90,10 @@ type Dependencies = {
     >;
     getAppGenerateService: () => Pick<
         AppGenerateService,
-        'dataAppsEnabledFor' | 'importAppCode' | 'restoreApp'
+        | 'dataAppsEnabledFor'
+        | 'ensureRegistryChartTypes'
+        | 'importAppCode'
+        | 'restoreApp'
     >;
     aiAgentModel: Pick<AiAgentModel, 'findAllAgents'>;
     getAiAgentService: () => Pick<
@@ -98,6 +114,10 @@ type Dependencies = {
         OrganizationMemberProfileModel,
         'getOrganizationAdmins'
     >;
+    organizationModel: Pick<
+        OrganizationModel,
+        'getColorPalettes' | 'createColorPalette' | 'updateColorPalette'
+    >;
     usageDimensionsModel: Pick<UsageDimensionsModel, 'getOrganizations'>;
     coderService: Pick<
         CoderService,
@@ -108,11 +128,17 @@ type Dependencies = {
         'getByContentUuids'
     >;
     dashboardModel: Pick<DashboardModel, 'find' | 'getByIdOrSlug'>;
+    // Lazy: only the removal of retired content needs them
+    getDashboardService: () => Pick<DashboardService, 'softDelete'>;
+    getSavedChartService: () => Pick<SavedChartService, 'softDelete'>;
     projectHomepageModel: Pick<
         ProjectHomepageModel,
         'createPublishedDefaultIfAbsent'
     >;
-    savedChartModel: Pick<SavedChartModel, 'get' | 'find'>;
+    savedChartModel: Pick<
+        SavedChartModel,
+        'get' | 'find' | 'resolveColorPalette'
+    >;
     spaceModel: Pick<SpaceModel, 'get' | 'find'>;
     projectModel: Pick<
         ProjectModel,
@@ -121,6 +147,7 @@ type Dependencies = {
         | 'getAnalyticsModelCounts'
         | 'runInAnalyticsProvisioningLock'
         | 'saveExploresToCache'
+        | 'updateColorPalette'
     >;
     projectService: Pick<
         ProjectService,
@@ -154,7 +181,11 @@ const expectedModelCounts = memoize(() =>
 
 const bundleSnapshotSlug = 'managed-content';
 const contentHash = memoize(() =>
-    getAnalyticsContentHash(createAnalyticsExplores(), analyticsContentAsCode),
+    getAnalyticsContentHash(
+        createAnalyticsExplores(),
+        analyticsContentAsCode,
+        analyticsLibraryChartBindings,
+    ),
 );
 
 const adoptionAppSnapshotSchema = z.object({
@@ -532,6 +563,97 @@ export class AnalyticsProjectService extends BaseService {
         return result;
     }
 
+    // Chart type installs are best effort: failures fall back to today's charts.
+    private async ensureLibraryChartTypes(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<Map<string, UsableLibraryChartType>> {
+        const minVersions = new Map<string, string>();
+        analyticsLibraryChartBindings.forEach(({ slug, minVersion }) => {
+            const current = minVersions.get(slug);
+            if (
+                current === undefined ||
+                compareSemverVersions(minVersion, current) > 0
+            ) {
+                minVersions.set(slug, minVersion);
+            }
+        });
+        try {
+            return await this.dependencies
+                .getAppGenerateService()
+                .ensureRegistryChartTypes(
+                    user,
+                    projectUuid,
+                    [...minVersions].map(([slug, minVersion]) => ({
+                        slug,
+                        minVersion,
+                    })),
+                );
+        } catch (error) {
+            this.logger.warn(
+                'Unable to install analytics library chart types',
+                {
+                    projectUuid,
+                    error: getErrorMessage(error),
+                },
+            );
+            return new Map();
+        }
+    }
+
+    // The palette is best effort: failures leave the charts on inherited colours.
+    private async ensureColorPalette(
+        organizationUuid: string,
+        projectUuid: string,
+    ): Promise<void> {
+        try {
+            const { name, colors, darkColors } = analyticsColorPalette;
+            const palettes =
+                await this.dependencies.organizationModel.getColorPalettes(
+                    organizationUuid,
+                );
+            const existing = palettes.find((palette) => palette.name === name);
+            // Creating a palette never makes it the organization's active one.
+            const { colorPaletteUuid } =
+                existing ??
+                (await this.dependencies.organizationModel.createColorPalette(
+                    organizationUuid,
+                    analyticsColorPalette,
+                ));
+            if (
+                existing &&
+                !(
+                    isEqual(existing.colors, colors) &&
+                    isEqual(existing.darkColors, darkColors)
+                )
+            ) {
+                await this.dependencies.organizationModel.updateColorPalette(
+                    organizationUuid,
+                    colorPaletteUuid,
+                    { uuid: colorPaletteUuid, colors, darkColors },
+                );
+            }
+            // With no chart, dashboard or space, this reports the project's own
+            // palette, or the one it inherits when it has none.
+            const { source } =
+                await this.dependencies.savedChartModel.resolveColorPalette({
+                    projectUuid,
+                });
+            // Keep a palette an admin chose for the project. An instance-wide
+            // override hides the project's choice, so leave that alone too.
+            if (source.type === 'project' || source.type === 'config') return;
+            await this.dependencies.projectModel.updateColorPalette(
+                projectUuid,
+                colorPaletteUuid,
+            );
+        } catch (error) {
+            this.logger.warn('Unable to set the analytics color palette', {
+                projectUuid,
+                error: getErrorMessage(error),
+            });
+        }
+    }
+
     async installSampleContent(user: SessionUser): Promise<void> {
         const organizationUuid = await this.authorize(user);
         await this.dependencies.projectModel.runInAnalyticsProvisioningLock(
@@ -571,6 +693,14 @@ export class AnalyticsProjectService extends BaseService {
                     project.projectUuid,
                     createAnalyticsExplores(),
                     true,
+                );
+                const usableTypes = await this.ensureLibraryChartTypes(
+                    user,
+                    project.projectUuid,
+                );
+                await this.ensureColorPalette(
+                    organizationUuid,
+                    project.projectUuid,
                 );
                 for (const { dashboard, charts } of analyticsContentAsCode) {
                     const [existingDashboard] =
@@ -642,14 +772,71 @@ export class AnalyticsProjectService extends BaseService {
                             options,
                         );
                     }
-                    for (const chart of charts) {
-                        await this.dependencies.coderService.upsertChart(
-                            user,
-                            project.projectUuid,
-                            chart.slug,
-                            { ...chart, spaceSlug },
-                            options,
-                        );
+                    const libraryCharts = withLibraryCharts(
+                        charts,
+                        analyticsLibraryChartBindings,
+                        usableTypes,
+                    );
+                    libraryCharts.rejected.forEach((rejected) => {
+                        const details = {
+                            projectUuid: project.projectUuid,
+                            ...rejected,
+                        };
+                        switch (rejected.reason) {
+                            case 'version':
+                                // Expected while a newer chart type version is unpublished.
+                                this.logger.info(
+                                    'Analytics chart needs a newer library chart type version',
+                                    details,
+                                );
+                                break;
+                            case 'schema':
+                                this.logger.warn(
+                                    'Analytics chart does not fit its library chart type',
+                                    details,
+                                );
+                                break;
+                            default:
+                                assertUnreachable(
+                                    rejected.reason,
+                                    `Unknown rejection reason ${rejected.reason}`,
+                                );
+                        }
+                    });
+                    for (const [
+                        index,
+                        chart,
+                    ] of libraryCharts.charts.entries()) {
+                        const upload = (content: ChartAsCode) =>
+                            this.dependencies.coderService.upsertChart(
+                                user,
+                                project.projectUuid,
+                                content.slug,
+                                { ...content, spaceSlug },
+                                options,
+                            );
+                        const fallback = charts[index];
+                        if (chart === fallback) {
+                            await upload(chart);
+                        } else {
+                            try {
+                                await upload(chart);
+                            } catch (error) {
+                                // The chart type can be deleted after it was ensured.
+                                if (!(error instanceof NotFoundError)) {
+                                    throw error;
+                                }
+                                this.logger.warn(
+                                    'Analytics chart type unavailable at upload, using the plain chart',
+                                    {
+                                        projectUuid: project.projectUuid,
+                                        chartSlug: chart.slug,
+                                        error: getErrorMessage(error),
+                                    },
+                                );
+                                await upload(fallback);
+                            }
+                        }
                     }
                     await this.dependencies.coderService.upsertDashboard(
                         user,
@@ -683,15 +870,46 @@ export class AnalyticsProjectService extends BaseService {
                         userUuid: user.userUuid,
                     },
                 );
-                await this.dependencies.contentAsCodeSnapshotModel.upsert({
-                    projectUuid: project.projectUuid,
-                    contentType: ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
-                    slug: bundleSnapshotSlug,
-                    snapshot: {},
-                    snapshotHash: contentHash(),
-                    appliedByUserUuid: user.userUuid,
-                    filePath: null,
+                // Never fatal: content that is no longer defined in code
+                const retired = await removeRetiredAnalyticsContent(
+                    {
+                        lightdashConfig: this.dependencies.lightdashConfig,
+                        spaceModel: this.dependencies.spaceModel,
+                        dashboardModel: this.dependencies.dashboardModel,
+                        savedChartModel: this.dependencies.savedChartModel,
+                        contentVerificationModel:
+                            this.dependencies.contentVerificationModel,
+                        dashboardService:
+                            this.dependencies.getDashboardService(),
+                        savedChartService:
+                            this.dependencies.getSavedChartService(),
+                        logger: this.logger,
+                    },
+                    user,
+                    project.projectUuid,
+                ).catch((error: unknown) => {
+                    this.logger.warn(
+                        'Unable to remove retired analytics content',
+                        {
+                            projectUuid: project.projectUuid,
+                            error: getErrorMessage(error),
+                        },
+                    );
+                    return null;
                 });
+                // The content is marked current only when nothing retired is left behind. Otherwise the
+                // next sync sees it as out of date and tries the removal again.
+                if (retired && retired.failed.length === 0) {
+                    await this.dependencies.contentAsCodeSnapshotModel.upsert({
+                        projectUuid: project.projectUuid,
+                        contentType: ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
+                        slug: bundleSnapshotSlug,
+                        snapshot: {},
+                        snapshotHash: contentHash(),
+                        appliedByUserUuid: user.userUuid,
+                        filePath: null,
+                    });
+                }
                 await this.syncAdoptionApp(user, project.projectUuid).catch(
                     (error: unknown) => {
                         this.logger.warn(

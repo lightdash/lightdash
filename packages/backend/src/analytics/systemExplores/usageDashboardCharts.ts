@@ -1,83 +1,38 @@
+import {
+    CustomFormatType,
+    FilterOperator,
+    TableCalculationType,
+} from '@lightdash/common';
+import { positive } from './analyticsChartPresentation';
+import { modelProviderColors, modelTierRanks } from './analyticsColorPalette';
+import {
+    heatmapColorClamp,
+    heatmapColorClampNote,
+    numberCard,
+    ranking,
+    wholeShare,
+} from './chartBuilders';
 import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
+
+const failedTokens = 'agent_requests_failed_or_cancelled_request_tokens';
+const failedTokenShare = 'failed_token_share';
+const failedTokensDescription =
+    'Tokens from AI calls linked to agent requests that ended in an error or were cancelled. Tokens are not cost.';
 
 export const usageChartSpecs: UsageChartSpec[] = [
     ...monthlyQueryComparisonCharts,
     {
-        key: 'assessment-pass-rate-by-day',
-        name: 'Assessment pass rate by day',
-        description:
-            'Passing assessments divided by all assessments, grouped by the day the run started. Runs without assessments do not contribute to the rate.',
-        explore: 'agent_evaluation_runs',
-        dimensions: ['agent_evaluation_runs_event_ts_day'],
-        metrics: ['agent_evaluation_runs_pass_rate'],
-        visualization: 'line',
-        timezone: 'UTC',
-        limit: 365,
-        sorts: [
-            {
-                fieldId: 'agent_evaluation_runs_event_ts_day',
-                descending: false,
-            },
-        ],
-    },
-    {
-        key: 'assessment-volume-by-day',
-        name: 'Passing and failing assessments by day',
-        description:
-            'Assessment count behind each day’s pass rate. Human and AI assessments count separately, matching the run summary.',
-        explore: 'agent_evaluation_runs',
-        dimensions: ['agent_evaluation_runs_event_ts_day'],
-        metrics: [
-            'agent_evaluation_runs_passed_assessments',
-            'agent_evaluation_runs_failed_assessments',
-        ],
-        visualization: 'line',
-        timezone: 'UTC',
-        limit: 365,
-        sorts: [
-            {
-                fieldId: 'agent_evaluation_runs_event_ts_day',
-                descending: false,
-            },
-        ],
-    },
-    {
-        key: 'quality-by-evaluation',
-        name: 'Quality by agent and evaluation',
-        description:
-            'Compare retained runs and assessment outcomes across agents and evaluations.',
-        explore: 'agent_evaluation_runs',
-        dimensions: [
-            'agent_evaluation_runs_agent_name',
-            'agent_evaluation_runs_agent_id',
-            'agent_evaluation_runs_evaluation_name',
-            'agent_evaluation_runs_evaluation_id',
-        ],
-        metrics: [
-            'agent_evaluation_runs_total_runs',
-            'agent_evaluation_runs_pass_rate',
-            'agent_evaluation_runs_passed_assessments',
-            'agent_evaluation_runs_failed_assessments',
-            'agent_evaluation_runs_unassessed_results',
-            'agent_evaluation_runs_execution_errors',
-        ],
-        limit: 100,
-        sorts: [
-            { fieldId: 'agent_evaluation_runs_total_runs', descending: true },
-        ],
-    },
-    {
         key: 'recent-evaluation-runs',
         name: 'Recent evaluation runs',
         description:
-            'The 100 most recent completed or failed runs in the selected period. Execution errors and negative assessments are different outcomes.',
+            'The 100 most recent completed or failed runs in the selected period. An execution error is not a failed assessment.',
         explore: 'agent_evaluation_runs',
         dimensions: [
             'agent_evaluation_runs_event_ts_raw',
             'agent_evaluation_runs_agent_name',
             'agent_evaluation_runs_evaluation_name',
-            'agent_evaluation_runs_run_status',
+            'agent_evaluation_runs_run_status_name',
             'agent_evaluation_runs_run_id',
         ],
         metrics: [
@@ -92,18 +47,41 @@ export const usageChartSpecs: UsageChartSpec[] = [
         sorts: [
             { fieldId: 'agent_evaluation_runs_event_ts_raw', descending: true },
         ],
+        // "Nov 19, 02:13": the recorded time shows to the millisecond with its offset
+        tableCalculations: [
+            {
+                name: 'run_finished',
+                displayName: 'Run finished (UTC)',
+                type: TableCalculationType.STRING,
+                sql: `strftime(\${agent_evaluation_runs.event_ts_raw}, '%b %-d, %H:%M')`,
+            },
+        ],
+        hiddenColumns: ['agent_evaluation_runs_event_ts_raw'],
+        columnOrder: [
+            'run_finished',
+            'agent_evaluation_runs_agent_name',
+            'agent_evaluation_runs_evaluation_name',
+            'agent_evaluation_runs_run_status_name',
+            'agent_evaluation_runs_pass_rate',
+            'agent_evaluation_runs_passed_assessments',
+            'agent_evaluation_runs_failed_assessments',
+            'agent_evaluation_runs_unassessed_results',
+            'agent_evaluation_runs_execution_errors',
+            'agent_evaluation_runs_event_ts_raw',
+            'agent_evaluation_runs_run_id',
+        ],
     },
     {
         key: 'most-used-fields',
-        name: 'Most-used metrics and dimensions',
+        name: 'Queries per field',
         description:
-            'Distinct query attempts per field, including selected, filtered, grouped and sorted references. Names are those captured at execution; a renamed label can appear separately. Field totals overlap.',
+            'Distinct queries per field, counting fields that were selected, filtered, grouped or sorted. A renamed field can appear more than once.',
         explore: 'semantic_usage',
         dimensions: [
             'semantic_usage_field_label',
             'semantic_usage_table_name',
-            'semantic_usage_field_kind',
-            'semantic_usage_field_origin',
+            'semantic_usage_field_kind_name',
+            'semantic_usage_field_origin_name',
             'semantic_usage_field_id',
             'semantic_usage_project_id',
         ],
@@ -125,17 +103,17 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'people-using-fields',
-        name: 'Who uses each metric and dimension?',
+        name: 'Field use by person',
         description:
-            'Recorded users and fields, with distinct query attempts. A missing user name does not imply anonymous activity. One query can use several fields.',
+            'Distinct queries per user and field. A missing name does not mean the activity was anonymous.',
         explore: 'semantic_usage',
         dimensions: [
             'semantic_usage_user_name',
             'semantic_usage_user_id',
             'semantic_usage_field_label',
             'semantic_usage_table_name',
-            'semantic_usage_field_kind',
-            'semantic_usage_field_origin',
+            'semantic_usage_field_kind_name',
+            'semantic_usage_field_origin_name',
             'semantic_usage_field_id',
             'semantic_usage_project_id',
         ],
@@ -151,14 +129,14 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'content-using-fields',
-        name: 'Where are metrics and dimensions used?',
+        name: 'Field use by content',
         description:
-            'Charts, dashboards and apps associated with recorded field use. Direct exploration and other queries can have no saved-content attribution. Query counts overlap across fields.',
+            'Charts, dashboards and data apps whose queries used each field. Queries not linked to saved content, such as exploring directly, are left out.',
         explore: 'semantic_usage',
         dimensions: [
             'semantic_usage_field_label',
             'semantic_usage_table_name',
-            'semantic_usage_field_origin',
+            'semantic_usage_field_origin_name',
             'semantic_usage_field_id',
             'semantic_usage_project_id',
             'semantic_usage_chart_name',
@@ -167,7 +145,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'semantic_usage_dashboard_id',
             'semantic_usage_app_name',
             'semantic_usage_app_id',
-            'semantic_usage_context',
+            'semantic_usage_context_name',
         ],
         metrics: ['semantic_usage_total_queries'],
         filters: [
@@ -175,209 +153,264 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 field: 'semantic_usage_field_kind',
                 values: ['metric', 'dimension'],
             },
+            // Without this the busiest rows are all queries with no content, and say nothing
+            { field: 'semantic_usage_has_content', values: [true] },
+        ],
+        // One name and one type for each row, where three columns were mostly empty
+        tableCalculations: [
+            {
+                name: 'field_content_type',
+                displayName: 'Content type',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${semantic_usage.chart_id} IS NOT NULL THEN 'Chart' WHEN \${semantic_usage.app_id} IS NOT NULL THEN 'Data app' ELSE 'Dashboard' END`,
+            },
+            {
+                name: 'field_content',
+                displayName: 'Content',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${semantic_usage.chart_id} IS NOT NULL THEN COALESCE(\${semantic_usage.chart_name}, 'Unknown chart') WHEN \${semantic_usage.app_id} IS NOT NULL THEN COALESCE(\${semantic_usage.app_name}, 'Unknown data app') ELSE COALESCE(\${semantic_usage.dashboard_name}, 'Unknown dashboard') END`,
+            },
+            {
+                name: 'field_on_dashboard',
+                displayName: 'On dashboard',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${semantic_usage.chart_id} IS NOT NULL AND \${semantic_usage.dashboard_id} IS NOT NULL THEN COALESCE(\${semantic_usage.dashboard_name}, 'Unknown dashboard') ELSE '' END`,
+            },
+        ],
+        hiddenColumns: [
+            'semantic_usage_chart_name',
+            'semantic_usage_dashboard_name',
+            'semantic_usage_app_name',
+        ],
+        columnOrder: [
+            'semantic_usage_field_label',
+            'semantic_usage_table_name',
+            'field_content',
+            'field_content_type',
+            'field_on_dashboard',
+            'semantic_usage_context_name',
+            'semantic_usage_total_queries',
+            'semantic_usage_field_origin_name',
+            'semantic_usage_field_id',
+            'semantic_usage_project_id',
+            'semantic_usage_chart_id',
+            'semantic_usage_dashboard_id',
+            'semantic_usage_app_id',
         ],
         limit: 50,
         sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
     },
     {
         key: 'field-capture-coverage',
-        name: 'Queries with field details',
+        name: 'Share of queries with a full field list',
         description:
-            'Distinct query attempts by available field detail, including old history and SQL queries. Partial capture can identify some fields; missing details are not evidence of no field use.',
+            'Queries in the selected period where Lightdash has the full list of metrics and dimensions the query used, as a share of all queries. SQL queries and queries from before the list was switched on have no list, and very large queries can have only part of one.',
         explore: 'semantic_usage',
-        dimensions: ['semantic_usage_lineage_status'],
-        metrics: ['semantic_usage_total_queries'],
-        limit: 10,
+        dimensions: [],
+        metrics: [
+            'semantic_usage_queries_with_field_details',
+            'semantic_usage_total_queries',
+        ],
+        tableCalculations: [
+            wholeShare,
+            {
+                name: 'field_list_share',
+                displayName: 'Share of queries with a full field list',
+                type: TableCalculationType.NUMBER,
+                sql: '${semantic_usage.queries_with_field_details} * 1.0 / NULLIF(${semantic_usage.total_queries}, 0)',
+                format: { type: CustomFormatType.PERCENT, round: 0 },
+            },
+        ],
+        limit: 1,
         sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
-        visualization: 'bar',
-        flipAxes: true,
+        visualization: 'number',
+        // The number shown is the share, not the first measure
+        yFields: ['field_list_share'],
+        libraryChart: numberCard(
+            'field_list_share',
+            'Of all queries in the selected period',
+            { percent: true, whole: wholeShare.name, color: positive },
+        ),
     },
     {
-        key: 'daily-trend',
-        name: 'Daily app loads and viewers',
+        key: 'agent-requests-trend',
+        name: 'Agent requests',
         description:
-            'Recorded app activity over the available history, including unknown or removed apps.',
-        explore: 'data_app_events',
-        dimensions: ['data_app_events_event_ts_day'],
-        metrics: [
-            'data_app_events_total_views',
-            'data_app_events_unique_viewers',
-        ],
-        limit: 500,
-        sorts: [
-            {
-                descending: false,
-                fieldId: 'data_app_events_event_ts_day',
-            },
-        ],
-        visualization: 'line',
-        xField: 'data_app_events_event_ts_day',
-        yFields: [
-            'data_app_events_total_views',
-            'data_app_events_unique_viewers',
-        ],
-        filters: [
-            {
-                field: 'data_app_events_event_name',
-                values: ['data_app.view'],
-            },
-        ],
-    },
-    {
-        key: 'distinct-viewers',
-        name: 'Distinct app viewers',
-        description:
-            'Recorded app activity over the available history, including unknown or removed apps.',
-        explore: 'data_app_events',
+            'Requests to agents in the selected period. A request counts once, however many steps the agent takes.',
+        explore: 'agent_requests',
         dimensions: [],
-        metrics: ['data_app_events_unique_viewers'],
-        limit: 20,
+        metrics: ['agent_requests_total_requests'],
+        limit: 1,
         sorts: [
             {
                 descending: true,
-                fieldId: 'data_app_events_unique_viewers',
+                fieldId: 'agent_requests_total_requests',
             },
         ],
         visualization: 'number',
-        filters: [
-            {
-                field: 'data_app_events_event_name',
-                values: ['data_app.view'],
+        libraryChart: {
+            slug: 'big-number-with-sparkline-trend',
+            minVersion: '0.8.4',
+            fieldMapping: {
+                value: 'agent_requests_total_requests',
+                sparklineMetric: 'agent_requests_total_requests',
+                time: 'agent_requests_requested_at_day',
             },
-        ],
+            optionValues: {
+                valueAggregation: 'sum',
+                showComparison: false,
+                style: 'compact',
+                colorSparklineByTrend: false,
+                showLabel: true,
+                label: 'Selected period',
+                showCardBorder: false,
+                showCardShadow: false,
+            },
+            query: {
+                dimensions: ['agent_requests_requested_at_day'],
+                metrics: ['agent_requests_total_requests'],
+                sorts: [
+                    {
+                        fieldId: 'agent_requests_requested_at_day',
+                        descending: false,
+                    },
+                ],
+                limit: 500,
+                description:
+                    'Requests to agents in the selected period. A request counts once, however many steps the agent takes.',
+            },
+        },
     },
     {
-        key: 'top-apps',
-        name: 'Most-used apps',
+        key: 'agent-requesters-trend',
+        name: 'People asking agents',
         description:
-            'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
-        explore: 'data_app_events',
-        dimensions: [
-            'data_app_events_app_name',
-            'data_app_events_project_name',
-            'data_app_events_app_id',
-            'data_app_events_project_id',
-        ],
-        metrics: [
-            'data_app_events_total_views',
-            'data_app_events_unique_viewers',
-        ],
-        limit: 20,
+            'People who asked an agent on the latest day in the selected period.',
+        explore: 'agent_requests',
+        // Newest day first: the big number reads the first row, so it shows the latest day.
+        dimensions: ['agent_requests_requested_at_day'],
+        metrics: ['agent_requests_distinct_requesters'],
+        limit: 1,
         sorts: [
             {
                 descending: true,
-                fieldId: 'data_app_events_total_views',
-            },
-        ],
-        filters: [
-            {
-                field: 'data_app_events_event_name',
-                values: ['data_app.view'],
-            },
-        ],
-    },
-    {
-        key: 'top-people',
-        name: 'Most active app viewers',
-        description:
-            'Recorded app activity over the available history, including unknown or removed apps.',
-        explore: 'data_app_events',
-        dimensions: ['data_app_events_user_name', 'data_app_events_user_id'],
-        metrics: ['data_app_events_total_views', 'data_app_events_unique_apps'],
-        limit: 20,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'data_app_events_total_views',
-            },
-        ],
-        filters: [
-            {
-                field: 'data_app_events_event_name',
-                values: ['data_app.view'],
-            },
-        ],
-    },
-    {
-        key: 'total-loads',
-        name: 'Recorded app loads',
-        description:
-            'Recorded app activity over the available history, including unknown or removed apps.',
-        explore: 'data_app_events',
-        dimensions: [],
-        metrics: ['data_app_events_total_views'],
-        limit: 20,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'data_app_events_total_views',
+                fieldId: 'agent_requests_requested_at_day',
             },
         ],
         visualization: 'number',
-        filters: [
-            {
-                field: 'data_app_events_event_name',
-                values: ['data_app.view'],
+        libraryChart: {
+            slug: 'big-number-with-sparkline-trend',
+            minVersion: '0.8.4',
+            fieldMapping: {
+                value: 'agent_requests_distinct_requesters',
+                sparklineMetric: 'agent_requests_distinct_requesters',
+                time: 'agent_requests_requested_at_day',
             },
-        ],
+            optionValues: {
+                valueAggregation: 'latest',
+                showComparison: false,
+                colorSparklineByTrend: false,
+                showLabel: true,
+                label: 'Latest day',
+                showCardBorder: false,
+                showCardShadow: false,
+            },
+            query: {
+                dimensions: ['agent_requests_requested_at_day'],
+                metrics: ['agent_requests_distinct_requesters'],
+                sorts: [
+                    {
+                        fieldId: 'agent_requests_requested_at_day',
+                        descending: false,
+                    },
+                ],
+                limit: 500,
+                description:
+                    'People who asked an agent on the latest day in the selected period, with the daily trend. A person active on several days is counted on each of those days.',
+            },
+        },
     },
     {
-        key: 'user-app-detail',
-        name: 'Who uses which app? · user-by-app detail',
-        description:
-            'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
-        explore: 'data_app_events',
+        key: 'agent-requests-by-agent-and-day',
+        name: 'Requests by agent and day',
+        description: '',
+        explore: 'agent_requests',
         dimensions: [
-            'data_app_events_user_name',
-            'data_app_events_project_name',
-            'data_app_events_user_id',
-            'data_app_events_app_name',
-            'data_app_events_app_id',
-            'data_app_events_project_id',
+            'agent_requests_agent_name',
+            'agent_requests_requested_at_day',
         ],
-        metrics: ['data_app_events_total_views'],
+        metrics: ['agent_requests_total_requests'],
         limit: 5000,
         sorts: [
-            {
-                descending: true,
-                fieldId: 'data_app_events_total_views',
-            },
+            { fieldId: 'agent_requests_agent_name', descending: false },
+            { fieldId: 'agent_requests_requested_at_day', descending: false },
         ],
-        filters: [
-            {
-                field: 'data_app_events_event_name',
-                values: ['data_app.view'],
+        libraryChart: {
+            slug: 'heatmap',
+            minVersion: '0.5.1',
+            fieldMapping: {
+                x: 'agent_requests_requested_at_day',
+                y: 'agent_requests_agent_name',
+                value: 'agent_requests_total_requests',
             },
-        ],
+            optionValues: {
+                xTitle: 'Day',
+                yTitle: 'Agent',
+                legendTitle: 'Agent requests',
+                legendFormat: 'compact',
+                ...heatmapColorClamp,
+            },
+            // The plain table has no colours, so only the heatmap says where its scale stops
+            description: `Requests by agent and day. ${heatmapColorClampNote}`,
+            query: null,
+        },
     },
     {
-        key: 'viewed-apps',
-        name: 'Apps with recorded loads',
+        key: 'agent-daily-requests-per-agent',
+        name: 'Requests by day, one row per agent',
         description:
-            'Recorded app activity over the available history, including unknown or removed apps.',
-        explore: 'data_app_events',
-        dimensions: [],
-        metrics: ['data_app_events_unique_apps'],
-        limit: 20,
+            'Each agent has its own scale, so row heights cannot be compared.',
+        explore: 'agent_requests',
+        dimensions: [
+            'agent_requests_requested_at_day',
+            'agent_requests_agent_name',
+        ],
+        metrics: ['agent_requests_total_requests'],
+        limit: 5000,
         sorts: [
-            {
-                descending: true,
-                fieldId: 'data_app_events_unique_apps',
-            },
+            { fieldId: 'agent_requests_agent_name', descending: false },
+            { fieldId: 'agent_requests_requested_at_day', descending: false },
         ],
-        visualization: 'number',
-        filters: [
-            {
-                field: 'data_app_events_event_name',
-                values: ['data_app.view'],
+        libraryChart: {
+            slug: 'vega-trellis',
+            minVersion: '0.7.0',
+            fieldMapping: {
+                x: 'agent_requests_requested_at_day',
+                value: 'agent_requests_total_requests',
+                panel: 'agent_requests_agent_name',
             },
-        ],
+            // One full-width row per agent over a shared date axis, each a
+            // smooth filled line in its own palette colour. Points stay
+            // hidden: at up to 90 daily points they would bury the line.
+            optionValues: {
+                arrangement: 'rows',
+                minPanelHeight: 70,
+                sharedY: false,
+                markType: 'area',
+                curve: 'smooth',
+                fillOpacity: 25,
+                showLine: true,
+                showPoints: false,
+                showPeakLabel: true,
+                zeroFillGaps: true,
+            },
+            query: null,
+        },
     },
     {
         key: 'agent-adoption-by-week',
-        name: 'Agent adoption by week',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
+        name: 'Requests by person and agent',
+        description: '',
         explore: 'agent_requests',
         dimensions: [
             'agent_requests_agent_name',
@@ -394,12 +427,45 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'agent_requests_requested_at_week',
             },
         ],
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.14.0',
+            fieldMapping: {
+                rowDimension: 'agent_requests_user_name',
+                rowDimension2: 'agent_requests_agent_name',
+                metric: ['agent_requests_total_requests'],
+            },
+            optionValues: {
+                defaultCollapsed: 'collapsed',
+                decimalPlaces: 0,
+                density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Person / Agent',
+                valueNames: 'Agent requests',
+            },
+            query: {
+                dimensions: [
+                    'agent_requests_user_name',
+                    'agent_requests_agent_name',
+                ],
+                metrics: ['agent_requests_total_requests'],
+                sorts: [
+                    {
+                        fieldId: 'agent_requests_total_requests',
+                        descending: true,
+                    },
+                ],
+                limit: 500,
+                description:
+                    'Requests per person and agent in the selected period. Requests with no person recorded are grouped as No user recorded.',
+            },
+        },
     },
     {
         key: 'agent-feedback-rating-and-sample-coverage',
-        name: 'Agent feedback · rating and sample coverage',
+        name: 'Feedback by agent',
         description:
-            'Negative feedback rate excludes unrated requests. Read it with feedback coverage and request count; small samples are not reliable rankings.',
+            'Rated is the number of requests a person gave a positive or negative rating. Negative is how many of those ratings were negative.',
         explore: 'agent_requests',
         dimensions: ['agent_requests_agent_name', 'agent_requests_agent_id'],
         metrics: [
@@ -409,19 +475,121 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'agent_requests_completion_rate',
             'agent_requests_response_coverage',
         ],
-        limit: 20,
+        // The explore has the two shares but not the counts behind them. Each share is a count divided
+        // by a count that is also in the query, so multiplying back gives the exact whole number.
+        tableCalculations: [
+            {
+                name: 'rated_requests',
+                displayName: 'Rated',
+                type: TableCalculationType.NUMBER,
+                sql: 'ROUND(${agent_requests.feedback_coverage} * ${agent_requests.total_requests})',
+                format: { type: CustomFormatType.NUMBER, round: 0 },
+            },
+            {
+                name: 'share_rated_percent',
+                displayName: 'Share rated',
+                type: TableCalculationType.NUMBER,
+                // A fraction with a percent format, so the table writes it as 42%
+                sql: '${agent_requests.feedback_coverage}',
+                format: { type: CustomFormatType.PERCENT, round: 0 },
+            },
+            {
+                name: 'negative_ratings',
+                displayName: 'Negative',
+                type: TableCalculationType.NUMBER,
+                sql: 'ROUND(COALESCE(${agent_requests.negative_feedback_rate}, 0) * ${agent_requests.feedback_coverage} * ${agent_requests.total_requests})',
+                format: { type: CustomFormatType.NUMBER, round: 0 },
+            },
+        ],
+        // The plain table shows the share as a percentage already
+        hiddenColumns: ['share_rated_percent'],
+        fieldLabels: {
+            agent_requests_total_requests: 'Requests',
+            agent_requests_feedback_coverage: 'Share rated',
+            agent_requests_negative_feedback_rate: 'Negative share',
+        },
+        limit: 50,
         sorts: [
             {
                 descending: true,
                 fieldId: 'agent_requests_total_requests',
             },
         ],
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.14.2',
+            fieldMapping: {
+                rowDimension: 'agent_requests_agent_name',
+                metric: [
+                    'agent_requests_total_requests',
+                    'rated_requests',
+                    'share_rated_percent',
+                    'negative_ratings',
+                ],
+            },
+            // The table draws bars in every value column or in none. A bar on a count of one or two
+            // ratings would make a small sample look large, so there are none.
+            optionValues: {
+                showMiniBars: false,
+                showTotalsRow: false,
+                decimalPlaces: 0,
+                density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Agent',
+                valueNames: 'Requests,Rated,Share rated,Negative',
+                useFieldFormats: true,
+            },
+            // Shares the plain table's query: the counts are table calculations
+            query: null,
+        },
+    },
+    {
+        key: 'agent-requests-and-completion-by-day',
+        name: 'Requests and completion rate by day',
+        description:
+            'Requests per day with the completion rate. Pending requests may not have an outcome yet.',
+        explore: 'agent_requests',
+        dimensions: ['agent_requests_requested_at_day'],
+        metrics: [
+            'agent_requests_total_requests',
+            'agent_requests_completion_rate',
+        ],
+        limit: 1000,
+        sorts: [
+            { fieldId: 'agent_requests_requested_at_day', descending: false },
+        ],
+        visualization: 'line',
+        xField: 'agent_requests_requested_at_day',
+        yFields: ['agent_requests_total_requests'],
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.18.0',
+            fieldMapping: {
+                x: 'agent_requests_requested_at_day',
+                m1: 'agent_requests_total_requests',
+                m2: 'agent_requests_completion_rate',
+            },
+            optionValues: {
+                m1Name: 'Agent requests',
+                m2Name: 'Completion rate',
+                xName: 'Day',
+                yName: 'Agent requests',
+                yRightName: 'Completion rate',
+                seriesType: 'bar',
+                m2Type: 'line',
+                dualAxis: true,
+                m2Right: true,
+                xAxisType: 'time',
+                xTimeFormat: '{MMM} {d}',
+            },
+            query: null,
+        },
     },
     {
         key: 'agent-request-outcomes',
-        name: 'Agent request outcomes',
+        name: 'Requests by outcome',
         description:
-            'Logical requests, not individual agent steps. Pending requests may still lack an observed outcome.',
+            'Pending requests may not have an outcome yet. A request counts once, however many steps the agent takes.',
         explore: 'agent_requests',
         dimensions: ['agent_requests_status'],
         metrics: ['agent_requests_total_requests'],
@@ -436,15 +604,15 @@ export const usageChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'agent-retries-latency-and-consumption',
-        name: 'Agent retries · latency and consumption',
+        name: 'Requests and latency by retry count',
         description:
-            'Captured retry count and overhead; incomplete token attribution is possible. Agent steps are not equivalent to retries.',
+            'Requests, time spent on failed attempts, average latency and tokens for each retry count. Each retry runs the request again with new AI calls, so more retries mean a longer wait and more tokens.',
         explore: 'agent_requests',
         dimensions: ['agent_requests_retry_count'],
         metrics: [
             'agent_requests_total_requests',
-            'agent_requests_total_retry_overhead_ms',
-            'agent_requests_average_request_latency_ms',
+            'agent_requests_total_retry_overhead_s',
+            'agent_requests_average_request_latency_s',
             'agent_requests_total_request_tokens',
         ],
         limit: 30,
@@ -454,20 +622,65 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'agent_requests_total_requests',
             },
         ],
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.18.0',
+            fieldMapping: {
+                x: 'agent_requests_retry_count',
+                m1: 'agent_requests_total_requests',
+                m2: 'agent_requests_average_request_latency_s',
+            },
+            optionValues: {
+                m1Name: 'Agent requests',
+                m2Name: 'Average latency (s)',
+                seriesType: 'bar',
+                m2Type: 'line',
+                dualAxis: true,
+                m2Right: true,
+                xAxisType: 'category',
+                showSymbols: true,
+                xName: 'Retries',
+                yName: 'Agent requests',
+                yRightName: 'Average latency (s)',
+            },
+            query: {
+                dimensions: ['agent_requests_retry_count'],
+                metrics: [
+                    'agent_requests_total_requests',
+                    'agent_requests_average_request_latency_s',
+                ],
+                sorts: [
+                    {
+                        fieldId: 'agent_requests_retry_count',
+                        descending: false,
+                    },
+                ],
+                limit: 30,
+                description:
+                    'Requests and average request latency by retry count. Each retry runs the request again with new AI calls, so more retries mean a longer wait and more tokens.',
+            },
+        },
     },
     {
         key: 'ai-consumption-by-person-feature-and-model',
-        name: 'AI consumption by person, feature and model',
+        name: 'Tokens by person and model',
         description:
-            'All retained captured history. Recent capture is not a full historical census.',
+            'Tokens and AI calls for each person, model and feature. Usage with no person recorded is left out.',
         explore: 'ai_usage',
         dimensions: [
             'ai_usage_user_name',
-            'ai_usage_model',
-            'ai_usage_feature',
+            'ai_usage_model_name',
+            'ai_usage_feature_name',
             'ai_usage_user_id',
         ],
         metrics: ['ai_usage_total_tokens_used', 'ai_usage_total_ai_calls'],
+        filters: [
+            {
+                field: 'ai_usage_user_id',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+        ],
         limit: 30,
         sorts: [
             {
@@ -475,440 +688,117 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'ai_usage_total_tokens_used',
             },
         ],
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.18.9',
+            fieldMapping: {
+                x: 'ai_usage_user_name',
+                m1: 'ai_usage_total_tokens_used',
+                splitBy: 'ai_usage_model_name',
+            },
+            optionValues: {
+                splitColorGroups: modelProviderColors,
+                splitShadeRank: modelTierRanks,
+                splitShadeUnranked: 'middle',
+                legendMode: 'groups',
+                xName: 'Person',
+                yName: 'Tokens',
+                seriesType: 'bar',
+                stack: 'normal',
+                splitSort: 'total',
+                xAxisType: 'category',
+                xLabelAutoRotate: false,
+                xLabelRotate: 45,
+            },
+            query: {
+                dimensions: ['ai_usage_user_name', 'ai_usage_model_name'],
+                metrics: ['ai_usage_total_tokens_used'],
+                sorts: [
+                    {
+                        fieldId: 'ai_usage_total_tokens_used',
+                        descending: true,
+                    },
+                ],
+                limit: 24,
+                description:
+                    'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. Usage with no person recorded is left out.',
+            },
+        },
     },
     {
-        key: 'app-generation-consumption',
-        name: 'App generation · weekly tokens by builder and model',
-        description:
-            'AI usage for app generation, by builder, week and AI model. Tokens do not measure monetary spend, and usage cannot yet be attributed to individual apps or builds.',
+        key: 'ai-tokens-by-feature-and-model',
+        name: 'Tokens by feature and model',
+        description: '',
         explore: 'ai_usage',
-        dimensions: [
-            'ai_usage_user_name',
-            'ai_usage_event_ts_week',
-            'ai_usage_model',
-            'ai_usage_feature',
-            'ai_usage_user_id',
-        ],
-        metrics: ['ai_usage_total_tokens_used', 'ai_usage_total_ai_calls'],
+        dimensions: ['ai_usage_feature_name', 'ai_usage_model_name'],
+        metrics: ['ai_usage_total_tokens_used'],
         limit: 100,
         sorts: [
-            {
-                descending: true,
-                fieldId: 'ai_usage_event_ts_week',
-            },
             {
                 descending: true,
                 fieldId: 'ai_usage_total_tokens_used',
             },
         ],
-        filters: [
-            {
-                field: 'ai_usage_feature',
-                values: ['data-app'],
+        libraryChart: {
+            slug: 'heatmap',
+            minVersion: '0.5.1',
+            fieldMapping: {
+                x: 'ai_usage_model_name',
+                y: 'ai_usage_feature_name',
+                value: 'ai_usage_total_tokens_used',
             },
-        ],
-    },
-    {
-        key: 'app-lifecycle-build-activity-versus-loads',
-        name: 'App lifecycle · build activity versus loads',
-        description:
-            'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
-        explore: 'data_app_events',
-        dimensions: [
-            'data_app_events_app_name',
-            'data_app_events_project_name',
-            'data_app_events_app_id',
-            'data_app_events_event_name',
-            'data_app_events_project_id',
-        ],
-        metrics: ['data_app_events_total_events'],
-        limit: 50,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'data_app_events_total_events',
+            optionValues: {
+                xTitle: 'Model',
+                yTitle: 'Feature',
+                legendTitle: 'Tokens',
+                legendFormat: 'compact',
+                ...heatmapColorClamp,
             },
-        ],
-    },
-    {
-        key: 'apps-loads-and-observed-viewers',
-        name: 'Apps · loads and observed viewers',
-        description:
-            'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
-        explore: 'data_app_events',
-        dimensions: [
-            'data_app_events_app_name',
-            'data_app_events_project_name',
-            'data_app_events_app_id',
-            'data_app_events_project_id',
-        ],
-        metrics: [
-            'data_app_events_total_views',
-            'data_app_events_unique_viewers',
-        ],
-        limit: 15,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'data_app_events_total_views',
+            // Columns keep the order the rows arrive in: providers by their tokens, then each
+            // provider's models from the most powerful tier down
+            query: {
+                dimensions: [
+                    'ai_usage_feature_name',
+                    'ai_usage_model_name',
+                    'ai_usage_model_provider',
+                    'ai_usage_model_tier',
+                ],
+                metrics: ['ai_usage_total_tokens_used'],
+                tableCalculations: [
+                    {
+                        name: 'provider_tokens',
+                        displayName: 'Provider tokens',
+                        type: TableCalculationType.NUMBER,
+                        sql: 'SUM(${ai_usage.total_tokens_used}) OVER (PARTITION BY ${ai_usage.model_provider})',
+                    },
+                    {
+                        name: 'model_tokens',
+                        displayName: 'Model tokens',
+                        type: TableCalculationType.NUMBER,
+                        sql: 'SUM(${ai_usage.total_tokens_used}) OVER (PARTITION BY ${ai_usage.model_name})',
+                    },
+                ],
+                sorts: [
+                    { fieldId: 'provider_tokens', descending: true },
+                    { fieldId: 'ai_usage_model_provider', descending: false },
+                    // The more powerful model first within a provider, as its darker shade elsewhere
+                    { fieldId: 'ai_usage_model_tier', descending: false },
+                    { fieldId: 'model_tokens', descending: true },
+                    { fieldId: 'ai_usage_total_tokens_used', descending: true },
+                ],
+                limit: 500,
+                description: `Tokens for each feature and model, with models grouped by provider and the most powerful first. ${heatmapColorClampNote}`,
             },
-        ],
-        visualization: 'bar',
-        xField: 'data_app_events_app_name',
-        yFields: [
-            'data_app_events_total_views',
-            'data_app_events_unique_viewers',
-        ],
-        flipAxes: true,
-    },
-    {
-        key: 'content-creation-by-month',
-        name: 'Content creation by month',
-        description:
-            'Creation dates of items in the latest inventory, including soft-deleted items; not complete historical inventory.',
-        explore: 'content_inventory',
-        dimensions: ['content_health_created_at_month'],
-        metrics: ['content_health_total_content'],
-        limit: 500,
-        sorts: [
-            {
-                descending: false,
-                fieldId: 'content_health_created_at_month',
-            },
-        ],
-        visualization: 'line',
-        xField: 'content_health_created_at_month',
-        yFields: ['content_health_total_content'],
-    },
-    {
-        key: 'content-ownership-current-snapshot',
-        name: 'Content ownership · current snapshot',
-        description:
-            'Owner status reflects current application membership, not verified employment status.',
-        explore: 'content_inventory',
-        dimensions: ['content_health_owner_status'],
-        metrics: ['content_health_total_content'],
-        limit: 30,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'content_health_total_content',
-            },
-        ],
-        visualization: 'bar',
-        xField: 'content_health_owner_status',
-        yFields: ['content_health_total_content'],
-        flipAxes: true,
-    },
-    {
-        key: 'content-reach-distinct-people-not-just-views',
-        name: 'Content reach · distinct people, not just views',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
-        explore: 'content_reach',
-        dimensions: [
-            'content_reach_content_type',
-            'content_reach_content_name',
-            'content_reach_content_id',
-            'content_reach_project_id',
-        ],
-        metrics: [
-            'content_reach_distinct_viewers',
-            'content_reach_qualifying_views',
-        ],
-        limit: 50,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'content_reach_distinct_viewers',
-            },
-        ],
-    },
-    {
-        key: 'daily-observed-active-people',
-        name: 'Daily observed active people',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
-        explore: 'user_activity',
-        dimensions: ['user_activity_activity_date_day'],
-        metrics: ['user_activity_unique_users'],
-        limit: 500,
-        sorts: [
-            {
-                descending: false,
-                fieldId: 'user_activity_activity_date_day',
-            },
-        ],
-        visualization: 'line',
-        xField: 'user_activity_activity_date_day',
-        yFields: ['user_activity_unique_users'],
-    },
-    {
-        key: 'data-app-builders-creation-and-iterations-by-week',
-        name: 'Data App builders · creation and iterations by week',
-        description:
-            'People who created or iterated on apps, grouped by week. Uploads are excluded.',
-        explore: 'data_app_events',
-        dimensions: [
-            'data_app_events_user_name',
-            'data_app_events_user_id',
-            'data_app_events_event_ts_week',
-        ],
-        metrics: [
-            'data_app_events_total_events',
-            'data_app_events_unique_apps',
-        ],
-        limit: 50,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'data_app_events_event_ts_week',
-            },
-        ],
-        filters: [
-            {
-                field: 'data_app_events_event_name',
-                values: ['data_app.created', 'data_app.iterated'],
-            },
-        ],
-    },
-    {
-        key: 'export-audit-actor-content-and-outcome',
-        name: 'Export audit · actor, content and outcome',
-        description:
-            'Result downloads only. Content links can be missing; null is unattributed, not proof there was no content.',
-        explore: 'export_events',
-        dimensions: [
-            'export_events_user_name',
-            'export_events_chart_name',
-            'export_events_dashboard_name',
-            'export_events_format',
-            'export_events_event_name',
-            'export_events_user_id',
-            'export_events_chart_id',
-            'export_events_dashboard_id',
-        ],
-        metrics: [
-            'export_events_total_events',
-            'export_events_total_downloads',
-            'export_events_total_csv_downloads',
-        ],
-        limit: 50,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'export_events_total_events',
-            },
-        ],
-    },
-    {
-        key: 'google-sheets-query-audience',
-        name: 'Google Sheets query audience',
-        description:
-            'Recorded Sheets queries only; first observed activity is not acquisition or first-ever usage.',
-        explore: 'query_events',
-        dimensions: [
-            'query_events_user_name',
-            'query_events_user_id',
-            'query_events_event_ts_week',
-        ],
-        metrics: ['query_events_total_queries'],
-        limit: 100,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'query_events_total_queries',
-            },
-        ],
-        filters: [
-            {
-                field: 'query_events_context',
-                values: ['gsheets'],
-            },
-        ],
-    },
-    {
-        key: 'high-compute-dashboards-audience-versus-warehouse-time',
-        name: 'High-compute dashboards · audience versus warehouse time',
-        description:
-            'Retained warehouse execution milliseconds are a performance proxy, not currency cost. Compare per dashboard; cross-type attribution can overlap. Top 25 by execution time. Each point is a dashboard; inspect underlying results for names.',
-        explore: 'content_health',
-        dimensions: [
-            'content_health_content_name',
-            'content_health_observed_viewers',
-            'content_health_content_id',
-            'content_health_project_id',
-        ],
-        metrics: [
-            'content_health_total_observed_queries',
-            'content_health_total_warehouse_execution_time_ms',
-        ],
-        limit: 25,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'content_health_total_warehouse_execution_time_ms',
-            },
-        ],
-        visualization: 'scatter',
-        xField: 'content_health_observed_viewers',
-        yFields: ['content_health_total_warehouse_execution_time_ms'],
-        filters: [
-            {
-                field: 'content_health_content_type',
-                values: ['dashboard'],
-            },
-        ],
-    },
-    {
-        key: 'mcp-users-clients-tools-and-error-rates',
-        name: 'MCP users · clients, tools and error rates',
-        description:
-            'Error rate uses known outcomes only; historical unknown outcomes remain unknown. Latency is in milliseconds.',
-        explore: 'tool_activity',
-        dimensions: [
-            'tool_activity_user_name',
-            'tool_activity_user_id',
-            'tool_activity_actor_type',
-            'tool_activity_client_name',
-            'tool_activity_tool_name',
-        ],
-        metrics: [
-            'tool_activity_total_calls',
-            'tool_activity_failed_calls',
-            'tool_activity_error_rate',
-            'tool_activity_p90_duration_ms',
-        ],
-        limit: 40,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'tool_activity_total_calls',
-            },
-        ],
-        filters: [
-            {
-                field: 'tool_activity_source',
-                values: ['mcp'],
-            },
-        ],
-    },
-    {
-        key: 'new-content-adoption-creation-week-proxy',
-        name: 'New-content adoption · creation-week proxy',
-        description:
-            'Creation date is a launch proxy. Returning after the first seven creation days requires an adequate captured window.',
-        explore: 'content_reach',
-        dimensions: [
-            'content_reach_content_name',
-            'content_reach_content_created_at_day',
-            'content_reach_content_id',
-            'content_reach_project_id',
-        ],
-        metrics: [
-            'content_reach_distinct_viewers',
-            'content_reach_first_week_returning_viewers',
-        ],
-        limit: 30,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'content_reach_distinct_viewers',
-            },
-        ],
-    },
-    {
-        key: 'observed-active-people',
-        name: 'Observed active people',
-        description:
-            'Distinct people with recorded activity. Background activity may be included; this is not the percentage of people with access who use Lightdash.',
-        explore: 'user_activity',
-        dimensions: [],
-        metrics: ['user_activity_unique_users'],
-        limit: 20,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'user_activity_unique_users',
-            },
-        ],
-        visualization: 'number',
-    },
-    {
-        key: 'observed-activity-by-person-and-week',
-        name: 'Observed activity by person and week',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
-        explore: 'user_activity',
-        dimensions: [
-            'user_activity_user_name',
-            'user_activity_user_id',
-            'user_activity_activity_date_week',
-        ],
-        metrics: [
-            'user_activity_total_events',
-            'user_activity_total_queries',
-            'user_activity_total_ai_calls',
-        ],
-        limit: 100,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'user_activity_activity_date_week',
-            },
-        ],
-    },
-    {
-        key: 'observed-history-stable-user-and-project-uuids',
-        name: 'Observed history · people, date and activity stream',
-        description:
-            'Recent recorded activity by person and project. The table shows up to 5,000 results.',
-        explore: 'user_activity',
-        dimensions: [
-            'user_activity_user_name',
-            'user_activity_user_id',
-            'user_activity_project_id',
-            'user_activity_activity_date_day',
-            'user_activity_stream',
-        ],
-        metrics: ['user_activity_total_events', 'user_activity_unique_users'],
-        limit: 500,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'user_activity_activity_date_day',
-            },
-        ],
-    },
-    {
-        key: 'power-users-queries-ai-and-exports',
-        name: 'Power users · queries, AI and exports',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
-        explore: 'user_activity',
-        dimensions: ['user_activity_user_name', 'user_activity_user_id'],
-        metrics: [
-            'user_activity_total_queries',
-            'user_activity_total_ai_calls',
-            'user_activity_total_downloads',
-            'user_activity_total_tokens_used',
-        ],
-        limit: 20,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'user_activity_total_queries',
-            },
-        ],
+        },
     },
     {
         key: 'query-failures-affected-people',
-        name: 'Query failures · affected people',
+        name: 'Query failures by people affected',
         description:
-            'Recorded error outcomes ranked by affected people. Missing content attribution is retained; no root-cause inference.',
+            'Failed queries, ranked by people affected. Failures not linked to any content are still shown.',
         explore: 'query_events',
+        // Every row is a failure, so the outcome is not a column
         dimensions: [
-            'query_events_status',
             'query_events_dashboard_name',
             'query_events_explore_name',
             'query_events_dashboard_id',
@@ -927,112 +817,240 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 values: ['error'],
             },
         ],
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.15.0',
+            fieldMapping: {
+                rowDimension: 'query_events_dashboard_name',
+                rowDimension2: 'query_events_explore_name',
+                // The dashboard name opens the dashboard, as it does in the plain table
+                link: 'query_events_dashboard_url',
+                metric: [
+                    'query_events_unique_users',
+                    'query_events_total_queries',
+                ],
+            },
+            // The two names sit side by side. A group row would add up people over its explores, and
+            // a person who met failures in two of them would be counted twice.
+            optionValues: {
+                groupSubtotals: false,
+                showMiniBars: true,
+                showTotalsRow: false,
+                decimalPlaces: 0,
+                density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Dashboard',
+                valueNames: 'People affected,Failed queries',
+            },
+            // Shares the plain table's query, which carries the address of each dashboard
+            query: null,
+        },
     },
-    {
+    // Rows are the origins, with where their queries were run from under each. Who started them is a
+    // column for each kind of starter, so the three names fit a table that groups by two.
+    ranking({
         key: 'query-origin-and-initiating-actor',
-        name: 'Query origin and initiating actor',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
+        name: 'Queries by origin and who started them',
+        description: 'Older queries with unknown values are still shown.',
         explore: 'query_events',
+        by: 'query_events_workload_origin_name',
+        then: 'query_events_context_name',
+        series: 'query_events_initiating_actor_type_name',
         dimensions: [
-            'query_events_workload_origin',
-            'query_events_initiating_actor_type',
-            'query_events_context',
+            'query_events_workload_origin_name',
+            'query_events_initiating_actor_type_name',
+            'query_events_context_name',
         ],
         metrics: ['query_events_total_queries'],
         limit: 50,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'query_events_total_queries',
-            },
-        ],
-    },
+        libraryDescription:
+            'Queries for each origin, with a column for each kind of starter. Open an origin to see where its queries were run from; older queries with unknown values are still shown.',
+    }),
     {
         key: 'request-consumption-by-outcome-and-feedback',
-        name: 'Request consumption by outcome and feedback',
-        description:
-            'Tokens linked to captured requests only; unlinked calls and unknown token accounting are not zero cost.',
+        name: 'Tokens spent on failed or cancelled requests',
+        description: failedTokensDescription,
         explore: 'agent_requests',
-        dimensions: ['agent_requests_status', 'agent_requests_feedback_score'],
-        metrics: [
-            'agent_requests_total_requests',
-            'agent_requests_total_request_tokens',
-            'agent_requests_total_ai_calls',
-        ],
-        limit: 30,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'agent_requests_total_requests',
+        dimensions: [],
+        metrics: [failedTokens],
+        limit: 1,
+        sorts: [{ fieldId: failedTokens, descending: true }],
+        visualization: 'number',
+        libraryChart: {
+            slug: 'big-number-with-sparkline-trend',
+            minVersion: '0.8.4',
+            fieldMapping: {
+                value: failedTokens,
+                sparklineMetric: failedTokens,
+                time: 'agent_requests_requested_at_day',
+                secondary: failedTokenShare,
             },
-        ],
-    },
-    {
-        key: 'review-candidates-activity-and-known-dependencies',
-        name: 'Review candidates · activity and known dependencies',
-        description:
-            'Known schedule/dashboard dependencies only. Missing observed activity never establishes safe deletion.',
-        explore: 'content_health',
-        dimensions: [
-            'content_health_content_name',
-            'content_health_content_type',
-            'content_health_activity_status',
-            'content_health_enabled_schedules',
-            'content_health_dashboard_references',
-            'content_health_dependency_coverage',
-            'content_health_capture_coverage',
-            'content_health_is_deleted',
-            'content_health_content_id',
-            'content_health_project_id',
-        ],
-        metrics: ['content_health_total_content'],
-        limit: 50,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'content_health_total_content',
+            optionValues: {
+                valueAggregation: 'sum',
+                style: 'compact',
+                showComparison: false,
+                sizeMode: 'preset',
+                bigNumberSize: 6,
+                reserveComparisonSpace: false,
+                secondaryLabel: 'of all tokens used by agent requests',
+                colorSparklineByTrend: false,
+                showSparklineArea: true,
+                showLabel: true,
+                label: 'Selected period',
+                showCardBorder: false,
+                showCardShadow: false,
             },
-        ],
-        filters: [
-            {
-                field: 'content_health_activity_status',
-                values: [
-                    'No activity observed; known dependency',
-                    'No activity observed; coverage incomplete',
+            query: {
+                dimensions: ['agent_requests_requested_at_day'],
+                metrics: [failedTokens, 'agent_requests_total_request_tokens'],
+                sorts: [
+                    {
+                        fieldId: 'agent_requests_requested_at_day',
+                        descending: false,
+                    },
                 ],
+                limit: 500,
+                // The same share on every row: the card reads it from the latest day
+                tableCalculations: [
+                    {
+                        name: failedTokenShare,
+                        displayName: 'Share of all tokens',
+                        type: TableCalculationType.NUMBER,
+                        sql: 'SUM(${agent_requests.failed_or_cancelled_request_tokens}) OVER () * 1.0 / NULLIF(SUM(${agent_requests.total_request_tokens}) OVER (), 0)',
+                        format: { type: CustomFormatType.PERCENT, round: 1 },
+                    },
+                ],
+                description:
+                    'Tokens from AI calls linked to agent requests that ended in an error or were cancelled. The percentage is their share of all tokens used by agent requests in the selected period.',
             },
-        ],
+        },
     },
     {
         key: 'slow-dashboards-tail-latency-and-demand',
-        name: 'Slow dashboards · tail latency and demand',
+        name: 'Slowest dashboards: P95 response time in seconds (top 20)',
         description:
-            'All retained captured history. Recent capture is not a full historical census.',
+            'The 20 dashboards with the longest P95 response time in the selected period. A dashboard with few queries can rank high on one slow query.',
+        explore: 'query_events',
+        dimensions: [
+            'query_events_dashboard_name',
+            'query_events_dashboard_id',
+        ],
+        metrics: ['query_events_p95_response_time_s'],
+        filters: [
+            {
+                field: 'query_events_dashboard_name',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+            // Lightdash's own analytics dashboards are not the organization's to speed up
+            { field: 'query_events_in_analytics_project', values: [false] },
+        ],
+        limit: 20,
+        sorts: [
+            {
+                descending: true,
+                fieldId: 'query_events_p95_response_time_s',
+            },
+        ],
+        // Ranked bars in both versions; the table beside it has the other measures
+        visualization: 'bar',
+        xField: 'query_events_dashboard_name',
+        yFields: ['query_events_p95_response_time_s'],
+        flipAxes: true,
+        libraryChart: {
+            // Ranked bars with the names beside them: twenty long names under a chart had to be
+            // written at an angle. One measure, so one axis.
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.18.9',
+            fieldMapping: {
+                x: 'query_events_dashboard_name',
+                m1: 'query_events_p95_response_time_s',
+            },
+            optionValues: {
+                seriesType: 'bar',
+                orientation: 'horizontal',
+                m1Name: 'P95 response time (s)',
+                // One very slow dashboard would squeeze every other bar against the axis. Its bar is cut
+                // short at the edge with a break mark, and its label keeps the true value.
+                capOutliers: true,
+                showDataLabels: true,
+                lightdashLabels: false,
+                showAxisTitles: false,
+                showLegend: false,
+            },
+            query: null,
+        },
+    },
+    {
+        // Slow and expensive are different lists: a dashboard can respond quickly and still cost the
+        // most because it runs all day. One row for each dashboard, most warehouse time first.
+        key: 'dashboards-warehouse-and-response-time',
+        name: 'Dashboards by warehouse time (top 25)',
+        description:
+            'The 25 dashboards whose queries took the most warehouse time in the selected period, with their P95 response time, queries and people. Warehouse time is added up over every query the dashboard ran.',
         explore: 'query_events',
         dimensions: [
             'query_events_dashboard_name',
             'query_events_dashboard_id',
         ],
         metrics: [
+            'query_events_total_warehouse_execution_time_s',
+            'query_events_p95_response_time_s',
             'query_events_total_queries',
             'query_events_unique_users',
-            'query_events_p95_response_time_ms',
-            'query_events_avg_warehouse_execution_time_ms',
         ],
-        limit: 20,
+        filters: [
+            {
+                field: 'query_events_dashboard_name',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+            // Lightdash's own analytics dashboards are not the organization's to speed up
+            { field: 'query_events_in_analytics_project', values: [false] },
+        ],
+        limit: 25,
         sorts: [
             {
                 descending: true,
-                fieldId: 'query_events_p95_response_time_ms',
+                fieldId: 'query_events_total_warehouse_execution_time_s',
             },
         ],
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.15.0',
+            fieldMapping: {
+                rowDimension: 'query_events_dashboard_name',
+                // The dashboard name opens the dashboard, as it does in the plain table
+                link: 'query_events_dashboard_url',
+                metric: [
+                    'query_events_total_warehouse_execution_time_s',
+                    'query_events_p95_response_time_s',
+                    'query_events_total_queries',
+                    'query_events_unique_users',
+                ],
+            },
+            optionValues: {
+                showMiniBars: true,
+                showTotalsRow: false,
+                density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Dashboard',
+                valueNames:
+                    'Warehouse time (s),P95 response time (s),Queries,People',
+                // Seconds keep their decimals from the field's own format. A plain count has no format
+                // to read, so it takes this: whole numbers
+                useFieldFormats: true,
+                decimalPlaces: 0,
+            },
+            // Shares the plain table's query, which carries the address of each dashboard
+            query: null,
+        },
     },
     {
         key: 'verified-content-audience-share',
-        name: 'Verified-content audience share',
+        name: 'Share of viewers who viewed verified content',
         description:
-            'Share of viewers with known verification state who visited verified content; viewer may also visit unverified content.',
+            'Viewers of verified content as a share of viewers of content with a known verification status. A viewer can also view unverified content.',
         explore: 'content_reach',
         dimensions: [],
         metrics: ['content_reach_verified_audience_share'],
@@ -1044,52 +1062,32 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
         ],
         visualization: 'number',
+        tableCalculations: [wholeShare],
+        hiddenColumns: [wholeShare.name],
+        yFields: ['content_reach_verified_audience_share'],
+        libraryChart: numberCard(
+            'content_reach_verified_audience_share',
+            'Of viewers of content with a known status',
+            {
+                percent: true,
+                whole: wholeShare.name,
+                color: positive,
+                // The same line above the number as the three cards beside it
+                period: 'Selected period',
+            },
+        ),
     },
-    {
+    // A handful of rows, so the groups start open
+    ranking({
         key: 'warehouse-versus-cached-demand',
-        name: 'Warehouse versus cached demand',
+        name: 'Warehouse versus cached queries',
         description:
-            'Request demand by cache hit and execution source; this is not currency saved.',
+            'Queries by cache hit and by what ran or served them, such as the warehouse, the results cache or a pre-aggregate.',
         explore: 'query_events',
-        dimensions: ['query_events_cache_hit', 'query_events_execution_source'],
+        by: 'query_events_cache_hit_name',
+        then: 'query_events_execution_source_name',
         metrics: ['query_events_total_queries'],
         limit: 30,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'query_events_total_queries',
-            },
-        ],
-    },
-    {
-        key: 'who-visited-which-dashboard',
-        name: 'Who visited which dashboard?',
-        description:
-            'All retained captured history. Recent capture is not a full historical census.',
-        explore: 'content_reach',
-        dimensions: [
-            'content_reach_content_name',
-            'content_reach_user_name',
-            'content_reach_user_id',
-            'content_reach_content_id',
-            'content_reach_project_id',
-        ],
-        metrics: [
-            'content_reach_qualifying_views',
-            'content_reach_last_viewed_at',
-        ],
-        limit: 100,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'content_reach_qualifying_views',
-            },
-        ],
-        filters: [
-            {
-                field: 'content_reach_content_type',
-                values: ['dashboard'],
-            },
-        ],
-    },
+        expanded: true,
+    }),
 ];

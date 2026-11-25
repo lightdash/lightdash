@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ChartType,
     ConflictError,
     ContentType,
     ForbiddenError,
@@ -8,9 +9,12 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
+import { analyticsColorPalette } from '../../../analytics/systemExplores/analyticsColorPalette';
+import { type LibraryChartBinding } from '../../../analytics/systemExplores/libraryCharts';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
+    analyticsLibraryChartBindings,
 } from '../../../analytics/systemExplores/sampleContent';
 import { fromSession } from '../../../auth/account';
 import { ANALYTICS_DATA_APP_SNAPSHOT_TYPE } from '../../../models/ContentAsCodeSnapshotModel';
@@ -24,6 +28,27 @@ import { getAnalyticsContentHash } from './analyticsContentHash';
 import { analyticsHomepage } from './analyticsHomepage';
 import { AnalyticsProjectService } from './AnalyticsProjectService';
 import { managedAdoptionAppSlug } from './managedAdoptionApp';
+
+const { mockedBindings, removeRetired, actualRemoveRetired } = vi.hoisted(
+    () => ({
+        mockedBindings: new Map<string, LibraryChartBinding>(),
+        removeRetired: vi.fn(),
+        actualRemoveRetired: { current: vi.fn() },
+    }),
+);
+// The real removal by default (set again before each test); one test makes it report a failed delete
+vi.mock('./retiredAnalyticsContent', async (orig) => {
+    const actual = await orig<typeof import('./retiredAnalyticsContent')>();
+    actualRemoveRetired.current =
+        actual.removeRetiredAnalyticsContent as typeof actualRemoveRetired.current;
+    return { ...actual, removeRetiredAnalyticsContent: removeRetired };
+});
+vi.mock('../../../analytics/systemExplores/sampleContent', async (orig) => ({
+    ...(await orig<
+        typeof import('../../../analytics/systemExplores/sampleContent')
+    >()),
+    analyticsLibraryChartBindings: mockedBindings,
+}));
 
 describe('AnalyticsProjectService', () => {
     const user = {
@@ -69,6 +94,7 @@ describe('AnalyticsProjectService', () => {
     const upsertDashboard = vi.fn();
     const getOrCreateSpace = vi.fn();
     const dataAppsEnabledFor = vi.fn();
+    const ensureRegistryChartTypes = vi.fn();
     const importAppCode = vi.fn<AppGenerateService['importAppCode']>();
     const restoreApp = vi.fn();
     const getAppIncludingDeleted = vi.fn();
@@ -95,11 +121,24 @@ describe('AnalyticsProjectService', () => {
     const findSessionUserAndOrgByUuid = vi.fn();
     const isAnalyticsProjectEnabled = vi.fn();
     const getOrganizations = vi.fn();
+    const getColorPalettes = vi.fn();
+    const createColorPalette = vi.fn();
+    const updateColorPalette = vi.fn();
+    const resolveColorPalette = vi.fn();
+    const updateProjectColorPalette = vi.fn();
     const hash = getAnalyticsContentHash(
         analyticsExplores.createAnalyticsExplores(),
         analyticsContentAsCode,
+        analyticsLibraryChartBindings,
     );
     const findProcessingStatus = vi.fn();
+    const managedPalette = {
+        ...analyticsColorPalette,
+        colorPaletteUuid: 'managed-palette',
+        organizationUuid: user.organizationUuid,
+        createdAt: new Date('2026-09-10T00:00:00Z'),
+        isActive: false,
+    };
     const service = new AnalyticsProjectService({
         analytics: { track },
         appModel: {
@@ -110,6 +149,7 @@ describe('AnalyticsProjectService', () => {
         },
         getAppGenerateService: () => ({
             dataAppsEnabledFor,
+            ensureRegistryChartTypes,
             importAppCode,
             restoreApp,
         }),
@@ -123,6 +163,8 @@ describe('AnalyticsProjectService', () => {
                 flushBatchSize: 1000,
                 bufferMaxSize: 1000,
             },
+            // Off, as by default: nothing retired is removed in these tests
+            softDelete: { enabled: false, retentionDays: 30 },
         },
         schedulerClient: {
             getUsageHistoryBackfillJob,
@@ -131,18 +173,30 @@ describe('AnalyticsProjectService', () => {
         },
         contentAsCodeSnapshotModel: { get: getSnapshot, upsert: saveSnapshot },
         organizationMemberProfileModel: { getOrganizationAdmins },
+        organizationModel: {
+            getColorPalettes,
+            createColorPalette,
+            updateColorPalette,
+        },
         usageDimensionsModel: { getOrganizations },
         coderService: { getOrCreateSpace, upsertChart, upsertDashboard },
         contentVerificationModel: { getByContentUuids: getVerifications },
         dashboardModel: { find: findDashboard, getByIdOrSlug: getDashboard },
+        getDashboardService: () => ({ softDelete: vi.fn() }),
+        getSavedChartService: () => ({ softDelete: vi.fn() }),
         projectHomepageModel: { createPublishedDefaultIfAbsent },
-        savedChartModel: { get: getChart, find: findCharts },
+        savedChartModel: {
+            get: getChart,
+            find: findCharts,
+            resolveColorPalette,
+        },
         spaceModel: { get: getSpace, find: findSpaces },
         projectModel: {
             getSummary: getProjectSummary,
             getAllByOrganizationUuid,
             saveExploresToCache,
             getAnalyticsModelCounts,
+            updateColorPalette: updateProjectColorPalette,
             runInAnalyticsProvisioningLock: async <T>(
                 org: string,
                 callback: () => Promise<T>,
@@ -168,6 +222,9 @@ describe('AnalyticsProjectService', () => {
         getProjectSummary.mockResolvedValue(analyticsProject);
         getIsCopilotEnabled.mockResolvedValue(false);
         dataAppsEnabledFor.mockResolvedValue(false);
+        ensureRegistryChartTypes.mockResolvedValue(new Map());
+        mockedBindings.clear();
+        removeRetired.mockImplementation(actualRemoveRetired.current);
         findAllAgents.mockResolvedValue([]);
         getSnapshot.mockResolvedValue({ snapshotHash: hash });
         isAnalyticsProjectEnabled.mockReturnValue(true);
@@ -205,6 +262,17 @@ describe('AnalyticsProjectService', () => {
             defaultProject,
             analyticsProject,
         ]);
+        getColorPalettes.mockResolvedValue([managedPalette]);
+        resolveColorPalette.mockResolvedValue({
+            ...managedPalette,
+            paletteUuid: managedPalette.colorPaletteUuid,
+            paletteName: managedPalette.name,
+            source: {
+                type: 'project',
+                uuid: analyticsProject.projectUuid,
+                name: analyticsProject.name,
+            },
+        });
     });
 
     describe('visit tracking', () => {
@@ -358,6 +426,7 @@ describe('AnalyticsProjectService', () => {
             new AnalyticsProjectService({
                 ...service['dependencies'],
                 lightdashConfig: {
+                    ...service['dependencies'].lightdashConfig,
                     usageEvents: {
                         ...service['dependencies'].lightdashConfig.usageEvents,
                         enabled: true,
@@ -440,6 +509,19 @@ describe('AnalyticsProjectService', () => {
             await expect(
                 configured().syncContent({ organizationUuid: 'org' }),
             ).rejects.toThrow('upload failed');
+            expect(saveSnapshot).not.toHaveBeenCalled();
+            await configured().syncContent({ organizationUuid: 'org' });
+            expect(saveSnapshot).toHaveBeenCalledOnce();
+        });
+
+        it('leaves the bundle out of date when retired content could not be removed, so the next sync retries', async () => {
+            removeRetired.mockResolvedValueOnce({
+                dashboards: [],
+                charts: [],
+                failed: ['lightdash-analytics-people'],
+            });
+            await configured().syncContent({ organizationUuid: 'org' });
+            expect(upsertDashboard).toHaveBeenCalled();
             expect(saveSnapshot).not.toHaveBeenCalled();
             await configured().syncContent({ organizationUuid: 'org' });
             expect(saveSnapshot).toHaveBeenCalledOnce();
@@ -651,6 +733,7 @@ describe('AnalyticsProjectService', () => {
             new AnalyticsProjectService({
                 ...service['dependencies'],
                 lightdashConfig: {
+                    ...service['dependencies'].lightdashConfig,
                     usageEvents: {
                         ...service['dependencies'].lightdashConfig.usageEvents,
                         enabled: true,
@@ -735,6 +818,7 @@ describe('AnalyticsProjectService', () => {
                 const configured = new AnalyticsProjectService({
                     ...service['dependencies'],
                     lightdashConfig: {
+                        ...service['dependencies'].lightdashConfig,
                         usageEvents: {
                             ...service['dependencies'].lightdashConfig
                                 .usageEvents,
@@ -1111,6 +1195,341 @@ describe('AnalyticsProjectService', () => {
         }
     });
 
+    describe('library chart types', () => {
+        const { slug } = analyticsContentAsCode[0].charts[0];
+        const original = analyticsContentAsCode[0].charts[0];
+        const upsertedFor = () =>
+            upsertChart.mock.calls.find(
+                ([, , chartSlug]) => chartSlug === slug,
+            );
+
+        beforeEach(() => {
+            mockedBindings.set(slug, {
+                slug: 'heatmap',
+                minVersion: '1.0.0',
+                fieldMapping: {},
+                optionValues: {},
+                query: null,
+            });
+        });
+
+        const heatmapType = {
+            appSlug: 'heatmap',
+            vizSchema: { fields: [], configOptions: [], colorPalette: null },
+            registryVersion: '1.0.0',
+        };
+
+        it('uploads a bound chart as a library chart when its type is usable', async () => {
+            ensureRegistryChartTypes.mockResolvedValue(
+                new Map([['heatmap', heatmapType]]),
+            );
+            await service.installSampleContent(user);
+            expect(ensureRegistryChartTypes).toHaveBeenCalledExactlyOnceWith(
+                user,
+                'analytics-project',
+                [{ slug: 'heatmap', minVersion: '1.0.0' }],
+            );
+            expect(upsertedFor()?.[3].chartConfig.type).toBe(
+                ChartType.DATA_APP_VIZ,
+            );
+        });
+
+        it('requires the highest minVersion when bindings share a chart type', async () => {
+            const { slug: otherSlug } = analyticsContentAsCode[0].charts[1];
+            mockedBindings.set(otherSlug, {
+                slug: 'heatmap',
+                minVersion: '1.2.0',
+                fieldMapping: {},
+                optionValues: {},
+                query: null,
+            });
+            await service.installSampleContent(user);
+            expect(ensureRegistryChartTypes).toHaveBeenCalledExactlyOnceWith(
+                user,
+                'analytics-project',
+                [{ slug: 'heatmap', minVersion: '1.2.0' }],
+            );
+        });
+
+        it('uploads each chart as a library chart only when the installed version meets its binding', async () => {
+            const newer = analyticsContentAsCode[0].charts[1];
+            mockedBindings.set(slug, {
+                slug: 'heatmap',
+                minVersion: '0.6.0',
+                fieldMapping: {},
+                optionValues: {},
+                query: null,
+            });
+            mockedBindings.set(newer.slug, {
+                slug: 'heatmap',
+                minVersion: '0.7.0',
+                fieldMapping: {},
+                optionValues: {},
+                query: null,
+            });
+            ensureRegistryChartTypes.mockResolvedValue(
+                new Map([
+                    ['heatmap', { ...heatmapType, registryVersion: '0.6.0' }],
+                ]),
+            );
+            const info = vi.spyOn(
+                (service as unknown as { logger: { info: () => void } }).logger,
+                'info',
+            );
+            await expect(
+                service.installSampleContent(user),
+            ).resolves.toBeUndefined();
+            expect(upsertedFor()?.[3].chartConfig.type).toBe(
+                ChartType.DATA_APP_VIZ,
+            );
+            expect(
+                upsertChart.mock.calls.find(
+                    ([, , chartSlug]) => chartSlug === newer.slug,
+                )?.[3],
+            ).toEqual({ ...newer, spaceSlug: expect.any(String) });
+            expect(info).toHaveBeenCalledWith(
+                'Analytics chart needs a newer library chart type version',
+                expect.objectContaining({
+                    chartSlug: newer.slug,
+                    typeSlug: 'heatmap',
+                    errors: ['needs 0.7.0, installed 0.6.0'],
+                }),
+            );
+            expect(saveSnapshot).toHaveBeenCalled();
+        });
+
+        it('uploads the fallback chart when the type is not usable', async () => {
+            await service.installSampleContent(user);
+            expect(upsertedFor()?.[3]).toEqual({
+                ...original,
+                spaceSlug: expect.any(String),
+            });
+        });
+
+        it('uploads fallback charts and completes when ensuring types throws', async () => {
+            ensureRegistryChartTypes.mockRejectedValue(new Error('boom'));
+            await expect(
+                service.installSampleContent(user),
+            ).resolves.toBeUndefined();
+            expect(upsertedFor()?.[3]).toEqual({
+                ...original,
+                spaceSlug: expect.any(String),
+            });
+            expect(upsertChart).toHaveBeenCalledTimes(
+                analyticsContentAsCode.flatMap(({ charts }) => charts).length,
+            );
+            expect(saveSnapshot).toHaveBeenCalled();
+        });
+
+        it('uploads the fallback chart and completes when the binding does not fit the installed type', async () => {
+            mockedBindings.set(slug, {
+                slug: 'heatmap',
+                minVersion: '1.0.0',
+                fieldMapping: { size: 'unknown_field' },
+                optionValues: {},
+                query: null,
+            });
+            ensureRegistryChartTypes.mockResolvedValue(
+                new Map([['heatmap', heatmapType]]),
+            );
+            const warn = vi.spyOn(
+                (service as unknown as { logger: { warn: () => void } }).logger,
+                'warn',
+            );
+            await expect(
+                service.installSampleContent(user),
+            ).resolves.toBeUndefined();
+            expect(upsertedFor()?.[3]).toEqual({
+                ...original,
+                spaceSlug: expect.any(String),
+            });
+            expect(warn).toHaveBeenCalledWith(
+                'Analytics chart does not fit its library chart type',
+                expect.objectContaining({
+                    chartSlug: slug,
+                    typeSlug: 'heatmap',
+                    errors: expect.arrayContaining([
+                        expect.stringMatching(/Unknown field slots/),
+                    ]),
+                }),
+            );
+            expect(saveSnapshot).toHaveBeenCalled();
+        });
+
+        it('uploads the fallback chart when the chart type disappears before upload', async () => {
+            ensureRegistryChartTypes.mockResolvedValue(
+                new Map([['heatmap', heatmapType]]),
+            );
+            upsertChart.mockImplementation(
+                async (_user, _project, chartSlug, chartAsCode) => {
+                    if (
+                        chartSlug === slug &&
+                        chartAsCode.chartConfig.type === ChartType.DATA_APP_VIZ
+                    ) {
+                        throw new NotFoundError(
+                            'Custom chart type "heatmap" was not found in this project.',
+                        );
+                    }
+                    return undefined;
+                },
+            );
+            const warn = vi.spyOn(
+                (service as unknown as { logger: { warn: () => void } }).logger,
+                'warn',
+            );
+            await expect(
+                service.installSampleContent(user),
+            ).resolves.toBeUndefined();
+            const uploads = upsertChart.mock.calls.filter(
+                ([, , chartSlug]) => chartSlug === slug,
+            );
+            expect(uploads).toHaveLength(2);
+            expect(uploads[1][3]).toEqual({
+                ...original,
+                spaceSlug: expect.any(String),
+            });
+            expect(warn).toHaveBeenCalledWith(
+                'Analytics chart type unavailable at upload, using the plain chart',
+                expect.objectContaining({ chartSlug: slug }),
+            );
+            expect(saveSnapshot).toHaveBeenCalled();
+        });
+
+        it('still fails sync when uploading a plain chart throws', async () => {
+            upsertChart.mockRejectedValue(new NotFoundError('missing space'));
+            await expect(service.installSampleContent(user)).rejects.toThrow(
+                'missing space',
+            );
+            expect(saveSnapshot).not.toHaveBeenCalled();
+        });
+
+        it('ensures types before uploading any chart', async () => {
+            await service.installSampleContent(user);
+            expect(
+                ensureRegistryChartTypes.mock.invocationCallOrder[0],
+            ).toBeLessThan(upsertChart.mock.invocationCallOrder[0]);
+        });
+    });
+
+    describe('color palette', () => {
+        const inherited = {
+            colors: ['#000000'],
+            darkColors: null,
+            paletteUuid: 'org-palette',
+            paletteName: 'Brand',
+            source: {
+                type: 'organization',
+                uuid: user.organizationUuid,
+                name: user.organizationName,
+            },
+        };
+
+        it('creates the palette when missing and gives it to the analytics project', async () => {
+            getColorPalettes.mockResolvedValue([]);
+            createColorPalette.mockResolvedValue(managedPalette);
+            resolveColorPalette.mockResolvedValue(inherited);
+            await service.installSampleContent(user);
+            expect(createColorPalette).toHaveBeenCalledExactlyOnceWith(
+                user.organizationUuid,
+                analyticsColorPalette,
+            );
+            expect(updateColorPalette).not.toHaveBeenCalled();
+            expect(resolveColorPalette).toHaveBeenCalledExactlyOnceWith({
+                projectUuid: analyticsProject.projectUuid,
+            });
+            expect(updateProjectColorPalette).toHaveBeenCalledExactlyOnceWith(
+                analyticsProject.projectUuid,
+                managedPalette.colorPaletteUuid,
+            );
+            expect(
+                updateProjectColorPalette.mock.invocationCallOrder[0],
+            ).toBeLessThan(upsertChart.mock.invocationCallOrder[0]);
+        });
+
+        it('ships a light and dark colour for each of the 20 palette slots', () => {
+            const hex = /^#[0-9A-F]{6}$/;
+            for (const colors of [
+                analyticsColorPalette.colors,
+                analyticsColorPalette.darkColors,
+            ]) {
+                expect(colors).toHaveLength(20);
+                expect(new Set(colors).size).toBe(20);
+                expect(colors.every((color) => hex.test(color))).toBe(true);
+            }
+        });
+
+        it.each([
+            { colors: ['#000000'] },
+            { darkColors: null },
+            { darkColors: ['#000000'] },
+        ])('restores the bundled colours after drift: %j', async (drift) => {
+            getColorPalettes.mockResolvedValue([
+                { ...managedPalette, ...drift },
+            ]);
+            await service.installSampleContent(user);
+            expect(createColorPalette).not.toHaveBeenCalled();
+            expect(updateColorPalette).toHaveBeenCalledExactlyOnceWith(
+                user.organizationUuid,
+                managedPalette.colorPaletteUuid,
+                {
+                    uuid: managedPalette.colorPaletteUuid,
+                    colors: analyticsColorPalette.colors,
+                    darkColors: analyticsColorPalette.darkColors,
+                },
+            );
+            expect(updateProjectColorPalette).not.toHaveBeenCalled();
+        });
+
+        it('changes nothing when the palette is current and already assigned', async () => {
+            await service.installSampleContent(user);
+            await service.installSampleContent(user);
+            expect(createColorPalette).not.toHaveBeenCalled();
+            expect(updateColorPalette).not.toHaveBeenCalled();
+            expect(updateProjectColorPalette).not.toHaveBeenCalled();
+        });
+
+        it('keeps another palette an admin chose for the analytics project', async () => {
+            resolveColorPalette.mockResolvedValue({
+                ...inherited,
+                paletteUuid: 'admin-choice',
+                source: {
+                    type: 'project',
+                    uuid: analyticsProject.projectUuid,
+                    name: analyticsProject.name,
+                },
+            });
+            await service.installSampleContent(user);
+            expect(updateProjectColorPalette).not.toHaveBeenCalled();
+        });
+
+        it('leaves the project alone under an instance-wide palette override', async () => {
+            resolveColorPalette.mockResolvedValue({
+                ...inherited,
+                paletteUuid: null,
+                paletteName: null,
+                source: { type: 'config' },
+            });
+            await service.installSampleContent(user);
+            expect(updateProjectColorPalette).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['reading palettes', getColorPalettes],
+            ['creating the palette', createColorPalette],
+            ['assigning the palette', updateProjectColorPalette],
+        ])('still syncs content when %s fails', async (_step, failing) => {
+            getColorPalettes.mockResolvedValue([]);
+            createColorPalette.mockResolvedValue(managedPalette);
+            resolveColorPalette.mockResolvedValue(inherited);
+            failing.mockRejectedValue(new Error('palette unavailable'));
+            await expect(
+                service.installSampleContent(user),
+            ).resolves.toBeUndefined();
+            expect(upsertChart).toHaveBeenCalled();
+            expect(saveSnapshot).toHaveBeenCalled();
+        });
+    });
+
     it('keeps existing dashboards and their charts in their current space on sync', async () => {
         getSpace.mockResolvedValue({
             uuid: 'existing-space',
@@ -1330,10 +1749,13 @@ describe('AnalyticsProjectService', () => {
             dashboardSlug: 'lightdash-analytics-overview',
         },
         {
-            slug: 'lightdash-analytics-overview-ai-calls',
+            slug: 'lightdash-analytics-overview-agent-requests-trend',
             dashboardSlug: 'custom-dashboard',
         },
-        { slug: 'lightdash-analytics-overview-ai-calls', dashboardSlug: null },
+        {
+            slug: 'lightdash-analytics-overview-agent-requests-trend',
+            dashboardSlug: null,
+        },
     ])(
         'rejects a renamed or moved chart before writing any content: %j',
         async (existing) => {
@@ -1344,7 +1766,7 @@ describe('AnalyticsProjectService', () => {
             expect(upsertChart).not.toHaveBeenCalled();
             expect(upsertDashboard).not.toHaveBeenCalled();
             expect(getChart).toHaveBeenCalledWith(
-                'lightdash-analytics-overview-ai-calls',
+                'lightdash-analytics-overview-agent-requests-trend',
                 undefined,
                 {
                     projectUuid: 'analytics-project',

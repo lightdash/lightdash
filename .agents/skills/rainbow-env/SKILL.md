@@ -41,6 +41,15 @@ A `create_env` that changes the dependency layer rebuilds the parent and takes m
 - Outbound calls fail by policy unless `rainbow.toml` `[[egress.allow]]` admits the host; `egress` lists what was refused.
 - Live data sources: previews have Hydra, a test integration that needs no credentials or egress. How to add and drive one: `packages/backend/src/services/QuerySourceService/live/integrations/hydra/AGENTS.md`.
 
+## Exports
+
+Image and PDF exports, chart images and deliveries with images use the `headless-browser` service: browserless, the version production runs, on `localhost:3001`. It loads the app from `http://localhost:8080`. Read its log with `logs` and service `headless-browser`; the backend logs captures in `dev`.
+
+- Dashboard image or PDF: the UI's export menu, or `POST /api/v2/dashboards/<uuid>/exports?projectUuid=<uuid>` with `{"format": "image"}` or `{"format": "pdf"}`. Poll `GET /api/v1/schedulers/job/<jobId>/status` until `completed`. `results.details.url` is the file: an env URL for images, a presigned bucket URL for PDFs.
+- Chart image: `POST /api/v1/saved/<chartUuid>/export` returns the image URL.
+- Scheduled delivery: create one with an email target (any address), then "Send now" in the UI or `POST /api/v1/schedulers/<schedulerUuid>/send`. Mailpit keeps the mail inside the guest: `curl localhost:8025/api/v1/messages`, then `curl localhost:8025/api/v1/message/<ID>` for its HTML. The image in the mail is a link to the env URL.
+- A page asset from a host outside `[[egress.allow]]` is refused, so a Loom tile exports blank.
+
 ## Verify
 
 UI proof is the real product on the env with seed data: open the env URL in a browser on your side. Storybook is for exploring variants; label any Storybook capture as such. Prefer text snapshots; screenshot only for visual checks, at device scale 1, cropped to the element.
@@ -51,3 +60,17 @@ Done when every claim you report names the env, the commit it served (`list_envs
 
 - `exec` stdout is clipped at 64 KB: write large output to a file and read it in slices.
 - The guest cannot reach its own public URL. To pull a file out, write it under `packages/frontend/build/<dir>/`, fetch it from the env URL, then delete it.
+
+## Google Sheets
+
+Google needs an exact redirect URI per host, so Google Sheets sync works only on three fixed env names: `gsheets`, `gsheets-2` and `gsheets-3` (`https://<name>.lightdash.rainbowmachine.dev`). Other envs show the option, and Google refuses the redirect. Pick a free name with `list_envs`.
+
+Connect only the shared Google test account. Its sign-in, with a one-time code, is in the team password manager's Shared vault. Never connect your own account. The consent screen is in testing with that account as the only test user, so Google refuses every other account. Envs are public, so treat the token as public.
+
+1. `create_env({repo: "lightdash/lightdash", branch, name: "gsheets"})`. The same call serves another branch at the same URL.
+2. Sign in to Lightdash, open a chart's Google Sheets sync and connect Google once per env, as the test account. The env stores the refresh token in its database.
+3. `fork_env` the env for each experiment. A fork keeps the database, so it keeps the token: no new consent. `kill_env` the fork after.
+4. For charts above the default 5,000-row limit, `set_env` `LIGHTDASH_QUERY_MAX_LIMIT` on the fork. Read the sync in `logs` with service `dev`, and check `egress` for refused hosts.
+5. Testing tokens expire after 7 days. When a sync fails with `invalid_grant`, connect Google again on the env.
+
+The OAuth client and the picker key belong to the test account's own Google Cloud project, and are in the same Shared vault. A new pool name needs its redirect URI and JavaScript origin added to that client.

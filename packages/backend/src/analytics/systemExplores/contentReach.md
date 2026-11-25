@@ -63,7 +63,7 @@ model (PROD-11654). Never interpret missing history as proof of no readership.
 Open **Content reach** and select **Content name**, **Content type**, **Project
 name**, **Space name** and **Event ts → Day**. Add **Qualifying views**,
 **Distinct viewers**, **Returning viewers**, **Last viewed at** and **Verified
-audience share**, then run. Add **Users → User name** and **User UUID** to inspect
+audience share**, then run. Add **Users → User name** and **Person ID** to inspect
 individual readers; group by UUID to distinguish people with identical names.
 For a newly created dashboard, filter its Content id and group by Weeks since
 creation with First week returning viewers.

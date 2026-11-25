@@ -1,4 +1,8 @@
-import { type AiAgentThread } from '@lightdash/common';
+import {
+    type AiAgentMessageUser,
+    type AiAgentThread,
+    type AiAgentUser,
+} from '@lightdash/common';
 import { Box, Divider, Flex, Stack, Text, Tooltip } from '@mantine/core';
 import { IconCrop, IconInfoCircle } from '@tabler/icons-react';
 import {
@@ -58,6 +62,10 @@ type Props = {
     ) => void;
     /** Sends a clarifying option or question answer as the next message; choices render only when set. */
     onChoiceSelect?: (prompt: string) => void;
+    /** Draws a user message its own way; null leaves it to the usual bubble. */
+    renderUserMessage?: (
+        message: AiAgentMessageUser<AiAgentUser>,
+    ) => ReactNode | null;
 };
 
 const CompactionDivider = () => (
@@ -115,6 +123,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     canRetryDeepResearch = false,
     onRunDeepResearchAgain,
     onChoiceSelect,
+    renderUserMessage,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
     const composerFooter = useRef<HTMLDivElement>(null);
@@ -280,11 +289,13 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                 )}
 
                                 {message.role === 'user' ? (
-                                    <UserBubble
-                                        message={message}
-                                        projectUuid={projectUuid}
-                                        agentUuid={agentUuid}
-                                    />
+                                    (renderUserMessage?.(message) ?? (
+                                        <UserBubble
+                                            message={message}
+                                            projectUuid={projectUuid}
+                                            agentUuid={agentUuid}
+                                        />
+                                    ))
                                 ) : (
                                     <ErrorBoundary>
                                         {projectUuid && agentUuid && (

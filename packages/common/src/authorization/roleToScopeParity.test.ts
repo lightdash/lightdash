@@ -100,6 +100,7 @@ const ENTERPRISE_SUBJECTS = new Set([
     'ContentAsCode',
     'PreAggregation',
     'ExternalConnection',
+    'LiveSource',
     'ExternalSource',
     'ProjectHomepage',
     // The matching scopes (`view:` + `manage:OrganizationWarehouseCredentials`)

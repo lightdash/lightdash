@@ -228,9 +228,9 @@ describe('Data app analysis isolation', () => {
     });
 
     it('keeps the user-attribute gate at the query layer', async () => {
-        // A missing required attribute is an AuthorizationError (401).
+        // A missing required attribute is a ForbiddenError (403).
         const resp = await runGatedQuery(viewerB);
-        expect(resp.status).toBe(401);
+        expect(resp.status).toBe(403);
     });
 
     it('lets a viewer look up analysis over a query they ran', async () => {

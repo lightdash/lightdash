@@ -2,6 +2,10 @@
     white-space: pre-wrap;
 }
 
+.noticeRow {
+    align-items: center;
+}
+
 .sourceCode {
     flex: 1;
     min-height: 0;
@@ -13,11 +17,6 @@
 /* The open file's line counts and unsaved mark, like an editor tab. */
 .sourceCounts {
     font-variant-numeric: tabular-nums;
-}
-
-.readOnly {
-    display: flex;
-    align-items: center;
 }
 
 .unsavedDot {

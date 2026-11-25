@@ -66,7 +66,6 @@ import type {
     ApiAppendInstructionResponse,
     ApiAppImageUploadResponse,
     ApiAppThumbnailUrlResponse,
-    ApiCaptureRouteResponse,
     ApiCaptureTranscriptResponse,
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
@@ -94,6 +93,7 @@ import type {
     ApiInstallRegistryChartTypeResponse,
     ApiListDataAppVizsResponse,
     ApiListRegistryChartTypesResponse,
+    ApiLiveSourceAccessResponse,
     ApiLiveSourceContentUsageResponse,
     ApiLiveSourceFieldsResponse,
     ApiManagedAgentActionResponse,
@@ -929,7 +929,7 @@ export type HealthState = {
         isAmbientAiEnabled: boolean;
         threadDumpEnabled: boolean;
         fastDecisionsEnabled: boolean;
-        /** Instance can turn recorded speech into text (Voice Design). */
+        /** Instance can turn recorded speech into text (Design Mode). */
         voiceTranscriptionAvailable: boolean;
     };
     echarts6: {
@@ -1748,6 +1748,7 @@ type ApiResults =
     | ApiExternalConnectionAsCodeUpsertResponse['results']
     | ApiLiveSourceContentUsageResponse['results']
     | ApiLiveSourceFieldsResponse['results']
+    | ApiLiveSourceAccessResponse['results']
     | ApiExplorePrefixCheckResponse['results']
     | ApiReattachableLiveSourcesResponse['results']
     | ApiSpaceAsCodeListResponse['results']
@@ -1851,7 +1852,6 @@ type ApiResults =
     | ApiAiReviewNotificationSettingsResponse['results']
     | ApiAiRouterResponse['results']
     | ApiAiRouterRouteResponse['results']
-    | ApiCaptureRouteResponse['results']
     | ApiAiRouterInstructionResponse['results']
     | ApiAiRouterDecisionCommitResponse['results']
     | ApiAiRouterDecisionListResponse['results']

@@ -1,6 +1,5 @@
 import { subject, type Ability } from '@casl/ability';
 import {
-    AuthorizationError,
     CorruptedExploreError,
     Explore,
     ForbiddenError,
@@ -222,7 +221,8 @@ export const getFilteredExplore = (
             userAttributes,
         )
     ) {
-        throw new AuthorizationError(
+        // 403, not 401: the person is signed in, and a 401 makes the app recheck the session.
+        throw new ForbiddenError(
             "You don't have authorization to access this explore",
         );
     }

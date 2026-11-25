@@ -3,6 +3,7 @@ import {
     formatResetsAt,
     formatUntil,
     formatUsed,
+    formatWindow,
     getRateLimitStat,
 } from './rateLimitFormat';
 
@@ -45,6 +46,22 @@ describe('formatUntil', () => {
     });
 });
 
+describe('formatWindow', () => {
+    it('names a window in its largest whole unit', () => {
+        expect(
+            [10_000, 60_000, 3_600_000, 86_400_000, 30 * 86_400_000].map(
+                formatWindow,
+            ),
+        ).toEqual([
+            '10 second window',
+            '1 minute window',
+            '1 hour window',
+            '24 hour window',
+            '30 day window',
+        ]);
+    });
+});
+
 describe('formatUsed', () => {
     it('groups thousands', () => {
         expect(formatUsed(410, 10_000)).toBe('410 of 10,000');
@@ -61,6 +78,7 @@ describe('getRateLimitStat', () => {
                 label: 'per minute',
                 windowMs: 60_000,
                 capacity: 30,
+                defaultCapacity: 30,
                 used: 12,
                 resetsAt: at(20_000),
             },
@@ -69,11 +87,17 @@ describe('getRateLimitStat', () => {
                 label: 'per hour',
                 windowMs: 3_600_000,
                 capacity: 5_000,
+                defaultCapacity: 5_000,
                 used: 410,
                 resetsAt: at(24 * 60_000),
             },
         ],
         limitedUntil: null,
+        adminRateLimits: null,
+        defaultCallsPerSecond: null,
+        defaultConcurrentCalls: 3,
+        note: null,
+        runningCalls: 0,
     };
 
     it('shows the longest declared limit', () => {

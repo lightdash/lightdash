@@ -65,7 +65,7 @@ export const GroupPicker = ({ groups, selectedIds, onPick, closeOnPick = false, 
                                                 }}
                                             >
                                                 <span className="min-w-0 flex-1 truncate">{group.name}</span>
-                                                <span className="ad-count shrink-0 text-xs text-muted-foreground">{formatCount(group.people)}</span>
+                                                <span className="adoption-count shrink-0 text-xs text-muted-foreground">{formatCount(group.people)}</span>
                                                 {isPicked && <Check className="h-4 w-4 shrink-0 text-muted-foreground" aria-label="Already chosen" />}
                                             </button>
                                         </li>

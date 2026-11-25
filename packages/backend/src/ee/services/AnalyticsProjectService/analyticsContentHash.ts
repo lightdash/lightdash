@@ -4,6 +4,12 @@ import {
     type Explore,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
+import { analyticsColorPalette } from '../../../analytics/systemExplores/analyticsColorPalette';
+import type { LibraryChartBinding } from '../../../analytics/systemExplores/libraryCharts';
+import {
+    retiredAnalyticsCharts,
+    retiredAnalyticsDashboards,
+} from '../../../analytics/systemExplores/retiredContent';
 import { analyticsDefaultSpace } from '../../../analytics/systemExplores/sampleContent';
 import { buildContentAsCodeSnapshot } from '../../../services/CoderService/contentAsCodeSnapshot';
 import { analyticsHomepage } from './analyticsHomepage';
@@ -11,6 +17,7 @@ import { analyticsHomepage } from './analyticsHomepage';
 export const getAnalyticsContentHash = (
     explores: Explore[],
     bundles: { dashboard: DashboardAsCode; charts: ChartAsCode[] }[],
+    bindings: ReadonlyMap<string, LibraryChartBinding>,
 ): string =>
     createHash('sha256')
         .update(
@@ -18,6 +25,15 @@ export const getAnalyticsContentHash = (
                 explores,
                 space: analyticsDefaultSpace,
                 homepage: analyticsHomepage,
+                palette: analyticsColorPalette,
+                // A release that only retires content still has something to sync
+                retired: {
+                    dashboards: retiredAnalyticsDashboards,
+                    charts: retiredAnalyticsCharts,
+                },
+                bindings: [...bindings.entries()].sort(([a], [b]) =>
+                    a.localeCompare(b),
+                ),
                 bundles: bundles.map(({ dashboard, charts }) => ({
                     dashboard:
                         buildContentAsCodeSnapshot(dashboard).snapshotHash,

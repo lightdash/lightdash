@@ -1,3 +1,89 @@
+## [3.409.2](https://github.com/lightdash/lightdash/compare/3.409.1...3.409.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* **design-mode:** include custom charts in the picture sent to the agent ([#33460](https://github.com/lightdash/lightdash/issues/33460)) ([1784175](https://github.com/lightdash/lightdash/commit/1784175b024fcafe8daa8c65a9d112f684fd719f))
+* **design-mode:** show the tour's highlight over the toolbar ([#33459](https://github.com/lightdash/lightdash/issues/33459)) ([ae200b9](https://github.com/lightdash/lightdash/commit/ae200b90f68f35f7e5aa2350fc262d52cb452820))
+
+## [3.409.1](https://github.com/lightdash/lightdash/compare/3.409.0...3.409.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **rainbow:** run browserless so image and PDF exports work on previews ([#33458](https://github.com/lightdash/lightdash/issues/33458)) ([5cb0067](https://github.com/lightdash/lightdash/commit/5cb0067d1a6e86fbc537359b0b8b3d387020cc64))
+
+# [3.409.0](https://github.com/lightdash/lightdash/compare/3.408.0...3.409.0) (2026-11-25)
+
+
+### Features
+
+* **ai-agents:** limit an agent's integrations by tags, like dbt explores ([#33175](https://github.com/lightdash/lightdash/issues/33175)) ([ba05532](https://github.com/lightdash/lightdash/commit/ba055324dc7152db8987ab3de80235440437cf69))
+* **permissions:** give integrations their own manage:LiveSource permission ([#33176](https://github.com/lightdash/lightdash/issues/33176)) ([206b917](https://github.com/lightdash/lightdash/commit/206b917ac3ef73db9fe7c15c53b5c38f233221a6))
+* **permissions:** limit who can query an integration with an access rule ([#33178](https://github.com/lightdash/lightdash/issues/33178)) ([13f7aa1](https://github.com/lightdash/lightdash/commit/13f7aa17ad0e84b37706363c016cc5a7aaca5086))
+
+# [3.408.0](https://github.com/lightdash/lightdash/compare/3.407.0...3.408.0) (2026-11-25)
+
+
+### Features
+
+* **apps:** Design Mode on data apps and in the app builder ([#33449](https://github.com/lightdash/lightdash/issues/33449)) ([29575cf](https://github.com/lightdash/lightdash/commit/29575cf78fe8dd7d130a7ccab869e617eebca25d))
+* **live-sources:** let admins lower each integration's rate limits ([#33443](https://github.com/lightdash/lightdash/issues/33443)) ([e69b9ef](https://github.com/lightdash/lightdash/commit/e69b9ef703ab858492ab4edd10444f15f7ec0e8a))
+
+# [3.407.0](https://github.com/lightdash/lightdash/compare/3.406.0...3.407.0) (2026-11-25)
+
+
+### Features
+
+* **dashboards:** Design Mode on dashboards, replacing Voice Design ([#33448](https://github.com/lightdash/lightdash/issues/33448)) ([1116dfa](https://github.com/lightdash/lightdash/commit/1116dfae46149fc8a42c48835fc23f498477cacc))
+
+# [3.406.0](https://github.com/lightdash/lightdash/compare/3.405.0...3.406.0) (2026-11-25)
+
+
+### Features
+
+* **analytics:** let managed charts use library chart types ([#32916](https://github.com/lightdash/lightdash/issues/32916)) ([acea187](https://github.com/lightdash/lightdash/commit/acea187fdd3347aa6773f007e05f1a1bc584ef72))
+* **analytics:** plain names, seconds and design review fixes on the analytics dashboards ([#33059](https://github.com/lightdash/lightdash/issues/33059)) ([dbb6b6e](https://github.com/lightdash/lightdash/commit/dbb6b6effbb4d87bec576d020dce19c42747f683))
+* **analytics:** redesign Agents & AI with library chart types ([#32918](https://github.com/lightdash/lightdash/issues/32918)) ([10df9ff](https://github.com/lightdash/lightdash/commit/10df9ff2118b69359cb4ad133dfb7769cced0515))
+* **analytics:** redesign Queries with library chart types ([#32924](https://github.com/lightdash/lightdash/issues/32924)) ([093eff4](https://github.com/lightdash/lightdash/commit/093eff4eeb472f0586f1b86a6e1983d18dc08575))
+* **analytics:** redesign the remaining analytics dashboards and add a managed Overview ([#33058](https://github.com/lightdash/lightdash/issues/33058)) ([ec60eda](https://github.com/lightdash/lightdash/commit/ec60edad2275baf0f0ee1630f986ad90d8663cc8))
+* **analytics:** rework the Content dashboard and colour model charts by provider ([#33060](https://github.com/lightdash/lightdash/issues/33060)) ([822f281](https://github.com/lightdash/lightdash/commit/822f281f8de73e30507c22e34223cb8845eaa566))
+* **analytics:** the sync removes managed content that is retired from code ([#33061](https://github.com/lightdash/lightdash/issues/33061)) ([fb111e8](https://github.com/lightdash/lightdash/commit/fb111e89eff958ce99fd11f392a434f4712f5532))
+
+# [3.405.0](https://github.com/lightdash/lightdash/compare/3.404.0...3.405.0) (2026-11-25)
+
+
+### Features
+
+* **scheduler:** choose charts as images for XLSX scheduled deliveries ([#33431](https://github.com/lightdash/lightdash/issues/33431)) ([90a1d4f](https://github.com/lightdash/lightdash/commit/90a1d4f82a15a8cf3b7102d813d257cb29657bc0))
+
+# [3.404.0](https://github.com/lightdash/lightdash/compare/3.403.0...3.404.0) (2026-11-25)
+
+
+### Bug Fixes
+
+* virtualize grouped tables when subtotals are off ([#33427](https://github.com/lightdash/lightdash/issues/33427)) ([853c0a5](https://github.com/lightdash/lightdash/commit/853c0a53b0c89007d4caca5633c4ad7c7d26fc25)), closes [#31499](https://github.com/lightdash/lightdash/issues/31499)
+
+
+### Features
+
+* **scheduler:** export chart deliveries as a chart image in XLSX ([#33430](https://github.com/lightdash/lightdash/issues/33430)) ([3ac78eb](https://github.com/lightdash/lightdash/commit/3ac78eb36886b666dc0a000ad33ff81176554a8f))
+
+# [3.403.0](https://github.com/lightdash/lightdash/compare/3.402.0...3.403.0) (2026-11-25)
+
+
+### Features
+
+* **semantic-studio:** open code ready to edit and finish the editing flow ([#33422](https://github.com/lightdash/lightdash/issues/33422)) ([e5984ee](https://github.com/lightdash/lightdash/commit/e5984ee3db8027dbfe3360f028cbe1c8d7398aa8))
+
+# [3.402.0](https://github.com/lightdash/lightdash/compare/3.401.1...3.402.0) (2026-11-25)
+
+
+### Features
+
+* **mcp:** pinned agent with data access off gets content-only query path ([#33434](https://github.com/lightdash/lightdash/issues/33434)) ([2de4140](https://github.com/lightdash/lightdash/commit/2de4140de846a3779b71a31b8f50260eee81b75a))
+* **mcp:** query tool description lists merge nodes and teaches when to merge ([#33432](https://github.com/lightdash/lightdash/issues/33432)) ([71c95bc](https://github.com/lightdash/lightdash/commit/71c95bcfef138f884548f98801d2d5efd54e3fbd))
+
 ## [3.401.1](https://github.com/lightdash/lightdash/compare/3.401.0...3.401.1) (2026-11-25)
 
 

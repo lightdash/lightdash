@@ -32,7 +32,7 @@ export const getStudioPermissions = (
         ),
         sqlViews: ability.can('manage', subject('VirtualView', scope())),
         files: ability.can('manage', subject('ExternalSource', scope())),
-        live: ability.can('manage', subject('ExternalConnection', scope())),
+        live: ability.can('manage', subject('LiveSource', scope())),
     };
 };
 
@@ -78,9 +78,9 @@ export const canOpenProjectSettings = (
     );
 
 /**
- * Whether the live data sources list answers for this person: admins see
- * every source, other members only those an admin opened up for linking.
- * Without it, live explores still show, named after themselves.
+ * Whether the live data sources list answers for this person: only those who
+ * manage live data sources see them. Without it, live explores still show,
+ * named after themselves.
  */
 export const canListLiveSources = (
     ability: AnyAbility,
@@ -88,12 +88,8 @@ export const canListLiveSources = (
     projectUuid: string,
 ) =>
     ability.can(
-        'view',
-        subject('ExternalConnection', {
-            organizationUuid,
-            projectUuid,
-            allowDataAppBuilderLinking: true,
-        }),
+        'manage',
+        subject('LiveSource', { organizationUuid, projectUuid }),
     );
 
 /**

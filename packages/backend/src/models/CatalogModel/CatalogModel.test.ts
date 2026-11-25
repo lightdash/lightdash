@@ -536,6 +536,8 @@ describe('CatalogModel', () => {
             expect(pageSql).toContain('"selected_explore_ids" as');
             expect(pageSql).toContain('jsonb_object_agg');
             expect(pageSql).toContain('jsonb_array_elements_text');
+            // Live data source explores bypass the Tables configuration
+            expect(pageSql).toContain("explore->>'type' = $");
             expect(pageSql).toContain('"required_attributes"');
             expect(pageSql).toContain('"any_attributes"');
             expect(pageSql).toContain('"catalog_search".search_vector @@');

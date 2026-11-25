@@ -13,4 +13,6 @@ export type ConnectionSlugLookup =
           connection: DataAppConnectionIdentity;
       }
     | { slug: string; status: 'not_found' }
-    | { slug: string; status: 'not_linkable' };
+    | { slug: string; status: 'not_linkable' }
+    /** Live data sources are never linked to apps. */
+    | { slug: string; status: 'live_source' };

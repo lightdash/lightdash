@@ -150,10 +150,15 @@ const buildService = ({
     };
     const fetchToken = vi.fn().mockResolvedValue(tokenResponse);
     const service = new ExternalConnectionService({
+        userAttributesModel: {
+            getAttributeValuesForOrgMember: vi.fn().mockResolvedValue({}),
+            find: vi.fn().mockResolvedValue([]),
+        },
         projectModel: {
             replaceApiSourceExplores: vi.fn(),
             deleteApiSourceExplores: vi.fn(),
             findExploreNamesTakenByOthers: vi.fn(async () => []),
+            getApiSourceExploreNames: vi.fn(async () => []),
         },
         allowedPrivateHostCidrs: {},
         externalConnectionModel,

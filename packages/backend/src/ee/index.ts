@@ -220,12 +220,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getContentAsCodeSnapshotModel(),
                     organizationMemberProfileModel:
                         models.getOrganizationMemberProfileModel(),
+                    organizationModel: models.getOrganizationModel(),
                     usageDimensionsModel: models.getUsageDimensionsModel(),
                     coderService: repository.getCoderService(),
                     contentVerificationModel:
                         models.getContentVerificationModel(),
                     spaceModel: models.getSpaceModel(),
                     dashboardModel: models.getDashboardModel(),
+                    getDashboardService: () => repository.getDashboardService(),
+                    getSavedChartService: () =>
+                        repository.getSavedChartService(),
                     projectHomepageModel:
                         models.getProjectHomepageModel<ProjectHomepageModel>(),
                     savedChartModel: models.getSavedChartModel(),
@@ -1050,7 +1054,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     dashboardService: repository.getDashboardService(),
                     savedChartService: repository.getSavedChartService(),
-                    featureFlagModel: models.getFeatureFlagModel(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),
@@ -1278,6 +1281,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     projectModel: models.getProjectModel(),
+                    userAttributesModel: models.getUserAttributesModel(),
                     savedChartModel: models.getSavedChartModel(),
                     encryptionUtil: utils.getEncryptionUtil(),
                     appGenerateService:

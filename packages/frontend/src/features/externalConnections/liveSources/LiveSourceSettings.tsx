@@ -2,8 +2,8 @@
  * One live data source's settings, below its summary on its own page. Rows
  * of a label on the left and its control on the right: how it signs in
  * (account, access), what it is (name, AI hint), its data (fields and
- * caching), then deleting it. A card of fields saves with its Save changes,
- * a choice or button as soon as it is used.
+ * caching), then deleting it. An edited card of fields saves with its Save
+ * changes, a choice or button as soon as it is used.
  */
 import {
     LIVE_SOURCE_AI_HINT_MAX_LENGTH,
@@ -11,7 +11,6 @@ import {
 } from '@lightdash/common';
 import {
     Button,
-    Group,
     PasswordInput,
     SegmentedControl,
     Select,
@@ -44,16 +43,22 @@ import {
     toLiveSourceAccessValues,
     type LiveSourceAccessValues,
 } from './liveSourceAccess';
+import { LiveSourceAccessRuleModal } from './LiveSourceAccessRuleModal';
 import { getApiSourceTarget } from './liveSourceCatalog';
 import { LiveSourceRateLimitsCard } from './LiveSourceRateLimits';
 import {
+    describeLiveSourceAccessRule,
     formatFreshness,
     getLiveSourceFreshness,
     type LiveSourceConnection,
 } from './liveSourceRows';
 import classes from './LiveSources.module.css';
-import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
-import rowClasses from './LiveSourceSettingsRows.module.css';
+import {
+    SettingsCard,
+    SettingsRow,
+    SettingsSaveFooter,
+} from './LiveSourceSettingsRows';
+import { LiveSourceTagsCard } from './LiveSourceTagsCard';
 import { LiveSourceTestRow } from './LiveSourceTestRow';
 
 const WINDOW_SECONDS = [
@@ -126,6 +131,8 @@ export const LiveSourceSettings: FC<{
     );
     const testSource = useTestConnection({ showErrorToast: false });
     const [isPurgeOpen, setIsPurgeOpen] = useState(false);
+    const [isAccessRuleOpen, setIsAccessRuleOpen] = useState(false);
+    const accessRule = describeLiveSourceAccessRule(connection.accessRule);
     const { data: projectCache } = useResultsCacheStatus(projectUuid);
     /** The project doesn't cache results, so the source has nothing to tune or clear. */
     const isProjectCacheOff = projectCache?.enabled === false;
@@ -233,34 +240,13 @@ export const LiveSourceSettings: FC<{
         });
     };
 
-    /** Cancel and Save changes under a card's editable rows. */
-    const saveFooter = (keys: (keyof LiveSourceAccessValues)[]) => {
-        const changed = isChanged(keys);
-        return (
-            <Group
-                justify="flex-end"
-                gap="xs"
-                className={rowClasses.settingsFooter}
-            >
-                <Button
-                    size="xs"
-                    variant="default"
-                    disabled={!changed || updateSource.isLoading}
-                    onClick={() => revert(keys)}
-                >
-                    Cancel
-                </Button>
-                <Button
-                    type="submit"
-                    size="xs"
-                    disabled={!changed}
-                    loading={updateSource.isLoading}
-                >
-                    Save changes
-                </Button>
-            </Group>
-        );
-    };
+    const saveFooter = (keys: (keyof LiveSourceAccessValues)[]) => (
+        <SettingsSaveFooter
+            isChanged={isChanged(keys)}
+            isSaving={updateSource.isLoading}
+            onCancel={() => revert(keys)}
+        />
+    );
 
     const submit =
         (keys: (keyof LiveSourceAccessValues)[]) => (event: FormEvent) => {
@@ -321,6 +307,30 @@ export const LiveSourceSettings: FC<{
                     </SettingsRow>
                     {saveFooter(['name', 'aiHint'])}
                 </SettingsCard>
+
+                <SettingsCard title="Who can query">
+                    <SettingsRow
+                        label="Access rule"
+                        hint={
+                            accessRule
+                                ? `Only people whose ${accessRule}`
+                                : 'Everyone in the project'
+                        }
+                    >
+                        <Button
+                            size="xs"
+                            variant="default"
+                            onClick={() => setIsAccessRuleOpen(true)}
+                        >
+                            Edit
+                        </Button>
+                    </SettingsRow>
+                </SettingsCard>
+
+                <LiveSourceTagsCard
+                    projectUuid={projectUuid}
+                    connection={connection}
+                />
 
                 <SettingsCard title="Caching">
                     <SettingsRow
@@ -477,6 +487,13 @@ export const LiveSourceSettings: FC<{
                 </SettingsCard>
             </Stack>
 
+            {isAccessRuleOpen ? (
+                <LiveSourceAccessRuleModal
+                    projectUuid={projectUuid}
+                    connection={connection}
+                    onClose={() => setIsAccessRuleOpen(false)}
+                />
+            ) : null}
             <MantineModal
                 opened={isPurgeOpen}
                 onClose={() => setIsPurgeOpen(false)}

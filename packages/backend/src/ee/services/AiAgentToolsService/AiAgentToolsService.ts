@@ -5446,6 +5446,10 @@ export class AiAgentToolsService extends BaseService {
                     context.projectUuid,
                     composerChartUuid,
                 );
+                await this.assertComposerChartExploresInScope(
+                    context,
+                    chart.pipeline,
+                );
                 const summary: ComposerChartSummary = {
                     uuid: chart.uuid,
                     slug: chart.slug,
@@ -5454,6 +5458,28 @@ export class AiAgentToolsService extends BaseService {
                 };
                 return { summary, dashboard, tileUuid: tile.uuid };
             },
+        );
+    }
+
+    /** A tag-scoped agent may only open a composer chart whose explores and fields its tags expose. */
+    private async assertComposerChartExploresInScope(
+        context: AiAgentToolsRuntimeContext,
+        pipeline: ComposerChartPipeline,
+    ) {
+        if (!context.tags || context.tags.length === 0) return;
+        await Promise.all(
+            pipeline.nodes.map(async (node) => {
+                if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER) return;
+                const explore = await this.getExploreForRuntime(context, {
+                    table: node.exploreName,
+                });
+                AiAgentToolsService.assertSelectedFieldsExist(
+                    explore,
+                    [...node.dimensions, ...node.metrics],
+                    node.additionalMetrics ?? [],
+                    node.customDimensions ?? [],
+                );
+            }),
         );
     }
 
@@ -5630,6 +5656,44 @@ export class AiAgentToolsService extends BaseService {
         }
     }
 
+    /**
+     * Api nodes name their integration directly, so no explore list hides it:
+     * an agent limited to tags may only use an integration whose explores its
+     * tags expose.
+     */
+    private async assertComposerApiNodesInScope(
+        context: AiAgentToolsRuntimeContext,
+        queries: Parameters<RunComposerQueriesFn>[0]['queries'],
+    ) {
+        if (!context.tags || context.tags.length === 0) return;
+        const apiConnectionUuids = queries.flatMap((query) =>
+            query.sourceType === QuerySourceType.API
+                ? [query.connectionUuid]
+                : [],
+        );
+        if (apiConnectionUuids.length === 0) return;
+        const availableConnectionUuids = new Set(
+            (
+                await this.getAvailableExplores({
+                    user: context.user,
+                    projectUuid: context.projectUuid,
+                    availableTags: context.tags,
+                    userAttributeOverrides: context.userAttributeOverrides,
+                })
+            ).flatMap((explore) =>
+                explore.apiSource ? [explore.apiSource.connectionUuid] : [],
+            ),
+        );
+        const excluded = apiConnectionUuids.find(
+            (connectionUuid) => !availableConnectionUuids.has(connectionUuid),
+        );
+        if (excluded !== undefined) {
+            throw new NotFoundError(
+                `Integration "${excluded}" is not available to this agent. Do not retry it: answer from the available explores.`,
+            );
+        }
+    }
+
     private runComposerQueries(
         context: AiAgentToolsRuntimeContext,
         {
@@ -5652,6 +5716,7 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.runComposerQueries`,
             { projectUuid: context.projectUuid, queryCount: queries.length },
             async () => {
+                await this.assertComposerApiNodesInScope(context, queries);
                 await context.onWarehouseQuery?.();
 
                 // Per-node status emission is best-effort UI telemetry: only
