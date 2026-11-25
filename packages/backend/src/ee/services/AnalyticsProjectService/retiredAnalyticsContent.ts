@@ -38,6 +38,9 @@ export type RetiredContentDependencies = {
 export type RetiredContentResult = {
     dashboards: string[];
     charts: string[];
+    // Slugs whose delete failed. The caller leaves the content marked as not current, so the next
+    // sync tries again.
+    failed: string[];
 };
 
 // Removes managed content that is no longer defined in code from one Analytics project.
@@ -60,7 +63,11 @@ export const removeRetiredAnalyticsContent = async (
     user: SessionUser,
     projectUuid: string,
 ): Promise<RetiredContentResult> => {
-    const removed: RetiredContentResult = { dashboards: [], charts: [] };
+    const removed: RetiredContentResult = {
+        dashboards: [],
+        charts: [],
+        failed: [],
+    };
     if (!dependencies.lightdashConfig.softDelete.enabled) return removed;
 
     const spaces = await dependencies.spaceModel.find({
@@ -107,6 +114,7 @@ export const removeRetiredAnalyticsContent = async (
             );
         } catch (error) {
             // One item that cannot be removed must not stop the sync or the other items
+            removed.failed.push(slug);
             dependencies.logger.warn(
                 `Unable to remove retired analytics ${kind}`,
                 { projectUuid, slug, uuid, error: getErrorMessage(error) },
@@ -131,6 +139,9 @@ export const removeRetiredAnalyticsContent = async (
         const charts = await dependencies.savedChartModel.find({
             projectUuid,
             slugs: retiredChartSlugs,
+            // A retired chart has usually lost its tile already: the sync writes the dashboard without
+            // it first. The default lookup only returns charts placed on a dashboard.
+            includeOrphanChartsWithinDashboard: true,
         });
         for (const chart of charts) {
             const owner = managedDashboards.find(

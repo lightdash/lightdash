@@ -870,17 +870,8 @@ export class AnalyticsProjectService extends BaseService {
                         userUuid: user.userUuid,
                     },
                 );
-                await this.dependencies.contentAsCodeSnapshotModel.upsert({
-                    projectUuid: project.projectUuid,
-                    contentType: ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
-                    slug: bundleSnapshotSlug,
-                    snapshot: {},
-                    snapshotHash: contentHash(),
-                    appliedByUserUuid: user.userUuid,
-                    filePath: null,
-                });
-                // Last, and never fatal: content that is no longer defined in code
-                await removeRetiredAnalyticsContent(
+                // Never fatal: content that is no longer defined in code
+                const retired = await removeRetiredAnalyticsContent(
                     {
                         lightdashConfig: this.dependencies.lightdashConfig,
                         spaceModel: this.dependencies.spaceModel,
@@ -904,7 +895,21 @@ export class AnalyticsProjectService extends BaseService {
                             error: getErrorMessage(error),
                         },
                     );
+                    return null;
                 });
+                // The content is marked current only when nothing retired is left behind. Otherwise the
+                // next sync sees it as out of date and tries the removal again.
+                if (retired && retired.failed.length === 0) {
+                    await this.dependencies.contentAsCodeSnapshotModel.upsert({
+                        projectUuid: project.projectUuid,
+                        contentType: ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
+                        slug: bundleSnapshotSlug,
+                        snapshot: {},
+                        snapshotHash: contentHash(),
+                        appliedByUserUuid: user.userUuid,
+                        filePath: null,
+                    });
+                }
                 await this.syncAdoptionApp(user, project.projectUuid).catch(
                     (error: unknown) => {
                         this.logger.warn(

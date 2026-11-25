@@ -53,6 +53,9 @@ const instance = (
     const info = vi.fn();
     const warn = vi.fn();
     const findSpaces = vi.fn(async () => overrides.spaces ?? [managedSpace]);
+    const findCharts = vi.fn(async ({ slugs }: { slugs: string[] }) =>
+        charts.filter(({ slug }) => slugs.includes(slug)),
+    );
     const dependencies = {
         lightdashConfig: {
             softDelete: {
@@ -66,11 +69,7 @@ const instance = (
                 dashboards.filter(({ slug }) => slugs.includes(slug)),
             ),
         },
-        savedChartModel: {
-            find: vi.fn(async ({ slugs }: { slugs: string[] }) =>
-                charts.filter(({ slug }) => slugs.includes(slug)),
-            ),
-        },
+        savedChartModel: { find: findCharts },
         contentVerificationModel: {
             getByContentUuids: vi.fn(
                 async (_type: unknown, uuids: string[]) =>
@@ -96,6 +95,7 @@ const instance = (
         softDeleteDashboard,
         softDeleteChart,
         findSpaces,
+        findCharts,
         info,
         warn,
     };
@@ -150,6 +150,7 @@ describe('retired analytics content', () => {
         expect(await run()).toEqual({
             dashboards: ['lightdash-analytics-people'],
             charts: [retiredChart],
+            failed: [],
         });
         expect(findSpaces).toHaveBeenCalledWith({
             projectUuid,
@@ -190,7 +191,11 @@ describe('retired analytics content', () => {
                 },
             ],
         });
-        expect(await run()).toEqual({ dashboards: [], charts: [] });
+        expect(await run()).toEqual({
+            dashboards: [],
+            charts: [],
+            failed: [],
+        });
         expect(softDeleteDashboard).not.toHaveBeenCalled();
         expect(softDeleteChart).not.toHaveBeenCalled();
     });
@@ -199,7 +204,11 @@ describe('retired analytics content', () => {
         const { run, softDeleteDashboard, softDeleteChart } = instance({
             verified: [],
         });
-        expect(await run()).toEqual({ dashboards: [], charts: [] });
+        expect(await run()).toEqual({
+            dashboards: [],
+            charts: [],
+            failed: [],
+        });
         expect(softDeleteDashboard).not.toHaveBeenCalled();
         expect(softDeleteChart).not.toHaveBeenCalled();
     });
@@ -217,7 +226,11 @@ describe('retired analytics content', () => {
                 { uuid: 'chart', slug: retiredChart, dashboardUuid: 'a-copy' },
             ],
         });
-        expect(await run()).toEqual({ dashboards: [], charts: [] });
+        expect(await run()).toEqual({
+            dashboards: [],
+            charts: [],
+            failed: [],
+        });
         expect(softDeleteChart).not.toHaveBeenCalled();
     });
 
@@ -227,7 +240,11 @@ describe('retired analytics content', () => {
             dashboards: [],
             charts: [],
         });
-        expect(await run()).toEqual({ dashboards: [], charts: [] });
+        expect(await run()).toEqual({
+            dashboards: [],
+            charts: [],
+            failed: [],
+        });
         expect(softDeleteDashboard).not.toHaveBeenCalled();
         expect(softDeleteChart).not.toHaveBeenCalled();
         expect(info).not.toHaveBeenCalled();
@@ -235,7 +252,11 @@ describe('retired analytics content', () => {
 
     it('does nothing on a fresh install, which has no managed space yet or no retired content', async () => {
         const noSpace = instance({ spaces: [] });
-        expect(await noSpace.run()).toEqual({ dashboards: [], charts: [] });
+        expect(await noSpace.run()).toEqual({
+            dashboards: [],
+            charts: [],
+            failed: [],
+        });
         expect(noSpace.softDeleteDashboard).not.toHaveBeenCalled();
         const current = instance({
             dashboards: [
@@ -247,14 +268,22 @@ describe('retired analytics content', () => {
             ],
             charts: [],
         });
-        expect(await current.run()).toEqual({ dashboards: [], charts: [] });
+        expect(await current.run()).toEqual({
+            dashboards: [],
+            charts: [],
+            failed: [],
+        });
         expect(current.softDeleteDashboard).not.toHaveBeenCalled();
     });
 
     it('removes nothing where a delete could not be undone', async () => {
         const { run, softDeleteDashboard, softDeleteChart, findSpaces } =
             instance({ softDelete: false });
-        expect(await run()).toEqual({ dashboards: [], charts: [] });
+        expect(await run()).toEqual({
+            dashboards: [],
+            charts: [],
+            failed: [],
+        });
         expect(findSpaces).not.toHaveBeenCalled();
         expect(softDeleteDashboard).not.toHaveBeenCalled();
         expect(softDeleteChart).not.toHaveBeenCalled();
@@ -263,8 +292,26 @@ describe('retired analytics content', () => {
     it('carries on when one item cannot be removed', async () => {
         const { run, softDeleteDashboard, softDeleteChart, warn } = instance();
         softDeleteDashboard.mockRejectedValueOnce(new Error('not allowed'));
-        expect(await run()).toEqual({ dashboards: [], charts: [retiredChart] });
+        // The failed slug is reported, so the caller can leave the content marked out of date
+        expect(await run()).toEqual({
+            dashboards: [],
+            charts: [retiredChart],
+            failed: ['lightdash-analytics-people'],
+        });
         expect(softDeleteChart).toHaveBeenCalledTimes(1);
         expect(warn).toHaveBeenCalledTimes(1);
+    });
+
+    it('looks for retired charts that have already lost their tile', async () => {
+        // The sync writes the dashboard without the tile before this runs, and the default chart
+        // lookup only returns charts placed on a dashboard
+        const { run, findCharts } = instance();
+        await run();
+        expect(findCharts).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid,
+                includeOrphanChartsWithinDashboard: true,
+            }),
+        );
     });
 });
