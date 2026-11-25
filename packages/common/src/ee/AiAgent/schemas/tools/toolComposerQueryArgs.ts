@@ -142,7 +142,7 @@ ${getComposerNodeKindsDescription({
 
 A python node's "code" defines \`def run(inputs, params)\`; semanticLayer "filters" are flat expression strings.
 
-Reuse earlier nodes: a result returns a sessionId that saves its finished nodes. On a follow-up, pass it and read saved nodes by node id in "references" or merge "sources", submitting only the new nodes; they bring what they read and come from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; resubmit a failed or unfinished node under the same id.
+Reuse earlier nodes: once a node finishes, a result returns a sessionId that saves finished nodes. On a follow-up, pass it and read saved nodes by node id in "references" or merge "sources", submitting only the new nodes; they bring what they read and come from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; resubmit a failed or unfinished node under the same id.
 
 A result holds every row of the terminal node. While it is running, call get_query_result on each queryUuid it names, which also fetches every row of any node by its queryUuid. query computes data only; it saves and charts nothing.`;
 
