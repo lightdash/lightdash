@@ -202,17 +202,13 @@ const SwitcherLabel: FC<{
 };
 
 type SidebarTargetProps = ComponentPropsWithoutRef<'button'> & {
-    activeProjectName: string;
-    isPreview: boolean;
+    projectName: string;
     isOnDraft: boolean;
 };
 
 /** Sidebar trigger: the project name and a selector icon. */
 const SidebarTarget = forwardRef<HTMLButtonElement, SidebarTargetProps>(
-    (
-        { activeProjectName, isPreview, isOnDraft, className, ...buttonProps },
-        ref,
-    ) => {
+    ({ projectName, isOnDraft, className, ...buttonProps }, ref) => {
         const { ref: truncatedRef, isTruncated } =
             useIsTruncated<HTMLDivElement>();
 
@@ -232,7 +228,7 @@ const SidebarTarget = forwardRef<HTMLButtonElement, SidebarTargetProps>(
                         />
                     )}
                     <Tooltip
-                        label={activeProjectName}
+                        label={projectName}
                         position="right"
                         disabled={!isTruncated}
                     >
@@ -240,20 +236,16 @@ const SidebarTarget = forwardRef<HTMLButtonElement, SidebarTargetProps>(
                             ref={truncatedRef}
                             truncate
                             fw={600}
-                            fz="sm"
+                            fz="xs"
                             miw={0}
                         >
-                            {activeProjectName}
+                            {projectName}
                         </Text>
                     </Tooltip>
-                    {isPreview && (
-                        <Badge size="xs" flex="none" className={classes.badge}>
-                            Preview
-                        </Badge>
-                    )}
                 </Box>
                 <MantineIcon
                     icon={IconSelector}
+                    size="sm"
                     color="dimmed"
                     className={classes.sidebarSelector}
                 />
@@ -691,6 +683,12 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({
     );
 
     const activeProjectName = activeProject?.name ?? 'Select a project';
+    // In a preview the sidebar names the parent project and the gutter beside
+    // it names the preview. A training copy has no gutter, so it keeps its own.
+    const sidebarProjectName =
+        upstreamProject && upstreamProject.type !== ProjectType.TRAINING
+            ? upstreamProject.name
+            : activeProjectName;
     const targetLabel = `Switch project, current: ${activeProject?.name ?? 'none'}${draftCheckout ? `, on the draft ${draftCheckout.name}` : ''}`;
     const isInSidebar = layout !== 'navbar';
 
@@ -724,8 +722,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({
                     {isInSidebar ? (
                         <SidebarTarget
                             aria-label={targetLabel}
-                            activeProjectName={activeProjectName}
-                            isPreview={upstreamProject !== undefined}
+                            projectName={sidebarProjectName}
                             isOnDraft={draftCheckout != null}
                         />
                     ) : (

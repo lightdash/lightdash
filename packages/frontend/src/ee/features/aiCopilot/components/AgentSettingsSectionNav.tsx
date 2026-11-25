@@ -43,13 +43,17 @@ export const AgentSettingsSectionNav: FC<Props> = ({ mode }) => {
         };
 
         measure();
-        window.addEventListener('scroll', onScroll, { passive: true });
+        // Capture hears the scroll whether the window or the page card scrolls.
+        window.addEventListener('scroll', onScroll, {
+            capture: true,
+            passive: true,
+        });
         window.addEventListener('resize', onScroll);
         return () => {
             if (frame !== null) {
                 window.cancelAnimationFrame(frame);
             }
-            window.removeEventListener('scroll', onScroll);
+            window.removeEventListener('scroll', onScroll, true);
             window.removeEventListener('resize', onScroll);
         };
     }, [sections]);
