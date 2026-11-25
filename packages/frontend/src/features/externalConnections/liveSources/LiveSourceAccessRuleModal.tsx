@@ -256,7 +256,12 @@ export const LiveSourceAccessRuleModal: FC<{
     connection: LiveSourceConnection;
     onClose: () => void;
 }> = ({ projectUuid, connection, onClose }) => {
-    const { data: access } = useLiveSourceAccess({
+    const {
+        data: access,
+        error,
+        refetch,
+        isFetching,
+    } = useLiveSourceAccess({
         projectUuid,
         connectionUuid: connection.externalConnectionUuid,
     });
@@ -268,9 +273,29 @@ export const LiveSourceAccessRuleModal: FC<{
                 title="Who can query"
                 icon={IconLock}
             >
-                <Group justify="center" p="md">
-                    <Loader size="sm" />
-                </Group>
+                {error ? (
+                    <Alert
+                        color="red"
+                        icon={<MantineIcon icon={IconAlertTriangle} />}
+                        title="Couldn't load the access rule"
+                    >
+                        <Stack gap="xs" align="flex-start">
+                            <Text fz="sm">{error.error.message}</Text>
+                            <Button
+                                size="xs"
+                                variant="default"
+                                loading={isFetching}
+                                onClick={() => refetch()}
+                            >
+                                Try again
+                            </Button>
+                        </Stack>
+                    </Alert>
+                ) : (
+                    <Group justify="center" p="md">
+                        <Loader size="sm" />
+                    </Group>
+                )}
             </MantineModal>
         );
     }
