@@ -1,7 +1,8 @@
 import type { AiAgent } from '@lightdash/common';
 
+// Clients can hide the skill tools, so the reminder cannot assume them.
 const FILTER_EXPRESSION_SKILL_REMINDER =
-    '- Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values';
+    '- Filter expressions: use the operators the tool lists; with `read_skill`, read the `filter-expressions` skill first';
 
 // Only offered to sessions whose tools/list actually includes run_sql
 // (gated on manage:SqlRunner).

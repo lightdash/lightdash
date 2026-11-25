@@ -2462,7 +2462,10 @@ describe('AsyncQueryService', () => {
             tableCalculations: [],
         };
 
-        const setup = (composer: Partial<QueryComposer> = {}) => {
+        const setup = (
+            composer: Partial<QueryComposer> = {},
+            context: QueryExecutionContext = QueryExecutionContext.EXPLORE,
+        ) => {
             const source = {
                 integration: { label: 'GA4', limits: { maxRows: 100000 } },
             };
@@ -2496,7 +2499,7 @@ describe('AsyncQueryService', () => {
                     {
                         account: sessionAccount,
                         projectUuid,
-                        context: QueryExecutionContext.EXPLORE,
+                        context,
                         queryComposer,
                     },
                     {},
@@ -2647,6 +2650,58 @@ describe('AsyncQueryService', () => {
             await expect(execute()).rejects.toThrow(ParameterError);
             expect(getLiveSourceForExplore).not.toHaveBeenCalled();
         });
+
+        test.each([
+            [QueryExecutionContext.EXPLORE, '"is between"'],
+            [QueryExecutionContext.MCP_QUERY, '"inBetween"'],
+            [QueryExecutionContext.MCP_RUN_METRIC_QUERY, '"inBetween"'],
+            [QueryExecutionContext.AI, '"inBetween"'],
+        ])(
+            'names the range operator for a %s caller filtering the date twice',
+            async (context, operatorName) => {
+                const dateFieldId = apiExplore.apiSource?.dateRange?.fieldId;
+                if (!dateFieldId) throw new Error('Expected a date range');
+                const dateRule = (
+                    id: string,
+                    operator: FilterOperator,
+                    values: string[],
+                ) => ({
+                    id,
+                    target: { fieldId: dateFieldId },
+                    operator,
+                    values,
+                });
+                const { execute } = setup(
+                    {
+                        getMetricQuery: () => ({
+                            ...apiMetricQuery,
+                            filters: {
+                                dimensions: {
+                                    id: 'root',
+                                    and: [
+                                        dateRule(
+                                            'from',
+                                            FilterOperator.GREATER_THAN_OR_EQUAL,
+                                            ['2026-10-01'],
+                                        ),
+                                        dateRule(
+                                            'to',
+                                            FilterOperator.LESS_THAN_OR_EQUAL,
+                                            ['2026-10-31'],
+                                        ),
+                                    ],
+                                },
+                            },
+                        }),
+                    },
+                    context,
+                );
+
+                await expect(execute()).rejects.toThrow(
+                    `Filter the date once: replace the date filters with one ${operatorName} filter from the start date to the end date.`,
+                );
+            },
+        );
     });
 
     describe('compose engine in every edition', () => {

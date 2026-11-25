@@ -22,6 +22,8 @@ import {
     aggregationCustomMetricExpressionSchema,
     customMetricsExpressionSchema,
     FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION,
+    FILTER_EXPRESSION_COMPACT_CONTRACT,
+    FILTER_EXPRESSION_DATE_RANGE_EXAMPLE,
     FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
     filterExpressionInputSchema,
     filterExpressionsSchema,
@@ -51,6 +53,7 @@ import {
     FILTER_EXPRESSION_MAX_LITERAL_LENGTH,
     FILTER_EXPRESSION_MAX_RULES,
     FILTER_EXPRESSION_MAX_VALUES_PER_RULE,
+    parseFilterExpression,
 } from './parse';
 
 const baseQueryConfig = {
@@ -622,5 +625,54 @@ describe('expression run query schemas', () => {
             mergeConfigExpressionSchema.unwrap().shape.additionalSources
                 .description,
         ).toBe(mergeConfigSchema.unwrap().shape.additionalSources.description);
+    });
+});
+
+describe('compact filter expression contract', () => {
+    const operatorsByFilterType = (filterType: FilterType): string[] =>
+        FILTER_EXPRESSION_COMPACT_CONTRACT.split('\n')
+            .filter((line) => line.startsWith('- '))
+            .flatMap((line) => {
+                const [filterTypes, operators] = line.slice(2).split(': ');
+                return filterTypes.split(', ').includes(filterType)
+                    ? operators.split(', ').map((form) => form.split('=')[0])
+                    : [];
+            });
+
+    it.each(Object.values(FilterType))(
+        'lists exactly the operators a %s field accepts',
+        (filterType) => {
+            expect(operatorsByFilterType(filterType).sort()).toEqual(
+                filterExpressionOperatorDefinitions
+                    .filter(
+                        ({ argumentCountByFilterType }) =>
+                            argumentCountByFilterType[filterType] !== null,
+                    )
+                    .map(({ operator }) => operator)
+                    .sort(),
+            );
+        },
+    );
+
+    it('shows a date range as one parseable inBetween rule', () => {
+        expect(FILTER_EXPRESSION_COMPACT_CONTRACT).toContain(
+            `a range is \`${FILTER_EXPRESSION_DATE_RANGE_EXAMPLE}\`, not two comparisons`,
+        );
+        const parsed = parseFilterExpression(
+            FILTER_EXPRESSION_DATE_RANGE_EXAMPLE,
+        );
+        if (!parsed.success) throw new Error(parsed.error.message);
+        expect(parsed.expression.rules).toMatchObject([
+            {
+                operator: { value: FilterOperator.IN_BETWEEN },
+                arguments: [{ value: '2026-10-01' }, { value: '2026-10-31' }],
+            },
+        ]);
+    });
+
+    it('stays well under the full grammar', () => {
+        expect(FILTER_EXPRESSION_COMPACT_CONTRACT.length).toBeLessThan(
+            FILTER_EXPRESSION_GRAMMAR_DESCRIPTION.length / 2,
+        );
     });
 });

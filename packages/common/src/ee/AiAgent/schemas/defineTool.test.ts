@@ -4,6 +4,7 @@ import { toJsonSchema, toLlmJsonSchema } from '../../../utils/zodJsonSchema';
 import { defineTool } from './defineTool';
 import {
     FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION,
+    FILTER_EXPRESSION_COMPACT_CONTRACT,
     FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
 } from './filterExpressions';
 import {
@@ -75,6 +76,16 @@ describe('defineTool', () => {
                 'Before writing filter expressions, read the `filter-expressions` skill.',
             );
             expect(description).not.toContain('MCP server instructions');
+        });
+        // run_metric_query has no room for it under the client text limit.
+        expect(
+            searchFieldValuesFilterExpressionToolDefinition.for('mcp')
+                .description,
+        ).toContain(FILTER_EXPRESSION_COMPACT_CONTRACT);
+        agentDescriptions.forEach((description) => {
+            expect(description).not.toContain(
+                FILTER_EXPRESSION_COMPACT_CONTRACT,
+            );
         });
         [...agentDescriptions, ...mcpDescriptions].forEach((description) => {
             expect(description).not.toContain(

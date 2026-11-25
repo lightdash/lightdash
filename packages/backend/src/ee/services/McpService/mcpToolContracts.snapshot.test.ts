@@ -472,7 +472,7 @@ describe('MCP tool contracts', () => {
             MCP_FILTER_EXPRESSION_GUIDANCE_SECTION,
         );
         expect(getLatestMcpServerInstructions()).toContain(
-            'read the shared skill',
+            '- Filter expressions: use the operators the tool lists; with `read_skill`, read the `filter-expressions` skill first',
         );
     });
 

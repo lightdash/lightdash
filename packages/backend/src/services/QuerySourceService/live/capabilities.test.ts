@@ -497,10 +497,10 @@ const CASES: Case[] = [
                 },
             },
         }),
-        expected: wherever(
-            needsDateRange,
-            () =>
-                'Filter the date once: combine the date filters into one range.',
+        expected: wherever(needsDateRange, (connector, { dates }) =>
+            dates.operators.includes(FilterOperator.IN_BETWEEN)
+                ? `Filter the date once: replace the date filters with one ${operatorLabel(connector, date(connector), FilterOperator.IN_BETWEEN)} filter from the start date to the end date.`
+                : 'Filter the date once: combine the date filters into one range.',
         ),
     },
     {

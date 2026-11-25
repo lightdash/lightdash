@@ -11091,7 +11091,15 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                         },
                       ],
                       "default": null,
-                      "description": "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
+                      "description": "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.
+A rule is \`<fieldId> <operator>[=<value>[,<value>...]]\`; double-quote string values. Operators by field type:
+- string, number, date, boolean: isNull, notNull, equals, notEquals
+- string: startsWith, endsWith, include, doesNotInclude
+- number, date: lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual, inBetween=<first value>,<second value>
+- date: inThePast=<count>{unit:<unit>,completed:<bool>}, notInThePast=<count>{unit:<unit>,completed:<bool>}, inTheNext=<count>{unit:<unit>,completed:<bool>}, inTheCurrent=<unit>[{toDate:true[,excludeToday:true]}], notInTheCurrent=<unit>[{toDate:true[,excludeToday:true]}]
+- number: notInBetween=<first value>,<second value>
+Date units: days, weeks, months, quarters, years; completed:false includes the current partial period.
+Filter a date field with one rule: a range is \`orders_order_date inBetween=2026-10-01,2026-10-31\`, not two comparisons, which live data sources refuse.",
                     },
                     "limit": {
                       "default": 500,
@@ -14278,7 +14286,7 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
 - \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect; never substitute \`run_sql\` for it
 - Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
 - Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
-- Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values
+- Filter expressions: use the operators the tool lists; with \`read_skill\`, read the \`filter-expressions\` skill first
 - Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
 "
 `;
@@ -14572,7 +14580,15 @@ Example B — "Revenue by month with year-over-year comparison"
           },
           "filters": {
             "additionalProperties": false,
-            "description": "Separate flat expressions for dimensions, metrics, and table calculations. Each category chooses AND or OR independently. Non-null categories combine implicitly with AND. For example, dimensions "D1 AND D2" and metrics "M1 OR M2" mean "(D1 AND D2) AND (M1 OR M2)", where D1, D2, M1, and M2 are complete filter rules. Use null when a category has no filters.",
+            "description": "Separate flat expressions for dimensions, metrics, and table calculations. Each category chooses AND or OR independently. Non-null categories combine implicitly with AND. For example, dimensions "D1 AND D2" and metrics "M1 OR M2" mean "(D1 AND D2) AND (M1 OR M2)", where D1, D2, M1, and M2 are complete filter rules. Use null when a category has no filters.
+A rule is \`<fieldId> <operator>[=<value>[,<value>...]]\`; double-quote string values. Operators by field type:
+- string, number, date, boolean: isNull, notNull, equals, notEquals
+- string: startsWith, endsWith, include, doesNotInclude
+- number, date: lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual, inBetween=<first value>,<second value>
+- date: inThePast=<count>{unit:<unit>,completed:<bool>}, notInThePast=<count>{unit:<unit>,completed:<bool>}, inTheNext=<count>{unit:<unit>,completed:<bool>}, inTheCurrent=<unit>[{toDate:true[,excludeToday:true]}], notInTheCurrent=<unit>[{toDate:true[,excludeToday:true]}]
+- number: notInBetween=<first value>,<second value>
+Date units: days, weeks, months, quarters, years; completed:false includes the current partial period.
+Filter a date field with one rule: a range is \`orders_order_date inBetween=2026-10-01,2026-10-31\`, not two comparisons, which live data sources refuse.",
             "properties": {
               "dimensions": {
                 "anyOf": [
@@ -14911,6 +14927,15 @@ Usage Tips:
 - Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly
 - Omit filters when the search does not need additional filters
 - Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines filter scope, nullability, and the dimension-only AND constraint. Before writing filter expressions, read the \`filter-expressions\` skill.
+
+A rule is \`<fieldId> <operator>[=<value>[,<value>...]]\`; double-quote string values. Operators by field type:
+- string, number, date, boolean: isNull, notNull, equals, notEquals
+- string: startsWith, endsWith, include, doesNotInclude
+- number, date: lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual, inBetween=<first value>,<second value>
+- date: inThePast=<count>{unit:<unit>,completed:<bool>}, notInThePast=<count>{unit:<unit>,completed:<bool>}, inTheNext=<count>{unit:<unit>,completed:<bool>}, inTheCurrent=<unit>[{toDate:true[,excludeToday:true]}], notInTheCurrent=<unit>[{toDate:true[,excludeToday:true]}]
+- number: notInBetween=<first value>,<second value>
+Date units: days, weeks, months, quarters, years; completed:false includes the current partial period.
+Filter a date field with one rule: a range is \`orders_order_date inBetween=2026-10-01,2026-10-31\`, not two comparisons, which live data sources refuse.
 
 Reading the result: the values describe observed data, not the permitted filter literals.
 ",

@@ -44,6 +44,11 @@ export type ApiSourceQueryContext = {
     dateZoomGranularity?: string;
     /** The explore's fields, so refusals name them by label. */
     itemsMap?: ItemsMap;
+    /**
+     * `expression` names operators as filter expressions and AI tools write
+     * them (`inBetween`); absent or `label` names them as the UI does.
+     */
+    operatorNames?: 'label' | 'expression';
 };
 
 /** How refusals name fields and operators: as in the UI when the fields are known. */
@@ -56,6 +61,7 @@ type IssueNames = {
 const getIssueNames = (
     apiSource: ApiSourceExplore,
     itemsMap: ItemsMap = {},
+    operatorNames: ApiSourceQueryContext['operatorNames'] = 'label',
 ): IssueNames => {
     const getItem = (fieldId: FieldId) =>
         Object.hasOwn(itemsMap, fieldId) ? itemsMap[fieldId] : undefined;
@@ -67,7 +73,7 @@ const getIssueNames = (
         operator: (fieldId, operator) => {
             const item = getItem(fieldId);
             const label =
-                item && isFilterableItem(item)
+                operatorNames === 'label' && item && isFilterableItem(item)
                     ? getFilterOperatorOptions(
                           getFilterTypeFromItem(item),
                           item,
@@ -453,6 +459,7 @@ const getFilterIssues = (
 const getDateRangeIssues = (
     apiSource: ApiSourceExplore,
     capabilities: ApiSourceCapabilities,
+    names: IssueNames,
     group: FilterGroup | undefined,
 ): ApiSourceQueryIssue[] => {
     const { dateRange } = apiSource;
@@ -491,8 +498,13 @@ const getDateRangeIssues = (
             {
                 code: 'live_source.refused.date_range',
                 fieldId: dateRange.fieldId,
-                message:
-                    'Filter the date once: combine the date filters into one range.',
+                message: getApiSourceFilterOperators(
+                    apiSource,
+                    dateRange.fieldId,
+                    false,
+                ).includes(FilterOperator.IN_BETWEEN)
+                    ? `Filter the date once: replace the date filters with one ${names.operator(dateRange.fieldId, FilterOperator.IN_BETWEEN)} filter from the start date to the end date.`
+                    : 'Filter the date once: combine the date filters into one range.',
             },
         ];
     }
@@ -581,7 +593,11 @@ export const getApiSourceQueryIssues = (
     context: ApiSourceQueryContext = {},
 ): ApiSourceQueryIssue[] => {
     const capabilities = getApiSourceCapabilities(apiSource);
-    const names = getIssueNames(apiSource, context.itemsMap);
+    const names = getIssueNames(
+        apiSource,
+        context.itemsMap,
+        context.operatorNames,
+    );
     const { dimensions, metrics } = metricQuery.filters;
     const filterIssues = (
         group: FilterGroup | undefined,
@@ -592,7 +608,7 @@ export const getApiSourceQueryIssues = (
         ...getUnknownFieldIssues(apiSource, capabilities, metricQuery),
         ...filterIssues(dimensions, 'dimensions'),
         ...filterIssues(metrics, 'metrics'),
-        ...getDateRangeIssues(apiSource, capabilities, dimensions),
+        ...getDateRangeIssues(apiSource, capabilities, names, dimensions),
         ...getIncompatibilityIssues(apiSource, names, metricQuery),
         ...getSizeIssues(apiSource, metricQuery),
     ];

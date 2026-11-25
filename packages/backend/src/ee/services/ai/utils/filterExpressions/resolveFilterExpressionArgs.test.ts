@@ -1,4 +1,5 @@
 import {
+    ApiConnectorType,
     DimensionType,
     FieldType,
     FILTER_EXPRESSION_MAX_LENGTH,
@@ -2714,5 +2715,213 @@ describe('date-only bounds on timestamp fields', () => {
                 (rule) => rule.values,
             ),
         ).toEqual([['2026-04-26', '2026-10-25T23:59:59.999Z']]);
+    });
+});
+
+describe('unknown operator repair', () => {
+    const resolveDimensionError = (dimensions: string, explore: Explore) => {
+        const result = resolveExploreFilterExpressions({
+            filters: { dimensions, metrics: null },
+            explore,
+            additionalMetrics: [],
+        });
+        if (result.success) {
+            throw new Error('Expected filter-expression resolution to fail');
+        }
+        return result.error;
+    };
+
+    const liveExplore: Explore = {
+        ...mockOrdersExplore,
+        apiSource: {
+            connectionUuid: 'connection-uuid',
+            integration: ApiConnectorType.PYLON,
+            baseVersion: 1,
+            filterGroups: { or: false, nested: false },
+            maxDimensions: null,
+            maxMetrics: null,
+            dateRange: { fieldId: 'orders_order_date', defaultDays: 30 },
+            fields: {
+                orders_order_date: {
+                    apiName: 'created_at',
+                    filterOperators: [
+                        FilterOperator.IN_THE_PAST,
+                        FilterOperator.IN_BETWEEN,
+                        FilterOperator.EQUALS,
+                    ],
+                },
+                orders_customer_name: {
+                    apiName: 'account',
+                    filterOperators: [],
+                },
+            },
+            incompatible: [],
+        },
+    };
+
+    it('names the bad token, the field operators and the nearest operator', () => {
+        const error = resolveDimensionError(
+            'orders_order_date within="2026-10-01","2026-10-31"',
+            mockOrdersExplore,
+        );
+
+        expect(formatFilterExpressionError(error)).toBe(
+            `[FILTER_EXPRESSION_SYNTAX]
+Invalid dimension filter expression.
+
+Location: line 1, column 19
+Problem: \`within\` is not a filter operator. Did you mean \`inBetween\`?
+How to fix: Use one of the date operators available on orders_order_date: isNull, notNull, equals, notEquals, lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual, inThePast, notInThePast, inTheNext, inTheCurrent, notInTheCurrent, inBetween.
+Example: orders_order_date inBetween="2026-10-01","2026-10-31"`,
+        );
+        expect(
+            resolveExploreFilterExpressions({
+                filters: { dimensions: error.example, metrics: null },
+                explore: mockOrdersExplore,
+                additionalMetrics: [],
+            }),
+        ).toMatchObject({ success: true });
+    });
+
+    it('lists only the operators a live data source runs on the field', () => {
+        const error = resolveDimensionError(
+            'orders_order_date gte=2026-10-01',
+            liveExplore,
+        );
+
+        expect(error).toMatchObject({
+            code: 'FILTER_EXPRESSION_SYNTAX',
+            problem: '`gte` is not a filter operator.',
+            guidance:
+                'Use one of the date operators this live data source runs on orders_order_date: equals, inThePast, inBetween.',
+            example: 'orders_order_date equals=2025-01-01',
+        });
+    });
+
+    it('falls back to the type operators when the source filters nothing on the field', () => {
+        expect(
+            resolveDimensionError(
+                'orders_customer_name matches="Acme"',
+                liveExplore,
+            ),
+        ).toMatchObject({
+            guidance:
+                'Use one of the string operators available on orders_customer_name: isNull, notNull, equals, notEquals, startsWith, endsWith, include, doesNotInclude.',
+        });
+    });
+
+    it('builds the example on the field of the failing rule, not the first field', () => {
+        const error = resolveDimensionError(
+            'orders_customer_name equals="Acme" AND orders_amount gte=100',
+            mockOrdersExplore,
+        );
+
+        expect(error).toMatchObject({
+            span: { start: { line: 1, column: 54 } },
+            problem:
+                '`gte` is not a filter operator. Did you mean `greaterThanOrEqual`?',
+            example:
+                'orders_customer_name equals="Acme" AND orders_amount greaterThanOrEqual=100',
+        });
+    });
+
+    it('suggests only an operator the field type supports', () => {
+        expect(
+            resolveDimensionError(
+                'orders_customer_name gte="Acme"',
+                mockOrdersExplore,
+            ),
+        ).toMatchObject({
+            problem: '`gte` is not a filter operator.',
+            example: 'orders_customer_name equals="example value"',
+        });
+    });
+
+    it('lists every operator when the field does not resolve', () => {
+        expect(
+            resolveDimensionError(
+                'orders_missing within=1,2',
+                mockOrdersExplore,
+            ),
+        ).toMatchObject({
+            problem:
+                '`within` is not a filter operator. Did you mean `inBetween`?',
+            guidance:
+                'Use one of the filter operators: isNull, notNull, equals, notEquals, startsWith, endsWith, include, doesNotInclude, lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual, inThePast, notInThePast, inTheNext, inTheCurrent, notInTheCurrent, inBetween, notInBetween.',
+        });
+    });
+
+    it.each([
+        'orders_customer_name equals=Acme trailing',
+        'orders_customer_name equals=(Acme)',
+        '???',
+    ])('leaves other malformed input on the generic repair: %s', (input) => {
+        expect(
+            resolveDimensionError(input, mockOrdersExplore).problem,
+        ).not.toContain('is not a filter operator');
+    });
+});
+
+describe('between aliases', () => {
+    const resolve = (dimensions: string) =>
+        resolveExploreFilterExpressions({
+            filters: { dimensions, metrics: null },
+            explore: mockOrdersExplore,
+            additionalMetrics: [],
+        });
+
+    it('resolves between to the same filters as inBetween', () => {
+        const aliased = resolve(
+            'orders_order_date between=2026-10-01,2026-10-31',
+        );
+        const canonical = resolve(
+            'orders_order_date inBetween=2026-10-01,2026-10-31',
+        );
+        if (!aliased.success || !canonical.success) {
+            throw new Error('Expected both expressions to resolve');
+        }
+        expect(withoutGeneratedIds(aliased.data)).toEqual(
+            withoutGeneratedIds(canonical.data),
+        );
+        expect(
+            getTotalFilterRules(aliased.data ?? {}).map(
+                ({ operator }) => operator,
+            ),
+        ).toEqual([FilterOperator.IN_BETWEEN]);
+    });
+
+    it('rejects notBetween on a date exactly as notInBetween', () => {
+        const aliased = resolve(
+            'orders_order_date notBetween=2026-10-01,2026-10-31',
+        );
+        const canonical = resolve(
+            'orders_order_date notInBetween=2026-10-01,2026-10-31',
+        );
+        if (aliased.success || canonical.success) {
+            throw new Error('Expected both expressions to fail');
+        }
+        expect(aliased.error).toMatchObject({
+            code: 'FILTER_EXPRESSION_INVALID_VALUE',
+            operator: FilterOperator.NOT_IN_BETWEEN,
+            problem: '"notInBetween" is not available for date fields.',
+        });
+        expect({ ...aliased.error, span: null }).toEqual({
+            ...canonical.error,
+            span: null,
+        });
+    });
+
+    it('resolves notBetween on a number to notInBetween', () => {
+        const result = resolve('orders_amount notBetween=10,100');
+        if (!result.success) {
+            throw new Error(formatFilterExpressionError(result.error));
+        }
+        expect(
+            getTotalFilterRules(result.data ?? {}).map(
+                ({ operator, values }) => ({ operator, values }),
+            ),
+        ).toEqual([
+            { operator: FilterOperator.NOT_IN_BETWEEN, values: [10, 100] },
+        ]);
     });
 });

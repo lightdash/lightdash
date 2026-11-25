@@ -18475,7 +18475,15 @@ Earlier nodes: a node id names one node for the whole thread. A node reads a nod
                       },
                     ],
                     "default": null,
-                    "description": "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
+                    "description": "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.
+A rule is \`<fieldId> <operator>[=<value>[,<value>...]]\`; double-quote string values. Operators by field type:
+- string, number, date, boolean: isNull, notNull, equals, notEquals
+- string: startsWith, endsWith, include, doesNotInclude
+- number, date: lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual, inBetween=<first value>,<second value>
+- date: inThePast=<count>{unit:<unit>,completed:<bool>}, notInThePast=<count>{unit:<unit>,completed:<bool>}, inTheNext=<count>{unit:<unit>,completed:<bool>}, inTheCurrent=<unit>[{toDate:true[,excludeToday:true]}], notInTheCurrent=<unit>[{toDate:true[,excludeToday:true]}]
+- number: notInBetween=<first value>,<second value>
+Date units: days, weeks, months, quarters, years; completed:false includes the current partial period.
+Filter a date field with one rule: a range is \`orders_order_date inBetween=2026-10-01,2026-10-31\`, not two comparisons, which live data sources refuse.",
                   },
                   "limit": {
                     "default": 500,

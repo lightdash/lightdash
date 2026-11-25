@@ -13126,6 +13126,10 @@ export class AsyncQueryService extends ProjectService {
                 isPivoted: !!queryComposer.getPivotConfiguration(),
                 dateZoomGranularity: queryComposer.getDateZoom()?.granularity,
                 itemsMap: getItemMap(explore),
+                // AI callers write the operator, not its UI label
+                operatorNames: isAiAccessQueryContext(context)
+                    ? 'expression'
+                    : 'label',
             },
         );
         if (issues.length > 0) {

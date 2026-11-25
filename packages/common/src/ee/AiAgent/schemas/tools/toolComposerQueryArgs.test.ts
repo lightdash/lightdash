@@ -1,6 +1,8 @@
 import { QuerySourceType } from '../../../../types/querySources';
 import { isSameComposerNodeDefinition } from '../../composerArtifact';
+import { FILTER_EXPRESSION_COMPACT_CONTRACT } from '../filterExpressions';
 import {
+    composerSemanticLayerFiltersSchema,
     createToolComposerQueriesArgsSchema,
     DEFAULT_COMPOSER_QUERY_LIMIT,
     getToolComposerQueriesDescription,
@@ -874,5 +876,13 @@ describe('composer merge nodes', () => {
                 sources: [{ nodeId: 'weekly_revenue', repeatValues: null }],
             }),
         ]);
+    });
+});
+
+describe('composer semanticLayer filters contract', () => {
+    it('documents the operators on the filters field the query tool points to', () => {
+        expect(composerSemanticLayerFiltersSchema.description).toContain(
+            FILTER_EXPRESSION_COMPACT_CONTRACT,
+        );
     });
 });

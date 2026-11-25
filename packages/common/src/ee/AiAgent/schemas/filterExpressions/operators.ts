@@ -196,6 +196,12 @@ export type FilterExpressionOperator =
 export const filterExpressionOperators: readonly FilterExpressionOperator[] =
     filterExpressionOperatorDefinitions.map(({ operator }) => operator);
 
+// Spellings the parser accepts and rewrites to the canonical operator.
+export const filterExpressionOperatorAliases = {
+    between: FilterOperator.IN_BETWEEN,
+    notBetween: FilterOperator.NOT_IN_BETWEEN,
+} as const satisfies Record<string, FilterExpressionOperator>;
+
 export const isFilterExpressionOperator = (
     value: string,
 ): value is FilterExpressionOperator =>

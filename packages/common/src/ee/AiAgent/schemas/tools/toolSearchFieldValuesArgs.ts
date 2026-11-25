@@ -4,7 +4,10 @@ import {
     type ToolDescriptionContext,
 } from '../defineTool';
 import { getFieldIdSchema } from '../fieldId';
-import { filterExpressionInputSchema } from '../filterExpressions/expressionSchemas';
+import {
+    FILTER_EXPRESSION_COMPACT_CONTRACT,
+    filterExpressionInputSchema,
+} from '../filterExpressions/expressionSchemas';
 import { MCP_FILTER_EXPRESSION_SKILL_INSTRUCTION } from '../filterExpressions/mcpGuidance';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import {
@@ -46,6 +49,12 @@ const expressionGuidanceByRuntime = {
     mcp: `Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines filter scope, nullability, and the dimension-only AND constraint. ${MCP_FILTER_EXPRESSION_SKILL_INSTRUCTION}`,
 } satisfies Record<ToolDescriptionContext['runtime'], string>;
 
+// The agent runtime reads the grammar from its system prompt.
+const expressionContractByRuntime = {
+    agent: '',
+    mcp: `${FILTER_EXPRESSION_COMPACT_CONTRACT}\n\n`,
+} satisfies Record<ToolDescriptionContext['runtime'], string>;
+
 export const TOOL_SEARCH_FIELD_VALUES_FILTER_EXPRESSION_DESCRIPTION = ({
     runtime,
     toolName,
@@ -58,7 +67,7 @@ Usage Tips:
 - Omit filters when the search does not need additional filters
 - ${expressionGuidanceByRuntime[runtime]}
 
-${SEARCH_RESULT_GUIDANCE}
+${expressionContractByRuntime[runtime]}${SEARCH_RESULT_GUIDANCE}
 `;
 
 export const toolSearchFieldValuesArgsSchema = createToolSchema()
