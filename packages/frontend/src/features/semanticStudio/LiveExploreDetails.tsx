@@ -1,6 +1,6 @@
 /**
- * A live data source's explores: the rows on the source page with their
- * switches, and on an explore's page an Edit button for its name,
+ * A live data source's explores: the rows on the source page, switched on or
+ * off after Edit, and on an explore's page an Edit button for its name,
  * description, AI hint and whether it is in use.
  */
 import {
@@ -20,8 +20,8 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconPencil } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { IconCheck, IconPencil } from '@tabler/icons-react';
+import { useState, type FC, type FormEvent } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import {
@@ -31,6 +31,7 @@ import {
 import {
     SettingsCard,
     SettingsRow,
+    SettingsSaveFooter,
 } from '../externalConnections/liveSources/LiveSourceSettingsRows';
 import { LiveSourceSwitchOffModal } from '../externalConnections/liveSources/LiveSourceSwitchOffModal';
 import { summaryOf } from './model';
@@ -78,12 +79,10 @@ const useExploreSave = (params: LiveSourceParams) => {
             onClose={() => setPending(null)}
         />
     ) : null;
-    // The change being saved, so a switch shows where it's going at once.
-    const saving = update.isLoading ? update.variables?.[0] : undefined;
-    return { save, saving, isSaving: update.isLoading, confirmModal };
+    return { save, isSaving: update.isLoading, confirmModal };
 };
 
-/** Every explore of a live data source, on or off, each with its switch. */
+/** Every explore of a live data source; Edit shows the switches. */
 export const LiveExploreRows: FC<
     LiveSourceParams & {
         /** Whether the explore is built and its page can be opened. */
@@ -93,24 +92,66 @@ export const LiveExploreRows: FC<
 > = ({ projectUuid, connectionUuid, isOpenable, onOpen }) => {
     const params = { projectUuid, connectionUuid };
     const { data: fields } = useLiveSourceFields(params);
-    const { save, saving, confirmModal } = useExploreSave(params);
+    const update = useUpdateLiveSourceExplores(params);
+    /** The switches used so far, by explore; null while reading. */
+    const [draft, setDraft] = useState<Record<string, boolean> | null>(null);
+    /** Explores being switched off that saved charts use, asked one by one. */
+    const [toConfirm, setToConfirm] = useState<LiveSourceExploreFields[]>([]);
     if (!fields) return null;
     // Same order as the sidebar
     const explores = [...fields.explores].sort((a, b) =>
         a.label.localeCompare(b.label),
     );
+    const isEditing = draft !== null;
+    const isOn = (explore: LiveSourceExploreFields) =>
+        draft?.[explore.exploreName] ?? explore.inUse;
+    const changed = explores.filter(
+        (explore) => isOn(explore) !== explore.inUse,
+    );
+
+    const save = () =>
+        update.mutate(
+            changed.map((explore) => ({
+                exploreName: explore.exploreName,
+                inUse: isOn(explore),
+            })),
+            {
+                onSuccess: () => {
+                    setDraft(null);
+                    setToConfirm([]);
+                },
+            },
+        );
+
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
+        if (changed.length === 0) return;
+        const used = changed.filter(
+            (explore) => !isOn(explore) && explore.usedByChartCount > 0,
+        );
+        if (used.length > 0) {
+            setToConfirm(used);
+            return;
+        }
+        save();
+    };
+
     return (
         <>
-            <SettingsCard>
+            <SettingsCard
+                onSubmit={submit}
+                edit={{
+                    label: 'explores',
+                    isEditing,
+                    onEdit: () => setDraft({}),
+                }}
+            >
                 {explores.map((explore) => {
-                    const isSaving =
-                        saving?.exploreName === explore.exploreName &&
-                        saving.inUse !== undefined;
-                    const inUse = isSaving
-                        ? saving.inUse === true
-                        : explore.inUse;
+                    const inUse = isOn(explore);
                     const openable =
-                        explore.inUse && isOpenable(explore.exploreName);
+                        !isEditing &&
+                        explore.inUse &&
+                        isOpenable(explore.exploreName);
                     return (
                         <SettingsRow
                             key={explore.exploreName}
@@ -145,24 +186,58 @@ export const LiveExploreRows: FC<
                                 )
                             }
                         >
-                            <Switch
-                                size="xs"
-                                aria-label={`${explore.label} in use`}
-                                checked={inUse}
-                                onChange={(event) => {
-                                    // One save at a time; the next click waits for it
-                                    if (saving) return;
-                                    save(explore, {
-                                        exploreName: explore.exploreName,
-                                        inUse: event.currentTarget.checked,
-                                    });
-                                }}
-                            />
+                            {isEditing ? (
+                                <Switch
+                                    size="xs"
+                                    aria-label={`${explore.label} in use`}
+                                    checked={inUse}
+                                    disabled={update.isLoading}
+                                    onChange={(event) => {
+                                        const { checked } = event.currentTarget;
+                                        setDraft((current) => ({
+                                            ...current,
+                                            [explore.exploreName]: checked,
+                                        }));
+                                    }}
+                                />
+                            ) : inUse ? (
+                                <MantineIcon
+                                    icon={IconCheck}
+                                    color="green"
+                                    size="lg"
+                                    aria-label="In use"
+                                />
+                            ) : null}
                         </SettingsRow>
                     );
                 })}
+                {isEditing ? (
+                    <SettingsSaveFooter
+                        isChanged={changed.length > 0}
+                        isSaving={update.isLoading}
+                        onCancel={() => setDraft(null)}
+                    />
+                ) : null}
             </SettingsCard>
-            {confirmModal}
+            {toConfirm.length > 0 ? (
+                <LiveSourceSwitchOffModal
+                    key={toConfirm[0].exploreName}
+                    projectUuid={projectUuid}
+                    connectionUuid={connectionUuid}
+                    exploreName={toConfirm[0].exploreName}
+                    fieldName={null}
+                    label={toConfirm[0].label}
+                    isSaving={update.isLoading}
+                    onConfirm={() => {
+                        if (toConfirm.length > 1) {
+                            setToConfirm(toConfirm.slice(1));
+                        } else {
+                            save();
+                        }
+                    }}
+                    onClose={() => setToConfirm([])}
+                />
+            ) : null}
         </>
     );
 };

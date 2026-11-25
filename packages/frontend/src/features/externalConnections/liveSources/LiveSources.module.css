@@ -20,17 +20,27 @@
 
 /* A source's rate limits in its settings: usage beside each limit's field. */
 
-/* Wide enough that the bars line up whatever each limit is. */
+/* One block per limit, the same width down the card: count and max over the bar. */
+.rateMeter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 180px;
+}
+
 .rateCount {
-    min-width: 112px;
-    font-size: 13px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 16px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
 
 .rateMax {
     font-size: 11px;
-    line-height: 14px;
     color: var(--mantine-color-dimmed);
 }
 

@@ -97,7 +97,12 @@ export const SettingsCard: FC<{
     /** Makes the card a form whose rows save together. */
     onSubmit?: (event: FormEvent) => void;
     /** Puts Edit in the card's footer, for a card that reads until it is used. */
-    edit?: { isEditing: boolean; onEdit: () => void };
+    edit?: {
+        isEditing: boolean;
+        onEdit: () => void;
+        /** What Edit edits, for a card whose title is outside it. */
+        label?: string;
+    };
     children: ReactNode;
 }> = ({ title, titleInfo, onSubmit, edit, children }) => {
     // Sits where Cancel and Save changes appear once it is used
@@ -108,7 +113,7 @@ export const SettingsCard: FC<{
                     size="xs"
                     variant="default"
                     leftSection={<MantineIcon icon={IconPencil} />}
-                    aria-label={`Edit ${title}`}
+                    aria-label={`Edit ${edit.label ?? title}`}
                     onClick={edit.onEdit}
                 >
                     Edit

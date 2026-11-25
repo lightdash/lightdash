@@ -76,41 +76,54 @@ const LimitRow: FC<{
                 />
             }
         >
-            <Progress
-                w={100}
-                size="sm"
-                value={meter.percent}
-                color={meter.isFull ? 'red' : undefined}
-                aria-label={`${row.label}: ${meter.text}`}
-            />
-            <Box className={classes.rateCount}>
-                <Text inherit c={meter.isCounted ? undefined : 'dimmed'}>
-                    {meter.text}
-                </Text>
-                {row.defaultLimit === null ? null : (
-                    <Text className={classes.rateMax}>
-                        Max {row.defaultLimit.toLocaleString()}
-                    </Text>
-                )}
-            </Box>
             {isEditing ? (
-                <NumberInput
-                    w={96}
-                    size="xs"
-                    aria-label={`${row.label} limit`}
-                    placeholder={
-                        row.defaultLimit?.toLocaleString() ?? 'No limit'
-                    }
-                    min={1}
-                    clampBehavior="none"
-                    allowNegative={false}
-                    thousandSeparator=","
-                    hideControls
-                    error={!isValidLimit(row, value)}
-                    value={value ?? ''}
-                    onNumberChange={onChange}
-                />
-            ) : null}
+                <>
+                    {row.defaultLimit === null ? null : (
+                        <Text fz="xs" c="dimmed">
+                            Max {row.defaultLimit.toLocaleString()}
+                        </Text>
+                    )}
+                    <NumberInput
+                        w={96}
+                        size="xs"
+                        aria-label={`${row.label} limit`}
+                        placeholder={
+                            row.defaultLimit?.toLocaleString() ?? 'No limit'
+                        }
+                        min={1}
+                        clampBehavior="none"
+                        allowNegative={false}
+                        thousandSeparator=","
+                        hideControls
+                        error={!isValidLimit(row, value)}
+                        value={value ?? ''}
+                        onNumberChange={onChange}
+                    />
+                </>
+            ) : (
+                <Box className={classes.rateMeter}>
+                    <Box className={classes.rateCount}>
+                        {/* A limit nobody set has no count, so its text sits where the max does */}
+                        <Text
+                            inherit
+                            c={meter.isCounted ? undefined : 'dimmed'}
+                        >
+                            {row.defaultLimit === null ? null : meter.text}
+                        </Text>
+                        <Text className={classes.rateMax}>
+                            {row.defaultLimit === null
+                                ? meter.text
+                                : `Max ${row.defaultLimit.toLocaleString()}`}
+                        </Text>
+                    </Box>
+                    <Progress
+                        size="sm"
+                        value={meter.percent}
+                        color={meter.isFull ? 'red' : undefined}
+                        aria-label={`${row.label}: ${meter.text}`}
+                    />
+                </Box>
+            )}
         </SettingsRow>
     );
 };
@@ -155,7 +168,7 @@ const RateLimitsForm: FC<
             {usage.limitedUntil ? (
                 <SettingsRow
                     label={`Paused by ${usage.integrationLabel}`}
-                    hint={`Requests resume ${formatUntil(
+                    hint={`No requests ${formatUntil(
                         usage.limitedUntil,
                         usage.checkedAt,
                     )}`}

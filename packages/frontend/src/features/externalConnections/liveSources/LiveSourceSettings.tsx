@@ -1,7 +1,7 @@
 /**
  * One live data source's settings, below its summary on its own page. Rows
  * of a label on the left and its control on the right: how it signs in
- * (account, access), what it is (name, AI hint), its data (fields and
+ * (account, access), what it is (name, AI hint, tags), its data (fields and
  * caching), then deleting it. A card reads until its Edit is used, then its
  * fields save with Save changes.
  */
@@ -20,6 +20,7 @@ import {
 } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconTrash } from '@tabler/icons-react';
+import { isEqual } from 'es-toolkit/compat';
 import { useState, type FC, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -59,7 +60,7 @@ import {
     SettingsSaveFooter,
     SettingsValue,
 } from './LiveSourceSettingsRows';
-import { LiveSourceTagsCard } from './LiveSourceTagsCard';
+import { LiveSourceTagsRow } from './LiveSourceTagsRow';
 import { LiveSourceTestRow } from './LiveSourceTestRow';
 
 const WINDOW_SECONDS = [
@@ -80,6 +81,9 @@ const POSTHOG_REGIONS = [
 
 type EditableCard = 'details' | 'caching' | 'access';
 
+/** The Details fields held as text, saved with the tags. */
+const DETAIL_KEYS: (keyof LiveSourceAccessValues)[] = ['name', 'aiHint'];
+
 const formatDate = (date: Date | string) =>
     new Date(date).toLocaleString(undefined, {
         dateStyle: 'medium',
@@ -92,6 +96,7 @@ const formatPurgedAt = (purgedAt: Date | null | undefined) =>
 type Values = LiveSourceAccessValues & {
     /** Seconds, as the select holds it. */
     ttl: string;
+    tags: string[];
 };
 
 /** The saved token, or a new one typed in its place to save with the card. */
@@ -157,6 +162,7 @@ export const LiveSourceSettings: FC<{
         initialValues: {
             ...toLiveSourceAccessValues(connection, access),
             ttl: String(getLiveSourceFreshness(connection)),
+            tags: connection.tags ?? [],
         },
         validate: {
             name: (value) =>
@@ -173,23 +179,32 @@ export const LiveSourceSettings: FC<{
 
     /**
      * Saves the given settings over the saved ones, if they changed and are
-     * valid. False leaves them unsaved.
+     * valid, and the tags when given. False leaves them unsaved.
      */
-    const saveSource = async (keys: (keyof LiveSourceAccessValues)[]) => {
+    const saveSource = async (
+        keys: (keyof LiveSourceAccessValues)[],
+        tags?: string[],
+    ) => {
         const saved = form.getInitialValues();
         const { values } = form;
-        if (keys.every((key) => values[key].trim() === saved[key].trim()))
+        if (
+            !tags &&
+            keys.every((key) => values[key].trim() === saved[key].trim())
+        )
             return true;
         if (keys.some((key) => form.validateField(key).hasError)) return false;
         if (keys.includes('region') && needsKeyForRegion()) return false;
         const changed = Object.fromEntries(
             keys.map((key) => [key, values[key].trim()]),
         );
-        const next = { ...saved, ...changed };
+        const next = { ...saved, ...changed, ...(tags ? { tags } : {}) };
         try {
             await updateSource.mutateAsync({
                 ...params,
-                data: toLiveSourceAccessUpdate(connection, access, next),
+                data: {
+                    ...toLiveSourceAccessUpdate(connection, access, next),
+                    ...(tags ? { tags } : {}),
+                },
             });
         } catch {
             // The hook already says why; the field keeps what was typed.
@@ -285,6 +300,27 @@ export const LiveSourceSettings: FC<{
             });
         };
 
+    const isTagsChanged = !isEqual(
+        form.values.tags,
+        form.getInitialValues().tags,
+    );
+
+    const cancelDetails = () => {
+        revert(DETAIL_KEYS);
+        form.setFieldValue('tags', form.getInitialValues().tags);
+        stopEditing('details');
+    };
+
+    const submitDetails = (event: FormEvent) => {
+        event.preventDefault();
+        void saveSource(
+            DETAIL_KEYS,
+            isTagsChanged ? form.values.tags : undefined,
+        ).then((isSaved) => {
+            if (isSaved) stopEditing('details');
+        });
+    };
+
     const isTtlChanged = form.values.ttl !== form.getInitialValues().ttl;
 
     const cancelTtl = () => {
@@ -312,7 +348,7 @@ export const LiveSourceSettings: FC<{
             <Stack gap="lg">
                 <SettingsCard
                     title="Details"
-                    onSubmit={submit('details', ['name', 'aiHint'])}
+                    onSubmit={submitDetails}
                     edit={editProps('details')}
                 >
                     <SettingsRow
@@ -353,7 +389,18 @@ export const LiveSourceSettings: FC<{
                             </SettingsValue>
                         )}
                     </SettingsRow>
-                    {saveFooter('details', ['name', 'aiHint'])}
+                    <LiveSourceTagsRow
+                        isEditing={isEditing('details')}
+                        tags={form.values.tags}
+                        onChange={(tags) => form.setFieldValue('tags', tags)}
+                    />
+                    {isEditing('details') ? (
+                        <SettingsSaveFooter
+                            isChanged={isChanged(DETAIL_KEYS) || isTagsChanged}
+                            isSaving={updateSource.isLoading}
+                            onCancel={cancelDetails}
+                        />
+                    ) : null}
                 </SettingsCard>
 
                 <SettingsCard
@@ -371,11 +418,6 @@ export const LiveSourceSettings: FC<{
                         </SettingsValue>
                     </SettingsRow>
                 </SettingsCard>
-
-                <LiveSourceTagsCard
-                    projectUuid={projectUuid}
-                    connection={connection}
-                />
 
                 <SettingsCard
                     title="Caching"
