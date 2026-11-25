@@ -1,7 +1,6 @@
 import {
     DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
     type DashboardAiSummaryTileProperties,
-    type DashboardTile,
 } from '@lightdash/common';
 import {
     Input,
@@ -14,14 +13,12 @@ import {
 import { type UseFormReturnType } from '@mantine/form';
 import { useMemo, type FC } from 'react';
 import { selectDashboardTiles, useDashboardSelector } from '../dashboard/store';
-import { getAiSummaryCandidateTiles } from './aiSummarySources';
+import {
+    getAiSummaryCandidateTiles,
+    getAiSummaryChartLabel,
+} from './aiSummarySources';
 
 type AiSummaryProperties = DashboardAiSummaryTileProperties['properties'];
-
-const chartLabel = (tile: DashboardTile): string =>
-    tile.properties.title ||
-    ('chartName' in tile.properties && tile.properties.chartName) ||
-    'Untitled chart';
 
 type Props = {
     form: UseFormReturnType<AiSummaryProperties>;
@@ -35,7 +32,7 @@ const AiSummaryTileForm: FC<Props> = ({ form, tabUuid }) => {
         () =>
             getAiSummaryCandidateTiles(tabUuid, tiles ?? []).map((tile) => ({
                 value: tile.uuid,
-                label: chartLabel(tile),
+                label: getAiSummaryChartLabel(tile),
             })),
         [tiles, tabUuid],
     );

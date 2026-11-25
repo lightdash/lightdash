@@ -31,7 +31,7 @@ export const useAiSummary = ({
     const tileQueries = useDashboardSelector(
         (state) => state.tileStatus.tileQueries,
     );
-    const { sources, inFlight, chartCount } = useMemo(
+    const { sources, inFlight, charts } = useMemo(
         () => getAiSummarySources(tile, tiles ?? [], tileQueries),
         [tile, tiles, tileQueries],
     );
@@ -80,7 +80,7 @@ export const useAiSummary = ({
 
     return {
         availability,
-        chartCount,
+        charts,
         hasSources: sources.length > 0,
         isWaitingForCharts: inFlight,
         summary: query.data,

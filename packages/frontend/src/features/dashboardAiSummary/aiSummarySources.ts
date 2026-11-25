@@ -12,8 +12,15 @@ export type AiSummarySources = {
     /** True while a chart in scope has not reported its query yet. */
     inFlight: boolean;
     /** Charts the tile is set to read, loaded or not. */
-    chartCount: number;
+    charts: AiSummaryChart[];
 };
+
+export type AiSummaryChart = { tileUuid: string; label: string };
+
+export const getAiSummaryChartLabel = (tile: DashboardTile): string =>
+    tile.properties.title ||
+    ('chartName' in tile.properties && tile.properties.chartName) ||
+    'Untitled chart';
 
 /** Charts a summary on this tab can read: other tabs' charts are not loaded with it. */
 export const getAiSummaryCandidateTiles = (
@@ -65,6 +72,9 @@ export const getAiSummarySources = (
         inFlight: registrations.some(
             (registration) => registration === undefined,
         ),
-        chartCount: scopeTiles.length,
+        charts: scopeTiles.map((tile) => ({
+            tileUuid: tile.uuid,
+            label: getAiSummaryChartLabel(tile),
+        })),
     };
 };

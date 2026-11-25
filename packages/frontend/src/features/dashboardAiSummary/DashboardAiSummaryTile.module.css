@@ -1,6 +1,28 @@
 .body {
     flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.content {
+    flex: 1;
+    min-height: 0;
     overflow: auto;
+}
+
+.footer {
+    flex-shrink: 0;
+    margin-top: var(--mantine-spacing-xs);
+    padding-top: var(--mantine-spacing-xs);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.footerStatus {
+    display: flex;
+    align-items: center;
+    padding: 0 var(--mantine-spacing-xxs, 4px);
 }
 
 .updating {

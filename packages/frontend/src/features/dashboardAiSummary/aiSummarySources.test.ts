@@ -63,7 +63,7 @@ describe('getAiSummarySources', () => {
         );
 
         expect(result.sources.map((s) => s.queryUuid)).toEqual(['q-a', 'q-b']);
-        expect(result.chartCount).toBe(2);
+        expect(result.charts).toHaveLength(2);
         expect(result.inFlight).toBe(false);
     });
 
@@ -75,7 +75,7 @@ describe('getAiSummarySources', () => {
         );
 
         expect(result.sources.map((s) => s.queryUuid)).toEqual(['q-b']);
-        expect(result.chartCount).toBe(1);
+        expect(result.charts).toHaveLength(1);
     });
 
     it('does not wait for a picked chart that sits on another tab', () => {
@@ -86,7 +86,7 @@ describe('getAiSummarySources', () => {
         );
 
         expect(result.sources.map((s) => s.queryUuid)).toEqual(['q-a']);
-        expect(result.chartCount).toBe(1);
+        expect(result.charts).toHaveLength(1);
         expect(result.inFlight).toBe(false);
     });
 
@@ -136,7 +136,7 @@ describe('getAiSummarySources', () => {
             {},
         );
 
-        expect(result.chartCount).toBe(0);
+        expect(result.charts).toHaveLength(0);
         expect(result.inFlight).toBe(false);
     });
 });
