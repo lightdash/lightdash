@@ -27,7 +27,7 @@ export const designModeTourSteps = (
     {
         target: `[data-tour="${DESIGN_MODE_BUTTON_TOUR_ID}"]`,
         title: 'Meet Design Mode',
-        body: 'Point at what you mean instead of describing it. Press this button to turn it on. A small toolbar appears at the bottom of the page.',
+        body: 'Mark or annotate UI elements to design content or request analysis. Press this button to turn it on.',
     },
     {
         target: null,

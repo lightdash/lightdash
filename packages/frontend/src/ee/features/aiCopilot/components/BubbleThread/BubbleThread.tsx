@@ -212,12 +212,23 @@ export const BubbleThread: FC<Props> = ({
     const bodyRef = useRef<HTMLDivElement>(null);
     const isOpen = !minimised && Boolean(thread);
     useEffect(() => {
-        if (!armed || !isOpen) return;
-        bodyRef.current
-            ?.querySelector<HTMLElement>(
-                'textarea, [contenteditable="true"], input[type="text"]',
-            )
-            ?.focus({ preventScroll: true });
+        if (!armed || !isOpen) return undefined;
+        // The reply box is built a moment after the conversation is shown.
+        let tries = 0;
+        let frame = 0;
+        const focusReply = () => {
+            const box = bodyRef.current?.querySelector<HTMLElement>(
+                'textarea, [contenteditable]:not([contenteditable="false"])',
+            );
+            if (box) {
+                box.focus({ preventScroll: true });
+                return;
+            }
+            tries += 1;
+            if (tries < 60) frame = window.requestAnimationFrame(focusReply);
+        };
+        focusReply();
+        return () => window.cancelAnimationFrame(frame);
     }, [armed, isOpen]);
 
     return (
