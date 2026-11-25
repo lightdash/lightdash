@@ -21,6 +21,11 @@ import {
     metricQueryMock,
     validExplore,
 } from '../../../../services/ProjectService/ProjectService.mock';
+import {
+    getStudioCardResponse,
+    studioTurnCard,
+    withStudioCardReply,
+} from '../../SemanticStudioService/studioTurnCard';
 import { MCP_UNTRUSTED_OUTPUT_NOTICE } from '../AiAgentMcpRuntimeClient';
 import { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
@@ -59,7 +64,6 @@ import {
     getPromptMcpServers,
     getRecentQueryFieldIds,
     getStepBudgetOverride,
-    getStudioCardResponse,
     getTurnFastResponse,
     normalizeToolOutput,
     recordAgentStepUsage,
@@ -69,7 +73,6 @@ import {
     storeInvalidAgentToolCall,
     streamAgentResponse,
     withEarlyToolProgress,
-    withStudioCardReply,
     type AgentMcpToolSetup,
 } from './agentV2';
 import { createIntentToolGate } from './referenceToolGating';
@@ -4441,10 +4444,10 @@ describe('withStudioCardReply', () => {
             },
         ];
         const steps = saved({ prompt: 'x', script: null });
-        expect(getTurnFastResponse(false, null, steps, '', true)).toBe(
-            'Saved the change to the draft.',
-        );
-        expect(getTurnFastResponse(false, null, steps, '', false)).toBeNull();
+        expect(
+            getTurnFastResponse(false, null, steps, '', studioTurnCard),
+        ).toBe('Saved the change to the draft.');
+        expect(getTurnFastResponse(false, null, steps, '', null)).toBeNull();
     });
 
     it('keeps the turn going after a change while the request has steps left', () => {

@@ -264,6 +264,26 @@ export type CustomSqlPermissions = {
     canAuthorSqlTableCalculations: boolean;
 };
 
+/** One step's tool calls and results, which decide how a turn ends. */
+export type AgentTurnStep = {
+    toolCalls: ReadonlyArray<{
+        toolCallId: string;
+        toolName: string;
+        input: unknown;
+    }>;
+    toolResults: ReadonlyArray<{
+        toolCallId: string;
+        toolName: string;
+        output: unknown;
+    }>;
+};
+
+/** How a kind of thread ends its turn on a card: the reply once the card is up, and the line kept when nothing was written. */
+export type TurnCard = {
+    getResponse: (steps: ReadonlyArray<AgentTurnStep>) => string | null;
+    withReply: (reply: string, steps: ReadonlyArray<AgentTurnStep>) => string;
+};
+
 export type AiAgentArgs = AnyAiModel & {
     decisions?: AiDecisionClient;
     decisionUsage?: AiDecisionUsage;
@@ -348,6 +368,8 @@ export type AiAgentArgs = AnyAiModel & {
     repoFsSupportsCodeSearch: boolean;
     // A Studio dbt project's layout from its last compile; null otherwise.
     semanticStudioProjectMap: string | null;
+    // Ends this thread's turns on a card instead of prose; null for a thread that has none.
+    turnCard: TurnCard | null;
     canRunSql: boolean;
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.

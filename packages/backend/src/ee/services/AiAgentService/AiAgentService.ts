@@ -749,7 +749,8 @@ import { saveDbtTryOut } from '../SemanticStudioService/dbtTryOut';
 import { type IncrementalDbtCompileService } from '../SemanticStudioService/IncrementalDbtCompileService';
 import { type SemanticStudioCheckoutService } from '../SemanticStudioService/SemanticStudioCheckoutService';
 import { type SemanticStudioService } from '../SemanticStudioService/SemanticStudioService';
-import { worksAsDbtPullRequests } from '../SemanticStudioService/studioProject';
+import { getStudioAgentTools } from '../SemanticStudioService/studioAgentTools';
+import { getStudioTurn } from '../SemanticStudioService/studioTurn';
 import {
     parseAgentSelectionValue,
     resolveAgentSelectionPrompt,
@@ -800,6 +801,7 @@ import {
     getPinnedSuggestionContextInput,
 } from './suggestionPinnedContext';
 import { parseThreadMetadata } from './threadMetadata';
+import { getThreadPolicy } from './threadPolicy';
 import {
     getPromptUsageAttribution,
     type AiUsageViewerAttribution,
@@ -15227,96 +15229,32 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
 
         const discoverRepos: DiscoverReposFn = listAuthorizedRepos;
 
-        const proposeSemanticLayerChange: ProposeSemanticLayerChangeFn = (
-            models,
-            changeName,
-        ) =>
-            this.semanticStudioService.proposeDraftChange(
-                user,
-                projectUuid,
-                models,
-                {
-                    promptUuid: prompt.promptUuid,
-                    threadUuid: prompt.threadUuid,
-                },
-                changeName,
-            );
-
-        const draftProjectContext: DraftProjectContextFn = (
-            entry,
-            changeName,
-        ) =>
-            this.semanticStudioService.draftProjectContextEntry(
-                user,
-                projectUuid,
-                entry,
-                prompt.promptUuid,
-                changeName,
-            );
-
-        const listChanges = () =>
-            this.semanticStudioService.listChanges(
-                user,
-                projectUuid,
-                prompt.threadUuid,
-            );
-
-        // Studio queries read the person's draft over what is published, the way trying their changes does.
-        const inDraft = <T>(run: () => Promise<T>): Promise<T> => {
-            let drafted:
-                | ReturnType<
-                      SemanticStudioCheckoutService['findDevelopmentExplores']
-                  >
-                | undefined;
-            // Reading the draft reads the project itself, which must see what is published.
-            const findExplores = () => {
-                drafted ??= developmentView.exit(() =>
-                    this.semanticStudioCheckoutService.findDevelopmentExplores(
-                        user,
-                        projectUuid,
-                    ),
-                );
-                return drafted;
-            };
-            return developmentView.run(
-                {
-                    findExplores,
-                    hasChanges: async () => (await findExplores()) !== null,
-                },
-                run,
-            );
-        };
-        const getDraftExplore: GetExploreFn = (args) =>
-            inDraft(() => toolsRuntime.getExplore(args));
-        const runDraftQuery: RunAsyncQueryFn = (...args) =>
-            inDraft(() => toolsRuntime.runAsyncQuery(...args));
-
-        const readSemanticModel: ReadSemanticModelFn = (name) =>
-            this.semanticStudioService.readDraftedModel(
-                user,
-                projectUuid,
-                name,
-            );
+        const {
+            proposeSemanticLayerChange,
+            draftProjectContext,
+            listChanges,
+            getDraftExplore,
+            runDraftQuery,
+            readSemanticModel,
+            verify,
+        } = getStudioAgentTools({
+            user,
+            projectUuid,
+            promptUuid: prompt.promptUuid,
+            threadUuid: prompt.threadUuid,
+            semanticStudioService: this.semanticStudioService,
+            semanticStudioCheckoutService: this.semanticStudioCheckoutService,
+            getExplore: toolsRuntime.getExplore,
+            runAsyncQuery: toolsRuntime.runAsyncQuery,
+            isSaving: () =>
+                this.aiWritebackService.hasRunInProgress(prompt.threadUuid),
+        });
 
         const read: ReadFn = (script, libraries) =>
             this.aiWritebackService.readWithScript(
                 { user, projectUuid, aiThreadUuid: prompt.threadUuid },
                 script,
                 libraries,
-            );
-
-        const verify: VerifyFn = () =>
-            this.semanticStudioCheckoutService.waitForBranchCompile(
-                user,
-                projectUuid,
-                {
-                    threadUuid: prompt.threadUuid,
-                    isSaving: () =>
-                        this.aiWritebackService.hasRunInProgress(
-                            prompt.threadUuid,
-                        ),
-                    timeoutMs: 60_000,
-                },
             );
 
         // Deterministic project_context.yml writeback (no sandbox). Only wired
@@ -17075,12 +17013,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 const isStudioThread = isSemanticStudioThread(
                     prompt.threadCreatedFrom,
                 );
-                // Studio never asks, whichever request started the turn.
+                const threadPolicy = getThreadPolicy(prompt.threadCreatedFrom);
                 const autoApproveSqlForUser =
-                    (options.autoApproveSql ?? false) || isStudioThread;
-                // Fast decisions route analytics turns; this thread only edits models.
+                    (options.autoApproveSql ?? false) ||
+                    threadPolicy.autoApproveSql;
                 const decisions =
-                    decisionUsage && !isStudioThread
+                    decisionUsage && threadPolicy.usesFastDecisions
                         ? decisionClient?.withUsage(decisionUsage)
                         : undefined;
                 const { preModelDecisions, fastExperienceEnabled } =
@@ -17552,9 +17490,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                             user,
                             projectUuid: prompt.projectUuid,
                             agentUuid: agentSettings.uuid,
-                            // Studio's loadout takes no MCP tools, so its turns do not wait on those servers.
                             includeAttachedMcpServers:
-                                !isStudioThread &&
+                                threadPolicy.waitsOnMcpServers &&
                                 shouldIncludeAttachedMcpServers(
                                     responseExecution.mode,
                                     responseExecution.mode === 'deep_research'
@@ -17615,10 +17552,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                         user,
                         featureFlagId: FeatureFlags.AiFilterExpressions,
                     });
-                // Studio's chat offers a change as a choice, so its threads ask without the flag.
                 const enableAskUser =
                     canOfferAskUser(prompt, responseExecution.mode) &&
-                    (isStudioThread ||
+                    (threadPolicy.asksWithoutFlag ||
                         (
                             await this.featureFlagService.get({
                                 user,
@@ -17626,29 +17562,18 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                             })
                         ).enabled);
                 // A dbt project keeps no draft in Semantic Studio; its thread edits the repository instead.
-                const semanticStudioStatus = isStudioThread
-                    ? await this.semanticStudioService.getStatus(
-                          user,
-                          promptProject.projectUuid,
+                const studioTurn = isStudioThread
+                    ? await getStudioTurn(
+                          await this.semanticStudioService.getStatus(
+                              user,
+                              promptProject.projectUuid,
+                          ),
+                          () =>
+                              this.incrementalDbtCompileService.getDbtProjectMap(
+                                  promptProject.projectUuid,
+                              ),
                       )
                     : null;
-                // A dbt project's Studio thread works on pull requests where Studio is on for the person.
-                const semanticStudioWorksAsDbt =
-                    semanticStudioStatus !== null &&
-                    worksAsDbtPullRequests(semanticStudioStatus);
-                // A dbt project's layout spares the agent surveying the repository.
-                const semanticStudioProjectMap = semanticStudioWorksAsDbt
-                    ? await this.incrementalDbtCompileService.getDbtProjectMap(
-                          promptProject.projectUuid,
-                      )
-                    : null;
-                const semanticStudioDrafts =
-                    semanticStudioStatus !== null &&
-                    semanticStudioStatus.enabled &&
-                    !semanticStudioWorksAsDbt;
-                const semanticStudioKeepsContext =
-                    semanticStudioDrafts &&
-                    semanticStudioStatus.appliesAs === 'live';
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -17678,10 +17603,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     aiWritebackEnabled = false;
                 }
 
-                if (
-                    semanticStudioStatus !== null &&
-                    !semanticStudioStatus.enabled
-                ) {
+                if (studioTurn !== null && !studioTurn.enabled) {
                     aiWritebackEnabled = false;
                 }
 
@@ -18173,9 +18095,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread: isStudioThread,
-                    semanticStudioDrafts,
-                    semanticStudioKeepsContext,
-                    semanticStudioProjectMap,
+                    turnCard: threadPolicy.turnCard,
+                    semanticStudioDrafts: studioTurn?.drafts ?? false,
+                    semanticStudioKeepsContext:
+                        studioTurn?.keepsContext ?? false,
+                    semanticStudioProjectMap: studioTurn?.projectMap ?? null,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,

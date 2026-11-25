@@ -4,14 +4,8 @@ import {
     AiAccessRefusedError,
     AnyType,
     assertUnreachable,
-    DBT_SAVE_CARD_REPLY,
-    endsTurnOnCard,
     Explore,
     getErrorMessage,
-    getRunProposals,
-    getStudioCardReply,
-    hasMoreToDo,
-    isDbtWriteToolName,
     isSqlApprovalToolCall,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
@@ -167,12 +161,7 @@ import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
-import {
-    getDraftProjectContext,
-    getListChanges,
-    getProposeSemanticLayerChange,
-    getReadSemanticModel,
-} from '../tools/semanticStudioTools';
+import { getStudioToolBuilders } from '../tools/semanticStudioTools';
 import { type SqlApprovalDependencies } from '../tools/sqlApprovalGate';
 import {
     buildSqlApprovalDecidedEvent,
@@ -185,9 +174,11 @@ import { getUpdateUserName } from '../tools/updateUserName';
 import { getVerify } from '../tools/verify';
 import { getVisualize } from '../tools/visualize';
 import type {
+    AgentTurnStep,
     AiAgentArgs,
     AiAgentDependencies,
     AiStreamAgentResponseArgs,
+    TurnCard,
     UnavailableMcpServer,
 } from '../types/aiAgent';
 import { toAbsoluteHref } from '../utils/absoluteHref';
@@ -1176,18 +1167,7 @@ const recordExternalMcpToolCall = (
         });
 };
 
-type FastChartStep = {
-    toolCalls: ReadonlyArray<{
-        toolCallId: string;
-        toolName: string;
-        input: unknown;
-    }>;
-    toolResults: ReadonlyArray<{
-        toolCallId: string;
-        toolName: string;
-        output: unknown;
-    }>;
-};
+type FastChartStep = AgentTurnStep;
 
 export const getChartFollowupFastResponse = (
     steps: ReadonlyArray<FastChartStep>,
@@ -1356,59 +1336,19 @@ export const getDocumentWriteFastResponse = (
     return `Saved [${name || 'the document'}](${toAbsoluteHref(siteUrl, metadata.href)}).`;
 };
 
-/** A Studio turn that ends on its card with nothing written keeps one line saying what changed, so the reply is never blank. */
-export const withStudioCardReply = (
-    reply: string,
-    steps: ReadonlyArray<FastChartStep>,
-): string => {
-    if (reply.trim()) return reply;
-    return (
-        getStudioCardReply(
-            getRunProposals(steps.flatMap((step) => step.toolResults)),
-        ) ?? reply
-    );
-};
-
-/** A Studio turn ends on its card: once a change joined the draft cleanly, or a save started, there is nothing left to say. */
-export const getStudioCardResponse = (
-    steps: ReadonlyArray<FastChartStep>,
-): string | null => {
-    const last = steps.at(-1);
-    if (!last) return null;
-    const proposals = getRunProposals(last.toolResults);
-    if (proposals.length > 0) {
-        return endsTurnOnCard(proposals) ? getStudioCardReply(proposals) : null;
-    }
-    const studioSaves = new Set(
-        last.toolCalls
-            .filter(
-                ({ toolName, input }) =>
-                    isDbtWriteToolName(toolName) && !hasMoreToDo(input),
-            )
-            .map(({ toolCallId }) => toolCallId),
-    );
-    const isSaving = last.toolResults.some(
-        ({ toolCallId, output }) =>
-            studioSaves.has(toolCallId) && !isErrorToolResult(output),
-    );
-    return isSaving ? DBT_SAVE_CARD_REPLY : null;
-};
-
 export const getTurnFastResponse = (
     enableDataAnswerFastResponse: boolean,
     turnIntent: TurnIntent | null | undefined,
     steps: ReadonlyArray<FastChartStep>,
     siteUrl: string,
-    isStudioThread: boolean,
+    turnCard: TurnCard | null,
 ) => {
     // Asking ends the turn on any intent; the questions are its reply.
     const askUserResponse = getAskUserResponse(steps);
     if (askUserResponse !== null) return askUserResponse;
     // The main chat's save keeps its own reply.
-    const studioCardResponse = isStudioThread
-        ? getStudioCardResponse(steps)
-        : null;
-    if (studioCardResponse !== null) return studioCardResponse;
+    const cardResponse = turnCard?.getResponse(steps) ?? null;
+    if (cardResponse !== null) return cardResponse;
     if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
         return getDataAnswerFastResponse(steps);
     if (turnIntent === 'chart_from_previous')
@@ -2248,31 +2188,13 @@ export const getAgentTools = (
             getEditProjectContext({
                 editProjectContext: dependencies.editProjectContext,
             }),
-        proposeSemanticLayerChange: () =>
-            getProposeSemanticLayerChange({
-                proposeSemanticLayerChange:
-                    dependencies.proposeSemanticLayerChange,
-                describeWarehouseTable: dependencies.describeWarehouseTable,
-                readSemanticModel: dependencies.readSemanticModel,
-                canRunMetrics: getStudioAbilities(loadout).canRunMetrics,
-                metricViewCheck:
-                    getStudioAbilities(loadout).canRunMetrics &&
-                    loadout.toolNames.has('runSql')
-                        ? {
-                              runDraftQuery: dependencies.runDraftQuery,
-                              runSqlJob: queryDependencies.runSqlJob,
-                          }
-                        : null,
-            }),
-        listChanges: () => getListChanges(dependencies.listChanges),
-        readSemanticModel: () =>
-            getReadSemanticModel({
-                readSemanticModel: dependencies.readSemanticModel,
-            }),
-        draftProjectContext: () =>
-            getDraftProjectContext({
-                draftProjectContext: dependencies.draftProjectContext,
-            }),
+        ...getStudioToolBuilders({
+            dependencies,
+            canRunMetrics: getStudioAbilities(loadout).canRunMetrics,
+            runSqlJob: loadout.toolNames.has('runSql')
+                ? queryDependencies.runSqlJob
+                : null,
+        }),
         read: () =>
             getRead({
                 read: dependencies.read,
@@ -3252,7 +3174,7 @@ const runGenerateAgentResponse = async ({
                         preparedContext?.turnIntent,
                         steps,
                         args.siteUrl,
-                        args.isSemanticStudioThread,
+                        args.turnCard,
                     ) !== null,
             ],
             abortSignal,
@@ -3511,7 +3433,7 @@ const runGenerateAgentResponse = async ({
                       preparedContext?.turnIntent,
                       result.steps,
                       args.siteUrl,
-                      args.isSemanticStudioThread,
+                      args.turnCard,
                   ) ?? result.text),
             result.steps,
         );
@@ -3716,7 +3638,7 @@ const runStreamAgentResponse = async ({
                         preparedContext?.turnIntent,
                         steps,
                         args.siteUrl,
-                        args.isSemanticStudioThread,
+                        args.turnCard,
                     ) !== null,
             ],
             providerOptions: args.providerOptions,
@@ -3888,7 +3810,7 @@ const runStreamAgentResponse = async ({
                                     },
                                 ],
                                 args.siteUrl,
-                                args.isSemanticStudioThread,
+                                args.turnCard,
                             );
                         }
                         logger(
@@ -4087,14 +4009,15 @@ const runStreamAgentResponse = async ({
                               preparedContext?.turnIntent,
                               steps,
                               args.siteUrl,
-                              args.isSemanticStudioThread,
+                              args.turnCard,
                           ) ?? modelResponse),
                     steps,
                 );
-                const completeResponse = withStudioCardReply(
-                    agentContext.responseBlocks.render(responseText),
-                    steps,
-                );
+                const renderedResponse =
+                    agentContext.responseBlocks.render(responseText);
+                const completeResponse =
+                    args.turnCard?.withReply(renderedResponse, steps) ??
+                    renderedResponse;
 
                 const stepCapReached = steps.length >= args.execution.maxSteps;
 

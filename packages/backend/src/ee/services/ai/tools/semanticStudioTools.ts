@@ -371,3 +371,43 @@ export const getDraftProjectContext = ({
             }
         },
     });
+
+/** The tools only the builder has, in the order they are offered to the model. */
+export const getStudioToolBuilders = ({
+    dependencies,
+    canRunMetrics,
+    runSqlJob,
+}: {
+    dependencies: {
+        proposeSemanticLayerChange: ProposeSemanticLayerChangeFn;
+        describeWarehouseTable: DescribeWarehouseTableFn;
+        readSemanticModel: ReadSemanticModelFn;
+        runDraftQuery: MetricViewCheckDependencies['runDraftQuery'];
+        listChanges: Parameters<typeof getListChanges>[0];
+        draftProjectContext: DraftProjectContextFn;
+    };
+    canRunMetrics: boolean;
+    /** Runs an imported metric view straight from the warehouse; null when the thread cannot run SQL. */
+    runSqlJob: MetricViewCheckDependencies['runSqlJob'] | null;
+}) => ({
+    proposeSemanticLayerChange: () =>
+        getProposeSemanticLayerChange({
+            proposeSemanticLayerChange: dependencies.proposeSemanticLayerChange,
+            describeWarehouseTable: dependencies.describeWarehouseTable,
+            readSemanticModel: dependencies.readSemanticModel,
+            canRunMetrics,
+            metricViewCheck:
+                canRunMetrics && runSqlJob
+                    ? { runDraftQuery: dependencies.runDraftQuery, runSqlJob }
+                    : null,
+        }),
+    listChanges: () => getListChanges(dependencies.listChanges),
+    readSemanticModel: () =>
+        getReadSemanticModel({
+            readSemanticModel: dependencies.readSemanticModel,
+        }),
+    draftProjectContext: () =>
+        getDraftProjectContext({
+            draftProjectContext: dependencies.draftProjectContext,
+        }),
+});
