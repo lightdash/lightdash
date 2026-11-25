@@ -40,6 +40,7 @@ const CreateEmailOnlyUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
                     spellCheck={false}
                     placeholder="maya@acme.com"
                     required
+                    autoFocus
                     {...form.getInputProps('email')}
                     disabled={isLoading}
                     data-cy="email-address-input"
