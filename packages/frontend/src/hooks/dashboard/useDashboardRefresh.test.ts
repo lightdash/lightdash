@@ -2,7 +2,7 @@ import { QueryHistoryStatus } from '@lightdash/common';
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import {
     evictSavedDashboardResults,
-    waitForTileSlot,
+    sendTileRequest,
 } from './useDashboardRefresh';
 
 const tileKey = (chartUuid: string) => [
@@ -72,10 +72,14 @@ describe('evictSavedDashboardResults', () => {
         const responses: ((value: string) => void)[] = [];
         const unmount = new QueryObserver(queryClient, {
             queryKey: tileKey('shown'),
-            queryFn: () =>
-                new Promise<string>((resolve) => {
-                    responses.push(resolve);
-                }),
+            queryFn: ({ queryKey }) =>
+                sendTileRequest(
+                    queryClient,
+                    queryKey,
+                    new Promise<string>((resolve) => {
+                        responses.push(resolve);
+                    }),
+                ),
         }).subscribe(() => {});
         evictSavedDashboardResults(queryClient);
 
@@ -112,9 +116,13 @@ describe('evictSavedDashboardResults', () => {
         const unmount = new QueryObserver(queryClient, {
             queryKey: tileKey('queued'),
             queryFn: async ({ queryKey }) => {
-                await waitForTileSlot(queryClient, queryKey, slot);
+                await slot;
                 calls += 1;
-                return 'sent after save';
+                return sendTileRequest(
+                    queryClient,
+                    queryKey,
+                    Promise.resolve('sent after save'),
+                );
             },
         }).subscribe(() => {});
         await flush();
@@ -166,10 +174,14 @@ describe('evictSavedDashboardResults', () => {
         const responses: ((value: string) => void)[] = [];
         const unmount = new QueryObserver(queryClient, {
             queryKey: tileKey('left'),
-            queryFn: () =>
-                new Promise<string>((resolve) => {
-                    responses.push(resolve);
-                }),
+            queryFn: ({ queryKey }) =>
+                sendTileRequest(
+                    queryClient,
+                    queryKey,
+                    new Promise<string>((resolve) => {
+                        responses.push(resolve);
+                    }),
+                ),
         }).subscribe(() => {});
         evictSavedDashboardResults(queryClient);
 
@@ -186,12 +198,16 @@ describe('evictSavedDashboardResults', () => {
         let failFirst: (error: Error) => void = () => {};
         const unmount = new QueryObserver(queryClient, {
             queryKey: tileKey('failed'),
-            queryFn: () => {
+            queryFn: ({ queryKey }) => {
                 calls += 1;
                 return calls === 1
-                    ? new Promise<string>((_resolve, reject) => {
-                          failFirst = reject;
-                      })
+                    ? sendTileRequest(
+                          queryClient,
+                          queryKey,
+                          new Promise<string>((_resolve, reject) => {
+                              failFirst = reject;
+                          }),
+                      )
                     : 'post-save';
             },
             retry: false,
@@ -211,12 +227,16 @@ describe('evictSavedDashboardResults', () => {
         let failFirst: (error: Error) => void = () => {};
         const unmount = new QueryObserver(queryClient, {
             queryKey: tileKey('retried'),
-            queryFn: () => {
+            queryFn: ({ queryKey }) => {
                 calls += 1;
                 return calls === 1
-                    ? new Promise<string>((_resolve, reject) => {
-                          failFirst = reject;
-                      })
+                    ? sendTileRequest(
+                          queryClient,
+                          queryKey,
+                          new Promise<string>((_resolve, reject) => {
+                              failFirst = reject;
+                          }),
+                      )
                     : 'retried';
             },
             retry: 1,
@@ -232,5 +252,33 @@ describe('evictSavedDashboardResults', () => {
 
         expect(calls).toBe(2);
         expect(queryClient.getQueryData(tileKey('retried'))).toBe('retried');
+    });
+
+    it('keeps the result of a retry sent after a save made during its backoff', async () => {
+        let calls = 0;
+        const unmount = new QueryObserver(queryClient, {
+            queryKey: tileKey('backoff'),
+            queryFn: ({ queryKey }) => {
+                calls += 1;
+                return sendTileRequest(
+                    queryClient,
+                    queryKey,
+                    calls === 1
+                        ? Promise.reject(new Error('reset'))
+                        : Promise.resolve('retried'),
+                );
+            },
+            retry: 1,
+            retryDelay: 20,
+        }).subscribe(() => {});
+        await flush();
+        evictSavedDashboardResults(queryClient);
+
+        await new Promise((resolve) => setTimeout(resolve, 40));
+        unmount();
+        await flush();
+
+        expect(calls).toBe(2);
+        expect(queryClient.getQueryData(tileKey('backoff'))).toBe('retried');
     });
 });

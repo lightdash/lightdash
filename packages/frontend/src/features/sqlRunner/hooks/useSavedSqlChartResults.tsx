@@ -13,10 +13,11 @@ import {
     type SqlChart,
 } from '@lightdash/common';
 import { captureException } from '@sentry/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
+import { sendTileRequest } from '../../../hooks/dashboard/useDashboardRefresh';
 import {
     CHART_RESULTS_ERROR_NAME,
     useQueryRetryConfig,
@@ -100,6 +101,7 @@ export const useSavedSqlChartResults = (
     args: UseSavedSqlChartResultsArguments,
 ) => {
     const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
     const retryConfig = useQueryRetryConfig();
 
     const { savedSqlUuid, slug, projectUuid, context, parameters } = args;
@@ -156,7 +158,7 @@ export const useSavedSqlChartResults = (
             args,
             chartQuery.data?.lastUpdatedAt,
         ],
-        async () => {
+        async ({ queryKey }) => {
             try {
                 // Safe to assume these are defined because of the enabled flag
                 const chart = chartQuery.data!;
@@ -175,9 +177,10 @@ export const useSavedSqlChartResults = (
                         },
                     );
                 } else if (isRegisteredDashboardArgs(args) && savedSqlUuid) {
-                    pivotResult = await getDashboardSqlChartPivotChartData(
-                        lightdashApi,
-                        {
+                    pivotResult = await sendTileRequest(
+                        queryClient,
+                        queryKey,
+                        getDashboardSqlChartPivotChartData(lightdashApi, {
                             projectUuid: projectUuid!,
                             dashboardUuid: args.dashboardUuid,
                             tileUuid: args.tileUuid,
@@ -188,7 +191,7 @@ export const useSavedSqlChartResults = (
                             parameters,
                             excludedParameterKeys: args.excludedParameterKeys,
                             invalidateCache: args.invalidateCache,
-                        },
+                        }),
                     );
                 } else {
                     pivotResult = await getSqlChartPivotChartData(

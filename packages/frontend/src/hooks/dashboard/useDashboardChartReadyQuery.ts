@@ -43,7 +43,7 @@ import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import { useSessionTimezone } from '../useSessionTimezone';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
-import { waitForTileSlot } from './useDashboardRefresh';
+import { sendTileRequest } from './useDashboardRefresh';
 import { useTileVirtualViewSavedParameters } from './useTileVirtualViewSavedParameters';
 
 const executeAsyncDashboardChartQuery = async (
@@ -372,11 +372,7 @@ export const useDashboardChartReadyQuery = (
             // Read the signal only here: reading it opts the query into
             // cancellation, which uncapped dashboards don't need.
             const releaseSlot = tileQueryQueue
-                ? await waitForTileSlot(
-                      queryClient,
-                      queryContext.queryKey,
-                      tileQueryQueue.acquire(tileUuid, queryContext.signal),
-                  )
+                ? await tileQueryQueue.acquire(tileUuid, queryContext.signal)
                 : undefined;
 
             const requestedContext =
@@ -425,12 +421,14 @@ export const useDashboardChartReadyQuery = (
                           },
                       );
 
-            const executeQueryResponse = await executeTileQuery().catch(
-                (error: unknown) => {
-                    releaseSlot?.();
-                    throw error;
-                },
-            );
+            const executeQueryResponse = await sendTileRequest(
+                queryClient,
+                queryContext.queryKey,
+                executeTileQuery(),
+            ).catch((error: unknown) => {
+                releaseSlot?.();
+                throw error;
+            });
             if (releaseSlot) {
                 // The query keeps running on the backend after this request
                 // returns, and after the tile moves on to newer filters, so the

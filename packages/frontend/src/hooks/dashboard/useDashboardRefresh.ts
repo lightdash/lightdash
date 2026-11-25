@@ -44,20 +44,21 @@ export const dashboardResultsQueryPredicate = getPredicateFunction(
     DASHBOARD_RESULTS_QUERIES,
 );
 
-// Tiles queued behind the tile-query cap send their request only once a slot frees
-const waitingForSlot = new WeakSet<Query>();
+// Tiles with a request on the wire; one queued for a slot or waiting to retry
+// sends its next request later
+const sendingRequest = new WeakSet<Query>();
 
-export const waitForTileSlot = async <T>(
+export const sendTileRequest = async <T>(
     queryClient: QueryClient,
     queryKey: QueryKey,
-    acquire: Promise<T>,
+    request: Promise<T>,
 ) => {
     const query = queryClient.getQueryCache().find(queryKey);
-    if (query) waitingForSlot.add(query);
+    if (query) sendingRequest.add(query);
     try {
-        return await acquire;
+        return await request;
     } finally {
-        if (query) waitingForSlot.delete(query);
+        if (query) sendingRequest.delete(query);
     }
 };
 
@@ -85,25 +86,25 @@ export const evictSavedDashboardResults = (queryClient: QueryClient) => {
         predicate: dashboardResultsQueryPredicate,
         type: 'inactive',
     });
-    // Whether each on-screen result has a request sent since the save; a
-    // queued tile sends its request only once a slot frees
+    // Whether each on-screen result has a request sent since the save; one
+    // fetching with no request on the wire sends it later
     const onScreen = new Map(
         queryCache
             .findAll({
                 predicate: dashboardResultsQueryPredicate,
                 type: 'active',
             })
-            .map((query) => [query, waitingForSlot.has(query)]),
+            .map((query) => [
+                query,
+                query.state.fetchStatus !== 'idle' &&
+                    !sendingRequest.has(query),
+            ]),
     );
     if (onScreen.size === 0) return;
     // A request started before the save may answer with older data, so its
     // tile fetches once more when it lands
     const startedBeforeSave = new Set(
-        [...onScreen.keys()].filter(
-            (query) =>
-                query.state.fetchStatus === 'fetching' &&
-                !waitingForSlot.has(query),
-        ),
+        [...onScreen.keys()].filter((query) => sendingRequest.has(query)),
     );
     // Rows still loading may also predate the save, so those tiles run again now
     const awaitingRows = [...onScreen.keys()].filter((query) =>
