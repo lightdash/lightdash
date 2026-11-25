@@ -58,6 +58,7 @@ export const PasswordRecoveryForm: FC = () => {
                                 autoComplete="email"
                                 placeholder="Your email address"
                                 required
+                                autoFocus
                                 {...form.getInputProps('email')}
                                 disabled={isLoading || isSuccess}
                             />

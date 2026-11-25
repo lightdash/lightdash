@@ -216,6 +216,7 @@ export const LoginForm: FC<{
                     spellCheck={false}
                     placeholder="maya@acme.com"
                     required
+                    autoFocus
                     {...form.getInputProps('email')}
                     disabled={isFormLoading}
                     rightSectionPointerEvents="all"
