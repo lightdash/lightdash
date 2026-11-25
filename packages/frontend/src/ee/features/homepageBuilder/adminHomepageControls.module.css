@@ -1,6 +1,10 @@
 .corner {
     position: fixed;
-    top: calc(var(--navbar-height) + 16px);
+    /* The left navigation can put a strip above the page; the controls sit
+       below it as they sit below the navbar. */
+    top: calc(
+        var(--navbar-height) + var(--app-shell-header-offset, 0rem) + 16px
+    );
     right: 24px;
     z-index: 20;
     display: flex;

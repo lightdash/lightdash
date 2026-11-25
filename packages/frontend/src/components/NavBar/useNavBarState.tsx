@@ -28,8 +28,12 @@ type NavBarState = {
     isLoadingActiveProject: boolean;
     hasBanner: boolean;
     banner: ReactNode;
-    /** Set when the notice on screen is the preview one, for layouts that draw it themselves. */
+    /** The current project is a preview, for layouts that draw the notice themselves. */
     previewNotice: PreviewNotice | null;
+    /** The organization's trial needs attention; `isExpired` once queries are off. */
+    trialNotice: { isExpired: boolean } | null;
+    hasSampleDataNotice: boolean;
+    isImpersonating: boolean;
 };
 
 export const useNavBarState = (): NavBarState => {
@@ -88,7 +92,7 @@ export const useNavBarState = (): NavBarState => {
     const showPreviewBanner = isCurrentProjectPreview && !isTrainingCopy;
 
     const previewNotice: PreviewNotice | null =
-        showPreviewBanner && !isImpersonating && project
+        showPreviewBanner && project
             ? {
                   previewName: project.name,
                   expiresAt: project.expiresAt ?? null,
@@ -128,5 +132,14 @@ export const useNavBarState = (): NavBarState => {
             showTrialWarning,
         banner,
         previewNotice,
+        trialNotice: showTrialWarning
+            ? {
+                  isExpired:
+                      organizationAccess?.status ===
+                      OrganizationAccessStatus.TRIAL_EXPIRED,
+              }
+            : null,
+        hasSampleDataNotice: showSampleDataBanner,
+        isImpersonating,
     };
 };

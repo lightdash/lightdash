@@ -9,9 +9,12 @@
 
 .path {
     display: flex;
+    flex: 1;
     align-items: center;
     gap: rem(6px);
     min-width: 0;
+    max-width: var(--app-gutter-side-max-width, none);
+    overflow: hidden;
 }
 
 .fixed {
@@ -72,18 +75,54 @@
     color: var(--mantine-color-anchor);
 }
 
+/* When the strip runs short the expiry gives way long before the name. */
 .expiry {
-    flex: none;
+    flex: 0 100 auto;
+    min-width: 0;
+    margin-left: var(--mantine-spacing-sm);
+    overflow: hidden;
+    font-size: rem(11px);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The action on the right always shows in full; this is what gives way. */
+.detail {
+    flex: 0 1 auto;
+    min-width: 0;
     margin-left: var(--mantine-spacing-sm);
     font-size: rem(11px);
-    white-space: nowrap;
 }
 
 .backLink {
     display: flex;
     flex: none;
+    min-width: 0;
+    max-width: var(--app-gutter-side-max-width, none);
     align-items: center;
     gap: rem(4px);
     white-space: nowrap;
     font-family: inherit;
+}
+
+.gutter[data-tone='warning'] {
+    --notice-color: var(--mantine-color-yellow-light-color);
+}
+
+.gutter[data-tone='info'] {
+    --notice-color: var(--mantine-color-indigo-light-color);
+}
+
+.noticeIcon {
+    flex: none;
+    color: var(--notice-color);
+}
+
+.noticeTitle {
+    flex: none;
+    color: var(--notice-color);
+}
+
+.noticeAction {
+    color: var(--notice-color);
 }
