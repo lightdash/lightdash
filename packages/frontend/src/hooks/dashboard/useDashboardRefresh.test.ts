@@ -281,4 +281,92 @@ describe('evictSavedDashboardResults', () => {
         expect(calls).toBe(2);
         expect(queryClient.getQueryData(tileKey('backoff'))).toBe('retried');
     });
+
+    it('runs a tile again when it showed an error at the save', async () => {
+        let calls = 0;
+        const unmount = new QueryObserver(queryClient, {
+            queryKey: tileKey('errored'),
+            queryFn: () => {
+                calls += 1;
+                return calls === 1
+                    ? Promise.reject(new Error('not found'))
+                    : Promise.resolve('recovered');
+            },
+            retry: false,
+        }).subscribe(() => {});
+        await flush();
+        evictSavedDashboardResults(queryClient);
+        await flush();
+
+        expect(calls).toBe(2);
+        expect(queryClient.getQueryData(tileKey('errored'))).toBe('recovered');
+        unmount();
+    });
+
+    it('keeps a post-save result that lands after its tile leaves', async () => {
+        let respond: (value: string) => void = () => {};
+        queryClient.setQueryData(tileKey('leaving'), 'old');
+        const unmount = new QueryObserver(queryClient, {
+            queryKey: tileKey('leaving'),
+            queryFn: () =>
+                new Promise<string>((resolve) => {
+                    respond = resolve;
+                }),
+            staleTime: Infinity,
+        }).subscribe(() => {});
+        evictSavedDashboardResults(queryClient);
+
+        void queryClient.refetchQueries(tileKey('leaving'));
+        unmount();
+        await flush();
+        respond('fresh');
+        await flush();
+
+        expect(queryClient.getQueryData(tileKey('leaving'))).toBe('fresh');
+    });
+
+    it('drops a result whose post-save request is cancelled as its tile leaves', async () => {
+        queryClient.setQueryData(tileKey('cancelled'), 'old');
+        const unmount = new QueryObserver(queryClient, {
+            queryKey: tileKey('cancelled'),
+            queryFn: ({ signal }) =>
+                new Promise<string>((_resolve, reject) => {
+                    signal?.addEventListener('abort', () =>
+                        reject(new Error('aborted')),
+                    );
+                }),
+            staleTime: Infinity,
+        }).subscribe(() => {});
+        evictSavedDashboardResults(queryClient);
+
+        void queryClient.refetchQueries(tileKey('cancelled')).catch(() => {});
+        unmount();
+        await flush();
+        await flush();
+
+        expect(queryClient.getQueryData(tileKey('cancelled'))).toBeUndefined();
+    });
+
+    it('drops a result whose post-save request fails after its tile leaves', async () => {
+        let fail: (error: Error) => void = () => {};
+        queryClient.setQueryData(tileKey('failing'), 'old');
+        const unmount = new QueryObserver(queryClient, {
+            queryKey: tileKey('failing'),
+            queryFn: () =>
+                new Promise<string>((_resolve, reject) => {
+                    fail = reject;
+                }),
+            staleTime: Infinity,
+            retry: false,
+        }).subscribe(() => {});
+        evictSavedDashboardResults(queryClient);
+
+        void queryClient.refetchQueries(tileKey('failing')).catch(() => {});
+        unmount();
+        await flush();
+        fail(new Error('server error'));
+        await flush();
+
+        expect(queryClient.getQueryData(tileKey('failing'))).toBeUndefined();
+    });
 });

@@ -106,9 +106,13 @@ export const evictSavedDashboardResults = (queryClient: QueryClient) => {
     const startedBeforeSave = new Set(
         [...onScreen.keys()].filter((query) => sendingRequest.has(query)),
     );
-    // Rows still loading may also predate the save, so those tiles run again now
-    const awaitingRows = [...onScreen.keys()].filter((query) =>
-        isAwaitingRows(queryCache, query),
+    // Rows still loading may also predate the save, and an error may have
+    // cleared since, so those tiles run again now
+    const runAgain = [...onScreen.keys()].filter(
+        (query) =>
+            isAwaitingRows(queryCache, query) ||
+            (query.state.status === 'error' &&
+                query.state.fetchStatus === 'idle'),
     );
     const release = (query: Query) => {
         onScreen.delete(query);
@@ -139,18 +143,24 @@ export const evictSavedDashboardResults = (queryClient: QueryClient) => {
                     .catch(() => {});
             } else if (type === 'success' && onScreen.get(query)) {
                 release(query);
+            } else if (type === 'error' && query.getObserversCount() === 0) {
+                release(query);
+                queryCache.remove(query);
             }
         } else if (event.type === 'observerRemoved') {
             // Next tick, so a tile remounting in the same commit keeps it
+            // A request sent since the save decides when it settles
             setTimeout(() => {
                 if (!onScreen.has(query) || query.getObserversCount() > 0)
+                    return;
+                if (onScreen.get(query) && query.state.fetchStatus !== 'idle')
                     return;
                 release(query);
                 queryCache.remove(query);
             });
         }
     });
-    awaitingRows.forEach((query) => {
+    runAgain.forEach((query) => {
         void query.fetch().catch(() => {});
     });
 };
