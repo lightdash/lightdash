@@ -662,7 +662,7 @@ export const useSettingsNavigation = (
 
         if (isAgentIdentityEnabled && ability?.can('manage', 'Organization')) {
             organizationItems.push({
-                label: 'Agents',
+                label: 'Agent Identity',
                 to: AGENT_IDENTITY_SETTINGS_PATH,
                 icon: IconIdBadge2,
                 keywords: [
@@ -685,7 +685,7 @@ export const useSettingsNavigation = (
                         ],
                     },
                     {
-                        title: 'Permissions',
+                        title: 'Restrictions',
                         keywords: [
                             'limit what agents can do',
                             'who can use agents',

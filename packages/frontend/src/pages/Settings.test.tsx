@@ -519,21 +519,21 @@ describe('Agent identity settings routes', () => {
             if (enabled && canManage) {
                 expect(
                     await screen.findByRole('heading', {
-                        name: 'Agents',
+                        name: 'Agent Identity',
                     }),
                 ).toBeInTheDocument();
                 expect(
-                    screen.getAllByRole('heading', { name: 'Agents' }),
+                    screen.getAllByRole('heading', { name: 'Agent Identity' }),
                 ).toHaveLength(1);
                 expect(
-                    screen.getByRole('link', { name: 'Agents' }),
+                    screen.getByRole('link', { name: 'Agent Identity' }),
                 ).toHaveAttribute('href', '/generalSettings/agentIdentity');
                 expect(
                     screen.getByRole('heading', { name: 'Identity' }),
                 ).toBeInTheDocument();
                 expect(
                     screen.getByText(
-                        "These rules apply to every project in this organization. Agents are Ask AI, the Slack agent, MCP clients and the CLI. Each project's shared agent account is in that project's settings.",
+                        "Agents in Lightdash can take actions on behalf of a user, such as querying data or creating charts. Agents never gain permissions their user doesn't have. These settings let you restrict agents further, for example to stop agents from ever running raw SQL, even if the user can run it manually. Agent identity applies to Ask AI, the Slack agent, the CLI and MCP clients.",
                     ),
                 ).toBeInTheDocument();
                 expect(
@@ -558,10 +558,10 @@ describe('Agent identity settings routes', () => {
                     await screen.findByRole('heading', { name: 'Profile' }),
                 ).toBeInTheDocument();
                 expect(
-                    screen.queryByRole('link', { name: 'Agents' }),
+                    screen.queryByRole('link', { name: 'Agent Identity' }),
                 ).not.toBeInTheDocument();
                 expect(
-                    screen.queryByRole('heading', { name: 'Agents' }),
+                    screen.queryByRole('heading', { name: 'Agent Identity' }),
                 ).not.toBeInTheDocument();
                 expect(
                     screen.getByRole('status', { name: 'Current URL' }),
@@ -587,7 +587,7 @@ describe('Agent identity settings routes', () => {
         );
 
         expect(
-            await screen.findByRole('heading', { name: 'Agents' }),
+            await screen.findByRole('heading', { name: 'Agent Identity' }),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('status', { name: 'Current URL' }),
@@ -778,7 +778,7 @@ describe('MCP settings route permission parity', () => {
                 manageAi,
             );
             if (!manageAi) {
-                await screen.findByRole('heading', { name: 'Agents' });
+                await screen.findByRole('heading', { name: 'Agent Identity' });
                 expect(
                     screen.queryByRole('switch', { name: 'Agents over MCP' }),
                 ).not.toBeInTheDocument();
@@ -788,11 +788,11 @@ describe('MCP settings route permission parity', () => {
             }
             if (enabled && manageOrg) {
                 const link = await screen.findByRole('link', {
-                    name: 'Change on the Agents page',
+                    name: 'Change on the Agent Identity page',
                 });
                 expect(screen.getByText('On')).toBeInTheDocument();
                 fireEvent.click(link);
-                await screen.findByRole('heading', { name: 'Agents' });
+                await screen.findByRole('heading', { name: 'Agent Identity' });
             }
             const control = await screen.findByRole('switch', {
                 name:
@@ -823,7 +823,7 @@ describe('MCP settings route permission parity', () => {
                 );
                 await screen.findByRole('heading', { name: 'Profile' });
                 expect(
-                    screen.queryByRole('heading', { name: 'Agents' }),
+                    screen.queryByRole('heading', { name: 'Agent Identity' }),
                 ).not.toBeInTheDocument();
             }
         },
@@ -881,7 +881,7 @@ describe('MCP settings route permission parity', () => {
             if (enabled && manageOrg) {
                 expect(
                     await screen.findByRole('link', {
-                        name: 'Change on the Agents page',
+                        name: 'Change on the Agent Identity page',
                     }),
                 ).toHaveAttribute('href', '/generalSettings/agentIdentity');
                 expect(

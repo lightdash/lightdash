@@ -131,7 +131,7 @@ describe('Agents over MCP', () => {
                 if (moved) {
                     expect(
                         screen.getByRole('link', {
-                            name: 'Change on the Agents page',
+                            name: 'Change on the Agent Identity page',
                         }),
                     ).toHaveAttribute('href', '/generalSettings/agentIdentity');
                     expect(screen.getByText('On')).toBeInTheDocument();
@@ -143,12 +143,12 @@ describe('Agents over MCP', () => {
                 } else
                     expect(
                         screen.queryByRole('link', {
-                            name: 'Change on the Agents page',
+                            name: 'Change on the Agent Identity page',
                         }),
                     ).not.toBeInTheDocument();
             } else {
                 if (input.agentIdentityEnabled && input.canManageOrganization)
-                    await screen.findByText('Permissions');
+                    await screen.findByText('Restrictions');
                 expect(screen.queryByRole('switch')).not.toBeInTheDocument();
                 expect(
                     api.mock.calls.some(
@@ -193,9 +193,7 @@ describe('Agents over MCP', () => {
         expect(
             screen.getByText('MCP access is disabled for this organization.'),
         ).toBeInTheDocument();
-        expect(
-            screen.getByRole('radio', { name: 'Custom scope' }),
-        ).toBeEnabled();
+        expect(screen.getByRole('radio', { name: 'Restrict' })).toBeEnabled();
     });
     it('saves at once, shares state in both directions and stays out of draft/discard', async () => {
         const view = renderPages({
@@ -203,9 +201,7 @@ describe('Agents over MCP', () => {
             canManageOrganization: true,
             canManageOrgAiAgent: true,
         });
-        fireEvent.click(
-            await screen.findByRole('radio', { name: 'Custom scope' }),
-        );
+        fireEvent.click(await screen.findByRole('radio', { name: 'Restrict' }));
         expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
         fireEvent.click(
             screen.getByRole('switch', { name: 'Agents over MCP' }),
