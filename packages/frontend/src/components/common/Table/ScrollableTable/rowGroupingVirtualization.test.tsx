@@ -237,3 +237,25 @@ it('keeps the menu of a merged cell open when the rendered rows move by one row'
         'true',
     );
 });
+
+it('closes the menu of a merged cell when its group leaves the rendered rows', async () => {
+    const table = renderGroupedTable({
+        cellContextMenu: ({ cell }) => (
+            <div>Menu for {cell.getValue()?.value?.formatted}</div>
+        ),
+    });
+    expect(await screen.findByText('City 0')).toBeInTheDocument();
+
+    await scrollViewportTo(table, 150);
+    await waitFor(() => expect(screen.queryByText('City 0')).toBeNull());
+    fireEvent.click(screen.getByText('Region 1'));
+    expect(await screen.findByText('Menu for Region 1')).toBeInTheDocument();
+
+    await scrollViewportTo(table, 500);
+    await waitFor(() => expect(screen.queryByText('Region 1')).toBeNull());
+    expect(screen.queryByText('Menu for Region 1')).toBeNull();
+
+    await scrollViewportTo(table, 150);
+    expect(await screen.findByText('Region 1')).toBeInTheDocument();
+    expect(screen.queryByText('Menu for Region 1')).toBeNull();
+});

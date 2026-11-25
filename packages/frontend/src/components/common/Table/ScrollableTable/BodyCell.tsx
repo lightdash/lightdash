@@ -54,6 +54,9 @@ interface CommonBodyCellProps {
     // Set on a cell of a row-grouping block of more than one row, also when the
     // rendered rows clip the cell to one row.
     isMergedBlock?: boolean;
+    // Lets the parent own the menu state, so it outlives a remount of the cell.
+    isMenuOpen?: boolean;
+    onToggleMenu?: () => void;
 }
 
 const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
@@ -74,6 +77,8 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     minimal = false,
     rowSpan,
     isMergedBlock = false,
+    isMenuOpen: isMenuOpenProp,
+    onToggleMenu,
 }) => {
     const isMerged = !!rowSpan && rowSpan > 1;
     const elementRef = useRef<HTMLTableCellElement>(null);
@@ -81,7 +86,9 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     const { copy } = useClipboard();
 
     const [isCopying, setCopying] = useState(false);
-    const [isMenuOpen, { toggle: toggleMenu }] = useDisclosure(false);
+    const [isOwnMenuOpen, { toggle: toggleOwnMenu }] = useDisclosure(false);
+    const isMenuOpen = isMenuOpenProp ?? isOwnMenuOpen;
+    const toggleMenu = onToggleMenu ?? toggleOwnMenu;
     const [jsonModalValue, setJsonModalValue] = useState<
         JsonCellValue | undefined
     >();
@@ -98,22 +105,22 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     );
     const item = cell.column.columnDef.meta?.item;
 
-    const shouldRenderMenu = canHaveMenu && isMenuOpen && elementRef.current;
-    const shouldRenderTooltip =
-        canHaveTooltip &&
-        isTooltipOpen &&
-        elementRef.current &&
-        !shouldRenderMenu;
+    const isMenuShown = canHaveMenu && isMenuOpen;
+    const isTooltipShown = canHaveTooltip && isTooltipOpen && !isMenuShown;
 
-    // Calculate bounds when menu/tooltip opens, not during every render
+    // Calculate bounds when menu/tooltip opens, not during every render. A cell
+    // can mount with its menu already open, so this runs after mount too.
     useEffect(() => {
-        if ((shouldRenderMenu || shouldRenderTooltip) && elementRef.current) {
+        if ((isMenuShown || isTooltipShown) && elementRef.current) {
             setElementBounds(elementRef.current.getBoundingClientRect());
         } else if (!isMenuOpen && !isTooltipOpen) {
             // Clear bounds when closed to free memory
             setElementBounds(null);
         }
-    }, [shouldRenderMenu, shouldRenderTooltip, isMenuOpen, isTooltipOpen]);
+    }, [isMenuShown, isTooltipShown, isMenuOpen, isTooltipOpen]);
+
+    const shouldRenderMenu = isMenuShown && elementBounds !== null;
+    const shouldRenderTooltip = isTooltipShown && elementBounds !== null;
 
     const displayValue = useMemo(() => {
         if (!hasData) return null;

@@ -78,6 +78,8 @@ type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
     withValue?: string;
     /** Hints that the cell menu offers link actions, like the results table's dotted underline. */
     withUrls?: boolean;
+    /** Keeps the cell selected when it mounts again, e.g. a merged cell that moves to another rendered row. */
+    selectionId?: string;
 };
 
 interface TableCompoundComponents {
@@ -400,11 +402,13 @@ const BaseCell = (
                 withMenu = false,
                 withValue = undefined,
                 withUrls = false,
+                selectionId,
                 ...rest
             },
             ref,
         ) => {
-            const cellId = useId();
+            const generatedCellId = useId();
+            const cellId = selectionId ?? generatedCellId;
             const clipboard = useClipboard({ timeout: 200 });
 
             const { selectedCell, toggleCell } = useTableContext();

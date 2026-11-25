@@ -2441,6 +2441,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 ? rowSpanMerge.rowSpan
                                                 : undefined
                                         }
+                                        selectionId={
+                                            rowSpanMerge
+                                                ? `merged:${cell.column.id}:${rowSpanMerge.blockStartRow}`
+                                                : undefined
+                                        }
                                         className={
                                             // Only top-align cells that actually
                                             // span >1 row; single-row blocks stay

@@ -27,7 +27,13 @@ import {
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { createCell, flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import React, { useCallback, useEffect, useMemo, type FC } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
 import {
     getColorFromRange,
     transformColorsForDarkMode,
@@ -81,7 +87,13 @@ interface TableRowProps {
     rowSpanMergesByColumnId?: Map<string, RowSpanMerge[]> | null;
     firstRenderedRowIndex?: number;
     lastRenderedRowIndex?: number;
+    openMenuKey: string | null;
+    onToggleMenu: (menu: OpenCellMenu) => void;
 }
+
+// The open cell menu. A merged cell's key names its whole block, because the
+// cell mounts again on another row when the rendered rows move.
+type OpenCellMenu = { key: string; firstRow: number; lastRow: number };
 
 const TableRow: FC<TableRowProps> = ({
     columnWindow,
@@ -96,6 +108,8 @@ const TableRow: FC<TableRowProps> = ({
     rowSpanMergesByColumnId,
     firstRenderedRowIndex = 0,
     lastRenderedRowIndex = 0,
+    openMenuKey,
+    onToggleMenu,
 }) => {
     const colorScheme = useComputedColorScheme();
     const { table } = useTableContext();
@@ -187,6 +201,14 @@ const TableRow: FC<TableRowProps> = ({
                     rowSpanMerge && columnSpans
                         ? columnSpans[rowSpanMerge.blockStartRow].rowSpan
                         : 1;
+                const menu: OpenCellMenu = rowSpanMerge
+                    ? {
+                          key: `${cell.column.id}:${rowSpanMerge.blockStartRow}`,
+                          firstRow: rowSpanMerge.blockStartRow,
+                          lastRow:
+                              rowSpanMerge.blockStartRow + blockRowCount - 1,
+                      }
+                    : { key: cell.id, firstRow: index, lastRow: index };
 
                 const meta = cell.column.columnDef.meta;
                 const field = meta?.item;
@@ -288,6 +310,8 @@ const TableRow: FC<TableRowProps> = ({
                         minimal={minimal}
                         rowSpan={rowSpanMerge?.rowSpan}
                         isMergedBlock={blockRowCount > 1}
+                        isMenuOpen={openMenuKey === menu.key}
+                        onToggleMenu={() => onToggleMenu(menu)}
                         key={cell.id}
                         styleProps={meta?.styleProps}
                         backgroundColor={backgroundColor}
@@ -369,6 +393,28 @@ const TableRow: FC<TableRowProps> = ({
 };
 
 const SCROLL_THRESHOLD = 100;
+
+const useOpenCellMenu = (
+    hasRenderedRows: boolean,
+    firstRenderedRowIndex: number,
+    lastRenderedRowIndex: number,
+) => {
+    const [openMenu, setOpenMenu] = useState<OpenCellMenu | null>(null);
+    const toggleMenu = useCallback((menu: OpenCellMenu) => {
+        setOpenMenu((current) => (current?.key === menu.key ? null : menu));
+    }, []);
+    // Close the menu when its cell leaves the rendered rows, so it does not
+    // open again when the cell comes back.
+    if (
+        openMenu &&
+        hasRenderedRows &&
+        (openMenu.lastRow < firstRenderedRowIndex ||
+            openMenu.firstRow > lastRenderedRowIndex)
+    ) {
+        setOpenMenu(null);
+    }
+    return { openMenuKey: openMenu?.key ?? null, toggleMenu };
+};
 
 const VirtualizedTableBody: FC<{
     columnWindow?: ColumnWindow;
@@ -503,6 +549,12 @@ const VirtualizedTableBody: FC<{
         ? lastVirtualRowIndex - 1
         : lastVirtualRowIndex;
 
+    const { openMenuKey, toggleMenu } = useOpenCellMenu(
+        virtualRows.length > 0,
+        firstRenderedRowIndex,
+        lastRenderedRowIndex,
+    );
+
     return (
         <tbody>
             {paddingTop > 0 && (
@@ -550,6 +602,8 @@ const VirtualizedTableBody: FC<{
                               rowSpanMergesByColumnId={rowSpanMergesByColumnId}
                               firstRenderedRowIndex={firstRenderedRowIndex}
                               lastRenderedRowIndex={lastRenderedRowIndex}
+                              openMenuKey={openMenuKey}
+                              onToggleMenu={toggleMenu}
                           />
                       );
                   })}
