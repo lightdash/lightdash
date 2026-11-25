@@ -82,6 +82,7 @@ import {
     keepUnsaved,
     moveUnsaved,
     unsavedEditKey,
+    useUnsavedPaths,
 } from './unsavedEdits';
 import {
     modelNameOfSourcePath,
@@ -245,8 +246,9 @@ export const SourcesRail: FC<{
     }, [hasOverview, selected, firstChange, open]);
     // The tree keeps its first options, so its listener reads the latest through a ref.
     const fileSet = useMemo(() => new Set(all), [all]);
-    const latest = useRef({ open, selected, files: fileSet });
-    latest.current = { open, selected, files: fileSet };
+    const unsaved = useUnsavedPaths(target.projectUuid, target.prUrl);
+    const latest = useRef({ open, selected, files: fileSet, unsaved });
+    latest.current = { open, selected, files: fileSet, unsaved };
     const { model } = useFileTree({
         paths: [],
         icons: SOURCE_ICONS,
@@ -257,6 +259,10 @@ export const SourcesRail: FC<{
         initialExpandedPaths: ancestorsOf(selected),
         flattenEmptyDirectories: true,
         initialSelectedPaths: selected ? [selected] : [],
+        renderRowDecoration: ({ item }) =>
+            latest.current.unsaved.has(item.path)
+                ? { text: '●', title: 'Unsaved edits' }
+                : null,
         onSelectionChange: ([path]) => {
             if (path && latest.current.files.has(path)) {
                 latest.current.open(path);
@@ -288,6 +294,8 @@ export const SourcesRail: FC<{
             ),
         [model, changes],
     );
+    // The tree has no redraw of its own; setting its icons redraws the unsaved marks.
+    useEffect(() => model.setIcons(SOURCE_ICONS), [model, unsaved]);
     const [search, setSearch] = useState('');
     return (
         <Box className={railClasses.rail}>
