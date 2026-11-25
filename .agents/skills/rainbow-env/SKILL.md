@@ -41,6 +41,15 @@ A `create_env` that changes the dependency layer rebuilds the parent and takes m
 - Outbound calls fail by policy unless `rainbow.toml` `[[egress.allow]]` admits the host; `egress` lists what was refused.
 - Live data sources: previews have Hydra, a test integration that needs no credentials or egress. How to add and drive one: `packages/backend/src/services/QuerySourceService/live/integrations/hydra/AGENTS.md`.
 
+## Exports
+
+Image and PDF exports, chart images and deliveries with images use the `headless-browser` service: browserless, the version production runs, on `localhost:3001`. It loads the app from `http://localhost:8080`. Read its log with `logs` and service `headless-browser`; the backend logs captures in `dev`.
+
+- Dashboard image or PDF: the UI's export menu, or `POST /api/v2/dashboards/<uuid>/exports?projectUuid=<uuid>` with `{"format": "image"}` or `{"format": "pdf"}`. Poll `GET /api/v1/schedulers/job/<jobId>/status` until `completed`. `results.details.url` is the file: an env URL for images, a presigned bucket URL for PDFs.
+- Chart image: `POST /api/v1/saved/<chartUuid>/export` returns the image URL.
+- Scheduled delivery: create one with an email target (any address), then "Send now" in the UI or `POST /api/v1/schedulers/<schedulerUuid>/send`. Mailpit keeps the mail inside the guest: `curl localhost:8025/api/v1/messages`, then `curl localhost:8025/api/v1/message/<ID>` for its HTML. The image in the mail is a link to the env URL.
+- A page asset from a host outside `[[egress.allow]]` is refused, so a Loom tile exports blank.
+
 ## Verify
 
 UI proof is the real product on the env with seed data: open the env URL in a browser on your side. Storybook is for exploring variants; label any Storybook capture as such. Prefer text snapshots; screenshot only for visual checks, at device scale 1, cropped to the element.
