@@ -3,24 +3,20 @@
  * hint on the left, a control on the right, grouped in titled cards. Adding a
  * source and changing its settings use the same ones.
  */
-import { type ExternalConnectionTestResponse } from '@lightdash/common';
-import { Box, Group, Stack, Tooltip } from '@mantine/core';
-import {
-    IconAlertCircleFilled,
-    IconCircleCheckFilled,
-} from '@tabler/icons-react';
+import { Box, Group, Stack } from '@mantine/core';
 import { type FC, type FormEvent, type ReactNode } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './LiveSourceSettingsRows.module.css';
 
 /** A label and a short hint on the left, its control on the right. */
 export const SettingsRow: FC<{
-    label: string;
+    label: ReactNode;
     hint?: ReactNode;
     children: ReactNode;
-}> = ({ label, hint, children }) => (
+    /** Dims the label and hint, such as for an explore that is switched off. */
+    dimmed?: boolean;
+}> = ({ label, hint, children, dimmed }) => (
     <Box className={classes.settingsRow}>
-        <Box miw={0}>
+        <Box miw={0} opacity={dimmed ? 0.5 : undefined}>
             <span className={classes.settingsLabel}>{label}</span>
             {hint ? <Box className={classes.settingsHint}>{hint}</Box> : null}
         </Box>
@@ -28,6 +24,17 @@ export const SettingsRow: FC<{
             {children}
         </Group>
     </Box>
+);
+
+/** Content that brings its own surface (a table), titled like a card. */
+export const SettingsSection: FC<{
+    title: string;
+    children: ReactNode;
+}> = ({ title, children }) => (
+    <Stack gap={6}>
+        <span className={classes.settingsTitle}>{title}</span>
+        {children}
+    </Stack>
 );
 
 /** A raised card, one row per setting, under an optional title. */
@@ -48,30 +55,3 @@ export const SettingsCard: FC<{
         )}
     </Stack>
 );
-
-/** A test's outcome in one quiet line, in place of the row's hint. */
-export const TestOutcome: FC<{ response: ExternalConnectionTestResponse }> = ({
-    response,
-}) => {
-    const ok = response.liveCheck?.ok ?? response.status < 300;
-    const summary =
-        response.liveCheck?.summary ??
-        (ok ? 'Works' : `Failed with status ${response.status}`);
-    return (
-        <Tooltip
-            label={response.liveCheck?.detail}
-            disabled={!response.liveCheck?.detail}
-            multiline
-            maw={320}
-            withinPortal
-        >
-            <Group gap={4} wrap="nowrap" role="status" c={ok ? 'green' : 'red'}>
-                <MantineIcon
-                    icon={ok ? IconCircleCheckFilled : IconAlertCircleFilled}
-                    size={12}
-                />
-                <span>{summary}</span>
-            </Group>
-        </Tooltip>
-    );
-};

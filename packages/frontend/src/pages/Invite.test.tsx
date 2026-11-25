@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     type InviteLinkPurpose,
     type InviteLinkWithAuthenticationOptions,
     type OpenIdIdentityIssuerType,
@@ -39,13 +38,6 @@ vi.mock('../hooks/useInviteLink', () => ({
         mutate: mocks.activateInvite,
         isLoading: false,
         isSuccess: false,
-    }),
-}));
-
-vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { id: FeatureFlags.NewOnboarding, enabled: true },
-        isInitialLoading: false,
     }),
 }));
 

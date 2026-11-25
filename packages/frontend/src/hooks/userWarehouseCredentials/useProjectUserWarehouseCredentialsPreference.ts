@@ -71,6 +71,8 @@ export const useProjectUserWarehouseCredentialsPreferenceMutation = (
                 userWarehouseCredentialsUuid,
             ),
         {
+            // Spread first: the caller's onSuccess is composed below, not replaced
+            ...options,
             mutationKey: ['update-project-user-credentials-preference'],
             onSuccess: async (...args) => {
                 await queryClient.invalidateQueries([
@@ -87,7 +89,6 @@ export const useProjectUserWarehouseCredentialsPreferenceMutation = (
                     apiError: error,
                 });
             },
-            ...options,
         },
     );
 };

@@ -33,7 +33,7 @@ const buildAdapter = () =>
             onWarehouseCatalogChange: vi.fn(),
         },
         dbtVersion: SupportedDbtVersions.V1_7,
-        partialParseBaselinePath: null,
+        partialParseBaseline: null,
     });
 
 describe('git adapter disk release', () => {

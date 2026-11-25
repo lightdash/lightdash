@@ -5,7 +5,6 @@ import type {
     ApiSuccessEmpty,
     ApiUpdateComposerVizConfigRequest,
 } from '@lightdash/common';
-import { IconArrowRight } from '@tabler/icons-react';
 import {
     useMutation,
     useQuery,
@@ -159,116 +158,6 @@ export const useAiAgentArtifact = ({
         },
         enabled: !!artifactUuid && !!versionUuid && options?.enabled,
         ...options,
-    });
-};
-
-const setArtifactVersionVerified = async (
-    lightdashApi: LightdashApi,
-    {
-        projectUuid,
-        agentUuid,
-        artifactUuid,
-        versionUuid,
-        verified,
-    }: {
-        projectUuid: string;
-        agentUuid: string;
-        artifactUuid: string;
-        versionUuid: string;
-        verified: boolean;
-    },
-) =>
-    lightdashApi<ApiSuccessEmpty>({
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/verified`,
-        method: `PATCH`,
-        body: JSON.stringify({ verified }),
-    });
-
-export const useSetArtifactVersionVerified = (
-    projectUuid: string,
-    agentUuid: string,
-    { showSuccessAction = true }: { showSuccessAction?: boolean } = {},
-) => {
-    const lightdashApi = useLightdashApi();
-
-    const isEmbed = useIsEmbedded();
-    const queryClient = useQueryClient();
-    const navigate = useNavigate();
-    const { showToastApiError, showToastSuccess } = useToaster();
-
-    return useMutation<
-        ApiSuccessEmpty,
-        ApiError,
-        { artifactUuid: string; versionUuid: string; verified: boolean }
-    >({
-        mutationFn: ({ artifactUuid, versionUuid, verified }) => {
-            return setArtifactVersionVerified(lightdashApi, {
-                projectUuid,
-                agentUuid,
-                artifactUuid,
-                versionUuid,
-                verified,
-            });
-        },
-        onSuccess: (_, { artifactUuid, versionUuid, verified }) => {
-            void queryClient.invalidateQueries({
-                queryKey: [
-                    AI_AGENT_ARTIFACT_KEY,
-                    projectUuid,
-                    agentUuid,
-                    artifactUuid,
-                ],
-            });
-            if (versionUuid) {
-                void queryClient.invalidateQueries({
-                    queryKey: [
-                        AI_AGENT_ARTIFACT_KEY,
-                        projectUuid,
-                        agentUuid,
-                        artifactUuid,
-                        'version',
-                        versionUuid,
-                    ],
-                });
-            }
-            void queryClient.invalidateQueries({
-                queryKey: [
-                    'ai-agent-verified-artifacts',
-                    projectUuid,
-                    agentUuid,
-                ],
-            });
-
-            showToastSuccess({
-                title: verified
-                    ? 'Added to verified answers list'
-                    : 'Removed from verified answers list',
-                action:
-                    showSuccessAction && verified
-                        ? {
-                              children: 'Go to verified answers',
-                              onClick: () => {
-                                  void navigate(
-                                      `/projects/${projectUuid}/ai-agents/${agentUuid}/edit/verified-artifacts`,
-                                  );
-                              },
-                              icon: IconArrowRight,
-                          }
-                        : undefined,
-            });
-        },
-        onError: ({ error }) => {
-            if (isAiAgentAuthorizationError(error)) {
-                void navigate(
-                    `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,
-                );
-            } else if (!getAiAccessRefusal(error)) {
-                showToastApiError({
-                    title: 'Failed to update answer verification',
-                    apiError: error,
-                });
-            }
-        },
     });
 };
 

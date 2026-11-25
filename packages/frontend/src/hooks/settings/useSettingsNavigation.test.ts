@@ -39,7 +39,7 @@ const settingsContext = (
     isAiOrganizationSettingsLoading: false,
     dataAppsFlag: undefined,
     isDataAppsFlagLoading: false,
-    isApiQuerySourcesEnabled: false,
+    isLiveSourcesAvailable: false,
     isChartStudioAvailable: false,
     isResultsCacheAvailable: false,
     embeddingEnabled: undefined,
@@ -521,7 +521,7 @@ describe('Project connections settings navigation', () => {
         projectItems(overrides).map(({ label }) => label);
 
     it('links Live data sources to the Semantic Layer page, marked as moved', () => {
-        const item = projectItems({ isApiQuerySourcesEnabled: true }).find(
+        const item = projectItems({ isLiveSourcesAvailable: true }).find(
             ({ label }) => label === 'Live data sources',
         );
         expect(item).toMatchObject({
@@ -563,7 +563,7 @@ describe('Project connections settings navigation', () => {
     });
 
     it('shows Live data sources without Data app connections when only live sources are enabled', () => {
-        const labels = projectLabels({ isApiQuerySourcesEnabled: true });
+        const labels = projectLabels({ isLiveSourcesAvailable: true });
         expect(labels).toContain('Live data sources');
         expect(labels).not.toContain('Data app connections');
     });

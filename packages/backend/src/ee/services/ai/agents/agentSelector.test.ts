@@ -17,7 +17,7 @@ const candidates = ['sales', 'finance'].map((uuid) => ({
     name: uuid,
     description: null,
     instruction: null,
-    context: { explores: [], verifiedQuestions: [] },
+    context: { explores: [] },
 })) as unknown as AiAgentWithContext[];
 
 describe('agent routing abstention', () => {
@@ -117,20 +117,14 @@ describe('routing context', () => {
             name: 'Sales',
             description: 'Sales questions',
             instruction: 'Answer in GBP',
-            context: {
-                explores: ['orders'],
-                verifiedQuestions: Array.from(
-                    { length: 20 },
-                    (_, i) => `question ${i}`,
-                ),
-            },
+            context: { explores: ['orders'] },
         },
         {
             uuid: 'finance',
             name: 'Finance',
             description: null,
             instruction: null,
-            context: { explores: [], verifiedQuestions: [] },
+            context: { explores: [] },
         },
     ] as unknown as AiAgentWithContext[];
 
@@ -157,11 +151,7 @@ describe('routing context', () => {
             candidate.explores.forEach((explore) =>
                 expect(systemText).toContain(explore),
             );
-            candidate.questions.forEach((question) =>
-                expect(systemText).toContain(question),
-            );
         });
-        expect(context.candidates[0].questions).toHaveLength(5);
     });
 
     it('leaves the query alone when the question is not asked from content', () => {

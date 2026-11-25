@@ -461,6 +461,24 @@ export class ExploreSplitError extends NotFoundError {
     }
 }
 
+/** A saved chart's explore is a live data source explore an admin switched off. */
+export class LiveExploreSwitchedOffError extends NotFoundError {
+    constructor({
+        exploreName,
+        sourceName,
+        exploreLabel,
+    }: {
+        exploreName: string;
+        sourceName: string;
+        exploreLabel: string;
+    }) {
+        super(
+            `${sourceName} · ${exploreLabel} is switched off in the Semantic Layer.`,
+            { exploreName },
+        );
+    }
+}
+
 export class ExpectedNotFoundError
     extends NotFoundError
     implements ExpectedError
@@ -532,6 +550,39 @@ export class WarehouseQueryTimeoutError extends WarehouseQueryError {
         this.name = 'WarehouseQueryTimeoutError';
     }
 }
+
+export const TABLE_LISTING_FAILED_CODE = 'table_listing_failed';
+
+/** Why the warehouse would not list its tables; message is the warehouse's own words. */
+export type TableListingFailure =
+    | {
+          kind: 'missing_privilege';
+          privilege: string | null;
+          catalog: string | null;
+          schema: string | null;
+          message: string;
+      }
+    | { kind: 'no_information_schema'; catalog: string | null; message: string }
+    | { kind: 'catalog_not_found'; catalog: string | null; message: string }
+    | { kind: 'other'; message: string };
+
+/** Keeps the WarehouseQueryError name and message, so existing handling is unchanged. */
+export class WarehouseTableListingError extends WarehouseQueryError {
+    readonly failure: TableListingFailure;
+
+    constructor(failure: TableListingFailure) {
+        super(failure.message, { code: TABLE_LISTING_FAILED_CODE, failure });
+        this.failure = failure;
+    }
+}
+
+export const getTableListingFailure = (error: {
+    message: string;
+    data: { [key: string]: AnyType };
+}): TableListingFailure =>
+    error.data.code === TABLE_LISTING_FAILED_CODE
+        ? error.data.failure
+        : { kind: 'other', message: error.message };
 
 export class QueryCostEstimateExceededError extends LightdashError {
     constructor(

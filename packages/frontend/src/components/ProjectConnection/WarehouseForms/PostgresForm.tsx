@@ -8,7 +8,7 @@ import {
     PasswordInput,
     Text,
 } from '@mantine/core';
-import React, { type FC, type ReactNode } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import { CopyActionIcon } from '../../common/CopyActionIcon';
 import { NumberInput } from '../../common/NumberInput';
@@ -23,20 +23,18 @@ import DataTimezoneField from './DataTimezoneField';
 import { PostgresDefaultValues } from './defaultValues';
 import { useCreateSshKeyPair } from './sshHooks';
 import { SshStaticIpHint } from './SshStaticIpHint';
-import { useFieldHint } from './useFieldHint';
 
 export const PostgresSchemaInput: FC<{
     disabled: boolean;
     description?: ReactNode;
 }> = ({ disabled, description }) => {
-    const fieldHint = useFieldHint();
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description={description ?? fieldHint('This is the schema name.')}
+            description={description}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -47,7 +45,6 @@ export const PostgresSchemaInput: FC<{
 const PostgresForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
-    const fieldHint = useFieldHint();
     const [isOpen, toggleOpen] = useToggle(false);
     const {
         savedProject,
@@ -92,9 +89,6 @@ const PostgresForm: FC<{
             <Stack mt="xs">
                 <TextInput
                     label="Host"
-                    description={fieldHint(
-                        'This is the host where the database is running.',
-                    )}
                     required
                     name="warehouse.host"
                     {...form.getInputProps('warehouse.host')}
@@ -103,7 +97,6 @@ const PostgresForm: FC<{
                 />
                 <TextInput
                     label="User"
-                    description={fieldHint('This is the database user name.')}
                     required={requireSecrets}
                     name="warehouse.user"
                     {...form.getInputProps('warehouse.user')}
@@ -116,9 +109,6 @@ const PostgresForm: FC<{
                 />
                 <PasswordInput
                     label="Password"
-                    description={fieldHint(
-                        'This is the database user password.',
-                    )}
                     required={requireSecrets}
                     name="warehouse.password"
                     placeholder={
@@ -131,7 +121,6 @@ const PostgresForm: FC<{
                 />
                 <TextInput
                     label="DB name"
-                    description={fieldHint('This is the database name.')}
                     required
                     name="warehouse.dbname"
                     {...form.getInputProps('warehouse.dbname')}
@@ -166,9 +155,6 @@ const PostgresForm: FC<{
                             {...form.getInputProps('warehouse.port')}
                             defaultValue={PostgresDefaultValues.port}
                             label="Port"
-                            description={fieldHint(
-                                'This is the port where the database is running.',
-                            )}
                             required
                             disabled={disabled}
                         />
@@ -258,11 +244,9 @@ const PostgresForm: FC<{
                         sslMode === 'verify-full' ? (
                             <>
                                 <CertificateFileInput
-                                    name={'warehouse.sslcert'}
-                                    fileNameProperty={
-                                        'warehouse.sslcertFileName'
-                                    }
-                                    label={'SSL certificate'}
+                                    name="warehouse.sslcert"
+                                    fileNameProperty="warehouse.sslcertFileName"
+                                    label="SSL certificate"
                                     disabled={disabled}
                                     accept=".crt,.pem"
                                     description={
@@ -274,11 +258,9 @@ const PostgresForm: FC<{
                                     }
                                 />
                                 <CertificateFileInput
-                                    name={'warehouse.sslkey'}
-                                    fileNameProperty={
-                                        'warehouse.sslkeyFileName'
-                                    }
-                                    label={'SSL private key'}
+                                    name="warehouse.sslkey"
+                                    fileNameProperty="warehouse.sslkeyFileName"
+                                    label="SSL private key"
                                     disabled={disabled}
                                     accept=".key,.pem"
                                     description={
@@ -290,11 +272,9 @@ const PostgresForm: FC<{
                                     }
                                 />
                                 <CertificateFileInput
-                                    name={'warehouse.sslrootcert'}
-                                    fileNameProperty={
-                                        'warehouse.sslrootcertFileName'
-                                    }
-                                    label={'SSL root certificate'}
+                                    name="warehouse.sslrootcert"
+                                    fileNameProperty="warehouse.sslrootcertFileName"
+                                    label="SSL root certificate"
                                     disabled={disabled}
                                     accept=".crt,.pem"
                                     description={
@@ -388,7 +368,7 @@ const PostgresForm: FC<{
                                     label="Generated SSH Public Key"
                                     description="Generate a key and add it to your SSH host before saving."
                                     placeholder="No key generated yet"
-                                    readOnly={true}
+                                    readOnly
                                     disabled={disabled}
                                     rightSectionPointerEvents="all"
                                     rightSection={

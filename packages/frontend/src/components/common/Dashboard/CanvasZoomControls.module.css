@@ -1,0 +1,9 @@
+.stepper {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+}
+
+/* A disabled step is a faded glyph: a filled shape would outweigh the live one */
+.stepper button:disabled {
+    background-color: transparent;
+}

@@ -102,7 +102,6 @@ const getAssistantMessage = (
     reasoning: [],
     savedQueryUuid: null,
     artifacts: null,
-    referencedArtifacts: null,
     modelConfig: null,
     tokenUsage: null,
     responseTiming: null,
@@ -129,6 +128,7 @@ const thread: AiAgentThread = {
     liveStatus: null,
     binding: null,
     threadContext: null,
+    metadata: null,
     firstMessage: {
         uuid: 'deep-research-prompt',
         message: 'Find anomalies',

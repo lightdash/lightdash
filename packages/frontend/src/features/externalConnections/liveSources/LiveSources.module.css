@@ -1,0 +1,36 @@
+/* Live data sources' columns, on the shared source table. */
+
+.row {
+    composes: row from '../../../components/common/sourceTable.module.css';
+    grid-template-columns: minmax(160px, 220px) minmax(0, 1fr) 96px 136px 28px;
+}
+
+.usageInfo {
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+/* A right-aligned header that keeps its info icon on the same line */
+.headWithInfo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    white-space: nowrap;
+}
+
+/* A source's rate limits in its settings: the count beside each bar. */
+
+.rateCount {
+    min-width: 84px;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.rateDetail[data-limit-reached] {
+    color: var(--mantine-color-red-text);
+}
+
+.warningText {
+    color: var(--mantine-color-orange-text);
+}

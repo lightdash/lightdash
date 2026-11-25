@@ -8,8 +8,10 @@ import {
     Box,
     Button,
     Center,
+    Divider,
     Group,
     Loader,
+    Stack,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -32,40 +34,42 @@ import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SidebarPosition } from '../../../../../components/common/Page/types';
 import {
+    useChatOpen,
+    type StoredThread,
+} from '../../../../../features/semanticStudio/studioChange';
+import {
     withStudioChatCode,
     isStudioChatRefDrag,
     readStudioChatRefDrop,
     type StudioChatRef,
 } from '../../../../../features/semanticStudio/studioChatRefs';
 import { STUDIO_STARTERS } from '../../../../../features/semanticStudio/studioStarters';
-import {
-    useKeepsSemanticLayerDraft,
-    useSemanticLayerDraft,
-} from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import { useSemanticLayerDraft } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import useSidebarResize from '../../../../../hooks/useSidebarResize';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import {
     useCreateAgentThreadMessageMutation,
     useCreateAgentThreadMutation,
+    useGenerateAgentThreadTitleMutation,
 } from '../../hooks/useProjectAiAgents';
 import { store } from '../../store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
 import {
-    QuietCardsContext,
+    InStudioChatContext,
     StudioAskContext,
-} from '../ChatElements/ToolCalls/quietCards';
+} from '../ChatElements/ToolCalls/studioChatContext';
 import { getClosedChange } from './closedChange';
 import classes from './SemanticStudioAgent.module.css';
 import { StudioChatEmptyState } from './StudioChatEmptyState';
 import { StudioChatRefChips } from './StudioChatRefChips';
 import {
-    useChatOpen,
+    useCompileFollowUp,
     useStudioAgent,
     useStudioThread,
-    type StoredThread,
+    useStudioThreadSwitch,
 } from './useSemanticStudioChat';
 
 type OpenModel = { modelName: string | null; fieldName: string | null };
@@ -167,6 +171,43 @@ const useStartThread = (
     };
 };
 
+/** The chat's composer, with what is attached to the next message above it. */
+const StudioComposer: FC<
+    Pick<Attached, 'attached' | 'onDetach'> & {
+        projectUuid: string;
+        agentUuid: string;
+        threadUuid: string | null;
+        messageCount: number;
+        loading: boolean;
+        onSubmit: (submitted: Submitted) => void;
+    }
+> = ({
+    projectUuid,
+    agentUuid,
+    threadUuid,
+    messageCount,
+    loading,
+    onSubmit,
+    attached,
+    onDetach,
+}) => (
+    <>
+        <StudioChatRefChips refs={attached} onRemove={onDetach} />
+        <AgentChatInput
+            allowAttachments={false}
+            accessCalloutVariant="inline"
+            loading={loading}
+            onSubmit={onSubmit}
+            placeholder="What should I build or change?"
+            messageCount={messageCount}
+            projectUuid={projectUuid}
+            agentUuid={agentUuid}
+            threadUuid={threadUuid ?? undefined}
+            fullWidth
+        />
+    </>
+);
+
 /** Sends a prompt asked for from outside the chat, once. */
 const useAskedPrompt = (
     { prompt, onPromptTaken }: AskedPrompt,
@@ -197,6 +238,7 @@ const NewThread: FC<
             agent: AiAgentSummary;
             onCreated: (thread: StoredThread) => void;
             showStarters: boolean;
+            keepsDraft: boolean;
         }
 > = ({
     projectUuid,
@@ -207,6 +249,7 @@ const NewThread: FC<
     prompt,
     onPromptTaken,
     showStarters,
+    keepsDraft,
     attached,
     onDetach,
     onAttachedSent,
@@ -219,11 +262,11 @@ const NewThread: FC<
         { attached, onDetach, onAttachedSent },
     );
     useAskedPrompt({ prompt, onPromptTaken }, (message) => start({ message }));
-    const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     return (
         <>
-            <StudioChatEmptyState keepsDraft={keepsDraft}>
-                {showStarters ? (
+            {showStarters ? (
+                // The page beside the chat already explains the empty layer, so the chat keeps only the starters.
+                <Stack flex={1} justify="flex-end" px="md" pb="sm">
                     <Group gap="xs" justify="center">
                         {STUDIO_STARTERS.map(({ label, prompt: starter }) => (
                             <Button
@@ -237,33 +280,39 @@ const NewThread: FC<
                             </Button>
                         ))}
                     </Group>
-                ) : null}
-            </StudioChatEmptyState>
-            <StudioChatRefChips refs={attached} onRemove={onDetach} />
-            <AgentChatInput
-                allowAttachments={false}
-                accessCalloutVariant="inline"
-                loading={isLoading}
-                onSubmit={start}
-                placeholder="What should I build or change?"
+                </Stack>
+            ) : (
+                <StudioChatEmptyState keepsDraft={keepsDraft} />
+            )}
+            <StudioComposer
                 projectUuid={projectUuid}
                 agentUuid={agent.uuid}
-                fullWidth
+                threadUuid={null}
+                messageCount={0}
+                loading={isLoading}
+                onSubmit={start}
+                attached={attached}
+                onDetach={onDetach}
             />
         </>
     );
 };
 
-/** Where the composer was once a change is out: the chat is done, and the next request starts a new one. */
+/** Where a chat ends once its change has left the draft: a line under it, and a way to start the next one. */
 const ChangeClosed: FC<{ onStartNew: () => void }> = ({ onStartNew }) => (
-    <Group gap="xs" p="md" justify="space-between" wrap="nowrap">
-        <Text fz="sm" c="dimmed">
-            Done
-        </Text>
-        <Button size="xs" onClick={onStartNew}>
-            Start a new chat
-        </Button>
-    </Group>
+    <Divider
+        label={
+            <Button
+                size="compact-xs"
+                variant="subtle"
+                color="gray"
+                leftSection={<MantineIcon icon={IconMessagePlus} size={14} />}
+                onClick={onStartNew}
+            >
+                New chat
+            </Button>
+        }
+    />
 );
 
 const ExistingThread: FC<
@@ -305,16 +354,30 @@ const ExistingThread: FC<
             agent.uuid,
             threadUuid,
         );
+    const { mutate: generateTitle } =
+        useGenerateAgentThreadTitleMutation(projectUuid);
     const send = (submitted: Submitted) => {
+        // A chat started without a message, as by a Sources save, gets its title from its first one.
+        const needsTitle = !!thread && !thread.title;
         void sendMessage({
             enableSqlMode: sqlMode,
             autoApproveSql: true,
             ...withOpenModel({ modelName, fieldName }, attached, submitted),
+        }).then(() => {
+            if (needsTitle)
+                generateTitle({ agentUuid: agent.uuid, threadUuid });
         });
         onAttachedSent();
     };
     useAskedPrompt({ prompt, onPromptTaken }, (message) => send({ message }));
     const { data: draft } = useSemanticLayerDraft(projectUuid);
+    useCompileFollowUp({
+        projectUuid,
+        agentUuid: agent.uuid,
+        threadUuid,
+        isBusy: isLoading || isSending || isStreaming || isThreadPending,
+        enableSqlMode: sqlMode,
+    });
     // The composer stays put while the conversation loads, so opening one never blanks the panel.
     if (isLoading || !thread) {
         return (
@@ -322,17 +385,15 @@ const ExistingThread: FC<
                 <Center flex={1}>
                     <Loader size="sm" color="gray" />
                 </Center>
-                <StudioChatRefChips refs={attached} onRemove={onDetach} />
-                <AgentChatInput
-                    allowAttachments={false}
-                    accessCalloutVariant="inline"
-                    loading
-                    onSubmit={send}
-                    placeholder="What should I build or change?"
+                <StudioComposer
                     projectUuid={projectUuid}
                     agentUuid={agent.uuid}
                     threadUuid={threadUuid}
-                    fullWidth
+                    messageCount={0}
+                    loading
+                    onSubmit={send}
+                    attached={attached}
+                    onDetach={onDetach}
                 />
             </>
         );
@@ -353,6 +414,9 @@ const ExistingThread: FC<
                 onChoiceSelect={
                     isBusy ? undefined : (message) => send({ message })
                 }
+                afterMessages={
+                    closed ? <ChangeClosed onStartNew={onStartNew} /> : null
+                }
             >
                 {thread.messages.length === 0 && !isBusy ? (
                     <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
@@ -360,27 +424,17 @@ const ExistingThread: FC<
                         publish it when it is ready.
                     </Text>
                 ) : null}
-                {closed ? (
-                    <ChangeClosed onStartNew={onStartNew} />
-                ) : (
-                    <>
-                        <StudioChatRefChips
-                            refs={attached}
-                            onRemove={onDetach}
-                        />
-                        <AgentChatInput
-                            allowAttachments={false}
-                            accessCalloutVariant="inline"
-                            loading={isBusy}
-                            onSubmit={send}
-                            placeholder="What should I build or change?"
-                            messageCount={thread.messages.length}
-                            projectUuid={projectUuid}
-                            agentUuid={agent.uuid}
-                            threadUuid={threadUuid}
-                            fullWidth
-                        />
-                    </>
+                {closed ? null : (
+                    <StudioComposer
+                        projectUuid={projectUuid}
+                        agentUuid={agent.uuid}
+                        threadUuid={threadUuid}
+                        messageCount={thread.messages.length}
+                        loading={isBusy}
+                        onSubmit={send}
+                        attached={attached}
+                        onDetach={onDetach}
+                    />
                 )}
             </AgentChatDisplay>
         </StudioAskContext.Provider>
@@ -392,6 +446,8 @@ type AgentProps = OpenModel &
     Attached & {
         projectUuid: string;
         showStarters: boolean;
+        /** The project keeps its changes as a draft here, not as a pull request. */
+        keepsDraft: boolean;
         onAttach: (ref: StudioChatRef) => void;
     };
 
@@ -406,6 +462,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
     prompt,
     onPromptTaken,
     showStarters,
+    keepsDraft,
     attached,
     onAttach,
     onDetach,
@@ -413,16 +470,13 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
 }) => {
     const [isDropping, setIsDropping] = useState(false);
     const isDragging = useStudioChatRefDragging();
-    const {
-        isEnabled,
-        agent,
-        thread,
-        isLoadingAgents,
-        setStored,
-        startNewThread,
-        previousThread,
-        returnToPreviousThread,
-    } = useStudioAgent(projectUuid);
+    const { isEnabled, agent, thread, isLoadingAgents, setStored } =
+        useStudioAgent(projectUuid);
+    const { startNewThread, previousThread, returnToPreviousThread } =
+        // Switching chats moves the active workspace too, unless changes are kept as a draft.
+        useStudioThreadSwitch(projectUuid, {
+            chatFollowsWorkspace: !keepsDraft,
+        });
     const [isOpen, setIsOpen] = useChatOpen(projectUuid);
 
     const { sidebarRef, sidebarWidth, isResizing, startResizing } =
@@ -442,7 +496,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
     }
     if (!isOpen) return null;
     return (
-        <QuietCardsContext.Provider value>
+        <InStudioChatContext.Provider value>
             <Box
                 ref={sidebarRef}
                 className={classes.panel}
@@ -544,6 +598,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                             agent={agent}
                             onCreated={setStored}
                             showStarters={showStarters}
+                            keepsDraft={keepsDraft}
                             modelName={modelName}
                             fieldName={fieldName}
                             prompt={prompt}
@@ -555,7 +610,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                     )}
                 </Box>
             </Box>
-        </QuietCardsContext.Provider>
+        </InStudioChatContext.Provider>
     );
 };
 

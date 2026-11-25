@@ -5,9 +5,11 @@ import {
     type CiChecks,
     type SemanticStudioWorkspace,
 } from '@lightdash/common';
-import { isMergeable } from '../../ee/features/aiCopilot/components/ChatElements/ToolCalls/pullRequestActions';
-import { WRITEBACK_STEPS } from '../../ee/features/aiCopilot/components/ChatElements/ToolCalls/writebackProgress';
+import { isMergeable } from '../writeback/pullRequestActions';
+import { WRITEBACK_STEPS } from '../writeback/writebackProgress';
 import { pullRequestNumberOf } from './urls';
+
+export const HAS_CONFLICTS = 'Has conflicts';
 
 /** Where one of your workspaces stands right now. */
 export type StudioRun =
@@ -21,12 +23,6 @@ export type StudioRun =
       }
     | { kind: 'draft' };
 
-/** A workspace that has not landed or been dropped yet. */
-export const isInFlight = (workspace: SemanticStudioWorkspace): boolean =>
-    !workspace.finishedAt &&
-    workspace.pullRequest?.state !== 'merged' &&
-    workspace.pullRequest?.state !== 'closed';
-
 export const toStudioRun = (
     workspace: SemanticStudioWorkspace,
     {
@@ -39,7 +35,7 @@ export const toStudioRun = (
     const pullRequestNumber = pullRequestNumberOf(workspace.pullRequest.url);
     if (isMergeable(ciChecks)) return { kind: 'ready', pullRequestNumber };
     if (ciChecks?.mergeState === CiMergeState.CONFLICTS) {
-        return { kind: 'failing', pullRequestNumber, reason: 'Has conflicts' };
+        return { kind: 'failing', pullRequestNumber, reason: HAS_CONFLICTS };
     }
     if (ciChecks?.overall === CiCheckState.FAILURE) {
         return { kind: 'failing', pullRequestNumber, reason: 'Checks failed' };

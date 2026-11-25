@@ -2,6 +2,7 @@ import { NotFoundError, type DbtManifest } from '@lightdash/common';
 import { promisify } from 'node:util';
 import { gunzip, gzip } from 'node:zlib';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
+import { describeDbtProjectMap } from './dbtProjectMap';
 
 const gzipAsync = promisify(gzip);
 const gunzipAsync = promisify(gunzip);
@@ -15,6 +16,11 @@ export type CompiledDbtManifest = {
 };
 
 const fileId = (projectUuid: string) => `compiled-dbt-manifest/${projectUuid}`;
+const projectMapFileId = (projectUuid: string) =>
+    `compiled-dbt-project-map/${projectUuid}`;
+
+/** The project's layout, summarised once per saved manifest so a prompt never reads the whole manifest. */
+type StoredDbtProjectMap = { map: string | null };
 
 export const saveCompiledDbtManifest = async (
     fileStorageClient: Pick<FileStorageClient, 'uploadTxt'>,
@@ -25,6 +31,42 @@ export const saveCompiledDbtManifest = async (
         await gzipAsync(JSON.stringify(compiled)),
         fileId(projectUuid),
     );
+    const stored: StoredDbtProjectMap = {
+        map: describeDbtProjectMap(compiled.manifest),
+    };
+    await fileStorageClient.uploadTxt(
+        Buffer.from(JSON.stringify(stored)),
+        projectMapFileId(projectUuid),
+    );
+};
+
+/** The layout summarised when the manifest was saved; null when none is stored, such as for a manifest saved before summaries were. */
+export const readCompiledDbtProjectMap = async (
+    fileStorageClient: Pick<FileStorageClient, 'getFileStream'>,
+    projectUuid: string,
+): Promise<StoredDbtProjectMap | null> => {
+    try {
+        const { stream } = await fileStorageClient.getFileStream(
+            `${projectMapFileId(projectUuid)}.txt`,
+        );
+        const chunks: Buffer[] = [];
+        for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+        const stored: Partial<StoredDbtProjectMap> = JSON.parse(
+            Buffer.concat(chunks).toString('utf8'),
+        );
+        return typeof stored.map === 'string' || stored.map === null
+            ? { map: stored.map }
+            : null;
+    } catch (error) {
+        if (
+            error instanceof NotFoundError ||
+            error instanceof SyntaxError ||
+            (error instanceof Error && 'errno' in error)
+        ) {
+            return null;
+        }
+        throw error;
+    }
 };
 
 /** Null when none is stored, or what is stored cannot be read. */

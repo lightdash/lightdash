@@ -1,4 +1,7 @@
-import type { AiThreadCreatedFrom } from '@lightdash/common';
+import {
+    isSemanticStudioThread,
+    type AiThreadCreatedFrom,
+} from '@lightdash/common';
 import { DATA_APP_INVESTIGATE_TOOL_NAMES } from '../ai/agents/agentV2';
 
 /**
@@ -18,7 +21,7 @@ export const canStartDeepResearch = (
     threadCreatedFrom: AiThreadCreatedFrom,
 ): boolean =>
     !isAnalysisInvestigationThread(threadCreatedFrom) &&
-    threadCreatedFrom !== 'semantic_studio';
+    !isSemanticStudioThread(threadCreatedFrom);
 
 export const resolveStandardToolAllowlist = (
     threadCreatedFrom: AiThreadCreatedFrom,

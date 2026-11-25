@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import {
     Box,
     Group,
@@ -10,13 +9,13 @@ import {
 } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useLiveSourcesAvailability } from '../../../features/externalConnections/hooks/useLiveSourcesAvailability';
 import { isGoogleConnector } from '../../../features/externalConnections/liveSources/googleConnection';
 import {
     isAvailableLiveSource,
     LIVE_SOURCE_CATALOG,
     type AvailableLiveSource,
 } from '../../../features/externalConnections/liveSources/liveSourceCatalog';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import { NextUpCard } from '../../common/OnboardingVisuals';
@@ -25,9 +24,7 @@ import classes from './DataSourceChooser.module.css';
 // Only what the tools step will actually offer: Google needs its OAuth client
 const useTeasedLiveSources = () => {
     const { health } = useApp();
-    const isEnabled =
-        useServerFeatureFlag(FeatureFlags.ApiQuerySources).data?.enabled ===
-        true;
+    const isEnabled = useLiveSourcesAvailability().isAvailable;
     const hasGoogle = health.data?.hasGoogleLiveSources === true;
     return {
         isEnabled,

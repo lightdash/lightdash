@@ -173,6 +173,7 @@
 .td[data-large-text][data-minimal],
 .td[data-large-text]:hover {
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .td[data-has-urls] {
