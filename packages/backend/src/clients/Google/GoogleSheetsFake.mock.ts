@@ -2,7 +2,7 @@ import { type AnyType } from '@lightdash/common';
 
 // In-memory stand-in for the parts of the Sheets v4 API that
 // GoogleDriveClient uses. It keeps each tab's values and grid size, applies
-// spreadsheets.batchUpdate atomically, and enforces the 10M-cell limit, so
+// spreadsheets.batchUpdate atomically, and enforces the 20M-cell limit, so
 // tests can assert what a tab holds after a write, not only which calls ran.
 
 type CellValue = string | number | boolean;
@@ -57,7 +57,7 @@ const columnLettersToIndex = (letters: string) =>
 export class GoogleSheetsFake {
     sheets: FakeSheet[] = [];
 
-    cellLimit = 10_000_000;
+    cellLimit = 20_000_000;
 
     nextSheetId = 1;
 

@@ -78,7 +78,9 @@ export const GSHEETS_WRITE_CHUNK_MAX_BYTES = 8 * 1024 * 1024;
 // copies at most this much per batchUpdate. Clearing cells does not count.
 export const GSHEETS_SWAP_BATCH_MAX_ROWS = 100_000;
 export const GSHEETS_SWAP_BATCH_MAX_CELLS = 500_000;
-export const GOOGLE_SHEETS_CELL_LIMIT = 10_000_000;
+// Cells per spreadsheet, counted over every tab, empty cells included.
+// Google raised it from 10M to 20M in September 2026.
+export const GOOGLE_SHEETS_CELL_LIMIT = 20_000_000;
 // Bounded per-request backoff (~65s in total) so a 429 waits out a quota
 // window. Our own retries replace gaxios's hidden ones (see `retry: false`).
 export const GSHEETS_WRITE_RETRY_DELAYS_MS = [5_000, 15_000, 45_000];

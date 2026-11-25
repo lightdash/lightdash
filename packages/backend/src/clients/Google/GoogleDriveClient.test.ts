@@ -828,7 +828,7 @@ describe('GoogleDriveClient', () => {
                 if (requests.some((r) => 'copyPaste' in (r as object))) {
                     throw googleApiError(
                         400,
-                        'This action would increase the number of cells in the workbook above the limit of 10000000 cells.',
+                        'This action would increase the number of cells in the workbook above the limit of 20000000 cells.',
                     );
                 }
             };
@@ -881,7 +881,7 @@ describe('GoogleDriveClient', () => {
                     ]),
                 },
                 // Sheet1 is 40,000 x 26 cells. The new data fits once, not twice.
-                { title: 'Filler', rowCount: 8_930_000, columnCount: 1 },
+                { title: 'Filler', rowCount: 18_930_000, columnCount: 1 },
             ]);
             useFake(fake);
             const rows = [
@@ -918,7 +918,7 @@ describe('GoogleDriveClient', () => {
         test('says the tab can mix old and new rows when an in-place write fails', async () => {
             const fake = new GoogleSheetsFake([
                 { title: 'Sheet1', rows: makeRows(40_000, 'old') },
-                { title: 'Filler', rowCount: 8_930_000, columnCount: 1 },
+                { title: 'Filler', rowCount: 18_930_000, columnCount: 1 },
             ]);
             useFake(fake);
             fake.beforeUpdate = (_call, index) => {
@@ -938,11 +938,11 @@ describe('GoogleDriveClient', () => {
             );
         });
 
-        test('refuses a write that cannot fit the 10M-cell limit before it changes anything', async () => {
+        test('refuses a write that cannot fit the 20M-cell limit before it changes anything', async () => {
             const oldRows = makeRows(1_000, 'old');
             const fake = new GoogleSheetsFake([
                 { title: 'Sheet1', rows: oldRows },
-                { title: 'Filler', rowCount: 9_800_000, columnCount: 1 },
+                { title: 'Filler', rowCount: 19_800_000, columnCount: 1 },
             ]);
             useFake(fake);
 
@@ -956,7 +956,7 @@ describe('GoogleDriveClient', () => {
 
             expect(error).toBeInstanceOf(UnexpectedGoogleSheetsError);
             expect((error as Error).message).toBe(
-                'Google Sheets could not write 10,001 rows and 2 columns to the tab "Sheet1": the spreadsheet would need about 10,060,026 cells, which is more than the Google Sheets limit of 10,000,000 cells. The data in the tab was not changed. Remove tabs or rows that you do not use, or sync fewer rows or columns.',
+                'Google Sheets could not write 10,001 rows and 2 columns to the tab "Sheet1": the spreadsheet would need about 20,060,026 cells, which is more than the Google Sheets limit of 20,000,000 cells. The data in the tab was not changed. Remove tabs or rows that you do not use, or sync fewer rows or columns.',
             );
             expect(fake.updateCalls).toEqual([]);
             expect(fake.batchUpdateCalls).toEqual([]);
