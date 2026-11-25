@@ -3,7 +3,7 @@
 exports[`AI agent tool contracts > matches the current agent tool contract snapshot 1`] = `
 [
   {
-    "description": "Return the column names and types of one raw, staging or seed table that no explore exposes. It reads cached metadata, so it is fast and needs no approval, and returns schema only, not data.
+    "description": "Return the column names and types of one raw, staging or seed table that no explore exposes. Where the warehouse reports them, it also returns the table type (table, view, metric view), the table and column comments, a view's definition, and each metric view measure's expression, synonyms and window. It reads metadata only, so it is fast and needs no approval, and returns schema only, not data.
 
 For explore-backed tables use grepFields and getMetadata; to find a table's name use listWarehouseTables.",
     "inputSchema": {
@@ -102,6 +102,301 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                   },
                   "type": "array",
                 },
+                "metadata": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "columns": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "comment": {
+                                "type": [
+                                  "string",
+                                  "null",
+                                ],
+                              },
+                              "isMeasure": {
+                                "type": "boolean",
+                              },
+                              "name": {
+                                "type": "string",
+                              },
+                              "type": {
+                                "enum": [
+                                  "string",
+                                  "number",
+                                  "timestamp",
+                                  "date",
+                                  "boolean",
+                                ],
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "name",
+                              "type",
+                              "comment",
+                              "isMeasure",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "comment": {
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
+                        "definition": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "text": {
+                                  "type": "string",
+                                },
+                                "truncated": {
+                                  "type": "boolean",
+                                },
+                              },
+                              "required": [
+                                "text",
+                                "truncated",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "metricView": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "dimensions": {
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "comment": {
+                                        "type": [
+                                          "string",
+                                          "null",
+                                        ],
+                                      },
+                                      "expr": {
+                                        "type": "string",
+                                      },
+                                      "label": {
+                                        "type": [
+                                          "string",
+                                          "null",
+                                        ],
+                                      },
+                                      "name": {
+                                        "type": "string",
+                                      },
+                                      "synonyms": {
+                                        "items": {
+                                          "type": "string",
+                                        },
+                                        "type": "array",
+                                      },
+                                    },
+                                    "required": [
+                                      "name",
+                                      "expr",
+                                      "label",
+                                      "comment",
+                                      "synonyms",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "filter": {
+                                  "type": [
+                                    "string",
+                                    "null",
+                                  ],
+                                },
+                                "joins": {
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "name": {
+                                        "type": "string",
+                                      },
+                                      "on": {
+                                        "type": [
+                                          "string",
+                                          "null",
+                                        ],
+                                      },
+                                      "source": {
+                                        "type": "string",
+                                      },
+                                      "using": {
+                                        "items": {
+                                          "type": "string",
+                                        },
+                                        "type": "array",
+                                      },
+                                    },
+                                    "required": [
+                                      "name",
+                                      "source",
+                                      "on",
+                                      "using",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "measures": {
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "comment": {
+                                        "type": [
+                                          "string",
+                                          "null",
+                                        ],
+                                      },
+                                      "expr": {
+                                        "type": "string",
+                                      },
+                                      "label": {
+                                        "type": [
+                                          "string",
+                                          "null",
+                                        ],
+                                      },
+                                      "name": {
+                                        "type": "string",
+                                      },
+                                      "synonyms": {
+                                        "items": {
+                                          "type": "string",
+                                        },
+                                        "type": "array",
+                                      },
+                                      "window": {
+                                        "items": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "offset": {
+                                              "type": [
+                                                "string",
+                                                "null",
+                                              ],
+                                            },
+                                            "order": {
+                                              "type": "string",
+                                            },
+                                            "range": {
+                                              "type": "string",
+                                            },
+                                            "semiAdditive": {
+                                              "anyOf": [
+                                                {
+                                                  "enum": [
+                                                    "first",
+                                                    "last",
+                                                  ],
+                                                  "type": "string",
+                                                },
+                                                {
+                                                  "type": "null",
+                                                },
+                                              ],
+                                            },
+                                          },
+                                          "required": [
+                                            "order",
+                                            "range",
+                                            "semiAdditive",
+                                            "offset",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        "type": "array",
+                                      },
+                                    },
+                                    "required": [
+                                      "name",
+                                      "expr",
+                                      "label",
+                                      "comment",
+                                      "synonyms",
+                                      "window",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "parameterized": {
+                                  "type": "boolean",
+                                },
+                                "source": {
+                                  "type": [
+                                    "string",
+                                    "null",
+                                  ],
+                                },
+                              },
+                              "required": [
+                                "source",
+                                "filter",
+                                "parameterized",
+                                "dimensions",
+                                "measures",
+                                "joins",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "tableType": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "table",
+                                "view",
+                                "materialized_view",
+                                "external",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "const": "metric_view",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "tableType",
+                        "comment",
+                        "columns",
+                        "definition",
+                        "metricView",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Table type, table and column comments, the view or metric-view definition (truncated with a marker past a size cap), and a metric view's dimensions, measures and joins as data; null where the warehouse does not describe tables this way.",
+                },
                 "partitioning": {
                   "anyOf": [
                     {
@@ -170,6 +465,7 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                 "columnCount",
                 "columns",
                 "partitioning",
+                "metadata",
               ],
               "type": "object",
             },
@@ -12166,6 +12462,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
+        "moreToDo": {
+          "description": "True when the person's request has steps left after this change, such as running a query they asked for, so you carry them out next; false when this change finishes it.",
+          "type": "boolean",
+        },
         "note": {
           "description": "The one thing about this change most worth checking, under 15 words, shown on its card; null when nothing is.",
           "type": [
@@ -12199,6 +12499,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
         "script",
         "note",
         "options",
+        "moreToDo",
       ],
       "type": "object",
     },
@@ -27127,6 +27428,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "proposeSemanticLayerChange",
   "listChanges",
   "readSemanticModel",
+  "draftProjectContext",
   "syncDbtProject",
   "exploreRepo",
   "discoverRepos",

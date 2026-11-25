@@ -13,6 +13,7 @@ import {
     Group,
     Kbd,
     Paper,
+    Stack,
     Tabs,
     Text,
     Tooltip,
@@ -43,6 +44,7 @@ import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { SettingsSection } from '../externalConnections/liveSources/LiveSourceSettingsRows';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
@@ -485,8 +487,8 @@ const HistoryPane: FC<{
                         <Box miw={0}>
                             <Text fz="sm">In your draft</Text>
                             <Text fz="xs" c="dimmed">
-                                Not live. Only you see them until you publish;
-                                everything below is live.
+                                Not live until you publish, and only you can
+                                change them. Everything below is live.
                             </Text>
                         </Box>
                         <Button
@@ -629,8 +631,11 @@ export const ModelTabs: FC<{
     return (
         <Tabs
             className={classes.root}
-            // Settings are as tall as they are; the page scrolls them
-            data-fit-content={view === 'settings' || undefined}
+            // Fields and settings are as tall as they are; the page scrolls
+            // them, and the field list virtualises against that scroll
+            data-fit-content={
+                view === 'fields' || view === 'settings' || undefined
+            }
             value={view}
             onChange={(next) => {
                 const tab = MODEL_TABS.find((item) => item === next);
@@ -693,38 +698,37 @@ export const ModelTabs: FC<{
     );
 };
 
-/** A live data source with several explores: the explores, then its settings. */
-export const SourceTabs: FC<{
-    explores: ReactNode;
+/**
+ * A live data source on one page: its explores (or, with one explore, its
+ * fields), then its settings. A settings link scrolls to them.
+ */
+export const LiveSourceFlow: FC<{
+    /** Omitted where the page title already says what the main part is. */
+    title?: string;
+    main: ReactNode;
     settings: ReactNode;
-}> = ({ explores, settings }) => {
-    const [searchParams, setSearchParams] = useSearchParams();
-    const view =
-        searchParams.get(VIEW_PARAM) === 'settings' ? 'settings' : 'explores';
+}> = ({ title, main, settings }) => {
+    const [searchParams] = useSearchParams();
+    const wantsSettings = searchParams.get(VIEW_PARAM) === 'settings';
+    const settingsRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!wantsSettings) return undefined;
+        // After the explores or fields above have laid out
+        const frame = requestAnimationFrame(() =>
+            settingsRef.current?.scrollIntoView({ block: 'start' }),
+        );
+        return () => cancelAnimationFrame(frame);
+    }, [wantsSettings]);
     return (
-        <Tabs
-            className={classes.root}
-            data-fit-content
-            value={view}
-            onChange={(next) =>
-                setSearchParams(
-                    next === 'settings' ? { [VIEW_PARAM]: next } : {},
-                    { replace: true },
-                )
-            }
-        >
-            <Tabs.List mb="md">
-                <Tabs.Tab value="explores">Explores</Tabs.Tab>
-                <Tabs.Tab value="settings">Settings</Tabs.Tab>
-            </Tabs.List>
-            <Tabs.Panel value="explores" className={classes.panel}>
-                {explores}
-            </Tabs.Panel>
-            {view === 'settings' ? (
-                <Tabs.Panel value="settings" className={classes.panel}>
-                    {settings}
-                </Tabs.Panel>
-            ) : null}
-        </Tabs>
+        <Box className={classes.root} data-fit-content>
+            <Stack gap="lg">
+                {title ? (
+                    <SettingsSection title={title}>{main}</SettingsSection>
+                ) : (
+                    main
+                )}
+                <Box ref={settingsRef}>{settings}</Box>
+            </Stack>
+        </Box>
     );
 };

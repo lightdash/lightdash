@@ -73,6 +73,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     proposeSemanticLayerChange: [AgentCapability.DbtWriteback],
     listChanges: [AgentCapability.ReadDiscover],
     readSemanticModel: [AgentCapability.ReadDiscover],
+    draftProjectContext: [AgentCapability.DbtWriteback],
     verify: [AgentCapability.DbtWriteback],
     read: [AgentCapability.ReadDiscover],
     exploreRepo: [AgentCapability.ReadDiscover],
@@ -921,6 +922,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.getExternalConnectionSchema': [
         AgentCapability.ReadDiscover,
     ],
+    'ExternalConnectionController.getLiveSourceContentUsage': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.getLiveSourceFields': [
         AgentCapability.Administration,
     ],
@@ -1088,6 +1092,12 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.DbtWriteback,
     ],
     'SemanticStudioController.getDraft': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getOthersDraftModel': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.discardOthersDraftModel': [
+        AgentCapability.DbtWriteback,
+    ],
     'SemanticStudioController.moveDraftChange': [AgentCapability.DbtWriteback],
     'SemanticStudioController.keepDraftModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getDraftState': [AgentCapability.DbtWriteback],

@@ -1,5 +1,6 @@
 import {
     NotFoundError,
+    type ProjectContextEntry,
     type SemanticLayerDraftModelInput,
     type SemanticLayerModelChange,
     type SemanticLayerModelCode,
@@ -47,6 +48,8 @@ export type StoredDraftChange = {
     models: SemanticLayerDraftModelInput[];
     /** The version each model was at when the change was made; null when that was not recorded. */
     baseVersions: Record<string, number | null> | null;
+    /** Project context entries the change adds or replaces by id; null when it touches none. */
+    projectContextEntries: ProjectContextEntry[] | null;
 };
 
 export type ChangeSet = {
@@ -69,6 +72,7 @@ type NewDraftChange = DraftOwner & {
     promptUuid: string | null;
     models: SemanticLayerDraftModelInput[];
     baseVersions: Record<string, number | null> | null;
+    projectContextEntries: ProjectContextEntry[] | null;
 };
 
 /** One workspace's draft alone, without changes from before drafts had workspaces. */
@@ -79,6 +83,21 @@ export type DraftImpactCheck = {
     status: DraftImpactCheckStatus;
     breaks: DraftImpactBreaks | null;
     startedAt: Date;
+};
+
+/** Someone else's open draft on a project. */
+export type OtherDrafter = {
+    userUuid: string;
+    name: string;
+    models: string[];
+    /** When they last added to their draft. */
+    lastActiveAt: Date;
+    /** Their draft, oldest change first. */
+    changes: {
+        draftChangeUuid: string;
+        workspaceUuid: string | null;
+        models: SemanticLayerDraftModelInput[];
+    }[];
 };
 
 /** How a check ended: with what the draft breaks, or without an answer. */
@@ -268,6 +287,7 @@ export class ProjectModelDocumentModel {
                 createdAt: `${ProjectModelDraftChangesTableName}.created_at`,
                 models: `${ProjectModelDraftChangesTableName}.models`,
                 baseVersions: `${ProjectModelDraftChangesTableName}.base_versions`,
+                projectContextEntries: `${ProjectModelDraftChangesTableName}.project_context_entries`,
             })
             .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'asc');
     }
@@ -416,18 +436,11 @@ export class ProjectModelDocumentModel {
         );
     }
 
-    /** The models other people have unpublished changes to, with who; never what the changes are. */
+    /** The models other people have unpublished changes to, with who and when they last changed their draft. */
     async findOtherDrafters(
         projectUuid: string,
         userUuid: string,
-    ): Promise<
-        {
-            name: string;
-            models: string[];
-            /** Their draft, oldest change first. */
-            changes: SemanticLayerDraftModelInput[][];
-        }[]
-    > {
+    ): Promise<OtherDrafter[]> {
         const rows = await this.database(ProjectModelDraftChangesTableName)
             .innerJoin(
                 UserTableName,
@@ -439,12 +452,18 @@ export class ProjectModelDocumentModel {
                     userUuid: string;
                     firstName: string;
                     lastName: string;
+                    draftChangeUuid: string;
+                    workspaceUuid: string | null;
+                    createdAt: Date;
                     models: SemanticLayerDraftModelInput[];
                 }[]
             >({
                 userUuid: `${UserTableName}.user_uuid`,
                 firstName: `${UserTableName}.first_name`,
                 lastName: `${UserTableName}.last_name`,
+                draftChangeUuid: `${ProjectModelDraftChangesTableName}.project_model_draft_change_uuid`,
+                workspaceUuid: `${ProjectModelDraftChangesTableName}.workspace_uuid`,
+                createdAt: `${ProjectModelDraftChangesTableName}.created_at`,
                 models: `${ProjectModelDraftChangesTableName}.models`,
             })
             .where(
@@ -459,6 +478,7 @@ export class ProjectModelDocumentModel {
             .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'asc');
         return Object.values(groupBy(rows, (row) => row.userUuid)).map(
             (changes) => ({
+                userUuid: changes[0].userUuid,
                 name: `${changes[0].firstName} ${changes[0].lastName}`.trim(),
                 models: [
                     ...new Set(
@@ -467,7 +487,18 @@ export class ProjectModelDocumentModel {
                         ),
                     ),
                 ],
-                changes: changes.map(({ models }) => models),
+                lastActiveAt: new Date(
+                    Math.max(
+                        ...changes.map(({ createdAt }) => createdAt.getTime()),
+                    ),
+                ),
+                changes: changes.map(
+                    ({ draftChangeUuid, workspaceUuid, models }) => ({
+                        draftChangeUuid,
+                        workspaceUuid,
+                        models,
+                    }),
+                ),
             }),
         );
     }
@@ -600,6 +631,11 @@ export class ProjectModelDocumentModel {
                 `${ProjectModelChangeSetsTableName}.project_model_change_set_uuid`,
                 `${ProjectModelDraftChangesTableName}.applied_change_set_uuid`,
             )
+            .leftJoin(
+                `${UserTableName} as discarder`,
+                'discarder.user_uuid',
+                `${ProjectModelDraftChangesTableName}.discarded_by_user_uuid`,
+            )
             .select<
                 {
                     draftChangeUuid: string;
@@ -607,6 +643,9 @@ export class ProjectModelDocumentModel {
                     pullRequestUrl: string | null;
                     revertedBy: string | null;
                     models: SemanticLayerDraftModelInput[];
+                    discarderFirstName: string | null;
+                    discarderLastName: string | null;
+                    discardedAt: Date | null;
                 }[]
             >({
                 draftChangeUuid: `${ProjectModelDraftChangesTableName}.project_model_draft_change_uuid`,
@@ -614,6 +653,9 @@ export class ProjectModelDocumentModel {
                 pullRequestUrl: `${ProjectModelDraftChangesTableName}.applied_pull_request_url`,
                 revertedBy: `${ProjectModelChangeSetsTableName}.reverted_by_change_set_uuid`,
                 models: `${ProjectModelDraftChangesTableName}.models`,
+                discarderFirstName: 'discarder.first_name',
+                discarderLastName: 'discarder.last_name',
+                discardedAt: `${ProjectModelDraftChangesTableName}.discarded_at`,
             })
             .where(
                 `${ProjectModelDraftChangesTableName}.project_uuid`,
@@ -633,11 +675,22 @@ export class ProjectModelDocumentModel {
                 pullRequestUrl,
                 revertedBy,
                 models,
+                discarderFirstName,
+                discarderLastName,
+                discardedAt,
             }) => ({
                 draftChangeUuid,
                 status: revertedBy ? 'undone' : status,
                 pullRequestUrl,
                 models: models.map(({ name }) => name),
+                // Someone since removed has no name to show.
+                discardedBy:
+                    discardedAt !== null && discarderFirstName !== null
+                        ? {
+                              name: `${discarderFirstName} ${discarderLastName ?? ''}`.trim(),
+                              at: discardedAt,
+                          }
+                        : null,
             }),
         );
     }
@@ -677,6 +730,7 @@ export class ProjectModelDocumentModel {
             promptUuid,
             models,
             baseVersions,
+            projectContextEntries,
         }: NewDraftChange,
         database: Knex = this.database,
     ): Promise<string> {
@@ -692,6 +746,10 @@ export class ProjectModelDocumentModel {
                         baseVersions === null
                             ? null
                             : JSON.stringify(baseVersions),
+                    project_context_entries:
+                        projectContextEntries === null
+                            ? null
+                            : JSON.stringify(projectContextEntries),
                 })
                 .returning('project_model_draft_change_uuid');
         return draftChangeUuid;
@@ -846,6 +904,8 @@ export class ProjectModelDocumentModel {
             status: SettledDraftChangeStatus;
             applied_change_set_uuid: string | null;
             applied_pull_request_url: string | null;
+            discarded_by_user_uuid: string | null;
+            discarded_at: Date | null;
         },
     ): Promise<number> {
         const settling =
@@ -867,25 +927,37 @@ export class ProjectModelDocumentModel {
         drafts,
         status,
         pullRequestUrl,
+        discardedByUserUuid,
+        withSettled,
         ...owner
     }: DraftOwner & {
         drafts: DraftSelection;
         status: SettledDraftChangeStatus;
         /** The pull request an applied draft was sent as; null for anything else. */
         pullRequestUrl: string | null;
+        /** Someone other than the owner discarding it; null for anything else. */
+        discardedByUserUuid: string | null;
+        /** Runs in the same transaction once the rows are settled, given how many were; a throw settles nothing. */
+        withSettled?: (trx: Knex.Transaction, settled: number) => Promise<void>;
     }): Promise<number> {
-        return this.database.transaction((trx) =>
-            ProjectModelDocumentModel.updateSelectedDraftChanges(
-                trx,
-                owner,
-                drafts,
-                {
-                    status,
-                    applied_change_set_uuid: null,
-                    applied_pull_request_url: pullRequestUrl,
-                },
-            ),
-        );
+        return this.database.transaction(async (trx) => {
+            const settled =
+                await ProjectModelDocumentModel.updateSelectedDraftChanges(
+                    trx,
+                    owner,
+                    drafts,
+                    {
+                        status,
+                        applied_change_set_uuid: null,
+                        applied_pull_request_url: pullRequestUrl,
+                        discarded_by_user_uuid: discardedByUserUuid,
+                        discarded_at:
+                            discardedByUserUuid === null ? null : new Date(),
+                    },
+                );
+            await withSettled?.(trx, settled);
+            return settled;
+        });
     }
 
     /** Writes documents, revisions and a change set, then runs `deploy`, under a per-project lock; throws ModelDocumentsChangedError on a stale read. */
@@ -894,6 +966,7 @@ export class ProjectModelDocumentModel {
             source,
             readVersions,
             documents,
+            withSettled,
             ...owner
         }: DraftOwner & {
             source: ChangeSetSource;
@@ -901,6 +974,8 @@ export class ProjectModelDocumentModel {
             readVersions: Map<string, number>;
             /** Content null deletes the document. */
             documents: { name: string; content: string | null }[];
+            /** Runs in the same transaction once the draft's rows are settled; a throw writes nothing. */
+            withSettled?: (trx: Knex.Transaction) => Promise<void>;
         },
         deploy: () => Promise<T>,
     ): Promise<{ changeSetUuid: string; deployed: T }> {
@@ -1031,8 +1106,11 @@ export class ProjectModelDocumentModel {
                         status: 'applied',
                         applied_change_set_uuid: changeSetUuid,
                         applied_pull_request_url: null,
+                        discarded_by_user_uuid: null,
+                        discarded_at: null,
                     },
                 );
+                await withSettled?.(trx);
             }
 
             // Deploy inside the lock so two writers never deploy out of order.

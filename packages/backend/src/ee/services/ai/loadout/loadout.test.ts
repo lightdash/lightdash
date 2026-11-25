@@ -82,6 +82,7 @@ const fullInput: LoadoutInput = {
     enableEditProjectContext: true,
     isSemanticStudioThread: false,
     semanticStudioDrafts: false,
+    semanticStudioKeepsContext: false,
     enableReadAttachments: true,
     enableReadPinnedThread: true,
     enableAskUser: true,
@@ -117,6 +118,7 @@ const minimalInput: LoadoutInput = {
     enableEditProjectContext: false,
     isSemanticStudioThread: false,
     semanticStudioDrafts: false,
+    semanticStudioKeepsContext: false,
     enableReadAttachments: false,
     enableReadPinnedThread: false,
     enableAskUser: false,
@@ -158,6 +160,7 @@ const inputs: Record<LoadoutBase, LoadoutInput> = {
         ...fullInput,
         isSemanticStudioThread: true,
         semanticStudioDrafts: true,
+        semanticStudioKeepsContext: true,
     },
     composer: { ...fullInput, enableComposerQueries: true },
     no_data_access: {
@@ -345,7 +348,6 @@ describe('loadout contracts', () => {
         );
         const studio = getSemanticStudioTurn(loadout, {
             drafts: false,
-            hasRepository: true,
             projectMap: null,
             repoFsRoot: '.',
             repoFsSupportsCodeSearch: true,
@@ -370,6 +372,7 @@ describe('resolveLoadout', () => {
         const dbt = resolveLoadout({
             ...inputs.semantic_studio,
             semanticStudioDrafts: false,
+            semanticStudioKeepsContext: false,
         });
         expect(dbt.base).toBe('semantic_studio');
         expect(dbt.toolNames.has('proposeSemanticLayerChange')).toBe(false);
@@ -388,12 +391,28 @@ describe('resolveLoadout', () => {
         const proposing = resolveLoadout({
             ...inputs.semantic_studio,
             semanticStudioDrafts: false,
+            semanticStudioKeepsContext: false,
             enableAiWriteback: false,
         });
         expect(proposing.toolNames.has('verify')).toBe(false);
         expect(proposing.toolNames.has('exploreRepo')).toBe(true);
         expect(proposing.withheldToolNames.size).toBe(0);
         expect(resolveLoadout(fullInput).toolNames.has('verify')).toBe(false);
+    });
+
+    it('offers drafting project context only where project context is on', () => {
+        expect(
+            resolveLoadout(inputs.semantic_studio).toolNames.has(
+                'draftProjectContext',
+            ),
+        ).toBe(true);
+        const off = resolveLoadout({
+            ...inputs.semantic_studio,
+            projectContextEnabled: false,
+            aiAgentMemoryEnabled: true,
+        });
+        expect(off.toolNames.has('draftProjectContext')).toBe(false);
+        expect(getStudioAbilities(off).canDraftContext).toBe(false);
     });
 
     test.each<[string, LoadoutInput, LoadoutBase]>([

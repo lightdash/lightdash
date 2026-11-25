@@ -1,4 +1,8 @@
-import { parseSqlScript, splitSqlStatements } from './sqlScript';
+import {
+    isMetadataStatement,
+    parseSqlScript,
+    splitSqlStatements,
+} from './sqlScript';
 
 describe('splitSqlStatements', () => {
     test('returns a single statement unchanged', () => {
@@ -133,5 +137,43 @@ describe('parseSqlScript', () => {
             kind: 'statement',
             sql: 'SELECT setting FROM a;\nSELECT 1',
         });
+    });
+});
+
+describe('isMetadataStatement', () => {
+    test.each([
+        'DESCRIBE TABLE my_schema.my_table',
+        'desc my_table',
+        'SHOW CREATE TABLE my_table',
+        'show server_version;',
+        'DESCRIBE my_table;',
+        'DESCRIBE my_table ;;  ',
+        '-- note\nDESCRIBE my_table',
+        '  \n  DESCRIBE TABLE my_table',
+        '-- inspect the table\nDESCRIBE TABLE my_table',
+        '/* inspect */ SHOW TABLES',
+    ])('detects %s', (sql) => {
+        expect(isMetadataStatement(sql)).toBe(true);
+    });
+
+    test.each([
+        'SELECT * FROM my_table',
+        'WITH a AS (SELECT 1) SELECT * FROM a',
+        'SELECT description FROM my_table',
+        '-- SHOW TABLES\nSELECT 1',
+        'SET x = 1; SHOW TABLES',
+        'SHOW search_path; SELECT * FROM my_table',
+        'DESCRIBE my_table; DELETE FROM my_table',
+        'EXPLAIN SELECT 1',
+        'EXPLAIN ANALYZE DELETE FROM my_table',
+        'showcase_table',
+        "SHOW TABLES LIKE 'a\\'; SELECT * FROM big_table --'",
+        'SHOW x # ; SELECT * FROM big_table',
+        "SHOW TABLES LIKE 'a;b'",
+        'DESCRIBE my_table; -- note',
+        '-- note; more\nDESCRIBE my_table',
+        '/* /* */ SHOW x */ SELECT * FROM big_table',
+    ])('ignores %s', (sql) => {
+        expect(isMetadataStatement(sql)).toBe(false);
     });
 });

@@ -89,7 +89,6 @@ import {
     EnsurePlaygroundProjectResults,
     Explore,
     ExploreError,
-    ExploreSplitError,
     ExploreType,
     FeatureFlags,
     Field,
@@ -196,6 +195,7 @@ import {
     MergeQueryMetricSource,
     mergeReservedDefinitions,
     mergeWarehouseCredentials,
+    METRIC_VIEW_TABLE_TYPE,
     MetricQuery,
     MetricType,
     MIN_RESULTS_CACHE_TTL_SECONDS,
@@ -300,6 +300,7 @@ import {
     WarehouseConnectionTestResults,
     WarehouseCredentials,
     WarehouseDatabaseListing,
+    WarehouseTableMetadata,
     WarehouseTables,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
@@ -14948,19 +14949,9 @@ export class ProjectService
                 const explore = exploresMap[exploreName];
 
                 if (!explore) {
-                    const candidateExploreNames =
-                        await this.projectModel.findExploreSplitCandidates(
-                            projectUuid,
-                            exploreName,
-                        );
-                    if (candidateExploreNames.length >= 2) {
-                        throw new ExploreSplitError(
-                            exploreName,
-                            candidateExploreNames,
-                        );
-                    }
-                    throw new NotFoundError(
-                        `Explore "${exploreName}" does not exist.`,
+                    throw await this.projectModel.getMissingExploreError(
+                        projectUuid,
+                        exploreName,
                     );
                 }
                 if (isExploreError(explore)) {
@@ -15611,6 +15602,7 @@ export class ProjectService
     ): Promise<
         WarehouseTableFields & {
             partitioning: TablePartitioning | null;
+            metadata: WarehouseTableMetadata | null;
             warehouseType: WarehouseTypes;
         }
     > {
@@ -15626,8 +15618,15 @@ export class ProjectService
                 table: resolved,
                 queryTags,
             }) => {
-                const [fields, partitioning] = await Promise.all([
-                    this.getTableFields(warehouseClient, resolved, queryTags),
+                const [listed, partitioning, metadata] = await Promise.all([
+                    this.getTableFields(
+                        warehouseClient,
+                        resolved,
+                        queryTags,
+                    ).then(
+                        (columns) => ({ columns, error: null }),
+                        (error: unknown) => ({ columns: null, error }),
+                    ),
                     warehouseClient
                         .getTablePartitioning(
                             resolved.tableName,
@@ -15641,8 +15640,45 @@ export class ProjectService
                             );
                             return null;
                         }),
+                    warehouseClient.getTableMetadata
+                        ? warehouseClient
+                              .getTableMetadata(
+                                  resolved.tableName,
+                                  resolved.schemaName,
+                                  resolved.database,
+                              )
+                              .catch((error: unknown) => {
+                                  this.logger.warn(
+                                      'Error fetching warehouse table metadata',
+                                      { error },
+                                  );
+                                  return null;
+                              })
+                        : null,
                 ]);
-                return { ...fields, partitioning, warehouseType };
+                if (metadata?.tableType === METRIC_VIEW_TABLE_TYPE) {
+                    // Columns come from the describe, so a metric view needs no probe that selects from it
+                    return {
+                        fields: Object.fromEntries(
+                            metadata.columns.map((column) => [
+                                column.name,
+                                listed.columns?.fields[column.name] ??
+                                    column.type,
+                            ]),
+                        ),
+                        nativeTypes: listed.columns?.nativeTypes ?? {},
+                        partitioning,
+                        metadata,
+                        warehouseType,
+                    };
+                }
+                if (listed.columns === null) throw listed.error;
+                return {
+                    ...listed.columns,
+                    partitioning,
+                    metadata,
+                    warehouseType,
+                };
             },
         );
     }

@@ -3051,7 +3051,7 @@ export type SemanticStudioActivity =
       }
     | {
           event: 'semantic_studio.draft_discarded';
-          properties: { scope: 'draft' | 'change' | 'model' };
+          properties: { scope: 'draft' | 'change' | 'model' | 'stale_model' };
       };
 
 export type SemanticStudioEvent = BaseTrack & {

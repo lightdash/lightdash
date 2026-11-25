@@ -387,8 +387,11 @@ import {
     toolSearchSemanticLayerOutputSchema,
 } from './toolSearchSemanticLayerArgs';
 import {
+    TOOL_DRAFT_PROJECT_CONTEXT_DESCRIPTION,
     TOOL_PROPOSE_SEMANTIC_LAYER_CHANGE_DESCRIPTION,
     TOOL_READ_SEMANTIC_MODEL_DESCRIPTION,
+    toolDraftProjectContextArgsSchema,
+    toolDraftProjectContextOutputSchema,
     toolListChangesArgsSchema,
     toolListChangesOutputSchema,
     toolProposeSemanticLayerChangeArgsSchema,
@@ -1389,6 +1392,20 @@ export const readSemanticModelToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolReadSemanticModelOutputSchema },
 });
 
+export const draftProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'draftProjectContext',
+    typeof toolDraftProjectContextArgsSchema,
+    typeof toolDraftProjectContextArgsSchema,
+    typeof toolDraftProjectContextOutputSchema
+> = defineTool({
+    name: 'draftProjectContext',
+    title: 'Draft project context',
+    description: TOOL_DRAFT_PROJECT_CONTEXT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolDraftProjectContextArgsSchema,
+    agent: { outputSchema: toolDraftProjectContextOutputSchema },
+});
+
 export const syncDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     'syncDbtProject',
     typeof toolSyncDbtProjectArgsSchema,
@@ -2120,6 +2137,7 @@ type AgentToolDefinitionsByName = {
     proposeSemanticLayerChange: typeof proposeSemanticLayerChangeToolDefinition;
     listChanges: typeof listChangesToolDefinition;
     readSemanticModel: typeof readSemanticModelToolDefinition;
+    draftProjectContext: typeof draftProjectContextToolDefinition;
     syncDbtProject: typeof syncDbtProjectToolDefinition;
     exploreRepo: typeof exploreRepoToolDefinition;
     discoverRepos: typeof discoverReposToolDefinition;
@@ -2189,6 +2207,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     proposeSemanticLayerChange: proposeSemanticLayerChangeToolDefinition,
     listChanges: listChangesToolDefinition,
     readSemanticModel: readSemanticModelToolDefinition,
+    draftProjectContext: draftProjectContextToolDefinition,
     syncDbtProject: syncDbtProjectToolDefinition,
     exploreRepo: exploreRepoToolDefinition,
     discoverRepos: discoverReposToolDefinition,
@@ -2265,6 +2284,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     proposeSemanticLayerChangeToolDefinition,
     listChangesToolDefinition,
     readSemanticModelToolDefinition,
+    draftProjectContextToolDefinition,
     syncDbtProjectToolDefinition,
     exploreRepoToolDefinition,
     discoverReposToolDefinition,

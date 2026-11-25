@@ -35,12 +35,15 @@ import {
     type NodeRef,
     type TreeNode,
 } from './model';
-import { CHANGE_KIND_LABELS } from './modelCode';
+import { CHANGE_KIND_LABELS, describeDrafter } from './modelCode';
+import { WAREHOUSE_SETTINGS_PATH } from './realProject';
 import { SearchResultsList } from './SearchResultsList';
 import { NodeIcon } from './shared';
 import { useAddToStudioChat, startStudioChatRefDrag } from './studioChatRefs';
+import { addPath } from './useAddSource';
 import { useProjectSearch } from './useProjectSearch';
 import { type ViewModel } from './useSemanticStudio';
+import { WarehouseStatusLine } from './WarehouseStatusLine';
 import classes from './WorkbenchRail.module.css';
 
 const ROW_HEIGHT = 28;
@@ -66,12 +69,18 @@ const DraftMarker: FC<{ model: string; isMine: boolean }> = ({
             </Tooltip>
         ) : null;
     }
-    const whose = [...(isMine ? ['you'] : []), ...others].join(', ');
     const kind = isMine ? marks.kinds.get(model) : undefined;
+    const label = [
+        isMine
+            ? `${kind ? `${CHANGE_KIND_LABELS[kind]} in a draft` : 'Draft'} by you.`
+            : null,
+        ...others.map((drafter) => `${describeDrafter(drafter)}.`),
+        'Not published yet.',
+    ]
+        .filter(Boolean)
+        .join(' ');
     return (
-        <Tooltip
-            label={`${kind ? `${CHANGE_KIND_LABELS[kind]} in a draft` : 'Draft'} by ${whose}. Not published yet.`}
-        >
+        <Tooltip label={label} multiline maw={320}>
             <Box
                 className={classes.draftDot}
                 data-change={kind}
@@ -263,6 +272,14 @@ export const Rail: FC<{
 
     return (
         <Box className={classes.rail}>
+            <WarehouseStatusLine
+                projectUuid={view.project.id}
+                settingsPath={
+                    view.canOpenSettings
+                        ? addPath(view, WAREHOUSE_SETTINGS_PATH)
+                        : null
+                }
+            />
             <Box className={classes.railHeader}>
                 <TextInput
                     size="xs"

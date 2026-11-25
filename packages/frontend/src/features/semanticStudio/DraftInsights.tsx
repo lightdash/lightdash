@@ -48,6 +48,7 @@ import {
     count,
     countChangedLines,
     listPublishedParts,
+    summarizeDraftedPaths,
 } from './modelCode';
 import {
     useDiscardDraftChange,
@@ -388,17 +389,14 @@ export const ModelNotices: FC<{
                     </Text>
                 </NoticeRow>
             ) : null}
-            {model.alsoChanging.map(({ name, paths }) => (
-                <NoticeRow key={name} icon={IconUsers} color="dimmed">
+            {model.alsoChanging.map(({ userUuid, name, paths }) => (
+                <NoticeRow key={userUuid} icon={IconUsers} color="dimmed">
                     <Text fz="xs" c="dimmed">
                         <Text span fw={600}>
                             {name}
                         </Text>{' '}
-                        is also changing{' '}
-                        {paths.length > 0
-                            ? listNames(paths.map(describePath))
-                            : 'this model'}
-                        , in a draft.
+                        is also editing {summarizeDraftedPaths(paths)}, in a
+                        draft.
                     </Text>
                 </NoticeRow>
             ))}
@@ -422,6 +420,10 @@ const ChangeRow: FC<{
     const failed = change.models.filter(({ error }) => error !== null);
     const named = (models: { model: string }[]) =>
         listNames(models.map(({ model }) => labels.get(model) ?? model));
+    const touched = listNames([
+        ...change.models.map(({ model }) => labels.get(model) ?? model),
+        ...(change.projectContextEntries.length > 0 ? ['Project context'] : []),
+    ]);
     return (
         <Group gap="sm" wrap="nowrap" className={classes.change}>
             <Text fz="xs" c="dimmed" className={classes.changeIndex}>
@@ -434,7 +436,7 @@ const ChangeRow: FC<{
                 <Text fz="xs" c={failed.length > 0 ? 'red' : 'dimmed'} truncate>
                     {failed.length > 0
                         ? `No longer applies to ${named(failed)}`
-                        : `${named(change.models)} · ${ago}`}
+                        : `${touched} · ${ago}`}
                 </Text>
             </Box>
             {failed.length > 0 ? (
@@ -786,6 +788,22 @@ export const PublishSummary: FC<{
     );
     return (
         <Stack gap="xs">
+            {model === null && draft.projectContext ? (
+                <Box className={classes.publishModel}>
+                    <Group
+                        className={classes.publishHead}
+                        gap="xs"
+                        wrap="nowrap"
+                    >
+                        <Text fz="sm" fw={500} truncate flex={1} miw={0}>
+                            Project context
+                        </Text>
+                        <LineCounts
+                            counts={countChangedLines(draft.projectContext)}
+                        />
+                    </Group>
+                </Box>
+            ) : null}
             {models.map((entry) => {
                 const { title, subtitle } = describeModelChange(
                     entry.model,

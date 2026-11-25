@@ -279,6 +279,20 @@ exports[`live data source names > HubSpot explore names and field ids never chan
       ],
       "name": "hubspot_leads",
     },
+    {
+      "fieldIds": [
+        "hubspot_pipeline_stages_is_closed",
+        "hubspot_pipeline_stages_object_type",
+        "hubspot_pipeline_stages_pipeline_display_order",
+        "hubspot_pipeline_stages_pipeline_id",
+        "hubspot_pipeline_stages_pipeline_label",
+        "hubspot_pipeline_stages_probability",
+        "hubspot_pipeline_stages_stage_display_order",
+        "hubspot_pipeline_stages_stage_id",
+        "hubspot_pipeline_stages_stage_label",
+      ],
+      "name": "hubspot_pipeline_stages",
+    },
   ],
   "reservedExploreNames": [],
 }

@@ -141,6 +141,17 @@
     overflow-y: auto;
 }
 
+/* On a scrolling page the list virtualises against the page, so the table
+   is as tall as its rows and never scrolls by itself. */
+.main[data-page-scroll] .table {
+    flex: none;
+}
+
+.main[data-page-scroll] .childScroll {
+    flex: none;
+    overflow: visible;
+}
+
 .childInner {
     position: relative;
 }

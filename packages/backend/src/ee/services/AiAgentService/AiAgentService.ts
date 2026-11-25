@@ -121,6 +121,7 @@ import {
     getComposerSlackEchartsConfig,
     getComposerSlackRunQueryChart,
     getDataAppVizChartFromArtifact,
+    getDefaultAiAgent,
     getEmbedThreadOwnerIdentifier,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
@@ -600,6 +601,7 @@ import {
 import {
     ClosePullRequestFn,
     DiscoverReposFn,
+    DraftProjectContextFn,
     EditDbtProjectFn,
     EditProjectContextFn,
     ExploreRepoFn,
@@ -796,6 +798,7 @@ import {
     buildDashboardSuggestionContext,
     getPinnedSuggestionContextInput,
 } from './suggestionPinnedContext';
+import { parseThreadMetadata } from './threadMetadata';
 import {
     getPromptUsageAttribution,
     type AiUsageViewerAttribution,
@@ -5967,6 +5970,7 @@ export class AiAgentService extends BaseService {
         const threadContext = AiAgentService.parseThreadContext(
             body.threadContext,
         );
+        const metadata = parseThreadMetadata(body.metadata);
         if (!body.prompt && !body.binding && threadContext === null) {
             throw new ParameterError(
                 'A prompt, binding or thread context is required to create a thread',
@@ -6013,6 +6017,7 @@ export class AiAgentService extends BaseService {
             battleProfile: body.battleProfile ?? null,
             binding,
             threadContext,
+            metadata,
         });
 
         const modelConfig = await this.resolvePromptModelConfig({
@@ -6657,27 +6662,9 @@ export class AiAgentService extends BaseService {
                 return;
             }
 
-            await this.createAgent(
-                user,
-                {
-                    name: 'Analytics agent',
-                    projectUuid,
-                    description: null,
-                    integrations: [],
-                    tags: null,
-                    instruction: `You are this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.`,
-                    imageUrl: null,
-                    groupAccess: [],
-                    userAccess: [],
-                    spaceAccess: [],
-                    enableDataAccess: true,
-                    enableSelfImprovement: false,
-                    enableContentTools: true,
-                    enableUserContext: true,
-                    version: 2,
-                },
-                { autoProvisioned: true },
-            );
+            await this.createAgent(user, getDefaultAiAgent(projectUuid), {
+                autoProvisioned: true,
+            });
         } catch (error) {
             if (
                 error instanceof ForbiddenError ||
@@ -15188,6 +15175,18 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 changeName,
             );
 
+        const draftProjectContext: DraftProjectContextFn = (
+            entry,
+            changeName,
+        ) =>
+            this.semanticStudioService.draftProjectContextEntry(
+                user,
+                projectUuid,
+                entry,
+                prompt.promptUuid,
+                changeName,
+            );
+
         const listChanges = () =>
             this.semanticStudioService.listChanges(
                 user,
@@ -15387,6 +15386,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             getDraftExplore,
             runDraftQuery,
             readSemanticModel,
+            draftProjectContext,
             verify,
             read,
             exploreRepo,
@@ -17565,9 +17565,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                           promptProject.projectUuid,
                       )
                     : null;
-                // Only a project with no repository has nowhere to keep project context.
-                const semanticStudioHasRepository =
-                    semanticStudioStatus?.appliesAs !== 'live';
                 // A dbt project's Studio thread works on pull requests where Studio is on for the person.
                 const semanticStudioWorksAsDbt =
                     semanticStudioStatus !== null &&
@@ -17582,6 +17579,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&
                     !semanticStudioWorksAsDbt;
+                const semanticStudioKeepsContext =
+                    semanticStudioDrafts &&
+                    semanticStudioStatus.appliesAs === 'live';
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -17807,6 +17807,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
+                    draftProjectContext,
                     verify,
                     read,
                     exploreRepo,
@@ -18106,7 +18107,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread: isStudioThread,
                     semanticStudioDrafts,
-                    semanticStudioHasRepository,
+                    semanticStudioKeepsContext,
                     semanticStudioProjectMap,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
@@ -18340,6 +18341,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
+                    draftProjectContext,
                     verify,
                     read,
                     exploreRepo,
@@ -20300,6 +20302,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     return 'Listing your changes...';
                 case 'readSemanticModel':
                     return 'Reading the model...';
+                case 'draftProjectContext':
+                    return 'Drafting the project context...';
                 case 'verify':
                     return 'Checking the change...';
                 case 'read':

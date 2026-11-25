@@ -10,6 +10,7 @@ import {
     getErrorMessage,
     getRunProposals,
     getStudioCardReply,
+    hasMoreToDo,
     isDbtWriteToolName,
     isSqlApprovalToolCall,
     type AiDeepResearchBudget,
@@ -167,6 +168,7 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import {
+    getDraftProjectContext,
     getListChanges,
     getProposeSemanticLayerChange,
     getReadSemanticModel,
@@ -1379,7 +1381,10 @@ export const getStudioCardResponse = (
     }
     const studioSaves = new Set(
         last.toolCalls
-            .filter(({ toolName }) => isDbtWriteToolName(toolName))
+            .filter(
+                ({ toolName, input }) =>
+                    isDbtWriteToolName(toolName) && !hasMoreToDo(input),
+            )
             .map(({ toolCallId }) => toolCallId),
     );
     const isSaving = last.toolResults.some(
@@ -2247,12 +2252,26 @@ export const getAgentTools = (
             getProposeSemanticLayerChange({
                 proposeSemanticLayerChange:
                     dependencies.proposeSemanticLayerChange,
+                describeWarehouseTable: dependencies.describeWarehouseTable,
+                readSemanticModel: dependencies.readSemanticModel,
                 canRunMetrics: getStudioAbilities(loadout).canRunMetrics,
+                metricViewCheck:
+                    getStudioAbilities(loadout).canRunMetrics &&
+                    loadout.toolNames.has('runSql')
+                        ? {
+                              runDraftQuery: dependencies.runDraftQuery,
+                              runSqlJob: queryDependencies.runSqlJob,
+                          }
+                        : null,
             }),
         listChanges: () => getListChanges(dependencies.listChanges),
         readSemanticModel: () =>
             getReadSemanticModel({
                 readSemanticModel: dependencies.readSemanticModel,
+            }),
+        draftProjectContext: () =>
+            getDraftProjectContext({
+                draftProjectContext: dependencies.draftProjectContext,
             }),
         read: () =>
             getRead({
@@ -2811,7 +2830,6 @@ export const getAgentMessages = (
         studio: loadout.promptSections.has('semanticStudio')
             ? getSemanticStudioTurn(loadout, {
                   drafts: args.semanticStudioDrafts,
-                  hasRepository: args.semanticStudioHasRepository,
                   projectMap: args.semanticStudioProjectMap,
                   repoFsRoot: args.repoFsRoot,
                   repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,

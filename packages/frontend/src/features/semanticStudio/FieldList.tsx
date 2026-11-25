@@ -1,21 +1,5 @@
-import {
-    Box,
-    Button,
-    Checkbox,
-    Group,
-    Menu,
-    Stack,
-    Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
-import {
-    IconCheck,
-    IconChevronDown,
-    IconGripVertical,
-    IconLock,
-    IconSearch,
-} from '@tabler/icons-react';
+import { Box, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { IconGripVertical, IconLock, IconSearch } from '@tabler/icons-react';
 import {
     memo,
     useCallback,
@@ -36,7 +20,6 @@ import { usePageVirtualizer } from './pageScroll';
 import { FieldTypeIcon } from './shared';
 import sharedClasses from './shared.module.css';
 import { startStudioChatRefDrag, useAddToStudioChat } from './studioChatRefs';
-import { type FieldFilter } from './useFieldListState';
 import { type ViewModel } from './useSemanticStudio';
 
 const FIELD_ROW_HEIGHT = 36;
@@ -187,9 +170,6 @@ export const FieldList: FC<{
     view: ViewModel;
     explore: Explore;
     fields: Field[];
-    /** Fields not in use that match but are hidden; offered when none show. */
-    hiddenCount: number;
-    onShowHidden: () => void;
     /** The field whose details are open, from the URL. */
     openFieldId: string | null;
     /** A field to bring into view on arrival, such as one just published. */
@@ -201,8 +181,6 @@ export const FieldList: FC<{
     view,
     explore,
     fields,
-    hiddenCount,
-    onShowHidden,
     openFieldId,
     revealFieldId,
     onOpen,
@@ -328,34 +306,13 @@ export const FieldList: FC<{
                 <span>Field</span>
                 <span>Description</span>
             </Box>
-            {fields.length === 0 && hiddenCount > 0 ? (
-                <Stack gap={8} align="center" py="xl">
-                    <Stack gap={2} align="center">
-                        <Text fz="sm" fw={500}>
-                            {hiddenCount === 1
-                                ? '1 hidden field matches'
-                                : `${hiddenCount.toLocaleString()} hidden fields match`}
-                        </Text>
-                        <Text fz="xs" c="dimmed">
-                            Fields not in use are hidden.
-                        </Text>
-                    </Stack>
-                    <Button
-                        size="xs"
-                        variant="default"
-                        className={sharedClasses.pressable}
-                        onClick={onShowHidden}
-                    >
-                        Show hidden
-                    </Button>
-                </Stack>
-            ) : fields.length === 0 ? (
+            {fields.length === 0 ? (
                 <Stack gap={2} align="center" py="xl">
                     <Text fz="sm" fw={500}>
                         No fields match
                     </Text>
                     <Text fz="xs" c="dimmed">
-                        Clear the search or show all fields.
+                        Clear the search.
                     </Text>
                 </Stack>
             ) : (
@@ -420,36 +377,11 @@ export const FieldList: FC<{
     );
 };
 
-const FILTER_LABELS: Record<FieldFilter, string> = {
-    all: 'All fields',
-    noDescription: 'Missing description',
-};
-
-/** The table's top edge: search, Show hidden and one filter menu. */
+/** The table's top edge: search. */
 export const FieldListToolbar: FC<{
-    filter: FieldFilter;
-    onFilterChange: (filter: FieldFilter) => void;
     query: string;
     onQueryChange: (query: string) => void;
-    showInternal: boolean;
-    onShowInternalChange: (value: boolean) => void;
-    hasInternal: boolean;
-    showHidden: boolean;
-    onShowHiddenChange: (value: boolean) => void;
-    /** Fields not in use; only live data sources have any. */
-    hasHidden: boolean;
-}> = ({
-    filter,
-    onFilterChange,
-    query,
-    onQueryChange,
-    showInternal,
-    onShowInternalChange,
-    hasInternal,
-    showHidden,
-    onShowHiddenChange,
-    hasHidden,
-}) => (
+}> = ({ query, onQueryChange }) => (
     <Group className={classes.tableToolbar} gap="xs" wrap="nowrap">
         <TextInput
             variant="unstyled"
@@ -464,62 +396,5 @@ export const FieldListToolbar: FC<{
                 if (event.key === 'Escape' && query) onQueryChange('');
             }}
         />
-        {hasHidden ? (
-            <Checkbox
-                size="xs"
-                label="Show hidden"
-                className={classes.showHidden}
-                checked={showHidden}
-                onChange={(event) =>
-                    onShowHiddenChange(event.currentTarget.checked)
-                }
-            />
-        ) : null}
-        <Menu position="bottom-end" width={200}>
-            <Menu.Target>
-                <Button
-                    size="xs"
-                    variant="subtle"
-                    color="gray"
-                    className={sharedClasses.pressable}
-                    rightSection={
-                        <MantineIcon icon={IconChevronDown} size={12} />
-                    }
-                >
-                    {FILTER_LABELS[filter]}
-                </Button>
-            </Menu.Target>
-            <Menu.Dropdown>
-                {(Object.keys(FILTER_LABELS) as FieldFilter[]).map((value) => (
-                    <Menu.Item
-                        key={value}
-                        rightSection={
-                            filter === value ? (
-                                <MantineIcon icon={IconCheck} size={14} />
-                            ) : null
-                        }
-                        onClick={() => onFilterChange(value)}
-                    >
-                        {FILTER_LABELS[value]}
-                    </Menu.Item>
-                ))}
-                {hasInternal ? (
-                    <>
-                        <Menu.Divider />
-                        <Menu.Item
-                            closeMenuOnClick={false}
-                            rightSection={
-                                showInternal ? (
-                                    <MantineIcon icon={IconCheck} size={14} />
-                                ) : null
-                            }
-                            onClick={() => onShowInternalChange(!showInternal)}
-                        >
-                            Internal fields
-                        </Menu.Item>
-                    </>
-                ) : null}
-            </Menu.Dropdown>
-        </Menu>
     </Group>
 );

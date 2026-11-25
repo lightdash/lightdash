@@ -23,6 +23,7 @@ import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useLiveSourceActions } from '../externalConnections/liveSources/liveSourceActions';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
+import { LiveSourceRefreshAction } from '../externalConnections/liveSources/LiveSourceRefreshAction';
 import { LiveSourceSettings } from '../externalConnections/liveSources/LiveSourceSettings';
 import {
     LiveSourceSummary,
@@ -41,6 +42,11 @@ import { FieldDetailModal } from './FieldDetailModal';
 import { FieldList, FieldListToolbar } from './FieldList';
 import { JoinDiagram } from './JoinDiagram';
 import {
+    LiveExploreEditAction,
+    LiveExploreNotInUseBadge,
+    LiveExploreRows,
+} from './LiveExploreDetails';
+import {
     containerOf,
     fieldGroups,
     findNode,
@@ -51,6 +57,7 @@ import {
     summaryOf,
     trailTo,
     type NodeRef,
+    type Field,
     type Source,
     type TreeNode,
 } from './model';
@@ -62,7 +69,8 @@ import {
     type ModelTab,
 } from './modelCode';
 import { ModelMark } from './ModelMark';
-import { ModelTabs, SourceTabs } from './ModelTabs';
+import { LiveSourceFlow, ModelTabs } from './ModelTabs';
+import { OthersDraftNotice } from './OthersDraftNotice';
 import { PageScrollContext, usePageVirtualizer } from './pageScroll';
 import { SemanticLayerNudge } from './SemanticLayerNudge';
 import { NodeIcon } from './shared';
@@ -73,6 +81,7 @@ import { addPath } from './useAddSource';
 import { useExploreFields } from './useExploreFields';
 import { useFieldListState } from './useFieldListState';
 import {
+    usePublishMode,
     useSemanticLayerDraft,
     useSemanticLayerModel,
 } from './useSemanticLayerModel';
@@ -236,6 +245,7 @@ const ExploreBody: FC<{
     const othersHere =
         draft?.othersDrafting.find(({ model }) => model === exploreId)
             ?.drafters ?? [];
+    const publishMode = usePublishMode(view.project.id);
     const {
         fields: loaded,
         isLoading,
@@ -267,8 +277,15 @@ const ExploreBody: FC<{
         [loaded, published],
     );
     const groups = useMemo(() => fieldGroups(allFields), [allFields]);
-    const { fields, hiddenCount, onShowHidden, toolbarProps } =
-        useFieldListState(allFields, openFieldId);
+    const { fields, toolbarProps } = useFieldListState(allFields, openFieldId);
+    const revealFieldId = published
+        ? (fields.find(({ draftState }) => draftState)?.id ?? null)
+        : null;
+    const openListField = (field: Field) =>
+        view.select(
+            { type: 'field', exploreId, fieldId: field.id },
+            { replace: true },
+        );
     const openField = openFieldId
         ? allFields.find(({ id }) => id === openFieldId)
         : undefined;
@@ -322,45 +339,28 @@ const ExploreBody: FC<{
                     </Text>
                 </Group>
             ) : null}
-            {modelDraft || othersHere.length > 0 ? (
-                <Group gap="sm" mb="sm" wrap="nowrap">
-                    <Text fz="xs" c="dimmed">
-                        {[
-                            modelDraft
-                                ? 'Only you see this until you publish.'
-                                : null,
-                            ...othersHere.map(
-                                ({ name, paths }) =>
-                                    `${name} is changing ${paths.length > 0 ? paths.join(', ') : 'this model'}, in a draft.`,
-                            ),
-                        ]
-                            .filter(Boolean)
-                            .join(' ')}
-                    </Text>
-                </Group>
+            {modelDraft ? (
+                <Text fz="xs" c="dimmed" mb="sm">
+                    Not live until you publish. Only you can change it.
+                </Text>
             ) : null}
+            <OthersDraftNotice
+                projectUuid={view.project.id}
+                model={exploreId}
+                drafters={othersHere}
+                publishMode={publishMode}
+            />
+
             <FieldList
                 view={view}
                 explore={explore}
                 fields={fields}
-                hiddenCount={hiddenCount}
-                onShowHidden={onShowHidden}
                 openFieldId={openFieldId}
-                revealFieldId={
-                    published
-                        ? (fields.find(({ draftState }) => draftState)?.id ??
-                          null)
-                        : null
-                }
+                revealFieldId={revealFieldId}
                 toolbar={<FieldListToolbar {...toolbarProps} />}
                 // The open field is in the URL; opening and closing replaces
                 // the entry rather than stacking up the back button.
-                onOpen={(field) =>
-                    view.select(
-                        { type: 'field', exploreId, fieldId: field.id },
-                        { replace: true },
-                    )
-                }
+                onOpen={openListField}
             />
             {openField ? (
                 <FieldDetailModal
@@ -453,23 +453,16 @@ export const MainPane: FC<{
     const liveActions = useLiveSourceActions();
     const isLiveSourcesPage =
         !!liveActions && ref?.type === 'kind' && ref.kind === 'live';
-    const sourceExploreLabels = source
-        ? view.project.explores
-              .filter(({ sourceId }) => sourceId === source.id)
-              .map(({ label }) => label)
-        : [];
-    // A source with several explores shows its usage and controls on its own
-    // page, not on each explore's
-    const isLiveSourcePage =
-        ref?.type !== 'kind' &&
-        (ref?.type !== 'explore' || sourceExploreLabels.length === 1);
+    // A source shows its usage and controls on its own page, never on its
+    // explores', however many it has
+    const isLiveSourcePage = ref?.type !== 'kind' && ref?.type !== 'explore';
     const liveConnection = useManagedLiveSource(
         view.project.id,
         isLiveSourcePage && source?.kind === 'live'
             ? source.connectionUuid
             : undefined,
     );
-    // A source's settings sit in a tab beside its fields or explores
+    // A source's settings sit below its fields or explores, on one page
     const liveSettings = liveConnection ? (
         <LiveSourceSettings
             key={liveConnection.externalConnectionUuid}
@@ -543,8 +536,41 @@ export const MainPane: FC<{
                                 {title}
                             </Title>
                             {isLiveSourcesPage ? <LiveSourceBetaBadge /> : null}
+                            {explore &&
+                            source?.kind === 'live' &&
+                            !liveConnection ? (
+                                <LiveExploreNotInUseBadge
+                                    projectUuid={view.project.id}
+                                    connectionUuid={source.connectionUuid ?? ''}
+                                    exploreName={explore.id}
+                                />
+                            ) : null}
                         </Group>
                         <Group gap={4} wrap="nowrap" flex="none">
+                            {explore &&
+                            source?.kind === 'live' &&
+                            !liveConnection ? (
+                                <LiveExploreEditAction
+                                    key={explore.id}
+                                    projectUuid={view.project.id}
+                                    connectionUuid={source.connectionUuid ?? ''}
+                                    exploreName={explore.id}
+                                    onSwitchedOff={() =>
+                                        onOpen({
+                                            type: 'source',
+                                            sourceId: explore.sourceId,
+                                        })
+                                    }
+                                />
+                            ) : null}
+                            {liveConnection ? (
+                                <LiveSourceRefreshAction
+                                    projectUuid={view.project.id}
+                                    connectionUuid={
+                                        liveConnection.externalConnectionUuid
+                                    }
+                                />
+                            ) : null}
                             {externalSource ? (
                                 <ExternalSourceHeaderActions
                                     projectUuid={view.project.id}
@@ -569,7 +595,6 @@ export const MainPane: FC<{
                         <LiveSourceSummary
                             projectUuid={view.project.id}
                             connection={liveConnection}
-                            exploreLabels={sourceExploreLabels}
                         />
                     ) : null}
                     {externalSource ? (
@@ -600,6 +625,19 @@ export const MainPane: FC<{
                                 onOpen({ type: 'source', sourceId: sourceUuid })
                             }
                         />
+                    ) : explore && source?.kind === 'live' ? (
+                        <LiveSourceFlow
+                            key={explore.id}
+                            main={
+                                <ExploreBody
+                                    key={explore.id}
+                                    view={view}
+                                    exploreId={explore.id}
+                                    openFieldId={openFieldId}
+                                />
+                            }
+                            settings={null}
+                        />
                     ) : explore ? (
                         <ModelTabs
                             key={explore.id}
@@ -625,13 +663,26 @@ export const MainPane: FC<{
                                 />
                             }
                         />
-                    ) : nodes.length > 0 && liveSettings ? (
-                        <SourceTabs
-                            explores={
-                                <ChildrenList
-                                    view={view}
-                                    nodes={nodes}
-                                    onOpen={onOpenNode}
+                    ) : liveConnection && liveSettings ? (
+                        <LiveSourceFlow
+                            title="Explores"
+                            main={
+                                <LiveExploreRows
+                                    projectUuid={view.project.id}
+                                    connectionUuid={
+                                        liveConnection.externalConnectionUuid
+                                    }
+                                    isOpenable={(exploreName) =>
+                                        view.project.explores.some(
+                                            ({ id }) => id === exploreName,
+                                        )
+                                    }
+                                    onOpen={(exploreName) =>
+                                        onOpen({
+                                            type: 'explore',
+                                            exploreId: exploreName,
+                                        })
+                                    }
                                 />
                             }
                             settings={liveSettings}

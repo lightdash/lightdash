@@ -18371,6 +18371,34 @@
                         },
                         "type": "array"
                     },
+                    "canEditFields": {
+                        "type": "boolean",
+                        "description": "False for an explore scans add no fields to; its `fields` is then empty."
+                    },
+                    "lastEdit": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LiveSourceFieldEditor"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "usedByChartCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Saved charts on the explore."
+                    },
+                    "inUse": {
+                        "type": "boolean",
+                        "description": "Off, the explore isn't built, so charts, dashboards and agents can't use it."
+                    },
+                    "aiHint": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string"
+                    },
                     "label": {
                         "type": "string"
                     },
@@ -18378,9 +18406,19 @@
                         "type": "string"
                     }
                 },
-                "required": ["fields", "label", "exploreName"],
+                "required": [
+                    "fields",
+                    "canEditFields",
+                    "lastEdit",
+                    "usedByChartCount",
+                    "inUse",
+                    "aiHint",
+                    "description",
+                    "label",
+                    "exploreName"
+                ],
                 "type": "object",
-                "description": "The fields of one explore of a live data source."
+                "description": "One explore of a live data source, with its fields when they can be curated."
             },
             "LiveSourceFields": {
                 "properties": {
@@ -18389,7 +18427,7 @@
                             "$ref": "#/components/schemas/LiveSourceExploreFields"
                         },
                         "type": "array",
-                        "description": "Every explore whose fields can be curated, the first one included."
+                        "description": "Every explore of the source, in use or not, the first one included."
                     },
                     "fields": {
                         "items": {
@@ -18435,6 +18473,73 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "LiveSourceContentUsage": {
+                "properties": {
+                    "hiddenDashboardCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dashboards": {
+                        "items": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name", "uuid"],
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "description": "Dashboards showing any of the charts, or holding one of them."
+                    },
+                    "hiddenChartCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Charts in spaces the caller can't open, counted but not named."
+                    },
+                    "charts": {
+                        "items": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name", "uuid"],
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "description": "The charts the caller can open."
+                    }
+                },
+                "required": [
+                    "hiddenDashboardCount",
+                    "dashboards",
+                    "hiddenChartCount",
+                    "charts"
+                ],
+                "type": "object",
+                "description": "Saved content one item of a live data source is used by."
+            },
+            "ApiLiveSourceContentUsageResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LiveSourceContentUsage"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "LiveSourceFieldChange": {
                 "properties": {
                     "group": {
@@ -18468,8 +18573,39 @@
                 "type": "object",
                 "description": "One field change; unset keys stay as they are, null clears an override."
             },
+            "LiveSourceExploreChange": {
+                "properties": {
+                    "aiHint": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "inUse": {
+                        "type": "boolean"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["exploreName"],
+                "type": "object",
+                "description": "One explore change; unset keys stay as they are, null clears an override."
+            },
             "ApiUpdateLiveSourceFieldsRequest": {
                 "properties": {
+                    "exploreChanges": {
+                        "items": {
+                            "$ref": "#/components/schemas/LiveSourceExploreChange"
+                        },
+                        "type": "array"
+                    },
                     "changes": {
                         "items": {
                             "$ref": "#/components/schemas/LiveSourceFieldChange"
@@ -22125,6 +22261,10 @@
             },
             "ApiSourceFieldRule": {
                 "properties": {
+                    "valueLabels": {
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Display labels by the API's internal value, for fields that show an\noption's label: filters on the field turn labels back into values."
+                    },
                     "filterOperators": {
                         "items": {
                             "$ref": "#/components/schemas/FilterOperator"
@@ -35596,8 +35736,21 @@
                 ],
                 "description": "A thread binding as read back, with the resource name. `displayName` is null once the resource is deleted."
             },
+            "AiThreadMetadata": {
+                "$ref": "#/components/schemas/Record_string.string_",
+                "description": "Caller-defined labels on a thread. They never change what the request can access."
+            },
             "AiAgentThreadSummary_AiAgentUser_": {
                 "properties": {
+                    "metadata": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiThreadMetadata"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Caller-supplied labels set at creation; null when none were sent."
+                    },
                     "threadContext": {
                         "type": "string",
                         "nullable": true,
@@ -35665,6 +35818,7 @@
                     }
                 },
                 "required": [
+                    "metadata",
                     "threadContext",
                     "binding",
                     "liveStatus",
@@ -36886,6 +37040,15 @@
             },
             "AiAgentThreadSummary": {
                 "properties": {
+                    "metadata": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiThreadMetadata"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Caller-supplied labels set at creation; null when none were sent."
+                    },
                     "threadContext": {
                         "type": "string",
                         "nullable": true,
@@ -36953,6 +37116,7 @@
                     }
                 },
                 "required": [
+                    "metadata",
                     "threadContext",
                     "binding",
                     "liveStatus",
@@ -38416,6 +38580,7 @@
                     "describeWarehouseTable",
                     "discoverFields",
                     "discoverRepos",
+                    "draftProjectContext",
                     "editContent",
                     "editDbtProject",
                     "editProjectContext",
@@ -41788,6 +41953,10 @@
                         "$ref": "#/components/schemas/Extract_AiThreadCreatedFrom.semantic_studio_",
                         "description": "Starts a Semantic Studio thread, whose agent drafts model changes for the person to apply. Only the app may set it."
                     },
+                    "metadata": {
+                        "$ref": "#/components/schemas/AiThreadMetadata",
+                        "description": "Labels saved on the thread, such as an end user id or environment. At most 20 keys,\nkeys up to 255 characters, values up to 4,000 characters. Cannot be changed after creation."
+                    },
                     "threadContext": {
                         "type": "string",
                         "description": "Initial context for the agent, up to 10,000 characters. Cannot be changed after creation."
@@ -44185,6 +44354,13 @@
             },
             "SemanticLayerDraftChange": {
                 "properties": {
+                    "projectContextEntries": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Ids of the project context entries this change adds or replaces."
+                    },
                     "models": {
                         "items": {
                             "properties": {
@@ -44233,6 +44409,7 @@
                     }
                 },
                 "required": [
+                    "projectContextEntries",
                     "models",
                     "createdAt",
                     "question",
@@ -44299,6 +44476,19 @@
             },
             "SemanticLayerDrafter": {
                 "properties": {
+                    "canDiscard": {
+                        "type": "boolean",
+                        "description": "Whether the viewer may discard this model's part of their draft: a project admin, once it is stale."
+                    },
+                    "isStale": {
+                        "type": "boolean",
+                        "description": "No activity for a week or more."
+                    },
+                    "lastActiveAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "When they last added to their draft."
+                    },
                     "paths": {
                         "items": {
                             "type": "string"
@@ -44307,9 +44497,19 @@
                     },
                     "name": {
                         "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
                     }
                 },
-                "required": ["paths", "name"],
+                "required": [
+                    "canDiscard",
+                    "isStale",
+                    "lastActiveAt",
+                    "paths",
+                    "name",
+                    "userUuid"
+                ],
                 "type": "object",
                 "description": "Someone else with a draft of a model, and the parts of it they are changing."
             },
@@ -44385,8 +44585,38 @@
                 "type": "object",
                 "description": "A model as the draft leaves it, against what is live."
             },
+            "SemanticLayerDraftProjectContext": {
+                "properties": {
+                    "contentAfter": {
+                        "type": "string"
+                    },
+                    "contentBefore": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when the project has no context yet."
+                    }
+                },
+                "required": ["contentAfter", "contentBefore"],
+                "type": "object",
+                "description": "What the draft does to the project's context, as its file; publishing makes it what agents read."
+            },
             "SemanticLayerSettledDraftChange": {
                 "properties": {
+                    "discardedBy": {
+                        "properties": {
+                            "at": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["at", "name"],
+                        "type": "object",
+                        "nullable": true,
+                        "description": "A project admin who discarded it as stale; null when its owner settled it."
+                    },
                     "models": {
                         "items": {
                             "type": "string"
@@ -44408,6 +44638,7 @@
                     }
                 },
                 "required": [
+                    "discardedBy",
                     "models",
                     "pullRequestUrl",
                     "status",
@@ -44500,6 +44731,15 @@
                         "type": "array",
                         "description": "Models the draft leaves unable to compile."
                     },
+                    "projectContext": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticLayerDraftProjectContext"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Null when the draft leaves the project context as it is."
+                    },
                     "models": {
                         "items": {
                             "$ref": "#/components/schemas/SemanticLayerDraftModel"
@@ -44519,6 +44759,7 @@
                     "inReview",
                     "settled",
                     "errors",
+                    "projectContext",
                     "models",
                     "changes"
                 ],
@@ -44990,6 +45231,43 @@
             },
             "ApiSemanticLayerDraftApplyResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftApplyResult_"
+            },
+            "SemanticLayerOthersDraftModel": {
+                "properties": {
+                    "contentAfter": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when their draft removes the model."
+                    },
+                    "contentBefore": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when their draft creates the model."
+                    },
+                    "model": {
+                        "type": "string"
+                    }
+                },
+                "required": ["contentAfter", "contentBefore", "model"],
+                "type": "object",
+                "description": "One model as someone else's draft leaves it, against what is live; read-only."
+            },
+            "ApiSuccess_SemanticLayerOthersDraftModel_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerOthersDraftModel"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerOthersDraftModelResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerOthersDraftModel_"
             },
             "SemanticLayerDraftMoveDirection": {
                 "type": "string",
@@ -50256,11 +50534,20 @@
             "ApiTriggerAiAgentMemoryDistillResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__jobId-string__"
             },
-            "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
+            "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid-or-metadata_": {
                 "properties": {
                     "title": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "metadata": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiThreadMetadata"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Caller-supplied labels set at creation; null when none were sent."
                     },
                     "uuid": {
                         "type": "string"
@@ -50305,6 +50592,7 @@
                 },
                 "required": [
                     "title",
+                    "metadata",
                     "uuid",
                     "createdAt",
                     "user",
@@ -50314,7 +50602,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ThreadSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_"
+                "$ref": "#/components/schemas/Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid-or-metadata_"
             },
             "Pick_AiAgentSummary.uuid-or-name-or-imageUrl_": {
                 "properties": {
@@ -81477,7 +81765,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.385.4",
+        "version": "3.395.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -96957,6 +97245,118 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/semantic-studio/drafts/{ownerUuid}/models/{model}": {
+            "get": {
+                "operationId": "getOthersSemanticLayerDraftModel",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerOthersDraftModelResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "One model as someone else's draft leaves it, read-only.",
+                "summary": "Get another person's semantic layer draft of a model",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "ownerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "model",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "discardOthersSemanticLayerDraftModel",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Takes one model out of someone else's draft; only a project admin, once the draft has had no activity for 7 days.",
+                "summary": "Discard one model from another person's stale semantic layer draft",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "ownerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "model",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/semantic-studio/draft/changes/{draftChangeUuid}/move": {
             "post": {
                 "operationId": "moveSemanticLayerDraftChange",
@@ -101109,6 +101509,22 @@
                     {
                         "in": "query",
                         "name": "search",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "metadataKey",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "metadataValue",
                         "required": false,
                         "schema": {
                             "type": "string"
@@ -115265,7 +115681,7 @@
                         }
                     }
                 },
-                "description": "Return the organization's existing project or provision its sample-data\nplayground when the new onboarding flow is available.",
+                "description": "Return the organization's existing project or provision its sample-data\nplayground on a licensed instance.",
                 "summary": "Ensure playground project",
                 "tags": ["Organizations"],
                 "security": [],

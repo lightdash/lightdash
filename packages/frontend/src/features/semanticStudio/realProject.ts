@@ -26,6 +26,7 @@ import { type Explore, type Project, type Source } from './model';
 const SETTINGS = '/generalSettings/projectManagement/:projectUuid';
 
 export const WAREHOUSE_SOURCE_ID = 'warehouse';
+export const WAREHOUSE_SETTINGS_PATH = `${SETTINGS}/settings`;
 const VIRTUAL_VIEWS_SOURCE_ID = 'virtual-views';
 
 const DBT_ORIGINS: Partial<Record<DbtProjectType, string>> = {
@@ -51,7 +52,7 @@ const warehouseSource = (project: LightdashProject): Source => ({
     origin: dbtOrigin(project),
     onWarehouse: true,
     status: null,
-    settingsPath: `${SETTINGS}/settings`,
+    settingsPath: WAREHOUSE_SETTINGS_PATH,
 });
 
 const virtualViewsSource: Source = {

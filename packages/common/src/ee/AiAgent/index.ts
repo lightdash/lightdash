@@ -41,6 +41,7 @@ import {
     type AiThreadBinding,
     type AiThreadBindingSummary,
     type AiThreadCreatedFrom,
+    type AiThreadMetadata,
 } from './requestTypes';
 import { type AgentToolOutput } from './schemas';
 import type {
@@ -448,6 +449,8 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     binding: AiThreadBindingSummary | null;
     /** Initial context set at creation. */
     threadContext: string | null;
+    /** Caller-supplied labels set at creation; null when none were sent. */
+    metadata: AiThreadMetadata | null;
 };
 
 export type AiAgentThreadShare = {
@@ -716,6 +719,25 @@ export type ApiCreateAiAgent = Pick<
     threadRetentionHours?: number | null;
 };
 
+/** The agent a project gets when none exists yet, so people can start without configuring one. */
+export const getDefaultAiAgent = (projectUuid: string): ApiCreateAiAgent => ({
+    name: 'Analytics agent',
+    projectUuid,
+    description: null,
+    integrations: [],
+    tags: null,
+    instruction: `You are this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.`,
+    imageUrl: null,
+    groupAccess: [],
+    userAccess: [],
+    spaceAccess: [],
+    enableDataAccess: true,
+    enableSelfImprovement: false,
+    enableContentTools: true,
+    enableUserContext: true,
+    version: 2,
+});
+
 export type ApiUpdateAiAgent = Partial<
     Pick<
         AiAgent,
@@ -917,6 +939,10 @@ export type ApiAiAgentThreadWorkstreamsResponse = ApiSuccess<
 
 export const AI_THREAD_CONTEXT_MAX_LENGTH = 10_000;
 
+export const AI_THREAD_METADATA_MAX_KEYS = 20;
+export const AI_THREAD_METADATA_KEY_MAX_LENGTH = 255;
+export const AI_THREAD_METADATA_VALUE_MAX_LENGTH = 4_000;
+
 export type ApiAiAgentThreadCreateRequest = {
     /** First message. Optional when `binding` or `threadContext` is set; the thread then starts empty. */
     prompt?: string;
@@ -930,6 +956,11 @@ export type ApiAiAgentThreadCreateRequest = {
     binding?: AiThreadBinding;
     /** Initial context for the agent, up to 10,000 characters. Cannot be changed after creation. */
     threadContext?: string;
+    /**
+     * Labels saved on the thread, such as an end user id or environment. At most 20 keys,
+     * keys up to 255 characters, values up to 4,000 characters. Cannot be changed after creation.
+     */
+    metadata?: AiThreadMetadata;
     /** Starts a Semantic Studio thread, whose agent drafts model changes for the person to apply. Only the app may set it. */
     createdFrom?: Extract<AiThreadCreatedFrom, 'semantic_studio'>;
 };

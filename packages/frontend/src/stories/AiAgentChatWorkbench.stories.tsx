@@ -1206,6 +1206,7 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
         liveStatus: null,
         binding: null,
         threadContext: null,
+        metadata: null,
         firstMessage: {
             uuid: 'prompt-0',
             message: scenario.turns[0]?.text ?? '',

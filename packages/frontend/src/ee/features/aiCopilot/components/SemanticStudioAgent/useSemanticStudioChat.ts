@@ -23,6 +23,8 @@ import {
     useAiAgentThread,
     useCreateAgentThreadMessageMutation,
 } from '../../hooks/useProjectAiAgents';
+import { isAiAgentThreadStreamActive } from '../../store/aiAgentThreadStreamSlice';
+import { useAiAgentStoreSelector } from '../../store/hooks';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
 /** Asks for the project's agents with the page, so the chat loads alongside the explores and not after them. */
@@ -93,6 +95,26 @@ export const useStudioAgent = (projectUuid: string) => {
                 : null,
         setStored,
     };
+};
+
+export const AGENT_WORKING_HINT = 'The agent is still working on this change.';
+
+/** Whether the agent of this browser's open Studio chat is still mid-turn, so its change is not ready to publish. */
+export const useStudioAgentWorking = (projectUuid: string): boolean => {
+    const [stored] = useStoredStudioThread(projectUuid);
+    const threadUuid = stored?.threadUuid ?? null;
+    return useAiAgentStoreSelector((state) => {
+        const stream =
+            threadUuid === null
+                ? undefined
+                : state.aiAgentThreadStream[threadUuid];
+        // A finished turn is ready even if its connection has not closed yet.
+        return (
+            stream !== undefined &&
+            isAiAgentThreadStreamActive(stream.connection) &&
+            stream.timing.finishedAt === null
+        );
+    });
 };
 
 /** Starts a new chat or goes back to the previous one; with `chatFollowsWorkspace`, the active workspace moves with it. */
