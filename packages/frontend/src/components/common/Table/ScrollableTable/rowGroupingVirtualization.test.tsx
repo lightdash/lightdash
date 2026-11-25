@@ -5,12 +5,13 @@ import {
     type ResultRow,
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { type FC } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ScrollableTable from '.';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { ROW_HEIGHT_PX } from '../constants';
 import { TableProvider } from '../TableProvider';
-import { type TableColumn } from '../types';
+import { type CellContextMenuProps, type TableColumn } from '../types';
 
 const ROW_COUNT = 1000;
 const GROUP_SIZE = 100;
@@ -45,9 +46,17 @@ const column = (id: string, item?: Dimension): TableColumn => ({
     meta: { width: 100, item },
 });
 
-const renderGroupedTable = () => {
+const renderGroupedTable = ({
+    getRegion = regionOf,
+    cellContextMenu,
+}: {
+    getRegion?: (rowIndex: number) => string;
+    cellContextMenu?: FC<CellContextMenuProps>;
+} = {}) => {
     const rows: ResultRow[] = Array.from({ length: ROW_COUNT }, (_, index) => ({
-        region: { value: { raw: regionOf(index), formatted: regionOf(index) } },
+        region: {
+            value: { raw: getRegion(index), formatted: getRegion(index) },
+        },
         city: { value: { raw: `City ${index}`, formatted: `City ${index}` } },
         sales: { value: { raw: index, formatted: `Sales ${index}` } },
     }));
@@ -64,6 +73,7 @@ const renderGroupedTable = () => {
             totalRowsCount={ROW_COUNT}
             isFetchingRows={false}
             fetchMoreRows={vi.fn()}
+            cellContextMenu={cellContextMenu}
             hideRowNumbers
         >
             <ScrollableTable
@@ -152,4 +162,78 @@ it('starts a new merged cell at a group boundary inside the rendered rows', asyn
     expect(rows[0].rowIndex).toBeLessThan(4 * GROUP_SIZE);
     expect(screen.getByText('Region 3')).toBeInTheDocument();
     expect(screen.getByText('Region 4')).toBeInTheDocument();
+});
+
+const scrollViewportTo = async (table: HTMLTableElement, rowIndex: number) => {
+    const viewport = table.parentElement!;
+    viewport.scrollTop = rowIndex * ROW_HEIGHT_PX;
+    fireEvent.scroll(viewport);
+};
+
+// The browser sizes a row from its tallest cell. A merged cell whose value has
+// more lines than the rows it covers grows those rows, so it must not show more
+// lines than it covers.
+const getValueLineLimit = (cell: HTMLTableCellElement) => {
+    const limit = cell
+        .querySelector<HTMLElement>(':scope > span')
+        ?.style.getPropertyValue('--merged-row-span');
+    return limit ? Number(limit) : undefined;
+};
+
+it('limits a merged value to the rows its cell covers when a group restarts on the first rendered row', async () => {
+    const pairOf = (rowIndex: number) =>
+        `Pair ${Math.floor(rowIndex / 2)}\nsecond line`;
+    const table = renderGroupedTable({ getRegion: pairOf });
+    expect(await screen.findByText('City 0')).toBeInTheDocument();
+
+    await scrollViewportTo(table, 66);
+    await waitFor(() => expect(screen.queryByText('City 0')).toBeNull());
+
+    const rows = getRenderedDataRows(table);
+    // The window starts on the second row of a two-row group, so that row
+    // gets a new one-row cell for the group.
+    expect(rows[0].rowIndex % 2).toBe(1);
+    const pairCells = Array.from(table.querySelectorAll('td')).filter((td) =>
+        td.textContent?.startsWith('Pair '),
+    );
+    expect(pairCells[0].textContent).toBe(pairOf(rows[0].rowIndex));
+    expect(pairCells[0]).not.toHaveAttribute('rowspan');
+    pairCells.forEach((cell) => {
+        expect(getValueLineLimit(cell)).toBe(
+            Number(cell.getAttribute('rowspan') ?? 1),
+        );
+    });
+
+    const cityCell = Array.from(rows[0].tr.querySelectorAll('td')).find(
+        (td) => td.textContent === `City ${rows[0].rowIndex}`,
+    )!;
+    expect(getValueLineLimit(cityCell)).toBeUndefined();
+});
+
+it('keeps the menu of a merged cell open when the rendered rows move by one row', async () => {
+    const table = renderGroupedTable({
+        cellContextMenu: ({ cell }) => (
+            <div>Menu for {cell.getValue()?.value?.formatted}</div>
+        ),
+    });
+    expect(await screen.findByText('City 0')).toBeInTheDocument();
+
+    await scrollViewportTo(table, 150);
+    await waitFor(() => expect(screen.queryByText('City 0')).toBeNull());
+    const firstRowBefore = getRenderedDataRows(table)[0].rowIndex;
+    expect(regionOf(firstRowBefore)).toBe('Region 1');
+
+    fireEvent.click(screen.getByText('Region 1'));
+    expect(await screen.findByText('Menu for Region 1')).toBeInTheDocument();
+
+    await scrollViewportTo(table, 151);
+    await waitFor(() =>
+        expect(getRenderedDataRows(table)[0].rowIndex).toBe(firstRowBefore + 1),
+    );
+
+    expect(screen.getByText('Menu for Region 1')).toBeInTheDocument();
+    expect(screen.getByText('Region 1').closest('td')).toHaveAttribute(
+        'data-selected',
+        'true',
+    );
 });

@@ -4,10 +4,20 @@ import {
     VizIndexType,
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { type PropsWithChildren } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import PivotTable from '.';
+import {
+    FakeResizeObserver,
+    resizeTarget,
+} from '../../../testing/fakeResizeObserver';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { CELL_HEIGHT } from '../LightTable/constants';
+
+// The menu's actions need app data; these tests only check cell selection.
+vi.mock('./ValueCellMenu', () => ({
+    default: ({ children }: PropsWithChildren) => children,
+}));
 
 const ROW_COUNT = 1000;
 const GROUP_SIZE = 100;
@@ -16,12 +26,15 @@ beforeEach(() => {
     vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
     vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(200);
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+});
 
 const regionOf = (rowIndex: number) =>
     `Region ${Math.floor(rowIndex / GROUP_SIZE)}`;
 
-function buildGroupedPivot() {
+function buildGroupedPivot({ columnTotals = false } = {}) {
     const getField = () => undefined;
     const getFieldLabel = (id: string) => id;
     const data = convertSqlPivotedRowsToPivotData({
@@ -54,7 +67,7 @@ function buildGroupedPivot() {
         },
         pivotConfig: {
             metricsAsRows: false,
-            columnTotals: false,
+            columnTotals,
             rowTotals: false,
         },
         groupedSubtotals: undefined,
@@ -64,8 +77,13 @@ function buildGroupedPivot() {
     return { data, getField, getFieldLabel };
 }
 
-const renderGroupedPivot = () => {
-    const { data, getField, getFieldLabel } = buildGroupedPivot();
+const renderGroupedPivot = ({
+    columnTotals = false,
+    enableContextMenu = false,
+} = {}) => {
+    const { data, getField, getFieldLabel } = buildGroupedPivot({
+        columnTotals,
+    });
     renderWithProviders(
         <PivotTable
             data={data}
@@ -77,7 +95,7 @@ const renderGroupedPivot = () => {
             isMinimal={false}
             showRowGrouping
             showSubtotals={false}
-            enableContextMenu={false}
+            enableContextMenu={enableContextMenu}
             renderSortMenu={() => null}
         />,
     );
@@ -160,4 +178,59 @@ it('starts a new merged cell at a group boundary inside the rendered rows', asyn
     expect(rows[0].rowIndex).toBeLessThan(4 * GROUP_SIZE);
     expect(screen.getByText('Region 3')).toBeInTheDocument();
     expect(screen.getByText('Region 4')).toBeInTheDocument();
+});
+
+it('keeps a merged cell selected when the rendered rows move by one row', async () => {
+    const table = renderGroupedPivot({ enableContextMenu: true });
+    expect(await screen.findByText('City 0')).toBeInTheDocument();
+
+    const viewport = table.parentElement!;
+    viewport.scrollTop = 150 * CELL_HEIGHT;
+    fireEvent.scroll(viewport);
+    await waitFor(() => expect(screen.queryByText('City 0')).toBeNull());
+    const firstRowBefore = getRenderedDataRows(table)[0].rowIndex;
+    expect(regionOf(firstRowBefore)).toBe('Region 1');
+
+    fireEvent.click(screen.getByText('Region 1'));
+    expect(screen.getByText('Region 1').closest('td')).toHaveAttribute(
+        'data-is-selected',
+        'true',
+    );
+
+    viewport.scrollTop = 151 * CELL_HEIGHT;
+    fireEvent.scroll(viewport);
+    await waitFor(() =>
+        expect(getRenderedDataRows(table)[0].rowIndex).toBe(firstRowBefore + 1),
+    );
+
+    expect(screen.getByText('Region 1').closest('td')).toHaveAttribute(
+        'data-is-selected',
+        'true',
+    );
+});
+
+it('shows the footer shadow on first render when the rows are taller than the viewport', async () => {
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    const VIEWPORT_HEIGHT = 200;
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(
+        VIEWPORT_HEIGHT,
+    );
+    // A rough layout: every rendered row is one cell tall.
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(
+        function scrollHeight(this: HTMLElement) {
+            const contentHeight =
+                this.querySelectorAll('tr').length * CELL_HEIGHT;
+            return Math.max(contentHeight, VIEWPORT_HEIGHT);
+        },
+    );
+
+    const table = renderGroupedPivot({ columnTotals: true });
+    expect(await screen.findByText('City 0')).toBeInTheDocument();
+    const footer = table.querySelector('tfoot')!;
+
+    // The browser reports the table size when the virtualized rows render.
+    resizeTarget(table, 400, table.querySelectorAll('tr').length * CELL_HEIGHT);
+
+    expect(table.parentElement!.scrollTop).toBe(0);
+    expect(footer).toHaveAttribute('data-shadow', 'true');
 });
