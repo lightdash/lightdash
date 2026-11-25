@@ -3560,6 +3560,7 @@ const AppGenerate: FC = () => {
                                                                 onClick={
                                                                     design.toggle
                                                                 }
+                                                                surface="builder"
                                                             />
                                                         )}
                                                     </>

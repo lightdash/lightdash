@@ -110,6 +110,10 @@ vi.mock('../../../features/dashboard/store', () => {
         selectActiveTabUuid: (state: State) => state.activeTab?.uuid,
     };
 });
+vi.mock('../capture/onboarding', () => ({
+    DESIGN_MODE_BUTTON_TOUR_ID: 'design-mode-button',
+    DesignModeTour: () => null,
+}));
 vi.mock('../capture/useDesignMode', () => ({
     useDesignMode: (surface: unknown, opts: unknown) => {
         mocks.surface = surface;

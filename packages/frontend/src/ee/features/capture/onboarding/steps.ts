@@ -1,0 +1,43 @@
+import { type GuidedTourStep } from '../../../../components/common/GuidedTour';
+
+export type DesignModeSurface = 'dashboard' | 'builder' | 'app';
+
+/** `data-tour` value on each surface's Design Mode button. */
+export const DESIGN_MODE_BUTTON_TOUR_ID = 'design-mode-button';
+
+const AFTER_SEND: Record<DesignModeSurface, { title: string; body: string }> = {
+    dashboard: {
+        title: 'The answer comes back in place',
+        body: 'The AI agent replies in the bubble beside your marks. To carry on, click the bubble, then hold Option again. It stays selected until you click the page or press Esc.',
+    },
+    app: {
+        title: 'The answer comes back in place',
+        body: 'The AI agent replies in the bubble beside your marks, and can change the app if you ask and you can edit it. To carry on, click the bubble, then hold Option again.',
+    },
+    builder: {
+        title: 'Send your marks to the builder',
+        body: 'Each bubble waits in a tray under the preview. Mark as many things as you like, then send them to the builder together as one prompt.',
+    },
+};
+
+/** The first-run tour for Design Mode on one surface. */
+export const designModeTourSteps = (
+    surface: DesignModeSurface,
+): GuidedTourStep[] => [
+    {
+        target: `[data-tour="${DESIGN_MODE_BUTTON_TOUR_ID}"]`,
+        title: 'Meet Design Mode',
+        body: 'Point at what you mean instead of describing it. Press this button to turn it on. A small toolbar appears at the bottom of the page.',
+    },
+    {
+        target: null,
+        title: 'Hold Option to mark',
+        body: 'While you hold Option (Alt on Windows), click something to pick it, such as a chart, a bar or a cell, or drag to draw on the page. Let go and the page works as normal again.',
+    },
+    {
+        target: null,
+        title: 'Say it or type it',
+        body: 'With the mic on in the toolbar, talk while you hold Option and release to send. With the mic off, a bubble opens beside your marks: type what you want and press Enter.',
+    },
+    { target: null, ...AFTER_SEND[surface] },
+];

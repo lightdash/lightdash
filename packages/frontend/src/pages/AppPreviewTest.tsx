@@ -483,6 +483,7 @@ export default function AppPreviewTest() {
                                             screenshotAvailable
                                         }
                                         onClick={toggleDesignMode}
+                                        surface="app"
                                     />
                                 )
                             }

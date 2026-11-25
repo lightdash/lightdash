@@ -39,6 +39,10 @@ import { bubbleColor } from '../capture/bubblePalette';
 import ModeIcon from '../capture/components/ModeIcon';
 import { type Bubble } from '../capture/designSession';
 import {
+    DESIGN_MODE_BUTTON_TOUR_ID,
+    DesignModeTour,
+} from '../capture/onboarding';
+import {
     type DesignPayload,
     type DesignSendResult,
     type DesignSurface,
@@ -221,6 +225,7 @@ const DashboardDesignSurface: FC<Props> = ({
             <UnstyledButton
                 aria-label="Design Mode"
                 aria-pressed={design.on}
+                data-tour={DESIGN_MODE_BUTTON_TOUR_ID}
                 className={`${launcherClasses.dockTab} ${launcherClasses.dockIconTab} ${classes.toggle}`}
                 onClick={() => design.setOn(!design.on)}
             >
@@ -232,6 +237,7 @@ const DashboardDesignSurface: FC<Props> = ({
     return (
         <>
             {design.element}
+            <DesignModeTour surface="dashboard" />
             {conversations.renderPosters(design.session)}
             {dockExtras ? (
                 createPortal(toggle, dockExtras)
