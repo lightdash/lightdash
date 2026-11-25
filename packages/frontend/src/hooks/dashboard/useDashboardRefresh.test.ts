@@ -1,0 +1,98 @@
+import { QueryClient, QueryObserver } from '@tanstack/react-query';
+import { evictSavedDashboardResults } from './useDashboardRefresh';
+
+const tileKey = (chartUuid: string) => [
+    'dashboard_chart_ready_query',
+    'proj',
+    chartUuid,
+    'dash',
+];
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+describe('evictSavedDashboardResults', () => {
+    let queryClient: QueryClient;
+    const mountTile = (chartUuid: string) =>
+        new QueryObserver(queryClient, {
+            queryKey: tileKey(chartUuid),
+            queryFn: () => chartUuid,
+            staleTime: Infinity,
+        }).subscribe(() => {});
+
+    beforeEach(() => {
+        queryClient = new QueryClient();
+    });
+
+    it('drops results off screen and keeps on-screen ones and other queries', () => {
+        queryClient.setQueryData(tileKey('hidden'), 'old');
+        queryClient.setQueryData(['saved_dashboard_query', 'dash'], 'dash');
+        queryClient.setQueryData(tileKey('shown'), 'old');
+        mountTile('shown');
+
+        evictSavedDashboardResults(queryClient);
+
+        expect(queryClient.getQueryData(tileKey('hidden'))).toBeUndefined();
+        expect(queryClient.getQueryData(tileKey('shown'))).toBe('old');
+        expect(
+            queryClient.getQueryData(['saved_dashboard_query', 'dash']),
+        ).toBe('dash');
+    });
+
+    it('drops an on-screen result once its tile unmounts', async () => {
+        queryClient.setQueryData(tileKey('shown'), 'old');
+        const unmount = mountTile('shown');
+        evictSavedDashboardResults(queryClient);
+
+        unmount();
+        await flush();
+
+        expect(queryClient.getQueryData(tileKey('shown'))).toBeUndefined();
+    });
+
+    it('keeps results fetched after the save', async () => {
+        queryClient.setQueryData(tileKey('shown'), 'old');
+        const unmountShown = mountTile('shown');
+        evictSavedDashboardResults(queryClient);
+
+        await queryClient.refetchQueries(tileKey('shown'));
+        const unmountLater = mountTile('later');
+        await flush();
+        unmountShown();
+        unmountLater();
+        await flush();
+
+        expect(queryClient.getQueryData(tileKey('shown'))).toBe('shown');
+        expect(queryClient.getQueryData(tileKey('later'))).toBe('later');
+    });
+
+    it('drops a result whose request started before the save', async () => {
+        let respond: (value: string) => void = () => {};
+        const unmount = new QueryObserver(queryClient, {
+            queryKey: tileKey('shown'),
+            queryFn: () =>
+                new Promise<string>((resolve) => {
+                    respond = resolve;
+                }),
+        }).subscribe(() => {});
+        evictSavedDashboardResults(queryClient);
+
+        respond('pre-save');
+        await flush();
+        unmount();
+        await flush();
+
+        expect(queryClient.getQueryData(tileKey('shown'))).toBeUndefined();
+    });
+
+    it('keeps a result whose tile remounts in the same tick', async () => {
+        queryClient.setQueryData(tileKey('shown'), 'old');
+        const unmount = mountTile('shown');
+        evictSavedDashboardResults(queryClient);
+
+        unmount();
+        const remounted = mountTile('shown');
+        await flush();
+
+        expect(queryClient.getQueryData(tileKey('shown'))).toBe('old');
+        remounted();
+    });
+});

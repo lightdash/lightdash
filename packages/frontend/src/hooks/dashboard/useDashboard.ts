@@ -29,6 +29,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { isEqual } from 'es-toolkit/compat';
 import { useNavigate } from 'react-router';
 import { type LightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
@@ -38,6 +39,10 @@ import useToaster from '../toaster/useToaster';
 import { invalidateContent } from '../useContent';
 import { useProjectUuid } from '../useProjectUuid';
 import useQueryError from '../useQueryError';
+import {
+    dashboardResultsQueryPredicate,
+    evictSavedDashboardResults,
+} from './useDashboardRefresh';
 import useDashboardStorage from './useDashboardStorage';
 import { DASHBOARD_DRAFT_SAVED_TOAST } from './useSavedToDashboardToast';
 
@@ -540,37 +545,77 @@ export const useUpdateDashboard = (
         {
             mutationKey: ['dashboard_update'],
             onSuccess: async (updatedDashboard, variables) => {
+                // Cached by uuid or slug, so matched on the dashboard itself
+                const previous = queryClient
+                    .getQueriesData<Dashboard>(['saved_dashboard_query'])
+                    .find(
+                        ([, dashboard]) =>
+                            dashboard?.uuid === updatedDashboard.uuid,
+                    )?.[1];
+                // Tile results aren't keyed on which tiles a control targets,
+                // so a control change reloads the dashboard as before
+                const shouldReload =
+                    previous !== undefined &&
+                    !isEqual(
+                        previous.config?.parameterControls,
+                        updatedDashboard.config?.parameterControls,
+                    );
+                if (shouldReload) {
+                    queryClient.removeQueries({
+                        predicate: dashboardResultsQueryPredicate,
+                    });
+                } else {
+                    evictSavedDashboardResults(queryClient);
+                }
                 clearDashboardStorage();
                 await queryClient.invalidateQueries(['space', projectUuid]);
                 await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
                 ]);
 
-                await queryClient.invalidateQueries(['dashboards']);
+                // Lists only: refetching the tile-keyed filter queries under
+                // 'dashboards' swaps the filter bar for skeletons
+                await queryClient.invalidateQueries([
+                    'dashboards',
+                    projectUuid,
+                ]);
                 await queryClient.invalidateQueries([
                     'dashboards-containing-chart',
                 ]);
-                await Promise.all([
-                    queryClient.resetQueries(['saved_dashboard_query', id]),
-                    queryClient.resetQueries([
+                const dashboardQueryKeys = [
+                    ['saved_dashboard_query', id, projectUuid],
+                    [
                         'saved_dashboard_query',
                         updatedDashboard.slug,
-                    ]),
-                ]);
-                // Remove stale chart results so navigating back doesn't
-                // show old cache timestamps after a save
-                queryClient.removeQueries({
-                    predicate: (query) => {
-                        const firstKey =
-                            typeof query.queryKey === 'string'
-                                ? query.queryKey
-                                : query.queryKey?.[0];
-                        return (
-                            firstKey === 'dashboard_chart_ready_query' ||
-                            firstKey === 'savedSqlChartResults'
-                        );
-                    },
-                });
+                        projectUuid,
+                    ],
+                ];
+                if (shouldReload) {
+                    await Promise.all(
+                        dashboardQueryKeys.map((queryKey) =>
+                            queryClient.resetQueries(queryKey),
+                        ),
+                    );
+                } else {
+                    // Seed rather than reset: a reset unmounts the page behind
+                    // a spinner and remounts every tile
+                    dashboardQueryKeys.forEach((queryKey) =>
+                        queryClient.setQueriesData<Dashboard>(
+                            {
+                                queryKey,
+                                predicate: ({ queryKey: key }) =>
+                                    key[3] === true ||
+                                    !updatedDashboard.hasUnpublishedChanges,
+                            },
+                            updatedDashboard,
+                        ),
+                    );
+                    void Promise.all(
+                        dashboardQueryKeys.map((queryKey) =>
+                            queryClient.invalidateQueries(queryKey),
+                        ),
+                    );
+                }
                 await queryClient.invalidateQueries(['content']);
                 const onlyUpdatedName: boolean =
                     Object.keys(variables).length === 1 &&
