@@ -162,7 +162,7 @@ export const getRateLimitHint = (
     switch (row.kind) {
         case 'window': {
             if (!row.usage?.resetsAt) {
-                return `Fixed window: ${formatWindow(row.windowMs)} from the first request`;
+                return `${formatWindow(row.windowMs)} from the first request`;
             }
             const resets = resetsOf(row.usage, checkedAt);
             return isFull(row.usage)
@@ -170,9 +170,9 @@ export const getRateLimitHint = (
                 : capitalize(resets);
         }
         case 'callsPerSecond':
-            return 'Paced evenly. Extra requests queue.';
+            return 'Paced evenly, extra requests queue';
         case 'concurrentCalls':
-            return 'Max in flight. Extra requests wait for a slot.';
+            return 'Max in flight, extra requests wait for a slot';
         default:
             return assertUnreachable(row, 'Unknown rate limit row');
     }

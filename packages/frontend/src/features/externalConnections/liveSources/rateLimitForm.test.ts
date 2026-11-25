@@ -171,7 +171,7 @@ describe('getRateLimitHint', () => {
 
     it('explains a window that is not counting', () => {
         expect(getRateLimitHint(rowOf('window:day'), checkedAt)).toBe(
-            'Fixed window: 24 hours from the first request',
+            '24 hour window from the first request',
         );
     });
 
@@ -187,7 +187,7 @@ describe('getRateLimitHint', () => {
 
     it('explains concurrency whatever is in flight', () => {
         expect(getRateLimitHint(rowOf('concurrentCalls'), checkedAt)).toBe(
-            'Max in flight. Extra requests wait for a slot.',
+            'Max in flight, extra requests wait for a slot',
         );
     });
 });

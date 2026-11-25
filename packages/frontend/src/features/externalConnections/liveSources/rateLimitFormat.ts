@@ -44,7 +44,7 @@ export const formatUntil = (until: string, checkedAt: string): string => {
     return `until ${day}, ${timeOf(date)}`;
 };
 
-/** A window's length, such as "1 minute", "24 hours" or "30 days". */
+/** A window named by its length, such as "1 minute window". */
 export const formatWindow = (windowMs: number): string => {
     const getUnit = () => {
         if (windowMs > DAY) return { size: DAY, name: 'day' };
@@ -53,8 +53,7 @@ export const formatWindow = (windowMs: number): string => {
         return { size: SECOND, name: 'second' };
     };
     const { size, name } = getUnit();
-    const count = windowMs / size;
-    return `${count} ${name}${count === 1 ? '' : 's'}`;
+    return `${windowMs / size} ${name} window`;
 };
 
 /** Used of capacity, such as "410 of 10,000". */

@@ -52,7 +52,13 @@ describe('formatWindow', () => {
             [10_000, 60_000, 3_600_000, 86_400_000, 30 * 86_400_000].map(
                 formatWindow,
             ),
-        ).toEqual(['10 seconds', '1 minute', '1 hour', '24 hours', '30 days']);
+        ).toEqual([
+            '10 second window',
+            '1 minute window',
+            '1 hour window',
+            '24 hour window',
+            '30 day window',
+        ]);
     });
 });
 
