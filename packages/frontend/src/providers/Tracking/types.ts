@@ -107,7 +107,7 @@ type SetupInviteSentEvent = {
     name: EventName.SETUP_INVITE_SENT;
     properties: {
         organizationId: string | null;
-        surface: 'data_source_chooser' | 'invite_expert';
+        surface: 'data_source_chooser';
     };
 };
 
