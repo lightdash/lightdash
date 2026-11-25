@@ -1,22 +1,30 @@
 import { Button, getDefaultZIndex, Menu } from '@mantine/core';
 import {
+    IconDeviceMobile,
     IconHistory,
     IconLogout,
     IconUserCircle,
     IconUserPlus,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useContext, type FC } from 'react';
 import { Link } from 'react-router';
+import { MobileSignInOpenerContext } from '../../features/mobile/mobileSignInOpener';
+import { MOBILE_STRINGS } from '../../features/mobile/mobileStrings';
+import { useIsMobileSignInOffered } from '../../features/mobile/useIsMobileSignInOffered';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { UserAvatar } from '../UserAvatar';
 import { useNavBarMenuProps } from './NavBarPortalContext';
+import { useNavMenuTrigger } from './NavMenuTriggerContext';
 import { ThemeSwitcherMenuItem } from './ThemeSwitcher';
 
 const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
     const menuProps = useNavBarMenuProps();
+    const Trigger = useNavMenuTrigger();
+    const mobileSignInOpener = useContext(MobileSignInOpenerContext);
+    const isMobileSignInOffered = useIsMobileSignInOffered();
     const { user } = useApp();
     const { activeProjectUuid } = useActiveProjectUuid();
     const { mutate: logout } = useLogoutMutation({
@@ -34,7 +42,19 @@ const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
             {...menuProps}
         >
             <Menu.Target>
-                {withLabel ? (
+                {Trigger ? (
+                    <Trigger
+                        variant="row"
+                        icon={<UserAvatar size={20} />}
+                        label={
+                            [user.data?.firstName, user.data?.lastName]
+                                .filter(Boolean)
+                                .join(' ') || 'Account'
+                        }
+                        hasIndicator={false}
+                        badge={null}
+                    />
+                ) : withLabel ? (
                     <Button variant="default" leftSection={<UserAvatar />}>
                         Account
                     </Button>
@@ -80,12 +100,24 @@ const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                     </Menu.Item>
                 ) : null}
 
+                {mobileSignInOpener && isMobileSignInOffered ? (
+                    <Menu.Item
+                        role="menuitem"
+                        onClick={() => mobileSignInOpener.current?.()}
+                        leftSection={<MantineIcon icon={IconDeviceMobile} />}
+                    >
+                        {MOBILE_STRINGS.signInTitle}
+                    </Menu.Item>
+                ) : null}
+
+                {Trigger && <Menu.Divider />}
+
                 <Menu.Item
                     role="menuitem"
                     onClick={() => logout()}
                     leftSection={<MantineIcon icon={IconLogout} />}
                 >
-                    Logout
+                    {Trigger ? 'Log out' : 'Logout'}
                 </Menu.Item>
             </Menu.Dropdown>
         </Menu>

@@ -8,20 +8,32 @@ import {
 } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useRef, type FC } from 'react';
 import { Link, useLocation } from 'react-router';
+import { MobileSignInMenu } from '../../features/mobile/MobileSignInMenu';
+import { MobileSignInOpenerContext } from '../../features/mobile/mobileSignInOpener';
 import Omnibar from '../../features/omnibar';
+import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
+import HeadwayMenuItem from '../NavBar/HeadwayMenuItem';
+import HelpMenu from '../NavBar/HelpMenu';
 import { NavBarLogo } from '../NavBar/NavBarLogo';
 import { NavBarPortalContext } from '../NavBar/NavBarPortalContext';
+import { NavMenuTriggerContext } from '../NavBar/NavMenuTriggerContext';
+import { NotificationsMenu } from '../NavBar/NotificationsMenu';
 import ProjectCredentialsSwitcher from '../NavBar/ProjectCredentialsSwitcher';
 import ProjectSwitcher from '../NavBar/ProjectSwitcher';
+import SettingsMenu from '../NavBar/SettingsMenu';
+import UserMenu from '../NavBar/UserMenu';
 import classes from './AppSidebar.module.css';
 import {
     APP_SIDEBAR_ID,
     getActiveAppSidebarItem,
 } from './appSidebarNavigation';
+import { SidebarCollapsedContext } from './SidebarCollapsedContext';
+import { SidebarMenuTrigger } from './SidebarMenuTrigger';
 import { useAppSidebarSections } from './useAppSidebarSections';
+import { useRelocationAnimation } from './useRelocationAnimation';
 
 type Props = {
     projectUuid: string | undefined;
@@ -40,6 +52,10 @@ export const AppSidebar: FC<Props> = ({
         projectUuid,
         projectUrlIdentifier,
     });
+    const { health } = useApp();
+    const isHeadwayEnabled = health.data?.headway?.enabled === true;
+    const mobileSignInOpener = useRef<(() => void) | null>(null);
+    const footerRef = useRelocationAnimation<HTMLDivElement>(isCollapsed);
     const os = useOs();
     const searchShortcut = os === 'macos' || os === 'ios' ? '⌘K' : 'Ctrl K';
     const homeUrl = projectUrlIdentifier
@@ -149,6 +165,40 @@ export const AppSidebar: FC<Props> = ({
                         ))}
                     </Box>
                 ))}
+                <NavBarPortalContext.Provider value="body">
+                    <NavMenuTriggerContext.Provider value={SidebarMenuTrigger}>
+                        <MobileSignInOpenerContext.Provider
+                            value={mobileSignInOpener}
+                        >
+                            <SidebarCollapsedContext.Provider
+                                value={isCollapsed}
+                            >
+                                <Box ref={footerRef} className={classes.footer}>
+                                    <SettingsMenu />
+                                    <HelpMenu />
+                                    {isHeadwayEnabled && projectUuid && (
+                                        <HeadwayMenuItem
+                                            projectUuid={projectUuid}
+                                        />
+                                    )}
+                                    <Box className={classes.account}>
+                                        <MobileSignInMenu
+                                            sourceProjectUuid={
+                                                projectUuid ?? null
+                                            }
+                                        />
+                                        <UserMenu />
+                                        {projectUuid && (
+                                            <NotificationsMenu
+                                                projectUuid={projectUuid}
+                                            />
+                                        )}
+                                    </Box>
+                                </Box>
+                            </SidebarCollapsedContext.Provider>
+                        </MobileSignInOpenerContext.Provider>
+                    </NavMenuTriggerContext.Provider>
+                </NavBarPortalContext.Provider>
             </Box>
         </AppShell.Navbar>
     );

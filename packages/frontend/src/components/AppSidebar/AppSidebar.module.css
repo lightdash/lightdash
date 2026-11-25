@@ -70,10 +70,108 @@
     opacity: 1;
 }
 
+/* A row with nothing on the right would still reserve that slot's margin. */
+.itemSection:empty {
+    display: none;
+}
+
+.footer {
+    margin-top: auto;
+}
+
+.account {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: rem(4px);
+}
+
+.account .item {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.account .itemLabel {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.triggerIcon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* An avatar is wider than an icon; this keeps every label on one line. */
+    width: rem(16px);
+}
+
+/* The What's new count shrinks to the same dot the bell uses. */
+.footer .triggerIcon :global(#headway-badge) {
+    top: 0;
+    left: 0;
+}
+
+.footer .triggerIcon :global(.HW_badge) {
+    top: rem(-2px);
+    left: rem(10px);
+    width: rem(8px);
+    height: rem(8px);
+    font-size: 0;
+    background: var(--mantine-color-red-filled);
+}
+
+.iconTrigger {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: rem(35px);
+    height: rem(35px);
+    border-radius: var(--mantine-radius-md);
+
+    &:hover,
+    &[aria-expanded='true'] {
+        background-color: var(--mantine-color-default-hover);
+    }
+}
+
+/* The rail is one control wide, so the bell sits under the account. */
+.sidebar[data-collapsed='true'] .account {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.sidebar[data-collapsed='true'] .iconTrigger {
+    width: rem(32px);
+}
+
+.dot {
+    width: rem(6px);
+    height: rem(6px);
+    border-radius: 50%;
+    background-color: var(--mantine-color-blue-filled);
+}
+
+/* Labels fade in when the sidebar opens; closing clips them, so they just go. */
+.itemLabel,
+.sectionLabel {
+    transition: opacity 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .itemLabel,
+    .sectionLabel {
+        transition: none;
+    }
+}
+
 /* The rail clips the labels, so they are hidden rather than cut mid-letter. */
 .sidebar[data-collapsed='true']
     :is(.sectionLabel, .itemLabel, .itemSection[data-position='right']) {
     opacity: 0;
+    transition: none;
 }
 
 .sidebar[data-collapsed='true'] .item {
