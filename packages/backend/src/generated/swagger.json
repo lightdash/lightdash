@@ -17086,59 +17086,6 @@
                 ],
                 "description": "Connector settings of a live source; the server fixes its access rules."
             },
-            "Record_string.string-Array_": {
-                "properties": {},
-                "additionalProperties": {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "LiveSourceAccessRule": {
-                "properties": {
-                    "any": {
-                        "$ref": "#/components/schemas/Record_string.string-Array_",
-                        "description": "At least one attribute must match one of its values."
-                    },
-                    "required": {
-                        "$ref": "#/components/schemas/Record_string.string-Array_",
-                        "description": "Every attribute must match one of its values."
-                    }
-                },
-                "required": ["any", "required"],
-                "type": "object",
-                "description": "Who can query a live data source, as user attribute conditions. The rule is\ncopied onto each of the source's explores (`required_attributes` and\n`any_attributes` on the base table), so every explore check applies it.\nEmpty conditions mean everyone who can query the project can query it."
-            },
-            "LiveSourceRateLimitSettings": {
-                "properties": {
-                    "concurrentCalls": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true,
-                        "description": "Calls in flight at once."
-                    },
-                    "callsPerSecond": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "buckets": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "type": "number",
-                            "format": "double"
-                        },
-                        "type": "object",
-                        "description": "Calls allowed in a time window, by bucket id."
-                    }
-                },
-                "required": ["concurrentCalls", "callsPerSecond", "buckets"],
-                "type": "object",
-                "description": "The limits an admin set on one live data source. Each lowers the\nintegration's own limit; a window left out of `buckets`, or a null value,\nkeeps it."
-            },
             "ExternalConnection": {
                 "properties": {
                     "updatedAt": {
@@ -17159,24 +17106,6 @@
                     },
                     "hasSecret": {
                         "type": "boolean"
-                    },
-                    "adminRateLimits": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/LiveSourceRateLimitSettings"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Live sources: the lower rate limits an admin set; null when none are set."
-                    },
-                    "accessRule": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/LiveSourceAccessRule"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Live sources: who can query it, as user attribute conditions; null when\neveryone in the project can. Returned only to those who manage it."
                     },
                     "cachePurgedAt": {
                         "type": "string",
@@ -18068,16 +17997,9 @@
                         "format": "double",
                         "description": "Calls in the current window; 0 when no window is open."
                     },
-                    "defaultCapacity": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true,
-                        "description": "The integration's own limit; null for a daily limit only an admin set."
-                    },
                     "capacity": {
                         "type": "number",
-                        "format": "double",
-                        "description": "The limit in force: the integration's, or an admin's lower one."
+                        "format": "double"
                     },
                     "windowMs": {
                         "type": "number",
@@ -18094,47 +18016,16 @@
                 "required": [
                     "resetsAt",
                     "used",
-                    "defaultCapacity",
                     "capacity",
                     "windowMs",
                     "label",
                     "id"
                 ],
                 "type": "object",
-                "description": "One limit on calls in a time window, with Lightdash's calls in its current window."
+                "description": "One of an integration's declared limits, with Lightdash's calls in its current window."
             },
             "ExternalConnectionRateLimitUsage": {
                 "properties": {
-                    "note": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "What admins are told alongside the limits they can lower."
-                    },
-                    "runningCalls": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Calls in flight, never above the concurrency limit now in force."
-                    },
-                    "defaultConcurrentCalls": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "The integration's own limit on calls in flight at once."
-                    },
-                    "defaultCallsPerSecond": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true,
-                        "description": "The integration's own limit; null when it has no per-second limit."
-                    },
-                    "adminRateLimits": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/LiveSourceRateLimitSettings"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "What an admin set, as saved; null when nothing is set."
-                    },
                     "limitedUntil": {
                         "type": "string",
                         "nullable": true,
@@ -18156,18 +18047,13 @@
                     }
                 },
                 "required": [
-                    "note",
-                    "runningCalls",
-                    "defaultConcurrentCalls",
-                    "defaultCallsPerSecond",
-                    "adminRateLimits",
                     "limitedUntil",
                     "buckets",
                     "checkedAt",
                     "integrationLabel"
                 ],
                 "type": "object",
-                "description": "A live data source's rate limits, with Lightdash's own calls against them as\nof `checkedAt`. Other apps on the same vendor account aren't counted."
+                "description": "Lightdash's own calls against an integration's declared rate limits, as of\n`checkedAt`. Other apps on the same vendor account aren't counted."
             },
             "ApiExternalConnectionRateLimitUsageResponse": {
                 "properties": {
@@ -18403,9 +18289,6 @@
                 "required": ["ttlSeconds"],
                 "type": "object",
                 "description": "Null puts the source back on its integration's default."
-            },
-            "ApiUpdateLiveSourceRateLimitsRequest": {
-                "$ref": "#/components/schemas/LiveSourceRateLimitSettings"
             },
             "LiveSourceFieldEditor": {
                 "properties": {
@@ -22280,6 +22163,17 @@
             },
             "PreAggregateSort": {
                 "$ref": "#/components/schemas/Pick_SortField.fieldId-or-descending_"
+            },
+            "Record_string.string-Array_": {
+                "properties": {},
+                "additionalProperties": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
             },
             "UserAttributeValueMap": {
                 "$ref": "#/components/schemas/Record_string.string-Array_"
@@ -26548,7 +26442,7 @@
                 },
                 "required": ["text", "endMs", "startMs"],
                 "type": "object",
-                "description": "One spoken word from a Design Mode recording, timed from the start of its audio."
+                "description": "One spoken word from a Voice Design recording, timed from the start of its audio."
             },
             "ApiSuccess__words-CaptureTranscriptWord-Array__": {
                 "properties": {
