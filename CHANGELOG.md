@@ -1,3 +1,10 @@
+## [3.401.1](https://github.com/lightdash/lightdash/compare/3.401.0...3.401.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **data-apps:** give the builder agent full metric, dimension and table descriptions ([#33421](https://github.com/lightdash/lightdash/issues/33421)) ([271356a](https://github.com/lightdash/lightdash/commit/271356ae1d8b9564153c7f5f26d1c7aef6285933))
+
 # [3.401.0](https://github.com/lightdash/lightdash/compare/3.400.0...3.401.0) (2026-11-25)
 
 
