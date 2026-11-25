@@ -1,11 +1,9 @@
 import {
-    getDefaultAiAgent,
     DbtProjectType,
     WarehouseTypes,
     type SemanticLayerStatus,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { type FC } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -210,31 +208,14 @@ describe('EmptyProject', () => {
         expect(await screen.findByLabelText('Loading')).toBeInTheDocument();
     });
 
-    it('creates the default agent from Get started, with no form to fill in', async () => {
-        const user = userEvent.setup();
+    it('offers the warehouse and the CLI, and no agent to create, to someone who can edit', async () => {
         renderEmpty({});
-
-        await user.click(
-            await screen.findByRole('button', { name: 'Get started' }),
-        );
-
-        const created = api.mock.calls
-            .map(([call]) => call)
-            .find(({ method }) => method === 'POST');
-        expect(created).toMatchObject({
-            url: '/projects/project/aiAgents',
-            body: JSON.stringify(getDefaultAiAgent('project')),
-        });
-    });
-
-    it('offers an agent, the warehouse and the CLI to someone who can edit without one', async () => {
-        renderEmpty({});
-        expect(
-            await screen.findByRole('button', { name: 'Get started' }),
-        ).toBeInTheDocument();
         expect(
             await screen.findByText('db.schema_a · 2 tables'),
         ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Get started' }),
+        ).not.toBeInTheDocument();
         expect(screen.getByText('table_a')).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: /Model table_a/ }),

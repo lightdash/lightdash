@@ -5938,6 +5938,8 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        await this.assertAgentServesThread(agentUuid, body.createdFrom);
+
         if (isSemanticStudioThread(body.createdFrom)) {
             // Only the app starts these; an embed or scheduler keeps its own origin.
             if (createdFrom !== 'web_app') {
@@ -8435,6 +8437,57 @@ export class AiAgentService extends BaseService {
         return `🔒 No agent is configured for this channel, and this organization requires channels to be added from the agent settings page. Ask an admin to add one at ${this.lightdashConfig.siteUrl}/ai-agents`;
     }
 
+    // The built-in Studio agent has no access lists, so it answers Studio threads only.
+    private async assertAgentServesThread(
+        agentUuid: string,
+        createdFrom: AiThreadCreatedFrom | undefined,
+    ): Promise<void> {
+        if (
+            !isSemanticStudioThread(createdFrom) &&
+            (await this.aiAgentModel.isSemanticStudioAgent(agentUuid))
+        ) {
+            throw new ForbiddenError(
+                'This agent only works in Semantic Studio',
+            );
+        }
+    }
+
+    private async assertNotSemanticStudioAgent(
+        agentUuid: string,
+    ): Promise<void> {
+        if (await this.aiAgentModel.isSemanticStudioAgent(agentUuid)) {
+            throw new ForbiddenError(
+                'The Semantic Studio agent cannot be changed',
+            );
+        }
+    }
+
+    /** The built-in agent behind a project's Semantic Studio chat, created the first time someone who can use Studio opens it. */
+    public async getSemanticStudioAgent(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AiAgentSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        if (!(await this.getIsCopilotEnabled(user))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+        if (
+            !(await this.semanticStudioService.getStatus(user, projectUuid))
+                .enabled
+        ) {
+            throw new ForbiddenError(
+                'You cannot change the semantic layer of this project',
+            );
+        }
+        return this.aiAgentModel.getOrCreateSemanticStudioAgent({
+            organizationUuid,
+            projectUuid,
+        });
+    }
+
     private async getManageableAgentOrThrow(
         user: SessionUser,
         agentUuid: string,
@@ -8448,6 +8501,7 @@ export class AiAgentService extends BaseService {
         if (agent.organizationUuid !== organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
+        await this.assertNotSemanticStudioAgent(agentUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -8616,6 +8670,7 @@ export class AiAgentService extends BaseService {
         if (agent.organizationUuid !== organizationUuid) {
             throw new ForbiddenError('Agent not found');
         }
+        await this.assertNotSemanticStudioAgent(agentUuid);
 
         this.analytics.track<AiAgentDeletedEvent>({
             event: 'ai_agent.deleted',
@@ -12127,7 +12182,15 @@ export class AiAgentService extends BaseService {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
         }
-        return this.getAgentForPrompt(user.organizationUuid, prompt);
+        const agent = await this.getAgentForPrompt(
+            user.organizationUuid,
+            prompt,
+        );
+        await this.assertAgentServesThread(
+            agent.uuid,
+            prompt.threadCreatedFrom,
+        );
+        return agent;
     }
 
     // Priority: agentUuid if available (set by multi-agent channel selection or

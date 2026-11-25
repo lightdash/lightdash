@@ -71,7 +71,6 @@ import {
     useStudioPullRequest,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
 import { useSyncStudioWorkspace } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSyncStudioWorkspace';
-import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useProject } from '../../hooks/useProject';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -122,7 +121,6 @@ import { StudioStageLine } from './StudioStageLine';
 import { StudioWorkspacesList } from './StudioWorkspacesList';
 import {
     draftNameOfPullRequest,
-    getNewAgentUrl,
     getSemanticStudioUrl,
     getSemanticStudioWorkspaceUrl,
     parseSemanticStudioWorkspaceUuid,
@@ -273,8 +271,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     } = useStudioAgent(view.project.id);
     // Nothing to build from until a warehouse is connected
     const hasChat = isChatEnabled && !(project && !project.warehouseConnection);
-    const isCopilotEnabled =
-        useAiOrganizationSettings().data?.isCopilotEnabled === true;
     const [isChatOpen, setIsChatOpen] = useChatOpen(view.project.id);
     const [askedPrompt, setAskedPrompt] = useState<string | null>(null);
     const agentAvailable = hasChat && !!studioAgent;
@@ -1270,22 +1266,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                         }
                                                     >
                                                         Chat
-                                                    </Button>
-                                                ) : null}
-                                                {!studioAgent &&
-                                                !isLoadingAgents &&
-                                                isCopilotEnabled ? (
-                                                    <Button
-                                                        size="xs"
-                                                        variant="subtle"
-                                                        color="gray"
-                                                        flex="none"
-                                                        component={Link}
-                                                        to={getNewAgentUrl(
-                                                            view.project.id,
-                                                        )}
-                                                    >
-                                                        Create an agent
                                                     </Button>
                                                 ) : null}
                                             </workflow.Toolbar>

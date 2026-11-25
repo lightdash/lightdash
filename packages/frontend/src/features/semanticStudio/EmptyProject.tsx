@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     DbtProjectType,
     FeatureFlags,
-    getDefaultAiAgent,
     type Project,
     type SemanticLayerStatus,
 } from '@lightdash/common';
@@ -23,8 +22,6 @@ import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { WarehouseTypeLabels } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
-import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
-import { useProjectCreateAiAgentMutation } from '../../ee/features/aiCopilot/hooks/useProjectAiAgents';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -386,7 +383,7 @@ type EmptyState =
     | 'connectedProject'
     | 'editingOff'
     | 'cannotEdit'
-    | 'noAgent';
+    | 'noChat';
 
 /** Which starting screen applies, checked in order; the chat screen is chosen before this one renders. */
 const getEmptyState = ({
@@ -411,7 +408,7 @@ const getEmptyState = ({
     if (!status) return 'loading';
     if (!status.enabled) return 'cannotEdit';
     if (isLoadingAgents) return 'loading';
-    return 'noAgent';
+    return 'noChat';
 };
 
 const NO_ROLE_COPY =
@@ -425,13 +422,6 @@ export const EmptyProject: FC<{
     const { data: project } = useProject(view.project.id);
     const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
     const status = useSemanticLayerStatus(view.project.id);
-    const isCopilotEnabled =
-        useAiOrganizationSettings().data?.isCopilotEnabled === true;
-    // The agent list refetches once it is created, which swaps this screen for the chat
-    const createAgent = useProjectCreateAiAgentMutation(view.project.id, {
-        skipNavigation: true,
-        skipSuccessToast: true,
-    });
     const state = getEmptyState({
         project,
         isFlagLoading: flag.isInitialLoading,
@@ -507,7 +497,7 @@ export const EmptyProject: FC<{
             );
         case 'editingOff':
         case 'cannotEdit':
-        case 'noAgent':
+        case 'noChat':
             return (
                 <Box className={classes.starter}>
                     <Stack align="center" gap="lg" w="100%" maw={520}>
@@ -527,22 +517,6 @@ export const EmptyProject: FC<{
                             projectUuid={view.project.id}
                             onModel={null}
                         />
-                        {state === 'noAgent' && isCopilotEnabled ? (
-                            <Button
-                                // Stays busy until the agent list refetches and this screen goes away
-                                loading={
-                                    createAgent.isLoading ||
-                                    createAgent.isSuccess
-                                }
-                                onClick={() =>
-                                    createAgent.mutate(
-                                        getDefaultAiAgent(view.project.id),
-                                    )
-                                }
-                            >
-                                Get started
-                            </Button>
-                        ) : null}
                         <StartFromSources view={view} />
                         {state !== 'editingOff' && canDeploy ? (
                             <CliLine />

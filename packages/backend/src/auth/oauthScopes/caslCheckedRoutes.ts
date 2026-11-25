@@ -333,6 +333,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'SemanticStudioController.activateWorkspace',
     'SemanticStudioController.finishWorkspace',
     'SemanticStudioController.getBuilderStatus',
+    'SemanticStudioController.getStudioAgent',
     'SemanticStudioController.undo',
     'InviteLinksController.createInviteLink',
     'InviteLinksController.revokeAllInviteLinks',

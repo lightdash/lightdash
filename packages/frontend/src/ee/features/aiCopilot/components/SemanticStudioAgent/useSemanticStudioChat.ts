@@ -1,5 +1,6 @@
-import { FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, type AiAgent, type ApiError } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import {
@@ -19,6 +20,7 @@ import {
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import {
     useAiAgentThread,
     useCreateAgentThreadMessageMutation,
@@ -27,9 +29,45 @@ import { isAiAgentThreadStreamActive } from '../../store/aiAgentThreadStreamSlic
 import { useAiAgentStoreSelector } from '../../store/hooks';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
-/** Asks for the project's agents with the page, so the chat loads alongside the explores and not after them. */
+const useStudioChatEnabled = (projectUuid: string): boolean => {
+    const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
+    const canEdit = useCanEditSemanticLayer(projectUuid);
+    return flag.data?.enabled === true && canEdit;
+};
+
+/** The project's built-in Studio agent, which the server creates the first time it is asked for. */
+const useBuiltInStudioAgent = (projectUuid: string, enabled: boolean) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AiAgent, ApiError>({
+        queryKey: ['semantic-studio-agent', projectUuid],
+        queryFn: () =>
+            lightdashApi<AiAgent>({
+                url: `/projects/${projectUuid}/semantic-studio/agent`,
+                method: 'POST',
+                body: undefined,
+            }),
+        enabled: enabled && projectUuid !== '',
+        staleTime: Infinity,
+        retry: false,
+    });
+};
+
+/** The built-in agent plus the project's own, which chats started before the built-in one still belong to. */
+const useKnownStudioAgents = (projectUuid: string) => {
+    const isEnabled = useStudioChatEnabled(projectUuid);
+    const builtIn = useBuiltInStudioAgent(projectUuid, isEnabled);
+    const { agents, isLoadingAgents } = useDefaultAiAgent(projectUuid);
+    return {
+        isEnabled,
+        agent: builtIn.data,
+        agents: builtIn.data ? [builtIn.data, ...agents] : agents,
+        isLoadingAgents: builtIn.isInitialLoading || isLoadingAgents,
+    };
+};
+
+/** Asks for the Studio agent with the page, so the chat loads alongside the explores and not after them. */
 export const usePrefetchStudioAgent = (projectUuid: string | undefined) => {
-    useDefaultAiAgent(projectUuid);
+    useKnownStudioAgents(projectUuid ?? '');
 };
 
 /** A Studio chat's thread; one that no longer exists is forgotten instead of failing on every load. */
@@ -74,21 +112,15 @@ export const useFinishDiscardedWork = (projectUuid: string) => {
 
 /** The agent and thread of the chat this browser has open. */
 export const useStudioAgent = (projectUuid: string) => {
-    const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
-    const canEdit = useCanEditSemanticLayer(projectUuid);
-    const isEnabled = flag.data?.enabled === true && canEdit;
-    const {
-        agent: defaultAgent,
-        agents,
-        isLoadingAgents,
-    } = useDefaultAiAgent(projectUuid);
+    const { isEnabled, agent, agents, isLoadingAgents } =
+        useKnownStudioAgents(projectUuid);
     const [stored, setStored] = useStoredStudioThread(projectUuid);
     const storedAgent = agents.find(({ uuid }) => uuid === stored?.agentUuid);
     return {
         isLoadingAgents,
         isEnabled,
-        hasAgents: agents.length > 0,
-        agent: storedAgent ?? defaultAgent ?? agents.at(0),
+        // New chats always start on the built-in agent.
+        agent,
         thread:
             storedAgent && stored
                 ? { agent: storedAgent, threadUuid: stored.threadUuid }
@@ -122,7 +154,7 @@ export const useStudioThreadSwitch = (
     projectUuid: string,
     { chatFollowsWorkspace }: { chatFollowsWorkspace: boolean },
 ) => {
-    const { agents } = useDefaultAiAgent(projectUuid);
+    const { agents } = useKnownStudioAgents(projectUuid);
     const [stored, setStored] = useStoredStudioThread(projectUuid);
     // One chat back, not a history; the workspaces list holds the rest.
     const [previous, setPrevious] = useLocalStorage<StoredThread | null>({

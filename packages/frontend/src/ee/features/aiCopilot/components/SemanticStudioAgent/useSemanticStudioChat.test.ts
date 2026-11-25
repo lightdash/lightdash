@@ -1,3 +1,4 @@
+import type * as ReactQuery from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -60,6 +61,16 @@ vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
 }));
 vi.mock('../Launcher/useDefaultAiAgent', () => ({
     useDefaultAiAgent: () => ({ agent: null, agents: [{ uuid: 'agent' }] }),
+}));
+vi.mock('../../../../../providers/LightdashApi/useLightdashApi', () => ({
+    useLightdashApi: () => vi.fn(),
+}));
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+    ...(await importOriginal<typeof ReactQuery>()),
+    useQuery: ({ enabled }: { enabled: boolean }) => ({
+        data: enabled ? { uuid: 'studio-agent' } : undefined,
+        isInitialLoading: false,
+    }),
 }));
 
 // Each read mounts a fresh hook, so a value has to survive a remount to be seen.
@@ -128,9 +139,20 @@ describe('useStudioThread', () => {
     });
 });
 
-it('uses an accessible agent when no default is selected', () => {
+it('starts new chats on the built-in agent, whatever agents the project has', () => {
     const { result } = renderHook(() => useStudioAgent('new-project'));
-    expect(result.current.agent?.uuid).toBe('agent');
+    expect(result.current.agent?.uuid).toBe('studio-agent');
+    expect(result.current.thread).toBe(null);
+});
+
+it('keeps a chat started on another agent with that agent', () => {
+    storeThread({ threadUuid: 'thread', agentUuid: 'agent' });
+    const { result } = renderHook(() => useStudioAgent('project'));
+    expect(result.current.thread).toEqual({
+        agent: { uuid: 'agent' },
+        threadUuid: 'thread',
+    });
+    expect(result.current.agent?.uuid).toBe('studio-agent');
 });
 
 it('keeps chat gated when cached project status allows editing but the flag is off', () => {
