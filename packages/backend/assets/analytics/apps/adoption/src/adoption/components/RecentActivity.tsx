@@ -114,7 +114,7 @@ export const RecentActivity = ({ organisation, selectedId, onOpen, focus, mode, 
         });
         let row = 0;
         return (
-            <div data-ad-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-y-auto px-4 pb-3">
+            <div data-adoption-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-y-auto px-4 pb-3">
                 <div className={`${columns} sticky top-0 z-10 bg-card py-2 text-xs text-muted-foreground`}>
                     <span>{mode === 'role' ? 'Role and person' : 'Last active and person'}</span>
                     {mode === 'role' && <span>Last active</span>}
@@ -123,9 +123,9 @@ export const RecentActivity = ({ organisation, selectedId, onOpen, focus, mode, 
                 {groups.map((group) => (
                     <section key={group.key} className="pb-2">
                         <h3 className="m-0 flex items-center gap-2 py-1.5 text-sm font-semibold">
-                            <span className="ad-mark inline-block h-3 w-3 shrink-0 rounded-full" data-kind={markAttr(mode, group.kind)} />
+                            <span className="adoption-mark inline-block h-3 w-3 shrink-0 rounded-full" data-kind={markAttr(mode, group.kind)} />
                             {group.title}
-                            <span className="ad-count font-normal text-muted-foreground">
+                            <span className="adoption-count font-normal text-muted-foreground">
                                 {group.note ? `${group.note} · ` : ''}
                                 {formatPeople(group.people.length)}
                             </span>
@@ -136,15 +136,15 @@ export const RecentActivity = ({ organisation, selectedId, onOpen, focus, mode, 
                                 <div key={person.id} className={`${columns} rounded py-1 pl-5 hover:bg-muted/50`}>
                                     <span className="truncate text-sm">{person.name}</span>
                                     {mode === 'role' && (
-                                        <span className="ad-count text-sm text-muted-foreground" title={person.lastActive ? formatDay(person.lastActive) : undefined} {...sweepProps(sweep, 0.6, y)}>
+                                        <span className="adoption-count text-sm text-muted-foreground" title={person.lastActive ? formatDay(person.lastActive) : undefined} {...sweepProps(sweep, 0.6, y)}>
                                             {formatDaysAgo(person.lastActive)}
                                         </span>
                                     )}
                                     <span className="flex items-center gap-2" title={`Active on ${person.activeDays} of the last 30 days`} {...sweepProps(sweep, 0.95, y)}>
                                         <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                                            <span className="ad-ink block h-full rounded-full" style={{ width: `${Math.min(person.activeDays / 30, 1) * 100}%` }} />
+                                            <span className="adoption-ink block h-full rounded-full" style={{ width: `${Math.min(person.activeDays / 30, 1) * 100}%` }} />
                                         </span>
-                                        <span className="ad-count w-5 text-right text-sm">{person.activeDays}</span>
+                                        <span className="adoption-count w-5 text-right text-sm">{person.activeDays}</span>
                                     </span>
                                 </div>
                             );
@@ -168,7 +168,7 @@ export const RecentActivity = ({ organisation, selectedId, onOpen, focus, mode, 
                 return count > 0 ? (
                     <span
                         key={kind}
-                        className="ad-mark"
+                        className="adoption-mark"
                         data-kind={markAttr(mode, kind)}
                         style={{ flex: `${count} 1 0` }}
                         title={`${labels[kind]}: ${formatCount(count)} of ${formatCount(row.people)} people`}
@@ -179,7 +179,7 @@ export const RecentActivity = ({ organisation, selectedId, onOpen, focus, mode, 
     );
 
     return (
-        <div data-ad-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-y-auto px-4 pb-3">
+        <div data-adoption-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-y-auto px-4 pb-3">
             <div className="sticky top-0 z-10 grid grid-cols-[minmax(120px,220px)_minmax(0,1fr)_96px] items-end gap-x-4 bg-card py-2 text-xs text-muted-foreground">
                 <span>Team</span>
                 <span>{mode === 'role' ? 'Roles' : 'Last active'}</span>
@@ -206,16 +206,16 @@ export const RecentActivity = ({ organisation, selectedId, onOpen, focus, mode, 
                     {index === 0 ? (
                         <div className="min-w-0">
                             <div className="font-semibold">{row.name}</div>
-                            <div className="ad-count text-xs text-muted-foreground">{formatCount(row.people)} people</div>
+                            <div className="adoption-count text-xs text-muted-foreground">{formatCount(row.people)} people</div>
                         </div>
                     ) : (
                         <button type="button" className="block min-w-0 text-left hover:underline" onClick={() => onOpen(row.id)}>
                             <span className={`block truncate font-medium ${row.isNoTeam ? 'italic' : ''}`}>{row.name}</span>
-                            <span className="ad-count block text-xs text-muted-foreground">{formatCount(row.people)} people</span>
+                            <span className="adoption-count block text-xs text-muted-foreground">{formatCount(row.people)} people</span>
                         </button>
                     )}
                     {bar(row, index)}
-                    <div className="ad-count text-right text-sm" title={mode === 'activity' ? `${formatCount(row.active)} of ${formatCount(row.people)} people` : undefined}>
+                    <div className="adoption-count text-right text-sm" title={mode === 'activity' ? `${formatCount(row.active)} of ${formatCount(row.people)} people` : undefined}>
                         {mode === 'activity' ? formatShare(row.active, row.people) : null}
                     </div>
                 </div>
