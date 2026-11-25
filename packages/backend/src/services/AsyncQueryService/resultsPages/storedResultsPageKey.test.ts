@@ -3,7 +3,10 @@ import {
     resultsPageFields,
     resultsPagePivotValuesColumns,
 } from './resultsPageFixtures.mock';
-import { getStoredResultsPageKey } from './storedResultsPageKey';
+import {
+    getResultsPageHostFormat,
+    getStoredResultsPageKey,
+} from './storedResultsPageKey';
 
 const base = {
     resultsFileName: 'cache-key-abc123',
@@ -67,9 +70,44 @@ describe('stored results page key', () => {
         ['page', { page: 2 }],
         ['app version', { appVersion: '3.394.0' }],
         ['results file', { resultsFileName: 'cache-key-def456' }],
+        [
+            'host locale',
+            { host: { ...getResultsPageHostFormat(), locale: 'de-DE' } },
+        ],
+        [
+            'host timezone',
+            {
+                host: {
+                    ...getResultsPageHostFormat(),
+                    timeZone: 'Pacific/Chatham',
+                },
+            },
+        ],
+        [
+            'formatter revision',
+            {
+                host: {
+                    ...getResultsPageHostFormat(),
+                    formatterRevision: 'another-build',
+                },
+            },
+        ],
     ])('changes when %s changes', (_name, change) => {
         expect(getStoredResultsPageKey({ ...base, ...change })).not.toBe(
             getStoredResultsPageKey(base),
+        );
+    });
+
+    test('uses the host locale, timezone and formatter revision by default', () => {
+        const host = getResultsPageHostFormat();
+
+        expect(host).toEqual({
+            locale: new Intl.NumberFormat().resolvedOptions().locale,
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            formatterRevision: expect.stringMatching(/^[0-9a-f]{16,}$/),
+        });
+        expect(getStoredResultsPageKey(base)).toBe(
+            getStoredResultsPageKey({ ...base, host }),
         );
     });
 });

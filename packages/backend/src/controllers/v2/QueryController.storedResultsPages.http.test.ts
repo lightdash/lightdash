@@ -48,8 +48,10 @@ type RawResponse = {
     body: Buffer;
 };
 
-let mode: 'body' | 'results' = 'body';
+let mode: 'body' | 'results' | 'hang' = 'body';
 let sendDelayMs = 0;
+let lastSignal: AbortSignal | undefined;
+let errorsSeen = 0;
 let server: http.Server;
 let port: number;
 
@@ -70,10 +72,25 @@ beforeAll(async () => {
         { action: 'manage', subject: 'all' },
     ]);
     const asyncQueryService = {
-        getAsyncQueryResultsResponse: vi.fn(async () =>
-            mode === 'body'
-                ? { kind: 'body', body: Buffer.from(serialisedBody) }
-                : { kind: 'results', results },
+        getAsyncQueryResultsResponse: vi.fn(
+            async ({ signal }: { signal?: AbortSignal }) => {
+                lastSignal = signal;
+                if (mode === 'hang') {
+                    return new Promise((_resolve, reject) => {
+                        const fallback = setTimeout(
+                            () => reject(new Error('never aborted')),
+                            2000,
+                        );
+                        signal?.addEventListener('abort', () => {
+                            clearTimeout(fallback);
+                            reject(signal.reason);
+                        });
+                    });
+                }
+                return mode === 'body'
+                    ? { kind: 'body', body: Buffer.from(serialisedBody) }
+                    : { kind: 'results', results };
+            },
         ),
     };
     const app = express();
@@ -87,6 +104,7 @@ beforeAll(async () => {
     app.use(deferSend);
     RegisterRoutes(app);
     const errors: ErrorRequestHandler = (error, _request, response, _next) => {
+        errorsSeen += 1;
         response
             .status(error.status ?? error.statusCode ?? 500)
             .json({ error: error.message });
@@ -108,6 +126,8 @@ afterAll(async () => {
 afterEach(() => {
     mode = 'body';
     sendDelayMs = 0;
+    lastSignal = undefined;
+    errorsSeen = 0;
 });
 
 const request = (
@@ -203,5 +223,32 @@ describe('stored results page body through the generated route', () => {
         expect(head.body.length).toBe(0);
         expect(head.headers['content-length']).toBe(String(get.body.length));
         expect(head.headers.etag).toBe(get.headers.etag);
+    });
+
+    test('a client that leaves before the page is ready aborts the request signal and reports no error', async () => {
+        mode = 'hang';
+        const req = http.request({ port, path: resultsPath });
+        req.on('error', () => undefined);
+        req.end();
+        await vi.waitFor(() => {
+            expect(lastSignal).toBeDefined();
+        });
+        expect(lastSignal?.aborted).toBe(false);
+
+        req.destroy();
+
+        await vi.waitFor(() => {
+            expect(lastSignal?.aborted).toBe(true);
+        });
+        await new Promise<void>((resolve) => {
+            setTimeout(resolve, 20);
+        });
+        expect(errorsSeen).toBe(0);
+    });
+
+    test('a finished response does not abort the request signal', async () => {
+        await request();
+
+        expect(lastSignal?.aborted).toBe(false);
     });
 });

@@ -346,6 +346,95 @@ describe('ResultsPageWorkerPool', () => {
     });
 });
 
+describe('ResultsPageWorkerPool outstanding work', () => {
+    const holdSlot = (pool: ResultsPageWorkerPool) => {
+        let release!: () => void;
+        const held = pool.withWorker(
+            () =>
+                new Promise<void>((resolve) => {
+                    release = resolve;
+                }),
+        );
+        return { held, release: () => release() };
+    };
+
+    test('rejects a build at once when the queue is full', async () => {
+        const pool = new ResultsPageWorkerPool({
+            size: 1,
+            brotliQuality: 4,
+            maxQueued: 1,
+            createWorker: () => new FakeWorker(),
+        });
+        const slot = holdSlot(pool);
+        const queuedRun = vi.fn(async () => 'queued');
+        const overflowRun = vi.fn(async () => 'overflow');
+
+        const queued = pool.withWorker(queuedRun);
+        const overflow = pool.withWorker(overflowRun);
+
+        await expect(overflow).rejects.toBeInstanceOf(ResultsPageWorkerError);
+        expect(overflowRun).not.toHaveBeenCalled();
+        expect(pool.queuedBuilds).toBe(1);
+        slot.release();
+        await expect(queued).resolves.toBe('queued');
+        await slot.held;
+    });
+
+    test('drops a queued build whose signal aborts', async () => {
+        const { pool } = fakePool(1);
+        const slot = holdSlot(pool);
+        const controller = new AbortController();
+        const run = vi.fn(async () => 'ran');
+
+        const queued = pool.withWorker(run, { signal: controller.signal });
+        await flush();
+        expect(pool.queuedBuilds).toBe(1);
+        controller.abort(new Error('nobody waits'));
+
+        await expect(queued).rejects.toThrow('nobody waits');
+        expect(pool.queuedBuilds).toBe(0);
+        slot.release();
+        await slot.held;
+        await flush();
+        expect(run).not.toHaveBeenCalled();
+    });
+
+    test('a signal that aborts after the build started does not stop it', async () => {
+        const { pool } = fakePool(1);
+        const controller = new AbortController();
+        let finish!: () => void;
+
+        const running = pool.withWorker(
+            () =>
+                new Promise<string>((resolve) => {
+                    finish = () => resolve('done');
+                }),
+            { signal: controller.signal },
+        );
+        await flush();
+        controller.abort(new Error('nobody waits'));
+        finish();
+
+        await expect(running).resolves.toBe('done');
+    });
+
+    test('the time limit counts the wait in the queue', async () => {
+        const { pool } = fakePool(1, 100);
+        const stalled = pool.withWorker(() => new Promise<never>(() => {}));
+        await new Promise<void>((resolve) => {
+            setTimeout(resolve, 30);
+        });
+        const queuedAt = Date.now();
+
+        const queued = pool.withWorker(() => new Promise<never>(() => {}));
+
+        await expect(stalled).rejects.toBeInstanceOf(ResultsPageWorkerError);
+        await expect(queued).rejects.toBeInstanceOf(ResultsPageWorkerError);
+        expect(Date.now() - queuedAt).toBeLessThan(150);
+        expect(pool.queuedBuilds).toBe(0);
+    });
+});
+
 describe('the real results page worker entry', () => {
     test.each(formatCases)(
         'builds the same bytes as the inline build for %s',

@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    ForbiddenError,
     NotFoundError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -101,8 +102,15 @@ const buildService = ({
     >();
     const resultsStorageClient = {
         isEnabled: true,
-        getDownloadStream: vi.fn(async () => Readable.from([jsonl])),
+        getDownloadStream: vi.fn(
+            async (
+                _fileName: string,
+                _fileExtension?: string,
+                _options?: { abortSignal?: AbortSignal },
+            ): Promise<Readable> => Readable.from([jsonl]),
+        ),
         getObjectBytesIfExists: vi.fn(async (key: string) => objects.get(key)),
+        resultsFileExists: vi.fn(async () => true),
         putObjectBytes: vi.fn(
             async (
                 key: string,
@@ -131,6 +139,7 @@ const buildService = ({
         debug: vi.fn(),
         error: vi.fn(),
     };
+    const assertCanReadStoredResults = vi.fn(async () => undefined);
     const service = Object.assign(Object.create(AsyncQueryService.prototype), {
         lightdashConfig: lightdashConfigMock,
         projectModel: {
@@ -149,10 +158,11 @@ const buildService = ({
             appVersion: '0.0.0-test',
         }),
         throwIfCannotReadQueryHistory: vi.fn(async () => undefined),
-        assertCanReadStoredResults: vi.fn(async () => undefined),
+        assertCanReadStoredResults,
     }) as AsyncQueryService;
     return {
         service,
+        assertCanReadStoredResults,
         objects,
         resultsStorageClient,
         featureFlagModel,
@@ -561,5 +571,109 @@ describe('AsyncQueryService stored results pages', () => {
         await service.getAsyncQueryResultsResponse(args);
 
         expect(prometheusMetrics.observeResultsPage).not.toHaveBeenCalled();
+    });
+
+    test('flag on: checks the flag for the organization only', async () => {
+        const [, format] = formatCases[0];
+        const { service, featureFlagModel } = buildService({
+            history: buildHistory(format),
+            flagEnabled: false,
+        });
+
+        await service.getAsyncQueryResultsResponse(args);
+
+        expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
+            user: { organizationUuid: account.organization.organizationUuid },
+            featureFlagId: FeatureFlags.StoredResultsPages,
+        });
+    });
+
+    test('flag on: a stored page whose results file is gone gives the same error as today', async () => {
+        const [, format] = formatCases[0];
+        const { service, resultsStorageClient } = buildService({
+            history: buildHistory(format),
+            flagEnabled: true,
+        });
+        await bodyOf(service);
+        await settle();
+        resultsStorageClient.resultsFileExists.mockResolvedValue(false);
+        resultsStorageClient.getDownloadStream.mockRejectedValue(
+            new ResultsExpiredError(),
+        );
+
+        await expect(service.getAsyncQueryResults(args)).rejects.toThrow(
+            ResultsExpiredError,
+        );
+        await expect(
+            service.getAsyncQueryResultsResponse(args),
+        ).rejects.toThrow(ResultsExpiredError);
+    }, 30_000);
+
+    test('flag on: a stored page is never served to a reader who is refused', async () => {
+        const [, format] = formatCases[0];
+        const { service, resultsStorageClient, assertCanReadStoredResults } =
+            buildService({
+                history: buildHistory(format),
+                flagEnabled: true,
+            });
+        await bodyOf(service);
+        await settle();
+        resultsStorageClient.getObjectBytesIfExists.mockClear();
+        assertCanReadStoredResults.mockRejectedValueOnce(
+            new ForbiddenError('This reader cannot see these results'),
+        );
+
+        await expect(
+            service.getAsyncQueryResultsResponse(args),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            resultsStorageClient.getObjectBytesIfExists,
+        ).not.toHaveBeenCalled();
+    }, 30_000);
+
+    test('flag on: a results read that stalls before it answers gets the build signal', async () => {
+        const [, format] = formatCases[1];
+        const { service, resultsStorageClient } = buildService({
+            history: buildHistory(format),
+            flagEnabled: true,
+            pool: new ResultsPageWorkerPool({
+                size: 1,
+                brotliQuality: 4,
+                buildTimeoutMs: 50,
+            }),
+        });
+        let readSignal: AbortSignal | undefined;
+        resultsStorageClient.getDownloadStream.mockImplementationOnce(
+            (_fileName, _fileExtension, options) => {
+                readSignal = options?.abortSignal;
+                return new Promise<never>(() => {});
+            },
+        );
+
+        const response = await service.getAsyncQueryResultsResponse(args);
+
+        expect(readSignal?.aborted).toBe(true);
+        expect(response.kind).toBe('results');
+    });
+
+    test('flag on: a request whose client has gone reads nothing', async () => {
+        const [, format] = formatCases[0];
+        const { service, resultsStorageClient } = buildService({
+            history: buildHistory(format),
+            flagEnabled: true,
+        });
+        const controller = new AbortController();
+        controller.abort(new Error('closed'));
+
+        await expect(
+            service.getAsyncQueryResultsResponse({
+                ...args,
+                signal: controller.signal,
+            }),
+        ).rejects.toThrow('closed');
+        expect(
+            resultsStorageClient.getObjectBytesIfExists,
+        ).not.toHaveBeenCalled();
+        expect(resultsStorageClient.getDownloadStream).not.toHaveBeenCalled();
     });
 });
