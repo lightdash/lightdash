@@ -97,7 +97,7 @@ const buildMcpComposerPrompt = (
 
 0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
 1. \`grep_fields\`: discover fields and select the explores at the right grain.
-2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
+2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery or defined as custom metrics.
 3. \`search_field_values\`: find valid filter values when needed.
 4. \`query\`: query governed metrics, then combine and transform results.
 5. \`get_query_result\`: poll running queries rather than resubmitting them.
@@ -112,7 +112,7 @@ ${EXPLORE_CHOICE_RULE}- Query each explore with one semanticLayer node
 - When base and joined tables have similar field names, use the one at the node's semantic level
 - Before writing semanticLayer filters, read the \`filter-expressions\` skill
 ${sqlRunnerEnabled ? SQL_NODE_RULE : ''}- Build each answer as one pipeline in one \`query\` call, whose terminal node answers the question
-- On a follow-up, reuse the earlier pipeline's nodes through its sessionId and change only what the user asked for
+- On a follow-up, reuse the earlier pipeline's nodes and change only what the user asked for
 ${agentIdentityEnabled ? AGENT_CONNECT_RULE : ''}`;
 
 export const getMcpAnalystPrompt = ({
