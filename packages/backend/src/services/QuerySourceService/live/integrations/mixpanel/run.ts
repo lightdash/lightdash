@@ -14,6 +14,7 @@ import {
 } from '../../types';
 import {
     getMixpanelPropertyName,
+    MIXPANEL_MAX_RETENTION_PERIODS,
     MIXPANEL_PROPERTIES,
     type MixpanelProperty,
 } from './explores';
@@ -28,13 +29,6 @@ export const MIXPANEL_MAX_EVENTS = 3;
 export const MIXPANEL_CALLS_PER_QUERY = 6;
 /** Property values Mixpanel returns per segmentation call; its own maximum is 10,000. */
 export const MIXPANEL_SEGMENT_LIMIT = 1_000;
-
-/** Periods after the start a retention query reads, per unit. */
-export const MIXPANEL_MAX_RETENTION_PERIODS = {
-    day: 90,
-    week: 52,
-    month: 24,
-} as const;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const dateSchema = z.string().regex(ISO_DATE, 'Use YYYY-MM-DD');

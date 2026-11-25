@@ -106,7 +106,7 @@ const metric = (
     type: MetricType,
     aggregation: ApiSourceMetricAggregation,
     description: string,
-    format?: string,
+    { format, aiHint }: { format?: string; aiHint?: string } = {},
 ): LiveMetricDefinition => ({
     name,
     apiName: name,
@@ -116,23 +116,19 @@ const metric = (
     filterOperators: [],
     aggregation,
     ...(format ? { format } : {}),
+    ...(aiHint ? { aiHint } : {}),
 });
 
-const dateFilter = (description: string): LiveDimensionDefinition => ({
-    name: 'date',
-    apiName: 'date',
-    label: 'Date',
-    type: DimensionType.DATE,
-    filterOperators: MIXPANEL_DATE_FILTERS,
-    description,
-});
+const NOT_ADDITIVE_HINT =
+    'Not additive: never sum rows across dates or property values; choose a coarser date grain instead.';
 
 // Today's top events (/api/query/events/top), as Mixpanel ranks them.
 export const MIXPANEL_TOP_EVENTS_EXPLORE: LiveExploreDefinition = {
     name: 'top_events',
     label: 'Top events today',
     description:
-        "Today's most common events in one Mixpanel project, with their count so far and the change from yesterday. It always reads today, in the project time zone.",
+        "Today's most common events in one Mixpanel project, with their count so far and the change from yesterday.",
+    aiHint: 'Always reads today in the project time zone and takes no filters; for other days use the Events explore.',
     dimensions: [
         {
             name: 'event',
@@ -140,7 +136,7 @@ export const MIXPANEL_TOP_EVENTS_EXPLORE: LiveExploreDefinition = {
             label: 'Event',
             type: DimensionType.STRING,
             filterOperators: [],
-            description: 'Name of the event, as tracked.',
+            description: 'Name of the event, as tracked in Mixpanel.',
         },
     ],
     metrics: [
@@ -149,15 +145,15 @@ export const MIXPANEL_TOP_EVENTS_EXPLORE: LiveExploreDefinition = {
             'Event count today',
             MetricType.SUM,
             ADDITIVE,
-            'Times the event was triggered today so far.',
+            'Number of times the event was triggered today so far.',
         ),
         metric(
             'percent_change',
             'Change from yesterday',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            "Mixpanel's normalized change from yesterday's count.",
-            '0.00%',
+            "Change from yesterday's count, as Mixpanel normalizes it.",
+            { format: '0.00%' },
         ),
     ],
     maxDimensions: null,
@@ -173,7 +169,8 @@ export const MIXPANEL_EVENTS_EXPLORE: LiveExploreDefinition = {
     name: 'events',
     label: 'Events',
     description:
-        'Event counts and unique users per event for one Mixpanel project, by day or month and one event property. Required: filter Event to the events, up to 3 event names.',
+        'Event counts and unique users per event in one Mixpanel project, by day or month and one event property.',
+    aiHint: 'Required: filter Event (equals) to 1 to 3 event names; Mixpanel reads one event per call. Without a Date filter the query reads the last 30 days. Group by at most one event property (Country, Region, City, Browser, OS, Device, Library, Referring domain, UTM source, UTM medium, UTM campaign); split by a property, values with no events on a date are left out. Unique users and Events per user are not additive: never sum rows across dates or properties; query a coarser date grain or no date instead.',
     dimensions: [
         {
             name: 'date',
@@ -182,8 +179,8 @@ export const MIXPANEL_EVENTS_EXPLORE: LiveExploreDefinition = {
             type: DimensionType.DATE,
             filterOperators: MIXPANEL_DATE_FILTERS,
             timeInterval: { base: 'date', grain: TimeFrames.DAY },
-            description:
-                'Day of the event, in the project time zone. Queries without a date filter read the last 30 days.',
+            description: 'Day of the event, in the project time zone.',
+            aiHint: 'Without a date filter the query reads the last 30 days.',
         },
         {
             name: 'date_month',
@@ -193,7 +190,8 @@ export const MIXPANEL_EVENTS_EXPLORE: LiveExploreDefinition = {
             filterOperators: [],
             timeInterval: { base: 'date', grain: TimeFrames.MONTH },
             description:
-                'First day of the month, in the project time zone. Filter the date to choose the months.',
+                'Month of the event, shown as its first day in the project time zone.',
+            aiHint: 'Filter Date, not this field, to choose the months. Mixpanel groups the months itself.',
         },
         {
             name: 'event',
@@ -201,8 +199,8 @@ export const MIXPANEL_EVENTS_EXPLORE: LiveExploreDefinition = {
             label: 'Event',
             type: DimensionType.STRING,
             filterOperators: MIXPANEL_EVENT_FILTERS,
-            description:
-                'Name of the event, as tracked. Required: filter it to the events to count, up to 3.',
+            description: 'Name of the event, as tracked in Mixpanel.',
+            aiHint: 'Required: filter it (equals) to the events to count, 1 to 3 names.',
         },
         ...properties(),
     ],
@@ -212,22 +210,23 @@ export const MIXPANEL_EVENTS_EXPLORE: LiveExploreDefinition = {
             'Event count',
             MetricType.SUM,
             ADDITIVE,
-            'Times the event was triggered (Mixpanel "general").',
+            'Number of times the event was triggered (Mixpanel\'s "general").',
         ),
         metric(
             'unique_users',
             'Unique users',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            'Users who triggered the event at least once in the period (Mixpanel "unique"). Never add rows together: choose a coarser date grain instead.',
+            'Number of distinct users who triggered the event at least once in the period (Mixpanel\'s "unique").',
+            { aiHint: NOT_ADDITIVE_HINT },
         ),
         metric(
             'events_per_user',
             'Events per user',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            'Average times each user triggered the event in the period (Mixpanel "average").',
-            '0.00',
+            'Average number of times each user triggered the event in the period (Mixpanel\'s "average").',
+            { format: '0.00', aiHint: NOT_ADDITIVE_HINT },
         ),
     ],
     maxDimensions: null,
@@ -242,11 +241,18 @@ export const MIXPANEL_FUNNEL_EXPLORE: LiveExploreDefinition = {
     name: 'funnel',
     label: 'Funnel',
     description:
-        'A funnel saved in Mixpanel, computed over the date range: users who did each step in order, and how many converted. Required: filter Funnel ID to one saved funnel (the number in the funnel report URL). Group by Step number and Step event, not by date.',
+        'A funnel saved in Mixpanel: users who did each step in order over the date range, and how many converted.',
+    aiHint: 'Required: filter Funnel ID (equals) to one saved funnel, the number in the funnel report URL. Group by Step number and Step event, not by date; Date is a filter only, and without it the query reads the last 30 days. Property filters are not supported.',
     dimensions: [
-        dateFilter(
-            'Filter only: users who entered the funnel in this range. Without a filter, the last 30 days.',
-        ),
+        {
+            name: 'date',
+            apiName: 'date',
+            label: 'Date',
+            type: DimensionType.DATE,
+            filterOperators: MIXPANEL_DATE_FILTERS,
+            description: 'Day users entered the funnel.',
+            aiHint: 'Filter only, never a dimension. Without a filter the query reads the last 30 days.',
+        },
         {
             name: 'funnel_id',
             apiName: 'funnel_id',
@@ -254,7 +260,8 @@ export const MIXPANEL_FUNNEL_EXPLORE: LiveExploreDefinition = {
             type: DimensionType.NUMBER,
             filterOperators: MIXPANEL_NUMBER_FILTERS,
             description:
-                'Filter only: the saved funnel to read, by its id. Its steps and conversion window come from the funnel as saved in Mixpanel.',
+                'ID of the saved funnel. Its steps and conversion window come from the funnel as saved in Mixpanel.',
+            aiHint: 'Filter only (equals, one ID), never a dimension.',
         },
         {
             name: 'step_number',
@@ -287,7 +294,7 @@ export const MIXPANEL_FUNNEL_EXPLORE: LiveExploreDefinition = {
             MetricType.NUMBER,
             NON_ADDITIVE,
             'Users at the step divided by users at the first step.',
-            '0.00%',
+            { format: '0.00%' },
         ),
         metric(
             'step_conversion_rate',
@@ -295,7 +302,7 @@ export const MIXPANEL_FUNNEL_EXPLORE: LiveExploreDefinition = {
             MetricType.NUMBER,
             NON_ADDITIVE,
             'Users at the step divided by users at the step before.',
-            '0.00%',
+            { format: '0.00%' },
         ),
         metric(
             'average_time_to_convert_seconds',
@@ -303,7 +310,7 @@ export const MIXPANEL_FUNNEL_EXPLORE: LiveExploreDefinition = {
             MetricType.NUMBER,
             NON_ADDITIVE,
             'Average seconds from the previous step to this one, for users who reached it.',
-            '#,##0',
+            { format: '#,##0' },
         ),
     ],
     maxDimensions: null,
@@ -318,13 +325,21 @@ const RETENTION_GRAINS = [
     ['month', 'cohort_month', TimeFrames.MONTH, 'Cohort month', 'month'],
 ] as const;
 
+/** Periods after the start a retention query reads, per unit. */
+export const MIXPANEL_MAX_RETENTION_PERIODS = {
+    day: 90,
+    week: 52,
+    month: 24,
+} as const;
+
 // Retention (/api/query/retention). Mixpanel counts each cohort's returning
 // users per period after it started; nothing is summed here.
 export const MIXPANEL_RETENTION_EXPLORE: LiveExploreDefinition = {
     name: 'retention',
     label: 'Retention',
     description:
-        'Retention Mixpanel computes: of the users in each cohort, how many did the return event in each later day, week or month. Required: add one cohort grain (Cohort, Cohort week or Cohort month) and the matching Days, Weeks or Months after start. Filter Start event to put users in a cohort the first time they did it; without it, a cohort is everyone who did the return event that period. Without Return event, any event counts as coming back.',
+        'Of the users in each cohort, how many came back in each later day, week or month, as Mixpanel computes it.',
+    aiHint: 'Required: add one cohort grain (Cohort, Cohort week or Cohort month) and the matching Days, Weeks or Months after start. Filter Start event (equals) to put users in a cohort the first time they did it; without it a cohort is everyone who did the return event that period. Without Return event any event counts as coming back. Without a Cohort filter the query reads the last 30 days. Mixpanel reads at most 90 days, 52 weeks or 24 months after start.',
     dimensions: [
         ...RETENTION_GRAINS.map(
             ([apiName, name, grain, label, unit]): LiveDimensionDefinition => ({
@@ -337,8 +352,12 @@ export const MIXPANEL_RETENTION_EXPLORE: LiveExploreDefinition = {
                 timeInterval: { base: 'cohort', grain },
                 description:
                     apiName === 'date'
-                        ? 'Day the cohort started, in the project time zone. Filter it to choose the cohorts; without a filter, the last 30 days.'
-                        : `First day of the cohort's ${unit}, as Mixpanel starts it.`,
+                        ? 'Day the cohort started, in the project time zone.'
+                        : `${unit[0].toUpperCase()}${unit.slice(1)} the cohort started, shown as its first day.`,
+                aiHint:
+                    apiName === 'date'
+                        ? 'Filter it to choose the cohorts; without a filter the query reads the last 30 days.'
+                        : `Filter Cohort, not this field, to choose the cohorts. Mixpanel starts each ${unit} itself.`,
             }),
         ),
         ...(['day', 'week', 'month'] as const).map(
@@ -348,7 +367,8 @@ export const MIXPANEL_RETENTION_EXPLORE: LiveExploreDefinition = {
                 label: `${unit[0].toUpperCase()}${unit.slice(1)}s after start`,
                 type: DimensionType.NUMBER,
                 filterOperators: [],
-                description: `${unit[0].toUpperCase()}${unit.slice(1)}s after the cohort started; 0 is the cohort's own ${unit}, where every user of the cohort counts. Pick the one matching the cohort grain. Mixpanel reads at most 90 days, 52 weeks or 24 months after start.`,
+                description: `${unit[0].toUpperCase()}${unit.slice(1)}s after the cohort started; 0 is the cohort's own ${unit}, where every user of the cohort counts.`,
+                aiHint: `Pick it with the ${unit === 'day' ? 'Cohort' : `Cohort ${unit}`} grain. Mixpanel reads at most ${MIXPANEL_MAX_RETENTION_PERIODS[unit]} ${unit}s after start.`,
                 groups: ['Retention period'],
             }),
         ),
@@ -359,7 +379,8 @@ export const MIXPANEL_RETENTION_EXPLORE: LiveExploreDefinition = {
             type: DimensionType.STRING,
             filterOperators: MIXPANEL_EVENT_FILTERS,
             description:
-                'Filter only: users join a cohort the first time they do this event. Without it, a cohort is everyone who did the return event in the period.',
+                'Event that puts users in a cohort, the first time they do it.',
+            aiHint: 'Filter only (equals, one event). Without it a cohort is everyone who did the return event in the period.',
         },
         {
             name: 'return_event',
@@ -367,8 +388,8 @@ export const MIXPANEL_RETENTION_EXPLORE: LiveExploreDefinition = {
             label: 'Return event',
             type: DimensionType.STRING,
             filterOperators: MIXPANEL_EVENT_FILTERS,
-            description:
-                'Filter only: the event that counts as coming back. Defaults to any event.',
+            description: 'Event that counts as coming back.',
+            aiHint: 'Filter only (equals, one event). Without it any event counts.',
         },
     ],
     metrics: [
@@ -396,7 +417,7 @@ export const MIXPANEL_RETENTION_EXPLORE: LiveExploreDefinition = {
                 denominator: 'cohort_users',
             },
             'Retained users divided by cohort users.',
-            '0.00%',
+            { format: '0.00%' },
         ),
     ],
     maxDimensions: null,
