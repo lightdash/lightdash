@@ -17367,6 +17367,7 @@ const models: TsoaRoute.Models = {
                 responseBytes: { dataType: 'double', required: true },
                 cacheHits: { dataType: 'double', required: true },
                 apiCalls: { dataType: 'double', required: true },
+                queries: { dataType: 'double', required: true },
                 windowDays: { dataType: 'double', required: true },
                 externalConnectionUuid: { dataType: 'string', required: true },
             },
@@ -86772,6 +86773,68 @@ const models: TsoaRoute.Models = {
         dataType: 'refObject',
         properties: {
             version: { dataType: 'double' },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentProjectCapabilityPolicy: {
+        dataType: 'refObject',
+        properties: {
+            projectUuid: { dataType: 'string', required: true },
+            allowedCapabilities: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'array',
+                        array: { dataType: 'refEnum', ref: 'AgentCapability' },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentProjectPoliciesResponse: {
+        dataType: 'refObject',
+        properties: {
+            status: { dataType: 'enum', enums: ['ok'], required: true },
+            results: {
+                dataType: 'array',
+                array: {
+                    dataType: 'refObject',
+                    ref: 'AgentProjectCapabilityPolicy',
+                },
+                required: true,
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentProjectPolicyResponse: {
+        dataType: 'refObject',
+        properties: {
+            status: { dataType: 'enum', enums: ['ok'], required: true },
+            results: { ref: 'AgentProjectCapabilityPolicy', required: true },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentProjectCapabilityPolicySave: {
+        dataType: 'refObject',
+        properties: {
+            allowedCapabilities: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'array',
+                        array: { dataType: 'refEnum', ref: 'AgentCapability' },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
         },
         additionalProperties: true,
     },
@@ -161620,6 +161683,189 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'resetToLegacy',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAgentPermissionController_getProjectPolicies: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v2/org/agent-permissions/projects',
+        ...fetchMiddlewares<RequestHandler>(AgentPermissionController),
+        ...fetchMiddlewares<RequestHandler>(
+            AgentPermissionController.prototype.getProjectPolicies,
+        ),
+
+        async function AgentPermissionController_getProjectPolicies(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAgentPermissionController_getProjectPolicies,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AgentPermissionController>(
+                        AgentPermissionController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getProjectPolicies',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAgentPermissionController_saveProjectPolicy: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'AgentProjectCapabilityPolicySave',
+        },
+    };
+    app.put(
+        '/api/v2/org/agent-permissions/projects/:projectUuid',
+        ...fetchMiddlewares<RequestHandler>(AgentPermissionController),
+        ...fetchMiddlewares<RequestHandler>(
+            AgentPermissionController.prototype.saveProjectPolicy,
+        ),
+
+        async function AgentPermissionController_saveProjectPolicy(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAgentPermissionController_saveProjectPolicy,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AgentPermissionController>(
+                        AgentPermissionController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'saveProjectPolicy',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAgentPermissionController_deleteProjectPolicy: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.delete(
+        '/api/v2/org/agent-permissions/projects/:projectUuid',
+        ...fetchMiddlewares<RequestHandler>(AgentPermissionController),
+        ...fetchMiddlewares<RequestHandler>(
+            AgentPermissionController.prototype.deleteProjectPolicy,
+        ),
+
+        async function AgentPermissionController_deleteProjectPolicy(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAgentPermissionController_deleteProjectPolicy,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AgentPermissionController>(
+                        AgentPermissionController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'deleteProjectPolicy',
                     controller,
                     response,
                     next,

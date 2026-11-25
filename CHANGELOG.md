@@ -1,3 +1,11 @@
+# [3.410.0](https://github.com/lightdash/lightdash/compare/3.409.3...3.410.0) (2026-11-25)
+
+
+### Features
+
+* **agent-identity:** restrict agent actions per project (backend) ([#33395](https://github.com/lightdash/lightdash/issues/33395)) ([78125e7](https://github.com/lightdash/lightdash/commit/78125e7566bc2aca163b6b6dd042282b546fd5e2))
+* **live-sources:** integration settings as cards that read, edited in dialogs ([#33464](https://github.com/lightdash/lightdash/issues/33464)) ([b7cd604](https://github.com/lightdash/lightdash/commit/b7cd60437d96b272b0996e4bf4e2b3995dc98476))
+
 ## [3.409.3](https://github.com/lightdash/lightdash/compare/3.409.2...3.409.3) (2026-11-25)
 
 

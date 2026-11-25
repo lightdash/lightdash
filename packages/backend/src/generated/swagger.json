@@ -17912,6 +17912,11 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "queries": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Logged queries on the source, whether or not a stored result answered them."
+                    },
                     "windowDays": {
                         "type": "number",
                         "format": "double",
@@ -17926,6 +17931,7 @@
                     "responseBytes",
                     "cacheHits",
                     "apiCalls",
+                    "queries",
                     "windowDays",
                     "externalConnectionUuid"
                 ],
@@ -81634,6 +81640,73 @@
                 },
                 "type": "object",
                 "additionalProperties": true
+            },
+            "AgentProjectCapabilityPolicy": {
+                "description": "A project's own agent restrictions. When a project has one, it replaces the\norganization's restrictions for that project.",
+                "properties": {
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "allowedCapabilities": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Null means agents have no restrictions in this project."
+                    }
+                },
+                "required": ["projectUuid", "allowedCapabilities"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentProjectPoliciesResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentProjectCapabilityPolicy"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["status", "results"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentProjectPolicyResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {
+                        "$ref": "#/components/schemas/AgentProjectCapabilityPolicy"
+                    }
+                },
+                "required": ["status", "results"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentProjectCapabilityPolicySave": {
+                "properties": {
+                    "allowedCapabilities": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Null means agents have no restrictions in this project."
+                    }
+                },
+                "required": ["allowedCapabilities"],
+                "type": "object",
+                "additionalProperties": true
             }
         },
         "securitySchemes": {
@@ -81652,7 +81725,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.409.3",
+        "version": "3.410.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -129212,6 +129285,128 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v2/org/agent-permissions/projects": {
+            "get": {
+                "operationId": "getProjectAgentCapabilityPolicies",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentProjectPoliciesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the projects that have their own agent restrictions",
+                "summary": "List project agent restrictions",
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v2/org/agent-permissions/projects/{projectUuid}": {
+            "put": {
+                "operationId": "saveProjectAgentCapabilityPolicy",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentProjectPolicyResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Give a project its own agent restrictions, replacing the organization's for that project",
+                "summary": "Save project agent restrictions",
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AgentProjectCapabilityPolicySave"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteProjectAgentCapabilityPolicy",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove a project's own agent restrictions so it follows the organization again",
+                "summary": "Remove project agent restrictions",
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         }
     },
