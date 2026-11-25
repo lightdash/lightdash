@@ -529,6 +529,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'QueryController.getQueryHistory',
     'QuerySourceController.executeSourceQueries',
     'QuerySourceController.listQuerySources',
+    'RecentContentController.recordView',
     'RenameController.previewRename',
     'RenameController.rename',
     'RenameController.renameChart',

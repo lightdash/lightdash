@@ -1887,6 +1887,7 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'QuerySourceController.listQuerySources': [AgentCapability.ReadDiscover],
     'QuerySourceController.scanQuerySourceSchema': [AgentCapability.Query],
+    'RecentContentController.recordView': [AgentCapability.ReadDiscover],
     'RenameController.previewRename': [AgentCapability.ReadDiscover],
     'RenameController.rename': [AgentCapability.ContentWrite],
     'RenameController.renameChart': [AgentCapability.ContentWrite],
