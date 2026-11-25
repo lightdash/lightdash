@@ -184,7 +184,6 @@ export class QuerySourceService extends BaseService {
         });
     }
 
-    /** Unavailable sources are hidden from listSources; submitting one fails with its reason. */
     private static throwIfSourcesUnavailable(
         sources: QuerySourceClient[],
     ): void {
