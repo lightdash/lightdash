@@ -30,7 +30,7 @@ import {
     IconTableExport,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { useMemo, useState, type FC, type RefObject } from 'react';
+import { useId, useMemo, useState, type FC, type RefObject } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -128,6 +128,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const ability = useAbilityContext();
     const isEmbed = useIsEmbedded();
     const [view, setView] = useState<ArtifactView>(initialView);
+    const tourScopeId = useId();
     const [imageExportRef, setImageExportRef] =
         useState<RefObject<EChartsReact | null>>();
     const [
@@ -288,13 +289,14 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const hasSaveInMenu =
         !!mergeChartActions?.canSave ||
         !!mergeChartActions?.quickSaveDashboard ||
-        !!composerSave;
+        (composerSave?.kind === 'save' && !composerSave.disabledReason);
     const isTourReady =
         !isEmbed &&
         initialView === 'chart' &&
         config.queries.length > 1 &&
         isResultReady &&
-        !!queryUuid;
+        !!queryUuid &&
+        run?.chartStage?.status !== 'error';
 
     const head = (
         <Box className={clsx(styles.head, styles.flushHead)}>
@@ -515,7 +517,10 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     );
 
     return (
-        <Box className={styles.floatingPanel}>
+        <Box
+            className={styles.floatingPanel}
+            data-composer-tour-scope={tourScopeId}
+        >
             <Box className={clsx(styles.floatingContent, styles.flushContent)}>
                 <Stack gap="md" h="100%" mih={0}>
                     {head}
@@ -525,6 +530,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 </Stack>
             </Box>
             <ComposerLineageTour
+                scopeId={tourScopeId}
                 ready={isTourReady}
                 queries={config.queries}
                 terminalNodeId={config.terminalNodeId}

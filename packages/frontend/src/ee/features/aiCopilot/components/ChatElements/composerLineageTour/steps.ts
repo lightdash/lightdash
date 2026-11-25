@@ -55,11 +55,14 @@ const getTourFocus = (
 export const COMPOSER_LINEAGE_TOUR_LINEAGE_FROM = 1;
 
 export const getComposerLineageTourSteps = ({
+    scope,
     queries,
     terminalNodeId,
     saveInMenu,
     canAddToChat,
 }: {
+    /** Selector of the panel the tour belongs to; every target is looked up inside it. */
+    scope: string;
     queries: SourceQuery[];
     terminalNodeId: string;
     /** The panel menu offers saving to a dashboard. */
@@ -69,16 +72,16 @@ export const getComposerLineageTourSteps = ({
     const focus = getTourFocus(queries, terminalNodeId);
     return [
         {
-            target: TARGETS.viewToggle,
+            target: `${scope} ${TARGETS.viewToggle}`,
             title: 'See how this was built',
             body: 'Switch to Lineage to trace every step behind this answer. Complex analysis runs separately so your chat stays focused, no code needed.',
         },
         {
-            target: TARGETS.graph,
+            target: `${scope} ${TARGETS.graph}`,
             ...GRAPH_COPY[focus.highlight],
         },
         {
-            target: `${TARGETS.steps} [data-node-id="${CSS.escape(focus.nodeId)}"]`,
+            target: `${scope} ${TARGETS.steps} [data-node-id="${CSS.escape(focus.nodeId)}"]`,
             ...(canAddToChat
                 ? {
                       title: 'Check or question any step',
@@ -93,7 +96,7 @@ export const getComposerLineageTourSteps = ({
             title: 'Save to a dashboard',
             ...(saveInMenu
                 ? {
-                      target: TARGETS.actions,
+                      target: `${scope} ${TARGETS.actions}`,
                       body: 'Add the chart to a dashboard from this menu, or just ask the agent to save it for you.',
                   }
                 : {

@@ -27,6 +27,7 @@ const python: SourceQuery = {
 
 const stepsFor = (queries: SourceQuery[], terminalNodeId: string) =>
     getComposerLineageTourSteps({
+        scope: '[data-panel]',
         queries,
         terminalNodeId,
         saveInMenu: true,
@@ -63,6 +64,7 @@ describe('getComposerLineageTourSteps', () => {
 
     it('centres the save step when the menu cannot save', () => {
         const steps = getComposerLineageTourSteps({
+            scope: '[data-panel]',
             queries: [semantic, merge],
             terminalNodeId: 'joined',
             saveInMenu: false,
