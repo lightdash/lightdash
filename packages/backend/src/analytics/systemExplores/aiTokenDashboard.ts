@@ -1095,7 +1095,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                 rows: [
                     note(
                         1,
-                        '**Current month up to yesterday (UTC). Today is excluded.** Tokens in billing scope include unpriced models. Credits and allowance are measured separately.',
+                        '**Current month up to yesterday (UTC).** Tokens in billing scope include unpriced models. Credits and allowance are measured separately.',
                     ),
                     // The three totals do not change from tab to tab, so they are on the first only
                     ...(index === 0
@@ -1122,7 +1122,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
             rows: [
                 note(
                     2,
-                    '### All recorded AI usage\nTokens in billing scope, excluded or background usage, and self-managed usage. **Current month up to yesterday (UTC). Today is excluded.** Recorded usage is not a provider invoice or a count of agent requests.',
+                    '### All recorded AI usage\nTokens in billing scope, excluded or background usage, and self-managed usage. **Current month up to yesterday (UTC).** Recorded usage is not a provider invoice or a count of agent requests.',
                 ),
                 row(SPARKLINE_CARD_ROWS, 'total', 'input', 'output'),
                 row(
