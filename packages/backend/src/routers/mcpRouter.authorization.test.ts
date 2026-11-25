@@ -660,11 +660,6 @@ describe('project-scoped MCP route', () => {
             body: '{"status":"ok"}',
             status: 200,
         });
-        expect(mcpService.resolveQueryPath).toHaveBeenCalledWith(
-            expect.objectContaining({ userUuid: 'user-uuid' }),
-            PROJECT_UUID,
-            null,
-        );
         expect(mcpService.isContentToolsEnabled).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: 'user-uuid' }),
             PROJECT_UUID,

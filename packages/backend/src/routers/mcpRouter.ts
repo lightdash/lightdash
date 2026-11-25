@@ -471,7 +471,7 @@ mcpRouter.all(
                     mcpService.isCreateScheduledDeliveryEnabled(req.user!),
                     mcpService.resolveQueryPath(
                         req.user!,
-                        pinnedProjectUuid,
+                        pinnedProjectUuid ?? null,
                         pinnedAgent,
                     ),
                     mcpService.isDataAppBuildsEnabled(

@@ -3,20 +3,12 @@ import {
     getContextToolDefinition,
 } from '@lightdash/common';
 import type { McpQueryPath } from '../../McpService/mcpQueryPath';
+import { classicQueryPath } from '../../McpService/McpService.mock';
 import { MCP_FILTER_EXPRESSION_GUIDANCE_SECTION } from './filterGuidance';
 import { getMcpAnalystPrompt } from './mcpAnalyst';
 
-const classic = (
-    sqlRunnerEnabled: boolean,
-    filterExpressionsEnabled = false,
-): McpQueryPath => ({
-    type: 'classic',
-    sqlRunnerEnabled,
-    filterExpressionsEnabled,
-});
-
 const semanticQueryOptions = {
-    queryPath: classic(true),
+    queryPath: classicQueryPath(true, false),
     documentsEnabled: false,
 };
 
@@ -24,8 +16,8 @@ describe('getMcpAnalystPrompt', () => {
     it.each<McpQueryPath>([
         { type: 'contentOnly' },
         { type: 'sqlOnly' },
-        classic(false),
-        classic(true),
+        classicQueryPath(false, false),
+        classicQueryPath(true, false),
         {
             type: 'composer',
             sqlRunnerEnabled: true,
@@ -87,7 +79,7 @@ describe('getMcpAnalystPrompt', () => {
         (runSqlEnabled) => {
             const prompt = getMcpAnalystPrompt({
                 ...semanticQueryOptions,
-                queryPath: classic(runSqlEnabled),
+                queryPath: classicQueryPath(runSqlEnabled, false),
             });
             expect(
                 [...prompt.matchAll(/^\d\. `([^`]+)`/gm)].map(
@@ -130,7 +122,7 @@ describe('getMcpAnalystPrompt', () => {
     it('defers detailed filter expression guidance to the shared skill when enabled', () => {
         const prompt = getMcpAnalystPrompt({
             ...semanticQueryOptions,
-            queryPath: classic(true, true),
+            queryPath: classicQueryPath(true, true),
         });
 
         expect(prompt).not.toContain(MCP_FILTER_EXPRESSION_GUIDANCE_SECTION);
@@ -150,7 +142,7 @@ describe('getMcpAnalystPrompt', () => {
     it('returns the query-building workflow when only run_sql is disabled', () => {
         const prompt = getMcpAnalystPrompt({
             ...semanticQueryOptions,
-            queryPath: classic(false),
+            queryPath: classicQueryPath(false, false),
         });
 
         expect(prompt).toContain('Query Building Workflow');

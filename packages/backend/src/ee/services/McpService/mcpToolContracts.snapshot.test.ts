@@ -22,7 +22,7 @@ import {
     McpToolName,
     type McpServerToolOptions,
 } from './McpService';
-import { makeMcpServerOptions } from './McpService.mock';
+import { classicQueryPath, makeMcpServerOptions } from './McpService.mock';
 
 type RegisteredMcpTool = {
     name: string;
@@ -186,15 +186,6 @@ const makeServiceWithContextProject = (projectUuid?: string): McpService => {
 const sharedMcpToolDefinitionNames = mcpToolDefinitions.map(
     (toolDefinition) => toolDefinition.for('mcp').name,
 );
-
-const classicQueryPath = (
-    sqlRunnerEnabled: boolean,
-    filterExpressionsEnabled: boolean,
-): McpQueryPath => ({
-    type: 'classic',
-    sqlRunnerEnabled,
-    filterExpressionsEnabled,
-});
 
 const defaultMcpAnalystPromptOptions = {
     documentsEnabled: false,
@@ -564,8 +555,8 @@ describe('MCP tool contracts', () => {
     );
 
     it('covers every instruction/filter configuration exactly once', () => {
-        // 10 query paths (content, SQL, 4 classic, 4 composer) × documents × agent identity
-        const expectedCount = 10 * 2 * 2;
+        // query paths × documents on/off × agent identity on/off
+        const expectedCount = mcpQueryPaths.length * 2 * 2;
         expect(mcpOptionCombinations).toHaveLength(expectedCount);
         expect(
             new Set(
@@ -1330,7 +1321,7 @@ describe('MCP tool contracts', () => {
                 enableDataAccess: boolean;
                 enableComposerQueries: boolean;
             } | null;
-            expected: McpServerToolOptions['featureAvailability']['queryPath'];
+            expected: McpQueryPath;
         }>([
             {
                 name: 'no explore and no SQL Runner is content only',
@@ -1361,6 +1352,18 @@ describe('MCP tool contracts', () => {
                 },
             },
             {
+                name: 'explore and SQL Runner with the flag on is composer with SQL Runner',
+                canExplore: true,
+                canRunSql: true,
+                composeFlag: true,
+                pinnedAgent: null,
+                expected: {
+                    type: 'composer',
+                    sqlRunnerEnabled: true,
+                    filterExpressionsEnabled: true,
+                },
+            },
+            {
                 name: 'explore with the flag on is composer',
                 canExplore: true,
                 canRunSql: false,
@@ -1383,6 +1386,34 @@ describe('MCP tool contracts', () => {
                     sqlRunnerEnabled: true,
                     filterExpressionsEnabled: true,
                 },
+            },
+            {
+                name: 'a pinned agent with composer on and the flag off is classic',
+                canExplore: true,
+                canRunSql: true,
+                composeFlag: false,
+                pinnedAgent: composerAgent,
+                expected: {
+                    type: 'classic',
+                    sqlRunnerEnabled: true,
+                    filterExpressionsEnabled: true,
+                },
+            },
+            {
+                name: 'a pinned agent without explore is content only',
+                canExplore: false,
+                canRunSql: false,
+                composeFlag: true,
+                pinnedAgent: composerAgent,
+                expected: { type: 'contentOnly' },
+            },
+            {
+                name: 'a pinned agent with SQL Runner but no explore is SQL only',
+                canExplore: false,
+                canRunSql: true,
+                composeFlag: true,
+                pinnedAgent: composerAgent,
+                expected: { type: 'sqlOnly' },
             },
             {
                 name: 'a pinned agent with composer off is classic',
@@ -1429,7 +1460,7 @@ describe('MCP tool contracts', () => {
                 const service = makeMcpService(true, { get });
                 const user = userWith(canExplore, canRunSql);
                 await expect(
-                    service.resolveQueryPath(user, undefined, pinnedAgent),
+                    service.resolveQueryPath(user, null, pinnedAgent),
                 ).resolves.toEqual(expected);
                 await expect(
                     service.resolveQueryPath(user, PROJECT_UUID, pinnedAgent),

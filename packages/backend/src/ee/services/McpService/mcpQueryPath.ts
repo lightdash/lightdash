@@ -1,4 +1,4 @@
-import { assertUnreachable } from '@lightdash/common';
+import { assertUnreachable, type AiAgent } from '@lightdash/common';
 
 /** How an MCP session runs queries; decides its query tools and instructions. */
 export type McpQueryPath =
@@ -63,3 +63,13 @@ export const getMcpQueryTools = (queryPath: McpQueryPath): McpQueryTools => {
             return assertUnreachable(queryPath, 'Unknown MCP query path');
     }
 };
+
+export type McpComposerAgentSettings = Pick<
+    AiAgent,
+    'enableDataAccess' | 'enableComposerQueries'
+>;
+
+/** No pinned agent, or one with data access and composer queries on. */
+export const agentAllowsComposerQueries = (
+    agent: McpComposerAgentSettings | null,
+): boolean => !agent || (agent.enableDataAccess && agent.enableComposerQueries);

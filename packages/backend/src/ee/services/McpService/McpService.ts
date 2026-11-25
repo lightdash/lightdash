@@ -288,7 +288,12 @@ import {
 } from './mcpAppHelpers';
 import { toMetaContentSecurityPolicy } from './mcpCustomChartFrameHtml';
 import { isProjectAllowedForMcp } from './mcpProjectAccess';
-import { getMcpQueryTools, type McpQueryPath } from './mcpQueryPath';
+import {
+    agentAllowsComposerQueries,
+    getMcpQueryTools,
+    type McpComposerAgentSettings,
+    type McpQueryPath,
+} from './mcpQueryPath';
 
 export enum McpToolName {
     CONNECT_AGENT = 'connect_agent',
@@ -6493,16 +6498,12 @@ export class McpService extends BaseService {
 
     /**
      * The session's query path, from explore and SQL Runner permission (coarse
-     * without a pinned project), the compose SQL runner flag and, when pinned
-     * to an agent, its data access and composer query settings.
+     * without a pinned project), the compose SQL runner flag and pinned agent.
      */
     public async resolveQueryPath(
         user: SessionUser,
-        headerProjectUuid?: string,
-        pinnedAgent?: Pick<
-            AiAgent,
-            'enableDataAccess' | 'enableComposerQueries'
-        > | null,
+        projectUuid: string | null,
+        pinnedAgent: McpComposerAgentSettings | null,
     ): Promise<McpQueryPath> {
         const [
             canExplore,
@@ -6510,8 +6511,8 @@ export class McpService extends BaseService {
             { enabled: composeSqlRunnerEnabled },
             filterExpressionsEnabled,
         ] = await Promise.all([
-            this.isRunMetricQueryEnabled(user, headerProjectUuid),
-            this.isRunSqlEnabled(user, headerProjectUuid),
+            this.isRunMetricQueryEnabled(user, projectUuid ?? undefined),
+            this.isRunSqlEnabled(user, projectUuid ?? undefined),
             this.featureFlagService.get({
                 user,
                 featureFlagId: FeatureFlags.ComposeSqlRunner,
@@ -6521,12 +6522,10 @@ export class McpService extends BaseService {
         if (!canExplore) {
             return { type: sqlRunnerEnabled ? 'sqlOnly' : 'contentOnly' };
         }
-        const agentAllowsComposer =
-            !pinnedAgent ||
-            (pinnedAgent.enableDataAccess && pinnedAgent.enableComposerQueries);
         return {
             type:
-                composeSqlRunnerEnabled && agentAllowsComposer
+                composeSqlRunnerEnabled &&
+                agentAllowsComposerQueries(pinnedAgent)
                     ? 'composer'
                     : 'classic',
             sqlRunnerEnabled,
@@ -6534,21 +6533,23 @@ export class McpService extends BaseService {
         };
     }
 
-    /** Whether the query tool may run for this project and agent. */
+    /** Whether the query tool may run; the composer rule without the full path. */
     public async isQueryEnabled(
         user: SessionUser,
-        headerProjectUuid?: string,
-        agent?: Pick<
-            AiAgent,
-            'enableDataAccess' | 'enableComposerQueries'
-        > | null,
+        projectUuid: string | null,
+        agent: McpComposerAgentSettings | null,
     ): Promise<boolean> {
-        const queryPath = await this.resolveQueryPath(
+        if (!agentAllowsComposerQueries(agent)) {
+            return false;
+        }
+        const { enabled } = await this.featureFlagService.get({
             user,
-            headerProjectUuid,
-            agent,
+            featureFlagId: FeatureFlags.ComposeSqlRunner,
+        });
+        return (
+            enabled &&
+            (await this.isRunMetricQueryEnabled(user, projectUuid ?? undefined))
         );
-        return queryPath.type === 'composer';
     }
 
     private async assertCanExploreProject(

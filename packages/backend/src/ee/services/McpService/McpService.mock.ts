@@ -1,4 +1,14 @@
+import type { McpQueryPath } from './mcpQueryPath';
 import type { McpServerToolOptions } from './McpService';
+
+export const classicQueryPath = (
+    sqlRunnerEnabled: boolean,
+    filterExpressionsEnabled: boolean,
+): McpQueryPath => ({
+    type: 'classic',
+    sqlRunnerEnabled,
+    filterExpressionsEnabled,
+});
 
 export const makeMcpServerOptions = (
     featureAvailability: Partial<
