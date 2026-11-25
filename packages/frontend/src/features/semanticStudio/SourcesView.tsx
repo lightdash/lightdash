@@ -420,8 +420,7 @@ export const SourcePane: FC<{
             : null;
     const save = useSaveStudioSource(target.projectUuid, target.startThread);
     const [layout, setLayout] = useState<Layout>('diff');
-    // Pierre owns the document while editing: it starts from `base` and reports each change into `text`.
-    const [base, setBase] = useState<string | null>(null);
+    // Pierre owns the document while editing: it starts from what it is mounted with and reports each change into `text`.
     const [text, setText] = useState<string | null>(null);
     const [revision, setRevision] = useState(0);
     const [notice, setNotice] = useState<Notice>(null);
@@ -452,7 +451,7 @@ export const SourcePane: FC<{
     const { track } = useTracking();
     // The file it was tracked for, so a first edit counts once per file.
     const trackedEdit = useRef<string | null>(null);
-    // What the editor was last mounted with, so a remount keeps what is typed.
+    // The text the editor was last mounted with, so a remount keeps what is typed.
     const mounted = useRef<{ key: string; text: string | null } | null>(null);
     // A proposal shown in the editor is the agent's until the person types over it.
     const hasOwnEdits = isDirty && text !== offered;
@@ -470,7 +469,6 @@ export const SourcePane: FC<{
         }
         shownKey.current = editKey;
         const kept = findUnsaved(editKey);
-        setBase(kept?.text ?? null);
         setText(kept?.text ?? null);
         if (kept) sourceRevision.current = kept.revision;
         setNotice(null);
@@ -508,7 +506,6 @@ export const SourcePane: FC<{
         if (hasOwnEdits || proposed === offered) return;
         setOffered(proposed);
         setProposedFrom(proposed === null ? null : loaded);
-        setBase(proposed);
         setText(proposed);
         if (proposed !== null) setLayout('diff');
         setRevision((current) => current + 1);
@@ -516,7 +513,6 @@ export const SourcePane: FC<{
     const where = target.changeName ?? 'live';
 
     const reset = () => {
-        setBase(null);
         setText(null);
         setProposedFrom(null);
         setRevision((current) => current + 1);
@@ -676,7 +672,7 @@ export const SourcePane: FC<{
         mounted.current = { key: surfaceKey, text };
     const current = {
         name: fileName(path),
-        contents: mounted.current.text ?? base ?? loaded ?? '',
+        contents: mounted.current.text ?? loaded ?? '',
     };
     const dir = path.split('/').slice(0, -1).join('/');
     const status = !change
