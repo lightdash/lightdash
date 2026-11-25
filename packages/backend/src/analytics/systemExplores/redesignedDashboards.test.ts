@@ -2123,7 +2123,7 @@ describe('legends and colour ranges that hold up with real volumes', () => {
         ]);
         stacked.forEach(([, { optionValues, minVersion }]) => {
             expect(optionValues.legendMode).toBe('groups');
-            expect(minVersion).toBe('0.18.8');
+            expect(minVersion).toBe('0.18.9');
         });
     });
 });

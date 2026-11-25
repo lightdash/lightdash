@@ -518,11 +518,13 @@ describe('model colours', () => {
         ]);
         byModel.forEach(([, modelBinding]) =>
             expect(modelBinding).toMatchObject({
-                minVersion: '0.18.8',
+                minVersion: '0.18.9',
                 optionValues: {
                     splitColorGroups: modelProviderColors,
                     // Darker for the more powerful model
                     splitShadeRank: modelTierRanks,
+                    // A model with no tier word is a middle shade, not the palest
+                    splitShadeUnranked: 'middle',
                 },
             }),
         );
@@ -628,7 +630,7 @@ describe('legacyLibraryChartBindings', () => {
                 analyticsLibraryChartBindings.get(`${prefix}${key}`),
             ).toMatchObject({
                 slug: 'customizable-cartesian-chart',
-                minVersion: '0.18.8',
+                minVersion: '0.18.9',
                 fieldMapping: { x: 'ai_usage_model_name' },
                 optionValues: {
                     seriesType: 'bar',

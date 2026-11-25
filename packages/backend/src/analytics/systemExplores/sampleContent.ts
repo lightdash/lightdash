@@ -197,13 +197,14 @@ const chart = (
 // The models as horizontal bars in the order of the query, each in the colour of its provider.
 const modelRanking = (metric: string): LibraryChartBinding => ({
     slug: 'customizable-cartesian-chart',
-    minVersion: '0.18.8',
+    minVersion: '0.18.9',
     fieldMapping: { x: 'ai_usage_model_name', m1: metric },
     optionValues: {
         seriesType: 'bar',
         orientation: 'horizontal',
         splitColorGroups: modelProviderColors,
         splitShadeRank: modelTierRanks,
+        splitShadeUnranked: 'middle',
         showDataLabels: true,
         lightdashLabels: false,
         showAxisTitles: false,
@@ -394,7 +395,7 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.18.8',
+                    minVersion: '0.18.9',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_ai_calls',
@@ -406,6 +407,7 @@ const aiUsageContent = {
                         splitSort: 'total',
                         splitColorGroups: modelProviderColors,
                         splitShadeRank: modelTierRanks,
+                        splitShadeUnranked: 'middle',
                         // Three providers fit the legend; ten models needed a pager
                         legendMode: 'groups',
                         xAxisType: 'time',
@@ -447,7 +449,7 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.18.8',
+                    minVersion: '0.18.9',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_tokens_used',
@@ -459,6 +461,7 @@ const aiUsageContent = {
                         splitSort: 'total',
                         splitColorGroups: modelProviderColors,
                         splitShadeRank: modelTierRanks,
+                        splitShadeUnranked: 'middle',
                         // Three providers fit the legend; ten models needed a pager
                         legendMode: 'groups',
                         xAxisType: 'time',
