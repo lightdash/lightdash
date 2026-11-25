@@ -132,7 +132,7 @@ const drawBand = (layer: HTMLElement, area: SweepArea): (() => void) => {
     // How far right of the drawing's middle the band is, a given time after the change
     const offsetAt = (ms: number) => `${(ms - centreMs) * speed}px`;
     const band = document.createElement('div');
-    band.className = 'ad-sweep-band';
+    band.className = 'adoption-sweep-band';
     band.style.width = `${BAND_WIDTH_PX}px`;
     band.style.height = `${(area.height + BAND_WIDTH_PX) * SLANT}px`;
     band.style.animationDuration = `${duration}ms`;
