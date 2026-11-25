@@ -15,6 +15,7 @@ import {
     type AiProviderBaseUrls,
     type AiThreadBinding,
     type AiThreadCreatedFrom,
+    type AiThreadMetadata,
     type AiWritebackRunStatus,
     type AiWritebackSource,
     type AiWritebackWorkstream,
@@ -44,6 +45,7 @@ export type DbAiThread = {
     bound_entity_type: AiThreadBinding['type'] | null;
     bound_entity_uuid: string | null;
     thread_context: string | null;
+    thread_metadata: AiThreadMetadata | null;
 };
 
 export type AiThreadTable = Knex.CompositeTableType<
@@ -59,6 +61,7 @@ export type AiThreadTable = Knex.CompositeTableType<
                 | 'bound_entity_type'
                 | 'bound_entity_uuid'
                 | 'thread_context'
+                | 'thread_metadata'
             >
         >,
     Partial<

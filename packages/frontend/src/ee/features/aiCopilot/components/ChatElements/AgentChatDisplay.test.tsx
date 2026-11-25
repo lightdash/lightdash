@@ -128,6 +128,7 @@ const thread: AiAgentThread = {
     liveStatus: null,
     binding: null,
     threadContext: null,
+    metadata: null,
     firstMessage: {
         uuid: 'deep-research-prompt',
         message: 'Find anomalies',

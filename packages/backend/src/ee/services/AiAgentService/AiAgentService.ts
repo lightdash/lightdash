@@ -798,6 +798,7 @@ import {
     buildDashboardSuggestionContext,
     getPinnedSuggestionContextInput,
 } from './suggestionPinnedContext';
+import { parseThreadMetadata } from './threadMetadata';
 import {
     getPromptUsageAttribution,
     type AiUsageViewerAttribution,
@@ -5969,6 +5970,7 @@ export class AiAgentService extends BaseService {
         const threadContext = AiAgentService.parseThreadContext(
             body.threadContext,
         );
+        const metadata = parseThreadMetadata(body.metadata);
         if (!body.prompt && !body.binding && threadContext === null) {
             throw new ParameterError(
                 'A prompt, binding or thread context is required to create a thread',
@@ -6015,6 +6017,7 @@ export class AiAgentService extends BaseService {
             battleProfile: body.battleProfile ?? null,
             binding,
             threadContext,
+            metadata,
         });
 
         const modelConfig = await this.resolvePromptModelConfig({
