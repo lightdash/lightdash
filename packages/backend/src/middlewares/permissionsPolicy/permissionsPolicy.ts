@@ -6,14 +6,14 @@ import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlag
 const PERMISSIONS_POLICY_HEADER = 'Permissions-Policy';
 
 /** Flags whose surfaces record the user's voice on the page itself. */
-const VOICE_DESIGN_FLAGS: string[] = [
+const DESIGN_MODE_FLAGS: string[] = [
     FeatureFlags.DataAppCapture,
     FeatureFlags.DashboardCapture,
 ];
 
 /**
  * Value of the Permissions-Policy header. The camera is always off. The
- * microphone is off unless the page is allowed to record for Voice Design.
+ * microphone is off unless the page is allowed to record for Design Mode.
  */
 export const permissionsPolicyHeader = ({
     microphoneEnabled,
@@ -35,7 +35,7 @@ export const setDefaultPermissionsPolicy: RequestHandler = (
 };
 
 /**
- * Whether the signed-in user's organisation has Voice Design on. Signed-out
+ * Whether the signed-in user's organisation has Design Mode on. Signed-out
  * users and failed lookups get no microphone.
  */
 const canUseMicrophone = async (
@@ -45,7 +45,7 @@ const canUseMicrophone = async (
     if (!user?.organizationUuid) return false;
     try {
         const flags = await Promise.all(
-            VOICE_DESIGN_FLAGS.map((featureFlagId) =>
+            DESIGN_MODE_FLAGS.map((featureFlagId) =>
                 featureFlagModel.get({
                     user: {
                         userUuid: user.userUuid,
@@ -58,7 +58,7 @@ const canUseMicrophone = async (
         return flags.some(({ enabled }) => enabled);
     } catch (error) {
         Logger.warn(
-            `Could not check Voice Design flags for the page: ${getErrorMessage(error)}`,
+            `Could not check Design Mode flags for the page: ${getErrorMessage(error)}`,
         );
         return false;
     }
@@ -66,7 +66,7 @@ const canUseMicrophone = async (
 
 /**
  * Serves the app's HTML page. The Permissions-Policy of a page is fixed when
- * it loads, so this is where the microphone is allowed for Voice Design: only
+ * it loads, so this is where the microphone is allowed for Design Mode: only
  * on the page document, only for an organisation with the feature on.
  */
 export const createSpaIndexHandler = ({

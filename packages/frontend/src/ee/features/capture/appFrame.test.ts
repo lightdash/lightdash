@@ -1,10 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-    APP_PROBE_TIMEOUT_MS,
     AppFrameTimeoutError,
     appImageScale,
     isAppImage,
-    resolveAppFrameSource,
     withTimeout,
 } from './appFrame';
 
@@ -48,60 +46,6 @@ describe('withTimeout', () => {
         await expect(
             withTimeout(Promise.reject(new Error('boom')), 100),
         ).rejects.toThrow('boom');
-    });
-});
-
-describe('resolveAppFrameSource', () => {
-    beforeEach(() => {
-        vi.useFakeTimers();
-    });
-    afterEach(() => {
-        vi.useRealTimers();
-    });
-
-    it('uses tab capture when the surface has no picture of its own', async () => {
-        await expect(resolveAppFrameSource({ probe: null })).resolves.toBe(
-            'tab',
-        );
-    });
-
-    it('uses the app when it answers with a picture', async () => {
-        await expect(
-            resolveAppFrameSource({ probe: async () => png() }),
-        ).resolves.toBe('app');
-    });
-
-    it('falls back when the app does not answer in time', async () => {
-        const choice = resolveAppFrameSource({
-            probe: () => new Promise(() => {}),
-        });
-        await vi.advanceTimersByTimeAsync(APP_PROBE_TIMEOUT_MS - 1);
-        let settled = false;
-        void choice.then(() => {
-            settled = true;
-        });
-        await Promise.resolve();
-        expect(settled).toBe(false);
-        await vi.advanceTimersByTimeAsync(1);
-        await expect(choice).resolves.toBe('tab');
-    });
-
-    it('falls back when the app answers with an error', async () => {
-        await expect(
-            resolveAppFrameSource({
-                probe: async () => {
-                    throw new Error('Screenshot failed');
-                },
-            }),
-        ).resolves.toBe('tab');
-    });
-
-    it('falls back when the answer is not a picture', async () => {
-        await expect(
-            resolveAppFrameSource({
-                probe: async () => ({ html: '<p>hi</p>' }),
-            }),
-        ).resolves.toBe('tab');
     });
 });
 

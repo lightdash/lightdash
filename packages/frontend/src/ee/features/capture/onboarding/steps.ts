@@ -1,44 +1,47 @@
 import { type GuidedTourStep } from '../../../../components/common/GuidedTour';
 
-export type VoiceDesignSurface = 'dashboard' | 'builder' | 'app';
+export type DesignModeSurface = 'dashboard' | 'builder' | 'app';
 
-/** `data-tour` value on each surface's Voice Design button. */
-export const VOICE_DESIGN_BUTTON_TOUR_ID = 'voice-design-button';
+/** `data-tour` value on each surface's Design Mode button. */
+export const DESIGN_MODE_BUTTON_TOUR_ID = 'design-mode-button';
+/** `data-tour` values on the toolbar and its voice button. */
+export const DESIGN_MODE_TOOLBAR_TOUR_ID = 'design-mode-toolbar';
+export const DESIGN_MODE_VOICE_TOUR_ID = 'design-mode-voice';
+/** From this step on the tour needs the toolbar, so it turns the mode on. */
+export const FIRST_TOOLBAR_STEP = 1;
 
-const AFTER_STOP: Record<VoiceDesignSurface, string> = {
-    dashboard:
-        'Layout changes, like moving or swapping charts, happen straight away as a preview you can save or discard. Questions and other changes go to the AI agent.',
-    builder:
-        'Your marks, your words and the marked-up screenshots land in the prompt box, ready to send.',
-    app: 'Your questions go to the AI agent. It can change the app too, if you ask and you can edit it.',
+const THREADS = {
+    title: 'Conversational threads',
+    body: 'Each new set of marks gets its own bubble. You can carry on threads by opening them and using the hotkey to add more marks and voice transcriptions.',
 };
 
-/** The first-run tour for Voice Design on one surface. */
-export const voiceDesignTourSteps = (
-    surface: VoiceDesignSurface,
+const AFTER_SEND: Record<DesignModeSurface, { title: string; body: string }> = {
+    dashboard: THREADS,
+    app: THREADS,
+    builder: {
+        title: 'Send your marks to the builder',
+        body: 'Each bubble waits in a tray under the preview. Mark as many things as you like, then send them to the builder together as one prompt.',
+    },
+};
+
+/** The first-run tour for Design Mode on one surface. */
+export const designModeTourSteps = (
+    surface: DesignModeSurface,
 ): GuidedTourStep[] => [
     {
-        target: `[data-tour="${VOICE_DESIGN_BUTTON_TOUR_ID}"]`,
-        title: 'Meet Voice Design',
-        body: 'Point at things and talk instead of typing. Press this button to start a recording.',
+        target: `[data-tour="${DESIGN_MODE_BUTTON_TOUR_ID}"]`,
+        title: 'Meet Design Mode',
+        body: 'Mark or annotate UI elements to design content or request analysis. Press this button to turn it on.',
     },
     {
-        target: null,
-        title: 'Draw while you talk',
-        body: 'Hold Shift and move the mouse to draw circles, lines and arrows on the page. Say what you want as you go. You can scroll and click between marks.',
+        target: `[data-tour="${DESIGN_MODE_TOOLBAR_TOUR_ID}"]`,
+        title: 'Hold Option/Alt to mark',
+        body: 'Use the hotkey to activate the marker. Once activated you can select elements or annotate the UI. On releasing the hotkey an agent bubble opens with your context added to it automatically.',
     },
     {
-        target: null,
-        title: 'Press Stop when you are done',
-        body: AFTER_STOP[surface],
+        target: `[data-tour="${DESIGN_MODE_VOICE_TOUR_ID}"]`,
+        title: 'Voice Mode',
+        body: 'When toggled on, using the hotkey will also activate the microphone, and anything you say while making annotations will be automatically transcribed to the agent bubble opened on release.',
     },
-    ...(surface === 'builder'
-        ? []
-        : [
-              {
-                  target: null,
-                  title: 'Keep the conversation going',
-                  body: 'If the agent panel is open, your next recording joins that conversation. Close the panel to start a new one.',
-              },
-          ]),
+    { target: null, ...AFTER_SEND[surface] },
 ];

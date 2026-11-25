@@ -535,7 +535,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiRouterController.getInstruction': [AgentCapability.ReadDiscover],
     'AiRouterController.listDecisions': [AgentCapability.ReadDiscover],
     'AiRouterController.route': [AgentCapability.ReadDiscover],
-    'AiRouterController.routeCapture': [AgentCapability.ReadDiscover],
     'AiRouterController.upsertConfig': [AgentCapability.Administration],
     'AiRouterController.upsertInstruction': [AgentCapability.Administration],
     'AiServiceAccountController.delete': [

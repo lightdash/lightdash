@@ -1,52 +1,44 @@
 import { describe, expect, it } from 'vitest';
-import { VOICE_DESIGN_BUTTON_TOUR_ID, voiceDesignTourSteps } from './steps';
+import { DESIGN_MODE_BUTTON_TOUR_ID, designModeTourSteps } from './steps';
 
-describe('voiceDesignTourSteps', () => {
-    it('starts on the Voice Design button on every surface', () => {
-        for (const surface of ['dashboard', 'builder', 'app'] as const) {
-            expect(voiceDesignTourSteps(surface)[0].target).toBe(
-                `[data-tour="${VOICE_DESIGN_BUTTON_TOUR_ID}"]`,
+const SURFACES = ['dashboard', 'builder', 'app'] as const;
+const text = (surface: (typeof SURFACES)[number]) =>
+    designModeTourSteps(surface)
+        .map((step) => `${String(step.title)} ${String(step.body)}`)
+        .join(' ');
+
+describe('designModeTourSteps', () => {
+    it('starts on the Design Mode button on every surface', () => {
+        for (const surface of SURFACES) {
+            expect(designModeTourSteps(surface)[0].target).toBe(
+                `[data-tour="${DESIGN_MODE_BUTTON_TOUR_ID}"]`,
             );
         }
     });
 
-    it('explains drawing with Shift on every surface', () => {
-        for (const surface of ['dashboard', 'builder', 'app'] as const) {
-            expect(
-                voiceDesignTourSteps(surface).some((step) =>
-                    String(step.body).includes('Hold Shift'),
-                ),
-            ).toBe(true);
+    it('points at the toolbar and its voice button once the mode is on', () => {
+        const [, mark, say] = designModeTourSteps('dashboard');
+        expect(mark.target).toBe('[data-tour="design-mode-toolbar"]');
+        expect(say.target).toBe('[data-tour="design-mode-voice"]');
+    });
+
+    it('explains the hotkey and Voice Mode on every surface', () => {
+        for (const surface of SURFACES) {
+            expect(text(surface)).toContain('Hold Option/Alt to mark');
+            expect(text(surface)).toContain('Voice Mode');
+            expect(text(surface)).toContain('activate the microphone');
         }
     });
 
-    it('tells each surface what happens on Stop', () => {
-        const stop = (surface: 'dashboard' | 'builder' | 'app') =>
-            voiceDesignTourSteps(surface)
-                .map((step) => String(step.body))
-                .join(' ');
-        expect(stop('dashboard')).toContain('preview you can save or discard');
-        expect(stop('builder')).toContain('prompt box');
-        expect(stop('app')).toContain('AI agent');
+    it('tells each surface where its marks go', () => {
+        expect(text('dashboard')).toContain('Conversational threads');
+        expect(text('app')).toContain('Conversational threads');
+        expect(text('builder')).toContain('as one prompt');
     });
 
-    it('mentions continuing the conversation only where an agent thread is used', () => {
-        const mentions = (surface: 'dashboard' | 'builder' | 'app') =>
-            voiceDesignTourSteps(surface).some((step) =>
-                String(step.body).includes('joins that conversation'),
-            );
-        expect(mentions('dashboard')).toBe(true);
-        expect(mentions('app')).toBe(true);
-        expect(mentions('builder')).toBe(false);
-    });
-
-    it('uses no em dashes or arrows in the copy', () => {
-        for (const surface of ['dashboard', 'builder', 'app'] as const) {
-            for (const step of voiceDesignTourSteps(surface)) {
-                expect(`${step.title} ${String(step.body)}`).not.toMatch(
-                    /[—→]/,
-                );
-            }
+    it('never names the product, since apps and dashboards can be embedded', () => {
+        for (const surface of SURFACES) {
+            expect(text(surface)).not.toContain('Lightdash');
         }
     });
 });

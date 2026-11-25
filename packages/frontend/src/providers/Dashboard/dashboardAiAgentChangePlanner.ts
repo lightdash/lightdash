@@ -63,11 +63,14 @@ const getTargetDashboardSlug = (part: SuccessfulContentToolCall) =>
 export const planDashboardAiAgentChanges = ({
     parts,
     handledToolCallIds,
+    quietToolCallIds,
     currentDashboardSlug,
     pendingChartToFocus,
 }: {
     parts: StreamPart[];
     handledToolCallIds: Set<string>;
+    /** Their changes are refreshed in place: the page is not scrolled to them. */
+    quietToolCallIds: Set<string>;
     currentDashboardSlug: string;
     pendingChartToFocus: DashboardAiAgentChartRef | null;
 }): DashboardAiAgentChangePlan => {
@@ -82,6 +85,7 @@ export const planDashboardAiAgentChanges = ({
         nextHandledToolCallIds.push(part.toolCallId);
 
         const contentSlug = getContentSlug(part);
+        const focus = !quietToolCallIds.has(part.toolCallId);
 
         switch (part.toolArgs.type) {
             case 'chart': {
@@ -94,15 +98,15 @@ export const planDashboardAiAgentChanges = ({
                     part.toolName === 'createContent' &&
                     targetDashboardSlug === currentDashboardSlug
                 ) {
-                    nextPendingChartToFocus = chart;
+                    if (focus) nextPendingChartToFocus = chart;
                     actions.push({
                         type: 'refreshDashboard',
-                        focusChart: chart,
+                        focusChart: focus ? chart : null,
                     });
                     break;
                 }
 
-                actions.push({ type: 'refreshChart', chart, focusTile: true });
+                actions.push({ type: 'refreshChart', chart, focusTile: focus });
                 break;
             }
             case 'sql_chart': {
@@ -112,11 +116,11 @@ export const planDashboardAiAgentChanges = ({
                 };
                 // SQL charts are created outside dashboards; focus once a dashboard edit adds the tile.
                 if (part.toolName === 'createContent') {
-                    nextPendingChartToFocus = chart;
+                    if (focus) nextPendingChartToFocus = chart;
                     break;
                 }
 
-                actions.push({ type: 'refreshChart', chart, focusTile: true });
+                actions.push({ type: 'refreshChart', chart, focusTile: focus });
                 break;
             }
             case 'composer_chart': {
@@ -129,12 +133,12 @@ export const planDashboardAiAgentChanges = ({
                     if (getTargetDashboardSlug(part) === currentDashboardSlug) {
                         actions.push({
                             type: 'refreshDashboard',
-                            focusChart: chart,
+                            focusChart: focus ? chart : null,
                         });
                     }
                     break;
                 }
-                actions.push({ type: 'refreshChart', chart, focusTile: true });
+                actions.push({ type: 'refreshChart', chart, focusTile: focus });
                 break;
             }
             case 'dashboard': {
@@ -142,7 +146,7 @@ export const planDashboardAiAgentChanges = ({
 
                 actions.push({
                     type: 'refreshDashboard',
-                    focusChart: nextPendingChartToFocus,
+                    focusChart: focus ? nextPendingChartToFocus : null,
                 });
                 break;
             }
