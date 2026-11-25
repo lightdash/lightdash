@@ -17,6 +17,7 @@ import {
     UnstyledButton,
     useComputedColorScheme,
 } from '@mantine/core';
+import { EditStateManager } from '@pierre/diffs/edit';
 import {
     EditProvider,
     File,
@@ -68,6 +69,7 @@ import {
     MOD_KEY,
     readSelection,
     REDO_KEYS,
+    replaceText,
     type Attached,
 } from './pierreEditor';
 import { applyProposal, fileBefore } from './proposedFile';
@@ -470,9 +472,11 @@ export const SourcePane: FC<{
     const mounted = useRef<{
         key: string;
         text: string | null;
+        stateKey: string;
         path: string | null;
         revision: number;
     } | null>(null);
+    const generations = useRef(new Map<string, number>());
     // Where the caret and scroll were before a remount of the same text, put back once the new editor attaches.
     const restoreView = useRef<{
         state: ReturnType<Attached['getViewState']>;
@@ -689,7 +693,8 @@ export const SourcePane: FC<{
         const attach = (code: Attached) => {
             codeRef.current = code;
             code.setMarkers(markersRef.current);
-            setHistory({ canUndo: false, canRedo: false });
+            // A file opened again resumes its undo history.
+            setHistory({ canUndo: code.canUndo, canRedo: code.canRedo });
             const restore = restoreView.current;
             restoreView.current = null;
             if (restore)
@@ -747,7 +752,8 @@ export const SourcePane: FC<{
         disableFileHeader: true,
     } as const;
     // Pierre takes `edit` when it mounts, so a lock or unlock mounts it again.
-    const surfaceKey = `${path}:${shownLayout}:${revision}:${canEdit}`;
+    // A file read after it opened mounts again, so its retained document starts from the read text.
+    const surfaceKey = `${path}:${shownLayout}:${revision}:${canEdit}:${loaded !== null}`;
     // Any remount (layout, a late comparison, a lock) restarts from what is typed so far.
     if (mounted.current?.key !== surfaceKey) {
         const previous = mounted.current;
@@ -765,7 +771,29 @@ export const SourcePane: FC<{
                     }
                   : restoreView.current;
         codeRef.current = null;
-        mounted.current = { key: surfaceKey, text, path, revision };
+        // On the render that switches files, `text` is still the last file's.
+        const mountedText =
+            shownKey.current === editKey
+                ? text
+                : (findUnsaved(editKey)?.text ?? null);
+        const contents = mountedText ?? loaded ?? '';
+        // Pierre keeps each file's document and undo history under this key; a different text starts a new one.
+        let generation = generations.current.get(editKey) ?? 0;
+        const retained = EditStateManager.get(
+            shownLayout === 'code' ? 'file' : 'file-diff',
+            `${editKey}:${generation}`,
+        );
+        if (retained && retained.document.getText() !== contents) {
+            generation += 1;
+            generations.current.set(editKey, generation);
+        }
+        mounted.current = {
+            key: surfaceKey,
+            text: mountedText,
+            stateKey: `${editKey}:${generation}`,
+            path,
+            revision,
+        };
     }
     const current = {
         name: fileName(path),
@@ -981,8 +1009,14 @@ export const SourcePane: FC<{
                                 color="gray"
                                 disabled={save.isLoading}
                                 onClick={() => {
-                                    reset();
                                     setNotice(null);
+                                    // Your own edits go back as an edit, so undo brings them back; a proposal is set aside.
+                                    if (offered === null && codeRef.current)
+                                        replaceText(
+                                            codeRef.current,
+                                            loaded ?? '',
+                                        );
+                                    else reset();
                                 }}
                             >
                                 Discard
@@ -1106,6 +1140,7 @@ export const SourcePane: FC<{
                             {shownLayout === 'code' ? (
                                 <File
                                     key={surfaceKey}
+                                    editStateKey={mounted.current.stateKey}
                                     className={classes.sourceHost}
                                     file={current}
                                     options={options}
@@ -1126,6 +1161,7 @@ export const SourcePane: FC<{
                             ) : (
                                 <MultiFileDiff
                                     key={surfaceKey}
+                                    editStateKey={mounted.current.stateKey}
                                     className={classes.sourceHost}
                                     oldFile={{
                                         name: fileName(path),

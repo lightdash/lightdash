@@ -74,6 +74,9 @@ import {
     pointInCode,
     type CodePoint,
     readSelection,
+    replaceText,
+    selectWordAt,
+    hasSelection,
     type Attached,
 } from './pierreEditor';
 import { useAddToStudioChat } from './studioChatRefs';
@@ -135,8 +138,8 @@ export const ModelCodeView: FC<{
     const [isEditing, setIsEditing] = useState(startsEditing);
     const editorInstance = useRef<Attached | null>(null);
     // Editing asked for by a click or the overview's pencil, so the caret lands where the person pointed.
-    const openAt = useRef<{ point: CodePoint | null } | null>(
-        startsEditing ? { point: null } : null,
+    const openAt = useRef<{ point: CodePoint | null; word: boolean } | null>(
+        startsEditing ? { point: null, word: false } : null,
     );
     const [history, setHistory] = useState({ canUndo: false, canRedo: false });
     const addToStudioChat = useAddToStudioChat();
@@ -167,8 +170,10 @@ export const ModelCodeView: FC<{
                     openAt.current = null;
                     if (asked)
                         requestAnimationFrame(() => {
-                            if (editorInstance.current === attached)
-                                attached.focus(asked.point ?? undefined);
+                            if (editorInstance.current !== attached) return;
+                            attached.focus(asked.point ?? undefined);
+                            if (asked.word && asked.point)
+                                selectWordAt(attached, asked.point);
                         });
                 },
                 () => addToChatRef.current(),
@@ -226,7 +231,7 @@ export const ModelCodeView: FC<{
 
     const startEditing = (event: MouseEvent) => {
         if (!canEdit) return;
-        openAt.current = { point: pointInCode(event) };
+        openAt.current = { point: pointInCode(event), word: false };
         setStartedFrom(shownContent);
         setIsEditing(true);
         setRevision((current) => current + 1);
@@ -348,7 +353,16 @@ export const ModelCodeView: FC<{
                             disabled={save.isLoading}
                             onClick={() => {
                                 setNotice(null);
-                                stopEditing();
+                                // As an edit, so undo brings the discarded text back.
+                                if (
+                                    editorInstance.current &&
+                                    startedFrom !== null
+                                )
+                                    replaceText(
+                                        editorInstance.current,
+                                        startedFrom,
+                                    );
+                                else stopEditing();
                             }}
                         >
                             Discard
@@ -399,6 +413,15 @@ export const ModelCodeView: FC<{
             <Box
                 className={classes.codeEditor}
                 ref={editor}
+                onDoubleClick={(event) => {
+                    // The first click opened the editor, which then missed the double-click.
+                    const point = pointInCode(event.nativeEvent);
+                    const code = editorInstance.current;
+                    if (!point) return;
+                    if (openAt.current) openAt.current = { point, word: true };
+                    else if (code && !hasSelection(code))
+                        selectWordAt(code, point);
+                }}
                 onKeyDownCapture={(event) => {
                     leaveOnEscape(event.nativeEvent, editorInstance.current);
                     if (!(event.metaKey || event.ctrlKey)) return;
