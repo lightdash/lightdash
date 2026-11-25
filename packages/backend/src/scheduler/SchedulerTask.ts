@@ -414,13 +414,13 @@ export const GSHEET_UPLOAD_MAX_ATTEMPTS =
 export const GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS = [
     2000, 4000, 8000, 16000, 35000,
 ];
-// googleapis/gaxios only retries when a request opts in via `retry`/
-// `retryConfig` (see gaxios's getRetryConfig) — we never set either, so
-// nothing below us retries automatically; this bounded wait is genuinely
-// the only backoff a Google Sheets write gets. Caps how long a single
-// honored Retry-After can make us wait, so a large server-suggested delay
-// still hands off to the task's own retry/notify-and-disable path instead
-// of stalling the job.
+// googleapis-common turns gaxios retries on by default, so a GET or PUT
+// is retried up to 3 times on a 429 or 5xx. GoogleDriveClient turns that
+// off for sheet writes (`retry: false`) and retries each write request
+// with its own bounded backoff. This wraps the whole write once more. Caps
+// how long a single honored Retry-After can make us wait, so a large
+// server-suggested delay still hands off to the task's own
+// retry/notify-and-disable path instead of stalling the job.
 const GSHEET_UPLOAD_RETRY_AFTER_CEILING_MS = 30000;
 
 export async function retryTransientGoogleSheetsWrite(
@@ -529,9 +529,10 @@ export function captureKeyTabSuffix(captureKey: string): string {
     return createHash('sha256').update(captureKey).digest('hex').slice(0, 4);
 }
 
-// Sheets write cost of one app-delivered query in the app gsheets branch:
-// createNewTab (called once, inside appendCsvToSheet), clearTabName, and the
-// values.update.
+// Sheets write cost of one app-delivered query in the app gsheets branch
+// when its rows fit in one write request: the batchUpdate that adds the
+// hidden staging tab, the values.update, and the batchUpdate that swaps the
+// data into the tab (all inside appendCsvToSheet).
 export const GSHEETS_WRITES_PER_APP_ITEM = 3;
 // Google's Sheets API write-requests-per-user-per-minute quota is 60
 // (developers.google.com/sheets/api/limits) — stay a safety margin under it
@@ -5333,9 +5334,9 @@ export default class SchedulerTask {
                 // Write-quota invariant (Sheets API: 60 write requests per
                 // user per minute — developers.google.com/sheets/api/limits).
                 // Each ready item costs GSHEETS_WRITES_PER_APP_ITEM (3)
-                // writes below: createNewTab (called once, inside
-                // appendCsvToSheet), clearTabName, and the values.update —
-                // plus a fixed 3 writes for this one-off metadata tab.
+                // writes below when it fits in one write request (see the
+                // constant) — plus a fixed 3 writes for this one-off
+                // metadata tab.
                 // writes(N) = 3N + 3 scales past the quota well within
                 // MAX_DELIVERY_QUERIES (50 -> 153 writes), so a manifest of
                 // any size up to that cap is proactively paced (below) to

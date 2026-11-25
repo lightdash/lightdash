@@ -72,9 +72,32 @@ export class GoogleSheetsFake {
 
     beforeBatchUpdate: (requests: unknown[], index: number) => void = () => {};
 
-    constructor(tabs: Array<{ title: string; rows?: CellValue[][] }>) {
-        tabs.forEach(({ title, rows = [] }) => {
-            const sheet = this.addSheet({ title });
+    // Throw from this to simulate a response that is lost after Google has
+    // applied the batch.
+    afterBatchUpdate: (requests: unknown[], index: number) => void = () => {};
+
+    constructor(
+        tabs: Array<{
+            title: string;
+            rows?: CellValue[][];
+            rowCount?: number;
+            columnCount?: number;
+        }>,
+    ) {
+        tabs.forEach(({ title, rows = [], rowCount, columnCount }) => {
+            const sheet = this.addSheet({
+                title,
+                gridProperties: {
+                    rowCount: Math.max(
+                        rowCount ?? DEFAULT_ROW_COUNT,
+                        rows.length,
+                    ),
+                    columnCount: Math.max(
+                        columnCount ?? DEFAULT_COLUMN_COUNT,
+                        ...rows.slice(0, 1).map((row) => row.length),
+                    ),
+                },
+            });
             this.writeRows(sheet.sheetId, 0, 0, rows);
         });
     }
@@ -110,7 +133,12 @@ export class GoogleSheetsFake {
                         requests,
                         this.batchUpdateCalls.length - 1,
                     );
-                    return { data: this.applyAtomically(requests) };
+                    const data = this.applyAtomically(requests);
+                    this.afterBatchUpdate(
+                        requests,
+                        this.batchUpdateCalls.length - 1,
+                    );
+                    return { data };
                 },
                 values: {
                     update: async (

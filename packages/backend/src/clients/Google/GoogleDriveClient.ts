@@ -16,6 +16,7 @@ import {
     MissingConfigError,
     NotFoundError,
     shouldShiftItemTimezone,
+    sleep,
     TableCalculation,
     TimeFrames,
     timeIntervalToExcelNumFmt,
@@ -23,6 +24,7 @@ import {
     toIsoWithProjectOffset,
     UnexpectedGoogleSheetsError,
 } from '@lightdash/common';
+import { createHash, randomBytes } from 'crypto';
 import { google, sheets_v4 } from 'googleapis';
 import moment from 'moment';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -61,6 +63,81 @@ const TRUNCATION_SUFFIX = '... [TRUNCATED]';
 const TRUNCATE_INDEX = GOOGLE_SHEETS_CELL_CHAR_LIMIT - TRUNCATION_SUFFIX.length;
 const GOOGLE_SHEETS_EPOCH_MS = Date.UTC(1899, 11, 30);
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// Google fails a single values.update with a generic "Internal error
+// encountered" (after minutes) once it holds more than ~187k rows with a long
+// text column, whatever its byte size. So every write is split into chunks
+// bounded by rows AND bytes, both far under what Google is known to accept,
+// while keeping the request count low for the 60 writes/min/user quota.
+export const GSHEETS_WRITE_CHUNK_MAX_ROWS = 25_000;
+export const GSHEETS_WRITE_CHUNK_MAX_BYTES = 8 * 1024 * 1024;
+export const GOOGLE_SHEETS_CELL_LIMIT = 10_000_000;
+// Bounded per-request backoff (~65s in total) so a 429 waits out a quota
+// window. Our own retries replace gaxios's hidden ones (see `retry: false`).
+export const GSHEETS_WRITE_RETRY_DELAYS_MS = [5_000, 15_000, 45_000];
+const GSHEETS_RETRY_AFTER_CEILING_MS = 60_000;
+const GOOGLE_INTERNAL_ERROR_MESSAGE =
+    'Google Drive internal error encountered. Please try again later.';
+const STAGING_TAB_PREFIX = '_lightdash_sync_';
+const NEW_TAB_ROW_COUNT = 1000;
+const NEW_TAB_COLUMN_COUNT = 26;
+
+export type GoogleSheetsWriteChunk = {
+    start: number;
+    end: number;
+    bytes: number;
+};
+
+export const planGoogleSheetsWriteChunks = (
+    rows: unknown[][],
+    maxRows: number = GSHEETS_WRITE_CHUNK_MAX_ROWS,
+    maxBytes: number = GSHEETS_WRITE_CHUNK_MAX_BYTES,
+): { chunks: GoogleSheetsWriteChunk[]; totalBytes: number } => {
+    const chunks: GoogleSheetsWriteChunk[] = [];
+    let start = 0;
+    let bytes = 0;
+    let totalBytes = 0;
+    rows.forEach((row, index) => {
+        const rowBytes = Buffer.byteLength(JSON.stringify(row)) + 1;
+        if (
+            index > start &&
+            (index - start >= maxRows || bytes + rowBytes > maxBytes)
+        ) {
+            chunks.push({ start, end: index, bytes });
+            start = index;
+            bytes = 0;
+        }
+        bytes += rowBytes;
+        totalBytes += rowBytes;
+    });
+    if (rows.length > start) {
+        chunks.push({ start, end: rows.length, bytes });
+    }
+    return { chunks, totalBytes };
+};
+
+const formatCount = (value: number) => value.toLocaleString('en-US');
+
+const formatMegabytes = (bytes: number) =>
+    `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+const quoteTabName = (title: string) => `'${title.replaceAll("'", "''")}'`;
+
+type SheetProperties = {
+    sheetId: number;
+    title: string;
+    hidden: boolean;
+    rowCount: number;
+    columnCount: number;
+};
+
+type WriteContext = {
+    rowCount: number;
+    totalBytes: number;
+    tabTitle: string;
+    inPlace: boolean;
+    rowsWritten: number;
+};
 
 const DATE_TIME_FRAMES = new Set<TimeFrames>([
     TimeFrames.HOUR,
@@ -188,7 +265,7 @@ export class GoogleDriveClient {
                 err.message.includes('Internal error encountered.')
             ) {
                 throw new UnexpectedGoogleSheetsError(
-                    `Google Drive internal error encountered. Please try again later.`,
+                    GOOGLE_INTERNAL_ERROR_MESSAGE,
                 );
             }
 
@@ -498,32 +575,6 @@ export class GoogleDriveClient {
         }
     }
 
-    private static async getSheetId(
-        sheets: sheets_v4.Sheets,
-        fileId: string,
-        tabName?: string,
-    ): Promise<number> {
-        const spreadsheet = await GoogleDriveClient.catchApiError(
-            sheets.spreadsheets.get({
-                spreadsheetId: fileId,
-                fields: 'sheets(properties(sheetId,title))',
-            }),
-        );
-        const sheet = tabName
-            ? spreadsheet.data.sheets?.find(
-                  ({ properties }) => properties?.title === tabName,
-              )
-            : spreadsheet.data.sheets?.[0];
-        const sheetId = sheet?.properties?.sheetId;
-        if (sheetId === null || sheetId === undefined) {
-            throw new UnexpectedGoogleSheetsError(
-                `Unable to find Google Sheet tab${tabName ? `: ${tabName}` : ''}`,
-            );
-        }
-
-        return sheetId;
-    }
-
     static formatCell(
         value: AnyType,
         item?: Field | TableCalculation | CustomDimension | Metric,
@@ -733,74 +784,504 @@ export class GoogleDriveClient {
             return;
         }
 
-        // Validate that the file is actually a Google Sheets file
-        await this.assertFileIsGoogleSheet(refreshToken, fileId);
-
         const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
 
-        let sanitizedTabName: string | undefined;
-        if (tabName) {
-            Logger.info(`Creating new tab ${tabName} on Google sheets`);
-            sanitizedTabName = await this.createNewTab(
-                refreshToken,
-                fileId,
-                tabName,
+        // Also confirms the file is a Google Sheet: an .xlsx file fails here.
+        const existingSheets = await GoogleDriveClient.listSheetProperties(
+            sheets,
+            fileId,
+        );
+        // The first visible tab is where a write to range "A1" used to go.
+        const tabTitle =
+            (tabName ? tabName.replaceAll(':', '.') : undefined) ??
+            (
+                existingSheets.find(
+                    (sheet) =>
+                        !sheet.hidden &&
+                        !sheet.title.startsWith(STAGING_TAB_PREFIX),
+                ) ?? existingSheets[0]
+            )?.title;
+        if (tabTitle === undefined) {
+            throw new UnexpectedGoogleSheetsError(
+                'Unable to find the first sheet name in the spreadsheet',
             );
         }
-        // Clear first sheet before writting
-        await GoogleDriveClient.clearTabName(sheets, fileId, tabName);
+        const target = existingSheets.find((sheet) => sheet.title === tabTitle);
+        const stagingPrefix = `${STAGING_TAB_PREFIX}${createHash('sha256')
+            .update(tabTitle)
+            .digest('hex')
+            .slice(0, 8)}_`;
+        // Left by a run that crashed or timed out. Deleting one that an
+        // orphaned run still writes to makes that run fail without changes.
+        const staleStagingSheets = existingSheets.filter(
+            (sheet) =>
+                sheet !== target && sheet.title.startsWith(stagingPrefix),
+        );
+
+        const rowCount = results.length;
+        const columnCount = Math.max(
+            1,
+            results.reduce((acc, row) => Math.max(acc, row.length), 0),
+        );
+        const targetRowCount = Math.max(
+            target?.rowCount ?? NEW_TAB_ROW_COUNT,
+            rowCount,
+        );
+        const targetColumnCount = Math.max(
+            target?.columnCount ?? NEW_TAB_COLUMN_COUNT,
+            columnCount,
+        );
+        const otherCells = existingSheets
+            .filter(
+                (sheet) =>
+                    sheet !== target && !staleStagingSheets.includes(sheet),
+            )
+            .reduce(
+                (acc, sheet) => acc + sheet.rowCount * sheet.columnCount,
+                0,
+            );
+        const targetCells = targetRowCount * targetColumnCount;
+        if (otherCells + targetCells > GOOGLE_SHEETS_CELL_LIMIT) {
+            throw new UnexpectedGoogleSheetsError(
+                `Google Sheets could not write ${formatCount(rowCount)} rows and ${formatCount(columnCount)} columns to the tab "${tabTitle}": the spreadsheet would need about ${formatCount(otherCells + targetCells)} cells, which is more than the Google Sheets limit of ${formatCount(GOOGLE_SHEETS_CELL_LIMIT)} cells. The data in the tab was not changed. Remove tabs or rows that you do not use, or sync fewer rows or columns.`,
+            );
+        }
+        // The staging tab needs room for a second copy of the data. When the
+        // spreadsheet has no room for it, write into the tab directly.
+        const inPlace =
+            otherCells + targetCells + rowCount * columnCount >
+            GOOGLE_SHEETS_CELL_LIMIT;
+
+        const { chunks, totalBytes } = planGoogleSheetsWriteChunks(results);
+        const context: WriteContext = {
+            rowCount,
+            totalBytes,
+            tabTitle,
+            inPlace,
+            rowsWritten: 0,
+        };
+        Logger.info(
+            `Writing ${rowCount} rows and ${columnCount} columns (about ${formatMegabytes(totalBytes)}) to Google sheets in ${chunks.length} requests (${inPlace ? 'in place' : 'staged in a hidden tab'})`,
+        );
+        const startedAt = Date.now();
+
+        const stagingTitle = `${stagingPrefix}${randomBytes(3).toString('hex')}`;
+        const setupRequests: sheets_v4.Schema$Request[] = [
+            ...staleStagingSheets.map(({ sheetId }) => ({
+                deleteSheet: { sheetId },
+            })),
+            ...(target
+                ? []
+                : [{ addSheet: { properties: { title: tabTitle } } }]),
+            ...(inPlace
+                ? []
+                : [
+                      {
+                          addSheet: {
+                              properties: {
+                                  title: stagingTitle,
+                                  hidden: true,
+                                  gridProperties: { rowCount, columnCount },
+                              },
+                          },
+                      },
+                  ]),
+        ];
+
+        let targetSheetId = target?.sheetId;
+        let stagingSheetId: number | undefined;
+        try {
+            if (setupRequests.length > 0) {
+                const response = await GoogleDriveClient.withWriteRetry(
+                    () =>
+                        sheets.spreadsheets.batchUpdate(
+                            {
+                                spreadsheetId: fileId,
+                                requestBody: { requests: setupRequests },
+                            },
+                            { retry: false },
+                        ),
+                    'tab setup',
+                );
+                const added = (response.data.replies ?? []).flatMap(
+                    (reply) => reply.addSheet?.properties ?? [],
+                );
+                targetSheetId =
+                    targetSheetId ??
+                    added.find(({ title }) => title === tabTitle)?.sheetId ??
+                    undefined;
+                stagingSheetId =
+                    added.find(({ title }) => title === stagingTitle)
+                        ?.sheetId ?? undefined;
+            }
+            if (
+                targetSheetId === undefined ||
+                (!inPlace && stagingSheetId === undefined)
+            ) {
+                throw new UnexpectedGoogleSheetsError(
+                    'Unable to create the Google Sheets tabs for the sync',
+                );
+            }
+
+            const writeTitle = quoteTabName(inPlace ? tabTitle : stagingTitle);
+            await chunks.reduce(async (previous, chunk, index) => {
+                await previous;
+                const rows = results.slice(chunk.start, chunk.end);
+                await GoogleDriveClient.withWriteRetry(
+                    () =>
+                        sheets.spreadsheets.values.update(
+                            {
+                                spreadsheetId: fileId,
+                                range: `${writeTitle}!A${chunk.start + 1}`,
+                                valueInputOption: 'RAW',
+                                requestBody: {
+                                    values: inPlace
+                                        ? GoogleDriveClient.toOverwriteRows(
+                                              rows,
+                                              columnCount,
+                                          )
+                                        : rows,
+                                },
+                            },
+                            // gaxios retries a failed PUT 3 times by default,
+                            // which hides each failure behind 4 full uploads.
+                            { retry: false },
+                        ),
+                    `write of rows ${chunk.start + 1}-${chunk.end}`,
+                );
+                context.rowsWritten = chunk.end;
+                Logger.info(
+                    `Wrote Google Sheets request ${index + 1} of ${chunks.length} (${chunk.end - chunk.start} rows, about ${formatMegabytes(chunk.bytes)})`,
+                );
+            }, Promise.resolve());
+
+            const sheetId = targetSheetId;
+            // The RAW writes already contain explicit date serials. Apply one
+            // compact format per date column so behavior is independent of
+            // Sheet locale without repeating format data per cell.
+            const formatRequests: sheets_v4.Schema$Request[] =
+                nativeDateColumns.map(
+                    ({
+                        columnIndex,
+                        numberFormat,
+                        rowCount: rows,
+                        startRow,
+                    }) => ({
+                        repeatCell: {
+                            range: {
+                                sheetId,
+                                startRowIndex: startRow - 1,
+                                endRowIndex: startRow - 1 + rows,
+                                startColumnIndex: columnIndex,
+                                endColumnIndex: columnIndex + 1,
+                            },
+                            cell: { userEnteredFormat: { numberFormat } },
+                            fields: 'userEnteredFormat.numberFormat',
+                        },
+                    }),
+                );
+
+            if (inPlace) {
+                await GoogleDriveClient.finishInPlaceWrite(sheets, fileId, {
+                    sheetId,
+                    rowCount,
+                    columnCount,
+                    gridRowCount: targetRowCount,
+                    gridColumnCount: targetColumnCount,
+                    formatRequests,
+                });
+            } else {
+                await GoogleDriveClient.swapStagingTab(sheets, fileId, {
+                    sheetId,
+                    stagingSheetId: stagingSheetId!,
+                    rowCount,
+                    columnCount,
+                    growGrid:
+                        targetRowCount !==
+                            (target?.rowCount ?? NEW_TAB_ROW_COUNT) ||
+                        targetColumnCount !==
+                            (target?.columnCount ?? NEW_TAB_COLUMN_COUNT),
+                    gridRowCount: targetRowCount,
+                    gridColumnCount: targetColumnCount,
+                    formatRequests,
+                });
+                stagingSheetId = undefined;
+            }
+        } catch (e) {
+            if (stagingSheetId !== undefined) {
+                await GoogleDriveClient.deleteStagingTab(
+                    sheets,
+                    fileId,
+                    stagingSheetId,
+                );
+            }
+            throw GoogleDriveClient.describeWriteFailure(e, context);
+        }
 
         Logger.info(
-            `Writing ${results.length} rows and ${results[0].length} columns to Google sheets`,
+            `Wrote ${rowCount} rows to Google sheets in ${chunks.length} requests and ${Date.now() - startedAt} ms`,
         );
+    }
 
-        await GoogleDriveClient.catchApiError(
-            sheets.spreadsheets.values.update({
+    private static async listSheetProperties(
+        sheets: sheets_v4.Sheets,
+        fileId: string,
+    ): Promise<SheetProperties[]> {
+        const response = await GoogleDriveClient.catchApiError(
+            sheets.spreadsheets.get({
                 spreadsheetId: fileId,
-                range: sanitizedTabName ? `${sanitizedTabName}!A1` : 'A1',
-                valueInputOption: 'RAW',
-                requestBody: {
-                    values: results,
-                },
+                fields: 'sheets(properties(sheetId,title,hidden,gridProperties(rowCount,columnCount)))',
             }),
         );
+        return (response.data.sheets ?? []).flatMap(({ properties }) =>
+            properties?.title &&
+            properties.sheetId !== null &&
+            properties.sheetId !== undefined
+                ? [
+                      {
+                          sheetId: properties.sheetId,
+                          title: properties.title,
+                          hidden: properties.hidden ?? false,
+                          rowCount: properties.gridProperties?.rowCount ?? 0,
+                          columnCount:
+                              properties.gridProperties?.columnCount ?? 0,
+                      },
+                  ]
+                : [],
+        );
+    }
 
-        if (nativeDateColumns.length > 0) {
-            const sheetId = await GoogleDriveClient.getSheetId(
-                sheets,
-                fileId,
-                sanitizedTabName,
-            );
-            const requests = nativeDateColumns.map(
-                ({ columnIndex, numberFormat, rowCount, startRow }) => ({
-                    repeatCell: {
-                        range: {
-                            sheetId,
-                            startRowIndex: startRow - 1,
-                            endRowIndex: startRow - 1 + rowCount,
-                            startColumnIndex: columnIndex,
-                            endColumnIndex: columnIndex + 1,
-                        },
-                        cell: {
-                            userEnteredFormat: { numberFormat },
-                        },
-                        fields: 'userEnteredFormat.numberFormat',
-                    },
-                }),
-            );
+    // One atomic batchUpdate: Google applies every request or none, so the
+    // tab holds either the old data or the complete new data. Pasting values
+    // into the existing tab keeps its sheetId, so references, charts,
+    // filters, protections and formatting that point at it keep working.
+    private static async swapStagingTab(
+        sheets: sheets_v4.Sheets,
+        fileId: string,
+        args: {
+            sheetId: number;
+            stagingSheetId: number;
+            rowCount: number;
+            columnCount: number;
+            growGrid: boolean;
+            gridRowCount: number;
+            gridColumnCount: number;
+            formatRequests: sheets_v4.Schema$Request[];
+        },
+    ) {
+        const dataRange = {
+            startRowIndex: 0,
+            endRowIndex: args.rowCount,
+            startColumnIndex: 0,
+            endColumnIndex: args.columnCount,
+        };
+        const requests: sheets_v4.Schema$Request[] = [
+            ...(args.growGrid
+                ? [
+                      {
+                          updateSheetProperties: {
+                              properties: {
+                                  sheetId: args.sheetId,
+                                  gridProperties: {
+                                      rowCount: args.gridRowCount,
+                                      columnCount: args.gridColumnCount,
+                                  },
+                              },
+                              fields: 'gridProperties.rowCount,gridProperties.columnCount',
+                          },
+                      },
+                  ]
+                : []),
+            {
+                updateCells: {
+                    range: { sheetId: args.sheetId },
+                    fields: 'userEnteredValue',
+                },
+            },
+            {
+                copyPaste: {
+                    source: { sheetId: args.stagingSheetId, ...dataRange },
+                    destination: { sheetId: args.sheetId, ...dataRange },
+                    pasteType: 'PASTE_VALUES',
+                    pasteOrientation: 'NORMAL',
+                },
+            },
+            ...args.formatRequests,
+            { deleteSheet: { sheetId: args.stagingSheetId } },
+        ];
+        await GoogleDriveClient.withWriteRetry(async () => {
+            try {
+                return await sheets.spreadsheets.batchUpdate(
+                    { spreadsheetId: fileId, requestBody: { requests } },
+                    { retry: false },
+                );
+            } catch (e) {
+                // A lost response can hide a swap that Google applied. The
+                // staging tab is gone only if the swap went through.
+                const stagingTabExists =
+                    await GoogleDriveClient.listSheetProperties(sheets, fileId)
+                        .then((list) =>
+                            list.some(
+                                ({ sheetId }) =>
+                                    sheetId === args.stagingSheetId,
+                            ),
+                        )
+                        .catch(() => true);
+                if (!stagingTabExists) return undefined;
+                throw e;
+            }
+        }, 'tab swap');
+    }
 
-            // The full-table RAW write above already contains explicit date
-            // serials. Apply one compact format per date column so behavior is
-            // independent of Sheet locale without repeating format data per cell.
+    private static async finishInPlaceWrite(
+        sheets: sheets_v4.Sheets,
+        fileId: string,
+        args: {
+            sheetId: number;
+            rowCount: number;
+            columnCount: number;
+            gridRowCount: number;
+            gridColumnCount: number;
+            formatRequests: sheets_v4.Schema$Request[];
+        },
+    ) {
+        const requests: sheets_v4.Schema$Request[] = [
+            ...(args.gridRowCount > args.rowCount
+                ? [
+                      {
+                          updateCells: {
+                              range: {
+                                  sheetId: args.sheetId,
+                                  startRowIndex: args.rowCount,
+                              },
+                              fields: 'userEnteredValue',
+                          },
+                      },
+                  ]
+                : []),
+            ...(args.gridColumnCount > args.columnCount
+                ? [
+                      {
+                          updateCells: {
+                              range: {
+                                  sheetId: args.sheetId,
+                                  startRowIndex: 0,
+                                  endRowIndex: args.rowCount,
+                                  startColumnIndex: args.columnCount,
+                              },
+                              fields: 'userEnteredValue',
+                          },
+                      },
+                  ]
+                : []),
+            ...args.formatRequests,
+        ];
+        if (requests.length === 0) return;
+        await GoogleDriveClient.withWriteRetry(
+            () =>
+                sheets.spreadsheets.batchUpdate(
+                    { spreadsheetId: fileId, requestBody: { requests } },
+                    { retry: false },
+                ),
+            'clear of old rows',
+        );
+    }
+
+    private static async deleteStagingTab(
+        sheets: sheets_v4.Sheets,
+        fileId: string,
+        sheetId: number,
+    ) {
+        try {
             await GoogleDriveClient.catchApiError(
-                sheets.spreadsheets.batchUpdate({
-                    spreadsheetId: fileId,
-                    requestBody: {
-                        requests,
+                sheets.spreadsheets.batchUpdate(
+                    {
+                        spreadsheetId: fileId,
+                        requestBody: {
+                            requests: [{ deleteSheet: { sheetId } }],
+                        },
                     },
-                }),
+                    { retry: false },
+                ),
+            );
+        } catch (error) {
+            Logger.warn(
+                `Unable to delete the Google Sheets staging tab: ${getErrorMessage(error)}`,
             );
         }
+    }
+
+    // An in-place write must replace every cell of the old rows: the Sheets
+    // API skips null values and leaves cells past a short row unchanged.
+    private static toOverwriteRows(rows: AnyType[][], columnCount: number) {
+        return rows.map((row) =>
+            Array.from({ length: columnCount }, (_, i) => row[i] ?? ''),
+        );
+    }
+
+    private static isRetryableWriteError(error: unknown) {
+        return (
+            error instanceof GoogleSheetsQuotaError ||
+            error instanceof GoogleSheetsTransientError ||
+            (error instanceof UnexpectedGoogleSheetsError &&
+                error.message === GOOGLE_INTERNAL_ERROR_MESSAGE)
+        );
+    }
+
+    private static async withWriteRetry<T>(
+        write: () => Promise<T>,
+        label: string,
+        attempt = 0,
+    ): Promise<T> {
+        try {
+            return await GoogleDriveClient.catchApiError(write());
+        } catch (e) {
+            if (
+                !GoogleDriveClient.isRetryableWriteError(e) ||
+                attempt >= GSHEETS_WRITE_RETRY_DELAYS_MS.length
+            ) {
+                throw e;
+            }
+            const retryAfterMs =
+                e instanceof GoogleSheetsQuotaError &&
+                typeof e.data?.retryAfterMs === 'number'
+                    ? Math.min(
+                          e.data.retryAfterMs,
+                          GSHEETS_RETRY_AFTER_CEILING_MS,
+                      )
+                    : undefined;
+            const delayMs =
+                retryAfterMs ?? GSHEETS_WRITE_RETRY_DELAYS_MS[attempt];
+            Logger.warn(
+                `Google Sheets ${label} failed (${getErrorMessage(e)}). Retry ${attempt + 1} of ${GSHEETS_WRITE_RETRY_DELAYS_MS.length} in ${delayMs} ms`,
+            );
+            await sleep(delayMs);
+            return GoogleDriveClient.withWriteRetry(write, label, attempt + 1);
+        }
+    }
+
+    // Name the cause and the size in the scheduler log and the owner email.
+    // The message carries counts and the tab name, never cell values.
+    private static describeWriteFailure(error: unknown, context: WriteContext) {
+        if (
+            !(error instanceof GoogleSheetsTransientError) &&
+            !(error instanceof UnexpectedGoogleSheetsError) &&
+            !(error instanceof GoogleSheetsQuotaError)
+        ) {
+            return error;
+        }
+        const outcome =
+            context.inPlace && context.rowsWritten > 0
+                ? `Lightdash wrote ${formatCount(context.rowsWritten)} of ${formatCount(context.rowCount)} rows before the error, so the tab can contain a mix of new and old rows until the next successful sync.`
+                : 'The data in the tab was not changed.';
+        const message = `Google Sheets could not write ${formatCount(context.rowCount)} rows (including the header, about ${formatMegabytes(context.totalBytes)}) to the tab "${context.tabTitle}". ${outcome} Google error: ${getErrorMessage(error)}`;
+        if (error instanceof GoogleSheetsQuotaError) {
+            return new GoogleSheetsQuotaError(message, error.data);
+        }
+        if (error instanceof GoogleSheetsTransientError) {
+            return new GoogleSheetsTransientError(message, error.data);
+        }
+        return new UnexpectedGoogleSheetsError(message, error.data);
     }
 }
