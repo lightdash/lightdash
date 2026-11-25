@@ -166,9 +166,10 @@ export const ModelCodeView: FC<{
                     const asked = openAt.current;
                     openAt.current = null;
                     if (asked)
-                        requestAnimationFrame(() =>
-                            attached.focus(asked.point ?? undefined),
-                        );
+                        requestAnimationFrame(() => {
+                            if (editorInstance.current === attached)
+                                attached.focus(asked.point ?? undefined);
+                        });
                 },
                 () => addToChatRef.current(),
             ),

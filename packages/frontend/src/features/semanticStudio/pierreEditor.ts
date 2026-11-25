@@ -96,7 +96,7 @@ export const editorOptionsFor = <T extends EditorType>(
 
 /** Esc on a bare caret leaves the editor, since Tab indents inside it and would trap keyboard focus. */
 export const leaveOnEscape = (event: KeyboardEvent, code: Attached | null) => {
-    if (event.key !== 'Escape') return;
+    if (event.key !== 'Escape' || event.isComposing) return;
     const ranges = code?.getViewState().selections ?? [];
     const [range] = ranges;
     const isCaret =
@@ -121,7 +121,7 @@ export const pointInCode = (event: MouseEvent): CodePoint | null => {
     if (!Number.isInteger(lineNumber)) return null;
     const root = line.getRootNode();
     const caret =
-        root instanceof ShadowRoot
+        root instanceof ShadowRoot && 'caretPositionFromPoint' in document
             ? document.caretPositionFromPoint(event.clientX, event.clientY, {
                   shadowRoots: [root],
               })

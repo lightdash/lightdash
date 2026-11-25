@@ -457,8 +457,8 @@ export const SourcePane: FC<{
     const value = text ?? loaded ?? '';
     const isDirty = text !== null && text !== loaded;
     const { track } = useTracking();
-    // The file it was tracked for, so a first edit counts once per file.
-    const trackedEdit = useRef<string | null>(null);
+    // The files tracked so far, so a first edit counts once per file until it is saved or dropped.
+    const trackedEdits = useRef(new Set<string>());
     // The text the editor was last mounted with, so a remount keeps what is typed.
     const mounted = useRef<{
         key: string;
@@ -472,6 +472,13 @@ export const SourcePane: FC<{
         focused: boolean;
     } | null>(null);
     const pane = useRef<HTMLDivElement>(null);
+    // A view restore queued for the next frame skips an editor that has gone since.
+    useEffect(
+        () => () => {
+            codeRef.current = null;
+        },
+        [],
+    );
     const [history, setHistory] = useState({ canUndo: false, canRedo: false });
     const [isComparingProposal, setIsComparingProposal] = useState(false);
     // A save from Published moves the file to its new change, so the save's notice follows it there.
@@ -529,22 +536,28 @@ export const SourcePane: FC<{
                 : null,
         [proposal, path, loaded],
     );
+    const proposalKey = useRef<string | null>(null);
     // Like an editor's agent: a proposal for the open file lands in it as an unsaved edit, once.
     useEffect(() => {
+        // Just switched files: wait a render for its kept edits, which a proposal must not replace.
+        if (proposalKey.current !== editKey) {
+            proposalKey.current = editKey;
+            return;
+        }
         if (hasOwnEdits || proposed === offered) return;
         setOffered(proposed);
         setProposedFrom(proposed === null ? null : loaded);
         setText(proposed);
         if (proposed !== null) setLayout('diff');
         setRevision((current) => current + 1);
-    }, [proposed, offered, hasOwnEdits, loaded]);
+    }, [proposed, offered, hasOwnEdits, loaded, editKey, revision]);
     const where = target.changeName ?? 'live';
 
     const reset = () => {
         setText(null);
         setProposedFrom(null);
         setRevision((current) => current + 1);
-        trackedEdit.current = null;
+        trackedEdits.current.delete(editKey);
         setTypedAsCode(null);
     };
     const editContent = (
@@ -555,8 +568,8 @@ export const SourcePane: FC<{
         if (notice?.tone === 'info') setNotice(null);
         if (shownLayout === 'code' && typedAsCode !== editKey)
             setTypedAsCode(editKey);
-        if (contents !== value && trackedEdit.current !== editKey) {
-            trackedEdit.current = editKey;
+        if (contents !== value && !trackedEdits.current.has(editKey)) {
+            trackedEdits.current.add(editKey);
             track({
                 name: EventName.SEMANTIC_STUDIO_EDIT_STARTED,
                 properties: { projectId: target.projectUuid, kind: 'file' },
@@ -674,6 +687,7 @@ export const SourcePane: FC<{
             restoreView.current = null;
             if (restore)
                 requestAnimationFrame(() => {
+                    if (codeRef.current !== code) return;
                     if (restore.focused) code.focus();
                     code.setViewState(restore.state);
                 });
@@ -731,17 +745,19 @@ export const SourcePane: FC<{
     if (mounted.current?.key !== surfaceKey) {
         const previous = mounted.current;
         // Same file and text (a layout switch or a lock), so the caret and scroll stay where they were.
+        // A read-only editor never attaches, so a view kept at a lock waits for the unlock.
         restoreView.current =
-            previous?.path === path &&
-            previous.revision === revision &&
-            codeRef.current
-                ? {
-                      state: codeRef.current.getViewState(),
-                      focused:
-                          pane.current?.contains(document.activeElement) ??
-                          false,
-                  }
-                : null;
+            previous?.path !== path || previous.revision !== revision
+                ? null
+                : codeRef.current
+                  ? {
+                        state: codeRef.current.getViewState(),
+                        focused:
+                            pane.current?.contains(document.activeElement) ??
+                            false,
+                    }
+                  : restoreView.current;
+        codeRef.current = null;
         mounted.current = { key: surfaceKey, text, path, revision };
     }
     const current = {
@@ -990,7 +1006,7 @@ export const SourcePane: FC<{
                     <CopyActionIcon value={value} copyLabel="Copy" />
                 </Group>
             </Group>
-            {proposed && proposed !== offered && hasOwnEdits ? (
+            {proposed !== null && proposed !== offered && hasOwnEdits ? (
                 <Alert color="violet" radius={0} py={8}>
                     <Group gap="xs" justify="space-between" wrap="nowrap">
                         <Text fz="xs">
@@ -1010,7 +1026,7 @@ export const SourcePane: FC<{
                 </Alert>
             ) : null}
             <MantineModal
-                opened={isComparingProposal && !!proposed && hasOwnEdits}
+                opened={isComparingProposal && proposed !== null && hasOwnEdits}
                 onClose={() => setIsComparingProposal(false)}
                 title="Your edits → the agent's proposal"
                 size="xl"
@@ -1022,7 +1038,7 @@ export const SourcePane: FC<{
                     setNotice(null);
                 }}
             >
-                {proposed ? (
+                {proposed !== null ? (
                     <WorkerPoolContextProvider
                         poolOptions={PIERRE_POOL_OPTIONS}
                         highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}

@@ -192,15 +192,18 @@ const StudioComposer: FC<
     onDetach,
 }) => {
     const box = useRef<HTMLDivElement>(null);
-    const attachedCount = useRef(attached.length);
+    const shown = useRef(attached);
     // Something just attached from the code or a field, so the next keystroke starts the question.
     useEffect(() => {
-        if (attached.length > attachedCount.current)
+        if (
+            attached !== shown.current &&
+            attached.length >= shown.current.length
+        )
             box.current
                 ?.querySelector<HTMLElement>('[contenteditable="true"]')
                 ?.focus();
-        attachedCount.current = attached.length;
-    }, [attached.length]);
+        shown.current = attached;
+    }, [attached]);
     return (
         <Box ref={box} display="contents">
             <StudioChatRefChips refs={attached} onRemove={onDetach} />
