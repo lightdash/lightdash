@@ -5,7 +5,12 @@ import {
     PossibleAbilities,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
-import { OAuthScopeMode, scopesForOAuthRecord } from './mode';
+import {
+    clientIdForOAuthRecord,
+    OAuthRecordUser,
+    OAuthScopeMode,
+    scopesForOAuthRecord,
+} from './mode';
 import { OAUTH_OPERATIONS, oauthScopeAllows } from './scopeMap';
 
 export type OAuthScopePolicy = {
@@ -103,8 +108,13 @@ export const createOAuthScopedAbility = (
         mode,
         scopes,
         clientId,
+        user,
         getRequest,
-    }: OAuthScopePolicy & { scopes: string[]; clientId: string },
+    }: OAuthScopePolicy & {
+        scopes: string[];
+        clientId: string;
+        user?: OAuthRecordUser;
+    },
 ): MemberAbility => {
     const recorded = new Set<string>();
     const context: OAuthScopeContext = {
@@ -118,8 +128,10 @@ export const createOAuthScopedAbility = (
             const { method, routeTemplate } = getRequest();
             Logger.warn('oauth_scope_refusal', {
                 mode,
-                clientId,
+                clientId: clientIdForOAuthRecord(clientId),
                 scopes: scopesForOAuthRecord(context.scopes),
+                userUuid: user?.userUuid ?? null,
+                organizationUuid: user?.organizationUuid ?? null,
                 method,
                 routeTemplate: toolName === null ? routeTemplate : null,
                 toolName,

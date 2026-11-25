@@ -14,6 +14,11 @@ export const createScopeCheckedRefreshTokenGrant = (
         client: OAuth2Server.Client,
         user: OAuth2Server.User,
     ) => Promise<void>,
+    recordScopeDefaulted: (
+        client: OAuth2Server.Client,
+        user: OAuth2Server.User,
+        scopes: string[],
+    ) => Promise<void>,
 ) =>
     class ScopeCheckedRefreshTokenGrant extends RefreshTokenGrantType {
         private binding: OAuthTokenBinding;
@@ -99,7 +104,10 @@ export const createScopeCheckedRefreshTokenGrant = (
                     'Invalid scope: requested scope is invalid',
                 );
             }
-            if (!scope?.length) return { ...token, scope: validated };
+            if (!scope?.length) {
+                await recordScopeDefaulted(client, token.user, validated);
+                return { ...token, scope: validated };
+            }
             return token;
         }
     };

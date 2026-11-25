@@ -451,6 +451,8 @@ registered for the client. The request fails with `invalid_scope` when the
 client has no registered scopes, or when it asks for an unknown scope or a
 scope the client did not register. The consent page lists the resolved scopes.
 Refreshing a token that has no scopes gives it the client's registered scopes.
+Each use of the registered scopes logs `oauth_scope_defaulted`. Admin-created
+OAuth clients are registered with `read`, `write`, `mcp:read` and `mcp:write`.
 
 OAuth tokens cannot create or rotate personal access tokens, service accounts
 or SCIM tokens, manage OAuth clients, or run Learn sandbox commands. Each

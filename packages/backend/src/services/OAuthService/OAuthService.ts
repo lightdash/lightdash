@@ -17,6 +17,11 @@ import {
 } from '../../auth/mobileAppAccess';
 import { assertOAuthCredentialOperationAllowed } from '../../auth/oauthScopes/credentials';
 import {
+    logOAuthScopeDefaulted,
+    OAUTH_SCOPES,
+    type OAuthRecordUser,
+} from '../../auth/oauthScopes/mode';
+import {
     oauthApiResource,
     requestedOAuthResource,
 } from '../../auth/oauthScopes/oauthResources';
@@ -132,6 +137,13 @@ export class OAuthService extends BaseService {
                                 clientId: client.id,
                             },
                         ),
+                    (client, user, scopes) =>
+                        this.oauthModel.recordScopeDefaulted(
+                            client,
+                            user,
+                            scopes,
+                            'refresh',
+                        ),
                 ) as unknown as typeof OAuth2Server.AbstractGrantType,
                 ...(getManagedSignInService
                     ? {
@@ -169,12 +181,27 @@ export class OAuthService extends BaseService {
     public async authorize(
         request: OAuth2Server.Request,
         response: OAuth2Server.Response,
-        user: UserWithOrganizationUuid,
+        user: UserWithOrganizationUuid & { userUuid?: string },
     ): Promise<OAuth2Server.AuthorizationCode> {
         const resource = await this.getAuthorizationResource(request, user);
         const model: OAuth2Server.AuthorizationCodeModel = Object.create(
             this.oauthModel,
         ) as OAuth2Server.AuthorizationCodeModel;
+        model.validateScope = async (scopeUser, client, scope) => {
+            const validated = await this.oauthModel.validateScope(
+                scopeUser as UserWithOrganizationUuid,
+                client,
+                scope,
+            );
+            if (validated && !scope?.length)
+                await this.oauthModel.recordScopeDefaulted(
+                    client,
+                    scopeUser,
+                    validated,
+                    'authorize',
+                );
+            return validated;
+        };
         if (
             OAuthService.isPublicDocumentClientRequest(request) ||
             (await this.isSecurityStrictForOAuthUser(user))
@@ -397,10 +424,23 @@ export class OAuthService extends BaseService {
     public async resolveAuthorizationScope(
         clientId: string,
         scope: string[],
+        user: OAuthRecordUser,
     ): Promise<string[] | false> {
         const client = await this.oauthModel.getClient(clientId);
         if (client === false) return false;
-        return OAuth2Model.resolveScope(client, scope);
+        const resolution = OAuth2Model.resolveScope(client, scope);
+        if (!resolution.allowed) {
+            OAuth2Model.logScopeRefusal(client, resolution.scopes, user);
+            return false;
+        }
+        if (resolution.defaulted)
+            logOAuthScopeDefaulted({
+                clientId: client.id,
+                resolvedScopes: resolution.scopes,
+                user,
+                grant: 'authorize',
+            });
+        return resolution.scopes;
     }
 
     public async getClientDisplayName(clientId: string): Promise<string> {
@@ -514,6 +554,7 @@ export class OAuthService extends BaseService {
         return this.oauthModel.createClient({
             clientName,
             redirectUris,
+            scopes: [...OAUTH_SCOPES],
             organizationUuid: account.organization.organizationUuid,
             createdByUserUuid: account.user.id,
         });

@@ -388,6 +388,10 @@ export const fromOauth = (
                   ...scopePolicy,
                   clientId: token.client.id,
                   scopes: token.scope ?? [],
+                  user: {
+                      userUuid: sessionUser.userUuid,
+                      organizationUuid: sessionUser.organizationUuid ?? null,
+                  },
               });
     return createAccount({
         authentication: {

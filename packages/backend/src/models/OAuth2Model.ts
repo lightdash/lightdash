@@ -29,7 +29,13 @@ import {
     type MobileGrant,
     type MobileOrgDisabledOAuthErrorName,
 } from '../auth/mobileAppAccess';
-import { OAUTH_SCOPES, scopesForOAuthRecord } from '../auth/oauthScopes/mode';
+import {
+    clientIdForOAuthRecord,
+    logOAuthScopeDefaulted,
+    OAUTH_SCOPES,
+    scopesForOAuthRecord,
+    type OAuthRecordUser,
+} from '../auth/oauthScopes/mode';
 import { OAuthResourceBinding } from '../auth/oauthScopes/oauthResources';
 import { OAuthTokenBinding } from '../auth/oauthScopes/oauthTokenBinding';
 import {
@@ -1104,11 +1110,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
     static resolveScope(
         client: Client,
         scope: readonly string[] = [],
-    ): string[] | false {
+    ): { allowed: boolean; defaulted: boolean; scopes: string[] } {
         const registeredScopes: string[] = client.scopes ?? [];
-        const resolvedScope = [
-            ...(scope.length > 0 ? scope : registeredScopes),
-        ];
+        const defaulted = scope.length === 0;
+        const scopes = [...(defaulted ? registeredScopes : scope)];
         const allowedScopes = new Set<string>(
             OAUTH_SCOPES.filter(
                 (knownScope) =>
@@ -1116,26 +1121,72 @@ export class OAuth2Model implements AuthorizationCodeModel {
                     registeredScopes.includes(knownScope),
             ),
         );
-        if (
-            resolvedScope.length > 0 &&
-            resolvedScope.every((requestedScope) =>
-                allowedScopes.has(requestedScope),
-            )
-        ) {
-            return resolvedScope;
-        }
+        return {
+            allowed:
+                scopes.length > 0 &&
+                scopes.every((requestedScope) =>
+                    allowedScopes.has(requestedScope),
+                ),
+            defaulted,
+            scopes,
+        };
+    }
 
+    static logScopeRefusal(
+        client: Client,
+        scopes: readonly string[],
+        user: OAuthRecordUser,
+    ): void {
         Logger.warn('oauth_scope_refusal', {
             mode: 'enforce',
-            clientId: client.id,
-            scopes: scopesForOAuthRecord(resolvedScope),
+            clientId: clientIdForOAuthRecord(client.id),
+            scopes: scopesForOAuthRecord(scopes),
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
             method: null,
             routeTemplate: null,
             toolName: null,
             action: 'validateScope',
             subjectType: 'OAuthClient',
         });
-        return false;
+    }
+
+    async getOAuthRecordUser(user: unknown): Promise<OAuthRecordUser> {
+        const { userId, userUuid, organizationUuid } = (user ?? {}) as {
+            userId?: unknown;
+            userUuid?: unknown;
+            organizationUuid?: unknown;
+        };
+        const record = {
+            userUuid: typeof userUuid === 'string' ? userUuid : null,
+            organizationUuid:
+                typeof organizationUuid === 'string' ? organizationUuid : null,
+        };
+        if (record.userUuid !== null || typeof userId !== 'number')
+            return record;
+        try {
+            const stored = await this.database('users')
+                .select('user_uuid')
+                .where('user_id', userId)
+                .first();
+            return { ...record, userUuid: stored?.user_uuid ?? null };
+        } catch {
+            return record;
+        }
+    }
+
+    async recordScopeDefaulted(
+        client: Client,
+        user: unknown,
+        resolvedScopes: readonly string[],
+        grant: 'authorize' | 'refresh',
+    ): Promise<void> {
+        logOAuthScopeDefaulted({
+            clientId: client.id,
+            resolvedScopes,
+            user: await this.getOAuthRecordUser(user),
+            grant,
+        });
     }
 
     async validateScope(
@@ -1143,7 +1194,14 @@ export class OAuth2Model implements AuthorizationCodeModel {
         client: Client,
         scope: string[] = [],
     ): Promise<string[] | false> {
-        return OAuth2Model.resolveScope(client, scope);
+        const resolution = OAuth2Model.resolveScope(client, scope);
+        if (resolution.allowed) return resolution.scopes;
+        OAuth2Model.logScopeRefusal(
+            client,
+            resolution.scopes,
+            await this.getOAuthRecordUser(user),
+        );
+        return false;
     }
 
     async validateRedirectUri(

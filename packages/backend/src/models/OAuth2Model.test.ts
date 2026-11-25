@@ -641,6 +641,8 @@ describe('OAuth2Model.validateScope', () => {
                     mode: 'enforce',
                     clientId: client.id,
                     scopes: [scope],
+                    userUuid: 'user-uuid',
+                    organizationUuid: 'organization-uuid',
                     method: null,
                     routeTemplate: null,
                     toolName: null,
@@ -754,9 +756,69 @@ describe('OAuth2Model.validateScope', () => {
         expect(record).not.toContain('user-secret');
         expect(record).not.toContain('client-secret');
         expect(record).not.toContain('private');
-        expect(record).not.toContain('organization-uuid');
-        expect(record).not.toContain('user-uuid');
+        expect(warn).toHaveBeenCalledWith(
+            'oauth_scope_refusal',
+            expect.objectContaining({
+                userUuid: 'user-uuid',
+                organizationUuid: 'organization-uuid',
+            }),
+        );
     });
+
+    it('uses a known user UUID without a lookup and logs null when the lookup fails', async () => {
+        tracker.reset();
+        tracker.on.select(/from "users"/).simulateError('lookup failed');
+        await model.validateScope(
+            { ...user, userUuid: 'known-user-uuid' } as typeof user,
+            client,
+            ['write'],
+        );
+        await model.validateScope(user, client, ['write']);
+        expect(warn).toHaveBeenNthCalledWith(
+            1,
+            'oauth_scope_refusal',
+            expect.objectContaining({ userUuid: 'known-user-uuid' }),
+        );
+        expect(warn).toHaveBeenNthCalledWith(
+            2,
+            'oauth_scope_refusal',
+            expect.objectContaining({
+                userUuid: null,
+                organizationUuid: 'organization-uuid',
+            }),
+        );
+        expect(tracker.history.select).toHaveLength(1);
+    });
+
+    it.each(['authorize', 'refresh'] as const)(
+        'logs %s scopes taken from the client registration',
+        async (grant) => {
+            const info = vi
+                .spyOn(Logger, 'info')
+                .mockImplementation(() => Logger);
+            await model.recordScopeDefaulted(
+                {
+                    ...client,
+                    id: 'https://client.example/metadata.json?token=secret',
+                },
+                user,
+                ['read', 'write'],
+                grant,
+            );
+            expect(info).toHaveBeenCalledExactlyOnceWith(
+                'oauth_scope_defaulted',
+                {
+                    clientId: 'https://client.example/metadata.json',
+                    resolvedScopes: ['read', 'write'],
+                    userUuid: 'user-uuid',
+                    organizationUuid: 'organization-uuid',
+                    grant,
+                },
+            );
+            expect(JSON.stringify(info.mock.calls)).not.toContain('secret');
+            info.mockRestore();
+        },
+    );
 
     it('exposes the client registered scopes for grant validation', async () => {
         tracker.on.select('oauth2_clients').responseOnce({

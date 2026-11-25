@@ -288,6 +288,8 @@ describe.each([
                             mode: 'enforce',
                             clientId: 'client',
                             scopes,
+                            userUuid: user.userUuid,
+                            organizationUuid: user.organizationUuid,
                             method: operation.method,
                             routeTemplate: operation.path,
                             toolName: null,

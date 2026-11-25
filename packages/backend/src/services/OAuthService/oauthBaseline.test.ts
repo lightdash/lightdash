@@ -5,6 +5,7 @@ import { getTracker, MockClient } from 'knex-mock-client';
 import { createHash } from 'node:crypto';
 import { type OAuthScopeMode } from '../../auth/oauthScopes/mode';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import Logger from '../../logging/logger';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OAuth2Model } from '../../models/OAuth2Model';
 import { type UserModel } from '../../models/UserModel';
@@ -838,14 +839,56 @@ describe.each(modes)('scope issuance in %s flag state', (mode) => {
 
     it('resolves the consent page scopes from the client registration', async () => {
         await setScopeMode(mode);
+        const recordUser = {
+            userUuid: 'user-uuid',
+            organizationUuid: user.organizationUuid,
+        };
+        const info = vi.spyOn(Logger, 'info').mockImplementation(() => Logger);
+        const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
         await expect(
-            service.resolveAuthorizationScope(client.id, []),
+            service.resolveAuthorizationScope(client.id, [], recordUser),
         ).resolves.toEqual(['read']);
+        expect(info).toHaveBeenCalledExactlyOnceWith('oauth_scope_defaulted', {
+            clientId: client.id,
+            resolvedScopes: ['read'],
+            ...recordUser,
+            grant: 'authorize',
+        });
         await expect(
-            service.resolveAuthorizationScope(client.id, ['foo']),
-        ).resolves.toBe(false);
+            service.resolveAuthorizationScope(client.id, ['read'], recordUser),
+        ).resolves.toEqual(['read']);
+        expect(info).toHaveBeenCalledOnce();
         await expect(
-            service.resolveAuthorizationScope('unknown-client', ['read']),
+            service.resolveAuthorizationScope(client.id, ['foo'], recordUser),
         ).resolves.toBe(false);
+        expect(warn).toHaveBeenCalledExactlyOnceWith(
+            'oauth_scope_refusal',
+            expect.objectContaining({
+                clientId: client.id,
+                scopes: ['unknown'],
+                ...recordUser,
+            }),
+        );
+        await expect(
+            service.resolveAuthorizationScope(
+                'unknown-client',
+                ['read'],
+                recordUser,
+            ),
+        ).resolves.toBe(false);
+    });
+
+    it('logs an authorize request that takes the registered scopes', async () => {
+        await setScopeMode(mode);
+        const info = vi.spyOn(Logger, 'info').mockImplementation(() => Logger);
+        await authorize({ scope: undefined });
+        await authorize();
+        expect(info).toHaveBeenCalledExactlyOnceWith('oauth_scope_defaulted', {
+            clientId: client.id,
+            resolvedScopes: ['read'],
+            userUuid: 'user',
+            organizationUuid: user.organizationUuid,
+            grant: 'authorize',
+        });
     });
 });

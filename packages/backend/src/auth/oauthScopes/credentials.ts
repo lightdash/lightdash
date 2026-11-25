@@ -5,7 +5,7 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
-import { scopesForOAuthRecord } from './mode';
+import { clientIdForOAuthRecord, scopesForOAuthRecord } from './mode';
 import { getOAuthScopeContext } from './scopedAbility';
 
 export const OAUTH_CREDENTIAL_OPERATIONS = {
@@ -20,16 +20,6 @@ export const OAUTH_CREDENTIAL_OPERATIONS = {
     updateOAuthClient: ['update', 'OAuthClient'],
     deleteOAuthClient: ['delete', 'OAuthClient'],
 } as const;
-
-const clientIdForLog = (clientId: string | null): string | null => {
-    if (clientId === null) return null;
-    try {
-        const url = new URL(clientId);
-        return `${url.origin}${url.pathname}`;
-    } catch {
-        return clientId.slice(0, 128);
-    }
-};
 
 const cliVersionFromUserAgent = (
     userAgent: string | undefined,
@@ -52,8 +42,15 @@ export const assertOAuthCredentialOperationAllowed = (
     if (context === null && oauth === null) return;
     Logger.warn('oauth_credential_mint_refused', {
         operation,
-        clientId: clientIdForLog(oauth?.clientId ?? context?.clientId ?? null),
+        clientId: clientIdForOAuthRecord(
+            oauth?.clientId ?? context?.clientId ?? null,
+        ),
         scopes: scopesForOAuthRecord(oauth?.scopes ?? context?.scopes ?? []),
+        userUuid: isAccount(actor) ? actor.user.id : actor.userUuid,
+        organizationUuid:
+            (isAccount(actor)
+                ? actor.organization.organizationUuid
+                : actor.organizationUuid) ?? null,
         cliVersion: cliVersionFromUserAgent(actor.requestContext?.userAgent),
     });
     throw new ForbiddenError('OAuth tokens cannot manage credentials');

@@ -177,6 +177,8 @@ describe.each(['log', 'enforce'] as const)(
                         operation,
                         clientId: 'client',
                         scopes: ['write', 'mcp:write'],
+                        userUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid,
                         cliVersion: null,
                     },
                 );

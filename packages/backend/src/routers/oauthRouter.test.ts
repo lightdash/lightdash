@@ -914,6 +914,7 @@ describe('OAuth authorize redirects', () => {
         expect(oauthService.resolveAuthorizationScope).toHaveBeenCalledWith(
             'client-id',
             [],
+            { userUuid: null, organizationUuid: 'organization-uuid' },
         );
     });
 

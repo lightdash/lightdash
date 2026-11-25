@@ -77,6 +77,8 @@ describe('OAuth credential minting', () => {
                         operation,
                         clientId: 'client',
                         scopes,
+                        userUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid,
                         cliVersion: null,
                     },
                 );
@@ -99,6 +101,8 @@ describe('OAuth credential minting', () => {
                     operation,
                     clientId: 'client',
                     scopes: ['write'],
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
                 }),
             );
         },
@@ -137,6 +141,8 @@ describe('OAuth credential minting', () => {
                 operation: 'createPersonalAccessToken',
                 clientId: 'client',
                 scopes: ['read', 'write'],
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
                 cliVersion,
             },
         );
@@ -158,6 +164,8 @@ describe('OAuth credential minting', () => {
                 operation: 'createServiceAccount',
                 clientId: 'https://client.example/metadata.json',
                 scopes: ['write', 'unknown'],
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
                 cliVersion: null,
             },
         );

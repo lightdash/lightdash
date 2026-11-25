@@ -331,6 +331,7 @@ it.each([false, true])(
     'gives a refresh token without scopes the registered scopes, strict %s',
     async (strict) => {
         setStrict(strict);
+        const info = vi.spyOn(Logger, 'info').mockImplementation(() => Logger);
         vi.mocked(model.getRefreshToken).mockResolvedValue({
             accessToken: '',
             refreshToken: 'refresh',
@@ -356,6 +357,13 @@ it.each([false, true])(
             );
         }
         expect(Logger.warn).not.toHaveBeenCalled();
+        expect(info).toHaveBeenCalledExactlyOnceWith('oauth_scope_defaulted', {
+            clientId: client.id,
+            resolvedScopes: ['read'],
+            userUuid: 'user',
+            organizationUuid: user.organizationUuid,
+            grant: 'refresh',
+        });
     },
 );
 

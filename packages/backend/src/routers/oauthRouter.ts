@@ -307,6 +307,10 @@ oauthRouter.get('/authorize', async (req, res, next) => {
         ).resolveAuthorizationScope(
             String(client_id),
             requestedScope ? requestedScope.split(/\s+/) : [],
+            {
+                userUuid: req.user.userUuid ?? null,
+                organizationUuid: identity.organizationUuid,
+            },
         );
         if (resolvedScope === false) {
             const redirectUrl = await getValidatedRedirectUrl(req, {
@@ -486,6 +490,7 @@ oauthRouter.post('/authorize', async (req, res, next) => {
                 oauthRes,
                 {
                     userId: identity.userId,
+                    userUuid: req.user.userUuid,
                     organizationUuid: identity.organizationUuid,
                 },
             );
