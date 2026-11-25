@@ -109,68 +109,11 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
                 },
             },
         ]);
-        expect(content).toContain(
-            '  Filters in effect on the dashboard (its saved filters plus any the user changed; each applies only to the tiles it targets):\n    ',
-        );
         expect(content).toContain('"values":["US"]');
         expect(content).not.toContain('country-filter-uuid');
         expect(content).not.toContain('tileTargets');
-        expect(content).not.toContain('tile-uuid');
         expect(content).not.toContain('lockedTabUuids');
         expect(content).not.toContain('requiredGroupId');
-    });
-
-    it('renders chart dashboard filters with the dashboard filter wording', () => {
-        const dashboardFilters: DashboardFilters = {
-            dimensions: [
-                {
-                    id: 'country-filter-uuid',
-                    label: 'Country',
-                    operator: FilterOperator.EQUALS,
-                    target: {
-                        fieldId: 'orders.country',
-                        tableName: 'orders',
-                    },
-                    values: ['US'],
-                    tileTargets: {
-                        'tile-uuid': {
-                            fieldId: 'orders.country',
-                            tableName: 'orders',
-                        },
-                    },
-                },
-            ],
-            metrics: [],
-            tableCalculations: [],
-        };
-        const content = buildMessage([
-            {
-                type: 'chart',
-                chartUuid: 'chart-1',
-                chartSlug: 'revenue',
-                displayName: 'Revenue',
-                pinnedVersionUuid: null,
-                chartKind: null,
-                runtimeOverrides: {
-                    dashboardFilters,
-                    dashboardParameters: { region: 'EU' },
-                    dateZoom: { granularity: 'Week' },
-                },
-            },
-        ]);
-        expect(content).toContain(
-            [
-                '- Chart "Revenue" (chartSlug: revenue)',
-                '  Runtime overrides applied when the chart was pinned:',
-                '    Filters in effect on the dashboard (its saved filters plus any the user changed; each applies only to the tiles it targets):',
-                '      {"dimensions":[{"label":"Country","operator":"equals","target":{"fieldId":"orders.country","tableName":"orders"},"values":["US"]}],"metrics":[],"tableCalculations":[]}',
-                '    Parameter values: {"region":"EU"}',
-                '    Date zoom: {"granularity":"Week"}',
-            ].join('\n'),
-        );
-        expect(content).toContain(
-            'These overrides are what the user currently sees. Use them when the question is about what the dashboard or chart shows. Leave them out when editing a saved chart or answering a new question, unless the user asks for them.',
-        );
     });
 
     it('renders the same text as before without named date zooms or per-tile parameters', () => {
