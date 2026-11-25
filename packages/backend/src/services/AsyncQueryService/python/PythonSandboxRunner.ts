@@ -115,7 +115,6 @@ export class PythonSandboxRunner {
 
     private getProvider(): SandboxProvider {
         if (!this.provider) {
-            // The same check that hides the python source
             const configError = getPythonSandboxConfigError(
                 this.lightdashConfig,
             );

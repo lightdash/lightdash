@@ -559,9 +559,6 @@ export class QuerySourceService extends BaseService {
             account,
             ordered.map(({ source }) => source),
         );
-        QuerySourceService.throwIfSourcesUnavailable(
-            ordered.map(({ source }) => source),
-        );
         if (
             ordered.some(({ source }) =>
                 sourceRequiresRawSql(source.definition.sourceType),
@@ -577,6 +574,9 @@ export class QuerySourceService extends BaseService {
         ) {
             await this.assertAgentSqlAccess(account, projectUuid);
         }
+        QuerySourceService.throwIfSourcesUnavailable(
+            ordered.map(({ source }) => source),
+        );
 
         const submission = ordered.map(({ nodeId, query }) => ({
             ...query,
