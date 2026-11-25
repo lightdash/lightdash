@@ -1436,16 +1436,28 @@ describe('MCP tool contracts', () => {
                 },
             },
             {
-                name: 'a pinned agent with data access off keeps classic tools',
+                name: 'a pinned agent with data access off is content only',
                 canExplore: true,
-                canRunSql: false,
+                canRunSql: true,
                 composeFlag: true,
                 pinnedAgent: { ...composerAgent, enableDataAccess: false },
-                expected: {
-                    type: 'classic',
-                    sqlRunnerEnabled: false,
-                    filterExpressionsEnabled: true,
-                },
+                expected: { type: 'contentOnly' },
+            },
+            {
+                name: 'a pinned agent with data access off is content only with the flag off',
+                canExplore: true,
+                canRunSql: true,
+                composeFlag: false,
+                pinnedAgent: { ...composerAgent, enableDataAccess: false },
+                expected: { type: 'contentOnly' },
+            },
+            {
+                name: 'a pinned agent with data access off is content only for a SQL Runner user',
+                canExplore: false,
+                canRunSql: true,
+                composeFlag: true,
+                pinnedAgent: { ...composerAgent, enableDataAccess: false },
+                expected: { type: 'contentOnly' },
             },
         ])(
             '$name',
@@ -1474,6 +1486,35 @@ describe('MCP tool contracts', () => {
                     service.resolveQueryPath(user, PROJECT_UUID, pinnedAgent),
                 ).resolves.toEqual(expected);
             },
+        );
+    });
+
+    it('lists no query tools to a session pinned to an agent with data access off', async () => {
+        const mcpService = makeMcpService(true, {
+            get: vi.fn(async () => ({ enabled: true })),
+        });
+        const queryPath = await mcpService.resolveQueryPath(
+            {
+                ...defaultSessionUser,
+                ability: new Ability<PossibleAbilities>([
+                    { action: 'manage', subject: 'Explore' },
+                    { action: 'manage', subject: 'SqlRunner' },
+                ]),
+            },
+            'project-a',
+            { enableDataAccess: false, enableComposerQueries: true },
+        );
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer(makeMcpServerOptions({ queryPath }));
+        expect(
+            mockRegisteredMcpTools
+                .map(({ name }) => name)
+                .filter((name) =>
+                    queryToolNames.some((toolName) => toolName === name),
+                ),
+        ).toEqual([]);
+        expect(getLatestMcpServerInstructions()).toContain(
+            'Saved Content Mode',
         );
     });
 

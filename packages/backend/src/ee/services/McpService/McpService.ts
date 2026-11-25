@@ -6505,6 +6505,9 @@ export class McpService extends BaseService {
         projectUuid: string | null,
         pinnedAgent: McpComposerAgentSettings | null,
     ): Promise<McpQueryPath> {
+        if (pinnedAgent && !pinnedAgent.enableDataAccess) {
+            return { type: 'contentOnly' };
+        }
         const [
             canExplore,
             sqlRunnerEnabled,
