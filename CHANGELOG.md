@@ -1,3 +1,10 @@
+# [3.400.0](https://github.com/lightdash/lightdash/compare/3.399.0...3.400.0) (2026-11-25)
+
+
+### Features
+
+* **semantic-studio:** show a stale draft as what publishing would change now ([#33425](https://github.com/lightdash/lightdash/issues/33425)) ([ae0d61d](https://github.com/lightdash/lightdash/commit/ae0d61dfc8cc177cb2a518c3bbb89c23786271d8))
+
 # [3.399.0](https://github.com/lightdash/lightdash/compare/3.398.0...3.399.0) (2026-11-25)
 
 
