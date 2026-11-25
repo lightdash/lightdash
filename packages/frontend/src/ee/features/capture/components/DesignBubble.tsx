@@ -217,7 +217,7 @@ const DesignBubble: FC<Props> = ({
     const replyHint = (
         <Text size="xs" fw={500} className={classes.replyHint}>
             {micOn
-                ? 'Replying here. Hold ⌥, mark and talk, release to send.'
+                ? 'Replying here. Hold ⌥ and talk, release to send. Marks are optional.'
                 : 'Replying here. Hold ⌥ to mark, then type.'}
         </Text>
     );

@@ -874,17 +874,17 @@ export const useDesignMode = (
         if (releasingRef.current > 0) return;
         let active = activeCollection(sessionRef.current)?.bubble ?? null;
         if (active && finishingRef.current.has(active.id)) return;
-        // A selected bubble with nothing collected takes the toolbar's mic.
-        if (active?.status === 'thread' && !isInProgress(active.collection)) {
-            const input: BubbleInput = micOnRef.current ? 'mic' : 'text';
-            if (active.input !== input) {
-                const next = dispatch({
-                    type: 'arm',
-                    bubbleId: active.id,
-                    input,
-                });
-                active = activeCollection(next)?.bubble ?? null;
-            }
+        // The toolbar's mic decides each hold, even with marks already made.
+        const input: BubbleInput = micOnRef.current ? 'mic' : 'text';
+        if (active && active.input !== input) {
+            const fresh =
+                active.status === 'thread' && !isInProgress(active.collection);
+            const next = dispatch(
+                fresh
+                    ? { type: 'arm', bubbleId: active.id, input }
+                    : { type: 'inputChanged', bubbleId: active.id, input },
+            );
+            active = activeCollection(next)?.bubble ?? null;
         }
         const region = current.getRegion();
         postponeGrab();
@@ -893,7 +893,7 @@ export const useDesignMode = (
         setHolding(true);
         const newBubbleId = uuidv4();
         // The mic is live from key down: on the page when the mic is on, in
-        // a bubble when it takes the mic. A typed draft is never recorded over.
+        // a bubble when it takes the mic.
         const wantsVoice = active ? active.input === 'mic' : micOnRef.current;
         let recording: Recording | null = null;
         if (wantsVoice && !recordingRef.current) {
@@ -1016,7 +1016,11 @@ export const useDesignMode = (
             // Once its marks have landed, a hold with the mic sends itself.
             queueRef.current = queueRef.current.then(async () => {
                 releasingRef.current -= 1;
-                const bubbleId = hold.landed.bubbleId;
+                // A reply needs no new mark: its words go to the thread.
+                const replyingTo = sessionRef.current.bubbles.find(
+                    (b) => b.id === recording.bubbleId && b.status === 'thread',
+                );
+                const bubbleId = hold.landed.bubbleId ?? replyingTo?.id ?? null;
                 if (bubbleId === null) return;
                 const state = await recording.voice.catch(() => 'off' as const);
                 const bubble = sessionRef.current.bubbles.find(

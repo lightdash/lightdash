@@ -415,7 +415,7 @@ describe('DesignBubble', () => {
             ).toBe('true');
             expect(
                 screen.getByText(
-                    'Replying here. Hold ⌥, mark and talk, release to send.',
+                    'Replying here. Hold ⌥ and talk, release to send. Marks are optional.',
                 ),
             ).toBeInTheDocument();
         });

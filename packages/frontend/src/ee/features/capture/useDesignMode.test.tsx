@@ -370,7 +370,7 @@ describe('useDesignMode', () => {
         expect(screen.getByRole('textbox')).toBeInTheDocument();
     });
 
-    it('holding again on a bubble that takes typing adds marks only: no recording, no send', async () => {
+    it('holding again with the mic on after a silent hold records and sends both marks', async () => {
         await turnOn(true);
         await drawMark();
         await waitFor(() => expect(api.session.bubbles[0]?.input).toBe('text'));
@@ -386,14 +386,11 @@ describe('useDesignMode', () => {
         ]);
 
         await drawMark();
-        await waitFor(() => expect(collected()).toHaveLength(2));
-        await act(async () => {});
-        expect(startVoice).toHaveBeenCalledTimes(1);
-        expect(onSend).not.toHaveBeenCalled();
-        expect(api.session.bubbles[0]).toMatchObject({
-            status: 'collecting',
-            input: 'text',
-        });
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+        expect(startVoice).toHaveBeenCalledTimes(2);
+        const [payload] = onSend.mock.calls[0];
+        expect(payload.marks).toHaveLength(2);
+        expect(payload.summary).toContain('make this blue');
     });
 
     it('a hold called off by another key drops its recording', async () => {
@@ -444,6 +441,57 @@ describe('useDesignMode', () => {
         await act(async () => {});
         expect(onSend).toHaveBeenCalledTimes(1);
         expect(transcribe).not.toHaveBeenCalled();
+    });
+
+    const speech = () => {
+        stopVoice.mockResolvedValue({
+            audio: new Blob(['audio'], { type: 'audio/webm' }),
+            startedAtMs: performance.now(),
+        });
+        transcribe.mockResolvedValue([
+            { startMs: 0, endMs: 300, text: 'make' },
+            { startMs: 300, endMs: 600, text: 'this' },
+            { startMs: 600, endMs: 900, text: 'blue' },
+        ]);
+    };
+
+    it('a spoken reply needs no new mark: holding and talking sends the words to the thread', async () => {
+        await turnOn();
+        const id = await sendFirst();
+        onSend.mockClear();
+        speech();
+        await act(async () => {
+            select(id, 'mic');
+        });
+        await keyDown({ key: 'Alt', altKey: true });
+        await keyUp({ key: 'Alt' });
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+        const [payload] = onSend.mock.calls[0];
+        expect(payload.bubbleId).toBe(id);
+        expect(payload.marks).toHaveLength(0);
+        expect(payload.summary).toContain('make this blue');
+        expect(api.session.bubbles).toHaveLength(1);
+    });
+
+    it('turning the mic on after marking a reply sends it on the next release', async () => {
+        await turnOn();
+        const id = await sendFirst();
+        onSend.mockClear();
+        await act(async () => {
+            select(id, 'text');
+        });
+        await drawMark();
+        await waitFor(() => expect(collected()).toHaveLength(1));
+        expect(onSend).not.toHaveBeenCalled();
+        speech();
+        await act(async () => {
+            api.setMicOn(true);
+        });
+        await drawMark();
+        await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+        const [payload] = onSend.mock.calls[0];
+        expect(payload.bubbleId).toBe(id);
+        expect(payload.marks).toHaveLength(2);
     });
 
     it('while a spoken reply is on its way out, it cannot be selected and the key marks a new bubble', async () => {
@@ -565,7 +613,7 @@ describe('useDesignMode', () => {
             expect(bubble()).not.toBeNull();
             expect(
                 screen.getByText(
-                    'Replying here. Hold ⌥, mark and talk, release to send.',
+                    'Replying here. Hold ⌥ and talk, release to send. Marks are optional.',
                 ),
             ).toBeVisible();
             const top =
@@ -1359,7 +1407,7 @@ describe('useDesignMode', () => {
             });
             expect(
                 screen.getByText(
-                    'Replying here. Hold ⌥, mark and talk, release to send.',
+                    'Replying here. Hold ⌥ and talk, release to send. Marks are optional.',
                 ),
             ).toBeVisible();
             expect(startVoice).not.toHaveBeenCalled();
