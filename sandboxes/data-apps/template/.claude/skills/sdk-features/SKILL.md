@@ -19,6 +19,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | "Inspect data" (Queries panel button) | `lineage` | required — see below |
 | "select an element", editor element picker | `inspect` | none (automatic) |
 | thumbnails / screenshots / scheduled deliveries | `screenshot` | required — see below |
+| "Design Mode", mark up the running app and ask for changes | `design-mode` | none (automatic); also needs `screenshot` |
 | drill down, click into a chart | `drill-down` | app code opt-in |
 | drill into a viz data point (reusable visualization) | `viz-drill-down` | app code opt-in |
 | "ask the AI", one-line takeaway, explain this row | `ai-prompt` | app code opt-in |

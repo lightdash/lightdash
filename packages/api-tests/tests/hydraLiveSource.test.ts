@@ -14,7 +14,7 @@ import {
 } from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, type Body } from '../helpers/api-client';
-import { login } from '../helpers/auth';
+import { login, loginAsViewer } from '../helpers/auth';
 import { pollUntil } from '../helpers/polling';
 
 // Hydra is the test integration the shared live data source engine is
@@ -415,6 +415,54 @@ describe('Hydra, the test integration', () => {
         // The gate held the second call for the window instead of sending it
         expect(Date.now() - startedAt).toBeGreaterThanOrEqual(2_500);
         expect(await getApiCalls(admin, limited.uuid)).toBe(2);
+    });
+
+    it("keeps calls under an admin's lower limit until it is cleared", async () => {
+        const limited = await createHydraSource(admin, 'lowered', 'ivan');
+        created.push(limited.uuid);
+        const url = `${connectionsUrl}/${limited.uuid}/rate-limits`;
+        const settings = (hour?: number) => ({
+            buckets: hour === undefined ? {} : { hour },
+            callsPerSecond: null,
+            concurrentCalls: null,
+        });
+        const query = () =>
+            runQuery(admin, limited.events, { invalidateCache: true });
+
+        const lowered = await admin.patch(url, settings(1));
+        expect(lowered.status).toBe(200);
+        expect((await query()).status).toBe('ready');
+        const refused = await query();
+        expect(refused.status).not.toBe('ready');
+        expect(refused.error).toMatch(
+            /Hydra limit set by your admin reached \(1\/1 calls per hour\)/,
+        );
+
+        const cleared = await admin.patch(url, settings());
+        expect(cleared.status).toBe(200);
+        expect((await query()).status).toBe('ready');
+    });
+
+    it("refuses an admin limit above the integration's own, or from a viewer", async () => {
+        const url = `${connectionsUrl}/${source.uuid}/rate-limits`;
+        const settings = (concurrentCalls: number) => ({
+            buckets: {},
+            callsPerSecond: null,
+            concurrentCalls,
+        });
+        // Hydra allows 2 calls at once
+        const invalid = await Promise.all(
+            [0, 3].map((value) =>
+                admin.patch(url, settings(value), { failOnStatusCode: false }),
+            ),
+        );
+        expect(invalid.map(({ status }) => status)).toEqual([400, 400]);
+
+        const viewer = await loginAsViewer();
+        const forbidden = await viewer.patch(url, settings(1), {
+            failOnStatusCode: false,
+        });
+        expect(forbidden.status).toBe(403);
     });
 
     it('reads a big report a page at a time', async () => {

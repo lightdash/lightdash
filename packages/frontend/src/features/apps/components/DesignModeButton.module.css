@@ -1,0 +1,11 @@
+/* On: the same ring as the button in the agent dock. */
+.button[aria-pressed='true'] {
+    border: 1px solid light-dark(#a499ff, #8b7fff);
+    box-shadow: 0 0 0 2px light-dark(#d1ccff, rgba(94, 76, 255, 0.45));
+}
+
+/* Not usable yet, or not at all: still hoverable, so the reason can be read. */
+.button[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

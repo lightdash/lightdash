@@ -34,7 +34,11 @@ const getDashboardNavigationTargetFromContentToolResult = (
 };
 
 export const getDashboardNavigationUrlFromContentToolResult = (
-    projectUuid: string,
+    // The page address may name the project by its uuid or its slug.
+    {
+        projectUuid,
+        projectSlug,
+    }: { projectUuid: string; projectSlug: string | null },
     toolResult: AiAgentToolResult,
     location: LocationLike = window.location,
 ): string | null => {
@@ -46,6 +50,7 @@ export const getDashboardNavigationUrlFromContentToolResult = (
         isSameDashboardRoute({
             location,
             projectUuid,
+            projectSlug: projectSlug ?? undefined,
             dashboardUuid: target.dashboardUuid,
             dashboardSlug: target.dashboardSlug,
         })
