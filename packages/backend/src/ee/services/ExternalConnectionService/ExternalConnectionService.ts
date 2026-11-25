@@ -1459,9 +1459,10 @@ export class ExternalConnectionService extends BaseService {
     }
 
     /**
-     * Querying a live data source directly takes the access its explores
-     * grant, as a metric query on them would: its access rule, then view on
-     * every explore. The rule applies to everyone, admins included. A source
+     * Querying a live data source directly sends a raw request, such as
+     * HogQL, that can read beyond its explores, so it takes its access rule,
+     * then the SQL runner, as a raw warehouse query does, then view on every
+     * explore. The rule applies to everyone, admins included. A source
      * with no explores yet is left to those who manage it. Data app linking
      * never applies.
      */
@@ -1484,6 +1485,14 @@ export class ExternalConnectionService extends BaseService {
         }
         const ability = this.createAuditedAbility(account);
         const { organizationUuid, projectUuid } = connection;
+        if (
+            ability.cannot(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            )
+        ) {
+            return false;
+        }
         const exploreNames = await this.projectModel.getApiSourceExploreNames(
             projectUuid,
             connection.externalConnectionUuid,

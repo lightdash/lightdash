@@ -408,7 +408,8 @@ describe('ExternalConnectionService api sources', () => {
     });
 
     it.each([
-        ['an interactive viewer of its explores', 'Explore', true],
+        ['a viewer of its explores without the SQL runner', 'Explore', false],
+        ['a SQL runner user who views its explores', 'Explore', true],
         [
             'a data app builder the source was linked for',
             'ExternalConnection',
@@ -416,7 +417,7 @@ describe('ExternalConnectionService api sources', () => {
         ],
     ] as const)(
         'lets %s query the source directly: %s',
-        async (_who, subject, allowed) => {
+        async (who, subject, allowed) => {
             const { service } = buildService({
                 connections: [
                     posthogConnection({ allowDataAppBuilderLinking: true }),
@@ -432,6 +433,16 @@ describe('ExternalConnectionService api sources', () => {
                         subject,
                         conditions: { projectUuid: 'proj-1' },
                     },
+                    ...(who.startsWith('a SQL runner') ||
+                    subject === 'ExternalConnection'
+                        ? [
+                              {
+                                  action: 'manage' as const,
+                                  subject: 'SqlRunner' as const,
+                                  conditions: { projectUuid: 'proj-1' },
+                              },
+                          ]
+                        : []),
                 ]),
             );
             const query = service.getLiveSource(
