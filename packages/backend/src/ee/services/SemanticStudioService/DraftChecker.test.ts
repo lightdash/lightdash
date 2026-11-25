@@ -812,6 +812,10 @@ ${metrics}`;
                 if (/select\s+\*|from\s*\(/i.test(sql)) {
                     return 'a metric view cannot be read with SELECT * or through a subquery';
                 }
+                // Measures alone aggregate one row even over zero rows, so a ratio divides by zero
+                if (/MEASURE\(/.test(sql) && !/\nLIMIT 0$/.test(sql)) {
+                    return '[DIVIDE_BY_ZERO] Division by zero';
+                }
                 const unknown = /MEASURE\(`(?!Order Count`)([^`]+)`\)/.exec(
                     sql,
                 );
@@ -827,8 +831,8 @@ ${metrics}`;
 
                 expect(rejected.size).toBe(0);
                 expect(warehouse.queries).toEqual([
-                    'SELECT "orders".id AS c0\nFROM public.orders AS "orders"\nWHERE 1 = 0\nGROUP BY ALL',
-                    'SELECT MEASURE(`Order Count`) AS c0\nFROM public.orders AS "orders"\nWHERE 1 = 0\nGROUP BY ALL',
+                    'SELECT "orders".id AS c0\nFROM public.orders AS "orders"\nWHERE 1 = 0\nGROUP BY ALL\nLIMIT 0',
+                    'SELECT MEASURE(`Order Count`) AS c0\nFROM public.orders AS "orders"\nWHERE 1 = 0\nGROUP BY ALL\nLIMIT 0',
                 ]);
             });
 
@@ -864,7 +868,7 @@ ${metrics}`;
                 expect(
                     warehouse.queries.find((sql) => sql.includes('LEFT JOIN')),
                 ).toContain(
-                    'FROM public.orders AS "orders"\nLEFT JOIN public.customers AS "customers" ON ("orders".id) = ("customers".id)\nWHERE 1 = 0\nGROUP BY ALL',
+                    'FROM public.orders AS "orders"\nLEFT JOIN public.customers AS "customers" ON ("orders".id) = ("customers".id)\nWHERE 1 = 0\nGROUP BY ALL\nLIMIT 0',
                 );
             });
         });
