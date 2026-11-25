@@ -1987,15 +1987,6 @@ dimensions:
                     mine: 'type: sum',
                 },
             ]);
-            const refused = await context.service.applyDraft(
-                deployer,
-                PROJECT_UUID,
-                null,
-            );
-            expect(refused.failures.map(({ model }) => model)).toEqual([
-                'orders',
-            ]);
-            expect(context.commitCalls).toEqual([]);
             await expect(
                 context.service.keepDraftModel(
                     deployer,
@@ -2011,6 +2002,31 @@ dimensions:
                 1,
             );
             expect((await reconciliationOf(context))?.state).toBe('current');
+        });
+
+        it('publishes over a part both sides changed, replacing what was published there', async () => {
+            const context = await drafted(
+                setup({
+                    baseContents: [
+                        [
+                            'orders',
+                            orders.replace(
+                                '    sql: ${TABLE}.amount\n',
+                                '    sql: ${TABLE}.amount\n    metrics:\n      revenue:\n        type: count\n',
+                            ),
+                        ],
+                    ],
+                }),
+            );
+            context.drafts[0].baseVersions = { orders: 0 };
+            expect((await reconciliationOf(context))?.state).toBe('conflict');
+            const published = await context.service.applyDraft(
+                deployer,
+                PROJECT_UUID,
+                null,
+            );
+            expect(published.failures).toEqual([]);
+            expect(context.commitCalls).toHaveLength(1);
         });
 
         it('takes the live version of one contested part and leaves the rest of the draft', async () => {
@@ -2096,7 +2112,7 @@ dimensions:
             expect(context.commitCalls).toHaveLength(1);
         });
 
-        it('blocks publishing a change to a model that was removed live', async () => {
+        it('does not bring back a model that was removed live', async () => {
             const stored = [{ name: 'orders', content: orders }];
             const context = await drafted(
                 setup({ stored, baseContents: [['orders', orders]] }),
@@ -2106,20 +2122,8 @@ dimensions:
                 deployer,
                 PROJECT_UUID,
             );
-            expect(draft.models.map(({ model }) => model)).toEqual(['orders']);
-            expect(
-                draft.models[0].reconciliation?.conflicts.map(
-                    ({ path, live }) => [path, live],
-                ),
-            ).toEqual([['', null]]);
-            const refused = await context.service.applyDraft(
-                deployer,
-                PROJECT_UUID,
-                null,
-            );
-            expect(refused.failures.map(({ model }) => model)).toEqual([
-                'orders',
-            ]);
+            expect(draft.models).toEqual([]);
+            await context.service.applyDraft(deployer, PROJECT_UUID, null);
             expect(context.commitCalls).toEqual([]);
         });
 
@@ -2640,7 +2644,7 @@ dimensions:
             );
         });
 
-        it("refuses to publish a workspace's change to a model another workspace published to the same part since", async () => {
+        it("publishes a workspace's change over what another workspace published to the same part since", async () => {
             const stored = [{ name: 'orders', content: orders, version: 1 }];
             const context = setup({
                 stored,
@@ -2666,15 +2670,13 @@ dimensions:
                 version: 2,
             });
             context.setActiveWorkspace({ threadUuid: 'thread-1', prUrl: null });
-            const refused = await context.service.applyDraft(
+            const second = await context.service.applyDraft(
                 deployer,
                 PROJECT_UUID,
                 null,
             );
-            expect(refused.failures).toEqual([
-                expect.objectContaining({ model: 'orders' }),
-            ]);
-            expect(context.commitCalls).toHaveLength(1);
+            expect(second.failures).toEqual([]);
+            expect(context.commitCalls).toHaveLength(2);
         });
     });
 
