@@ -690,7 +690,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.8',
+            minVersion: '0.18.9',
             fieldMapping: {
                 x: 'ai_usage_user_name',
                 m1: 'ai_usage_total_tokens_used',
@@ -699,6 +699,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             optionValues: {
                 splitColorGroups: modelProviderColors,
                 splitShadeRank: modelTierRanks,
+                splitShadeUnranked: 'middle',
                 legendMode: 'groups',
                 xName: 'Person',
                 yName: 'Tokens',

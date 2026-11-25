@@ -159,6 +159,8 @@ export const libraryChartOptions: Record<
         // 0.18.7; 0.18.8 narrowed the ramp so the weakest tier is not too pale, which is the version a
         // binding asks for
         splitShadeRank: '0.18.8',
+        // 'middle' gives a name with none of the ranked words a middle shade of its group, not the palest
+        splitShadeUnranked: '0.18.9',
         // 'groups' lists one legend entry for each colour group instead of one for each series
         legendMode: '0.18.7',
         // Ends the value axis just above the bulk of the bars when one or two dwarf the rest
