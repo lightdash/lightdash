@@ -81,12 +81,15 @@
         object-fit: contain;
     }
 
-    /* The bolt is narrower than the tile, so it is drawn to the tile's
-       height rather than squeezed into its square. */
-    & svg[data-mark='bolt'] {
-        width: rem(15px);
-        border-radius: 0;
-        color: var(--mantine-color-text);
+    & svg[data-mark='ink'] {
+        color: var(--mantine-color-black);
+
+        /* A black tile has no edge on a dark sidebar, so it gets a lit one. */
+        @mixin dark {
+            box-shadow:
+                0 0 0 1px rgb(255 255 255 / 10%),
+                0 0 rem(6px) rgb(255 255 255 / 4%);
+        }
     }
 }
 

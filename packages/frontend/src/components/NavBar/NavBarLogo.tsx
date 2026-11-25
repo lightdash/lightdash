@@ -1,12 +1,12 @@
 import { Box } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { useWhiteLabelBrand } from '../../hooks/organization/useWhiteLabelBrand';
-import LogoBolt from '../../svgs/logo-bolt.svg?react';
 import Logo from '../../svgs/logo-icon.svg?react';
+import LogoInk from '../../svgs/logo-ink.svg?react';
 
 type Props = {
-    /** The violet tile, or the bolt alone in the text colour. */
-    mark: 'tile' | 'bolt';
+    /** The violet tile, or the same tile in black. */
+    mark: 'tile' | 'ink';
 };
 
 export const NavBarLogo: FC<Props> = ({ mark }) => {
@@ -24,7 +24,7 @@ export const NavBarLogo: FC<Props> = ({ mark }) => {
         );
     }
     if (!logoUrl) {
-        return mark === 'bolt' ? <LogoBolt data-mark="bolt" /> : <Logo />;
+        return mark === 'ink' ? <LogoInk data-mark="ink" /> : <Logo />;
     }
     return (
         <Box
