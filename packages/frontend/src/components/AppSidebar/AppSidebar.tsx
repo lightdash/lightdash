@@ -126,7 +126,7 @@ export const AppSidebar: FC<Props> = ({
                             aria-label="Home"
                             className={classes.logo}
                         >
-                            <NavBarLogo mark="ink" />
+                            <NavBarLogo />
                         </UnstyledButton>
                         {!isCollapsed && (
                             <ProjectSwitcher

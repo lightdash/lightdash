@@ -81,8 +81,10 @@
         object-fit: contain;
     }
 
-    & svg[data-mark='ink'] {
-        color: var(--mantine-color-black);
+    & svg {
+        & rect {
+            fill: var(--mantine-color-black);
+        }
 
         /* A black tile has no edge on a dark sidebar, so it gets a lit one. */
         @mixin dark {

@@ -61,7 +61,7 @@ const AppBrand = () => (
         <BrandedAppNameSync />
         <BrandedFaviconSync />
         <DocumentTitle title="Settings" />
-        <NavBarLogo mark="tile" />
+        <NavBarLogo />
     </MantineProvider>
 );
 const SERVER_FAVICON_URL = '/api/v1/org/brand/favicon';
@@ -191,7 +191,7 @@ describe('brand loading', () => {
         state.brand = brand;
         const { container } = render(
             <MantineProvider env="test" forceColorScheme={state.colorScheme}>
-                <NavBarLogo mark="tile" />
+                <NavBarLogo />
             </MantineProvider>,
         );
         fireEvent.error(screen.getByAltText('Acme logo'));
