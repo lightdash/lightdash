@@ -224,8 +224,9 @@ const mcpQueryPathsByType: {
 };
 const mcpQueryPaths: McpQueryPath[] = Object.values(mcpQueryPathsByType).flat();
 
-// Observed in Claude Code 2.1.263; this is not an MCP protocol limit.
-const MCP_CLIENT_TEXT_MAX_CHARS = 2048;
+// Claude Code ≥2.1.296 cuts server instructions and up-front tool descriptions here;
+// not an MCP protocol limit.
+const MCP_CLIENT_TEXT_MAX_CHARS = 4096;
 
 // Classify new features explicitly: registration-only or text-changing.
 const registrationOnlyFeatures = {
