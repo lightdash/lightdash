@@ -126,6 +126,8 @@ const buildService = ({
         releaseApiSourceRateSlot: vi.fn().mockResolvedValue(undefined),
         insertApiSourceCall: vi.fn().mockResolvedValue(undefined),
         setLiveSourceCacheTtl: vi.fn().mockResolvedValue(undefined),
+        setLiveSourceRateLimits: vi.fn().mockResolvedValue(undefined),
+        deleteApiSourceRateBucket: vi.fn().mockResolvedValue(undefined),
         purgeLiveSourceCache: vi.fn().mockResolvedValue(undefined),
         rotateSecret: vi.fn().mockResolvedValue(undefined),
         getApiSourceUsage: vi.fn().mockResolvedValue([]),
@@ -911,6 +913,155 @@ describe('ExternalConnectionService live source writes', () => {
         await expect(
             service.update(account, 'proj-1', 'conn-1', { apiSource: null }),
         ).rejects.toThrow(ParameterError);
+    });
+});
+
+describe('ExternalConnectionService live source rate limits', () => {
+    const settings = {
+        buckets: { hour: 100, day: 500 },
+        callsPerSecond: null,
+        concurrentCalls: 1,
+    };
+
+    it('saves the admin limits and starts counting a new daily one afresh', async () => {
+        const { service, externalConnectionModel, analytics } = buildService();
+
+        await service.updateLiveSourceRateLimits(
+            account,
+            'proj-1',
+            'conn-1',
+            settings,
+        );
+
+        expect(
+            externalConnectionModel.deleteApiSourceRateBucket,
+        ).toHaveBeenCalledExactlyOnceWith('conn-1', 'day');
+        expect(
+            externalConnectionModel.setLiveSourceRateLimits,
+        ).toHaveBeenCalledExactlyOnceWith('conn-1', settings);
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'live_source.rate_limits_updated',
+                properties: expect.objectContaining(settings),
+            }),
+        );
+    });
+
+    it('keeps counting a daily limit that only changes', async () => {
+        const { service, externalConnectionModel } = buildService({
+            connections: [posthogConnection({ adminRateLimits: settings })],
+        });
+
+        await service.updateLiveSourceRateLimits(account, 'proj-1', 'conn-1', {
+            ...settings,
+            buckets: { day: 400 },
+        });
+
+        expect(
+            externalConnectionModel.deleteApiSourceRateBucket,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('goes back to the integration limits when nothing is set', async () => {
+        const { service, externalConnectionModel } = buildService({
+            connections: [posthogConnection({ adminRateLimits: settings })],
+        });
+
+        await service.updateLiveSourceRateLimits(account, 'proj-1', 'conn-1', {
+            buckets: {},
+            callsPerSecond: null,
+            concurrentCalls: null,
+        });
+
+        expect(
+            externalConnectionModel.setLiveSourceRateLimits,
+        ).toHaveBeenCalledExactlyOnceWith('conn-1', null);
+    });
+
+    it('rejects a limit above the integration own', async () => {
+        const { service, externalConnectionModel } = buildService();
+
+        await expect(
+            service.updateLiveSourceRateLimits(account, 'proj-1', 'conn-1', {
+                ...settings,
+                concurrentCalls: 4,
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(
+            externalConnectionModel.setLiveSourceRateLimits,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('only lets people who manage the source change its limits', async () => {
+        const { service, externalConnectionModel } = buildService({
+            canManage: false,
+        });
+
+        await expect(
+            service.updateLiveSourceRateLimits(
+                account,
+                'proj-1',
+                'conn-1',
+                settings,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            externalConnectionModel.setLiveSourceRateLimits,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('charges queries against the admin limits', async () => {
+        const { service, externalConnectionModel } = buildService({
+            connections: [posthogConnection({ adminRateLimits: settings })],
+        });
+
+        const source = await service.getLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            60_000,
+        );
+        await runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 });
+
+        const [[, buckets]] =
+            externalConnectionModel.chargeApiSourceRateBuckets.mock.calls;
+        expect(buckets).toEqual([
+            expect.objectContaining({ id: 'minute', capacity: 240 }),
+            expect.objectContaining({ id: 'hour', capacity: 100 }),
+            expect.objectContaining({ id: 'day', capacity: 500 }),
+        ]);
+        expect(
+            externalConnectionModel.tryTakeApiSourceRateSlot,
+        ).toHaveBeenCalledWith(
+            'conn-1',
+            1,
+            expect.any(String),
+            expect.any(Number),
+        );
+    });
+
+    it('shows viewers the admin limits beside the integration own', async () => {
+        const { service } = buildService({
+            canManage: false,
+            connections: [posthogConnection({ adminRateLimits: settings })],
+        });
+
+        const usage = await service.getApiSourceRateLimitUsage(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+
+        expect(usage).toMatchObject({
+            adminRateLimits: settings,
+            defaultConcurrentCalls: 3,
+            defaultCallsPerSecond: null,
+            buckets: [
+                { id: 'minute', capacity: 240, defaultCapacity: 240 },
+                { id: 'hour', capacity: 100, defaultCapacity: 2_400 },
+                { id: 'day', capacity: 500, defaultCapacity: null },
+            ],
+        });
     });
 });
 

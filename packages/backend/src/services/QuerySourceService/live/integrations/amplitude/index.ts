@@ -126,6 +126,8 @@ export const amplitudeIntegration = defineLiveIntegration({
             },
         ],
         note: 'Amplitude limits query cost, not calls: 108,000 an hour, where one query costs days × conditions × a per-report factor, at least 10.',
+        cardNote:
+            'Amplitude limits query cost, not calls, so a call limit reduces use but does not cap cost.',
     },
     useCases: amplitudeUseCases,
     validate: () => {},

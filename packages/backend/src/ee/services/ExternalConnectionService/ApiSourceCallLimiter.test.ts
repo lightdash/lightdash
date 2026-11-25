@@ -13,7 +13,14 @@ const WINDOW = new Date(NOW);
 
 const target = (
     rateLimits: Partial<RateLimitTarget['rateLimits']> = {},
+    setByAdmin: Partial<RateLimitTarget['setByAdmin']> = {},
 ): RateLimitTarget => ({
+    setByAdmin: {
+        bucketIds: [],
+        callsPerSecond: false,
+        concurrentCalls: false,
+        ...setByAdmin,
+    },
     limitKey: 'connection-1',
     integration: 'hubspot',
     label: 'HubSpot',
@@ -232,6 +239,80 @@ describe('ApiSourceCallLimiter', () => {
         expect(metrics.incrementLiveSourceRateRefusal).toHaveBeenCalledWith(
             'hubspot',
             'live_source.upstream.rate_limited',
+        );
+    });
+
+    it('says an admin set the limit that refused the call, and counts up to it', async () => {
+        const { limiter } = buildLimiter({
+            charges: [
+                (now) => ({
+                    charged: false,
+                    now: new Date(now),
+                    bucketId: 'hour',
+                    // Lowered after more calls than this were made
+                    used: 410,
+                    resumesAt: new Date(now + 20 * 60_000),
+                    isHeldByVendor: false,
+                }),
+            ],
+        });
+        const lowered = target(
+            {
+                buckets: [
+                    {
+                        id: 'hour',
+                        label: 'per hour',
+                        windowMs: 3_600_000,
+                        capacity: 100,
+                    },
+                ],
+            },
+            { bucketIds: ['hour'] },
+        );
+
+        const error = await refusal(limiter.run(lowered, vi.fn()));
+
+        expect(error.message).toBe(
+            'HubSpot limit set by your admin reached (100/100 calls per hour). Resumes at 14:20 UTC.',
+        );
+        expect(error.data).toMatchObject({ used: 100, limit: 100 });
+    });
+
+    it('says an admin set the per-second limit that queued the call too long', async () => {
+        const { limiter } = buildLimiter({
+            turns: [
+                (now) => ({
+                    booked: false,
+                    turnAt: new Date(now + 90_000),
+                    now: new Date(now),
+                }),
+            ],
+        });
+
+        const error = await refusal(
+            limiter.run(
+                target({ callsPerSecond: 2 }, { callsPerSecond: true }),
+                vi.fn(),
+            ),
+        );
+
+        expect(error.message).toBe(
+            'Too many HubSpot calls are queued (2 a second allowed by your admin). Resumes at 14:01:30 UTC.',
+        );
+    });
+
+    it('says an admin set the number of calls at once that kept the call waiting', async () => {
+        const { limiter } = buildLimiter({ slots: 0 });
+
+        const error = await refusal(
+            limiter.run(
+                target({ concurrentCalls: 1 }, { concurrentCalls: true }),
+                vi.fn(),
+            ),
+        );
+
+        expect(error.message).toBe(
+            'HubSpot is already running as many calls at once as your admin allows (1). Retry in 5 seconds.',
         );
     });
 

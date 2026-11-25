@@ -12,6 +12,7 @@ import type {
     ApiSourceRateWindow,
     ExternalConnectionModel,
 } from '../../models/ExternalConnectionModel';
+import type { AdminSetLimits } from './rateLimitSettings';
 
 type RateGateModel = Pick<
     ExternalConnectionModel,
@@ -37,6 +38,7 @@ export type RateLimitTarget = {
     /** The integration's label, e.g. "HubSpot", for messages and metrics. */
     label: string;
     rateLimits: LiveRateLimits;
+    setByAdmin: AdminSetLimits;
     /** How long one call may run; a slot outlives it by a margin. */
     timeoutMs: number;
 };
@@ -247,7 +249,7 @@ export class ApiSourceCallLimiter {
 
     /** Charges every bucket, waiting for a full one to reset while that comes in time. */
     private async chargeBuckets(
-        { limitKey, label, rateLimits }: RateLimitTarget,
+        { limitKey, label, rateLimits, setByAdmin }: RateLimitTarget,
         giveUpAt: number,
     ): Promise<ApiSourceRateWindow[]> {
         const { buckets } = rateLimits;
@@ -267,11 +269,16 @@ export class ApiSourceCallLimiter {
                     charge.resumesAt,
                     waitMs < 60_000,
                 )}.`;
+                // A limit lowered mid-window can already be passed
+                const used = Math.min(charge.used, bucket.capacity);
+                const reached = setByAdmin.bucketIds.includes(bucket.id)
+                    ? 'limit set by your admin reached'
+                    : 'limit reached';
                 throw refuse({
                     message: charge.isHeldByVendor
                         ? `${label} asked Lightdash to slow down. ${resumes}`
-                        : `${label} limit reached (${formatCount(
-                              charge.used,
+                        : `${label} ${reached} (${formatCount(
+                              used,
                           )}/${formatCount(bucket.capacity)} calls ${
                               bucket.label
                           }). ${resumes}`,
@@ -279,7 +286,7 @@ export class ApiSourceCallLimiter {
                     resumesAt: charge.resumesAt,
                     now: charge.now,
                     bucket: { id: bucket.id, label: bucket.label },
-                    used: charge.used,
+                    used,
                     limit: bucket.capacity,
                 });
             }
@@ -290,7 +297,7 @@ export class ApiSourceCallLimiter {
 
     /** Waits for an evenly spaced turn when the integration limits calls a second. */
     private async takePacedTurn(
-        { limitKey, label, rateLimits }: RateLimitTarget,
+        { limitKey, label, rateLimits, setByAdmin }: RateLimitTarget,
         giveUpAt: number,
     ): Promise<void> {
         const { callsPerSecond } = rateLimits;
@@ -301,10 +308,13 @@ export class ApiSourceCallLimiter {
             Math.max(0, giveUpAt - this.now().getTime()),
         );
         if (!turn.booked) {
+            const allowed = setByAdmin.callsPerSecond
+                ? 'allowed by your admin'
+                : 'allowed';
             throw refuse({
                 message: `Too many ${label} calls are queued (${formatCount(
                     callsPerSecond,
-                )} a second allowed). Resumes at ${formatUtcTime(
+                )} a second ${allowed}). Resumes at ${formatUtcTime(
                     turn.turnAt,
                     true,
                 )}.`,
@@ -322,7 +332,7 @@ export class ApiSourceCallLimiter {
      * in arrival order; across servers, whoever polls first after a release.
      */
     private async takeSlot(
-        { limitKey, label, rateLimits, timeoutMs }: RateLimitTarget,
+        { limitKey, label, rateLimits, setByAdmin, timeoutMs }: RateLimitTarget,
         giveUpAt: number,
     ): Promise<string> {
         const leaseUuid = randomUUID();
@@ -344,10 +354,13 @@ export class ApiSourceCallLimiter {
                 }
                 const now = this.now();
                 if (now.getTime() >= giveUpAt) {
+                    const running = `${label} is already running`;
+                    const atOnce = formatCount(rateLimits.concurrentCalls);
+                    const busy = setByAdmin.concurrentCalls
+                        ? `${running} as many calls at once as your admin allows (${atOnce})`
+                        : `${running} ${atOnce} calls at once`;
                     throw refuse({
-                        message: `${label} is already running ${formatCount(
-                            rateLimits.concurrentCalls,
-                        )} calls at once. Retry in ${BUSY_RETRY_AFTER_SECONDS} seconds.`,
+                        message: `${busy}. Retry in ${BUSY_RETRY_AFTER_SECONDS} seconds.`,
                         code: CONCURRENCY_LIMIT,
                         resumesAt: new Date(
                             now.getTime() + BUSY_RETRY_AFTER_SECONDS * 1_000,

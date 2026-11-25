@@ -27,6 +27,7 @@ import {
     LIVE_SOURCE_AI_HINT_MAX_LENGTH,
     LIVE_SOURCE_CACHE_TTL_MAX_SECONDS,
     LIVE_SOURCE_CACHE_TTL_MIN_SECONDS,
+    LIVE_SOURCE_DAILY_RATE_LIMIT,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -40,6 +41,7 @@ import {
     type ApiSaveExternalConnectionSampleRequest,
     type ApiSourceSchemaScan,
     type ApiUpdateLiveSourceCacheRequest,
+    type ApiUpdateLiveSourceRateLimitsRequest,
     type CreateExternalConnection,
     type ExplorePrefixCheck,
     type ExternalConnection,
@@ -129,6 +131,7 @@ import { refuseLiveQuery } from '../../../services/QuerySourceService/live/query
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { LIVE_RATE_LIMIT_DEADLINES_MS } from '../../../services/QuerySourceService/live/rateLimitDeadlines';
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
+import { type LiveRateLimits } from '../../../services/QuerySourceService/live/spec/types';
 import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
 import { type LiveScanResult } from '../../../services/QuerySourceService/live/types';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
@@ -212,6 +215,12 @@ import {
     serializeRequestBody,
     validateCustomHeaders,
 } from './proxyValidation';
+import {
+    applyAdminRateLimits,
+    assertValidRateLimitSettings,
+    hasRateLimitSettings,
+    startsDailyLimit,
+} from './rateLimitSettings';
 import { toRateLimitUsage } from './rateLimitUsage';
 import {
     buildSalesforceAuthorizeUrl,
@@ -1350,6 +1359,64 @@ export class ExternalConnectionService extends BaseService {
         return this.loadConnection(projectUuid, connectionUuid);
     }
 
+    /** Sets the lower rate limits of a live source; empty settings restore the integration's. */
+    async updateLiveSourceRateLimits(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+        {
+            buckets,
+            callsPerSecond,
+            concurrentCalls,
+        }: ApiUpdateLiveSourceRateLimitsRequest,
+    ): Promise<ExternalConnection> {
+        const connection = await this.getOwnedLiveSource(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        const settings = { buckets, callsPerSecond, concurrentCalls };
+        const declared = ExternalConnectionService.getDeclaredRateLimits(
+            connection.apiSource,
+        );
+        assertValidRateLimitSettings({
+            integrationLabel: getLiveIntegration(connection.apiSource.connector)
+                .label,
+            declared,
+            settings,
+        });
+        // Before the save, so no call is counted against what is left of an
+        // earlier daily limit
+        if (
+            startsDailyLimit(
+                declared,
+                connection.adminRateLimits ?? null,
+                settings,
+            )
+        ) {
+            await this.externalConnectionModel.deleteApiSourceRateBucket(
+                connectionUuid,
+                LIVE_SOURCE_DAILY_RATE_LIMIT.id,
+            );
+        }
+        await this.externalConnectionModel.setLiveSourceRateLimits(
+            connectionUuid,
+            hasRateLimitSettings(settings) ? settings : null,
+        );
+        this.analytics.track({
+            event: 'live_source.rate_limits_updated',
+            userId: account.user.id,
+            properties: {
+                organizationId: connection.organizationUuid,
+                projectId: projectUuid,
+                externalConnectionUuid: connectionUuid,
+                ...ExternalConnectionService.kindProperties(connection),
+                ...settings,
+            },
+        });
+        return this.loadConnection(projectUuid, connectionUuid);
+    }
+
     /**
      * Results fetched with the old credential or target may not be what the
      * new one reads, so nobody reuses them.
@@ -1395,7 +1462,9 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         connectionUuid: string,
-    ): Promise<ExternalConnection> {
+    ): Promise<
+        ExternalConnection & { apiSource: ExternalConnectionApiSource }
+    > {
         const connection = await this.getOwnedConnection(
             account,
             projectUuid,
@@ -1406,7 +1475,7 @@ export class ExternalConnectionService extends BaseService {
                 `"${connection.name}" is not a live data source`,
             );
         }
-        return connection;
+        return { ...connection, apiSource: connection.apiSource };
     }
 
     /** Rebuilds the explores a live data source answers metric queries with. */
@@ -2572,7 +2641,7 @@ export class ExternalConnectionService extends BaseService {
         return scans.get(connectionUuid) ?? null;
     }
 
-    /** Lightdash's calls against the live source's declared rate limits, now. */
+    /** Lightdash's calls against the live source's rate limits, now. */
     async getApiSourceRateLimitUsage(
         account: RegisteredAccount,
         projectUuid: string,
@@ -2599,6 +2668,12 @@ export class ExternalConnectionService extends BaseService {
         return toRateLimitUsage({
             integrationLabel: target.label,
             rateLimits: target.rateLimits,
+            declared: ExternalConnectionService.getDeclaredRateLimits(
+                connection.apiSource,
+            ),
+            adminRateLimits: connection.adminRateLimits ?? null,
+            callsPerQuery: getLiveIntegration(connection.apiSource.connector)
+                .limits.callsPerQuery,
             snapshot,
         });
     }
@@ -2649,22 +2724,30 @@ export class ExternalConnectionService extends BaseService {
         );
     }
 
-    /** What the rate-limit gate limits for a live source: the limits its integration declares for it. */
+    /** The integration's own limits for a source, before any admin's. */
+    private static getDeclaredRateLimits(
+        apiSource: ExternalConnectionApiSource,
+    ): LiveRateLimits {
+        const integration = getLiveIntegration(apiSource.connector);
+        return integration.rateLimitsFor?.(apiSource) ?? integration.rateLimits;
+    }
+
+    /** What the rate-limit gate limits for a live source: the lower of the integration's limits and the admin's. */
     private static getRateLimitTarget(
         connection: Pick<
             ExternalConnection,
-            'externalConnectionUuid' | 'timeoutMs'
+            'externalConnectionUuid' | 'timeoutMs' | 'adminRateLimits'
         >,
         apiSource: ExternalConnectionApiSource,
     ): RateLimitTarget {
-        const integration = getLiveIntegration(apiSource.connector);
         return {
             limitKey: connection.externalConnectionUuid,
             integration: apiSource.connector,
-            label: integration.label,
-            rateLimits:
-                integration.rateLimitsFor?.(apiSource) ??
-                integration.rateLimits,
+            label: getLiveIntegration(apiSource.connector).label,
+            ...applyAdminRateLimits(
+                ExternalConnectionService.getDeclaredRateLimits(apiSource),
+                connection.adminRateLimits ?? null,
+            ),
             timeoutMs: connection.timeoutMs,
         };
     }

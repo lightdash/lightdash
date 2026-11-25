@@ -61,6 +61,7 @@ describe('getRateLimitStat', () => {
                 label: 'per minute',
                 windowMs: 60_000,
                 capacity: 30,
+                defaultCapacity: 30,
                 used: 12,
                 resetsAt: at(20_000),
             },
@@ -69,11 +70,17 @@ describe('getRateLimitStat', () => {
                 label: 'per hour',
                 windowMs: 3_600_000,
                 capacity: 5_000,
+                defaultCapacity: 5_000,
                 used: 410,
                 resetsAt: at(24 * 60_000),
             },
         ],
         limitedUntil: null,
+        adminRateLimits: null,
+        defaultCallsPerSecond: null,
+        defaultConcurrentCalls: 3,
+        note: null,
+        callsPerQuery: 1,
     };
 
     it('shows the longest declared limit', () => {

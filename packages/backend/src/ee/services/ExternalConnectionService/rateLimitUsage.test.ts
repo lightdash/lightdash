@@ -17,11 +17,17 @@ const RATE_LIMITS: LiveRateLimits = {
 
 const usageOf = (
     buckets: Parameters<typeof toRateLimitUsage>[0]['snapshot']['buckets'],
-    { rateLimits = RATE_LIMITS } = {},
+    {
+        rateLimits = RATE_LIMITS,
+        declared,
+    }: { rateLimits?: LiveRateLimits; declared?: LiveRateLimits } = {},
 ) =>
     toRateLimitUsage({
         integrationLabel: 'HubSpot',
         rateLimits,
+        declared: declared ?? rateLimits,
+        adminRateLimits: null,
+        callsPerQuery: 5,
         snapshot: { now: NOW, buckets },
     });
 
@@ -53,6 +59,7 @@ describe('toRateLimitUsage', () => {
                     label: 'per minute',
                     windowMs: MINUTE,
                     capacity: 100,
+                    defaultCapacity: 100,
                     used: 18,
                     resetsAt: '2026-11-23T14:00:42.000Z',
                 },
@@ -61,12 +68,52 @@ describe('toRateLimitUsage', () => {
                     label: 'per hour',
                     windowMs: HOUR,
                     capacity: 10_000,
+                    defaultCapacity: 10_000,
                     used: 410,
                     resetsAt: '2026-11-23T14:37:00.000Z',
                 },
             ],
             limitedUntil: null,
+            adminRateLimits: null,
+            defaultCallsPerSecond: 4,
+            defaultConcurrentCalls: 5,
+            note: null,
+            callsPerQuery: 5,
         });
+    });
+
+    it('shows the limit in force beside the integration own limit', () => {
+        const usage = usageOf([], {
+            rateLimits: {
+                ...RATE_LIMITS,
+                buckets: [
+                    {
+                        id: 'hour',
+                        label: 'per hour',
+                        windowMs: HOUR,
+                        capacity: 1_000,
+                    },
+                    {
+                        id: 'day',
+                        label: 'per day',
+                        windowMs: 24 * HOUR,
+                        capacity: 5_000,
+                    },
+                ],
+            },
+            declared: RATE_LIMITS,
+        });
+
+        expect(
+            usage.buckets.map(({ id, capacity, defaultCapacity }) => ({
+                id,
+                capacity,
+                defaultCapacity,
+            })),
+        ).toEqual([
+            { id: 'hour', capacity: 1_000, defaultCapacity: 10_000 },
+            { id: 'day', capacity: 5_000, defaultCapacity: null },
+        ]);
     });
 
     it('shows full capacity for a window that has ended or never opened', () => {
@@ -145,5 +192,21 @@ describe('toRateLimitUsage', () => {
         expect(usage).toMatchObject({
             buckets: [],
         });
+    });
+
+    it("tells admins only what is written for them, not the integration's own note", () => {
+        const rateLimits = {
+            concurrentCalls: 2,
+            callsPerSecond: null,
+            buckets: [],
+            note: 'Our own quota is shared by every customer.',
+        };
+
+        expect(usageOf([], { rateLimits }).note).toBeNull();
+        expect(
+            usageOf([], {
+                rateLimits: { ...rateLimits, cardNote: 'Counts tokens.' },
+            }).note,
+        ).toBe('Counts tokens.');
     });
 });
