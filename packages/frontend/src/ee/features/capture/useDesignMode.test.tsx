@@ -1818,15 +1818,14 @@ describe('useDesignMode', () => {
 
     it('the toolbar shows the hold hints and its close button leaves Design Mode', async () => {
         await turnOn();
-        expect(screen.getByText('Hold ⌥')).toBeInTheDocument();
-        expect(screen.queryByText('Hold ⌃')).toBeNull();
+        expect(screen.getByText('⌥')).toBeInTheDocument();
         await keyDown({ key: 'Alt', altKey: true });
         expect(
             screen.getByText('Mark').closest('[data-active]'),
         ).toHaveAttribute('data-active', 'true');
         await keyUp({ key: 'Alt' });
 
-        fireEvent.click(screen.getByRole('button', { name: 'Mic' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Voice' }));
         expect(api.micOn).toBe(true);
         fireEvent.click(
             screen.getByRole('button', { name: 'Leave Design Mode' }),
@@ -2087,7 +2086,7 @@ describe('useDesignMode', () => {
                 expect(shifts()).toEqual(['']);
                 // The toolbar stays on the window, not in the page.
                 expect(
-                    scrollContainer.contains(screen.getByText('Design Mode')),
+                    scrollContainer.contains(screen.getByRole('toolbar')),
                 ).toBe(false);
 
                 // Leaving and closing takes the layer out of the page.

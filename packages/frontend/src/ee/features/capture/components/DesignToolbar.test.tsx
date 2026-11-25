@@ -3,14 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import DesignToolbar from './DesignToolbar';
 
-const setup = (holding: boolean, micOn = false) => {
+const setup = (holding: boolean, micOn = false, talking = false) => {
     const onMicChange = vi.fn();
     const onClose = vi.fn();
     renderWithProviders(
         <DesignToolbar
             ref={null}
             holding={holding}
-            talking={false}
+            talking={talking}
             micOn={micOn}
             onMicChange={onMicChange}
             onClose={onClose}
@@ -19,36 +19,32 @@ const setup = (holding: boolean, micOn = false) => {
     return { onMicChange, onClose };
 };
 
+const chip = () => document.querySelector('[data-active]')!;
+
 describe('DesignToolbar', () => {
-    it('shows the one tool and how to use it', () => {
+    it('at rest, says which key to hold', () => {
         setup(false);
-        expect(screen.getByText('Mark')).toBeInTheDocument();
-        expect(screen.getByText('Hold ⌥')).toBeInTheDocument();
-        expect(
-            screen.getByText('Click to pick, drag to draw'),
-        ).toBeInTheDocument();
-        expect(screen.queryByText('Hold ⌃')).toBeNull();
+        expect(chip()).toHaveTextContent('Hold⌥to activate');
+        expect(chip()).toHaveAttribute('data-active', 'false');
+        expect(screen.queryByText('Mark')).toBeNull();
     });
 
-    it('with the mic on, says that talking is sent on release', () => {
-        setup(false, true);
-        expect(
-            screen.getByText(
-                'Click to pick, drag to draw · Talk while you hold, release to send',
-            ),
-        ).toBeInTheDocument();
-    });
-
-    it('shows when Option is held', () => {
+    it('with Option held, shows what a click and a drag do', () => {
         setup(true);
-        expect(
-            screen.getByText('Mark').closest('[data-active]'),
-        ).toHaveAttribute('data-active', 'true');
+        expect(chip()).toHaveAttribute('data-active', 'true');
+        expect(chip()).toHaveAttribute('data-recording', 'false');
+        expect(chip()).toHaveTextContent('MarkAnnotate');
     });
 
-    it('the mic button toggles the mic', () => {
+    it('while recording, keeps the hints and shows it is recording', () => {
+        setup(true, true, true);
+        expect(chip()).toHaveAttribute('data-recording', 'true');
+        expect(chip()).toHaveTextContent('MarkAnnotate');
+    });
+
+    it('the voice button toggles the mic', () => {
         const { onMicChange } = setup(false, false);
-        const mic = screen.getByRole('button', { name: 'Mic' });
+        const mic = screen.getByRole('button', { name: 'Voice' });
         expect(mic).toHaveAttribute('aria-pressed', 'false');
         fireEvent.click(mic);
         expect(onMicChange).toHaveBeenCalledWith(true);
