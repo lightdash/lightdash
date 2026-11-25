@@ -1013,6 +1013,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     personalAccessTokenModel:
                         this.models.getPersonalAccessTokenModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

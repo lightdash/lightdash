@@ -2245,6 +2245,7 @@ export class UserModel {
             },
             personalAccessToken:
                 PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
+            cliOAuthPatCompat: row.cli_oauth_pat_compat === true,
         };
         PatSessionCache.set(token, data);
         return { data, cacheHit: false };

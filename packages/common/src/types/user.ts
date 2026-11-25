@@ -176,6 +176,14 @@ export interface SessionUser extends LightdashUserWithAbilityRules {
         uuid: string;
         description?: string;
     };
+    /**
+     * Set only when the request was authenticated with a personal access
+     * token. Carries the token flags for code paths that receive
+     * `SessionUser` rather than `Account`.
+     */
+    personalAccessToken?: {
+        cliOAuthPatCompat: boolean;
+    };
 }
 
 export interface ImpersonationContext {
