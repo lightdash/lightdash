@@ -1,7 +1,6 @@
 import {
     AgentActorSurface,
     assertIsAccountWithOrg,
-    OrganizationMemberRole,
     type AgentCapabilityPolicy,
     type RegisteredAccount,
 } from '@lightdash/common';
@@ -81,13 +80,6 @@ export const setupPermissionSql = (
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
         areGroupsAvailable: vi.fn().mockResolvedValue(false),
-        isCustomRolesLicensed: () => false,
-        userModel: {
-            getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                systemRoles: [OrganizationMemberRole.VIEWER],
-                customRoles: [],
-            }),
-        },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({
                 organizationUuid: account.organization.organizationUuid,

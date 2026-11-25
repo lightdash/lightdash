@@ -207,13 +207,11 @@ export const fixture = async (database: Knex) => {
         agentCapabilityPolicyModel: models.getAgentCapabilityPolicyModel(),
         groupsModel: models.getGroupsModel(),
         featureFlagModel: models.getFeatureFlagModel(),
-        userModel: models.getUserModel(),
         projectModel: models.getProjectModel(),
         agentActionLogModel: models.getAgentActionLogModel(),
         resolveResourceProjectUuid: async () => {
             throw new Error('Unexpected resource lookup');
         },
-        isCustomRolesLicensed: () => false,
         areGroupsAvailable: async () => true,
     });
     const users: UserService = Object.assign(

@@ -383,7 +383,7 @@ it.each(['expired', 'revoked'] as const)(
         expect(policy).not.toHaveBeenCalled();
     },
 );
-it('re-evaluates current person role assignments through the real policy service', async () => {
+it('re-evaluates the current capability list through the real policy service', async () => {
     const f = setup();
     const before = await f.service.status(f.account, 'grant');
     expect(
@@ -391,7 +391,7 @@ it('re-evaluates current person role assignments through the real policy service
             (c) => c.capability === AgentCapability.Query,
         )?.allowed,
     ).toBe(true);
-    f.assignments.systemRoles = [];
+    f.policy.allowedCapabilities = [AgentCapability.ReadDiscover];
     const after = await f.service.status(f.account, 'grant');
     expect(after.effectiveProjects[0].capabilities).toContainEqual({
         capability: AgentCapability.Query,

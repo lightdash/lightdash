@@ -85,11 +85,9 @@ const setup = () => {
         }),
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         groupsModel: { findUserInGroups: vi.fn() },
-        userModel: { getAgentRoleAssignments: vi.fn() },
         projectModel: { getSummary: vi.fn() },
         resolveResourceProjectUuid: vi.fn(),
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
-        isCustomRolesLicensed: () => false,
         agentActionLogModel: { insert: vi.fn() },
     });
     const app = express();

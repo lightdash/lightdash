@@ -123,11 +123,7 @@ export class AgentConnectionApprovalService extends BaseService {
                 | 'sealDecision'
                 | 'consumeCallback'
             >;
-            userModel: Pick<
-                UserModel,
-                | 'findSessionUserAndOrgByUuid'
-                | 'getAgentRoleAssignmentsForProjects'
-            >;
+            userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
             projectModel: Pick<
                 ProjectModel,
                 'getAllByOrganizationUuid' | 'getSummaries'
@@ -252,7 +248,6 @@ export class AgentConnectionApprovalService extends BaseService {
                         operations: operationsByProject.flat(),
                     },
                     {
-                        userModel: this.deps.userModel,
                         projectModel: this.deps.projectModel,
                     },
                 )

@@ -194,7 +194,7 @@ export const agentPermissionChecks = (
                             'capability',
                             getAgentCapabilityName(capability),
                             'allowed',
-                            `This person's roles grant ${getAgentCapabilityName(capability)} to agents.`,
+                            `The agent setting allows ${getAgentCapabilityName(capability)}.`,
                         ),
                         capability,
                         id,
@@ -207,9 +207,7 @@ export const agentPermissionChecks = (
                         AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
                         'org_ceiling',
                         capability,
-                        policy.editableCustomRoleUuid
-                            ? `/generalSettings/customRoles/${policy.editableCustomRoleUuid}`
-                            : '/generalSettings/agentIdentity',
+                        '/generalSettings/agentIdentity',
                     ),
                     id,
                 };

@@ -186,9 +186,6 @@ test.each([{ groups: null }, { groups: ['live'] }])(
             membership: groups === null ? 0 : 1,
         });
         expect(h.deps.projectModel.getSummary).toHaveBeenCalledTimes(3);
-        expect(h.deps.userModel.getAgentRoleAssignments).toHaveBeenCalledTimes(
-            3,
-        );
     },
 );
 

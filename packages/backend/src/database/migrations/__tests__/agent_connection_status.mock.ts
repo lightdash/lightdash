@@ -1,7 +1,5 @@
 import {
     AGENT_CAPABILITY_LIMIT_DEFAULTS,
-    AGENT_CAPABILITY_SCOPES,
-    AgentCapability,
     OrganizationMemberRole,
     ProjectMemberRole,
     ProjectType,
@@ -86,7 +84,7 @@ export const statusFixture = async (
         .returning('*');
     await database('scoped_roles').insert({
         role_uuid: custom.role_uuid,
-        scope_name: AGENT_CAPABILITY_SCOPES[AgentCapability.Query],
+        scope_name: 'view:Dashboard',
         granted_by: people[0].user_uuid,
     });
     const [group] = await database('groups')
@@ -177,12 +175,10 @@ export const statusFixture = async (
     };
     const service = new AgentPermissionService({
         resolveResourceProjectUuid: async () => null,
-        isCustomRolesLicensed: () => true,
         areGroupsAvailable: async () => true,
         featureFlagModel: flags,
         groupsModel: new GroupsModel({ database }),
         agentCapabilityPolicyModel: policies,
-        userModel: users,
         projectModel,
         agentActionLogModel: new AgentActionLogModel({ database }),
     });
@@ -206,7 +202,7 @@ export const statusFixture = async (
         group,
         service,
         accounts,
-        loaders: { userModel: users, projectModel },
+        loaders: { projectModel },
         savePolicy,
         flags,
         users,

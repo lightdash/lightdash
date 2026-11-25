@@ -2,7 +2,6 @@ import { Ability } from '@casl/ability';
 import {
     AgentCapability,
     FeatureFlags,
-    OrganizationMemberRole,
     type SessionUser,
 } from '@lightdash/common';
 import knex from 'knex';
@@ -63,10 +62,6 @@ describe.each([true, false])('audit level enabled: %s', (auditEnabled) => {
                 ability: new Ability([{ action: 'manage', subject: 'all' }]),
             };
             const account = fromSession(user, '');
-            const assignments = {
-                systemRoles: [OrganizationMemberRole.VIEWER],
-                customRoles: [],
-            };
             const projects = grant.approvedProjectUuids.map((uuid) => ({
                 projectUuid: uuid,
                 organizationUuid: grant.organizationUuid,
@@ -74,17 +69,6 @@ describe.each([true, false])('audit level enabled: %s', (auditEnabled) => {
             }));
             const userModel = {
                 findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(user),
-                getAgentRoleAssignments: vi.fn().mockResolvedValue(assignments),
-                getAgentRoleAssignmentsForProjects: vi
-                    .fn()
-                    .mockResolvedValue(
-                        new Map(
-                            grant.approvedProjectUuids.map((uuid) => [
-                                uuid,
-                                assignments,
-                            ]),
-                        ),
-                    ),
             };
             const projectModel = {
                 getAllByOrganizationUuid: vi.fn().mockResolvedValue(projects),
@@ -124,7 +108,6 @@ describe.each([true, false])('audit level enabled: %s', (auditEnabled) => {
                 resolveResourceProjectUuid: vi
                     .fn()
                     .mockResolvedValue(projectUuid),
-                isCustomRolesLicensed: () => true,
                 areGroupsAvailable: vi.fn().mockResolvedValue(true),
                 groupsModel: {
                     findUserInGroups: vi.fn().mockResolvedValue([]),
@@ -138,7 +121,6 @@ describe.each([true, false])('audit level enabled: %s', (auditEnabled) => {
                     saveProjectPolicy: vi.fn(),
                     deleteProjectPolicy: vi.fn(),
                 },
-                userModel,
                 projectModel,
                 agentActionLogModel,
             });
@@ -191,7 +173,7 @@ describe.each([true, false])('audit level enabled: %s', (auditEnabled) => {
                             })),
                         ),
                     },
-                    { userModel, projectModel },
+                    { projectModel },
                 );
                 expect(single).not.toHaveBeenCalled();
                 expect(agentActionLogModel.insert).not.toHaveBeenCalled();
@@ -203,11 +185,11 @@ describe.each([true, false])('audit level enabled: %s', (auditEnabled) => {
                 expect(refusalEvents).toHaveLength(0);
                 expect(auditEvent).toHaveBeenCalledTimes(
                     auditEnabled
-                        ? projectCount * (1 + 3 * capabilities.length)
+                        ? projectCount * (1 + 2 * capabilities.length)
                         : 0,
                 );
                 expect(debug).toHaveBeenCalledTimes(
-                    2 + 2 * projectCount * capabilities.length,
+                    2 + projectCount * capabilities.length,
                 );
                 expect(flagRecord).toHaveBeenCalledTimes(3);
                 expect(flagRecord).toHaveBeenCalledWith(

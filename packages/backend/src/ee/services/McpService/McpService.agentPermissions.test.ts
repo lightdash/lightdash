@@ -4,7 +4,6 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     ForbiddenError,
-    OrganizationMemberRole,
     type AgentCapabilityPolicy,
     type McpProjectAccess,
 } from '@lightdash/common';
@@ -78,7 +77,6 @@ const setup = (
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
         groupsModel: { findUserInGroups: vi.fn().mockResolvedValue([]) },
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
-        isCustomRolesLicensed: () => false,
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         agentCapabilityPolicyModel: {
             get: vi.fn().mockResolvedValue(policy),
@@ -94,12 +92,6 @@ const setup = (
             getProjectPolicies: vi.fn().mockResolvedValue([]),
             saveProjectPolicy: vi.fn(),
             deleteProjectPolicy: vi.fn(),
-        },
-        userModel: {
-            getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                systemRoles: [OrganizationMemberRole.DEVELOPER],
-                customRoles: [],
-            }),
         },
         projectModel: {
             getSummary: vi
@@ -284,9 +276,6 @@ describe.each(['oauth', 'session'] as const)(
                 expect(handler).toHaveBeenCalledTimes(2);
                 expect(getContext).not.toHaveBeenCalled();
                 expect(assertOperationWithRequest).not.toHaveBeenCalled();
-                expect(
-                    deps.userModel.getAgentRoleAssignments,
-                ).not.toHaveBeenCalled();
                 expect(deps.agentActionLogModel.insert).not.toHaveBeenCalled();
             },
         );

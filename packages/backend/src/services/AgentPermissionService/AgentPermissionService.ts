@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    AGENT_CAPABILITY_SCOPES,
     AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
@@ -32,7 +31,6 @@ import {
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { type UserModel } from '../../models/UserModel';
 import {
     agentExecutionContext,
     createAgentExecutionContext,
@@ -57,7 +55,6 @@ export interface ResolvedAgentPolicy {
     allowedCapabilities: AgentCapability[] | null;
     allowedGroupUuids: string[] | null;
     version: number;
-    editableCustomRoleUuid: string | null;
     /** True when the project's own restrictions replaced the organization's. */
     projectScoped?: boolean;
 }
@@ -149,7 +146,6 @@ interface Dependencies {
     resolveResourceProjectUuid: (
         resource: AgentPermissionResource,
     ) => Promise<string | null>;
-    isCustomRolesLicensed: () => boolean;
     areGroupsAvailable: (organizationUuid: string) => Promise<boolean>;
     groupsModel: Pick<GroupsModel, 'findUserInGroups'>;
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
@@ -162,7 +158,6 @@ interface Dependencies {
         | 'saveProjectPolicy'
         | 'deleteProjectPolicy'
     >;
-    userModel: Pick<UserModel, 'getAgentRoleAssignments'>;
     projectModel: Pick<ProjectModel, 'getSummary'>;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 }
@@ -394,7 +389,6 @@ export class AgentPermissionService extends BaseService {
                 allowedCapabilities: null,
                 allowedGroupUuids: null,
                 version: 0,
-                editableCustomRoleUuid: null,
             };
         const policy = applyProjectPolicy(
             projectEnforcementPolicy(request.policy),
@@ -406,7 +400,6 @@ export class AgentPermissionService extends BaseService {
             return {
                 ...policy,
                 capabilities: null,
-                editableCustomRoleUuid: null,
             };
         return this.resolveManagedPolicy({ ...operation, policy });
     }
@@ -423,7 +416,6 @@ export class AgentPermissionService extends BaseService {
                 allowedCapabilities: null,
                 allowedGroupUuids: null,
                 version: 0,
-                editableCustomRoleUuid: null,
             };
         const [organizationPolicy, projectPolicies] = await Promise.all([
             this.deps.agentCapabilityPolicyModel.get(organizationUuid),
@@ -443,7 +435,6 @@ export class AgentPermissionService extends BaseService {
             return {
                 ...policy,
                 capabilities: null,
-                editableCustomRoleUuid: null,
             };
         return this.resolveManagedPolicy({
             account,
@@ -473,43 +464,17 @@ export class AgentPermissionService extends BaseService {
                     'The project does not belong to this organization',
                 );
         }
-        const assignments = await this.deps.userModel.getAgentRoleAssignments(
-            account.user.id,
-            organizationUuid,
-            projectUuid,
-        );
+        // Agents start from everything the person can do; the policy only
+        // narrows it. The person's own permissions are checked separately.
         const capabilities = new Set<AgentCapability>(
-            assignments.systemRoles.length > 0
-                ? Object.values(AgentCapability)
-                : [],
+            policy.allowedCapabilities ?? Object.values(AgentCapability),
         );
-        assignments.customRoles.forEach(({ scopes }) =>
-            Object.values(AgentCapability).forEach((capability) => {
-                if (scopes.includes(AGENT_CAPABILITY_SCOPES[capability]))
-                    capabilities.add(capability);
-            }),
-        );
-        if (policy.allowedCapabilities !== null) {
-            for (const capability of capabilities) {
-                if (!policy.allowedCapabilities.includes(capability))
-                    capabilities.delete(capability);
-            }
-        }
-        const canEditRoles =
-            this.deps.isCustomRolesLicensed() &&
-            this.createAuditedAbility(account).can(
-                'manage',
-                subject('Organization', { organizationUuid }),
-            );
         return {
             mode: 'managed',
             version: policy.version,
             allowedCapabilities: policy.allowedCapabilities,
             allowedGroupUuids: policy.allowedGroupUuids,
             capabilities,
-            editableCustomRoleUuid: canEditRoles
-                ? (assignments.customRoles[0]?.roleUuid ?? null)
-                : null,
             projectScoped: policy.projectScoped ?? false,
         };
     }
@@ -621,10 +586,7 @@ export class AgentPermissionService extends BaseService {
         loaders: AgentPermissionBulkLoaders,
     ): Promise<(AgentPermissionCheck | null)[]> {
         // The bulk loaders must be the models the single check reads from.
-        if (
-            !Object.is(loaders.userModel, this.deps.userModel) ||
-            !Object.is(loaders.projectModel, this.deps.projectModel)
-        )
+        if (!Object.is(loaders.projectModel, this.deps.projectModel))
             throw new Error(
                 'Bulk agent permission loaders must be the models this service uses.',
             );
@@ -697,12 +659,6 @@ export class AgentPermissionService extends BaseService {
                     projectUuid: args.projectUuid,
                 }),
             );
-        const canManageOrganization = ability.can(
-            'manage',
-            subject('Organization', {
-                organizationUuid: args.organizationUuid,
-            }),
-        );
         let blockersComplete = !hiddenProject;
         let diagnosticTimeout: ReturnType<typeof setTimeout> | undefined;
         const diagnosticAbort = new AbortController();
@@ -741,14 +697,10 @@ export class AgentPermissionService extends BaseService {
                 .map((blocker) => {
                     if (blocker.checkId === primary.id) return blocker;
                     if (
-                        (hiddenProject &&
-                            blocker.settingsUrl?.startsWith(
-                                '/generalSettings/projectManagement/',
-                            )) ||
-                        (!canManageOrganization &&
-                            blocker.settingsUrl?.startsWith(
-                                '/generalSettings/customRoles/',
-                            ))
+                        hiddenProject &&
+                        blocker.settingsUrl?.startsWith(
+                            '/generalSettings/projectManagement/',
+                        )
                     )
                         return {
                             ...blocker,

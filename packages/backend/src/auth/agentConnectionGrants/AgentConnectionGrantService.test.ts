@@ -1,5 +1,4 @@
 import {
-    AGENT_CAPABILITY_SCOPES,
     AgentCapability,
     AiAccessRefusalReason,
     FeatureFlags,
@@ -931,7 +930,7 @@ describe('current managed policy intersection', () => {
             }),
         ).rejects.toThrow();
     });
-    it.each(['capability list', 'group', 'project role'] as const)(
+    it.each(['capability list', 'group'] as const)(
         'rechecks the current %s limit',
         async (limit) => {
             const f = managedExecutionFixture();
@@ -944,7 +943,6 @@ describe('current managed policy intersection', () => {
             await expect(run()).resolves.toBeDefined();
             if (limit === 'capability list') f.policy.allowedCapabilities = [];
             if (limit === 'group') f.policy.allowedGroupUuids = [];
-            if (limit === 'project role') f.assignments.systemRoles = [];
             await expect(run()).rejects.toThrow();
         },
     );
@@ -1041,20 +1039,13 @@ describe.each([false, true])(
     'organization limits on connection execution with recheck %s',
     (recheckOperation) => {
         it.each(Object.values(AgentCapability))(
-            'cuts custom scope %s after the union',
+            'cuts %s when the organization list excludes it',
             async (capability) => {
                 const f = managedExecutionFixture();
                 f.execution.operation = {
                     kind: 'rest',
                     key: 'UserController.getAuthenticatedUser',
                 };
-                f.assignments.systemRoles = [];
-                f.assignments.customRoles = [
-                    {
-                        roleUuid: 'custom',
-                        scopes: Object.values(AGENT_CAPABILITY_SCOPES),
-                    },
-                ];
                 const run = () =>
                     f.service.assertActiveExecution(f.execution, {
                         projectUuid: f.projectUuid,
