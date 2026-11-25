@@ -161,4 +161,23 @@ describe('evictSavedDashboardResults', () => {
         unmountLoading();
         unmountLoaded();
     });
+
+    it('does not fetch again for a tile that left as its pre-save request landed', async () => {
+        const responses: ((value: string) => void)[] = [];
+        const unmount = new QueryObserver(queryClient, {
+            queryKey: tileKey('left'),
+            queryFn: () =>
+                new Promise<string>((resolve) => {
+                    responses.push(resolve);
+                }),
+        }).subscribe(() => {});
+        evictSavedDashboardResults(queryClient);
+
+        unmount();
+        responses[0]('pre-save');
+        await flush();
+
+        expect(responses).toHaveLength(1);
+        expect(queryClient.getQueryData(tileKey('left'))).toBeUndefined();
+    });
 });
