@@ -3,9 +3,11 @@
 // (packages/frontend: DEFAULT_ROW_HEIGHT and GRID_MARGIN in features/dashboardTabs/gridUtils.ts,
 // the 14px text of DashboardMarkdownTile.module.css at a line height of 1.5).
 
-// Characters on one line of a full-width tile at the narrowest width the Settings page shows a
-// dashboard at, about 1150px
-export const NOTE_CHARS_PER_LINE = 150;
+// Characters on one line of a full-width tile about 1000px wide: the Lightdash analytics page in a
+// 1500px window, beside the settings sidebar. Text in the tile measures about 7px a character (190
+// characters span 1323px), so about 143 fit; 135 leaves room for wider letters. At the full 1660px of a
+// wide window about 235 fit.
+export const NOTE_CHARS_PER_LINE = 135;
 // Text above tiles is a caption, not a page: it never takes more than two grid rows
 export const NOTE_MAX_ROWS = 2;
 
@@ -86,13 +88,13 @@ export const noteTextHeight = (content: string): number => {
     );
 };
 
-// The text above a section with a title. A heading with one line under it needs two grid rows and
-// leaves most of the second empty, so a one-line description takes a bold title on the line above it
-// instead: two lines, one row.
+// The text above a section: its title in bold on the line above its description, the same on every
+// tab. A one-line description makes two lines, which fit one grid row. A large heading is not used: it
+// needs two rows and makes one section look more important than the next.
 export const titledNote = (title: string, description: string): string =>
-    description && noteLines(description) === 1
+    description
         ? `**${title}**${NOTE_LINE_BREAK}${description}`
-        : `### ${title}\n\n${description}`;
+        : `**${title}**`;
 
 export const noteTileHeight = (rows: number): number =>
     rows * ROW_PX + (rows - 1) * ROW_GAP_PX;

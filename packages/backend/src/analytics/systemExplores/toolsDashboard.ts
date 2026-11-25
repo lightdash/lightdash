@@ -1,6 +1,5 @@
 import {
     card,
-    cloud,
     ranking,
     stackedByDay,
     trend,
@@ -62,26 +61,18 @@ export const toolsChartSpecs: UsageChartSpec[] = [
         top: 8,
         filters: mcp,
     }),
-    cloud({
-        key: 'tools-mcp-tools-cloud',
-        name: 'MCP tools, sized by calls',
-        description: 'MCP tools sized by calls in the selected period.',
-        explore: 'tool_activity',
-        word: 'tool_activity_tool_name',
-        metric: 'tool_activity_total_calls',
-        filters: mcp,
-    }),
     ranking({
         key: 'mcp-users-clients-tools-and-error-rates',
         name: 'MCP tool calls by person and tool',
         description:
             'MCP tool calls for each person, client and tool, including service accounts. An error rate over a few calls is not reliable.',
         explore: 'tool_activity',
-        by: 'tool_activity_user_name',
+        // Service accounts are listed one by one, not together under Unknown user
+        by: 'tool_activity_actor_name',
         then: 'tool_activity_tool_name',
         dimensions: [
-            'tool_activity_user_name',
-            'tool_activity_user_id',
+            'tool_activity_actor_name',
+            'tool_activity_actor_id',
             'tool_activity_actor_type',
             'tool_activity_client_name',
             'tool_activity_tool_name',
@@ -93,8 +84,9 @@ export const toolsChartSpecs: UsageChartSpec[] = [
         ],
         filters: mcp,
         limit: 40,
+        fieldLabels: { tool_activity_actor_name: 'Person' },
         libraryDescription:
-            'MCP tool calls and failed calls for each person, including service accounts. Open a person to see the tools they called.',
+            'MCP tool calls and failed calls for each person and service account. Open one to see the tools they called.',
     }),
     card({
         key: 'tools-downloads',
@@ -186,8 +178,8 @@ export const toolsChartSpecs: UsageChartSpec[] = [
 
 export const toolsDashboardSpec: UsageDashboardSpec = {
     key: 'lightdash-analytics-tools',
-    name: 'Tools & operations',
-    description: 'MCP tool usage, downloads and Google Sheets.',
+    name: 'Exports & MCP',
+    description: 'Downloads, Google Sheets queries and MCP tool calls.',
     tabs: [
         {
             key: 'mcp',
@@ -219,10 +211,8 @@ export const toolsDashboardSpec: UsageDashboardSpec = {
                     title: 'Tools and people',
                     description: '',
                     note: false,
-                    charts: [
-                        'tools-mcp-tools-cloud',
-                        'mcp-users-clients-tools-and-error-rates',
-                    ],
+                    // Which tools are used most is the chart above, one row for each tool
+                    charts: ['mcp-users-clients-tools-and-error-rates'],
                     layout: 'row',
                     rowHeight: 9,
                 },
@@ -230,12 +220,12 @@ export const toolsDashboardSpec: UsageDashboardSpec = {
         },
         {
             key: 'exports',
-            name: 'Exports',
+            name: 'Exports & Google Sheets',
             sections: [
                 {
                     title: 'Export activity',
                     description:
-                        'Recorded downloads, with who downloaded and the content it came from where known. This does not show who received the file afterwards or how it was used.',
+                        'Recorded downloads, with who downloaded and the source content where known. Who received the file afterwards is not recorded.',
                     charts: [
                         'tools-downloads',
                         'tools-people-downloading-latest-day',
@@ -260,7 +250,6 @@ export const toolsDashboardSpec: UsageDashboardSpec = {
                 },
                 {
                     title: 'Google Sheets',
-                    caption: true,
                     description:
                         'Queries run through the Google Sheets integration, which is not everyone who reads the spreadsheet.',
                     charts: ['tools-google-sheets-queries-by-day'],

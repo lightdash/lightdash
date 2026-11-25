@@ -53,13 +53,14 @@ describe('monthly query comparisons', () => {
             ['query_events_unique_users', 'query_events_total_queries'],
         );
         expect(bundle.dashboard.tabs).toContainEqual(
-            expect.objectContaining({ slug: 'monthly-comparison' }),
+            // The monthly tiles sit with the other measures of volume
+            expect.objectContaining({ slug: 'volume' }),
         );
         for (const chart of charts) {
             expect(chart.metricQuery.timezone).toBe('UTC');
             expect(bundle.dashboard.tiles).toContainEqual(
                 expect.objectContaining({
-                    tabSlug: 'monthly-comparison',
+                    tabSlug: 'volume',
                     properties: { chartSlug: chart.slug },
                 }),
             );

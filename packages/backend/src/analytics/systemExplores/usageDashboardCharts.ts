@@ -3,6 +3,15 @@ import {
     FilterOperator,
     TableCalculationType,
 } from '@lightdash/common';
+import { positive } from './analyticsChartPresentation';
+import { modelProviderColors, modelTierRanks } from './analyticsColorPalette';
+import {
+    heatmapColorClamp,
+    heatmapColorClampNote,
+    numberCard,
+    ranking,
+    wholeShare,
+} from './chartBuilders';
 import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
 
@@ -38,6 +47,29 @@ export const usageChartSpecs: UsageChartSpec[] = [
         sorts: [
             { fieldId: 'agent_evaluation_runs_event_ts_raw', descending: true },
         ],
+        // "Nov 19, 02:13": the recorded time shows to the millisecond with its offset
+        tableCalculations: [
+            {
+                name: 'run_finished',
+                displayName: 'Run finished (UTC)',
+                type: TableCalculationType.STRING,
+                sql: `strftime(\${agent_evaluation_runs.event_ts_raw}, '%b %-d, %H:%M')`,
+            },
+        ],
+        hiddenColumns: ['agent_evaluation_runs_event_ts_raw'],
+        columnOrder: [
+            'run_finished',
+            'agent_evaluation_runs_agent_name',
+            'agent_evaluation_runs_evaluation_name',
+            'agent_evaluation_runs_run_status_name',
+            'agent_evaluation_runs_pass_rate',
+            'agent_evaluation_runs_passed_assessments',
+            'agent_evaluation_runs_failed_assessments',
+            'agent_evaluation_runs_unassessed_results',
+            'agent_evaluation_runs_execution_errors',
+            'agent_evaluation_runs_event_ts_raw',
+            'agent_evaluation_runs_run_id',
+        ],
     },
     {
         key: 'most-used-fields',
@@ -70,47 +102,6 @@ export const usageChartSpecs: UsageChartSpec[] = [
         sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
     },
     {
-        key: 'most-used-fields-cloud',
-        name: 'Most-used fields, sized by queries',
-        description: 'Fields sized by distinct queries in the selected period.',
-        explore: 'semantic_usage',
-        dimensions: ['semantic_usage_field_label'],
-        metrics: ['semantic_usage_total_queries'],
-        filters: [
-            {
-                field: 'semantic_usage_field_kind',
-                values: ['metric', 'dimension'],
-            },
-        ],
-        limit: 20,
-        sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
-        visualization: 'bar',
-        xField: 'semantic_usage_field_label',
-        flipAxes: true,
-        libraryChart: {
-            slug: 'word-cloud',
-            minVersion: '0.4.0',
-            fieldMapping: {
-                word: 'semantic_usage_field_label',
-                size: 'semantic_usage_total_queries',
-            },
-            optionValues: { showLegend: false },
-            query: {
-                dimensions: ['semantic_usage_field_label'],
-                metrics: ['semantic_usage_total_queries'],
-                sorts: [
-                    {
-                        fieldId: 'semantic_usage_total_queries',
-                        descending: true,
-                    },
-                ],
-                limit: 80,
-                description:
-                    'Fields sized by distinct queries in the selected period.',
-            },
-        },
-    },
-    {
         key: 'people-using-fields',
         name: 'Field use by person',
         description:
@@ -140,7 +131,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         key: 'content-using-fields',
         name: 'Field use by content',
         description:
-            'Charts, dashboards and data apps whose queries used each field. Queries from exploring directly, and some others, are not linked to saved content.',
+            'Charts, dashboards and data apps whose queries used each field. Queries not linked to saved content, such as exploring directly, are left out.',
         explore: 'semantic_usage',
         dimensions: [
             'semantic_usage_field_label',
@@ -162,6 +153,49 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 field: 'semantic_usage_field_kind',
                 values: ['metric', 'dimension'],
             },
+            // Without this the busiest rows are all queries with no content, and say nothing
+            { field: 'semantic_usage_has_content', values: [true] },
+        ],
+        // One name and one type for each row, where three columns were mostly empty
+        tableCalculations: [
+            {
+                name: 'field_content_type',
+                displayName: 'Content type',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${semantic_usage.chart_id} IS NOT NULL THEN 'Chart' WHEN \${semantic_usage.app_id} IS NOT NULL THEN 'Data app' ELSE 'Dashboard' END`,
+            },
+            {
+                name: 'field_content',
+                displayName: 'Content',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${semantic_usage.chart_id} IS NOT NULL THEN COALESCE(\${semantic_usage.chart_name}, 'Unknown chart') WHEN \${semantic_usage.app_id} IS NOT NULL THEN COALESCE(\${semantic_usage.app_name}, 'Unknown data app') ELSE COALESCE(\${semantic_usage.dashboard_name}, 'Unknown dashboard') END`,
+            },
+            {
+                name: 'field_on_dashboard',
+                displayName: 'On dashboard',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${semantic_usage.chart_id} IS NOT NULL AND \${semantic_usage.dashboard_id} IS NOT NULL THEN COALESCE(\${semantic_usage.dashboard_name}, 'Unknown dashboard') ELSE '' END`,
+            },
+        ],
+        hiddenColumns: [
+            'semantic_usage_chart_name',
+            'semantic_usage_dashboard_name',
+            'semantic_usage_app_name',
+        ],
+        columnOrder: [
+            'semantic_usage_field_label',
+            'semantic_usage_table_name',
+            'field_content',
+            'field_content_type',
+            'field_on_dashboard',
+            'semantic_usage_context_name',
+            'semantic_usage_total_queries',
+            'semantic_usage_field_origin_name',
+            'semantic_usage_field_id',
+            'semantic_usage_project_id',
+            'semantic_usage_chart_id',
+            'semantic_usage_dashboard_id',
+            'semantic_usage_app_id',
         ],
         limit: 50,
         sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
@@ -178,6 +212,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'semantic_usage_total_queries',
         ],
         tableCalculations: [
+            wholeShare,
             {
                 name: 'field_list_share',
                 displayName: 'Share of queries with a full field list',
@@ -191,6 +226,11 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         // The number shown is the share, not the first measure
         yFields: ['field_list_share'],
+        libraryChart: numberCard(
+            'field_list_share',
+            'Of all queries in the selected period',
+            { percent: true, whole: wholeShare.name, color: positive },
+        ),
     },
     {
         key: 'agent-requests-trend',
@@ -210,7 +250,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.7.1',
+            minVersion: '0.8.4',
             fieldMapping: {
                 value: 'agent_requests_total_requests',
                 sparklineMetric: 'agent_requests_total_requests',
@@ -260,7 +300,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.7.1',
+            minVersion: '0.8.4',
             fieldMapping: {
                 value: 'agent_requests_distinct_requesters',
                 sparklineMetric: 'agent_requests_distinct_requesters',
@@ -307,7 +347,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'heatmap',
-            minVersion: '0.5.0',
+            minVersion: '0.5.1',
             fieldMapping: {
                 x: 'agent_requests_requested_at_day',
                 y: 'agent_requests_agent_name',
@@ -318,7 +358,10 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 yTitle: 'Agent',
                 legendTitle: 'Agent requests',
                 legendFormat: 'compact',
+                ...heatmapColorClamp,
             },
+            // The plain table has no colours, so only the heatmap says where its scale stops
+            description: `Requests by agent and day. ${heatmapColorClampNote}`,
             query: null,
         },
     },
@@ -414,7 +457,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 500,
                 description:
-                    'Requests per person and agent in the selected period. People without a display name are grouped as Unknown user.',
+                    'Requests per person and agent in the selected period. Requests with no person recorded are grouped as No user recorded.',
             },
         },
     },
@@ -444,10 +487,11 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
             {
                 name: 'share_rated_percent',
-                displayName: 'Share rated (%)',
+                displayName: 'Share rated',
                 type: TableCalculationType.NUMBER,
-                sql: 'ROUND(100.0 * ${agent_requests.feedback_coverage})',
-                format: { type: CustomFormatType.NUMBER, round: 0 },
+                // A fraction with a percent format, so the table writes it as 42%
+                sql: '${agent_requests.feedback_coverage}',
+                format: { type: CustomFormatType.PERCENT, round: 0 },
             },
             {
                 name: 'negative_ratings',
@@ -473,7 +517,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'sortable-pivot-table',
-            minVersion: '0.14.0',
+            minVersion: '0.14.2',
             fieldMapping: {
                 rowDimension: 'agent_requests_agent_name',
                 metric: [
@@ -492,7 +536,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 density: 'compact',
                 initialSort: 'firstValue',
                 rowHeaderName: 'Agent',
-                valueNames: 'Requests,Rated,Share rated (%),Negative',
+                valueNames: 'Requests,Rated,Share rated,Negative',
+                useFieldFormats: true,
             },
             // Shares the plain table's query: the counts are table calculations
             query: null,
@@ -619,15 +664,23 @@ export const usageChartSpecs: UsageChartSpec[] = [
     {
         key: 'ai-consumption-by-person-feature-and-model',
         name: 'Tokens by person and model',
-        description: 'Tokens and AI calls for each person, model and feature.',
+        description:
+            'Tokens and AI calls for each person, model and feature. Usage with no person recorded is left out.',
         explore: 'ai_usage',
         dimensions: [
             'ai_usage_user_name',
-            'ai_usage_model',
+            'ai_usage_model_name',
             'ai_usage_feature_name',
             'ai_usage_user_id',
         ],
         metrics: ['ai_usage_total_tokens_used', 'ai_usage_total_ai_calls'],
+        filters: [
+            {
+                field: 'ai_usage_user_id',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+        ],
         limit: 30,
         sorts: [
             {
@@ -637,13 +690,17 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.3',
+            minVersion: '0.18.9',
             fieldMapping: {
                 x: 'ai_usage_user_name',
                 m1: 'ai_usage_total_tokens_used',
-                splitBy: 'ai_usage_model',
+                splitBy: 'ai_usage_model_name',
             },
             optionValues: {
+                splitColorGroups: modelProviderColors,
+                splitShadeRank: modelTierRanks,
+                splitShadeUnranked: 'middle',
+                legendMode: 'groups',
                 xName: 'Person',
                 yName: 'Tokens',
                 seriesType: 'bar',
@@ -654,7 +711,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 xLabelRotate: 45,
             },
             query: {
-                dimensions: ['ai_usage_user_name', 'ai_usage_model'],
+                dimensions: ['ai_usage_user_name', 'ai_usage_model_name'],
                 metrics: ['ai_usage_total_tokens_used'],
                 sorts: [
                     {
@@ -664,7 +721,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 ],
                 limit: 24,
                 description:
-                    'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. People without a display name are grouped as Unknown user.',
+                    'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. Usage with no person recorded is left out.',
             },
         },
     },
@@ -673,7 +730,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         name: 'Tokens by feature and model',
         description: '',
         explore: 'ai_usage',
-        dimensions: ['ai_usage_feature_name', 'ai_usage_model'],
+        dimensions: ['ai_usage_feature_name', 'ai_usage_model_name'],
         metrics: ['ai_usage_total_tokens_used'],
         limit: 100,
         sorts: [
@@ -684,9 +741,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         libraryChart: {
             slug: 'heatmap',
-            minVersion: '0.5.0',
+            minVersion: '0.5.1',
             fieldMapping: {
-                x: 'ai_usage_model',
+                x: 'ai_usage_model_name',
                 y: 'ai_usage_feature_name',
                 value: 'ai_usage_total_tokens_used',
             },
@@ -695,8 +752,43 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 yTitle: 'Feature',
                 legendTitle: 'Tokens',
                 legendFormat: 'compact',
+                ...heatmapColorClamp,
             },
-            query: null,
+            // Columns keep the order the rows arrive in: providers by their tokens, then each
+            // provider's models from the most powerful tier down
+            query: {
+                dimensions: [
+                    'ai_usage_feature_name',
+                    'ai_usage_model_name',
+                    'ai_usage_model_provider',
+                    'ai_usage_model_tier',
+                ],
+                metrics: ['ai_usage_total_tokens_used'],
+                tableCalculations: [
+                    {
+                        name: 'provider_tokens',
+                        displayName: 'Provider tokens',
+                        type: TableCalculationType.NUMBER,
+                        sql: 'SUM(${ai_usage.total_tokens_used}) OVER (PARTITION BY ${ai_usage.model_provider})',
+                    },
+                    {
+                        name: 'model_tokens',
+                        displayName: 'Model tokens',
+                        type: TableCalculationType.NUMBER,
+                        sql: 'SUM(${ai_usage.total_tokens_used}) OVER (PARTITION BY ${ai_usage.model_name})',
+                    },
+                ],
+                sorts: [
+                    { fieldId: 'provider_tokens', descending: true },
+                    { fieldId: 'ai_usage_model_provider', descending: false },
+                    // The more powerful model first within a provider, as its darker shade elsewhere
+                    { fieldId: 'ai_usage_model_tier', descending: false },
+                    { fieldId: 'model_tokens', descending: true },
+                    { fieldId: 'ai_usage_total_tokens_used', descending: true },
+                ],
+                limit: 500,
+                description: `Tokens for each feature and model, with models grouped by provider and the most powerful first. ${heatmapColorClampNote}`,
+            },
         },
     },
     {
@@ -725,12 +817,45 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 values: ['error'],
             },
         ],
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.15.0',
+            fieldMapping: {
+                rowDimension: 'query_events_dashboard_name',
+                rowDimension2: 'query_events_explore_name',
+                // The dashboard name opens the dashboard, as it does in the plain table
+                link: 'query_events_dashboard_url',
+                metric: [
+                    'query_events_unique_users',
+                    'query_events_total_queries',
+                ],
+            },
+            // The two names sit side by side. A group row would add up people over its explores, and
+            // a person who met failures in two of them would be counted twice.
+            optionValues: {
+                groupSubtotals: false,
+                showMiniBars: true,
+                showTotalsRow: false,
+                decimalPlaces: 0,
+                density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Dashboard',
+                valueNames: 'People affected,Failed queries',
+            },
+            // Shares the plain table's query, which carries the address of each dashboard
+            query: null,
+        },
     },
-    {
+    // Rows are the origins, with where their queries were run from under each. Who started them is a
+    // column for each kind of starter, so the three names fit a table that groups by two.
+    ranking({
         key: 'query-origin-and-initiating-actor',
         name: 'Queries by origin and who started them',
         description: 'Older queries with unknown values are still shown.',
         explore: 'query_events',
+        by: 'query_events_workload_origin_name',
+        then: 'query_events_context_name',
+        series: 'query_events_initiating_actor_type_name',
         dimensions: [
             'query_events_workload_origin_name',
             'query_events_initiating_actor_type_name',
@@ -738,13 +863,9 @@ export const usageChartSpecs: UsageChartSpec[] = [
         ],
         metrics: ['query_events_total_queries'],
         limit: 50,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'query_events_total_queries',
-            },
-        ],
-    },
+        libraryDescription:
+            'Queries for each origin, with a column for each kind of starter. Open an origin to see where its queries were run from; older queries with unknown values are still shown.',
+    }),
     {
         key: 'request-consumption-by-outcome-and-feedback',
         name: 'Tokens spent on failed or cancelled requests',
@@ -757,7 +878,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         visualization: 'number',
         libraryChart: {
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.8.0',
+            minVersion: '0.8.4',
             fieldMapping: {
                 value: failedTokens,
                 sparklineMetric: failedTokens,
@@ -767,9 +888,10 @@ export const usageChartSpecs: UsageChartSpec[] = [
             optionValues: {
                 valueAggregation: 'sum',
                 style: 'compact',
-                showComparison: true,
-                comparisonSource: 'previousPeriod',
-                comparisonLabel: 'vs the day before',
+                showComparison: false,
+                sizeMode: 'preset',
+                bigNumberSize: 6,
+                reserveComparisonSpace: false,
                 secondaryLabel: 'of all tokens used by agent requests',
                 colorSparklineByTrend: false,
                 showSparklineArea: true,
@@ -804,60 +926,24 @@ export const usageChartSpecs: UsageChartSpec[] = [
         },
     },
     {
-        key: 'review-candidates-activity-and-known-dependencies',
-        name: 'Review candidates: activity and known dependencies',
-        description:
-            'Content with no recorded activity, with its known schedule and dashboard dependencies. Uses all recorded history; the date filter does not apply.',
-        explore: 'content_health',
-        dimensions: [
-            'content_health_content_name',
-            'content_health_content_type_name',
-            'content_health_activity_status_name',
-            'content_health_enabled_schedules',
-            'content_health_dashboard_references',
-            'content_health_is_deleted_name',
-            'content_health_content_id',
-            'content_health_project_id',
-        ],
-        metrics: ['content_health_total_content'],
-        limit: 50,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'content_health_total_content',
-            },
-        ],
-        filters: [
-            {
-                field: 'content_health_activity_status',
-                values: [
-                    'No activity observed; known dependency',
-                    'No activity observed; coverage incomplete',
-                ],
-            },
-        ],
-    },
-    {
         key: 'slow-dashboards-tail-latency-and-demand',
-        name: 'Slow dashboards: P95 response time and queries',
-        description: 'Queries and P95 response time for each dashboard.',
+        name: 'Slowest dashboards: P95 response time in seconds (top 20)',
+        description:
+            'The 20 dashboards with the longest P95 response time in the selected period. A dashboard with few queries can rank high on one slow query.',
         explore: 'query_events',
         dimensions: [
             'query_events_dashboard_name',
             'query_events_dashboard_id',
         ],
-        metrics: [
-            'query_events_total_queries',
-            'query_events_unique_users',
-            'query_events_p95_response_time_s',
-            'query_events_avg_warehouse_execution_time_s',
-        ],
+        metrics: ['query_events_p95_response_time_s'],
         filters: [
             {
                 field: 'query_events_dashboard_name',
                 operator: FilterOperator.NOT_NULL,
                 values: [],
             },
+            // Lightdash's own analytics dashboards are not the organization's to speed up
+            { field: 'query_events_in_analytics_project', values: [false] },
         ],
         limit: 20,
         sorts: [
@@ -866,28 +952,97 @@ export const usageChartSpecs: UsageChartSpec[] = [
                 fieldId: 'query_events_p95_response_time_s',
             },
         ],
+        // Ranked bars in both versions; the table beside it has the other measures
+        visualization: 'bar',
+        xField: 'query_events_dashboard_name',
+        yFields: ['query_events_p95_response_time_s'],
+        flipAxes: true,
         libraryChart: {
+            // Ranked bars with the names beside them: twenty long names under a chart had to be
+            // written at an angle. One measure, so one axis.
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.0',
+            minVersion: '0.18.9',
             fieldMapping: {
                 x: 'query_events_dashboard_name',
-                m1: 'query_events_total_queries',
-                m2: 'query_events_p95_response_time_s',
+                m1: 'query_events_p95_response_time_s',
             },
             optionValues: {
-                m1Name: 'Queries',
-                m2Name: 'P95 response time (s)',
-                xName: 'Dashboard',
                 seriesType: 'bar',
-                m2Type: 'scatter',
-                dualAxis: true,
-                m2Right: true,
-                xAxisType: 'category',
-                xLabelAutoRotate: false,
-                xLabelRotate: 45,
-                yName: 'Queries',
-                yRightName: 'P95 response time (s)',
+                orientation: 'horizontal',
+                m1Name: 'P95 response time (s)',
+                // One very slow dashboard would squeeze every other bar against the axis. Its bar is cut
+                // short at the edge with a break mark, and its label keeps the true value.
+                capOutliers: true,
+                showDataLabels: true,
+                lightdashLabels: false,
+                showAxisTitles: false,
+                showLegend: false,
             },
+            query: null,
+        },
+    },
+    {
+        // Slow and expensive are different lists: a dashboard can respond quickly and still cost the
+        // most because it runs all day. One row for each dashboard, most warehouse time first.
+        key: 'dashboards-warehouse-and-response-time',
+        name: 'Dashboards by warehouse time (top 25)',
+        description:
+            'The 25 dashboards whose queries took the most warehouse time in the selected period, with their P95 response time, queries and people. Warehouse time is added up over every query the dashboard ran.',
+        explore: 'query_events',
+        dimensions: [
+            'query_events_dashboard_name',
+            'query_events_dashboard_id',
+        ],
+        metrics: [
+            'query_events_total_warehouse_execution_time_s',
+            'query_events_p95_response_time_s',
+            'query_events_total_queries',
+            'query_events_unique_users',
+        ],
+        filters: [
+            {
+                field: 'query_events_dashboard_name',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+            // Lightdash's own analytics dashboards are not the organization's to speed up
+            { field: 'query_events_in_analytics_project', values: [false] },
+        ],
+        limit: 25,
+        sorts: [
+            {
+                descending: true,
+                fieldId: 'query_events_total_warehouse_execution_time_s',
+            },
+        ],
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.15.0',
+            fieldMapping: {
+                rowDimension: 'query_events_dashboard_name',
+                // The dashboard name opens the dashboard, as it does in the plain table
+                link: 'query_events_dashboard_url',
+                metric: [
+                    'query_events_total_warehouse_execution_time_s',
+                    'query_events_p95_response_time_s',
+                    'query_events_total_queries',
+                    'query_events_unique_users',
+                ],
+            },
+            optionValues: {
+                showMiniBars: true,
+                showTotalsRow: false,
+                density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Dashboard',
+                valueNames:
+                    'Warehouse time (s),P95 response time (s),Queries,People',
+                // Seconds keep their decimals from the field's own format. A plain count has no format
+                // to read, so it takes this: whole numbers
+                useFieldFormats: true,
+                decimalPlaces: 0,
+            },
+            // Shares the plain table's query, which carries the address of each dashboard
             query: null,
         },
     },
@@ -907,24 +1062,32 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
         ],
         visualization: 'number',
+        tableCalculations: [wholeShare],
+        hiddenColumns: [wholeShare.name],
+        yFields: ['content_reach_verified_audience_share'],
+        libraryChart: numberCard(
+            'content_reach_verified_audience_share',
+            'Of viewers of content with a known status',
+            {
+                percent: true,
+                whole: wholeShare.name,
+                color: positive,
+                // The same line above the number as the three cards beside it
+                period: 'Selected period',
+            },
+        ),
     },
-    {
+    // A handful of rows, so the groups start open
+    ranking({
         key: 'warehouse-versus-cached-demand',
         name: 'Warehouse versus cached queries',
         description:
             'Queries by cache hit and by what ran or served them, such as the warehouse, the results cache or a pre-aggregate.',
         explore: 'query_events',
-        dimensions: [
-            'query_events_cache_hit_name',
-            'query_events_execution_source_name',
-        ],
+        by: 'query_events_cache_hit_name',
+        then: 'query_events_execution_source_name',
         metrics: ['query_events_total_queries'],
         limit: 30,
-        sorts: [
-            {
-                descending: true,
-                fieldId: 'query_events_total_queries',
-            },
-        ],
-    },
+        expanded: true,
+    }),
 ];

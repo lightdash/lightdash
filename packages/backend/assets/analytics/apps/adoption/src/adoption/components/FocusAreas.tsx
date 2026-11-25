@@ -106,12 +106,12 @@ export const FocusAreas = ({ organisation, isOpen, onToggle, onPick }: Props) =>
                 </h2>
             </div>
             {isOpen && (
-                <div data-ad-flex className="grid h-[var(--ad-body-h,198px)] gap-x-8 gap-y-4 overflow-y-auto border-t px-4 py-3 md:grid-cols-3 md:grid-rows-[minmax(0,1fr)] md:overflow-hidden">
+                <div data-adoption-flex className="grid h-[var(--ad-body-h,198px)] gap-x-8 gap-y-4 overflow-y-auto border-t px-4 py-3 md:grid-cols-3 md:grid-rows-[minmax(0,1fr)] md:overflow-hidden">
                     {areas.map(({ area, entries }) => (
                         <section key={area.key} className="flex min-h-0 min-w-0 flex-col">
                             <h3 className="m-0 flex items-baseline justify-between pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground" title={area.hint}>
                                 {area.title}
-                                <span className="ad-count font-normal normal-case tracking-normal">{entries.length === 1 ? '1 team' : `${formatCount(entries.length)} teams`}</span>
+                                <span className="adoption-count font-normal normal-case tracking-normal">{entries.length === 1 ? '1 team' : `${formatCount(entries.length)} teams`}</span>
                             </h3>
                             {/* The list takes the room the section is given; the rest are a scroll away */}
                             <div className="max-h-[150px] overflow-y-auto md:max-h-none md:min-h-0 md:flex-1">
@@ -125,9 +125,9 @@ export const FocusAreas = ({ organisation, isOpen, onToggle, onPick }: Props) =>
                                     >
                                         <span className="min-w-0">
                                             <span className="block truncate text-sm font-medium">{entry.name}</span>
-                                            <span className="ad-count block truncate text-xs text-muted-foreground">{entry.text}</span>
+                                            <span className="adoption-count block truncate text-xs text-muted-foreground">{entry.text}</span>
                                         </span>
-                                        <span className="ad-count shrink-0 text-sm font-semibold">{formatShare(entry.count, entry.of)}</span>
+                                        <span className="adoption-count shrink-0 text-sm font-semibold">{formatShare(entry.count, entry.of)}</span>
                                     </button>
                                 ))}
                             </div>

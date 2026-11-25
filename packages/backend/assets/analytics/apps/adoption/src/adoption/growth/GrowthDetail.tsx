@@ -70,7 +70,7 @@ export const GrowthDetail = ({ organisation, selectedId, onOpen, focus }: Props)
 
     if (people) {
         return (
-            <div data-ad-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-y-auto px-4 pb-3">
+            <div data-adoption-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-y-auto px-4 pb-3">
                 <div className={`${PERSON_COLUMNS} sticky top-0 z-10 bg-card py-2 text-xs text-muted-foreground`}>
                     <span>Person</span>
                     <span>Status</span>
@@ -84,8 +84,8 @@ export const GrowthDetail = ({ organisation, selectedId, onOpen, focus }: Props)
                             <DotSwatch colourBy="growth" kind={person.flow} />
                             {KIND_LABELS.growth[person.flow]}
                         </span>
-                        <span className="ad-count text-right text-sm text-muted-foreground">{formatDay(person.lastActive)}</span>
-                        <span className="ad-count text-right text-sm">{person.activeDays}</span>
+                        <span className="adoption-count text-right text-sm text-muted-foreground">{formatDay(person.lastActive)}</span>
+                        <span className="adoption-count text-right text-sm">{person.activeDays}</span>
                     </div>
                 ))}
             </div>
@@ -95,12 +95,12 @@ export const GrowthDetail = ({ organisation, selectedId, onOpen, focus }: Props)
     const bar = (name: string, summary: FlowSummary, scale: number = widest) => {
         const share = (count: number) => `${(count / Math.max(scale, 1)) * 100}%`;
         return (
-            <div className="ad-flow-bar" role="img" aria-label={`${name}: ${describe(summary)}`} title={describe(summary)}>
-                <span>{summary.counts.dropped > 0 && <i className="ad-mark" data-kind={markAttr('growth', 'dropped')} style={{ width: share(summary.counts.dropped) }} />}</span>
-                <span className="ad-flow-axis" />
+            <div className="adoption-flow-bar" role="img" aria-label={`${name}: ${describe(summary)}`} title={describe(summary)}>
+                <span>{summary.counts.dropped > 0 && <i className="adoption-mark" data-kind={markAttr('growth', 'dropped')} style={{ width: share(summary.counts.dropped) }} />}</span>
+                <span className="adoption-flow-axis" />
                 <span>
                     {(['new', 'back'] as const).map((kind) =>
-                        summary.counts[kind] > 0 ? <i key={kind} className="ad-mark" data-kind={markAttr('growth', kind)} style={{ width: share(summary.counts[kind]) }} /> : null,
+                        summary.counts[kind] > 0 ? <i key={kind} className="adoption-mark" data-kind={markAttr('growth', kind)} style={{ width: share(summary.counts[kind]) }} /> : null,
                     )}
                 </span>
             </div>
@@ -108,15 +108,15 @@ export const GrowthDetail = ({ organisation, selectedId, onOpen, focus }: Props)
     };
     const figures = (summary: FlowSummary) => (
         <>
-            <span className="ad-count text-right text-sm">{summary.lost > 0 ? `−${formatCount(summary.lost)}` : '0'}</span>
-            <span className="ad-count text-right text-sm">{summary.gained > 0 ? `+${formatCount(summary.gained)}` : '0'}</span>
-            <span className={`ad-count text-right text-sm ${summary.net < 0 ? 'font-semibold' : ''}`}>{signed(summary.net)}</span>
-            <span className="ad-count text-right text-sm text-muted-foreground">{formatRatio(summary)}</span>
+            <span className="adoption-count text-right text-sm">{summary.lost > 0 ? `−${formatCount(summary.lost)}` : '0'}</span>
+            <span className="adoption-count text-right text-sm">{summary.gained > 0 ? `+${formatCount(summary.gained)}` : '0'}</span>
+            <span className={`adoption-count text-right text-sm ${summary.net < 0 ? 'font-semibold' : ''}`}>{signed(summary.net)}</span>
+            <span className="adoption-count text-right text-sm text-muted-foreground">{formatRatio(summary)}</span>
         </>
     );
 
     return (
-        <div data-ad-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-y-auto px-4 pb-3">
+        <div data-adoption-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-y-auto px-4 pb-3">
             <div className={`${COLUMNS} sticky top-0 z-10 bg-card py-2 text-xs text-muted-foreground`}>
                 <span>Team</span>
                 <span className="text-right">People</span>
@@ -133,7 +133,7 @@ export const GrowthDetail = ({ organisation, selectedId, onOpen, focus }: Props)
             </div>
             <div className={`${COLUMNS} mb-1 rounded border-b py-1.5 pb-2`}>
                 <span className="font-semibold">Everyone</span>
-                <span className="ad-count text-right text-sm">{formatCount(everyone.people)}</span>
+                <span className="adoption-count text-right text-sm">{formatCount(everyone.people)}</span>
                 {bar('Everyone', everyone, Math.max(everyone.gained, everyone.lost))}
                 {figures(everyone)}
             </div>
@@ -142,7 +142,7 @@ export const GrowthDetail = ({ organisation, selectedId, onOpen, focus }: Props)
                     <button type="button" className="block min-w-0 text-left hover:underline" onClick={() => onOpen(row.id)}>
                         <span className={`block truncate font-medium ${row.isNoTeam ? 'italic' : ''}`}>{row.name}</span>
                     </button>
-                    <span className="ad-count text-right text-sm text-muted-foreground">{formatCount(row.summary.people)}</span>
+                    <span className="adoption-count text-right text-sm text-muted-foreground">{formatCount(row.summary.people)}</span>
                     {bar(row.name, row.summary)}
                     {figures(row.summary)}
                 </div>

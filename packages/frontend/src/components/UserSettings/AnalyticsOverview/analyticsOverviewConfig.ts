@@ -327,13 +327,17 @@ export const analyticsTabs: {
     {
         id: 'agents',
         summary: analyticsAiSummary,
-        label: 'Agents & AI',
+        label: 'Agents',
         description:
-            'AI consumption and agent request adoption, outcomes and feedback.',
+            'How much are agents used, do their requests finish and how do they score in evaluations?',
         dashboardSlug: 'lightdash-analytics-overview',
         charts: [
-            time('AI calls by day', 'tokens', 'total_ai_calls'),
-            time('Tokens used by day', 'tokens', 'total_tokens_used'),
+            time('Agent requests by day', 'requests', 'total_requests'),
+            time(
+                'People asking agents by day',
+                'requests',
+                'distinct_requesters',
+            ),
         ],
     },
     {
@@ -341,7 +345,7 @@ export const analyticsTabs: {
         summary: querySummary,
         label: 'Queries',
         description:
-            'Query performance, failures, origins, caching and the metrics and dimensions people use.',
+            'How much is Lightdash queried, how fast, where from, and which fields are used?',
         dashboardSlug: 'lightdash-analytics-query-activity',
         charts: [
             time('Queries by day', 'queries', 'total_queries'),
@@ -360,7 +364,8 @@ export const analyticsTabs: {
         id: 'content',
         summary: null,
         label: 'Content',
-        description: 'Audience, trust, adoption and current content inventory.',
+        description:
+            'What content is read, what could be cleaned up and who owns it?',
         dashboardSlug: 'lightdash-analytics-content',
         charts: [
             time(
@@ -421,8 +426,9 @@ export const analyticsTabs: {
     {
         id: 'tools',
         summary: null,
-        label: 'Tools & operations',
-        description: 'MCP tool usage, exports and outcomes.',
+        label: 'Exports & MCP',
+        description:
+            'Who takes data out through downloads, Google Sheets and MCP tools?',
         dashboardSlug: 'lightdash-analytics-tools',
         charts: [
             time('Tool calls per day', 'tools', 'total_calls'),
@@ -446,7 +452,7 @@ export const analyticsTabs: {
         id: 'adoption',
         summary: null,
         label: 'Adoption',
-        description: 'Explore usage and feature adoption by team.',
+        description: 'Who is using Lightdash, and who is not?',
         // Shown where the Adoption app is not available
         dashboardSlug: 'lightdash-analytics-adoption',
         charts: [
@@ -457,12 +463,6 @@ export const analyticsTabs: {
                 ['content_name', 'content_id'],
                 'distinct_viewers',
                 { content_type: ['dashboard'] },
-            ),
-            time(
-                'People asking agents in the web app by day',
-                'requests',
-                'distinct_requesters',
-                { surface: ['web_app'] },
             ),
             time('Data apps in use by day', 'apps', 'unique_apps', {
                 event_name: ['data_app.view'],

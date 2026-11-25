@@ -1,5 +1,6 @@
-import { FilterOperator, ProjectType } from '@lightdash/common';
+import { FilterOperator } from '@lightdash/common';
 import { seriesByDay } from './chartBuilders';
+import { contentCreated } from './contentDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
@@ -41,7 +42,7 @@ const card = ({
     visualization: 'number',
     libraryChart: {
         slug: 'big-number-with-sparkline-trend',
-        minVersion: '0.7.1',
+        minVersion: '0.8.4',
         fieldMapping: { value: metric, sparklineMetric: metric, time: day },
         optionValues: {
             ...(distinct
@@ -114,7 +115,7 @@ const mostActivePeopleMetrics = [
     'user_activity_total_queries',
     'user_activity_total_ai_calls',
 ];
-const mostActivePeopleDescription = `The 10 people with the most recorded activity in the selected period, with their queries and AI calls. ${anyActivity}`;
+const mostActivePeopleDescription = `The 10 people with the most recorded activity in the selected period, with their queries and AI calls, leaving out activity with no person recorded. ${anyActivity}`;
 
 export const homeChartSpecs: UsageChartSpec[] = [
     card({
@@ -144,26 +145,8 @@ export const homeChartSpecs: UsageChartSpec[] = [
         day: 'agent_requests_requested_at_day',
         metric: 'agent_requests_total_requests',
     }),
-    card({
-        key: 'content-created',
-        name: 'Content created',
-        description:
-            'Charts and dashboards created in the selected period, including deleted ones. Content in preview projects is left out.',
-        explore: 'content_inventory',
-        day: 'content_health_created_at_day',
-        metric: 'content_health_total_content',
-        filters: [
-            {
-                field: 'content_health_content_type',
-                values: ['saved_chart', 'sql_chart', 'dashboard'],
-            },
-            {
-                field: 'content_health_project_type',
-                values: [ProjectType.PREVIEW],
-                operator: FilterOperator.NOT_EQUALS,
-            },
-        ],
-    }),
+    // The same card as Content > Audience, built in one place so the two cannot drift
+    card({ key: 'content-created', ...contentCreated }),
     trend({
         key: 'people-by-day',
         name: 'People with any recorded activity by day',
@@ -205,6 +188,14 @@ export const homeChartSpecs: UsageChartSpec[] = [
         explore: 'user_activity',
         dimensions: ['user_activity_user_name', 'user_activity_user_id'],
         metrics: mostActivePeopleMetrics,
+        // A ranking of people lists people: activity with no person recorded is not one of them
+        filters: [
+            {
+                field: 'user_activity_user_id',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+        ],
         limit: 10,
         sorts: [{ fieldId: 'user_activity_total_events', descending: true }],
         fieldLabels: userActivityLabels,
@@ -288,7 +279,8 @@ export const homeDashboardSpec: UsageDashboardSpec = {
                     note: false,
                     charts: ['most-active-people'],
                     layout: 'row',
-                    rowHeight: 8,
+                    // Ten rows, with no blank band under them
+                    rowHeight: 7,
                 },
             ],
         },

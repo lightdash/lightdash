@@ -21,7 +21,7 @@ const Squares = memo<{
                 <span
                     // eslint-disable-next-line react/no-array-index-key
                     key={index}
-                    className="ad-mark ad-square"
+                    className="adoption-mark adoption-square"
                     data-kind={markAttr(colourBy, mark.kind)}
                     data-person={mark.person ? `${teamId}:${index}` : undefined}
                     style={{ transform: `translate(${x}px, ${y}px)` }}
@@ -34,11 +34,11 @@ Squares.displayName = 'Squares';
 
 // Where the squares would be under 3 px, one bar of the team's people in legend order
 const Bar = ({ marks, colourBy }: { marks: Mark[]; colourBy: ColourBy }) => (
-    <span className="ad-bar">
+    <span className="adoption-bar">
         {KIND_ORDER[colourBy].map((kind) => {
             const count = marks.filter((mark) => mark.kind === kind).length;
             return count > 0 ? (
-                <span key={kind} className="ad-mark" data-kind={markAttr(colourBy, kind)} style={{ flex: `${count} 1 0` }} />
+                <span key={kind} className="adoption-mark" data-kind={markAttr(colourBy, kind)} style={{ flex: `${count} 1 0` }} />
             ) : null;
         })}
     </span>
@@ -55,13 +55,13 @@ const Block = memo<{
     onSelect: (teamId: string) => void;
 }>(({ team, layout, part, colourBy, isSelected, isDimmed, isStatic, onSelect }) => (
     <div
-        className="ad-block"
+        className="adoption-block"
         data-dimmed={isDimmed || undefined}
         style={{ left: px(layout.x), top: px(layout.y), width: px(layout.width), height: px(layout.height) }}
     >
         <button
             type="button"
-            className="ad-block-button"
+            className="adoption-block-button"
             aria-label={`${team.name}: ${team.caption}`}
             title={`${team.name}\n${team.caption}`}
             data-selected={isSelected || undefined}
@@ -69,17 +69,17 @@ const Block = memo<{
             disabled={isStatic}
             onClick={() => onSelect(team.id)}
         />
-        <div className="ad-block-header" aria-hidden>
-            <div className="ad-block-name">{team.name}</div>
-            <div className="ad-block-counts">{team.caption}</div>
+        <div className="adoption-block-header" aria-hidden>
+            <div className="adoption-block-name">{team.name}</div>
+            <div className="adoption-block-counts">{team.caption}</div>
         </div>
         {part && (
             <div
-                className="ad-part"
+                className="adoption-part"
                 style={{ left: px(part.x), top: px(part.y), width: px(part.width), height: px(part.height) }}
             >
                 <span
-                    className="ad-part-content"
+                    className="adoption-part-content"
                     data-squares={team.id}
                     aria-hidden
                     style={{
@@ -188,7 +188,7 @@ export const WaffleView = ({ width, maxHeight, teams, colourBy, selectedId, isFo
     };
 
     return (
-        <div className="ad-waffle" style={{ height: px(layout.height) }}>
+        <div className="adoption-waffle" style={{ height: px(layout.height) }}>
             <div
                 ref={boardRef}
                 className="absolute inset-0"
@@ -214,9 +214,9 @@ export const WaffleView = ({ width, maxHeight, teams, colourBy, selectedId, isFo
                     );
                 })}
             </div>
-            <div ref={bandRef} className="ad-sweep-layer" />
+            <div ref={bandRef} className="adoption-sweep-layer" />
             {tip && (
-                <div className="ad-tip" style={{ left: tip.x, top: tip.y }}>
+                <div className="adoption-tip" style={{ left: tip.x, top: tip.y }}>
                     {tip.text}
                 </div>
             )}

@@ -1,17 +1,91 @@
-import { card, ranking, stackedByDay } from './chartBuilders';
+import {
+    CustomFormatType,
+    FilterOperator,
+    ProjectType,
+    TableCalculationType,
+} from '@lightdash/common';
+import { caution, positive, waiting } from './analyticsChartPresentation';
+import { ownerStatusColors } from './analyticsColorPalette';
+import { card, numberCard, ranking, stackedByDay } from './chartBuilders';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
 const day = 'content_reach_event_ts_day';
 const allHistory = 'Uses all recorded history; the date filter does not apply.';
 
+const week = 'content_health_created_at_week';
+const runningTotal = 'content_running_total';
+// Text columns of the two lists an admin acts on
+const whereItLives = {
+    name: 'where_it_lives',
+    displayName: 'Where',
+    type: TableCalculationType.STRING,
+    // The project, and the space when the inventory has it: two items can share a name
+    sql: `concat_ws(' / ', \${content_health.project_name}, \${content_health.space_name})`,
+};
+const createdOn = {
+    name: 'created_on',
+    displayName: 'Created',
+    type: TableCalculationType.STRING,
+    sql: `COALESCE(strftime(\${content_health.created_at_day}, '%b %-d, %Y'), 'Not recorded')`,
+};
+
+const cameBack = 'came_back_later';
+const cameBackShare = 'came_back_share';
+
+const newContentCalculations: NonNullable<UsageChartSpec['tableCalculations']> =
+    [
+        {
+            // Nobody can have come back after the first week while it is still running
+            name: cameBack,
+            displayName: 'Came back later',
+            type: TableCalculationType.NUMBER,
+            sql: `CASE WHEN \${content_reach.created_at_day} > CURRENT_DATE - INTERVAL 7 DAY THEN NULL ELSE \${content_reach.new_content_returning_viewers} END`,
+            format: { type: CustomFormatType.NUMBER, round: 0 },
+        },
+        {
+            name: cameBackShare,
+            displayName: 'Share who came back',
+            type: TableCalculationType.NUMBER,
+            // A fraction with a percent format, so the table writes it as 42%
+            sql: `CASE WHEN \${content_reach.created_at_day} > CURRENT_DATE - INTERVAL 7 DAY THEN NULL ELSE 1.0 * \${content_reach.new_content_returning_viewers} / NULLIF(\${content_reach.new_content_first_week_viewers}, 0) END`,
+            format: { type: CustomFormatType.PERCENT, round: 0 },
+        },
+    ];
+
+// Charts and dashboards created in the selected period. Overview repeats this card, so both are built
+// here: the same measure, filters and window under two keys.
+export const contentCreated = {
+    name: 'Content created',
+    description:
+        'Charts and dashboards created in the selected period, including deleted ones. Content in preview projects is left out; Overview and Content show the same count.',
+    // The model with a row for every day, so the trend has a point on days with nothing created
+    explore: 'content_created' as const,
+    day: 'content_health_created_at_day',
+    metric: 'content_health_total_content',
+    filters: [
+        {
+            field: 'content_health_content_type',
+            values: ['saved_chart', 'sql_chart', 'dashboard'],
+        },
+        {
+            field: 'content_health_project_type',
+            values: [ProjectType.PREVIEW],
+            operator: FilterOperator.NOT_EQUALS,
+        },
+    ] satisfies NonNullable<UsageChartSpec['filters']> as NonNullable<
+        UsageChartSpec['filters']
+    >,
+};
+
 // Charts of the Content dashboard. The verified share and the review list stay with the plain charts in
 // usageDashboardCharts.ts.
 export const contentChartSpecs: UsageChartSpec[] = [
+    card({ key: 'content-created-in-period', ...contentCreated }),
     card({
         key: 'content-viewers-latest-day',
         name: 'People viewing content',
         description:
-            'People who viewed a chart, dashboard or data app on the latest day in the selected period.',
+            'People who viewed a chart or a dashboard on the latest day in the selected period. Data app loads are counted on Data apps.',
         explore: 'content_reach',
         day,
         metric: 'content_reach_distinct_viewers',
@@ -21,7 +95,7 @@ export const contentChartSpecs: UsageChartSpec[] = [
         key: 'content-views',
         name: 'Content views',
         description:
-            'Views of charts, dashboards and data apps in the selected period. Reloads add views.',
+            'Views of charts and dashboards in the selected period; reloads add views. Data app loads are counted on Data apps.',
         explore: 'content_reach',
         day,
         metric: 'content_reach_qualifying_views',
@@ -82,108 +156,429 @@ export const contentChartSpecs: UsageChartSpec[] = [
         libraryDescription:
             'Views of each dashboard, with the people who viewed it. Open a dashboard to see its people.',
     }),
-    ranking({
+    {
         key: 'new-content-adoption-creation-week-proxy',
-        name: 'New content adoption after the first week',
+        name: 'New content: who came back after the first week',
         description:
-            'Creation date stands in for launch date. Older content may have been created before recording began.',
+            'Content created in the selected period, with the people who viewed it in its first seven days and how many of them viewed it again later. Came back later is blank until the content is a week old.',
         explore: 'content_reach',
-        by: 'content_reach_content_name',
         dimensions: [
             'content_reach_content_name',
-            'content_reach_content_created_at_day',
+            'content_reach_content_type_name',
+            'content_reach_created_at_day',
             'content_reach_content_id',
             'content_reach_project_id',
         ],
         metrics: [
-            'content_reach_distinct_viewers',
-            'content_reach_first_week_returning_viewers',
+            'content_reach_new_content_first_week_viewers',
+            'content_reach_new_content_returning_viewers',
         ],
-        limit: 30,
-        libraryLimit: 30,
-    }),
-    stackedByDay({
-        key: 'content-creation-by-month',
-        name: 'Content created by month',
-        description:
-            'Items in the latest inventory by the month they were created, including deleted items. The date filter does not apply.',
-        explore: 'content_inventory',
-        day: 'content_health_created_at_month',
-        metric: 'content_health_total_content',
-        splitBy: 'content_health_content_type_name',
-        yName: 'Content created',
-        xAxis: {
-            xAxisType: 'time',
-            xTimeFormat: '{MMM} {yyyy}',
-            xName: 'Month',
+        tableCalculations: newContentCalculations,
+        // The plain table shows the count behind the blank; the calculation replaces it
+        hiddenColumns: ['content_reach_new_content_returning_viewers'],
+        fieldLabels: {
+            content_reach_new_content_first_week_viewers:
+                'Viewers in first week',
         },
-        splitDescription:
-            'Items in the latest inventory by the month they were created and their type, including deleted items. The date filter does not apply.',
-    }),
-    ranking({
-        key: 'content-by-activity-status',
-        name: 'Content by activity status',
-        description: `Charts, dashboards and data apps by whether they have any recorded activity. ${allHistory}`,
-        explore: 'content_health',
-        by: 'content_health_activity_status_name',
-        then: 'content_health_content_type_name',
-        metrics: ['content_health_total_content'],
-        libraryDescription: `Charts, dashboards and data apps by whether they have any recorded activity; open a status to see each type of content. ${allHistory}`,
-    }),
-    ranking({
-        key: 'content-ownership-current-snapshot',
-        name: 'Content ownership (current)',
-        description:
-            'Owner status reflects current Lightdash membership, not whether the person is still employed. Schedule ownership is not fully recorded.',
-        explore: 'content_inventory',
-        by: 'content_health_owner_status',
-        then: 'content_health_content_type_name',
-        dimensions: ['content_health_owner_status'],
-        metrics: ['content_health_total_content'],
         limit: 30,
-        // Drawn as a donut: see withAnalyticsChartPresentation
-        visualization: 'bar',
-        libraryDescription:
-            'Content by the status of its owner; open a status to see each type of content. Owner status reflects current Lightdash membership, not whether the person is still employed.',
-    }),
-    ranking({
-        key: 'high-compute-dashboards-audience-versus-warehouse-time',
-        name: 'Dashboards by warehouse time (top 25)',
+        sorts: [
+            {
+                fieldId: 'content_reach_new_content_first_week_viewers',
+                descending: true,
+            },
+        ],
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.14.2',
+            fieldMapping: {
+                rowDimension: 'content_reach_content_name',
+                metric: [
+                    'content_reach_new_content_first_week_viewers',
+                    cameBack,
+                    cameBackShare,
+                ],
+            },
+            optionValues: {
+                showMiniBars: true,
+                showTotalsRow: false,
+                decimalPlaces: 0,
+                density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Content',
+                valueNames:
+                    'Viewers in first week,Came back later,Share who came back',
+                useFieldFormats: true,
+            },
+            query: {
+                // The day it was created is what the calculations check its age against
+                dimensions: [
+                    'content_reach_content_name',
+                    'content_reach_created_at_day',
+                ],
+                metrics: [
+                    'content_reach_new_content_first_week_viewers',
+                    'content_reach_new_content_returning_viewers',
+                ],
+                sorts: [
+                    {
+                        fieldId: 'content_reach_new_content_first_week_viewers',
+                        descending: true,
+                    },
+                ],
+                limit: 30,
+                tableCalculations: newContentCalculations,
+                description:
+                    'Content created in the selected period, with the people who viewed it in its first seven days and how many of them viewed it again later. Came back later is blank until the content is a week old.',
+            },
+        },
+    },
+    {
+        // A running total reads well however little content there is: it only ever rises, where bars
+        // for each month are a few uneven columns on a small instance
+        key: 'content-creation-by-month',
+        name: 'Content, running total by week',
         description:
-            'Top 25 dashboards by warehouse execution time (s), across all recorded history. The date filter does not apply.',
+            'Charts, dashboards and data apps in the latest inventory, added up week by week from the day each was created. Includes deleted items; the date filter does not apply.',
+        explore: 'content_created',
+        dimensions: [week],
+        metrics: ['content_health_total_content'],
+        filters: [
+            {
+                field: week,
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+        ],
+        tableCalculations: [
+            {
+                name: runningTotal,
+                displayName: 'Content',
+                type: TableCalculationType.NUMBER,
+                sql: `SUM(\${content_health.total_content}) OVER (ORDER BY \${content_health.created_at_week})`,
+                format: { type: CustomFormatType.NUMBER, round: 0 },
+            },
+        ],
+        limit: 5000,
+        sorts: [{ fieldId: week, descending: false }],
+        visualization: 'line',
+        xField: week,
+        yFields: [runningTotal],
+        fieldLabels: { [week]: 'Week', [runningTotal]: 'Content' },
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.18.3',
+            fieldMapping: {
+                x: week,
+                m1: runningTotal,
+                splitBy: 'content_health_content_type_name',
+            },
+            optionValues: {
+                seriesType: 'area',
+                stack: 'normal',
+                splitSort: 'total',
+                xAxisType: 'time',
+                // The day as well as the month: a tick for each week would repeat the month's name
+                xTimeFormat: '{MMM} {d}',
+                xName: 'Week',
+                yName: 'Content',
+            },
+            query: {
+                dimensions: [week, 'content_health_content_type_name'],
+                metrics: ['content_health_total_content'],
+                sorts: [
+                    {
+                        fieldId: 'content_health_content_type_name',
+                        descending: false,
+                    },
+                    { fieldId: week, descending: false },
+                ],
+                limit: 5000,
+                tableCalculations: [
+                    {
+                        name: runningTotal,
+                        displayName: 'Content',
+                        type: TableCalculationType.NUMBER,
+                        sql: `SUM(\${content_health.total_content}) OVER (PARTITION BY \${content_health.content_type_name} ORDER BY \${content_health.created_at_week})`,
+                        format: { type: CustomFormatType.NUMBER, round: 0 },
+                    },
+                ],
+                description:
+                    'Charts, dashboards and data apps in the latest inventory by type, added up week by week from the day each was created. Includes deleted items; the date filter does not apply.',
+            },
+        },
+    },
+    // One count for each activity status, above the list a reader opens to see the items
+    ...(
+        [
+            [
+                'content-with-activity',
+                'Has recorded activity',
+                'content_health_content_with_activity',
+                'Charts, dashboards and data apps with at least one recorded view, query or load.',
+                'Viewed, queried or loaded at least once',
+                positive,
+            ],
+            [
+                'content-without-activity-in-use',
+                'No recorded activity, still in use',
+                'content_health_content_in_use_without_activity',
+                'Content with no recorded activity that a dashboard tile or a switched-on schedule still uses.',
+                'On a dashboard or a schedule that is switched on',
+                waiting,
+            ],
+            [
+                'content-without-activity',
+                'No recorded activity',
+                'content_health_content_without_activity',
+                'Content with no recorded activity and nothing known to use it, which is not proof it is safe to delete.',
+                'Nothing known uses it',
+                caution,
+            ],
+        ] as const
+    ).map(
+        ([key, name, metric, description, meaning, color]): UsageChartSpec => ({
+            key,
+            name,
+            description: `${description} ${allHistory}`,
+            explore: 'content_health',
+            dimensions: [],
+            // The count for this status, then all content: the whole the card's bar measures against
+            metrics: [metric, 'content_health_total_content'],
+            limit: 1,
+            sorts: [],
+            visualization: 'number',
+            yFields: [metric],
+            libraryChart: numberCard(metric, meaning, {
+                whole: 'content_health_total_content',
+                wholeLabel: 'of {target} items',
+                color,
+                // The items with nothing known to use them are the ones an admin acts on
+                strong: color === caution,
+            }),
+        }),
+    ),
+    {
+        // A list to act on: one row for each item, the ones nothing uses first and the oldest of those
+        // at the top. Text columns, so it is a plain table in both versions.
+        key: 'review-candidates-activity-and-known-dependencies',
+        name: 'Never viewed: what could be cleaned up?',
+        // Two ideas kept apart: nobody has opened any of these, and some are still pointed at
+        description:
+            'Up to 200 items nobody has viewed, queried or loaded in all recorded history, oldest first. Still linked from says whether a dashboard or a schedule still points at the item, which is a reason to keep it.',
         explore: 'content_health',
-        by: 'content_health_content_name',
         dimensions: [
             'content_health_content_name',
-            'content_health_observed_viewers',
+            'content_health_content_type_name',
+            'content_health_project_name',
+            'content_health_space_name',
+            'content_health_created_at_day',
+            'content_health_activity_status',
+            // What can point at an item depends on what it is
+            'content_health_content_type',
             'content_health_content_id',
             'content_health_project_id',
         ],
         metrics: [
-            'content_health_total_warehouse_execution_time_s',
-            'content_health_total_observed_queries',
+            'content_health_total_dashboard_references',
+            'content_health_total_enabled_schedules',
         ],
         filters: [
-            { field: 'content_health_content_type', values: ['dashboard'] },
+            {
+                field: 'content_health_activity_status',
+                values: [
+                    'No activity observed; known dependency',
+                    'No activity observed; coverage incomplete',
+                ],
+            },
         ],
-        limit: 25,
-        libraryLimit: 25,
-        fieldLabels: { content_health_content_name: 'Dashboard' },
-        visualization: 'scatter',
-        xField: 'content_health_observed_viewers',
-        yFields: ['content_health_total_warehouse_execution_time_s'],
-        libraryDescription: `Top 25 dashboards by warehouse execution time (s), with the queries they ran. ${allHistory}`,
-    }),
+        tableCalculations: [
+            whereItLives,
+            createdOn,
+            {
+                // Not who viewed it: what still points at it. A chart can sit on dashboards and be
+                // sent by schedules; a dashboard can only be sent by schedules.
+                name: 'linked_from',
+                displayName: 'Still linked from',
+                type: TableCalculationType.STRING,
+                sql: `CASE WHEN \${content_health.content_type} = 'dashboard' THEN COALESCE(CASE WHEN COALESCE(\${content_health.total_enabled_schedules}, 0) = 1 THEN '1 schedule' WHEN COALESCE(\${content_health.total_enabled_schedules}, 0) > 1 THEN CAST(COALESCE(\${content_health.total_enabled_schedules}, 0) AS VARCHAR) || ' schedules' END, 'No schedule') WHEN COALESCE(\${content_health.total_dashboard_references}, 0) = 0 AND COALESCE(\${content_health.total_enabled_schedules}, 0) = 0 THEN 'No dashboard or schedule' ELSE concat_ws(', ', CASE WHEN COALESCE(\${content_health.total_dashboard_references}, 0) = 1 THEN '1 dashboard' WHEN COALESCE(\${content_health.total_dashboard_references}, 0) > 1 THEN CAST(COALESCE(\${content_health.total_dashboard_references}, 0) AS VARCHAR) || ' dashboards' END, CASE WHEN COALESCE(\${content_health.total_enabled_schedules}, 0) = 1 THEN '1 schedule' WHEN COALESCE(\${content_health.total_enabled_schedules}, 0) > 1 THEN CAST(COALESCE(\${content_health.total_enabled_schedules}, 0) AS VARCHAR) || ' schedules' END) END`,
+            },
+            {
+                // Items nothing uses first
+                name: 'review_order',
+                displayName: 'Order',
+                type: TableCalculationType.NUMBER,
+                sql: `CASE WHEN \${content_health.activity_status} = 'No activity observed; coverage incomplete' THEN 0 ELSE 1 END`,
+            },
+        ],
+        hiddenColumns: [
+            'content_health_project_name',
+            'content_health_space_name',
+            'content_health_created_at_day',
+            'content_health_activity_status',
+            'content_health_content_type',
+            'content_health_total_dashboard_references',
+            'content_health_total_enabled_schedules',
+            'review_order',
+        ],
+        columnOrder: [
+            'content_health_content_name',
+            'content_health_content_type_name',
+            whereItLives.name,
+            createdOn.name,
+            'linked_from',
+            'content_health_project_name',
+            'content_health_space_name',
+            'content_health_created_at_day',
+            'content_health_activity_status',
+            'content_health_content_type',
+            'content_health_content_id',
+            'content_health_project_id',
+            'content_health_total_dashboard_references',
+            'content_health_total_enabled_schedules',
+            'review_order',
+        ],
+        limit: 200,
+        sorts: [
+            { fieldId: 'review_order', descending: false },
+            { fieldId: 'content_health_created_at_day', descending: false },
+            { fieldId: 'content_health_content_name', descending: false },
+        ],
+        fieldLabels: {
+            content_health_content_name: 'Content',
+            content_health_content_type_name: 'Type',
+        },
+    },
+    {
+        ...ranking({
+            key: 'content-ownership-current-snapshot',
+            name: 'Dashboard ownership',
+            description:
+                'Dashboards by the status of their owner. Owner status reflects current Lightdash membership, not whether the person is still employed.',
+            explore: 'content_inventory',
+            by: 'content_health_owner_status_name',
+            dimensions: ['content_health_owner_status_name'],
+            metrics: ['content_health_total_content'],
+            // Only dashboards have an owner
+            filters: [
+                { field: 'content_health_content_type', values: ['dashboard'] },
+            ],
+            limit: 30,
+            // Drawn as a donut: see withAnalyticsChartPresentation
+            visualization: 'bar',
+            fieldLabels: { content_health_total_content: 'Dashboards' },
+            libraryDescription:
+                'Dashboards by the status of their owner. Owner status reflects current Lightdash membership, not whether the person is still employed.',
+        }),
+        // A few statuses: one bar each, with the count beside it
+        libraryChart: {
+            slug: 'customizable-cartesian-chart',
+            minVersion: '0.18.6',
+            fieldMapping: {
+                x: 'content_health_owner_status_name',
+                m1: 'content_health_total_content',
+            },
+            optionValues: {
+                seriesType: 'bar',
+                orientation: 'horizontal',
+                m1Name: 'Dashboards',
+                showDataLabels: true,
+                lightdashLabels: false,
+                showAxisTitles: false,
+                showLegend: false,
+                yIntegerTicks: true,
+                // One colour for each status, by its name
+                splitColorGroups: Object.entries(ownerStatusColors)
+                    .map(([name, color]) => `${name}=${name}=${color}`)
+                    .join(';'),
+            },
+            query: null,
+        },
+    },
+    {
+        // One row for each dashboard to fix, most-viewed first: a plain table in both versions
+        key: 'content-owners-needing-review',
+        name: 'Which dashboards need a new owner?',
+        description: `Up to 200 dashboards whose owner is deactivated, not a member, unknown or not set, most-viewed first. ${allHistory}`,
+        explore: 'content_health',
+        dimensions: [
+            'content_health_content_name',
+            'content_health_project_name',
+            'content_health_space_name',
+            'content_health_owner_name',
+            'content_health_owner_status',
+            'content_health_last_viewed_at_day',
+            'content_health_content_id',
+            'content_health_project_id',
+        ],
+        metrics: ['content_health_total_observed_views'],
+        filters: [
+            {
+                field: 'content_health_owner_status',
+                // Charts, SQL charts and data apps have no owner, so they are not missing one
+                values: ['Active organization member', 'Not recorded'],
+                operator: FilterOperator.NOT_EQUALS,
+            },
+        ],
+        tableCalculations: [
+            whereItLives,
+            {
+                name: 'owner_shown',
+                displayName: 'Owner',
+                type: TableCalculationType.STRING,
+                sql: `CASE \${content_health.owner_status} WHEN 'Unassigned' THEN 'No owner' WHEN 'Deactivated' THEN COALESCE(\${content_health.owner_name}, 'Unknown person') || ' (deactivated)' WHEN 'Not an organization member' THEN COALESCE(\${content_health.owner_name}, 'Unknown person') || ' (not a member)' ELSE 'Unknown owner' END`,
+            },
+            {
+                name: 'last_viewed',
+                displayName: 'Last viewed',
+                type: TableCalculationType.STRING,
+                sql: `COALESCE(strftime(\${content_health.last_viewed_at_day}, '%b %-d, %Y'), 'Never')`,
+            },
+        ],
+        hiddenColumns: [
+            'content_health_project_name',
+            'content_health_space_name',
+            'content_health_owner_name',
+            'content_health_owner_status',
+            'content_health_last_viewed_at_day',
+        ],
+        columnOrder: [
+            'content_health_content_name',
+            whereItLives.name,
+            'owner_shown',
+            'last_viewed',
+            'content_health_total_observed_views',
+            'content_health_project_name',
+            'content_health_space_name',
+            'content_health_owner_name',
+            'content_health_owner_status',
+            'content_health_last_viewed_at_day',
+            'content_health_content_id',
+            'content_health_project_id',
+        ],
+        limit: 200,
+        sorts: [
+            {
+                fieldId: 'content_health_total_observed_views',
+                descending: true,
+            },
+            { fieldId: 'content_health_content_name', descending: false },
+        ],
+        fieldLabels: {
+            content_health_content_name: 'Dashboard',
+            content_health_total_observed_views: 'Views',
+        },
+    },
 ];
 
 export const contentDashboardSpec: UsageDashboardSpec = {
     key: 'lightdash-analytics-content',
     name: 'Content',
-    description: 'Content viewers, ownership and inventory.',
+    description: 'What content is read, what exists and who owns it.',
     tabs: [
         {
+            // Everything here follows the Date filter
             key: 'audience',
-            name: 'Audience & trust',
+            name: 'Audience',
             sections: [
                 {
                     title: 'Content audience',
@@ -193,6 +588,7 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                         'content-viewers-latest-day',
                         'content-views',
                         'verified-content-audience-share',
+                        'content-created-in-period',
                     ],
                 },
                 {
@@ -214,22 +610,48 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                     layout: 'row',
                     rowHeight: 9,
                 },
-            ],
-        },
-        {
-            key: 'adoption',
-            name: 'Creation & adoption',
-            sections: [
                 {
                     title: 'New content',
                     description:
-                        'People who viewed content in its first seven days and came back later are a sign of adoption. Counts include deleted items.',
+                        'People who view new content in its first week and come back are a sign of adoption. Content created before the period is not listed.',
                     charts: ['new-content-adoption-creation-week-proxy'],
                     layout: 'row',
                     rowHeight: 8,
                 },
+            ],
+        },
+        {
+            // Nothing here follows the Date filter: it is the content that exists now, over all history
+            key: 'inventory',
+            name: 'Inventory & clean-up',
+            sections: [
                 {
-                    title: 'Content created',
+                    title: 'All content, whatever the Date filter says',
+                    description:
+                        'All recorded history. No activity does not make an item safe to delete: a dashboard tile or a schedule may still use it.',
+                    charts: [
+                        'content-with-activity',
+                        'content-without-activity-in-use',
+                        'content-without-activity',
+                    ],
+                    // One compact row of cards
+                    layout: 'row',
+                    rowHeight: 3,
+                },
+                {
+                    // No text between the cards and the list: the list's title is its question
+                    title: 'What could be cleaned up?',
+                    description: '',
+                    note: false,
+                    charts: [
+                        'review-candidates-activity-and-known-dependencies',
+                    ],
+                    layout: 'row',
+                    // About ten rows, more by scrolling
+                    rowHeight: 8,
+                },
+                {
+                    title: 'Content over time',
                     description: '',
                     note: false,
                     charts: ['content-creation-by-month'],
@@ -239,50 +661,26 @@ export const contentDashboardSpec: UsageDashboardSpec = {
             ],
         },
         {
-            key: 'health',
-            name: 'Activity & dependencies',
-            sections: [
-                {
-                    title: 'Content review',
-                    description:
-                        'No recorded activity is not proof that an item is safe to delete. Known dependencies are current dashboard tiles and enabled schedules.',
-                    charts: ['content-by-activity-status'],
-                    layout: 'row',
-                    rowHeight: 6,
-                },
-                {
-                    title: 'Review candidates',
-                    description: '',
-                    note: false,
-                    charts: [
-                        'review-candidates-activity-and-known-dependencies',
-                    ],
-                    layout: 'row',
-                    rowHeight: 8,
-                },
-            ],
-        },
-        {
             key: 'ownership',
-            name: 'Ownership & compute',
+            name: 'Ownership',
             sections: [
                 {
-                    title: 'Current ownership',
+                    title: 'Who owns the dashboards today',
                     description:
-                        'Owner status comes from current Lightdash membership. Content with a missing or inactive owner needs review.',
+                        'The latest snapshot, whatever the Date filter says. Only dashboards have an owner: give a new one to those listed here.',
+                    // A bar for each owner status, then the dashboards to fix, full width
                     charts: ['content-ownership-current-snapshot'],
                     layout: 'row',
-                    rowHeight: 7,
+                    rowHeight: 4,
                 },
                 {
-                    title: 'Audience and execution time',
-                    description:
-                        'Time the warehouse spent running queries. The same execution time can be attributed to both a chart and a dashboard.',
-                    charts: [
-                        'high-compute-dashboards-audience-versus-warehouse-time',
-                    ],
+                    title: 'Dashboards to fix',
+                    description: '',
+                    note: false,
+                    charts: ['content-owners-needing-review'],
                     layout: 'row',
-                    rowHeight: 8,
+                    // About eight rows with no blank band under them, more by scrolling
+                    rowHeight: 6,
                 },
             ],
         },

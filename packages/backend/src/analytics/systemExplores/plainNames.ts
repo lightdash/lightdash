@@ -38,3 +38,43 @@ export const aiFeatureNames: PlainNames = {
     },
     missing: 'Unknown feature',
 };
+
+// Where an AI call came from
+export const aiChannelNames: PlainNames = {
+    names: {
+        web: 'Web app',
+        api: 'API',
+        evals: 'Evaluations',
+        mcp: 'MCP',
+        data_app: 'Data app',
+    },
+    missing: 'Unknown channel',
+};
+
+// Whose provider key paid for an AI call
+export const aiKeyNames: PlainNames = {
+    names: {
+        'lightdash-managed': 'Lightdash key',
+        'self-managed': 'Your own key',
+    },
+    missing: 'Unknown key',
+};
+
+export const aiOutcomeNames: PlainNames = {
+    names: { complete: 'Success', error: 'Error' },
+    missing: 'Unknown outcome',
+};
+
+// Where a data app was loaded
+export const dataAppSurfaceNames: PlainNames = {
+    names: {
+        standalone: 'Standalone page',
+        dashboard: 'Dashboard',
+        builder: 'Builder preview',
+        delivery: 'Scheduled delivery',
+        chart: 'Custom chart tile',
+        embed: 'Embed',
+        unknown: 'Unknown',
+    },
+    missing: 'Unknown',
+};

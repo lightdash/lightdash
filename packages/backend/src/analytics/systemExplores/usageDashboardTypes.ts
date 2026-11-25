@@ -32,6 +32,8 @@ export type UsageChartSpec = {
     fieldLabels?: Record<string, string>;
     // Fields the query needs that the plain table does not show
     hiddenColumns?: string[];
+    // Counts read 100K, not 100,000, for a table that is drawn as a chart
+    compactCounts?: true;
     // Column order of the plain table, when it is not dimensions, then metrics, then calculations
     columnOrder?: string[];
     visualization?: 'number' | 'line' | 'bar' | 'scatter' | 'donut';
@@ -49,12 +51,16 @@ export type UsageDashboardSpec = {
     name: string;
     description: string;
     filters?: DashboardAsCode['filters'];
+    // The tab that holds the tiles of an older bundle with this dashboard's slug. A tab of this spec
+    // with the same key adds its sections under those tiles.
+    existingTab?: { key: string; name: string };
     tabs: {
         key: string;
         name: string;
         sections: {
             title: string;
             description: string;
+            // The description alone, with no title above it. Only AI token usage, whose text its owner writes
             caption?: true;
             // false leaves out the text above the tiles, for tiles that explain themselves
             note?: false;

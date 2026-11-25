@@ -83,20 +83,38 @@ describe('usage dashboard filters', () => {
             'lightdash-analytics-content',
             'Date',
         )!.tileTargets!;
+        // Content created counts what was created in the period, so it is the one inventory chart
+        // the date range reaches
+        const createdInPeriod =
+            'lightdash-analytics-content-content-created-in-period';
         for (const chart of bundleOf('lightdash-analytics-content').charts) {
             expect(content[chart.slug] === false).toBe(
-                ['content_health', 'content_inventory'].includes(
-                    chart.metricQuery.exploreName,
-                ),
+                chart.slug !== createdInPeriod &&
+                    [
+                        'content_health',
+                        'content_inventory',
+                        'content_created',
+                    ].includes(chart.metricQuery.exploreName),
             );
         }
+        // The same field as the same card on Overview, so the two show one number for one period
+        const created = {
+            fieldId: 'content_health_created_at_day',
+            tableName: 'content_health',
+        };
+        expect(content[createdInPeriod]).toEqual(created);
+        expect(
+            filterOf('lightdash-analytics-home', 'Date')!.tileTargets![
+                'lightdash-analytics-home-content-created'
+            ],
+        ).toEqual(created);
     });
 
-    it('keeps the filters Adoption sets by hand', () => {
+    it('keeps the filters Data apps sets by hand and adds Date and Project after them', () => {
         expect(
             bundleOf(
-                'lightdash-analytics-adoption',
+                'lightdash-analytics-apps',
             ).dashboard.filters?.dimensions?.map(({ label }) => label),
-        ).toEqual(['Date', 'Data app', 'Surface']);
+        ).toEqual(['Data app', 'Surface', 'Date', 'Project']);
     });
 });

@@ -15,12 +15,22 @@ import {
     positive,
     withAnalyticsChartPresentation,
 } from './analyticsChartPresentation';
-import { analyticsColorPalette } from './analyticsColorPalette';
+import {
+    analyticsColorPalette,
+    modelProviderColors,
+    modelTierRanks,
+} from './analyticsColorPalette';
+import {
+    heatmapColorClamp,
+    heatmapColorClampNote,
+    SPARKLINE_CARD_ROWS,
+} from './chartBuilders';
 import { withEmbedRankingPresentation } from './embedDashboard';
 import { trendRows } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
-import { noteRows } from './noteLayout';
+import { noteRows, titledNote } from './noteLayout';
 import { buildQueryCalendarChart } from './queryCalendarChart';
+import { usageDashboardProjectFilterLabel } from './usageDashboardFilters';
 import {
     buildUsageDashboards,
     compactAxisOverrides,
@@ -184,9 +194,32 @@ const chart = (
     return result;
 };
 
+// The models as horizontal bars in the order of the query, each in the colour of its provider.
+const modelRanking = (metric: string): LibraryChartBinding => ({
+    slug: 'customizable-cartesian-chart',
+    minVersion: '0.18.9',
+    fieldMapping: { x: 'ai_usage_model_name', m1: metric },
+    optionValues: {
+        seriesType: 'bar',
+        orientation: 'horizontal',
+        splitColorGroups: modelProviderColors,
+        splitShadeRank: modelTierRanks,
+        splitShadeUnranked: 'middle',
+        showDataLabels: true,
+        lightdashLabels: false,
+        showAxisTitles: false,
+        showLegend: true,
+        legendPosition: 'bottom',
+    },
+    // Shares the plain chart's query: the ten largest, largest first
+    query: null,
+});
+
 /** Stable keys define project-scoped sync slugs; names are presentation only. */
+// The token tiles that follow the Date filter: the Any period tab of AI token usage. They were the
+// first tab of Agents & AI, which is why this is built here and joined to the month-to-date tabs below.
 const aiUsageContent = {
-    key: 'lightdash-analytics-overview',
+    key: 'lightdash-analytics-ai-tokens',
     spaceSlug: 'lightdash-usage-overview',
     name: 'AI usage',
     description:
@@ -197,7 +230,7 @@ const aiUsageContent = {
                 'AI calls in the selected period. One agent request can make several AI calls.',
             libraryChart: {
                 slug: 'big-number-with-sparkline-trend',
-                minVersion: '0.7.1',
+                minVersion: '0.8.4',
                 fieldMapping: {
                     value: 'ai_usage_total_ai_calls',
                     sparklineMetric: 'ai_usage_total_ai_calls',
@@ -227,7 +260,7 @@ const aiUsageContent = {
         }),
         chart(
             'tokens',
-            'Tokens used',
+            'Tokens (all usage)',
             'ai_usage',
             'total_tokens_used',
             undefined,
@@ -235,7 +268,7 @@ const aiUsageContent = {
                 description: 'Tokens used in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.7.1',
+                    minVersion: '0.8.4',
                     fieldMapping: {
                         value: 'ai_usage_total_tokens_used',
                         sparklineMetric: 'ai_usage_total_tokens_used',
@@ -278,7 +311,7 @@ const aiUsageContent = {
                     'People who used AI on the latest day in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.7.1',
+                    minVersion: '0.8.4',
                     fieldMapping: {
                         value: 'ai_usage_unique_users',
                         sparklineMetric: 'ai_usage_unique_users',
@@ -319,7 +352,7 @@ const aiUsageContent = {
                 description: 'Output tokens in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.7.1',
+                    minVersion: '0.8.4',
                     fieldMapping: {
                         value: 'ai_usage_total_output_tokens',
                         sparklineMetric: 'ai_usage_total_output_tokens',
@@ -362,26 +395,37 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.18.3',
+                    minVersion: '0.18.9',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_ai_calls',
-                        splitBy: 'ai_usage_model',
+                        splitBy: 'ai_usage_model_name',
                     },
                     optionValues: {
                         seriesType: 'bar',
                         stack: 'normal',
                         splitSort: 'total',
+                        splitColorGroups: modelProviderColors,
+                        splitShadeRank: modelTierRanks,
+                        splitShadeUnranked: 'middle',
+                        // Three providers fit the legend; ten models needed a pager
+                        legendMode: 'groups',
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
                         xName: 'Day',
                         yName: 'AI calls',
                     },
                     query: {
-                        dimensions: ['ai_usage_event_ts_day', 'ai_usage_model'],
+                        dimensions: [
+                            'ai_usage_event_ts_day',
+                            'ai_usage_model_name',
+                        ],
                         metrics: ['ai_usage_total_ai_calls'],
                         sorts: [
-                            { fieldId: 'ai_usage_model', descending: false },
+                            {
+                                fieldId: 'ai_usage_model_name',
+                                descending: false,
+                            },
                             {
                                 fieldId: 'ai_usage_event_ts_day',
                                 descending: false,
@@ -405,26 +449,37 @@ const aiUsageContent = {
                 description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
-                    minVersion: '0.18.3',
+                    minVersion: '0.18.9',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         m1: 'ai_usage_total_tokens_used',
-                        splitBy: 'ai_usage_model',
+                        splitBy: 'ai_usage_model_name',
                     },
                     optionValues: {
                         seriesType: 'bar',
                         stack: 'normal',
                         splitSort: 'total',
+                        splitColorGroups: modelProviderColors,
+                        splitShadeRank: modelTierRanks,
+                        splitShadeUnranked: 'middle',
+                        // Three providers fit the legend; ten models needed a pager
+                        legendMode: 'groups',
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
                         xName: 'Day',
                         yName: 'Tokens',
                     },
                     query: {
-                        dimensions: ['ai_usage_event_ts_day', 'ai_usage_model'],
+                        dimensions: [
+                            'ai_usage_event_ts_day',
+                            'ai_usage_model_name',
+                        ],
                         metrics: ['ai_usage_total_tokens_used'],
                         sorts: [
-                            { fieldId: 'ai_usage_model', descending: false },
+                            {
+                                fieldId: 'ai_usage_model_name',
+                                descending: false,
+                            },
                             {
                                 fieldId: 'ai_usage_event_ts_day',
                                 descending: false,
@@ -441,11 +496,13 @@ const aiUsageContent = {
             'Tokens by model (top 10)',
             'ai_usage',
             'total_tokens_used',
-            'model',
+            'model_name',
             {
                 visualization: 'bar',
                 colors: ['#7950F2'],
                 axisLabel: 'Tokens',
+                // Ranked bars, largest at the top, coloured by provider
+                libraryChart: modelRanking('ai_usage_total_tokens_used'),
                 description:
                     'Top 10 models by total tokens in the selected period.',
             },
@@ -455,11 +512,13 @@ const aiUsageContent = {
             'AI calls by model (top 10)',
             'ai_usage',
             'total_ai_calls',
-            'model',
+            'model_name',
             {
                 visualization: 'bar',
                 colors: ['#339AF0'],
                 axisLabel: 'AI calls',
+                // Ranked bars, largest at the top, coloured by provider
+                libraryChart: modelRanking('ai_usage_total_ai_calls'),
                 description:
                     'Top 10 models by AI calls in the selected period. Compare with tokens by model to tell frequent calls from token-heavy calls.',
             },
@@ -477,7 +536,7 @@ const aiUsageContent = {
                 description: 'Tokens by feature in the selected period.',
                 libraryChart: {
                     slug: 'heatmap',
-                    minVersion: '0.5.0',
+                    minVersion: '0.5.1',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         y: 'ai_usage_feature_name',
@@ -488,6 +547,7 @@ const aiUsageContent = {
                         yTitle: 'Feature',
                         legendTitle: 'Tokens',
                         legendFormat: 'compact',
+                        ...heatmapColorClamp,
                     },
                     query: {
                         dimensions: [
@@ -506,8 +566,7 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 5000,
-                        description:
-                            'Tokens per feature per day in the selected period.',
+                        description: `Tokens per feature per day in the selected period. ${heatmapColorClampNote}`,
                     },
                 },
             },
@@ -531,7 +590,9 @@ const aiUsageTilePositions: Record<
     'calls-by-model': { x: 18, y: 19, w: 18, h: 8 },
 };
 // One caption row above the Overview tiles, which start at y = 1.
-const aiUsageOverviewCaption = 'Tokens measure usage, not cost.';
+// One vocabulary for the three token totals on this dashboard, and what tells them apart
+const aiUsageOverviewCaption =
+    '**This tab counts all usage and follows the Date filter.** The other tabs always show the current month. On them, Tokens (all usage) is this same count, and Tokens in billing scope is the part of it that counts towards billing.';
 
 export const analyticsSampleDashboards = [
     aiUsageContent,
@@ -552,7 +613,7 @@ export const analyticsSampleDashboards = [
                     description: 'Queries run in the selected period.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.7.1',
+                        minVersion: '0.8.4',
                         fieldMapping: {
                             value: 'query_events_total_queries',
                             sparklineMetric: 'query_events_total_queries',
@@ -595,7 +656,7 @@ export const analyticsSampleDashboards = [
                         'People who ran queries on the latest day in the selected period. Service accounts are counted too.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.7.1',
+                        minVersion: '0.8.4',
                         fieldMapping: {
                             value: 'query_events_unique_users',
                             sparklineMetric: 'query_events_unique_users',
@@ -638,7 +699,7 @@ export const analyticsSampleDashboards = [
                         'Average warehouse execution time on the latest day in the selected period.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.7.1',
+                        minVersion: '0.8.4',
                         fieldMapping: {
                             value: 'query_events_avg_warehouse_execution_time_s',
                             sparklineMetric:
@@ -684,7 +745,7 @@ export const analyticsSampleDashboards = [
                         'P90 warehouse execution time on the latest day in the selected period.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
-                        minVersion: '0.7.1',
+                        minVersion: '0.8.4',
                         fieldMapping: {
                             value: 'query_events_p90_warehouse_execution_time_s',
                             sparklineMetric:
@@ -798,7 +859,8 @@ export const analyticsSampleDashboards = [
                 'Queries by cache hit',
                 'query_events',
                 'total_queries',
-                'cache_hit',
+                // The plain-name field: queries with no cache information read Not recorded
+                'cache_hit_name',
                 {
                     visualization: 'donut',
                     description:
@@ -832,6 +894,27 @@ export const analyticsSampleDashboards = [
                     axisLabel: 'Warehouse time (s)',
                     description:
                         'Average and P90 warehouse execution time per day, in seconds. This is warehouse time only, not end-to-end response time.',
+                    // The same date axis ("Oct 21") as the charts above it
+                    libraryChart: {
+                        slug: 'customizable-cartesian-chart',
+                        minVersion: '0.18.0',
+                        fieldMapping: {
+                            x: 'query_events_event_ts_day',
+                            m1: 'query_events_avg_warehouse_execution_time_s',
+                            m2: 'query_events_p90_warehouse_execution_time_s',
+                        },
+                        optionValues: {
+                            seriesType: 'line',
+                            showSymbols: true,
+                            xAxisType: 'time',
+                            xTimeFormat: '{MMM} {d}',
+                            xName: 'Day',
+                            yName: 'Warehouse time (s)',
+                            m1Name: 'Average',
+                            m2Name: 'P90',
+                        },
+                        query: null,
+                    },
                 },
             ),
         ],
@@ -971,9 +1054,223 @@ export const analyticsDefaultSpace = {
 
 const aiTokenDashboard = buildAiTokenDashboard();
 
+// AI token usage is one dashboard built in two halves: the Any period tab (charts that follow the Date
+// filter, laid out by buildUsageDashboards) and the month-to-date tabs (aiTokenDashboard). The Date and
+// Project filters are switched off for every month-to-date chart, whose period is fixed.
+// Queries in four tabs, one subject each. The cards, daily charts and calendar came from an older tab
+// called Overview that held a little of everything, so the three tabs they join are laid out here, row
+// by row; Metrics & dimensions keeps the layout it is given in usageDashboardDefinitions.ts.
+type QueriesRow =
+    | { note: string }
+    | { charts: string[]; h: number; widths?: number[] };
+const queriesSlug = 'lightdash-analytics-query-activity';
+const queriesTabs: { slug: string; name: string; rows: QueriesRow[] }[] = [
+    {
+        slug: 'volume',
+        name: 'Volume',
+        rows: [
+            {
+                note: titledNote(
+                    'How much is Lightdash queried?',
+                    'Queries and the people running them.',
+                ),
+            },
+            { charts: ['queries', 'query-users'], h: SPARKLINE_CARD_ROWS },
+            { charts: ['queries-by-day', 'active-users-by-day'], h: 8 },
+            {
+                note: titledNote(
+                    'Longer views, whatever the Date filter says',
+                    'The calendar covers the last 26 weeks. The monthly tiles cover up to 12 complete months (UTC), each compared with the month before.',
+                ),
+            },
+            { charts: ['query-calendar'], h: 6 },
+            {
+                charts: [
+                    'querying-users-month-over-month',
+                    'queries-run-month-over-month',
+                ],
+                h: 7,
+                widths: [16, 20],
+            },
+        ],
+    },
+    {
+        slug: 'latency',
+        name: 'Speed & failures',
+        rows: [
+            {
+                note: titledNote(
+                    'How fast are queries?',
+                    'Warehouse time is the warehouse running the query. Response time is the whole answer from Lightdash, warehouse time included.',
+                ),
+            },
+            {
+                charts: ['avg-execution-time', 'p90-execution-time'],
+                h: SPARKLINE_CARD_ROWS,
+            },
+            { charts: ['query-latency-by-day'], h: 8 },
+            {
+                note: titledNote(
+                    'Which dashboards are slow or expensive?',
+                    'P95 response time is how long the backend took, before the browser draws the result. Warehouse time is what the queries cost to run.',
+                ),
+            },
+            {
+                charts: [
+                    'slow-dashboards-tail-latency-and-demand',
+                    'dashboards-warehouse-and-response-time',
+                ],
+                h: 9,
+            },
+            {
+                note: titledNote(
+                    'Failures',
+                    'Ranked by people affected and failure count. Error messages and causes are not shown here; investigate them separately.',
+                ),
+            },
+            { charts: ['query-failures-affected-people'], h: 7 },
+        ],
+    },
+    {
+        slug: 'origins',
+        name: 'Origins & caching',
+        rows: [
+            {
+                note: titledNote(
+                    'Where do queries come from?',
+                    'Origin is the kind of work, such as interactive, scheduled or data app. Context is where it ran, such as a dashboard or an Explore.',
+                ),
+            },
+            { charts: ['queries-by-context'], h: 8 },
+            { charts: ['query-origin-and-initiating-actor'], h: 7 },
+            {
+                note: titledNote(
+                    'Is the cache used?',
+                    'Queries run on the warehouse beside queries served from the cache. Money saved by caching and warehouse cost are not recorded.',
+                ),
+            },
+            {
+                charts: ['query-cache', 'warehouse-versus-cached-demand'],
+                h: 8,
+                widths: [12, 24],
+            },
+        ],
+    },
+];
+const withQueriesTabs = <
+    T extends { dashboard: DashboardAsCode; charts: ChartAsCode[] },
+>(
+    bundle: T,
+): T => {
+    if (bundle.dashboard.slug !== queriesSlug) return bundle;
+    const tiles = queriesTabs.flatMap(({ slug, rows }) => {
+        let y = 0;
+        return rows.flatMap((row): DashboardAsCode['tiles'] => {
+            if ('note' in row) {
+                const h = noteRows(row.note);
+                const tile = note(slug, y, h, row.note);
+                y += h;
+                return [tile];
+            }
+            const widths =
+                row.widths ?? row.charts.map(() => 36 / row.charts.length);
+            const rowTiles = row.charts.map((key, index) => {
+                const chartSlug = `${queriesSlug}-${key}`;
+                if (!bundle.charts.some((item) => item.slug === chartSlug))
+                    throw new Error(`No Queries chart ${key}`);
+                return {
+                    uuid: undefined,
+                    type: DashboardTileTypes.SAVED_CHART as const,
+                    tileSlug: `${slug}-${chartSlug}`,
+                    tabSlug: slug,
+                    x: widths.slice(0, index).reduce((a, b) => a + b, 0),
+                    y,
+                    w: widths[index],
+                    h: row.h,
+                    properties: { chartSlug },
+                };
+            });
+            y += row.h;
+            return rowTiles;
+        });
+    });
+    return {
+        ...bundle,
+        dashboard: {
+            ...bundle.dashboard,
+            tabs: [
+                ...queriesTabs.map(({ slug, name }, order) => ({
+                    slug,
+                    name,
+                    order,
+                })),
+                {
+                    slug: 'fields',
+                    name: 'Metrics & dimensions',
+                    order: queriesTabs.length,
+                },
+            ],
+            tiles: [
+                ...tiles,
+                ...bundle.dashboard.tiles.filter(
+                    ({ tabSlug }) => tabSlug === 'fields',
+                ),
+            ],
+        },
+    };
+};
+
+const builtDashboards =
+    buildUsageDashboards(legacyContentAsCode).map(withQueriesTabs);
+const anyPeriodTokens = builtDashboards.find(
+    ({ dashboard }) => dashboard.slug === aiTokenDashboard.dashboard.slug,
+)!;
+const tokenDashboard = {
+    dashboard: {
+        ...aiTokenDashboard.dashboard,
+        tabs: [
+            ...anyPeriodTokens.dashboard.tabs,
+            ...aiTokenDashboard.dashboard.tabs.map((tab) => ({
+                ...tab,
+                order: tab.order + anyPeriodTokens.dashboard.tabs.length,
+            })),
+        ],
+        tiles: [
+            ...anyPeriodTokens.dashboard.tiles,
+            ...aiTokenDashboard.dashboard.tiles,
+        ],
+        filters: {
+            metrics: [],
+            tableCalculations: [],
+            dimensions: (
+                anyPeriodTokens.dashboard.filters?.dimensions ?? []
+            ).map((filter) => ({
+                ...filter,
+                // The month-to-date tabs keep their own period, so the Date filter passes them by.
+                // The Project filter still reaches them: a chosen project narrows every tab
+                tileTargets: {
+                    ...filter.tileTargets,
+                    ...Object.fromEntries(
+                        aiTokenDashboard.charts.map(({ slug, tableName }) => [
+                            slug,
+                            filter.label === usageDashboardProjectFilterLabel
+                                ? {
+                                      fieldId: `${tableName}_project_id`,
+                                      tableName,
+                                  }
+                                : (false as const),
+                        ]),
+                    ),
+                },
+            })),
+        },
+    },
+    charts: [...anyPeriodTokens.charts, ...aiTokenDashboard.charts],
+};
+
 export const analyticsContentAsCode = [
-    ...buildUsageDashboards(legacyContentAsCode),
-    aiTokenDashboard,
+    ...builtDashboards.filter((bundle) => bundle !== anyPeriodTokens),
+    tokenDashboard,
 ].map(({ dashboard, charts }) => ({
     dashboard: {
         ...dashboard,

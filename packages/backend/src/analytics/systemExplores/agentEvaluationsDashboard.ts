@@ -1,4 +1,5 @@
 import { FilterOperator } from '@lightdash/common';
+import { caution, positive } from './analyticsChartPresentation';
 import { card, ranking, seriesByDay } from './chartBuilders';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
@@ -53,7 +54,7 @@ export const agentEvaluationsChartSpecs: UsageChartSpec[] = [
         sorts: [{ fieldId: day, descending: false }],
         libraryChart: {
             slug: 'customizable-cartesian-chart',
-            minVersion: '0.18.0',
+            minVersion: '0.18.6',
             fieldMapping: {
                 x: day,
                 m1: 'agent_evaluation_runs_total_runs',
@@ -72,6 +73,8 @@ export const agentEvaluationsChartSpecs: UsageChartSpec[] = [
                 yRightName: 'Pass rate',
                 m1Name: 'Runs',
                 m2Name: 'Pass rate',
+                // A few runs a day: 1, 2, 3, not 0.5, 1.5, 2.5
+                yIntegerTicks: true,
             },
             query: {
                 dimensions: [day],
@@ -97,14 +100,17 @@ export const agentEvaluationsChartSpecs: UsageChartSpec[] = [
             {
                 metric: 'agent_evaluation_runs_passed_assessments',
                 name: 'Passed',
+                color: positive,
             },
             {
                 metric: 'agent_evaluation_runs_failed_assessments',
                 name: 'Failed',
+                color: caution,
             },
         ],
         yName: 'Assessments',
         stacked: true,
+        wholeNumbers: true,
         timezone,
     }),
     ranking({
@@ -135,70 +141,63 @@ export const agentEvaluationsChartSpecs: UsageChartSpec[] = [
     }),
 ];
 
-export const agentEvaluationsDashboardSpec: UsageDashboardSpec = {
-    key: 'lightdash-analytics-agent-evaluations',
-    name: 'Agent evaluations',
-    description: 'Evaluation quality over time, by agent and evaluation.',
-    filters: {
-        dimensions: [
-            { label: 'Agent', fieldId: 'agent_evaluation_runs_agent_name' },
-            {
-                label: 'Evaluation',
-                fieldId: 'agent_evaluation_runs_evaluation_name',
-            },
-        ].map(({ label, fieldId }) => ({
-            label,
-            target: { fieldId, tableName: 'agent_evaluation_runs' },
-            operator: FilterOperator.EQUALS,
-            values: [],
-            disabled: true,
-        })),
-        metrics: [],
-        tableCalculations: [],
-    },
-    tabs: [
+// Evaluations are a tab of the Agents dashboard: test runs of the agents, beside how their live
+// requests end. The Agent and Evaluation filters reach only these tiles.
+export const agentEvaluationFilters: NonNullable<
+    UsageDashboardSpec['filters']
+> = {
+    dimensions: [
+        { label: 'Agent', fieldId: 'agent_evaluation_runs_agent_name' },
         {
-            key: 'quality',
-            name: 'Evaluation quality',
-            sections: [
-                {
-                    title: 'Assessment trends',
-                    description:
-                        'Filter by agent or evaluation to track quality across runs. Pass rate is passing assessments divided by all assessments.',
-                    charts: [
-                        'evals-runs',
-                        'evals-passed-assessments',
-                        'evals-failed-assessments',
-                    ],
-                },
-                {
-                    title: 'Assessments by day',
-                    description: '',
-                    note: false,
-                    charts: [
-                        'assessment-pass-rate-by-day',
-                        'assessment-volume-by-day',
-                    ],
-                    layout: 'row',
-                    rowHeight: 8,
-                },
-                {
-                    title: 'Results by evaluation and run',
-                    description:
-                        'Compare evaluations and inspect individual runs. Results reflect the latest nightly refresh and may change if evaluation history is removed.',
-                    charts: ['quality-by-evaluation'],
-                    layout: 'row',
-                    rowHeight: 8,
-                },
-                {
-                    title: 'Recent runs',
-                    description: '',
-                    note: false,
-                    charts: ['recent-evaluation-runs'],
-                    layout: 'row',
-                    rowHeight: 7,
-                },
+            label: 'Evaluation',
+            fieldId: 'agent_evaluation_runs_evaluation_name',
+        },
+    ].map(({ label, fieldId }) => ({
+        label,
+        target: { fieldId, tableName: 'agent_evaluation_runs' },
+        operator: FilterOperator.EQUALS,
+        values: [],
+        disabled: true,
+    })),
+    metrics: [],
+    tableCalculations: [],
+};
+
+export const agentEvaluationSections: UsageDashboardSpec['tabs'][number]['sections'] =
+    [
+        {
+            title: 'Do the agents pass their evaluations?',
+            description:
+                'Test runs of agents in the selected period, empty until one has run. Pass rate is passing assessments out of all assessments.',
+            charts: [
+                'evals-runs',
+                'evals-passed-assessments',
+                'evals-failed-assessments',
             ],
         },
-    ],
-};
+        {
+            title: 'Assessments by day',
+            description: '',
+            note: false,
+            charts: ['assessment-pass-rate-by-day', 'assessment-volume-by-day'],
+            layout: 'row',
+            rowHeight: 8,
+        },
+        {
+            title: 'Results by evaluation and run',
+            description:
+                'Compare evaluations and inspect single runs. Results come from the latest nightly refresh and change if history is removed.',
+            charts: ['quality-by-evaluation'],
+            layout: 'row',
+            // A handful of evaluations is usual: room for six rows, more by scrolling
+            rowHeight: 5,
+        },
+        {
+            title: 'Recent runs',
+            description: '',
+            note: false,
+            charts: ['recent-evaluation-runs'],
+            layout: 'row',
+            rowHeight: 7,
+        },
+    ];

@@ -4,6 +4,8 @@ import {
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
+import { buildAiTokenDashboard } from './aiTokenDashboard';
+import { modelProviderColors, modelTierRanks } from './analyticsColorPalette';
 import {
     libraryChartFields,
     withLibraryCharts,
@@ -455,7 +457,12 @@ describe('analyticsLibraryChartBindings', () => {
     it('keeps sorts within the query a library chart runs', () => {
         entries.forEach(([slug, b]) => {
             if (!b.query) return;
-            const queryFields = [...b.query.dimensions, ...b.query.metrics];
+            const queryFields = [
+                ...b.query.dimensions,
+                ...b.query.metrics,
+                // A query can also sort by its own calculations
+                ...(b.query.tableCalculations ?? []).map(({ name }) => name),
+            ];
             b.query.sorts.forEach(({ fieldId }) => {
                 expect(queryFields).toContain(fieldId);
             });
@@ -492,6 +499,95 @@ describe('analyticsLibraryChartBindings', () => {
     });
 });
 
+describe('model colours', () => {
+    it('colours every chart that splits or ranks by model by provider', () => {
+        const byModel = [...analyticsLibraryChartBindings.entries()].filter(
+            ([, modelBinding]) =>
+                modelBinding.slug === 'customizable-cartesian-chart' &&
+                [
+                    modelBinding.fieldMapping.splitBy,
+                    modelBinding.fieldMapping.x,
+                ].includes('ai_usage_model_name'),
+        );
+        expect(byModel.map(([slug]) => slug).sort()).toEqual([
+            'lightdash-analytics-ai-tokens-ai-calls-by-day',
+            'lightdash-analytics-ai-tokens-ai-consumption-by-person-feature-and-model',
+            'lightdash-analytics-ai-tokens-calls-by-model',
+            'lightdash-analytics-ai-tokens-tokens-by-day',
+            'lightdash-analytics-ai-tokens-tokens-by-model',
+        ]);
+        byModel.forEach(([, modelBinding]) =>
+            expect(modelBinding).toMatchObject({
+                minVersion: '0.18.9',
+                optionValues: {
+                    splitColorGroups: modelProviderColors,
+                    // Darker for the more powerful model
+                    splitShadeRank: modelTierRanks,
+                    // A model with no tier word is a middle shade, not the palest
+                    splitShadeUnranked: 'middle',
+                },
+            }),
+        );
+        // Label=prefixes=#hex rules, with the name forms each provider route records
+        expect(
+            modelProviderColors.split(';').map((rule) => rule.split('=')[0]),
+        ).toEqual(['Anthropic', 'OpenAI', 'Google']);
+        modelProviderColors
+            .split(';')
+            .forEach((rule) =>
+                expect(rule).toMatch(/^[A-Za-z]+=[a-z0-9./|-]+=#[0-9A-F]{6}$/),
+            );
+    });
+});
+
+describe('model colours on AI token usage', () => {
+    it('fills tokens by outcome with the shared good and not-good colours', () => {
+        const outcome = buildAiTokenDashboard().charts.find(({ slug }) =>
+            slug.endsWith('-outcome-daily'),
+        )!;
+        if (outcome.chartConfig.type !== ChartType.CUSTOM) throw new Error();
+        const spec = JSON.stringify(outcome.chartConfig.config?.spec);
+        expect(spec).toContain(
+            '{\\"Success\\":\\"#34D399\\",\\"Error\\":\\"#FB923C\\"}[datum.group_name]',
+        );
+        expect(spec).toContain('"field":"group_color"');
+    });
+
+    it('fills the two model charts by provider from the same prefixes, and no other breakdown', () => {
+        const specs = buildAiTokenDashboard().charts.flatMap((tokenChart) =>
+            tokenChart.chartConfig.type === ChartType.CUSTOM
+                ? [
+                      [
+                          tokenChart.slug,
+                          JSON.stringify(tokenChart.chartConfig.config?.spec),
+                      ] as const,
+                  ]
+                : [],
+        );
+        const byProvider = specs.filter(([, spec]) =>
+            spec.includes('"as":"provider_rank"'),
+        );
+        expect(byProvider.map(([slug]) => slug).sort()).toEqual([
+            'lightdash-analytics-ai-tokens-model-daily',
+            'lightdash-analytics-ai-tokens-model-rank',
+        ]);
+        byProvider.forEach(([, spec]) => {
+            // Every prefix of the shared rule, and each provider's own colour for its largest model
+            modelProviderColors.split(';').forEach((rule) => {
+                const [label, prefixes, color] = rule.split('=');
+                prefixes
+                    .split('|')
+                    .forEach((prefix) =>
+                        expect(spec).toContain(
+                            `indexof(lower(datum.group), '${prefix}') === 0`,
+                        ),
+                    );
+                expect(spec).toContain(`\\"${label}\\":[\\"${color}\\"`);
+            });
+        });
+    });
+});
+
 describe('legacyLibraryChartBindings', () => {
     it('keys a sample chart binding by its final slug', () => {
         const map = legacyLibraryChartBindings([
@@ -515,7 +611,7 @@ describe('legacyLibraryChartBindings', () => {
     });
 
     it('binds the Overview charts under their final slugs', () => {
-        const prefix = 'lightdash-analytics-overview-';
+        const prefix = 'lightdash-analytics-ai-tokens-';
         [
             'ai-calls',
             'tokens',
@@ -528,21 +624,41 @@ describe('legacyLibraryChartBindings', () => {
                 true,
             );
         });
+        // Ranked horizontal bars in the colour of each model's provider, on the plain chart's query
         ['tokens-by-model', 'calls-by-model'].forEach((key) => {
-            expect(analyticsLibraryChartBindings.has(`${prefix}${key}`)).toBe(
-                false,
-            );
+            expect(
+                analyticsLibraryChartBindings.get(`${prefix}${key}`),
+            ).toMatchObject({
+                slug: 'customizable-cartesian-chart',
+                minVersion: '0.18.9',
+                fieldMapping: { x: 'ai_usage_model_name' },
+                optionValues: {
+                    seriesType: 'bar',
+                    orientation: 'horizontal',
+                    splitColorGroups: modelProviderColors,
+                    showDataLabels: true,
+                    lightdashLabels: false,
+                    showAxisTitles: false,
+                    showLegend: true,
+                    legendPosition: 'bottom',
+                },
+                query: null,
+            });
+            expect(
+                analyticsLibraryChartBindings.get(`${prefix}${key}`)
+                    ?.fieldMapping,
+            ).not.toHaveProperty('splitBy');
         });
     });
 
     it('shows the latest day and daily trend on the AI users card', () => {
         expect(
             analyticsLibraryChartBindings.get(
-                'lightdash-analytics-overview-ai-users',
+                'lightdash-analytics-ai-tokens-ai-users',
             ),
         ).toEqual({
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.7.1',
+            minVersion: '0.8.4',
             fieldMapping: {
                 value: 'ai_usage_unique_users',
                 sparklineMetric: 'ai_usage_unique_users',
@@ -576,7 +692,7 @@ describe('legacyLibraryChartBindings', () => {
             analyticsLibraryChartBindings.get(`${prefix}${key}`);
         expect(queryBinding('queries')).toMatchObject({
             slug: 'big-number-with-sparkline-trend',
-            minVersion: '0.7.1',
+            minVersion: '0.8.4',
             optionValues: {
                 valueAggregation: 'sum',
                 showComparison: false,
@@ -591,7 +707,7 @@ describe('legacyLibraryChartBindings', () => {
             (key) => {
                 expect(queryBinding(key)).toMatchObject({
                     slug: 'big-number-with-sparkline-trend',
-                    minVersion: '0.7.1',
+                    minVersion: '0.8.4',
                     optionValues: {
                         valueAggregation: 'latest',
                         showComparison: false,
@@ -632,19 +748,56 @@ describe('legacyLibraryChartBindings', () => {
             optionValues: { markType: 'area', curve: 'smooth' },
             query: null,
         });
-        [
-            'warehouse-versus-cached-demand',
-            'query-cache',
-            'queries-by-context',
-            'query-latency-by-day',
-            'query-calendar',
-        ].forEach((key) => {
-            expect(queryBinding(key)).toBeUndefined();
+        ['query-cache', 'queries-by-context', 'query-calendar'].forEach(
+            (key) => {
+                expect(queryBinding(key)).toBeUndefined();
+            },
+        );
+        // The two tables of this tab are the library table, like every other ranking: a few rows by
+        // cache and source with the groups open, and origins with a column for each kind of starter
+        expect(queryBinding('warehouse-versus-cached-demand')).toMatchObject({
+            slug: 'sortable-pivot-table',
+            fieldMapping: {
+                rowDimension: 'query_events_cache_hit_name',
+                rowDimension2: 'query_events_execution_source_name',
+                metric: ['query_events_total_queries'],
+            },
+            optionValues: {
+                defaultCollapsed: 'expanded',
+                showMiniBars: true,
+                rowHeaderName: 'Cache / Run or served by',
+                valueNames: 'Queries',
+            },
+        });
+        expect(queryBinding('query-origin-and-initiating-actor')).toMatchObject(
+            {
+                slug: 'sortable-pivot-table',
+                fieldMapping: {
+                    rowDimension: 'query_events_workload_origin_name',
+                    rowDimension2: 'query_events_context_name',
+                    series: 'query_events_initiating_actor_type_name',
+                    metric: ['query_events_total_queries'],
+                },
+                optionValues: {
+                    defaultCollapsed: 'collapsed',
+                    rowHeaderName: 'Origin / Run from',
+                },
+            },
+        );
+        // Lines on the same date axis as the charts above it
+        expect(queryBinding('query-latency-by-day')).toMatchObject({
+            slug: 'customizable-cartesian-chart',
+            optionValues: {
+                xTimeFormat: '{MMM} {d}',
+                m1Name: 'Average',
+                m2Name: 'P90',
+            },
+            query: null,
         });
     });
 
     it('runs the day query on the real AI calls chart only when its type is usable', () => {
-        const slug = 'lightdash-analytics-overview-ai-calls';
+        const slug = 'lightdash-analytics-ai-tokens-ai-calls';
         const real = allCharts.find((c) => c.slug === slug)!;
         const bigNumberSchema: DataAppVizSchema = {
             fields: ['value', 'sparklineMetric', 'time'].map((name) => ({
@@ -753,11 +906,11 @@ describe('legacyLibraryChartBindings', () => {
         const chartDescription = (slug: string) =>
             allCharts.find((c) => c.slug === slug)?.description;
         [
-            'lightdash-analytics-overview-ai-calls',
-            'lightdash-analytics-overview-tokens',
-            'lightdash-analytics-overview-output-tokens',
-            'lightdash-analytics-overview-ai-calls-by-day',
-            'lightdash-analytics-overview-tokens-by-day',
+            'lightdash-analytics-ai-tokens-ai-calls',
+            'lightdash-analytics-ai-tokens-tokens',
+            'lightdash-analytics-ai-tokens-output-tokens',
+            'lightdash-analytics-ai-tokens-ai-calls-by-day',
+            'lightdash-analytics-ai-tokens-tokens-by-day',
         ].forEach((slug) => {
             expect(queryDescription(slug)).toBe(chartDescription(slug));
         });
@@ -794,14 +947,13 @@ describe('legacyLibraryChartBindings', () => {
                     (tile) => (tile.properties as { content: string }).content,
                 );
         expect(queryDescription(agentChart('agent-adoption-by-week'))).toBe(
-            'Requests per person and agent in the selected period. People without a display name are grouped as Unknown user.',
+            'Requests per person and agent in the selected period. Requests with no person recorded are grouped as No user recorded.',
         );
         expect(
-            captions('lightdash-analytics-overview', 'adoption').filter(
-                (content) =>
-                    content.includes(
-                        'Agent requests and the people who sent them.',
-                    ),
+            captions('lightdash-analytics-overview', 'use').filter((content) =>
+                content.includes(
+                    'Agent requests and the people who sent them.',
+                ),
             ),
         ).toHaveLength(1);
         expect(
@@ -809,11 +961,12 @@ describe('legacyLibraryChartBindings', () => {
                 agentChart('ai-consumption-by-person-feature-and-model'),
             ),
         ).toBe(
-            'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. People without a display name are grouped as Unknown user.',
+            'Top 24 person and model pairs by tokens in the selected period, so a person near the cut-off can be missing their smaller models. Usage with no person recorded is left out.',
         );
         expect(
-            captions('lightdash-analytics-overview', 'consumption').filter(
-                (content) => content.includes('Tokens are not cost.'),
+            // The token tiles moved to AI token usage, whose Any period tab says what it counts
+            captions('lightdash-analytics-ai-tokens', 'any-period').filter(
+                (content) => content.includes('counts all usage'),
             ),
         ).toHaveLength(1);
         expect(queryDescription(agentChart('agent-requests-trend'))).toBe(

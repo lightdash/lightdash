@@ -13,6 +13,8 @@ export type LibraryChartBinding = {
     minVersion: string; // registry semver the mapping was written against
     fieldMapping: DataAppVizFieldMapping;
     optionValues: DataAppVizOptionValues;
+    // What the library rendering shows, when that differs from the plain chart on the same query
+    description?: string;
     // Query the library chart runs in place of the fallback's; null when it shares the fallback query.
     query: {
         dimensions: string[];
@@ -60,7 +62,8 @@ export const libraryChartFields: Record<
         required: ['x', 'value'],
     },
     'sortable-pivot-table': {
-        fields: ['rowDimension', 'rowDimension2', 'series', 'metric'],
+        // 'link' (from 0.15.0) holds a web address: the row's name opens it
+        fields: ['rowDimension', 'rowDimension2', 'series', 'metric', 'link'],
         required: ['rowDimension', 'metric'],
     },
     'customizable-cartesian-chart': {
@@ -80,10 +83,15 @@ export const libraryChartFields: Record<
         ],
         required: ['value'],
     },
-    'word-cloud': {
-        fields: ['word', 'size', 'colorBy'],
-        required: ['word', 'size'],
-    },
+};
+
+// A field slot added after the type was first bound: a binding that maps it must ask for at least the
+// version that introduced it.
+export const libraryChartFieldVersions: Record<
+    string,
+    Record<string, string>
+> = {
+    'sortable-pivot-table': { link: '0.15.0' },
 };
 
 // Option names each supported type accepts. An option added after the type was first bound carries the
@@ -103,6 +111,10 @@ export const libraryChartOptions: Record<
         yTitle: '0.5.0',
         legendTitle: '0.5.0',
         legendFormat: '0.5.0',
+        // Caps the colour range at a percentile of the cells, so one extreme cell does not leave
+        // every other cell the same pale tint
+        colorClampPercentile: '0.5.1',
+        colorScale: '0.5.1',
     },
     'vega-trellis': {
         ...sinceFirstBinding(
@@ -113,11 +125,13 @@ export const libraryChartOptions: Record<
     },
     'sortable-pivot-table': {
         ...sinceFirstBinding(
-            'showTotalsRow groupSubtotals defaultCollapsed valueDisplay showRowTotals totalsPosition stickyFirstColumn resizableColumns stripedRows stickyHeader fitMode columnBorders columnGroupBy hideColumns density cellColorMode formatTotals showMiniBars decimalPlaces useFieldFormats rowOrder columnOrder defaultSortDirection highlightColor',
+            'showTotalsRow groupSubtotals defaultCollapsed valueDisplay showRowTotals totalsPosition stickyFirstColumn resizableColumns stripedRows stickyHeader fitMode columnBorders columnGroupBy hideColumns density cellColorMode formatTotals showMiniBars decimalPlaces rowOrder columnOrder defaultSortDirection highlightColor',
         ),
         initialSort: '0.14.0',
         rowHeaderName: '0.14.0',
         valueNames: '0.14.0',
+        // Writes each value the way its field is formatted, so a share reads 42%
+        useFieldFormats: '0.14.2',
     },
     'customizable-cartesian-chart': {
         ...sinceFirstBinding(
@@ -130,6 +144,27 @@ export const libraryChartOptions: Record<
         // Orders the split series: 'total' puts the largest at the bottom of the stack. Added in 0.18.1;
         // from 0.18.3 the colours follow the sorted order too, which is the version a binding asks for
         splitSort: '0.18.3',
+        // Colours series or bars by a named group, such as the provider of a model
+        splitColorGroups: '0.18.4',
+        orientation: '0.18.4',
+        // A colour for one measure, for measures that mean good or not good. Ignored with a split.
+        m1Color: '0.18.6',
+        m2Color: '0.18.6',
+        m3Color: '0.18.6',
+        m4Color: '0.18.6',
+        // Whole-number ticks, for an axis that counts a few things
+        yIntegerTicks: '0.18.6',
+        y2IntegerTicks: '0.18.6',
+        // Shades each group's series by a ranked list of words in their names, darkest first. Added in
+        // 0.18.7; 0.18.8 narrowed the ramp so the weakest tier is not too pale, which is the version a
+        // binding asks for
+        splitShadeRank: '0.18.8',
+        // 'middle' gives a name with none of the ranked words a middle shade of its group, not the palest
+        splitShadeUnranked: '0.18.9',
+        // 'groups' lists one legend entry for each colour group instead of one for each series
+        legendMode: '0.18.7',
+        // Ends the value axis just above the bulk of the bars when one or two dwarf the rest
+        capOutliers: '0.18.9',
     },
     'big-number-with-sparkline-trend': {
         ...sinceFirstBinding(
@@ -137,10 +172,23 @@ export const libraryChartOptions: Record<
         ),
         showHighLow: '0.8.0',
         comparisonSource: '0.8.0',
+        // From this version the number's size and format no longer depend on how the value is
+        // added up, so cards in a row can match
+        reserveComparisonSpace: '0.8.2',
+        // The bar of a card with a target: as wide as the card, and how tall. From 0.8.4 the target
+        // label also takes {target}, {value} and {field_id}
+        progressWidth: '0.8.4',
+        progressHeight: '0.8.4',
     },
-    'word-cloud': sinceFirstBinding(
-        'colorMode singleColor rotationMode spiral minFontSize maxFontSize sizeScale maxWords caseMode showLegend',
-    ),
+};
+
+// The lowest version a binding may ask for, whatever options it sets, where an earlier version draws
+// the chart wrongly. The sync upgrades an installed type only when it is below a binding's version, so
+// a fix reaches an instance only if the bindings ask for the version that has it.
+export const libraryChartFloors: Record<string, string> = {
+    // 0.8.3 stops the sparkline being clipped at the bottom of the card; 0.8.4 draws the number of a
+    // card with a target at its normal size
+    'big-number-with-sparkline-trend': '0.8.4',
 };
 
 // Swaps a chart to its library type only when the installed version meets its binding and the binding is valid.
@@ -199,6 +247,7 @@ export const withLibraryCharts = (
         }
         return {
             ...chart,
+            ...(binding.description && { description: binding.description }),
             ...(query && {
                 description: query.description,
                 metricQuery: {

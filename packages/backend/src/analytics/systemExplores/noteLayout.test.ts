@@ -59,10 +59,12 @@ describe('note height', () => {
         expect(noteLines(note)).toBe(2);
         expect(noteRows(note)).toBe(1);
         expect(noteBody(note)).toBe('One short line.');
-        // A longer description keeps its heading and takes two rows
-        expect(titledNote('Caching', lines(2))).toBe(
-            `### Caching\n\n${lines(2)}`,
-        );
+        // A longer description keeps the same bold title, never a large heading, and takes two rows
+        const long = titledNote('Caching', lines(2));
+        expect(long).toBe(`**Caching**  \n${lines(2)}`);
+        expect(noteRows(long)).toBe(2);
+        // A title with nothing under it is still the bold line
+        expect(titledNote('Caching', '')).toBe('**Caching**');
         // A single newline without the two spaces is only a space
         expect(noteLines('one\ntwo')).toBe(1);
     });
@@ -103,11 +105,28 @@ describe('notes on the built-in dashboards', () => {
         },
     );
 
-    it('keeps a caption without a heading to one row', () => {
-        const plain = captions.filter(
-            ({ content }) => !content.startsWith('#'),
+    // One form on every tab: the section's title in bold, then one line under it, in one grid row.
+    // No large heading, and no text with no title above it.
+    it.each(captions)(
+        'is a bold title with one line under it: $dashboard > $tab > $content',
+        ({ rows, content }) => {
+            expect(content).toMatch(/^\*\*[^*\n]+\*\* {2}\n[^\n#]+$/);
+            expect(rows).toBe(1);
+        },
+    );
+
+    it('checks that form on every dashboard but AI token usage', () => {
+        expect(captions.length).toBeGreaterThan(40);
+        expect(new Set(captions.map(({ dashboard }) => dashboard))).toEqual(
+            new Set([
+                'lightdash-analytics-overview',
+                'lightdash-analytics-query-activity',
+                'lightdash-analytics-content',
+                'lightdash-analytics-apps',
+                'lightdash-analytics-tools',
+                'lightdash-analytics-adoption',
+                'lightdash-analytics-embed',
+            ]),
         );
-        expect(plain.length).toBeGreaterThan(10);
-        plain.forEach(({ rows }) => expect(rows).toBe(1));
     });
 });
