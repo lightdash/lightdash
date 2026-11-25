@@ -613,7 +613,7 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'New content',
                     description:
-                        'People who viewed new content in its first seven days and came back later are a sign of adoption. Content created before the selected period is not listed.',
+                        'People who view new content in its first week and come back are a sign of adoption. Content created before the period is not listed.',
                     charts: ['new-content-adoption-creation-week-proxy'],
                     layout: 'row',
                     rowHeight: 8,
@@ -628,7 +628,7 @@ export const contentDashboardSpec: UsageDashboardSpec = {
                 {
                     title: 'All content, whatever the Date filter says',
                     description:
-                        'These tiles cover all recorded history. No recorded activity is not proof that an item is safe to delete: a dashboard tile or a schedule may still use it.',
+                        'All recorded history. No activity does not make an item safe to delete: a dashboard tile or a schedule may still use it.',
                     charts: [
                         'content-with-activity',
                         'content-without-activity-in-use',

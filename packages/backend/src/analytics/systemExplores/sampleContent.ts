@@ -1069,7 +1069,7 @@ const queriesTabs: { slug: string; name: string; rows: QueriesRow[] }[] = [
             {
                 note: titledNote(
                     'How much is Lightdash queried?',
-                    'Queries and the people running them. These tiles follow the Date filter.',
+                    'Queries and the people running them.',
                 ),
             },
             { charts: ['queries', 'query-users'], h: SPARKLINE_CARD_ROWS },
@@ -1077,7 +1077,7 @@ const queriesTabs: { slug: string; name: string; rows: QueriesRow[] }[] = [
             {
                 note: titledNote(
                     'Longer views, whatever the Date filter says',
-                    'The calendar covers the last 26 weeks. The monthly tiles cover up to the last 12 complete months (UTC), each compared with the month before.',
+                    'The calendar covers the last 26 weeks. The monthly tiles cover up to 12 complete months (UTC), each compared with the month before.',
                 ),
             },
             { charts: ['query-calendar'], h: 6 },
@@ -1098,7 +1098,7 @@ const queriesTabs: { slug: string; name: string; rows: QueriesRow[] }[] = [
             {
                 note: titledNote(
                     'How fast are queries?',
-                    'Warehouse time is how long the warehouse took to run a query. Response time is how long Lightdash took to answer, warehouse included; each tile says which it shows.',
+                    'Warehouse time is the warehouse running the query. Response time is the whole answer from Lightdash, warehouse time included.',
                 ),
             },
             {
@@ -1109,7 +1109,7 @@ const queriesTabs: { slug: string; name: string; rows: QueriesRow[] }[] = [
             {
                 note: titledNote(
                     'Which dashboards are slow or expensive?',
-                    'P95 response time is how long the backend took to respond, before the browser draws the result. Warehouse time is what the queries cost to run.',
+                    'P95 response time is how long the backend took, before the browser draws the result. Warehouse time is what the queries cost to run.',
                 ),
             },
             {
@@ -1135,7 +1135,7 @@ const queriesTabs: { slug: string; name: string; rows: QueriesRow[] }[] = [
             {
                 note: titledNote(
                     'Where do queries come from?',
-                    'Origin is the kind of work, such as interactive, scheduled or data app. Context is where the query was run from, such as a dashboard or an Explore.',
+                    'Origin is the kind of work, such as interactive, scheduled or data app. Context is where it ran, such as a dashboard or an Explore.',
                 ),
             },
             { charts: ['queries-by-context'], h: 8 },

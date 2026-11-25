@@ -138,7 +138,7 @@ export const peopleNoActivitySections = [
     {
         title: 'How many members have never used it?',
         description:
-            'These tiles do not follow the Date filter. Use is a view, query or agent request made by hand; scheduled and automated runs do not count.',
+            'These tiles ignore the Date filter. Use is a view, query or agent request made by hand; scheduled and automated runs do not count.',
         charts: ['people-without-observed-activity'],
     },
     {
