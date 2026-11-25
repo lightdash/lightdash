@@ -119,6 +119,11 @@ const metric = (
     ...(aiHint ? { aiHint } : {}),
 });
 
+// Mixpanel answers an unknown event name with zeros, not an error, and field
+// value search can't list event names yet
+const EVENT_NAME_HINT =
+    'Event names are case-sensitive and must match Mixpanel exactly, often Title Case with spaces ("Signed Up", not signed_up or sign_up). Field value search cannot list them: ask the user for the names rather than guessing. Mixpanel returns zeros, not an error, for a name that does not exist, so if every date is 0 check the name before saying there is no data.';
+
 const NOT_ADDITIVE_HINT =
     'Not additive: never sum rows across dates or property values; choose a coarser date grain instead.';
 
@@ -170,7 +175,7 @@ export const MIXPANEL_EVENTS_EXPLORE: LiveExploreDefinition = {
     label: 'Events',
     description:
         'Event counts and unique users per event in one Mixpanel project, by day or month and one event property.',
-    aiHint: 'Required: filter Event (equals) to 1 to 3 event names; Mixpanel reads one event per call. Without a Date filter the query reads the last 30 days. Group by at most one event property (Country, Region, City, Browser, OS, Device, Library, Referring domain, UTM source, UTM medium, UTM campaign); split by a property, values with no events on a date are left out. Unique users and Events per user are not additive: never sum rows across dates or properties; query a coarser date grain or no date instead.',
+    aiHint: `Required: filter Event (equals) to 1 to 3 event names; Mixpanel reads one event per call. ${EVENT_NAME_HINT} Without a Date filter the query reads the last 30 days. Group by at most one event property (Country, Region, City, Browser, OS, Device, Library, Referring domain, UTM source, UTM medium, UTM campaign); split by a property, values with no events on a date are left out. Unique users and Events per user are not additive: never sum rows across dates or properties; query a coarser date grain or no date instead.`,
     dimensions: [
         {
             name: 'date',
@@ -200,7 +205,7 @@ export const MIXPANEL_EVENTS_EXPLORE: LiveExploreDefinition = {
             type: DimensionType.STRING,
             filterOperators: MIXPANEL_EVENT_FILTERS,
             description: 'Name of the event, as tracked in Mixpanel.',
-            aiHint: 'Required: filter it (equals) to the events to count, 1 to 3 names.',
+            aiHint: `Required: filter it (equals) to the events to count, 1 to 3 names. ${EVENT_NAME_HINT}`,
         },
         ...properties(),
     ],
@@ -380,7 +385,7 @@ export const MIXPANEL_RETENTION_EXPLORE: LiveExploreDefinition = {
             filterOperators: MIXPANEL_EVENT_FILTERS,
             description:
                 'Event that puts users in a cohort, the first time they do it.',
-            aiHint: 'Filter only (equals, one event). Without it a cohort is everyone who did the return event in the period.',
+            aiHint: `Filter only (equals, one event). Without it a cohort is everyone who did the return event in the period. ${EVENT_NAME_HINT}`,
         },
         {
             name: 'return_event',
@@ -389,7 +394,7 @@ export const MIXPANEL_RETENTION_EXPLORE: LiveExploreDefinition = {
             type: DimensionType.STRING,
             filterOperators: MIXPANEL_EVENT_FILTERS,
             description: 'Event that counts as coming back.',
-            aiHint: 'Filter only (equals, one event). Without it any event counts.',
+            aiHint: `Filter only (equals, one event). Without it any event counts. ${EVENT_NAME_HINT}`,
         },
     ],
     metrics: [
