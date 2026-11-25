@@ -1,4 +1,5 @@
-import type { AiAgent } from '@lightdash/common';
+import { assertUnreachable, type AiAgent } from '@lightdash/common';
+import type { McpQueryPath } from '../../McpService/mcpQueryPath';
 
 const FILTER_EXPRESSION_SKILL_REMINDER =
     '- Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values';
@@ -84,30 +85,30 @@ ${agentIdentityEnabled ? AGENT_CONNECT_RULE : ''}`;
 };
 
 export const getMcpAnalystPrompt = ({
-    runSqlEnabled,
-    runMetricQueryEnabled,
-    filterExpressionsEnabled,
+    queryPath,
     documentsEnabled,
     agentIdentityEnabled = false,
 }: {
-    runSqlEnabled: boolean;
-    runMetricQueryEnabled: boolean;
-    filterExpressionsEnabled: boolean;
+    queryPath: McpQueryPath;
     documentsEnabled: boolean;
     agentIdentityEnabled?: boolean;
 }): string => {
-    if (!runSqlEnabled && !runMetricQueryEnabled) {
-        return CONTENT_ONLY_PROMPT;
+    switch (queryPath.type) {
+        case 'contentOnly':
+            return CONTENT_ONLY_PROMPT;
+        case 'sqlOnly':
+            return buildSqlOnlyPrompt(agentIdentityEnabled);
+        case 'classic':
+        case 'composer':
+            return buildMcpAnalystPrompt(
+                queryPath.sqlRunnerEnabled,
+                queryPath.filterExpressionsEnabled,
+                documentsEnabled,
+                agentIdentityEnabled,
+            );
+        default:
+            return assertUnreachable(queryPath, 'Unknown MCP query path');
     }
-    if (!runMetricQueryEnabled) {
-        return buildSqlOnlyPrompt(agentIdentityEnabled);
-    }
-    return buildMcpAnalystPrompt(
-        runSqlEnabled,
-        filterExpressionsEnabled,
-        documentsEnabled,
-        agentIdentityEnabled,
-    );
 };
 
 export const getMcpPinnedAgentPrompt = (

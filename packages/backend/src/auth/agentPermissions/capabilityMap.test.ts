@@ -134,10 +134,13 @@ it('covers the tools registered by the real MCP service across feature variants'
                 makeMcpServerOptions({
                     mcpContentWritesEnabled: enabled,
                     scheduledDeliveryEnabled: enabled,
-                    runSqlEnabled: enabled,
-                    runMetricQueryEnabled: enabled,
-                    queryEnabled: enabled,
-                    filterExpressionsEnabled: enabled,
+                    queryPath: enabled
+                        ? {
+                              type: 'composer',
+                              sqlRunnerEnabled: true,
+                              filterExpressionsEnabled: true,
+                          }
+                        : { type: 'contentOnly' },
                     documentsEnabled: enabled,
                     dataAppBuildsEnabled: enabled,
                     chartTypeBuildsEnabled: enabled,

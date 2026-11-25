@@ -133,14 +133,11 @@ const createMcpService = () =>
         isContentToolsEnabled: vi.fn().mockResolvedValue(false),
         isCreateScheduledDeliveryEnabled: vi.fn().mockResolvedValue(false),
         isEnabled: vi.fn().mockResolvedValue(true),
-        isFilterExpressionsEnabled: vi.fn().mockResolvedValue(true),
-        isRunMetricQueryEnabled: vi.fn().mockResolvedValue(false),
+        resolveQueryPath: vi.fn().mockResolvedValue({ type: 'contentOnly' }),
         isDataAppBuildsEnabled: vi.fn().mockResolvedValue(false),
         isChartTypeBuildsEnabled: vi.fn().mockResolvedValue(false),
         isCustomChartTypesEnabled: vi.fn().mockResolvedValue(false),
         isAgentIdentityEnabled: vi.fn().mockResolvedValue(false),
-        isRunSqlEnabled: vi.fn().mockResolvedValue(false),
-        isQueryEnabled: vi.fn().mockResolvedValue(false),
         recordToolList: vi.fn(),
     }) as McpService;
 
@@ -495,9 +492,7 @@ describe('MCP tool catalogue activity', () => {
                     pinnedProjectUuid: undefined,
                 }),
                 featureAvailability: expect.objectContaining({
-                    runSqlEnabled: false,
-                    runMetricQueryEnabled: false,
-                    filterExpressionsEnabled: true,
+                    queryPath: { type: 'contentOnly' },
                     documentsEnabled: true,
                 }),
             },
@@ -665,13 +660,10 @@ describe('project-scoped MCP route', () => {
             body: '{"status":"ok"}',
             status: 200,
         });
-        expect(mcpService.isRunSqlEnabled).toHaveBeenCalledWith(
+        expect(mcpService.resolveQueryPath).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: 'user-uuid' }),
             PROJECT_UUID,
-        );
-        expect(mcpService.isRunMetricQueryEnabled).toHaveBeenCalledWith(
-            expect.objectContaining({ userUuid: 'user-uuid' }),
-            PROJECT_UUID,
+            null,
         );
         expect(mcpService.isContentToolsEnabled).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: 'user-uuid' }),
@@ -681,15 +673,12 @@ describe('project-scoped MCP route', () => {
             expect.objectContaining({ userUuid: 'user-uuid' }),
             PROJECT_UUID,
         );
-        expect(mcpService.isFilterExpressionsEnabled).toHaveBeenCalledWith(
-            expect.objectContaining({ userUuid: 'user-uuid' }),
-        );
         expect(mcpService.createServer).toHaveBeenCalledWith({
             req: expect.objectContaining({
                 pinnedProjectUuid: PROJECT_UUID,
             }),
             featureAvailability: expect.objectContaining({
-                filterExpressionsEnabled: true,
+                queryPath: { type: 'contentOnly' },
             }),
         });
         expect(transport.handleRequest).toHaveBeenCalledOnce();
@@ -1053,9 +1042,10 @@ describe('agent-pinned MCP route', () => {
                     }),
                 }),
             );
-            expect(mcpService.isRunSqlEnabled).toHaveBeenCalledWith(
+            expect(mcpService.resolveQueryPath).toHaveBeenCalledWith(
                 expect.objectContaining({ userUuid: 'user-uuid' }),
                 AGENT_PROJECT_UUID,
+                expect.objectContaining({ uuid: AGENT_UUID }),
             );
         },
     );

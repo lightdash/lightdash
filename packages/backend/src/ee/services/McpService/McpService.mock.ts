@@ -15,10 +15,7 @@ export const makeMcpServerOptions = (
     featureAvailability: {
         mcpContentWritesEnabled: true,
         scheduledDeliveryEnabled: true,
-        runSqlEnabled: false,
-        runMetricQueryEnabled: false,
-        queryEnabled: false,
-        filterExpressionsEnabled: false,
+        queryPath: { type: 'contentOnly' },
         documentsEnabled: false,
         dataAppBuildsEnabled: false,
         chartTypeBuildsEnabled: false,

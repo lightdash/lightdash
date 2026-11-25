@@ -417,9 +417,17 @@ const makeService = ({
     };
 };
 
-const createServer = async (service: McpService, queryEnabled = true) => {
+const createServer = async (service: McpService, composer = true) => {
     mockRegisteredMcpTools.clear();
-    await service.createServer(makeMcpServerOptions({ queryEnabled }));
+    await service.createServer(
+        makeMcpServerOptions({
+            queryPath: {
+                type: composer ? 'composer' : 'classic',
+                sqlRunnerEnabled: false,
+                filterExpressionsEnabled: false,
+            },
+        }),
+    );
 };
 
 const ordersNode = {
