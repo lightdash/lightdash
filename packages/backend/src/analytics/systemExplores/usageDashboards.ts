@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import { adoptionChartSpecs, adoptionDashboardSpec } from './adoptionDashboard';
 import { embedChartSpecs, embedDashboardSpec } from './embedDashboard';
+import type { LibraryChartBinding } from './libraryCharts';
 import { peopleNoActivityChartSpecs } from './peopleNoActivityCharts';
 import { usageActivityOriginSql } from './usageActivityOrigin';
 import { usageChartSpecs } from './usageDashboardCharts';
@@ -356,6 +357,30 @@ const dashboardSpecs = [
     embedDashboardSpec,
 ];
 
+const allChartSpecs: UsageChartSpec[] = [
+    ...usageChartSpecs,
+    ...adoptionChartSpecs,
+    ...embedChartSpecs,
+    ...peopleNoActivityChartSpecs,
+];
+
+export const usageLibraryChartBindings: ReadonlyMap<
+    string,
+    LibraryChartBinding
+> = new Map(
+    dashboardSpecs.flatMap((dashboard) =>
+        dashboard.tabs
+            .flatMap((tab) => tab.sections)
+            .flatMap((section) => section.charts)
+            .flatMap((key): [string, LibraryChartBinding][] => {
+                const binding = allChartSpecs.find(
+                    (item) => item.key === key,
+                )?.libraryChart;
+                return binding ? [[`${dashboard.key}-${key}`, binding]] : [];
+            }),
+    ),
+);
+
 export const buildUsageDashboards = (
     existingBundles: AnalyticsContentBundle[],
 ): AnalyticsContentBundle[] =>
@@ -403,12 +428,9 @@ export const buildUsageDashboards = (
                 );
                 y += noteHeight;
                 const sectionCharts = section.charts.map((key) => {
-                    const definition = [
-                        ...usageChartSpecs,
-                        ...adoptionChartSpecs,
-                        ...embedChartSpecs,
-                        ...peopleNoActivityChartSpecs,
-                    ].find((item) => item.key === key);
+                    const definition = allChartSpecs.find(
+                        (item) => item.key === key,
+                    );
                     if (!definition)
                         throw new Error(`Unknown built-in chart: ${key}`);
                     const definitionChart = withPeopleDisplayName(

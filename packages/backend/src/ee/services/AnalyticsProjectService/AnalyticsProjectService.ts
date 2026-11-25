@@ -4,6 +4,8 @@ import {
     AnalyticsProjectStatus,
     AnalyticsProjectView,
     assertIsAccountWithOrg,
+    assertUnreachable,
+    compareSemverVersions,
     ConflictError,
     ContentType,
     EnsureAnalyticsProjectResult,
@@ -16,6 +18,7 @@ import {
     NotFoundError,
     RegisteredAccount,
     SessionUser,
+    type ChartAsCode,
     type DataAppCode,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
@@ -24,8 +27,13 @@ import { z } from 'zod';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import {
+    withLibraryCharts,
+    type UsableLibraryChartType,
+} from '../../../analytics/systemExplores/libraryCharts';
+import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
+    analyticsLibraryChartBindings,
 } from '../../../analytics/systemExplores/sampleContent';
 import { trackSafely } from '../../../analytics/trackSafely';
 import { toSessionUser } from '../../../auth/account';
@@ -77,7 +85,10 @@ type Dependencies = {
     >;
     getAppGenerateService: () => Pick<
         AppGenerateService,
-        'dataAppsEnabledFor' | 'importAppCode' | 'restoreApp'
+        | 'dataAppsEnabledFor'
+        | 'ensureRegistryChartTypes'
+        | 'importAppCode'
+        | 'restoreApp'
     >;
     aiAgentModel: Pick<AiAgentModel, 'findAllAgents'>;
     getAiAgentService: () => Pick<
@@ -154,7 +165,11 @@ const expectedModelCounts = memoize(() =>
 
 const bundleSnapshotSlug = 'managed-content';
 const contentHash = memoize(() =>
-    getAnalyticsContentHash(createAnalyticsExplores(), analyticsContentAsCode),
+    getAnalyticsContentHash(
+        createAnalyticsExplores(),
+        analyticsContentAsCode,
+        analyticsLibraryChartBindings,
+    ),
 );
 
 const adoptionAppSnapshotSchema = z.object({
@@ -532,6 +547,44 @@ export class AnalyticsProjectService extends BaseService {
         return result;
     }
 
+    // Chart type installs are best effort: failures fall back to today's charts.
+    private async ensureLibraryChartTypes(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<Map<string, UsableLibraryChartType>> {
+        const minVersions = new Map<string, string>();
+        analyticsLibraryChartBindings.forEach(({ slug, minVersion }) => {
+            const current = minVersions.get(slug);
+            if (
+                current === undefined ||
+                compareSemverVersions(minVersion, current) > 0
+            ) {
+                minVersions.set(slug, minVersion);
+            }
+        });
+        try {
+            return await this.dependencies
+                .getAppGenerateService()
+                .ensureRegistryChartTypes(
+                    user,
+                    projectUuid,
+                    [...minVersions].map(([slug, minVersion]) => ({
+                        slug,
+                        minVersion,
+                    })),
+                );
+        } catch (error) {
+            this.logger.warn(
+                'Unable to install analytics library chart types',
+                {
+                    projectUuid,
+                    error: getErrorMessage(error),
+                },
+            );
+            return new Map();
+        }
+    }
+
     async installSampleContent(user: SessionUser): Promise<void> {
         const organizationUuid = await this.authorize(user);
         await this.dependencies.projectModel.runInAnalyticsProvisioningLock(
@@ -571,6 +624,10 @@ export class AnalyticsProjectService extends BaseService {
                     project.projectUuid,
                     createAnalyticsExplores(),
                     true,
+                );
+                const usableTypes = await this.ensureLibraryChartTypes(
+                    user,
+                    project.projectUuid,
                 );
                 for (const { dashboard, charts } of analyticsContentAsCode) {
                     const [existingDashboard] =
@@ -642,14 +699,71 @@ export class AnalyticsProjectService extends BaseService {
                             options,
                         );
                     }
-                    for (const chart of charts) {
-                        await this.dependencies.coderService.upsertChart(
-                            user,
-                            project.projectUuid,
-                            chart.slug,
-                            { ...chart, spaceSlug },
-                            options,
-                        );
+                    const libraryCharts = withLibraryCharts(
+                        charts,
+                        analyticsLibraryChartBindings,
+                        usableTypes,
+                    );
+                    libraryCharts.rejected.forEach((rejected) => {
+                        const details = {
+                            projectUuid: project.projectUuid,
+                            ...rejected,
+                        };
+                        switch (rejected.reason) {
+                            case 'version':
+                                // Expected while a newer chart type version is unpublished.
+                                this.logger.info(
+                                    'Analytics chart needs a newer library chart type version',
+                                    details,
+                                );
+                                break;
+                            case 'schema':
+                                this.logger.warn(
+                                    'Analytics chart does not fit its library chart type',
+                                    details,
+                                );
+                                break;
+                            default:
+                                assertUnreachable(
+                                    rejected.reason,
+                                    `Unknown rejection reason ${rejected.reason}`,
+                                );
+                        }
+                    });
+                    for (const [
+                        index,
+                        chart,
+                    ] of libraryCharts.charts.entries()) {
+                        const upload = (content: ChartAsCode) =>
+                            this.dependencies.coderService.upsertChart(
+                                user,
+                                project.projectUuid,
+                                content.slug,
+                                { ...content, spaceSlug },
+                                options,
+                            );
+                        const fallback = charts[index];
+                        if (chart === fallback) {
+                            await upload(chart);
+                        } else {
+                            try {
+                                await upload(chart);
+                            } catch (error) {
+                                // The chart type can be deleted after it was ensured.
+                                if (!(error instanceof NotFoundError)) {
+                                    throw error;
+                                }
+                                this.logger.warn(
+                                    'Analytics chart type unavailable at upload, using the plain chart',
+                                    {
+                                        projectUuid: project.projectUuid,
+                                        chartSlug: chart.slug,
+                                        error: getErrorMessage(error),
+                                    },
+                                );
+                                await upload(fallback);
+                            }
+                        }
                     }
                     await this.dependencies.coderService.upsertDashboard(
                         user,

@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ChartType,
     ConflictError,
     ContentType,
     ForbiddenError,
@@ -8,9 +9,11 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
+import { type LibraryChartBinding } from '../../../analytics/systemExplores/libraryCharts';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
+    analyticsLibraryChartBindings,
 } from '../../../analytics/systemExplores/sampleContent';
 import { fromSession } from '../../../auth/account';
 import { ANALYTICS_DATA_APP_SNAPSHOT_TYPE } from '../../../models/ContentAsCodeSnapshotModel';
@@ -24,6 +27,16 @@ import { getAnalyticsContentHash } from './analyticsContentHash';
 import { analyticsHomepage } from './analyticsHomepage';
 import { AnalyticsProjectService } from './AnalyticsProjectService';
 import { managedAdoptionAppSlug } from './managedAdoptionApp';
+
+const { mockedBindings } = vi.hoisted(() => ({
+    mockedBindings: new Map<string, LibraryChartBinding>(),
+}));
+vi.mock('../../../analytics/systemExplores/sampleContent', async (orig) => ({
+    ...(await orig<
+        typeof import('../../../analytics/systemExplores/sampleContent')
+    >()),
+    analyticsLibraryChartBindings: mockedBindings,
+}));
 
 describe('AnalyticsProjectService', () => {
     const user = {
@@ -69,6 +82,7 @@ describe('AnalyticsProjectService', () => {
     const upsertDashboard = vi.fn();
     const getOrCreateSpace = vi.fn();
     const dataAppsEnabledFor = vi.fn();
+    const ensureRegistryChartTypes = vi.fn();
     const importAppCode = vi.fn<AppGenerateService['importAppCode']>();
     const restoreApp = vi.fn();
     const getAppIncludingDeleted = vi.fn();
@@ -98,6 +112,7 @@ describe('AnalyticsProjectService', () => {
     const hash = getAnalyticsContentHash(
         analyticsExplores.createAnalyticsExplores(),
         analyticsContentAsCode,
+        analyticsLibraryChartBindings,
     );
     const findProcessingStatus = vi.fn();
     const service = new AnalyticsProjectService({
@@ -110,6 +125,7 @@ describe('AnalyticsProjectService', () => {
         },
         getAppGenerateService: () => ({
             dataAppsEnabledFor,
+            ensureRegistryChartTypes,
             importAppCode,
             restoreApp,
         }),
@@ -168,6 +184,8 @@ describe('AnalyticsProjectService', () => {
         getProjectSummary.mockResolvedValue(analyticsProject);
         getIsCopilotEnabled.mockResolvedValue(false);
         dataAppsEnabledFor.mockResolvedValue(false);
+        ensureRegistryChartTypes.mockResolvedValue(new Map());
+        mockedBindings.clear();
         findAllAgents.mockResolvedValue([]);
         getSnapshot.mockResolvedValue({ snapshotHash: hash });
         isAnalyticsProjectEnabled.mockReturnValue(true);
@@ -1109,6 +1127,222 @@ describe('AnalyticsProjectService', () => {
                 options,
             );
         }
+    });
+
+    describe('library chart types', () => {
+        const { slug } = analyticsContentAsCode[0].charts[0];
+        const original = analyticsContentAsCode[0].charts[0];
+        const upsertedFor = () =>
+            upsertChart.mock.calls.find(
+                ([, , chartSlug]) => chartSlug === slug,
+            );
+
+        beforeEach(() => {
+            mockedBindings.set(slug, {
+                slug: 'heatmap',
+                minVersion: '1.0.0',
+                fieldMapping: {},
+                optionValues: {},
+                query: null,
+            });
+        });
+
+        const heatmapType = {
+            appSlug: 'heatmap',
+            vizSchema: { fields: [], configOptions: [], colorPalette: null },
+            registryVersion: '1.0.0',
+        };
+
+        it('uploads a bound chart as a library chart when its type is usable', async () => {
+            ensureRegistryChartTypes.mockResolvedValue(
+                new Map([['heatmap', heatmapType]]),
+            );
+            await service.installSampleContent(user);
+            expect(ensureRegistryChartTypes).toHaveBeenCalledExactlyOnceWith(
+                user,
+                'analytics-project',
+                [{ slug: 'heatmap', minVersion: '1.0.0' }],
+            );
+            expect(upsertedFor()?.[3].chartConfig.type).toBe(
+                ChartType.DATA_APP_VIZ,
+            );
+        });
+
+        it('requires the highest minVersion when bindings share a chart type', async () => {
+            const { slug: otherSlug } = analyticsContentAsCode[0].charts[1];
+            mockedBindings.set(otherSlug, {
+                slug: 'heatmap',
+                minVersion: '1.2.0',
+                fieldMapping: {},
+                optionValues: {},
+                query: null,
+            });
+            await service.installSampleContent(user);
+            expect(ensureRegistryChartTypes).toHaveBeenCalledExactlyOnceWith(
+                user,
+                'analytics-project',
+                [{ slug: 'heatmap', minVersion: '1.2.0' }],
+            );
+        });
+
+        it('uploads each chart as a library chart only when the installed version meets its binding', async () => {
+            const newer = analyticsContentAsCode[0].charts[1];
+            mockedBindings.set(slug, {
+                slug: 'heatmap',
+                minVersion: '0.6.0',
+                fieldMapping: {},
+                optionValues: {},
+                query: null,
+            });
+            mockedBindings.set(newer.slug, {
+                slug: 'heatmap',
+                minVersion: '0.7.0',
+                fieldMapping: {},
+                optionValues: {},
+                query: null,
+            });
+            ensureRegistryChartTypes.mockResolvedValue(
+                new Map([
+                    ['heatmap', { ...heatmapType, registryVersion: '0.6.0' }],
+                ]),
+            );
+            const info = vi.spyOn(
+                (service as unknown as { logger: { info: () => void } }).logger,
+                'info',
+            );
+            await expect(
+                service.installSampleContent(user),
+            ).resolves.toBeUndefined();
+            expect(upsertedFor()?.[3].chartConfig.type).toBe(
+                ChartType.DATA_APP_VIZ,
+            );
+            expect(
+                upsertChart.mock.calls.find(
+                    ([, , chartSlug]) => chartSlug === newer.slug,
+                )?.[3],
+            ).toEqual({ ...newer, spaceSlug: expect.any(String) });
+            expect(info).toHaveBeenCalledWith(
+                'Analytics chart needs a newer library chart type version',
+                expect.objectContaining({
+                    chartSlug: newer.slug,
+                    typeSlug: 'heatmap',
+                    errors: ['needs 0.7.0, installed 0.6.0'],
+                }),
+            );
+            expect(saveSnapshot).toHaveBeenCalled();
+        });
+
+        it('uploads the fallback chart when the type is not usable', async () => {
+            await service.installSampleContent(user);
+            expect(upsertedFor()?.[3]).toEqual({
+                ...original,
+                spaceSlug: expect.any(String),
+            });
+        });
+
+        it('uploads fallback charts and completes when ensuring types throws', async () => {
+            ensureRegistryChartTypes.mockRejectedValue(new Error('boom'));
+            await expect(
+                service.installSampleContent(user),
+            ).resolves.toBeUndefined();
+            expect(upsertedFor()?.[3]).toEqual({
+                ...original,
+                spaceSlug: expect.any(String),
+            });
+            expect(upsertChart).toHaveBeenCalledTimes(
+                analyticsContentAsCode.flatMap(({ charts }) => charts).length,
+            );
+            expect(saveSnapshot).toHaveBeenCalled();
+        });
+
+        it('uploads the fallback chart and completes when the binding does not fit the installed type', async () => {
+            mockedBindings.set(slug, {
+                slug: 'heatmap',
+                minVersion: '1.0.0',
+                fieldMapping: { size: 'unknown_field' },
+                optionValues: {},
+                query: null,
+            });
+            ensureRegistryChartTypes.mockResolvedValue(
+                new Map([['heatmap', heatmapType]]),
+            );
+            const warn = vi.spyOn(
+                (service as unknown as { logger: { warn: () => void } }).logger,
+                'warn',
+            );
+            await expect(
+                service.installSampleContent(user),
+            ).resolves.toBeUndefined();
+            expect(upsertedFor()?.[3]).toEqual({
+                ...original,
+                spaceSlug: expect.any(String),
+            });
+            expect(warn).toHaveBeenCalledWith(
+                'Analytics chart does not fit its library chart type',
+                expect.objectContaining({
+                    chartSlug: slug,
+                    typeSlug: 'heatmap',
+                    errors: expect.arrayContaining([
+                        expect.stringMatching(/Unknown field slots/),
+                    ]),
+                }),
+            );
+            expect(saveSnapshot).toHaveBeenCalled();
+        });
+
+        it('uploads the fallback chart when the chart type disappears before upload', async () => {
+            ensureRegistryChartTypes.mockResolvedValue(
+                new Map([['heatmap', heatmapType]]),
+            );
+            upsertChart.mockImplementation(
+                async (_user, _project, chartSlug, chartAsCode) => {
+                    if (
+                        chartSlug === slug &&
+                        chartAsCode.chartConfig.type === ChartType.DATA_APP_VIZ
+                    ) {
+                        throw new NotFoundError(
+                            'Custom chart type "heatmap" was not found in this project.',
+                        );
+                    }
+                    return undefined;
+                },
+            );
+            const warn = vi.spyOn(
+                (service as unknown as { logger: { warn: () => void } }).logger,
+                'warn',
+            );
+            await expect(
+                service.installSampleContent(user),
+            ).resolves.toBeUndefined();
+            const uploads = upsertChart.mock.calls.filter(
+                ([, , chartSlug]) => chartSlug === slug,
+            );
+            expect(uploads).toHaveLength(2);
+            expect(uploads[1][3]).toEqual({
+                ...original,
+                spaceSlug: expect.any(String),
+            });
+            expect(warn).toHaveBeenCalledWith(
+                'Analytics chart type unavailable at upload, using the plain chart',
+                expect.objectContaining({ chartSlug: slug }),
+            );
+            expect(saveSnapshot).toHaveBeenCalled();
+        });
+
+        it('still fails sync when uploading a plain chart throws', async () => {
+            upsertChart.mockRejectedValue(new NotFoundError('missing space'));
+            await expect(service.installSampleContent(user)).rejects.toThrow(
+                'missing space',
+            );
+            expect(saveSnapshot).not.toHaveBeenCalled();
+        });
+
+        it('ensures types before uploading any chart', async () => {
+            await service.installSampleContent(user);
+            expect(
+                ensureRegistryChartTypes.mock.invocationCallOrder[0],
+            ).toBeLessThan(upsertChart.mock.invocationCallOrder[0]);
+        });
     });
 
     it('keeps existing dashboards and their charts in their current space on sync', async () => {

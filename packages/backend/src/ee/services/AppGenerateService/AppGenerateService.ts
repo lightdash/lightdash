@@ -105,6 +105,7 @@ import {
     type ChartConfig,
     type ChartReference,
     type ChartRegistryEntry,
+    type ChartRegistryIndex,
     type ChartSampleData,
     type ChartTypeIcon,
     type CompiledExploreJoin,
@@ -10853,6 +10854,198 @@ export class AppGenerateService extends BaseService {
             }
         }
         return { installedSlugs: newSlugs };
+    }
+
+    // Installs missing types and upgrades ones below minVersion; returns every installed, renderable
+    // type with its app slug, schema and registry version. A failure omits the type, never throws.
+    async ensureRegistryChartTypes(
+        user: SessionUser,
+        projectUuid: string,
+        requirements: { slug: string; minVersion: string }[],
+    ): Promise<
+        Map<
+            string,
+            {
+                appSlug: string;
+                vizSchema: DataAppVizSchema;
+                registryVersion: string;
+            }
+        >
+    > {
+        type InstalledApp = {
+            app_id: string;
+            slug: string;
+            registryVersion: string;
+        };
+        if (requirements.length === 0) return new Map();
+
+        const isCurrent = (version: string, minVersion: string): boolean => {
+            try {
+                return compareSemverVersions(version, minVersion) >= 0;
+            } catch {
+                return false;
+            }
+        };
+
+        const installedIn = async () => {
+            const apps =
+                await this.appModel.listRegistryInstalledApps(projectUuid);
+            const found = new Map<string, InstalledApp>();
+            requirements.forEach(({ slug }) => {
+                const app = apps.find((a) => a.registry_slug === slug);
+                if (app && app.latest_ready_registry_version !== null) {
+                    found.set(slug, {
+                        app_id: app.app_id,
+                        slug: app.slug,
+                        registryVersion: app.latest_ready_registry_version,
+                    });
+                }
+            });
+            return found;
+        };
+        const meetsRequirement = (
+            installed: Map<string, InstalledApp>,
+            requirement: { slug: string; minVersion: string },
+        ): boolean => {
+            const app = installed.get(requirement.slug);
+            return (
+                app !== undefined &&
+                isCurrent(app.registryVersion, requirement.minVersion)
+            );
+        };
+
+        const installed = await installedIn();
+        const pending = requirements.filter(
+            (requirement) => !meetsRequirement(installed, requirement),
+        );
+        if (pending.length === 0 || !this.chartRegistryClient.isEnabled()) {
+            return this.withRenderableSchemas(projectUuid, installed);
+        }
+
+        let organizationUuid: string;
+        try {
+            ({ organizationUuid } = await this.assertDataAppAbility(
+                user,
+                'create',
+                projectUuid,
+                'Insufficient permissions to install chart types',
+            ));
+        } catch (e) {
+            this.logger.warn(
+                `Cannot install chart types in project ${projectUuid}: ${getErrorMessage(e)}`,
+            );
+            return this.withRenderableSchemas(projectUuid, installed);
+        }
+        let index: ChartRegistryIndex;
+        try {
+            index = await this.chartRegistryClient.getIndex();
+        } catch (e) {
+            this.logger.warn(
+                `Chart type index unavailable for project ${projectUuid}: ${getErrorMessage(e)}`,
+            );
+            return this.withRenderableSchemas(projectUuid, installed);
+        }
+
+        let attempted = false;
+        const reportedInstalled = new Set<string>();
+        // Sequential: each install downloads and copies a bundle
+        for (const requirement of pending) {
+            const entry = index.charts.find((c) => c.slug === requirement.slug);
+            if (
+                entry &&
+                !AppGenerateService.isRegistryEntryIncompatible(entry) &&
+                isCurrent(entry.version, requirement.minVersion)
+            ) {
+                attempted = true;
+                try {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.installRegistryEntry(
+                        user,
+                        projectUuid,
+                        organizationUuid,
+                        entry,
+                        {},
+                    );
+                    reportedInstalled.add(requirement.slug);
+                } catch (e) {
+                    this.logger.warn(
+                        `Chart type "${requirement.slug}" failed to install in project ${projectUuid}: ${getErrorMessage(e)}`,
+                    );
+                }
+            }
+        }
+        if (!attempted) {
+            return this.withRenderableSchemas(projectUuid, installed);
+        }
+
+        // Re-read so a concurrent install counts and a reported success is checked.
+        const after = await installedIn();
+        pending
+            .filter(
+                (requirement) =>
+                    reportedInstalled.has(requirement.slug) &&
+                    !meetsRequirement(after, requirement),
+            )
+            .forEach(({ slug }) => {
+                this.logger.warn(
+                    `Chart type "${slug}" installed in project ${projectUuid} but is not usable after re-reading the project's chart types`,
+                );
+            });
+        return this.withRenderableSchemas(projectUuid, after);
+    }
+
+    // Keeps the types that have a renderable version, with that version's schema.
+    private async withRenderableSchemas(
+        projectUuid: string,
+        apps: Map<
+            string,
+            { app_id: string; slug: string; registryVersion: string }
+        >,
+    ): Promise<
+        Map<
+            string,
+            {
+                appSlug: string;
+                vizSchema: DataAppVizSchema;
+                registryVersion: string;
+            }
+        >
+    > {
+        const versions = await Promise.all(
+            [...apps].map(async ([registrySlug, app]) => ({
+                registrySlug,
+                appSlug: app.slug,
+                registryVersion: app.registryVersion,
+                version:
+                    await this.appModel.getLatestRenderableDataAppVizVersion(
+                        app.app_id,
+                    ),
+            })),
+        );
+        const result = new Map<
+            string,
+            {
+                appSlug: string;
+                vizSchema: DataAppVizSchema;
+                registryVersion: string;
+            }
+        >();
+        versions.forEach(
+            ({ registrySlug, appSlug, registryVersion, version }) => {
+                if (version?.viz_schema) {
+                    result.set(registrySlug, {
+                        appSlug,
+                        vizSchema: version.viz_schema,
+                        registryVersion,
+                    });
+                } else {
+                    this.logger.warn(
+                        `Chart type "${registrySlug}" has no renderable version in project ${projectUuid}`,
+                    );
+                }
+            },
+        );
+        return result;
     }
 
     /** Digest mismatches keep their own error; transport failures get a library-facing one. */
