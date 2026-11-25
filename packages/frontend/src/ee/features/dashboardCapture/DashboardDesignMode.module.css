@@ -1,7 +1,9 @@
 /* Sits in the agent dock beside the Ask AI button, same shape. */
+/* The ring is 2px: the dock clips anything wider than its padding. */
 .toggle[aria-pressed='true'] {
+    border-color: light-dark(#a499ff, #8b7fff);
     box-shadow:
-        0 0 0 3px light-dark(#d1ccff, rgba(94, 76, 255, 0.45)),
+        0 0 0 2px light-dark(#d1ccff, rgba(94, 76, 255, 0.45)),
         var(--mantine-shadow-sm);
 }
 
