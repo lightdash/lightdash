@@ -1,3 +1,4 @@
+import { type RowLimit } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
@@ -13,7 +14,15 @@ vi.mock('../common/PivotTable', () => ({
 }));
 
 vi.mock('../common/Table', () => ({
-    default: ({ notice }: { notice?: React.ReactNode }) => notice ?? null,
+    default: ({
+        notice,
+        status,
+        loadingState: LoadingState,
+    }: {
+        notice?: React.ReactNode;
+        status: string;
+        loadingState?: React.FC;
+    }) => (status === 'loading' && LoadingState ? <LoadingState /> : notice),
 }));
 
 vi.mock('../LightdashVisualization/types', () => ({
@@ -50,6 +59,7 @@ const buildContext = (
         isPivotTableEnabled?: boolean;
         rendersPivotTable?: boolean;
         showSubtotals?: boolean;
+        rowLimit?: RowLimit;
         pivotTableData?: {
             data: { rowsCount: number } | undefined;
             loading: boolean;
@@ -273,6 +283,75 @@ describe('SimpleTable while the first 500 rows load', () => {
 
         renderWithProviders(<SimpleTable isDashboard />);
 
+        expect(
+            screen.getByText(/the rest of the rows did not load/i),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+        expect(retryFetchRows).toHaveBeenCalledOnce();
+    });
+
+    const expansionError = {
+        status: 'error',
+        error: { name: 'Error', statusCode: 500, message: 'x' },
+    };
+
+    it('signals a screenshot error when the rest fail to load', () => {
+        const onScreenshotReady = vi.fn();
+        const onScreenshotError = vi.fn();
+        const renderTable = () => (
+            <SimpleTable
+                isDashboard
+                onScreenshotReady={onScreenshotReady}
+                onScreenshotError={onScreenshotError}
+            />
+        );
+        mockContext.current = buildPagedTableContext({
+            rows: smallPage,
+            totalResults: 2000,
+            hasFetchedAllRows: false,
+            isExpandingFirstPage: true,
+        });
+        const { rerender } = renderWithProviders(renderTable());
+
+        mockContext.current = buildPagedTableContext({
+            rows: smallPage,
+            totalResults: 2000,
+            hasFetchedAllRows: false,
+            isExpandingFirstPage: false,
+            rowsExpansionError: expansionError,
+            retryFetchRows: vi.fn(),
+        });
+        rerender(renderTable());
+        rerender(renderTable());
+
+        expect(onScreenshotError).toHaveBeenCalledOnce();
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+    });
+
+    it('offers a retry instead of a loader when a table that needs every row cannot load the rest', () => {
+        const retryFetchRows = vi.fn();
+        const context = buildFlatTableContext({
+            showSubtotals: false,
+            rowLimit: { mode: 'show', direction: 'last', count: 10 },
+        });
+        mockContext.current = {
+            ...context,
+            resultsData: {
+                ...context.resultsData,
+                rows: smallPage,
+                totalResults: 2000,
+                hasFetchedAllRows: false,
+                isFetchingAllPages: false,
+                isExpandingFirstPage: false,
+                rowsExpansionError: expansionError,
+                retryFetchRows,
+            },
+        };
+
+        const { container } = renderWithProviders(<SimpleTable isDashboard />);
+
+        expect(container.querySelector('.loading_chart')).toBeNull();
+        expect(screen.queryByText(/loading chart/i)).toBeNull();
         expect(
             screen.getByText(/the rest of the rows did not load/i),
         ).toBeInTheDocument();

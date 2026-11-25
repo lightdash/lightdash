@@ -685,6 +685,44 @@ describe('useInfiniteQueryResults while the first 500 rows load', () => {
         expect(requests.filter(isExpansion)).toHaveLength(2);
     });
 
+    it('offers a retry instead of loading forever when fetch all starts and the 500-row request fails', async () => {
+        const expansion = deferred();
+        let failExpansion = true;
+        serveFromTable(2000, {
+            hold: (r) =>
+                isExpansion(r) && failExpansion ? expansion.promise : undefined,
+            fail: (r) =>
+                isExpansion(r) && failExpansion ? serverError(500) : undefined,
+        });
+        const { result } = renderWide();
+
+        await waitFor(() => expect(calls.some(isExpansion)).toBe(true));
+        expect(result.current.rows).toHaveLength(firstPageSize);
+        act(() => result.current.setFetchAll(true));
+        expect(result.current.isFetchingAllPages).toBe(true);
+
+        expansion.resolve();
+        await waitFor(() =>
+            expect(result.current.rowsExpansionError).not.toBeNull(),
+        );
+        expect(result.current.isFetchingAllPages).toBe(false);
+        expect(result.current.isFetchingRows).toBe(false);
+        expect(result.current.isInitialLoading).toBe(false);
+        expect(result.current.error).toBeNull();
+
+        failExpansion = false;
+        act(() => result.current.retryFetchRows?.());
+
+        await waitFor(() =>
+            expect(result.current.hasFetchedAllRows).toBe(true),
+        );
+        expect(rowIds(result.current.rows as never)).toEqual(
+            Array.from({ length: 2000 }, (_, i) => i),
+        );
+        expect(result.current.rowsExpansionError).toBeNull();
+        expect(result.current.isFetchingAllPages).toBe(false);
+    });
+
     it('still reports a permission error on the 500-row request as a tile error', async () => {
         serveFromTable(2000, {
             fail: (r) => (isExpansion(r) ? serverError(403) : undefined),
