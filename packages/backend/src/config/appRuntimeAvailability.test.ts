@@ -1,7 +1,9 @@
 import { MissingConfigError } from '@lightdash/common';
 import { createSandboxProvider } from '../ee/services/SandboxRuntime';
 import {
+    AppRuntimeConfigErrors,
     getAppRuntimeConfigError,
+    getPythonSandboxConfigError,
     isAppRuntimeConfigured,
 } from './appRuntimeAvailability';
 import {
@@ -161,4 +163,81 @@ describe('build paths share the availability messages', () => {
             );
         },
     );
+});
+
+describe('getPythonSandboxConfigError', () => {
+    const azure = {
+        ...configured.appRuntime.azureSandboxes,
+        subscriptionId: 'sub',
+        resourceGroup: 'rg',
+    };
+
+    it.each([
+        ['docker', { sandboxProvider: 'docker' }],
+        ['e2b', { sandboxProvider: 'e2b', e2bApiKey: 'key' }],
+        [
+            'azure-sandboxes',
+            {
+                sandboxProvider: 'azure-sandboxes',
+                azureSandboxes: azure,
+                azureSandboxesPythonGroup: 'group',
+                azureSandboxesPythonDiskImage: 'image',
+            },
+        ],
+        [
+            'gcp-cloud-run',
+            {
+                sandboxProvider: 'gcp-cloud-run',
+                gcpCloudRunPython: {
+                    sandboxUrl: 'https://gw',
+                    sandboxSecret: 's',
+                },
+            },
+        ],
+    ] as const)('accepts a configured %s sandbox', (_provider, appRuntime) => {
+        expect(
+            getPythonSandboxConfigError(withAppRuntime(appRuntime), 'test'),
+        ).toBeNull();
+    });
+
+    it.each([
+        [
+            AppRuntimeConfigErrors.e2bApiKey,
+            { sandboxProvider: 'e2b', e2bApiKey: null },
+            'test',
+        ],
+        [
+            AppRuntimeConfigErrors.pythonDockerInProduction,
+            { sandboxProvider: 'docker' },
+            'production',
+        ],
+        [
+            AppRuntimeConfigErrors.pythonLambdaMicroVm,
+            { sandboxProvider: 'lambda-microvm' },
+            'test',
+        ],
+        [
+            AppRuntimeConfigErrors.azureSandboxesPythonDiskImage,
+            {
+                sandboxProvider: 'azure-sandboxes',
+                azureSandboxes: azure,
+                azureSandboxesPythonGroup: 'group',
+                azureSandboxesPythonDiskImage: null,
+            },
+            'test',
+        ],
+        [
+            AppRuntimeConfigErrors.gcpCloudRunPython,
+            {
+                sandboxProvider: 'gcp-cloud-run',
+                gcpCloudRun: { sandboxUrl: 'https://gw', sandboxSecret: 's' },
+                gcpCloudRunPython: { sandboxUrl: null, sandboxSecret: null },
+            },
+            'test',
+        ],
+    ] as const)('reports %s', (error, appRuntime, nodeEnv) => {
+        expect(
+            getPythonSandboxConfigError(withAppRuntime(appRuntime), nodeEnv),
+        ).toBe(error);
+    });
 });

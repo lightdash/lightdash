@@ -39,6 +39,11 @@ export class DuckdbQuerySource implements QuerySourceClient {
 
     readonly requiredFeatureFlags: FeatureFlags[] = [];
 
+    // eslint-disable-next-line class-methods-use-this
+    getUnavailableReason(): string | null {
+        return null;
+    }
+
     private readonly asyncQueryService: AsyncQueryService;
 
     constructor(args: DuckdbQuerySourceArguments) {

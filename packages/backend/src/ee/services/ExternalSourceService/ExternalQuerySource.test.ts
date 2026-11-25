@@ -7,6 +7,7 @@ import {
     type Account,
 } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import type { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type { ExternalSourceModel } from '../../models/ExternalSourceModel';
@@ -46,6 +47,7 @@ describe('ExternalQuerySource', () => {
         externalSourceModel: {
             listReadyTables,
         } as unknown as ExternalSourceModel,
+        lightdashConfig: lightdashConfigMock,
     });
 
     beforeEach(() => {

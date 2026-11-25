@@ -31,6 +31,16 @@ export const AppRuntimeConfigErrors = {
         'Azure data-app sandbox disk image is not configured (AZURE_SANDBOXES_DATA_APP_DISK_IMAGE)',
     gcpCloudRun:
         'GCP Cloud Run sandboxes are not configured (GCP_CLOUD_RUN_SANDBOX_URL / GCP_CLOUD_RUN_SANDBOX_SECRET)',
+    pythonLambdaMicroVm:
+        'Python queries are not supported on the lambda-microvm sandbox provider yet',
+    pythonDockerInProduction:
+        'Python queries cannot run on the docker sandbox provider in production',
+    azureSandboxesPythonGroup:
+        'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_PYTHON_GROUP)',
+    azureSandboxesPythonDiskImage:
+        'Azure python sandbox disk image is not configured (AZURE_SANDBOXES_PYTHON_DISK_IMAGE)',
+    gcpCloudRunPython:
+        'GCP Cloud Run python sandboxes are not configured (GCP_CLOUD_RUN_PYTHON_SANDBOX_URL / GCP_CLOUD_RUN_PYTHON_SANDBOX_SECRET)',
 } as const;
 
 /** The data-app Azure sandbox group settings, or null when any is missing. */
@@ -111,3 +121,57 @@ export const getAppRuntimeConfigError = (
 export const isAppRuntimeConfigured = (
     config: AppRuntimeAvailabilityConfig,
 ): boolean => getAppRuntimeConfigError(config) === null;
+
+export type PythonSandboxAvailabilityConfig = {
+    appRuntime: Pick<
+        LightdashConfig['appRuntime'],
+        | 'sandboxProvider'
+        | 'e2bApiKey'
+        | 'azureSandboxes'
+        | 'azureSandboxesPythonGroup'
+        | 'azureSandboxesPythonDiskImage'
+        | 'gcpCloudRunPython'
+    >;
+};
+
+/** What the python query sandbox still needs before it can run, or null. */
+export const getPythonSandboxConfigError = (
+    { appRuntime }: PythonSandboxAvailabilityConfig,
+    nodeEnv: string | undefined = process.env.NODE_ENV,
+): string | null => {
+    const { sandboxProvider } = appRuntime;
+    switch (sandboxProvider) {
+        case 'e2b':
+            return appRuntime.e2bApiKey
+                ? null
+                : AppRuntimeConfigErrors.e2bApiKey;
+        case 'docker':
+            // DockerSandboxProvider refuses to start in production
+            return nodeEnv === 'production'
+                ? AppRuntimeConfigErrors.pythonDockerInProduction
+                : null;
+        case 'lambda-microvm':
+            return AppRuntimeConfigErrors.pythonLambdaMicroVm;
+        case 'azure-sandboxes':
+            if (
+                !appRuntime.azureSandboxes.subscriptionId ||
+                !appRuntime.azureSandboxes.resourceGroup ||
+                !appRuntime.azureSandboxesPythonGroup
+            ) {
+                return AppRuntimeConfigErrors.azureSandboxesPythonGroup;
+            }
+            return appRuntime.azureSandboxesPythonDiskImage
+                ? null
+                : AppRuntimeConfigErrors.azureSandboxesPythonDiskImage;
+        case 'gcp-cloud-run':
+            return appRuntime.gcpCloudRunPython.sandboxUrl &&
+                appRuntime.gcpCloudRunPython.sandboxSecret
+                ? null
+                : AppRuntimeConfigErrors.gcpCloudRunPython;
+        default:
+            return assertUnreachable(
+                sandboxProvider,
+                `Unknown SANDBOX_PROVIDER: ${sandboxProvider as string}`,
+            );
+    }
+};

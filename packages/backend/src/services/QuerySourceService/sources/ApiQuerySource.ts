@@ -57,6 +57,11 @@ export class ApiQuerySource implements QuerySourceClient {
 
     readonly requiredFeatureFlags: FeatureFlags[] = [];
 
+    // eslint-disable-next-line class-methods-use-this
+    getUnavailableReason(): string | null {
+        return null;
+    }
+
     private readonly asyncQueryService: ApiQuerySourceArguments['asyncQueryService'];
 
     private readonly getLiveSource: LiveSourceResolver;

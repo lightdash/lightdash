@@ -7,6 +7,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     MAX_SOURCE_QUERIES_PER_SUBMISSION,
+    MissingConfigError,
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -183,10 +184,28 @@ export class QuerySourceService extends BaseService {
         });
     }
 
+    /** Unavailable sources are hidden; submitting one fails with its reason. */
+    private static throwIfSourcesUnavailable(
+        sources: QuerySourceClient[],
+    ): void {
+        const reasons = [...new Set(sources)].flatMap((source) => {
+            const reason = source.getUnavailableReason();
+            return reason === null
+                ? []
+                : [
+                      `${source.definition.sourceType} queries are unavailable: ${reason}`,
+                  ];
+        });
+        if (reasons.length > 0) {
+            throw new MissingConfigError(reasons.join('; '));
+        }
+    }
+
     private async isSourceEnabled(
         account: Account,
         source: QuerySourceClient,
     ): Promise<boolean> {
+        if (source.getUnavailableReason() !== null) return false;
         if (source.requiredFeatureFlags.length === 0) return true;
         assertIsAccountWithOrg(account);
         const user = {
@@ -291,6 +310,7 @@ export class QuerySourceService extends BaseService {
     ): Promise<ApiScanQuerySourceSchemaResults> {
         await this.throwIfComposeSqlRunnerDisabled(account);
         const source = this.registry.get(sourceType);
+        QuerySourceService.throwIfSourcesUnavailable([source]);
         await this.throwIfSourcesDisabled(account, [source]);
         if (source.definition.sourceType === QuerySourceType.SQL) {
             await this.assertAgentSqlAccess(account, projectUuid);
@@ -536,6 +556,9 @@ export class QuerySourceService extends BaseService {
     }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
         const ordered = this.validateQueries(queries, plans);
         QuerySourceService.assertPlansNameDuckdbNodes(ordered, plans);
+        QuerySourceService.throwIfSourcesUnavailable(
+            ordered.map(({ source }) => source),
+        );
         await this.throwIfSourcesDisabled(
             account,
             ordered.map(({ source }) => source),

@@ -676,6 +676,7 @@ const getMockedAsyncQueryService = (
                 registry: QuerySourceRegistry.withBuiltInSources({
                     asyncQueryService: service,
                     projectService: service,
+                    lightdashConfig: lightdashConfigMock,
                 }),
             });
             return querySourceService;
@@ -20857,6 +20858,7 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             registry: QuerySourceRegistry.withBuiltInSources({
                 asyncQueryService: service,
                 projectService: service,
+                lightdashConfig: lightdashConfigMock,
             }),
         });
 

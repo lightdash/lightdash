@@ -110,6 +110,11 @@ export class MergeQuerySource implements QuerySourceClient {
 
     readonly requiredFeatureFlags: FeatureFlags[] = [];
 
+    // eslint-disable-next-line class-methods-use-this
+    getUnavailableReason(): string | null {
+        return null;
+    }
+
     private readonly asyncQueryService: MergeQuerySourceArguments['asyncQueryService'];
 
     // One compile per submitted query object: validation and submission share it
