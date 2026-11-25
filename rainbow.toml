@@ -41,15 +41,17 @@ port = 4014
 # HOST and PORT are inline because the recipe's are the backend's
 # (0.0.0.0:8080), and the browser stays on loopback. No TOKEN: production's
 # endpoint sends none. TIMEOUT is per session and the dashboard and chart
-# captures pass none, so it covers the backend's 180s screenshot wait plus
-# its 30s session buffer (UnfurlService.ts); browserless's 30s default
-# kills those captures mid-wait. CONCURRENT matches the scheduler's three
-# job slots (SCHEDULER_CONCURRENCY), so deliveries never queue behind each
-# other; each Chrome adds about 0.8 GB, within max_memory. Captures beyond
-# that wait in the queue rather than fail.
+# captures pass none, so it covers the backend's own limits: 150s to load
+# the page, 180s for the ready wait, and its 30s session buffer
+# (UnfurlService.ts). Browserless's 30s default kills those captures
+# mid-wait, and on a busy host (40% CPU steal) one capture took 120s.
+# CONCURRENT matches the scheduler's three job slots (SCHEDULER_CONCURRENCY),
+# so deliveries never queue behind each other; each Chrome adds about
+# 0.8 GB, within max_memory. Captures beyond that wait in the queue rather
+# than fail.
 [[app.service]]
 name = "headless-browser"
-command = "cd .local/browserless && HOST=127.0.0.1 PORT=3001 TIMEOUT=210000 CONCURRENT=3 QUEUED=10 PLAYWRIGHT_BROWSERS_PATH=ms-playwright exec node node_modules/@browserless.io/browserless/build/index.js"
+command = "cd .local/browserless && HOST=127.0.0.1 PORT=3001 TIMEOUT=360000 CONCURRENT=3 QUEUED=10 PLAYWRIGHT_BROWSERS_PATH=ms-playwright exec node node_modules/@browserless.io/browserless/build/index.js"
 port = 3001
 
 # Anyone with the URL can open an environment of this repo.
