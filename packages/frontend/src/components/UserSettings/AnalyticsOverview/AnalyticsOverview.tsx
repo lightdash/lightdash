@@ -295,7 +295,13 @@ const AnalyticsOverview = ({
 
     const dateNote = (
         <Tooltip label="Excludes today so every day in the range is complete.">
-            <Text fz="xs" c="dimmed" ta="right" tabIndex={0}>
+            <Text
+                fz="xs"
+                c="dimmed"
+                ta="right"
+                tabIndex={0}
+                className={classes.dateNote}
+            >
                 {dateLabel}
             </Text>
         </Tooltip>
