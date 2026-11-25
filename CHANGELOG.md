@@ -1,3 +1,10 @@
+## [3.396.1](https://github.com/lightdash/lightdash/compare/3.396.0...3.396.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **ai:** describe pinned dashboard filters as what the user sees, not filters for every query ([#33412](https://github.com/lightdash/lightdash/issues/33412)) ([b163cf4](https://github.com/lightdash/lightdash/commit/b163cf47a3c48f246a64aa6d6a16b404f79658d1))
+
 # [3.396.0](https://github.com/lightdash/lightdash/compare/3.395.6...3.396.0) (2026-11-25)
 
 
