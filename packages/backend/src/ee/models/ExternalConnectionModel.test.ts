@@ -411,6 +411,7 @@ describe('ExternalConnectionModel', () => {
             tracker.on.select(ApiSourceCallsTableName).responseOnce([
                 {
                     external_connection_uuid: CONNECTION_UUID,
+                    queries: '15',
                     api_calls: '12',
                     cache_hits: '3',
                     response_bytes: '4096',
@@ -418,6 +419,7 @@ describe('ExternalConnectionModel', () => {
                 },
                 {
                     external_connection_uuid: 'conn-reused-only',
+                    queries: '5',
                     api_calls: '0',
                     cache_hits: '5',
                     response_bytes: null,
@@ -437,11 +439,15 @@ describe('ExternalConnectionModel', () => {
                 'percentile_cont(0.5) within group (order by duration_ms) filter (where api_calls > 0)',
             );
             expect(tracker.history.select[0].sql).toContain(
+                'count(*) as queries',
+            );
+            expect(tracker.history.select[0].sql).toContain(
                 'count(*) filter (where cache_hit) as cache_hits',
             );
             expect(usage).toEqual([
                 {
                     externalConnectionUuid: CONNECTION_UUID,
+                    queries: 15,
                     apiCalls: 12,
                     cacheHits: 3,
                     responseBytes: 4096,
@@ -449,6 +455,7 @@ describe('ExternalConnectionModel', () => {
                 },
                 {
                     externalConnectionUuid: 'conn-reused-only',
+                    queries: 5,
                     apiCalls: 0,
                     cacheHits: 5,
                     responseBytes: 0,
