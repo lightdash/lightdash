@@ -448,8 +448,11 @@ Personal access tokens, sessions and service accounts keep their permissions.
 
 At grant issuance, an authorize request without a scope receives the scopes
 registered for the client. The request fails with `invalid_scope` when the
-client has no registered scopes, or when it asks for an unknown scope or a
-scope the client did not register. The consent page lists the resolved scopes.
+client has no registered scopes or when it asks for an unknown scope.
+Admin-created clients can only request scopes they registered. Self-registered
+and URL-identified clients can request any known scope, because their
+registration is not authenticated. The same rules apply on refresh. The
+consent page lists the resolved scopes.
 Refreshing a token that has no scopes gives it the client's registered scopes.
 Each use of the registered scopes logs `oauth_scope_defaulted`. Admin-created
 OAuth clients are registered with `read`, `write`, `mcp:read` and `mcp:write`.

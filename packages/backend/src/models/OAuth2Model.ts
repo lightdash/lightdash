@@ -155,6 +155,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return {
             clientId: client.client_id,
             scopes: client.scopes ?? [],
+            organizationUuid: client.organization_uuid ?? null,
             id: client.client_id,
             redirectUris: client.redirect_uris,
             grants: OAuth2Model.withTokenExchangeGrant(
@@ -196,6 +197,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return {
             clientId: document.clientId,
             scopes: [],
+            organizationUuid: null,
             id: document.clientId,
             redirectUris: document.redirectUris,
             grants: document.grantTypes,
@@ -279,6 +281,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_clients.grants',
                 'oauth2_clients.scopes',
                 'oauth2_clients.client_name',
+                'oauth2_clients.organization_uuid as client_organization_uuid',
                 'oauth2_authorization_codes.code_challenge',
                 'oauth2_authorization_codes.code_challenge_method',
             )
@@ -333,6 +336,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             client: {
                 id: result.client_id,
                 scopes: result.scopes ?? [],
+                organizationUuid: result.client_organization_uuid ?? null,
                 redirectUris: result.redirect_uris,
                 grants: result.grants,
             },
@@ -778,6 +782,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_clients.grants',
                 'oauth2_clients.scopes',
                 'oauth2_clients.client_name',
+                'oauth2_clients.organization_uuid as client_organization_uuid',
                 'users.user_uuid',
             )
             .leftJoin(
@@ -843,6 +848,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             client: {
                 id: result.client_id,
                 scopes: result.scopes ?? [],
+                organizationUuid: result.client_organization_uuid ?? null,
                 redirectUris: result.redirect_uris,
                 grants: result.grants,
             },
@@ -956,6 +962,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_clients.grants',
                 'oauth2_clients.scopes',
                 'oauth2_clients.client_name',
+                'oauth2_clients.organization_uuid as client_organization_uuid',
             )
             .leftJoin(
                 'oauth2_clients',
@@ -1002,6 +1009,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             client: {
                 id: result.client_id,
                 scopes: result.scopes ?? [],
+                organizationUuid: result.client_organization_uuid ?? null,
                 redirectUris: result.redirect_uris,
                 grants: result.grants,
                 refreshTokenLifetime: this.getRefreshTokenLifetime(
@@ -1114,9 +1122,11 @@ export class OAuth2Model implements AuthorizationCodeModel {
         const registeredScopes: string[] = client.scopes ?? [];
         const defaulted = scope.length === 0;
         const scopes = [...(defaulted ? registeredScopes : scope)];
+        const adminCreated = typeof client.organizationUuid === 'string';
         const allowedScopes = new Set<string>(
             OAUTH_SCOPES.filter(
                 (knownScope) =>
+                    !adminCreated ||
                     registeredScopes.length === 0 ||
                     registeredScopes.includes(knownScope),
             ),

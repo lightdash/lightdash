@@ -817,10 +817,19 @@ describe.each(modes)('scope issuance in %s flag state', (mode) => {
         });
     });
 
-    it.each(['foo', 'read foo', 'write'])(
-        'refuses scope %j at authorize',
-        async (scope) => {
+    it.each([
+        ['foo', null],
+        ['read foo', null],
+        ['foo', 'client-organization'],
+        ['write', 'client-organization'],
+    ])(
+        'refuses scope %j at authorize for client organization %s',
+        async (scope, organizationUuid) => {
             await setScopeMode(mode);
+            vi.mocked(model.getClient).mockResolvedValue({
+                ...client,
+                organizationUuid,
+            });
             await expect(authorize({ scope })).rejects.toBeInstanceOf(
                 OAuth2Server.InvalidScopeError,
             );
@@ -828,14 +837,42 @@ describe.each(modes)('scope issuance in %s flag state', (mode) => {
         },
     );
 
-    it('refuses an authorize request without a scope when the client registered none', async () => {
-        await setScopeMode(mode);
-        vi.mocked(model.getClient).mockResolvedValue({ ...client, scopes: [] });
-        await expect(authorize({ scope: undefined })).rejects.toBeInstanceOf(
-            OAuth2Server.InvalidScopeError,
-        );
-        expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
-    });
+    it.each([
+        [['mcp:read'], 'read write mcp:read mcp:write'],
+        [['mcp:read', 'mcp:write'], 'read write mcp:read mcp:write'],
+        [['read'], 'read write'],
+    ])(
+        'issues every requested known scope to a self-registered client registered with %j',
+        async (registeredScopes, scope) => {
+            await setScopeMode(mode);
+            vi.mocked(model.getClient).mockResolvedValue({
+                ...client,
+                scopes: registeredScopes,
+                organizationUuid: null,
+            });
+            const code = await authorize({ scope });
+            expect(code.scope).toEqual(scope.split(' '));
+            await expect(exchange(code)).resolves.toMatchObject({
+                scope: scope.split(' '),
+            });
+        },
+    );
+
+    it.each([null, 'client-organization'])(
+        'refuses an authorize request without a scope when the client registered none, organization %s',
+        async (organizationUuid) => {
+            await setScopeMode(mode);
+            vi.mocked(model.getClient).mockResolvedValue({
+                ...client,
+                scopes: [],
+                organizationUuid,
+            });
+            await expect(
+                authorize({ scope: undefined }),
+            ).rejects.toBeInstanceOf(OAuth2Server.InvalidScopeError);
+            expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
+        },
+    );
 
     it('resolves the consent page scopes from the client registration', async () => {
         await setScopeMode(mode);

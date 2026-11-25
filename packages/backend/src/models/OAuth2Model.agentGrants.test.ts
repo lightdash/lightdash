@@ -223,6 +223,7 @@ it('keeps unbound access-token values with explicit null bindings', async () => 
         client: {
             id: 'client',
             scopes: [],
+            organizationUuid: null,
             redirectUris: undefined,
             grants: undefined,
         },

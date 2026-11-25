@@ -20,7 +20,13 @@ import { OAuthService } from './OAuthService';
 const database = knex({ client: MockClient, dialect: 'pg' });
 const flags = { get: vi.fn() };
 const model = new OAuth2Model(database, lightdashConfigMock, flags);
-const client = { id: 'client', grants: ['refresh_token'], scopes: ['read'] };
+const client = {
+    id: 'client',
+    grants: ['refresh_token'],
+    scopes: ['read'],
+    organizationUuid: null,
+};
+const adminClient = { ...client, organizationUuid: 'client-organization' };
 const user = { userId: 42, organizationUuid: 'org' };
 const lightdashConfig = {
     ...lightdashConfigMock,
@@ -93,9 +99,18 @@ const setStrict = (strict: boolean) =>
     }));
 
 it.each([false, true])(
-    'refuses a refresh outside the current registered scopes before rotation, strict %s',
+    'refuses a refresh outside the registered scopes of an admin-created client before rotation, strict %s',
     async (strict) => {
         setStrict(strict);
+        vi.mocked(model.getClient).mockResolvedValue(adminClient);
+        vi.mocked(model.getRefreshToken).mockResolvedValue({
+            accessToken: '',
+            refreshToken: 'refresh',
+            refreshTokenExpiresAt: new Date(Date.now() + 60000),
+            scope: ['write'],
+            client: adminClient,
+            user,
+        });
         await expect(refresh()).rejects.toMatchObject({
             name: 'invalid_scope',
         });
@@ -107,6 +122,32 @@ it.each([false, true])(
                 ([args]) => args.featureFlagId === FeatureFlags.AgentIdentity,
             ),
         ).toBe(true);
+    },
+);
+it.each([
+    [['write'], ['read']],
+    [['read', 'write', 'mcp:read', 'mcp:write'], ['mcp:read']],
+    [
+        ['read', 'write', 'mcp:read', 'mcp:write'],
+        ['mcp:read', 'mcp:write'],
+    ],
+])(
+    'refreshes stored scopes %j beyond registered %j for a self-registered client',
+    async (scope, registeredScopes) => {
+        setStrict(false);
+        const registered = { ...client, scopes: registeredScopes };
+        vi.mocked(model.getClient).mockResolvedValue(registered);
+        vi.mocked(model.getRefreshToken).mockResolvedValue({
+            accessToken: '',
+            refreshToken: 'refresh',
+            refreshTokenExpiresAt: new Date(Date.now() + 60000),
+            scope,
+            client: registered,
+            user,
+        });
+        await expect(refresh()).resolves.toMatchObject({ scope });
+        expect(model.saveToken).toHaveBeenCalledOnce();
+        expect(Logger.warn).not.toHaveBeenCalled();
     },
 );
 it('allows a refresh narrowed to the current client scope', async () => {
@@ -190,10 +231,10 @@ const tokenRequest = (body: Record<string, string>) =>
     });
 
 it.each([false, true])(
-    'refuses authorization-code scopes outside the registered scopes, strict %s',
+    'refuses authorization-code scopes outside the registered scopes of an admin-created client, strict %s',
     async (strict) => {
         setStrict(strict);
-        const codeClient = { ...client, grants: ['authorization_code'] };
+        const codeClient = { ...adminClient, grants: ['authorization_code'] };
         vi.mocked(model.getClient).mockResolvedValue(codeClient);
         vi.spyOn(model, 'getAuthorizationCode').mockResolvedValue({
             authorizationCode: 'code',
@@ -266,10 +307,11 @@ it.each(['log', 'enforce'] as const)(
 );
 
 it.each([
-    ['write', false],
+    ['write', ['write']],
+    ['foo', false],
     [undefined, ['read']],
 ] as const)(
-    'resolves token-exchange scope %j against the registered scopes',
+    'resolves token-exchange scope %j for a self-registered client',
     async (scope, expected) => {
         setStrict(false);
         const exchangeClient = {
