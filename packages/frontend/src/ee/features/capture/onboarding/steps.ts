@@ -36,8 +36,8 @@ export const designModeTourSteps = (
     },
     {
         target: `[data-tour="${DESIGN_MODE_TOOLBAR_TOUR_ID}"]`,
-        title: 'Hold Option to mark',
-        body: 'While you hold Option (Alt on Windows), click something to pick it, such as a chart, a bar or a cell, or drag to draw on the page. Let go and the page works as normal again.',
+        title: 'Hold Option/Alt to mark',
+        body: 'Use the hotkey to activate the marker. Once activated you can select elements or annotate the UI. On releasing the hotkey an agent bubble opens with your context added to it automatically.',
     },
     {
         target: `[data-tour="${DESIGN_MODE_VOICE_TOUR_ID}"]`,

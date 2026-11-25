@@ -24,7 +24,7 @@ describe('designModeTourSteps', () => {
 
     it('explains holding Option, and talking or typing, on every surface', () => {
         for (const surface of SURFACES) {
-            expect(text(surface)).toContain('Hold Option to mark');
+            expect(text(surface)).toContain('Hold Option/Alt to mark');
             expect(text(surface)).toContain('release to send');
             expect(text(surface)).toContain('press Enter');
         }
