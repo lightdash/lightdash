@@ -265,8 +265,6 @@ describe('stored results page body through the generated route', () => {
 
         expect(response.status).toBe(503);
         expect(response.headers['retry-after']).toBe('3');
-        expect(JSON.parse(response.body.toString()).error).toContain(
-            'busy',
-        );
+        expect(JSON.parse(response.body.toString()).error).toContain('busy');
     });
 });

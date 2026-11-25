@@ -1,11 +1,11 @@
 import {
     FeatureFlags,
     ForbiddenError,
-    ResultsPageBusyError,
     NotFoundError,
     QueryExecutionContext,
     QueryHistoryStatus,
     ResultsExpiredError,
+    ResultsPageBusyError,
     type QueryHistory,
 } from '@lightdash/common';
 import { Readable } from 'stream';
@@ -442,9 +442,7 @@ describe('AsyncQueryService stored results pages', () => {
                 result.status === 'rejected' && result.reason,
             ).toBeInstanceOf(ResultsPageBusyError);
         }
-        expect(resultsStorageClient.getDownloadStream).toHaveBeenCalledTimes(
-            1,
-        );
+        expect(resultsStorageClient.getDownloadStream).toHaveBeenCalledTimes(1);
         expect(resultsStorageClient.putObjectBytes).not.toHaveBeenCalled();
     });
 
@@ -514,9 +512,7 @@ describe('AsyncQueryService stored results pages', () => {
             (error as ResultsPageBusyError).data.retryAfterSeconds,
         ).toBeGreaterThan(0);
         expect(stalled.destroyed).toBe(true);
-        expect(resultsStorageClient.getDownloadStream).toHaveBeenCalledTimes(
-            1,
-        );
+        expect(resultsStorageClient.getDownloadStream).toHaveBeenCalledTimes(1);
         expect(prometheusMetrics.observeResultsPage).toHaveBeenCalledWith(
             'busy',
             expect.any(Number),
@@ -718,7 +714,7 @@ describe('AsyncQueryService stored results pages', () => {
         ]);
     }, 30_000);
 
-    test('stored pages on, workers off: runs today\'s path', async () => {
+    test("stored pages on, workers off: runs today's path", async () => {
         const [, format] = formatCases[0];
         const { pool } = inlineBuildPool();
         const { service, resultsStorageClient } = buildService({

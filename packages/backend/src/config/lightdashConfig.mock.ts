@@ -318,6 +318,8 @@ export const lightdashConfigMock: LightdashConfig = {
         underlyingDataMaxDimensions: 50,
         maxPageSize: 2500,
         resultsPageWorkers: 2,
+        resultsPageWorkerMinCells: 5000,
+        resultsPageWorkerMaxHeapMb: 1024,
         maxLimit: 5000,
         defaultLimit: 500,
         csvCellsLimit: 100000,

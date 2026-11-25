@@ -132,6 +132,7 @@ import {
     ResultsCacheMissReason,
     ResultsCacheStatsContextGroup,
     ResultsExpiredError,
+    ResultsPageBusyError,
     S3Error,
     SchedulerFormat,
     SqlChart,
@@ -615,13 +616,17 @@ const COMPOSE_MERGE_JOIN_NODE_ID = 'merge';
 
 const STORED_RESULTS_PAGE_BROTLI_QUALITY = 5;
 
+const RESULTS_PAGE_BUSY_RETRY_AFTER_SECONDS = 2;
+
+type ResultsPageMode = 'off' | 'inline' | 'worker' | 'stored';
+
 type ResultsPageRows =
-    | { kind: 'objects'; rows: ResultRow[]; source?: 'fallback' }
+    | { kind: 'objects'; rows: ResultRow[]; source?: 'inline' }
     | {
           kind: 'bytes';
           rows: Buffer;
           rowCount: number;
-          source: Exclude<ResultsPageSource, 'fallback'>;
+          source: Exclude<ResultsPageSource, 'inline' | 'busy'>;
       };
 
 /** A compiled merge that can run: no errors, the join core and full metadata. */
@@ -1004,13 +1009,28 @@ export class AsyncQueryService extends ProjectService {
 
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
-        this.storedResultsPages = new StoredResultsPages({
-            pool: new ResultsPageWorkerPool({
-                size: args.lightdashConfig.query?.resultsPageWorkers ?? 2,
-                brotliQuality: STORED_RESULTS_PAGE_BROTLI_QUALITY,
-            }),
-            appVersion: VERSION,
+        const resultsPagePool = new ResultsPageWorkerPool({
+            size: args.lightdashConfig.query?.resultsPageWorkers ?? 2,
+            brotliQuality: STORED_RESULTS_PAGE_BROTLI_QUALITY,
+            resourceLimits: {
+                maxOldGenerationSizeMb:
+                    args.lightdashConfig.query?.resultsPageWorkerMaxHeapMb ??
+                    1024,
+            },
+            onQueueWait: (waitMs) =>
+                args.prometheusMetrics?.observeResultsPageQueueWait(waitMs),
         });
+        this.storedResultsPages = new StoredResultsPages({
+            pool: resultsPagePool,
+            appVersion: VERSION,
+            onBuild: (outcome) =>
+                args.prometheusMetrics?.observeResultsPageBuild(outcome),
+        });
+        args.prometheusMetrics?.setResultsPageStatsProvider(() => ({
+            queuedBuilds: resultsPagePool.queuedBuilds,
+            uploadBytes: this.storedResultsPages.pendingUploadBytes,
+            decompressBytes: this.storedResultsPages.decompressingBytes,
+        }));
         this.contentDraftModel = args.contentDraftModel;
         this.queryHistoryModel = args.queryHistoryModel;
         this.downloadAuditModel = args.downloadAuditModel;
@@ -1867,8 +1887,8 @@ export class AsyncQueryService extends ProjectService {
         page,
         pageSize,
         format,
-        formatter,
         signal,
+        store,
     }: {
         queryUuid: string;
         fileName: string | null;
@@ -1876,19 +1896,20 @@ export class AsyncQueryService extends ProjectService {
         page: number;
         pageSize: number;
         format: ResultsPageFormatInputs;
-        formatter: (row: ResultRow) => ResultRow;
         signal: AbortSignal | undefined;
+        store: boolean;
     }): Promise<ResultsPageRows> {
         const { resultsStorageClient, fileName: resultsFileName } =
             this.getResultsPageStorage(queryUuid, fileName, queryContext);
         try {
-            const stored = await this.storedResultsPages.getRows({
+            const built = await this.storedResultsPages.getRows({
                 storage: resultsStorageClient,
                 resultsFileName,
                 page,
                 pageSize,
                 format,
                 signal,
+                store,
                 readPageLines: async (buildSignal) => {
                     const lines: string[] = [];
                     await AsyncQueryService.readResultsPageLines(
@@ -1906,37 +1927,51 @@ export class AsyncQueryService extends ProjectService {
             });
             return {
                 kind: 'bytes',
-                rows: stored.rows,
-                rowCount: stored.rowCount,
-                source: stored.source,
+                rows: built.rows,
+                rowCount: built.rowCount,
+                source: built.source,
             };
         } catch (error) {
             if (signal?.aborted || !(error instanceof ResultsPageWorkerError))
                 throw error;
             this.logger.warn(
-                `Results page worker failed for query ${queryUuid}, formatting the page inline: ${error.message}`,
+                `Results page build did not finish for query ${queryUuid}, asking the client to retry: ${error.message}`,
+            );
+            throw new ResultsPageBusyError(
+                RESULTS_PAGE_BUSY_RETRY_AFTER_SECONDS,
             );
         }
-        const { rows } = await this.getResultsPageFromS3(
-            queryUuid,
-            fileName,
-            queryContext,
-            page,
-            pageSize,
-            formatter,
-        );
-        return { kind: 'objects', rows, source: 'fallback' };
     }
 
-    private async isStoredResultsPagesEnabled(
-        account: Account,
-    ): Promise<boolean> {
+    private async getResultsPageMode({
+        account,
+        projectUuid,
+        cells,
+    }: {
+        account: Account;
+        projectUuid: string;
+        cells: number;
+    }): Promise<ResultsPageMode> {
         assertIsAccountWithOrg(account);
-        const { enabled } = await this.featureFlagModel.get({
-            user: { organizationUuid: account.organization.organizationUuid },
+        const user = {
+            organizationUuid: account.organization.organizationUuid,
+        };
+        const workers = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.ResultsPageWorkers,
+        });
+        if (!workers.enabled) return 'off';
+        if (cells < this.lightdashConfig.query.resultsPageWorkerMinCells) {
+            return 'inline';
+        }
+        const stored = await this.featureFlagModel.get({
+            user,
             featureFlagId: FeatureFlags.StoredResultsPages,
         });
-        return enabled;
+        if (!stored.enabled) return 'worker';
+        const resultsCache =
+            await this.projectModel.getResultsCacheState(projectUuid);
+        return resultsCache.enabled ? 'stored' : 'worker';
     }
 
     async cancelAsyncQuery({
@@ -3128,40 +3163,75 @@ export class AsyncQueryService extends ProjectService {
                 displayTimezone ?? undefined,
             );
 
-        const useStoredPages =
-            allowStoredPages &&
-            (await this.isStoredResultsPagesEnabled(account));
-
-        const { result: pageRows, durationMs } = await measureTime(
-            (): Promise<ResultsPageRows> =>
-                useStoredPages
-                    ? this.getStoredResultsPageRows({
-                          queryUuid,
-                          fileName: resultsFileName,
-                          queryContext: queryHistory.context,
-                          page,
-                          pageSize: defaultedPageSize,
-                          format: {
-                              fields: queryHistory.fields,
-                              pivotValuesColumns:
-                                  queryHistory.pivotValuesColumns,
-                              timezone: displayTimezone,
-                          },
-                          formatter,
-                          signal,
-                      })
-                    : this.getResultsPageFromS3(
-                          queryUuid,
-                          resultsFileName,
-                          queryHistory.context,
-                          page,
-                          defaultedPageSize,
-                          formatter,
-                      ).then(({ rows }) => ({ kind: 'objects', rows })),
-            'getCachedResultsPage',
-            this.logger,
-            context,
+        const rowsOnPage = Math.max(
+            0,
+            Math.min(
+                defaultedPageSize,
+                (totalRowCount ?? defaultedPageSize) -
+                    (page - 1) * defaultedPageSize,
+            ),
         );
+        const columnCount =
+            Object.keys(columns ?? {}).length ||
+            Object.keys(queryHistory.fields).length;
+        const mode: ResultsPageMode = allowStoredPages
+            ? await this.getResultsPageMode({
+                  account,
+                  projectUuid,
+                  cells: rowsOnPage * columnCount,
+              })
+            : 'off';
+
+        const readInline = (): Promise<ResultsPageRows> =>
+            this.getResultsPageFromS3(
+                queryUuid,
+                resultsFileName,
+                queryHistory.context,
+                page,
+                defaultedPageSize,
+                formatter,
+            ).then(({ rows }) => ({
+                kind: 'objects',
+                rows,
+                ...(mode === 'inline' ? { source: 'inline' as const } : {}),
+            }));
+
+        const pageStartedAt = Date.now();
+        let pageRows: ResultsPageRows;
+        let durationMs: number;
+        try {
+            ({ result: pageRows, durationMs } = await measureTime(
+                (): Promise<ResultsPageRows> =>
+                    mode === 'worker' || mode === 'stored'
+                        ? this.getStoredResultsPageRows({
+                              queryUuid,
+                              fileName: resultsFileName,
+                              queryContext: queryHistory.context,
+                              page,
+                              pageSize: defaultedPageSize,
+                              format: {
+                                  fields: queryHistory.fields,
+                                  pivotValuesColumns:
+                                      queryHistory.pivotValuesColumns,
+                                  timezone: displayTimezone,
+                              },
+                              signal,
+                              store: mode === 'stored',
+                          })
+                        : readInline(),
+                'getCachedResultsPage',
+                this.logger,
+                context,
+            ));
+        } catch (error) {
+            if (error instanceof ResultsPageBusyError) {
+                this.prometheusMetrics?.observeResultsPage(
+                    'busy',
+                    Date.now() - pageStartedAt,
+                );
+            }
+            throw error;
+        }
         if (pageRows.source) {
             this.prometheusMetrics?.observeResultsPage(
                 pageRows.source,

@@ -4,6 +4,7 @@ import zlib from 'zlib';
 import Logger from '../../../logging/logger';
 import type { ResultsPageFormatInputs } from './buildResultsPageRows';
 import { ByteBudget } from './byteBudget';
+import type { ResultsPageBuildOutcome } from './resultsPageSource';
 import type {
     ResultsPageBuiltRows,
     ResultsPageWorkerPool,
@@ -58,7 +59,7 @@ export type StoredResultsPagesStorage = {
 export type StoredResultsPageRows = {
     rows: Buffer;
     rowCount: number;
-    source: 'stored' | 'built';
+    source: 'stored' | 'built' | 'shared';
 };
 
 export type GetStoredResultsPageRowsArgs = {
@@ -69,6 +70,7 @@ export type GetStoredResultsPageRowsArgs = {
     format: ResultsPageFormatInputs;
     readPageLines: (signal: AbortSignal) => Promise<string[]>;
     signal?: AbortSignal;
+    store?: boolean;
 };
 
 export type StoredResultsPagesOptions = {
@@ -79,6 +81,7 @@ export type StoredResultsPagesOptions = {
     uploadBudgetBytes?: number;
     decompressBudgetBytes?: number;
     decompress?: (body: Buffer, rawBytes: number) => Promise<Buffer>;
+    onBuild?: (outcome: ResultsPageBuildOutcome) => void;
 };
 
 class InFlightPage {
@@ -104,6 +107,10 @@ class InFlightPage {
 
     markBuilding() {
         this.building = true;
+    }
+
+    isBuilding() {
+        return this.building;
     }
 }
 
@@ -213,11 +220,25 @@ export class StoredResultsPages {
             pageSize: args.pageSize,
             page: args.page,
         });
-        const page = this.inFlight.get(key) ?? this.start(args, key);
-        return this.waitFor(page, args.signal);
+        const store = args.store ?? true;
+        const flightKey = store ? key : `${key}#unstored`;
+        const existing = this.inFlight.get(flightKey);
+        const page = existing ?? this.start(args, flightKey, key, store);
+        const rows = this.waitFor(page, args.signal);
+        if (!existing) return rows;
+        return rows.then((result) =>
+            result.source === 'built'
+                ? { ...result, source: 'shared' }
+                : result,
+        );
     }
 
-    private start(args: GetStoredResultsPageRowsArgs, key: string) {
+    private start(
+        args: GetStoredResultsPageRowsArgs,
+        flightKey: string,
+        key: string,
+        store: boolean,
+    ) {
         let resolveRows!: (rows: StoredResultsPageRows) => void;
         let rejectRows!: (error: unknown) => void;
         const rows = new Promise<StoredResultsPageRows>((resolve, reject) => {
@@ -225,11 +246,13 @@ export class StoredResultsPages {
             rejectRows = reject;
         });
         rows.catch(() => undefined);
-        const page = new InFlightPage(key, rows);
-        this.inFlight.set(key, page);
-        void this.load(args, page, resolveRows, rejectRows).finally(() => {
-            this.forget(page);
-        });
+        const page = new InFlightPage(flightKey, rows);
+        this.inFlight.set(flightKey, page);
+        void this.load(args, page, key, store, resolveRows, rejectRows).finally(
+            () => {
+                this.forget(page);
+            },
+        );
         return page;
     }
 
@@ -269,26 +292,30 @@ export class StoredResultsPages {
     private async load(
         args: GetStoredResultsPageRowsArgs,
         page: InFlightPage,
+        key: string,
+        store: boolean,
         resolveRows: (rows: StoredResultsPageRows) => void,
         rejectRows: (error: unknown) => void,
     ): Promise<void> {
-        const { key } = page;
         const { signal } = page.controller;
-        const state = { rowsSent: false };
+        const state = { rowsSent: false, buildRequested: false };
         try {
-            const [stored, resultsFile] = await Promise.all([
-                this.readStored(args.storage, key, signal),
-                this.checkResultsFile(
-                    args.storage,
-                    args.resultsFileName,
-                    signal,
-                ),
-            ]);
-            if (resultsFile === 'missing') throw new ResultsExpiredError();
-            if (stored && resultsFile === 'present') {
-                resolveRows({ ...stored, source: 'stored' });
-                return;
+            if (store) {
+                const [stored, resultsFile] = await Promise.all([
+                    this.readStored(args.storage, key, signal),
+                    this.checkResultsFile(
+                        args.storage,
+                        args.resultsFileName,
+                        signal,
+                    ),
+                ]);
+                if (resultsFile === 'missing') throw new ResultsExpiredError();
+                if (stored && resultsFile === 'present') {
+                    resolveRows({ ...stored, source: 'stored' });
+                    return;
+                }
             }
+            state.buildRequested = true;
             const { built, compressed } = await this.options.pool.withWorker(
                 async (worker, buildSignal) => {
                     page.markBuilding();
@@ -299,6 +326,7 @@ export class StoredResultsPages {
                     const builtRows = await job.rows;
                     buildSignal.throwIfAborted();
                     state.rowsSent = true;
+                    this.options.onBuild?.('ok');
                     resolveRows({ ...builtRows, source: 'built' });
                     return {
                         built: builtRows,
@@ -307,9 +335,18 @@ export class StoredResultsPages {
                 },
                 { signal },
             );
-            await this.upload(args.storage, key, built, compressed);
+            if (store) {
+                await this.upload(args.storage, key, built, compressed);
+            }
         } catch (error) {
             if (!state.rowsSent) {
+                if (state.buildRequested) {
+                    this.options.onBuild?.(
+                        signal.aborted && !page.isBuilding()
+                            ? 'dropped'
+                            : 'error',
+                    );
+                }
                 rejectRows(error);
                 return;
             }

@@ -542,6 +542,8 @@ export const lightdashConfigWithNoSMTP: Pick<
         underlyingDataMaxDimensions: 50,
         maxPageSize: 500,
         resultsPageWorkers: 2,
+        resultsPageWorkerMinCells: 5000,
+        resultsPageWorkerMaxHeapMb: 1024,
         maxLimit: 100,
         defaultLimit: 500,
         csvCellsLimit: 100,

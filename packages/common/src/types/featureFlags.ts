@@ -290,10 +290,15 @@ export enum FeatureFlags {
      */
     ComposerCharts = 'composer-charts',
     /**
-     * Results pages are built once in a worker thread and stored next to the
-     * results file, so later requests for the same page skip the JSONL scan,
-     * the parse, the format and the stringify on the API main thread.
-     * Off by default; organization scope; no handler.
+     * Results pages above the cell budget are built in a worker thread, off
+     * the API main thread. Off by default; organization scope; no handler.
+     */
+    ResultsPageWorkers = 'results-page-workers',
+    /**
+     * Pages built in a worker are stored next to the results file when the
+     * project's results cache is on, so later requests for the same page skip
+     * the JSONL scan, the parse, the format and the stringify. Needs
+     * results-page-workers. Off by default; organization scope; no handler.
      */
     StoredResultsPages = 'stored-results-pages',
 }

@@ -27,6 +27,7 @@ import {
     QueryHistoryWindow,
     QueryLanguage,
     QueryTrigger,
+    ResultsPageBusyError,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
@@ -232,6 +233,12 @@ export class QueryController extends BaseController {
         } catch (error) {
             if (clientGone.signal.aborted) {
                 return undefined as unknown as ApiGetAsyncQueryResultsResponse;
+            }
+            if (error instanceof ResultsPageBusyError) {
+                res.setHeader(
+                    'Retry-After',
+                    String(error.data.retryAfterSeconds),
+                );
             }
             throw error;
         } finally {

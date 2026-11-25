@@ -480,7 +480,7 @@ describe('ResultsPageWorkerPool worker lifetime and metrics', () => {
             },
         });
 
-        for (let index = 0; index < 3; index += 1) {
+        const buildThenRest = async (index: number) => {
             const build = buildAll(pool, [`{"a":${index}}`]);
             await flush();
             workers[0].reply();
@@ -488,7 +488,10 @@ describe('ResultsPageWorkerPool worker lifetime and metrics', () => {
             await new Promise<void>((resolve) => {
                 setTimeout(resolve, 20);
             });
-        }
+        };
+        await buildThenRest(0);
+        await buildThenRest(1);
+        await buildThenRest(2);
 
         expect(workers).toHaveLength(1);
         expect(workers[0].terminated).toBe(false);
@@ -533,7 +536,7 @@ describe('ResultsPageWorkerPool worker lifetime and metrics', () => {
             size: 1,
             brotliQuality: 4,
             createWorker: () =>
-                createResultsPageWorker({ maxOldGenerationSizeMb: 48 }),
+                createResultsPageWorker({ maxOldGenerationSizeMb: 128 }),
         });
         const wide = JSON.stringify(
             Object.fromEntries(
@@ -551,10 +554,14 @@ describe('ResultsPageWorkerPool worker lifetime and metrics', () => {
         );
 
         await expect(
-            buildAll(pool, Array.from({ length: 3000 }, () => wide), {
-                ...plainFormat,
-                fields: fields as typeof plainFormat.fields,
-            }),
+            buildAll(
+                pool,
+                Array.from({ length: 3000 }, () => wide),
+                {
+                    ...plainFormat,
+                    fields: fields as typeof plainFormat.fields,
+                },
+            ),
         ).rejects.toBeInstanceOf(ResultsPageWorkerError);
         await expect(
             buildAll(pool, [...resultsPageLines], plainFormat),

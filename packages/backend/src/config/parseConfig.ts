@@ -1778,6 +1778,8 @@ export type LightdashConfig = {
         timezone: string | undefined;
         maxPageSize: number;
         resultsPageWorkers: number;
+        resultsPageWorkerMinCells: number;
+        resultsPageWorkerMaxHeapMb: number;
         retryQueryOnTransientErrors: boolean;
         enableTimezoneSupport: boolean | undefined;
         exploreSummaryProjectionMinStoredBytesPerExplore: number;
@@ -3872,6 +3874,14 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_RESULTS_PAGE_WORKERS',
                 ) || 2,
+            resultsPageWorkerMinCells:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_QUERY_RESULTS_PAGE_WORKER_MIN_CELLS',
+                ) ?? 5000,
+            resultsPageWorkerMaxHeapMb:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_QUERY_RESULTS_PAGE_WORKER_MAX_HEAP_MB',
+                ) || 1024,
             retryQueryOnTransientErrors: process.env
                 .LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS
                 ? process.env.LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS ===

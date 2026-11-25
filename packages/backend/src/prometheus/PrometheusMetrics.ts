@@ -51,8 +51,11 @@ import {
     type QueryPollingSource,
 } from '../services/AsyncQueryService/queryPollingSource';
 import {
+    RESULTS_PAGE_BUILD_OUTCOMES,
     RESULTS_PAGE_SOURCES,
+    type ResultsPageBuildOutcome,
     type ResultsPageSource,
+    type ResultsPageStats,
 } from '../services/AsyncQueryService/resultsPages/resultsPageSource';
 import type { WarehouseExecutionSource } from '../services/AsyncQueryService/types';
 import {
@@ -415,6 +418,18 @@ export default class PrometheusMetrics {
     private resultsPageDurationHistogram: prometheus.Histogram<'source'> | null =
         null;
 
+    private resultsPageBuildsCounter: prometheus.Counter<'outcome'> | null =
+        null;
+
+    private resultsPageQueueWaitHistogram: prometheus.Histogram | null = null;
+
+    private resultsPageStatsProvider: (() => ResultsPageStats) | null = null;
+
+    private resultsPageQueuedBuildsGauge: prometheus.Gauge | null = null;
+
+    private resultsPageInflightBytesGauge: prometheus.Gauge<'kind'> | null =
+        null;
+
     private queueWaitHistogram: prometheus.Histogram | null = null;
 
     private totalDurationHistogram: prometheus.Histogram | null = null;
@@ -511,7 +526,7 @@ export default class PrometheusMetrics {
 
                 this.resultsPagesCounter = new prometheus.Counter({
                     name: 'lightdash_query_results_pages_total',
-                    help: 'Results pages served with stored results pages on, by source: stored (hit), built (miss) or fallback (inline after a worker error or timeout)',
+                    help: 'Results pages served with results page workers on, by source: inline (below the cell budget), built (this request started the build), shared (joined a build in flight), stored (stored page hit) or busy (503, retry later)',
                     labelNames: ['source'],
                     ...rest,
                 });
@@ -521,10 +536,52 @@ export default class PrometheusMetrics {
 
                 this.resultsPageDurationHistogram = new prometheus.Histogram({
                     name: 'lightdash_query_results_page_duration_seconds',
-                    help: 'Time to get the rows of a results page with stored results pages on, by source',
+                    help: 'Time to get the rows of a results page with results page workers on, by source',
                     labelNames: ['source'],
                     buckets: [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 120],
                     ...rest,
+                });
+
+                this.resultsPageBuildsCounter = new prometheus.Counter({
+                    name: 'lightdash_query_results_page_builds_total',
+                    help: 'Distinct results page builds in a worker, by outcome: ok, error (worker error, time limit or full queue) or dropped (every caller left while it was queued)',
+                    labelNames: ['outcome'],
+                    ...rest,
+                });
+                for (const outcome of RESULTS_PAGE_BUILD_OUTCOMES) {
+                    this.resultsPageBuildsCounter.inc({ outcome }, 0);
+                }
+
+                this.resultsPageQueueWaitHistogram = new prometheus.Histogram({
+                    name: 'lightdash_query_results_page_queue_wait_seconds',
+                    help: 'Time a results page build waited for a worker',
+                    buckets: [0.01, 0.05, 0.1, 0.5, 1, 2.5, 5, 10, 30, 120],
+                    ...rest,
+                });
+
+                const getResultsPageStats = () =>
+                    this.resultsPageStatsProvider?.() ?? null;
+                this.resultsPageQueuedBuildsGauge = new prometheus.Gauge({
+                    name: 'lightdash_query_results_page_queued_builds',
+                    help: 'Results page builds waiting for a worker',
+                    ...rest,
+                    collect() {
+                        this.set(getResultsPageStats()?.queuedBuilds ?? 0);
+                    },
+                });
+                this.resultsPageInflightBytesGauge = new prometheus.Gauge({
+                    name: 'lightdash_query_results_page_inflight_bytes',
+                    help: 'Bytes held by results page uploads and stored page decompression in flight',
+                    labelNames: ['kind'],
+                    ...rest,
+                    collect() {
+                        const stats = getResultsPageStats();
+                        this.set({ kind: 'upload' }, stats?.uploadBytes ?? 0);
+                        this.set(
+                            { kind: 'decompress' },
+                            stats?.decompressBytes ?? 0,
+                        );
+                    },
                 });
 
                 this.queueWaitHistogram = new prometheus.Histogram({
@@ -1963,6 +2020,18 @@ export default class PrometheusMetrics {
 
     public incrementQueryPollingTimeout(source: QueryPollingSource) {
         this.queryPollingTimeoutCounter?.inc({ source });
+    }
+
+    public observeResultsPageBuild(outcome: ResultsPageBuildOutcome) {
+        this.resultsPageBuildsCounter?.inc({ outcome });
+    }
+
+    public observeResultsPageQueueWait(waitMs: number) {
+        this.resultsPageQueueWaitHistogram?.observe(waitMs / 1000);
+    }
+
+    public setResultsPageStatsProvider(provider: () => ResultsPageStats) {
+        this.resultsPageStatsProvider = provider;
     }
 
     public observeResultsPage(source: ResultsPageSource, durationMs: number) {

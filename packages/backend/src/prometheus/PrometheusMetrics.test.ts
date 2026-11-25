@@ -144,23 +144,22 @@ describe('results page metrics', () => {
         const queued = await prometheus.register
             .getSingleMetric('lightdash_query_results_page_queued_builds')!
             .get();
-        expect(queued.values).toEqual([
-            expect.objectContaining({ value: 3 }),
-        ]);
+        expect(queued.values).toEqual([expect.objectContaining({ value: 3 })]);
         const bytes = await prometheus.register
             .getSingleMetric('lightdash_query_results_page_inflight_bytes')!
             .get();
         expect(bytes.values).toEqual([
-            expect.objectContaining({ labels: { kind: 'upload' }, value: 1000 }),
+            expect.objectContaining({
+                labels: { kind: 'upload' },
+                value: 1000,
+            }),
             expect.objectContaining({
                 labels: { kind: 'decompress' },
                 value: 250,
             }),
         ]);
         const wait = await prometheus.register
-            .getSingleMetric(
-                'lightdash_query_results_page_queue_wait_seconds',
-            )!
+            .getSingleMetric('lightdash_query_results_page_queue_wait_seconds')!
             .get();
         expect(wait.values).toEqual(
             expect.arrayContaining([

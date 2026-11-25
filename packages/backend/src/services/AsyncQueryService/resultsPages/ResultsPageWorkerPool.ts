@@ -1,5 +1,5 @@
 import path from 'path';
-import { Worker } from 'worker_threads';
+import { Worker, type ResourceLimits } from 'worker_threads';
 import type { ResultsPageFormatInputs } from './buildResultsPageRows';
 import type {
     ResultsPageWorkerRequest,
@@ -9,6 +9,12 @@ import type {
 export const RESULTS_PAGE_BUILD_TIMEOUT_MS = 120_000;
 
 export const RESULTS_PAGE_QUEUED_BUILDS_PER_WORKER = 8;
+
+export const RESULTS_PAGE_IDLE_WORKER_TIMEOUT_MS = 60_000;
+
+export const RESULTS_PAGE_WORKER_RESOURCE_LIMITS: ResourceLimits = {
+    maxOldGenerationSizeMb: 1024,
+};
 
 export class ResultsPageWorkerError extends Error {
     constructor(message: string) {
@@ -61,9 +67,11 @@ const resolveWorkerEntry = () => {
     };
 };
 
-export const createResultsPageWorker = (): ResultsPageWorkerLike => {
+export const createResultsPageWorker = (
+    resourceLimits: ResourceLimits = RESULTS_PAGE_WORKER_RESOURCE_LIMITS,
+): ResultsPageWorkerLike => {
     const { filename, execArgv } = resolveWorkerEntry();
-    return new Worker(filename, { execArgv });
+    return new Worker(filename, { execArgv, resourceLimits });
 };
 
 const toBuffer = (bytes: Uint8Array) =>
@@ -99,10 +107,13 @@ class PooledWorker implements ResultsPageWorkerHandle {
 
     private nextId = 0;
 
+    private idleTimer: NodeJS.Timeout | undefined;
+
     constructor(
         private readonly createWorker: () => ResultsPageWorkerLike,
         private readonly brotliQuality: number,
         private readonly onWorkerStarted: () => void,
+        private readonly idleTimeoutMs: number,
     ) {}
 
     build(
@@ -117,6 +128,7 @@ class PooledWorker implements ResultsPageWorkerHandle {
             compressed: deferred<Buffer>(),
         };
         this.pending = job;
+        clearTimeout(this.idleTimer);
         try {
             const worker = this.ensureWorker();
             worker.ref();
@@ -139,6 +151,19 @@ class PooledWorker implements ResultsPageWorkerHandle {
     private settle() {
         this.pending = undefined;
         this.worker?.unref();
+        this.retireWhenIdle();
+    }
+
+    private retireWhenIdle() {
+        clearTimeout(this.idleTimer);
+        const { worker } = this;
+        if (!worker || this.idleTimeoutMs <= 0) return;
+        this.idleTimer = setTimeout(() => {
+            if (this.pending || this.worker !== worker) return;
+            this.worker = undefined;
+            void worker.terminate().catch(() => undefined);
+        }, this.idleTimeoutMs);
+        this.idleTimer.unref();
     }
 
     private fail(message: string) {
@@ -235,7 +260,10 @@ export class ResultsPageWorkerPool {
             brotliQuality: number;
             buildTimeoutMs?: number;
             maxQueued?: number;
+            idleWorkerTimeoutMs?: number;
+            resourceLimits?: ResourceLimits;
             createWorker?: () => ResultsPageWorkerLike;
+            onQueueWait?: (waitMs: number) => void;
         },
     ) {
         this.size = Math.max(1, Math.floor(options.size) || 1);
@@ -266,6 +294,7 @@ export class ResultsPageWorkerPool {
         { signal }: { signal?: AbortSignal } = {},
     ): Promise<T> {
         signal?.throwIfAborted();
+        const askedAt = performance.now();
         const controller = new AbortController();
         let worker: PooledWorker | undefined;
         let timer: NodeJS.Timeout | undefined;
@@ -286,6 +315,7 @@ export class ResultsPageWorkerPool {
                 this.acquire(controller.signal, signal),
                 timeout,
             ]);
+            this.options.onQueueWait?.(performance.now() - askedAt);
             const acquired = worker;
             const handle: ResultsPageWorkerHandle = {
                 build: (lines, format) => {
@@ -317,11 +347,17 @@ export class ResultsPageWorkerPool {
             this.created += 1;
             return Promise.resolve(
                 new PooledWorker(
-                    this.options.createWorker ?? createResultsPageWorker,
+                    this.options.createWorker ??
+                        (() =>
+                            createResultsPageWorker(
+                                this.options.resourceLimits,
+                            )),
                     this.options.brotliQuality,
                     () => {
                         this.startedWorkers += 1;
                     },
+                    this.options.idleWorkerTimeoutMs ??
+                        RESULTS_PAGE_IDLE_WORKER_TIMEOUT_MS,
                 ),
             );
         }

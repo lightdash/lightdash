@@ -627,7 +627,7 @@ describe('StoredResultsPages outstanding work', () => {
         await held;
 
         const result = await stays;
-        expect(result.source).toBe('built');
+        expect(result.source).toBe('shared');
         expect(result.rows.equals(expectedRows)).toBe(true);
     });
 
