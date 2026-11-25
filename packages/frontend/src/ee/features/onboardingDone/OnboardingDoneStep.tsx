@@ -1,4 +1,7 @@
-import { type ApiConnectorType } from '@lightdash/common';
+import {
+    type ApiConnectorType,
+    type ExternalConnectionListItem,
+} from '@lightdash/common';
 import { Box, Button, Image, Stack, Text, Title } from '@mantine/core';
 import { IconArrowRight, IconCheck } from '@tabler/icons-react';
 import { Fragment, useEffect, type FC } from 'react';
@@ -7,7 +10,6 @@ import { DocumentTitle } from '../../../components/common/DocumentTitle';
 import MantineIcon from '../../../components/common/MantineIcon';
 import OnboardingLayout from '../../../components/common/OnboardingLayout';
 import { WarehouseTypeLabels } from '../../../components/ProjectConnection/ProjectConnectFlow/utils';
-import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
 import { LiveSourceIcon } from '../../../features/externalConnections/liveSources/LiveSourceIcon';
 import { WAREHOUSE_SOURCE_ID } from '../../../features/semanticStudio/realProject';
 import { getSemanticStudioSourceUrl } from '../../../features/semanticStudio/urls';
@@ -57,7 +59,10 @@ const FIRST_QUESTION =
 
 const useAskAurora = (projectUuid: string) => {
     const navigate = useNavigate();
-    const canCreateThread = useCanCreateAiAgentThread(projectUuid);
+    const { health } = useApp();
+    const hasThreadPermission = useCanCreateAiAgentThread(projectUuid);
+    const canCreateThread =
+        !!health.data?.license?.valid && hasThreadPermission;
     const { data: agents, isInitialLoading } = useProjectAiAgents({
         projectUuid,
         redirectOnUnauthorized: false,
@@ -76,9 +81,10 @@ const useAskAurora = (projectUuid: string) => {
     };
 };
 
-export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
+export const OnboardingDoneStep: FC<{
+    projectUuid: string;
+    connections: ExternalConnectionListItem[];
+}> = ({ projectUuid, connections }) => {
     useEffect(markHomepageTourSeen, []);
     const { canAsk, ask } = useAskAurora(projectUuid);
     const { data: project } = useProject(projectUuid);
@@ -93,7 +99,6 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                 action,
             },
         });
-    const { data: connections = [] } = useExternalConnections(projectUuid);
 
     const warehouse = WarehouseTypeLabels.find(
         ({ key }) => key === project?.warehouseConnection?.type,

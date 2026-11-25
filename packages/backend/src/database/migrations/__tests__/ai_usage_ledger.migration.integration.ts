@@ -101,23 +101,23 @@ describe('AI usage ledger on the real PostgreSQL schema', () => {
 
     test('records the channel of a call, and none for a call with no thread', async () => {
         const slackTurn = usageEvent({ channel: 'slack' });
-        const embedding = usageEvent({
-            feature: 'embedding',
+        const metadata = usageEvent({
+            feature: 'chart-metadata',
             threadId: null,
             channel: null,
         });
         await model.recordEvent(slackTurn);
-        await model.recordEvent(embedding);
+        await model.recordEvent(metadata);
 
         const rows = await transaction(TABLE)
             .whereIn('event_id', [
                 slackTurn.properties.eventId,
-                embedding.properties.eventId,
+                metadata.properties.eventId,
             ])
             .orderBy('feature');
         expect(rows.map((row) => [row.feature, row.usage_channel])).toEqual([
             ['agent', 'slack'],
-            ['embedding', null],
+            ['chart-metadata', null],
         ]);
     });
 

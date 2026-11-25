@@ -164,11 +164,9 @@ describe('findBaseUrlRemovalsBlockedByInstanceGateway', () => {
         threadDumpEnabled: false,
         debugLoggingEnabled: false,
         askAiButtonEnabled: false,
-        embeddingEnabled: false,
         maxQueryLimit: 100,
         runSqlMaxLimit: 100,
         defaultProvider: 'openai',
-        defaultEmbeddingModelProvider: 'openai',
         providers: {
             anthropic: {
                 apiKey: 'instance-anthropic-key',

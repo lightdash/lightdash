@@ -1,6 +1,7 @@
 import {
     diffModelDocuments,
     doModelPathsOverlap,
+    isWholeModelPath,
     readModelPart,
     type SemanticLayerDraftItemResult,
     type SemanticLayerDraftReconciliation,
@@ -16,7 +17,7 @@ export const findDraftedPaths = (
             .filter((result) => result.model === model)
             .flatMap(({ changes }) =>
                 changes.map(({ path, action }) =>
-                    path === model &&
+                    isWholeModelPath(model, path) &&
                     (action === 'created' || action === 'removed')
                         ? ''
                         : path,
@@ -39,7 +40,9 @@ export const findRefusedPaths = (
                         ({ reason }) =>
                             reason === 'not_found' || reason === 'incomplete',
                     )
-                    .map(({ path }) => (path === model ? '' : path)),
+                    .map(({ path }) =>
+                        isWholeModelPath(model, path) ? '' : path,
+                    ),
             ),
     ),
 ];

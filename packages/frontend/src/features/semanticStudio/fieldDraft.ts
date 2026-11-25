@@ -4,7 +4,14 @@
  */
 import { type LiveSourceFieldChange } from '@lightdash/common';
 import { type Field } from './model';
-import { type FieldDraft } from './useSemanticStudio';
+
+export type FieldDraft = {
+    label: string;
+    description: string;
+    aiHint: string;
+    group: string;
+    inUse: boolean;
+};
 
 export const toFieldDraft = (field: Field): FieldDraft => ({
     label: field.label,

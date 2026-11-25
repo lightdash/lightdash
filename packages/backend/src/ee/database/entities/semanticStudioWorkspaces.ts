@@ -33,7 +33,11 @@ export type SemanticStudioWorkspacesTable = Knex.CompositeTableType<
     Partial<
         Pick<
             DbSemanticStudioWorkspace,
-            'name' | 'is_active' | 'pull_request_url' | 'pull_request_state'
+            | 'ai_thread_uuid'
+            | 'name'
+            | 'is_active'
+            | 'pull_request_url'
+            | 'pull_request_state'
         >
     > & { updated_at?: Knex.Raw; finished_at?: Knex.Raw | null }
 >;

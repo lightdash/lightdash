@@ -323,8 +323,8 @@ export const DashboardFiltersBar: FC<Props> = ({
                             </>
                         )}
 
-                    {/* Hide button - only in view mode */}
-                    {!isEditMode && !compact && (
+                    {/* A compact viewer's bar is a drawer with its own close */}
+                    {(isEditMode || !compact) && (
                         <>
                             <Divider orientation="vertical" />
                             <Tooltip label="Hide filters">

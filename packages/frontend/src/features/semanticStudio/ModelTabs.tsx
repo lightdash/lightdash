@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     Accordion,
+    ActionIcon,
     Alert,
     Badge,
     Box,
@@ -12,6 +13,7 @@ import {
     Group,
     Kbd,
     Paper,
+    Stack,
     Tabs,
     Text,
     Tooltip,
@@ -22,20 +24,32 @@ import {
     File,
     WorkerPoolContextProvider,
 } from '@pierre/diffs/react';
-import { IconPencil } from '@tabler/icons-react';
-import dayjs from 'dayjs';
-import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router';
-import { CopyActionIcon } from '../../components/common/CopyActionIcon';
-import MantineIcon from '../../components/common/MantineIcon';
 import {
-    PIERRE_HIGHLIGHTER_OPTIONS,
-    PIERRE_POOL_OPTIONS,
-} from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
+    IconArrowBackUp,
+    IconArrowForwardUp,
+    IconFileCode,
+} from '@tabler/icons-react';
+import dayjs from 'dayjs';
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
+import { useSearchParams } from 'react-router';
+import MantineIcon from '../../components/common/MantineIcon';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { SettingsSection } from '../externalConnections/liveSources/LiveSourceSettingsRows';
+import {
+    PIERRE_HIGHLIGHTER_OPTIONS,
+    PIERRE_POOL_OPTIONS,
+    pierreThemeFor,
+} from '../writeback/pierreDiffConfig';
 import { ChangeDiff } from './ChangeDiff';
 import {
     CHANGE_KIND_VERBS,
@@ -44,11 +58,19 @@ import {
     getChangeKind,
     changeTitle,
     findFieldBlock,
+    MODEL_TABS,
     VIEW_PARAM,
+    type ModelTab,
 } from './modelCode';
 import { ModelPreAggregates } from './ModelPreAggregates';
 import classes from './ModelTabs.module.css';
-import { createEditor } from './pierreEditor';
+import {
+    createEditor,
+    editorOptionsFor,
+    readSelection,
+    type Attached,
+} from './pierreEditor';
+import { useAddToStudioChat } from './studioChatRefs';
 import {
     useSemanticLayerModel,
     useAppliesAsPullRequest,
@@ -75,14 +97,16 @@ const saveErrorText = ({ error }: ApiError) =>
         ? error.message
         : 'This model could not be saved. Try again in a moment.';
 
-/** A model's YAML as the checked-out change leaves it; your own draft's, or Published's, can be edited and saved into the draft. */
+/** A model's YAML as the checked-out change leaves it; your own draft's, or Published's, opens ready to edit and saves into the draft. */
 export const ModelCodeView: FC<{
     projectUuid: string;
     modelName: string;
     fieldName: string | null;
     /** Why the code is read and not edited, as a sentence; null when it can be edited. */
     readOnlyReason: string | null;
-}> = ({ projectUuid, modelName, fieldName, readOnlyReason }) => {
+    /** Skips the marked view and opens straight into editing, as the overview's pencil asks. */
+    startsEditing: boolean;
+}> = ({ projectUuid, modelName, fieldName, readOnlyReason, startsEditing }) => {
     const colorScheme = useComputedColorScheme('light');
     const { data: model, isLoading } = useSemanticLayerModel(
         projectUuid,
@@ -102,7 +126,37 @@ export const ModelCodeView: FC<{
     const isShowingSaved = justSaved !== null && justSaved.over === content;
     const shownContent = isShowingSaved ? justSaved.content : content;
     // Pierre owns the document while editing: it starts from `startedFrom` and reports each change into `text`.
-    const [isEditing, setIsEditing] = useState(false);
+    const [isEditing, setIsEditing] = useState(startsEditing);
+    const editorInstance = useRef<Attached | null>(null);
+    const [history, setHistory] = useState({ canUndo: false, canRedo: false });
+    const addToStudioChat = useAddToStudioChat();
+    const addToChat = () => {
+        const picked = readSelection(editorInstance.current);
+        if (!picked || !addToStudioChat) return;
+        addToStudioChat({
+            modelName,
+            fieldName: null,
+            modelLabel: `${modelName}.yml`,
+            fieldLabel: null,
+            fieldKind: null,
+            fieldType: null,
+            code: { path: `${modelName}.yml`, ...picked },
+        });
+    };
+    // Pierre keeps the first options it is given, so the chip reads the latest through a ref.
+    const addToChatRef = useRef(addToChat);
+    addToChatRef.current = addToChat;
+    const editorOptions = useMemo(
+        () =>
+            editorOptionsFor<'file'>(
+                (attached) => {
+                    editorInstance.current = attached;
+                    setHistory({ canUndo: false, canRedo: false });
+                },
+                () => addToChatRef.current(),
+            ),
+        [],
+    );
     const [startedFrom, setStartedFrom] = useState<string | null>(null);
     const [text, setText] = useState<string | null>(null);
     const [revision, setRevision] = useState(0);
@@ -110,27 +164,28 @@ export const ModelCodeView: FC<{
     const canEdit =
         readOnlyReason === null && shown !== null && shownContent !== null;
     const isDirty = text !== null && text !== startedFrom;
-    const editing = canEdit && (isEditing || isDirty);
+    const fieldBlock =
+        fieldName && shownContent
+            ? findFieldBlock(shownContent, fieldName)
+            : null;
+    // A field asked for, or the draft's marked lines, read first; clicking the code edits it.
+    const hasReadView =
+        fieldBlock !== null ||
+        (drafted !== null && drafted.contentBefore !== null && !isShowingSaved);
+    const editing = canEdit && (isEditing || isDirty || !hasReadView);
     // Unsaved text stays when the model changes under it; saving it then is refused.
     const changedUnder = isDirty && startedFrom !== shownContent;
     // With nothing typed yet, editing follows the model as it changes.
     useEffect(() => {
-        if (!isEditing || isDirty || startedFrom === shownContent) return;
+        if (!editing || isDirty || startedFrom === shownContent) return;
         setStartedFrom(shownContent);
         setText(null);
         setRevision((current) => current + 1);
-    }, [isEditing, isDirty, startedFrom, shownContent]);
-    const block =
-        fieldName && shownContent && !editing
-            ? findFieldBlock(shownContent, fieldName)
-            : null;
+    }, [editing, isDirty, startedFrom, shownContent]);
+    const block = editing ? null : fieldBlock;
     const line = block?.start ?? null;
     // A changed file shows the draft's lines marked; a new one would be marked whole, and a field asked for is shown alone.
-    const marksDraft =
-        drafted !== null &&
-        drafted.contentBefore !== null &&
-        block === null &&
-        !isShowingSaved;
+    const marksDraft = !editing && hasReadView && block === null;
     const editor = useRef<HTMLDivElement>(null);
     // The viewer marks the line but does not bring it into view, and it renders after this does.
     useEffect(() => {
@@ -151,6 +206,12 @@ export const ModelCodeView: FC<{
         return () => cancelAnimationFrame(frame);
     }, [line, modelName]);
 
+    const startEditing = () => {
+        if (!canEdit) return;
+        setStartedFrom(shownContent);
+        setIsEditing(true);
+        setRevision((current) => current + 1);
+    };
     const stopEditing = () => {
         setIsEditing(false);
         setStartedFrom(null);
@@ -194,64 +255,47 @@ export const ModelCodeView: FC<{
     }
     const where = shown?.workspace?.name ?? null;
     const options = {
-        theme: colorScheme === 'dark' ? 'pierre-dark' : 'pierre-light',
+        ...pierreThemeFor(colorScheme),
         overflow: 'wrap',
         disableFileHeader: true,
     } as const;
     return (
         <Box className={classes.codePane}>
-            <Group
-                className={classes.codeToolbar}
-                justify="flex-end"
-                wrap="nowrap"
-                gap="xs"
-            >
+            <Group className={classes.codeToolbar} wrap="nowrap" gap="xs">
+                <MantineIcon icon={IconFileCode} color="dimmed" />
+                <Text fz="sm" fw={500} truncate flex={1} miw={0}>
+                    {modelName}.yml
+                </Text>
                 {shownContent === null ? null : !canEdit ? (
                     readOnlyReason ? (
                         <Text fz="xs" c="dimmed" truncate maw={320}>
                             {readOnlyReason}
                         </Text>
                     ) : null
-                ) : editing ? null : (
-                    <Tooltip
-                        label={
-                            where
-                                ? `Saves to ${where}`
-                                : 'Saving starts a draft. Published stays as it is.'
-                        }
-                    >
-                        <Button
-                            size="compact-xs"
-                            variant="default"
-                            leftSection={
-                                <MantineIcon icon={IconPencil} size={12} />
-                            }
-                            onClick={() => {
-                                track({
-                                    name: EventName.SEMANTIC_STUDIO_EDIT_STARTED,
-                                    properties: {
-                                        projectId: projectUuid,
-                                        kind: 'model',
-                                    },
-                                });
-                                setStartedFrom(shownContent);
-                                setIsEditing(true);
-                                setRevision((current) => current + 1);
-                            }}
-                        >
-                            Edit
-                        </Button>
-                    </Tooltip>
-                )}
-                {editing && !isDirty ? (
-                    <Button
-                        size="compact-xs"
-                        variant="subtle"
-                        color="gray"
-                        onClick={stopEditing}
-                    >
-                        Done
-                    </Button>
+                ) : null}
+                {editing ? (
+                    <>
+                        <Tooltip label="Undo (⌘Z)">
+                            <ActionIcon
+                                aria-label="Undo"
+                                className={classes.history}
+                                disabled={!history.canUndo}
+                                onClick={() => editorInstance.current?.undo()}
+                            >
+                                <MantineIcon icon={IconArrowBackUp} />
+                            </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Redo (⇧⌘Z)">
+                            <ActionIcon
+                                aria-label="Redo"
+                                className={classes.history}
+                                disabled={!history.canRedo}
+                                onClick={() => editorInstance.current?.redo()}
+                            >
+                                <MantineIcon icon={IconArrowForwardUp} />
+                            </ActionIcon>
+                        </Tooltip>
+                    </>
                 ) : null}
                 {editing && isDirty ? (
                     <>
@@ -287,12 +331,6 @@ export const ModelCodeView: FC<{
                         </Tooltip>
                     </>
                 ) : null}
-                {shownContent !== null ? (
-                    <CopyActionIcon
-                        value={text ?? shownContent}
-                        copyLabel="Copy YAML"
-                    />
-                ) : null}
             </Group>
             {changedUnder ? (
                 <Alert color="violet" radius={0} py={8}>
@@ -320,12 +358,14 @@ export const ModelCodeView: FC<{
                 className={classes.codeEditor}
                 ref={editor}
                 onKeyDownCapture={(event) => {
-                    if (
-                        (event.metaKey || event.ctrlKey) &&
-                        event.key.toLowerCase() === 's'
-                    ) {
+                    if (!(event.metaKey || event.ctrlKey)) return;
+                    const key = event.key.toLowerCase();
+                    if (key === 's') {
                         event.preventDefault();
                         submit();
+                    } else if (key === 'l' && addToStudioChat) {
+                        event.preventDefault();
+                        addToChat();
                     }
                 }}
             >
@@ -341,48 +381,71 @@ export const ModelCodeView: FC<{
                         <EditProvider createEditor={createEditor}>
                             <File
                                 key={`${modelName}:${revision}`}
-                                className={classes.codeHost}
                                 file={{
                                     name: `${modelName}.yml`,
                                     contents: startedFrom ?? shownContent,
                                 }}
                                 options={options}
+                                editorOptions={editorOptions}
                                 edit={!save.isLoading}
-                                onEditChange={(event) =>
-                                    setText(event.file.contents)
-                                }
+                                onEditChange={(event) => {
+                                    if (text === null) {
+                                        track({
+                                            name: EventName.SEMANTIC_STUDIO_EDIT_STARTED,
+                                            properties: {
+                                                projectId: projectUuid,
+                                                kind: 'model',
+                                            },
+                                        });
+                                    }
+                                    setText(event.file.contents);
+                                    setHistory({
+                                        canUndo: event.editor.canUndo,
+                                        canRedo: event.editor.canRedo,
+                                    });
+                                }}
                                 onEditComplete={() => 'accept'}
                             />
                         </EditProvider>
                     </WorkerPoolContextProvider>
-                ) : marksDraft ? (
-                    <WorkerPoolContextProvider
-                        poolOptions={PIERRE_POOL_OPTIONS}
-                        highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                ) : marksDraft && drafted ? (
+                    <Box
+                        className={canEdit ? classes.clickToEdit : undefined}
+                        onClick={startEditing}
                     >
-                        <ChangeDiff
-                            modelName={modelName}
-                            change={drafted}
-                            variant="whole"
-                        />
-                    </WorkerPoolContextProvider>
+                        <WorkerPoolContextProvider
+                            poolOptions={PIERRE_POOL_OPTIONS}
+                            highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                        >
+                            <ChangeDiff
+                                modelName={modelName}
+                                change={drafted}
+                                variant="whole"
+                            />
+                        </WorkerPoolContextProvider>
+                    </Box>
                 ) : (
-                    <WorkerPoolContextProvider
-                        poolOptions={PIERRE_POOL_OPTIONS}
-                        highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                    <Box
+                        className={canEdit ? classes.clickToEdit : undefined}
+                        onClick={startEditing}
                     >
-                        <File
-                            file={{
-                                name: `${modelName}.yml`,
-                                contents: shownContent,
-                            }}
-                            selectedLines={block}
-                            options={{
-                                ...options,
-                                unsafeCSS: block ? ISOLATE_BLOCK_CSS : '',
-                            }}
-                        />
-                    </WorkerPoolContextProvider>
+                        <WorkerPoolContextProvider
+                            poolOptions={PIERRE_POOL_OPTIONS}
+                            highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                        >
+                            <File
+                                file={{
+                                    name: `${modelName}.yml`,
+                                    contents: shownContent,
+                                }}
+                                selectedLines={block}
+                                options={{
+                                    ...options,
+                                    unsafeCSS: block ? ISOLATE_BLOCK_CSS : '',
+                                }}
+                            />
+                        </WorkerPoolContextProvider>
+                    </Box>
                 )}
             </Box>
         </Box>
@@ -424,8 +487,8 @@ const HistoryPane: FC<{
                         <Box miw={0}>
                             <Text fz="sm">In your draft</Text>
                             <Text fz="xs" c="dimmed">
-                                Not live. Only you see them until you publish;
-                                everything below is live.
+                                Not live until you publish, and only you can
+                                change them. Everything below is live.
                             </Text>
                         </Box>
                         <Button
@@ -555,7 +618,7 @@ export const ModelTabs: FC<{
     const hasSettings = settings !== null;
     const [searchParams, setSearchParams] = useSearchParams();
     const requested = searchParams.get(VIEW_PARAM);
-    const view =
+    const view: ModelTab =
         hasHistory && requested === 'history'
             ? 'history'
             : hasLineage && requested === 'lineage'
@@ -568,20 +631,19 @@ export const ModelTabs: FC<{
     return (
         <Tabs
             className={classes.root}
-            // Settings are as tall as they are; the page scrolls them
-            data-fit-content={view === 'settings' || undefined}
-            value={view}
-            onChange={(next) =>
-                setSearchParams(
-                    next === 'history' ||
-                        next === 'lineage' ||
-                        next === 'pre-aggregates' ||
-                        next === 'settings'
-                        ? { [VIEW_PARAM]: next }
-                        : {},
-                    { replace: true },
-                )
+            // Fields and settings are as tall as they are; the page scrolls
+            // them, and the field list virtualises against that scroll
+            data-fit-content={
+                view === 'fields' || view === 'settings' || undefined
             }
+            value={view}
+            onChange={(next) => {
+                const tab = MODEL_TABS.find((item) => item === next);
+                setSearchParams(
+                    tab && tab !== 'fields' ? { [VIEW_PARAM]: tab } : {},
+                    { replace: true },
+                );
+            }}
         >
             {hasHistory || hasLineage || hasPreAggregates || hasSettings ? (
                 <Tabs.List mb="md">
@@ -636,38 +698,37 @@ export const ModelTabs: FC<{
     );
 };
 
-/** A live data source with several explores: the explores, then its settings. */
-export const SourceTabs: FC<{
-    explores: ReactNode;
+/**
+ * A live data source on one page: its explores (or, with one explore, its
+ * fields), then its settings. A settings link scrolls to them.
+ */
+export const LiveSourceFlow: FC<{
+    /** Omitted where the page title already says what the main part is. */
+    title?: string;
+    main: ReactNode;
     settings: ReactNode;
-}> = ({ explores, settings }) => {
-    const [searchParams, setSearchParams] = useSearchParams();
-    const view =
-        searchParams.get(VIEW_PARAM) === 'settings' ? 'settings' : 'explores';
+}> = ({ title, main, settings }) => {
+    const [searchParams] = useSearchParams();
+    const wantsSettings = searchParams.get(VIEW_PARAM) === 'settings';
+    const settingsRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!wantsSettings) return undefined;
+        // After the explores or fields above have laid out
+        const frame = requestAnimationFrame(() =>
+            settingsRef.current?.scrollIntoView({ block: 'start' }),
+        );
+        return () => cancelAnimationFrame(frame);
+    }, [wantsSettings]);
     return (
-        <Tabs
-            className={classes.root}
-            data-fit-content
-            value={view}
-            onChange={(next) =>
-                setSearchParams(
-                    next === 'settings' ? { [VIEW_PARAM]: next } : {},
-                    { replace: true },
-                )
-            }
-        >
-            <Tabs.List mb="md">
-                <Tabs.Tab value="explores">Explores</Tabs.Tab>
-                <Tabs.Tab value="settings">Settings</Tabs.Tab>
-            </Tabs.List>
-            <Tabs.Panel value="explores" className={classes.panel}>
-                {explores}
-            </Tabs.Panel>
-            {view === 'settings' ? (
-                <Tabs.Panel value="settings" className={classes.panel}>
-                    {settings}
-                </Tabs.Panel>
-            ) : null}
-        </Tabs>
+        <Box className={classes.root} data-fit-content>
+            <Stack gap="lg">
+                {title ? (
+                    <SettingsSection title={title}>{main}</SettingsSection>
+                ) : (
+                    main
+                )}
+                <Box ref={settingsRef}>{settings}</Box>
+            </Stack>
+        </Box>
     );
 };

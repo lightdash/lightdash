@@ -108,8 +108,6 @@ describe('AiAgentService SQL artifact visualization query', () => {
                 dashboardConfig: null,
                 promptUuid: 'prompt-uuid',
                 versionCreatedAt: new Date(),
-                verifiedByUserUuid: null,
-                verifiedAt: null,
             });
 
             const result = await service.getArtifactVizQuery(user, {
@@ -211,8 +209,6 @@ describe('AiAgentService SQL artifact visualization query', () => {
             dashboardConfig: null,
             promptUuid: 'prompt-uuid',
             versionCreatedAt: new Date(),
-            verifiedByUserUuid: null,
-            verifiedAt: null,
         });
         vi.spyOn(
             service as unknown as {

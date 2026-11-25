@@ -65,7 +65,6 @@ describe('in-app runtime content identity', () => {
                     {
                         messageHistory: [],
                         compactionSummary: null,
-                        resolveMessageHistory: async () => [],
                     },
                     {
                         prompt: {

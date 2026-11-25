@@ -87,6 +87,9 @@ export const useGoogleLoginPopup = (
                 await queryClient.invalidateQueries([
                     'user_warehouse_credentials',
                 ]);
+                await queryClient.invalidateQueries([
+                    'project_user_warehouse_credentials',
+                ]);
             }
             onLogin?.();
         },

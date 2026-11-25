@@ -113,14 +113,19 @@
     overflow-y: auto;
 }
 
-.draftSection {
-    padding: var(--mantine-spacing-sm);
-    border-bottom: 1px solid var(--mantine-color-default-border);
-    color: var(--mantine-color-text);
+.draftOpenArrow {
+    opacity: 0;
+    transition: opacity 120ms ease;
 }
 
-.draftIcon {
-    flex-shrink: 0;
+[data-hovered] .draftOpenArrow {
+    opacity: 1;
+}
+
+.draftSection {
+    padding: 2px var(--mantine-spacing-xs) 2px 0;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    color: var(--mantine-color-text);
 }
 
 .sidebarTarget {

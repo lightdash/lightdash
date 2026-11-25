@@ -31,6 +31,8 @@ export type AiAgentAdminFilters = {
     dateFrom?: string; // ISO date string
     dateTo?: string; // ISO date string
     search?: string; // Search by thread title
+    /** Threads whose metadata has this key, with this exact value unless value is null. */
+    metadata?: { key: string; value: string | null };
 };
 
 export type AiAgentAdminSortField = 'createdAt' | 'title';
@@ -54,7 +56,7 @@ type ThreadSummary = Pick<
             email: string | null;
         }
     >,
-    'user' | 'createdAt' | 'createdFrom' | 'title' | 'uuid'
+    'user' | 'createdAt' | 'createdFrom' | 'title' | 'uuid' | 'metadata'
 >;
 
 export type AiAgentAdminThreadSummary = ThreadSummary & {

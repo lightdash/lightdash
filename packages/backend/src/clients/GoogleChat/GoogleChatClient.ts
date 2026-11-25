@@ -11,6 +11,7 @@ import {
     type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
+import { marked } from 'marked';
 import Logger from '../../logging/logger';
 import { buildFailureCountPhrase } from '../../utils/partialFailureUtils';
 import { postSchedulerWebhook } from '../../utils/schedulerWebhookValidation';
@@ -20,6 +21,21 @@ import { AttachmentUrl } from '../EmailClient/EmailClient';
 // labels/errors are authored by app code, so strip markup before interpolating.
 const stripMarkup = (text: string): string =>
     sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} });
+
+// The delivery message is authored as markdown in the scheduler form. Google
+// Chat's own markdown mode collapses blank lines, so send HTML like email does.
+// Chat ignores <p>, so paragraph breaks become blank lines instead.
+const getMessageText = (message: string): string =>
+    sanitizeHtml(marked(message))
+        .replace(/<\/p>\s*<p>/g, '\n\n')
+        .replace(/<\/?p>/g, '')
+        .replace(/\s*(<\/?(?:ul|ol|li)>)\s*/g, '$1')
+        .trim();
+
+const getMessageWidgets = (message: string | undefined): AnyType[] =>
+    message?.trim()
+        ? [{ textParagraph: { text: getMessageText(message) } }]
+        : [];
 
 /* eslint-disable class-methods-use-this */
 export class GoogleChatClient {
@@ -51,6 +67,7 @@ export class GoogleChatClient {
         title,
         name,
         description,
+        message,
         ctaUrl,
         image,
         footer,
@@ -61,6 +78,7 @@ export class GoogleChatClient {
         title: string;
         name: string;
         description: string | undefined;
+        message?: string;
         ctaUrl: string;
         image: string;
         footer: string;
@@ -88,6 +106,8 @@ export class GoogleChatClient {
                 },
             });
         }
+
+        widgets.push(...getMessageWidgets(message));
 
         if (thresholds.length > 0) {
             const thresholdText = thresholds
@@ -161,6 +181,7 @@ export class GoogleChatClient {
         title,
         name,
         description,
+        message,
         ctaUrl,
         csvUrl,
         footer,
@@ -169,6 +190,7 @@ export class GoogleChatClient {
         title: string;
         name: string;
         description: string | undefined;
+        message?: string;
         ctaUrl: string;
         csvUrl: AttachmentUrl;
         footer: string;
@@ -184,6 +206,8 @@ export class GoogleChatClient {
                 },
             });
         }
+
+        widgets.push(...getMessageWidgets(message));
 
         widgets.push({
             textParagraph: {
@@ -233,6 +257,7 @@ export class GoogleChatClient {
         title,
         name,
         description,
+        message,
         ctaUrl,
         csvUrls,
         footer,
@@ -243,6 +268,7 @@ export class GoogleChatClient {
         title: string;
         name: string;
         description: string | undefined;
+        message?: string;
         ctaUrl: string;
         csvUrls: AttachmentUrl[];
         footer: string;
@@ -260,6 +286,8 @@ export class GoogleChatClient {
                 },
             });
         }
+
+        widgets.push(...getMessageWidgets(message));
 
         if (csvUrls.length > 0) {
             const downloadLinks = csvUrls

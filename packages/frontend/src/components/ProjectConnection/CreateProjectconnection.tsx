@@ -29,6 +29,7 @@ import {
 import { useCreateMutation } from '../../hooks/useProject';
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
+import { getOnboardingFlow } from '../../providers/Tracking/onboardingFlow';
 import { type CreateProjectErrorCategory } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -91,15 +92,13 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     alwaysShowProjectName = false,
 }) => {
     const { pathname } = useLocation();
-    const onboardingFlow = pathname.startsWith('/onboarding/')
-        ? 'new'
-        : 'legacy';
-    const isNewOnboarding = onboardingFlow === 'new';
+    const onboardingFlow = getOnboardingFlow(pathname);
+    const isOnboardingRoute = onboardingFlow === 'new';
     const { user, health } = useApp();
     const [createProjectJobId, setCreateProjectJobId] = useState<string>();
     const { activeJob, setActiveJobId, setQuietActiveJobId } = useActiveJob();
     // Onboarding shows job progress inline instead of the global toast and drawer
-    const quietJob = warehouseOnly || isNewOnboarding;
+    const quietJob = warehouseOnly || isOnboardingRoute;
     const { isLoading: isSaving, mutateAsync } = useCreateMutation({
         quietJobToast: quietJob,
     });
@@ -151,7 +150,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                       ...dbtDefaults.formValues[dbtType],
                       ...health.data?.defaultProject,
                   },
-            warehouse: (isNewOnboarding
+            warehouse: (isOnboardingRoute
                 ? onboardingWarehouseDefaultValues
                 : warehouseDefaultValues)[warehouseType],
             dbtVersion: dbtDefaults.dbtVersion,
@@ -227,7 +226,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         successRedirect,
         celebrateOnSuccess,
         // Let the inline success state register before the next step slides in
-        successHoldMs: isNewOnboarding ? 900 : 0,
+        successHoldMs: isOnboardingRoute ? 900 : 0,
         submitButtonRef,
     });
 
@@ -300,7 +299,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         !!latestJob && latestJob.jobStatus !== JobStatusType.ERROR;
     useEffect(() => {
         if (
-            !isNewOnboarding ||
+            !isOnboardingRoute ||
             !latestJobUuid ||
             (shown?.jobUuid === latestJobUuid &&
                 shown.hidesForm === latestHidesForm)
@@ -310,17 +309,17 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         withViewTransition(() =>
             setShown({ jobUuid: latestJobUuid, hidesForm: latestHidesForm }),
         );
-    }, [isNewOnboarding, latestJobUuid, latestHidesForm, shown]);
+    }, [isOnboardingRoute, latestJobUuid, latestHidesForm, shown]);
     const thisJob =
-        !isNewOnboarding || latestJob?.jobUuid === shown?.jobUuid
+        !isOnboardingRoute || latestJob?.jobUuid === shown?.jobUuid
             ? latestJob
             : undefined;
 
     const hideForm =
-        !!thisJob && (isNewOnboarding ? !!shown?.hidesForm : latestHidesForm);
+        !!thisJob && (isOnboardingRoute ? !!shown?.hidesForm : latestHidesForm);
 
     if (isCheckingInFlightJob) {
-        return isNewOnboarding ? (
+        return isOnboardingRoute ? (
             <ConnectionFormSkeleton />
         ) : (
             <Group justify="center" p="xl">
@@ -350,7 +349,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 <FormContainer>
                     <ProjectFormProvider>
                         {thisJob &&
-                            (isNewOnboarding ? (
+                            (isOnboardingRoute ? (
                                 <OnboardingConnectionProgress
                                     job={thisJob}
                                     warehouseLabel={

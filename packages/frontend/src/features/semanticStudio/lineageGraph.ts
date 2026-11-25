@@ -1,16 +1,11 @@
-/** The dbt models behind an explore's tables, and the models built from them, as one graph. */
+/** The dbt models behind an explore's tables, as one graph. */
 import { type Explore, type LineageGraph } from '@lightdash/common';
 import { type JoinGraph, type JoinLink } from './joinGraph';
 
 /** Where a model sits relative to the explore. */
-export type LineageRole =
-    | 'base'
-    | 'joined'
-    | 'upstream'
-    | 'downstream'
-    | 'other';
+type LineageRole = 'base' | 'joined' | 'upstream';
 
-export type LineageModelNode = {
+type LineageModelNode = {
     /** The dbt model name. */
     id: string;
     /** The explore table's label, for models the explore reads. */
@@ -18,7 +13,7 @@ export type LineageModelNode = {
     role: LineageRole;
 };
 
-export type ModelLineage = { models: LineageModelNode[]; links: JoinLink[] };
+type ModelLineage = { models: LineageModelNode[]; links: JoinLink[] };
 
 /** Every model reachable from `start` by following `next`. */
 const reachable = (
@@ -47,17 +42,14 @@ const adjacency = (links: readonly JoinLink[], from: 'source' | 'target') => {
 };
 
 /** The models upstream and downstream of `id`, and `id` itself. */
-export const relatedModels = (
-    links: readonly JoinLink[],
-    id: string,
-): Set<string> =>
+const relatedModels = (links: readonly JoinLink[], id: string): Set<string> =>
     new Set([
         id,
         ...reachable([id], adjacency(links, 'target')),
         ...reachable([id], adjacency(links, 'source')),
     ]);
 
-/** Edges run from a model to the models built from it, so sources sit on the left. */
+/** The explore's models and those upstream of them; edges run from a model to the models built from it, so sources sit on the left. */
 export const toModelLineage = (
     explore: Pick<Explore, 'baseTable' | 'joinedTables' | 'tables'>,
 ): ModelLineage => {
@@ -87,32 +79,31 @@ export const toModelLineage = (
     const baseModel = modelOf(baseTable);
     const exploreModels = [...labelByModel.keys()];
     const upstream = reachable(exploreModels, adjacency(linkList, 'target'));
-    const downstream = reachable(exploreModels, adjacency(linkList, 'source'));
     const roleOf = (id: string): LineageRole => {
         if (id === baseModel) return 'base';
         if (labelByModel.has(id)) return 'joined';
-        if (upstream.has(id)) return 'upstream';
-        if (downstream.has(id)) return 'downstream';
-        return 'other';
+        return 'upstream';
     };
 
-    const ids = new Set([
-        ...exploreModels,
-        ...Object.keys(merged),
-        ...linkList.flatMap(({ source, target }) => [source, target]),
-    ]);
+    // From the sources up to the explore: nothing built from its tables.
+    const ids = new Set([...exploreModels, ...upstream]);
     const models = [...ids].map<LineageModelNode>((id) => ({
         id,
         label: labelByModel.get(id) ?? null,
         role: roleOf(id),
     }));
-    return { models, links: linkList };
+    return {
+        models,
+        links: linkList.filter(
+            ({ source, target }) => ids.has(source) && ids.has(target),
+        ),
+    };
 };
 
 /** A dbt model upstream of the explore, drawn to the left of its tables. */
 export type LineageCard = LineageModelNode & { nodeId: string };
 
-export type JoinsWithLineage = {
+type JoinsWithLineage = {
     /** Upstream models the explore does not read; the ones it reads are its tables. */
     cards: LineageCard[];
     /** "Built from" edges, between table and model node ids. */
@@ -140,19 +131,10 @@ export const withLineage = (
             nodeIdsOf(id).map((nodeId) => [nodeId, id] as const),
         ),
     );
-    // From the sources up to the explore: nothing built from its tables.
-    const kept = new Set(
-        lineage.models
-            .filter(({ role }) => role !== 'downstream' && role !== 'other')
-            .map(({ id }) => id),
-    );
-    const upstreamLinks = lineage.links.filter(
-        ({ source, target }) => kept.has(source) && kept.has(target),
-    );
     const cards = lineage.models
-        .filter(({ id }) => kept.has(id) && !tablesByModel.has(id))
+        .filter(({ id }) => !tablesByModel.has(id))
         .map<LineageCard>((model) => ({ ...model, nodeId: cardId(model.id) }));
-    const links = upstreamLinks.flatMap(({ source, target }) =>
+    const links = lineage.links.flatMap(({ source, target }) =>
         nodeIdsOf(source).flatMap((from) =>
             nodeIdsOf(target).map<JoinLink>((to) => ({
                 id: `lineage:${from}->${to}`,
@@ -165,7 +147,7 @@ export const withLineage = (
         const model = modelByNodeId.get(nodeId);
         if (!model) return new Set([nodeId]);
         return new Set(
-            [...relatedModels(upstreamLinks, model)].flatMap(nodeIdsOf),
+            [...relatedModels(lineage.links, model)].flatMap(nodeIdsOf),
         );
     };
     return { cards, links, relatedTo };
