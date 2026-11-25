@@ -41,7 +41,14 @@ const DesignModeButton: FC<{
                 <MantineIcon icon={IconPencil} size={16} />
             </ActionIcon>
         </Tooltip>
-        {screenshotAvailable && <DesignModeTour surface={surface} />}
+        {screenshotAvailable && (
+            <DesignModeTour
+                surface={surface}
+                onTurnOn={() => {
+                    if (!active) onClick();
+                }}
+            />
+        )}
     </>
 );
 

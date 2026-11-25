@@ -16,6 +16,12 @@ describe('designModeTourSteps', () => {
         }
     });
 
+    it('points at the toolbar and its voice button once the mode is on', () => {
+        const [, mark, say] = designModeTourSteps('dashboard');
+        expect(mark.target).toBe('[data-tour="design-mode-toolbar"]');
+        expect(say.target).toBe('[data-tour="design-mode-voice"]');
+    });
+
     it('explains holding Option, and talking or typing, on every surface', () => {
         for (const surface of SURFACES) {
             expect(text(surface)).toContain('Hold Option to mark');

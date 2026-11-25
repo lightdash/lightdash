@@ -9,6 +9,10 @@ import {
 import { type FC, type Ref } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { CAPTURE_IGNORE_ATTRIBUTE } from '../frameSource';
+import {
+    DESIGN_MODE_TOOLBAR_TOUR_ID,
+    DESIGN_MODE_VOICE_TOUR_ID,
+} from '../onboarding/steps';
 import classes from './DesignToolbar.module.css';
 import ModeIcon from './ModeIcon';
 
@@ -38,6 +42,7 @@ const DesignToolbar: FC<Props> = ({
         role="toolbar"
         aria-label="Design Mode"
         className={classes.toolbar}
+        data-tour={DESIGN_MODE_TOOLBAR_TOUR_ID}
         {...{ [CAPTURE_IGNORE_ATTRIBUTE]: '' }}
     >
         <Tooltip label="Design Mode" withinPortal={false}>
@@ -86,6 +91,7 @@ const DesignToolbar: FC<Props> = ({
         >
             <UnstyledButton
                 aria-label="Voice"
+                data-tour={DESIGN_MODE_VOICE_TOUR_ID}
                 aria-pressed={micOn}
                 className={classes.button}
                 data-on={micOn}

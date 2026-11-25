@@ -237,7 +237,10 @@ const DashboardDesignSurface: FC<Props> = ({
     return (
         <>
             {design.element}
-            <DesignModeTour surface="dashboard" />
+            <DesignModeTour
+                surface="dashboard"
+                onTurnOn={() => design.setOn(true)}
+            />
             {conversations.renderPosters(design.session)}
             {dockExtras ? (
                 createPortal(toggle, dockExtras)
