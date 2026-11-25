@@ -135,6 +135,8 @@ minimumReleaseAgeExclude:
   - snowflake-sdk@3.3.0
   # Renovate security update: i18next@26.3.4
   - i18next@26.3.4
+  # Renovate security update: @opentelemetry/instrumentation-http@0.222.0
+  - "@opentelemetry/instrumentation-http@0.222.0"
 
 # pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
 # reinstalls) node_modules before running any package script. The production
