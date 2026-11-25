@@ -227,6 +227,8 @@ export const fromApiKey = (
         authentication: {
             type: 'pat',
             source,
+            cliOAuthPatCompat:
+                sessionUser.personalAccessToken?.cliOAuthPatCompat === true,
         },
         organization,
         user: {
@@ -249,6 +251,10 @@ export const toSessionUser = (account: RegisteredAccount): SessionUser => ({
                   uuid: account.authentication.serviceAccountUuid,
                   description: account.authentication.serviceAccountDescription,
               }
+            : undefined,
+    personalAccessToken:
+        account.authentication.type === 'pat'
+            ? { cliOAuthPatCompat: account.authentication.cliOAuthPatCompat }
             : undefined,
 });
 
@@ -388,6 +394,10 @@ export const fromOauth = (
                   ...scopePolicy,
                   clientId: token.client.id,
                   scopes: token.scope ?? [],
+                  user: {
+                      userUuid: sessionUser.userUuid,
+                      organizationUuid: sessionUser.organizationUuid ?? null,
+                  },
               });
     return createAccount({
         authentication: {

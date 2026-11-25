@@ -271,6 +271,7 @@ describe('MCP scoped tool catalogue', () => {
             const record = vi.fn();
             vi.mocked(getOAuthScopeContext).mockReturnValue({
                 mode,
+                clientId: 'client',
                 scopes: ['mcp:read'],
                 record,
             });
@@ -349,7 +350,9 @@ describe('MCP scoped tool catalogue', () => {
             const baseline = await listTools();
             const record = vi.fn();
             vi.mocked(getOAuthScopeContext).mockReturnValue(
-                mode === null ? null : { mode, scopes, record },
+                mode === null
+                    ? null
+                    : { mode, clientId: 'client', scopes, record },
             );
             const names = await listTools();
             expect(names).toEqual(

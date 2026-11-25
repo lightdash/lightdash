@@ -335,3 +335,44 @@ describe('source project token response contract', () => {
         },
     );
 });
+
+it('returns the granted scope, not the requested one, from the token endpoint', async () => {
+    const client = {
+        id: 'client',
+        grants: ['refresh_token'],
+        scopes: ['read', 'write'],
+        organizationUuid: null,
+    };
+    getTracker().on.select('users').response({ user_uuid: 'user' });
+    vi.spyOn(model, 'getClient').mockResolvedValue(client);
+    vi.spyOn(model, 'assertMobileAppAccess').mockResolvedValue(undefined);
+    vi.spyOn(model, 'getRefreshToken').mockResolvedValue({
+        accessToken: '',
+        refreshToken: 'refresh',
+        refreshTokenExpiresAt: new Date(Date.now() + 60000),
+        scope: ['read', 'write'],
+        client,
+        user: { userId: 42, organizationUuid: 'org' },
+    });
+    vi.spyOn(model, 'revokeToken').mockResolvedValue(true);
+    const saveToken = vi
+        .spyOn(model, 'saveToken')
+        .mockImplementation(async (token, savedClient, savedUser) => ({
+            ...token,
+            client: savedClient,
+            user: savedUser,
+        }));
+    const res = await callRoute('/token', {
+        client_id: 'client',
+        grant_type: 'refresh_token',
+        refresh_token: 'refresh',
+        scope: 'openid read',
+    });
+    expect(saveToken).toHaveBeenCalledWith(
+        expect.objectContaining({ scope: ['read'] }),
+        expect.anything(),
+        expect.anything(),
+    );
+    expect(res.json).toHaveBeenCalledOnce();
+    expect(res.json.mock.calls[0][0]).toMatchObject({ scope: 'read' });
+});

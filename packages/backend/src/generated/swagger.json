@@ -17086,6 +17086,32 @@
                 ],
                 "description": "Connector settings of a live source; the server fixes its access rules."
             },
+            "Record_string.string-Array_": {
+                "properties": {},
+                "additionalProperties": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "LiveSourceAccessRule": {
+                "properties": {
+                    "any": {
+                        "$ref": "#/components/schemas/Record_string.string-Array_",
+                        "description": "At least one attribute must match one of its values."
+                    },
+                    "required": {
+                        "$ref": "#/components/schemas/Record_string.string-Array_",
+                        "description": "Every attribute must match one of its values."
+                    }
+                },
+                "required": ["any", "required"],
+                "type": "object",
+                "description": "Who can query a live data source, as user attribute conditions. The rule is\ncopied onto each of the source's explores (`required_attributes` and\n`any_attributes` on the base table), so every explore check applies it.\nEmpty conditions mean everyone who can query the project can query it."
+            },
             "LiveSourceRateLimitSettings": {
                 "properties": {
                     "concurrentCalls": {
@@ -17143,6 +17169,15 @@
                         "nullable": true,
                         "description": "Live sources: the lower rate limits an admin set; null when none are set."
                     },
+                    "accessRule": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LiveSourceAccessRule"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Live sources: who can query it, as user attribute conditions; null when\neveryone in the project can. Returned only to those who manage it."
+                    },
                     "cachePurgedAt": {
                         "type": "string",
                         "format": "date-time",
@@ -17159,6 +17194,14 @@
                         "type": "string",
                         "nullable": true,
                         "description": "The name the connection picker showed for the source's target."
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Live sources: tags its explores carry, so an AI agent limited to tags\ncan use the source when they share one."
                     },
                     "aiHint": {
                         "type": "string",
@@ -18347,6 +18390,14 @@
                     },
                     {
                         "properties": {
+                            "tags": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "nullable": true,
+                                "description": "Live sources only. Empty or null clears them."
+                            },
                             "aiHint": {
                                 "type": "string",
                                 "nullable": true,
@@ -18368,6 +18419,45 @@
                 "required": ["ttlSeconds"],
                 "type": "object",
                 "description": "Null puts the source back on its integration's default."
+            },
+            "LiveSourceAccess": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/LiveSourceAccessRule"
+                    },
+                    {
+                        "properties": {
+                            "yourAttributes": {
+                                "$ref": "#/components/schemas/Record_string.string-Array_",
+                                "description": "The caller's own attribute values, to warn before a rule locks them out."
+                            },
+                            "attributeNames": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "The organization's user attributes, which conditions can name."
+                            }
+                        },
+                        "required": ["yourAttributes", "attributeNames"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A live data source's access rule, with what the people who manage it need to edit it."
+            },
+            "ApiLiveSourceAccessResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LiveSourceAccess"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "ApiUpdateLiveSourceRateLimitsRequest": {
                 "$ref": "#/components/schemas/LiveSourceRateLimitSettings"
@@ -22245,17 +22335,6 @@
             },
             "PreAggregateSort": {
                 "$ref": "#/components/schemas/Pick_SortField.fieldId-or-descending_"
-            },
-            "Record_string.string-Array_": {
-                "properties": {},
-                "additionalProperties": {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
             },
             "UserAttributeValueMap": {
                 "$ref": "#/components/schemas/Record_string.string-Array_"
@@ -81573,7 +81652,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.408.0",
+        "version": "3.409.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

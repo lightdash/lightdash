@@ -1,3 +1,34 @@
+## [3.409.3](https://github.com/lightdash/lightdash/compare/3.409.2...3.409.3) (2026-11-25)
+
+
+### Bug Fixes
+
+* **oauth:** apply granted scopes to every OAuth token ([#33423](https://github.com/lightdash/lightdash/issues/33423)) ([600d235](https://github.com/lightdash/lightdash/commit/600d2354dc5eb6508578efea9c75fbb585a0d308))
+
+## [3.409.2](https://github.com/lightdash/lightdash/compare/3.409.1...3.409.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* **design-mode:** include custom charts in the picture sent to the agent ([#33460](https://github.com/lightdash/lightdash/issues/33460)) ([1784175](https://github.com/lightdash/lightdash/commit/1784175b024fcafe8daa8c65a9d112f684fd719f))
+* **design-mode:** show the tour's highlight over the toolbar ([#33459](https://github.com/lightdash/lightdash/issues/33459)) ([ae200b9](https://github.com/lightdash/lightdash/commit/ae200b90f68f35f7e5aa2350fc262d52cb452820))
+
+## [3.409.1](https://github.com/lightdash/lightdash/compare/3.409.0...3.409.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **rainbow:** run browserless so image and PDF exports work on previews ([#33458](https://github.com/lightdash/lightdash/issues/33458)) ([5cb0067](https://github.com/lightdash/lightdash/commit/5cb0067d1a6e86fbc537359b0b8b3d387020cc64))
+
+# [3.409.0](https://github.com/lightdash/lightdash/compare/3.408.0...3.409.0) (2026-11-25)
+
+
+### Features
+
+* **ai-agents:** limit an agent's integrations by tags, like dbt explores ([#33175](https://github.com/lightdash/lightdash/issues/33175)) ([ba05532](https://github.com/lightdash/lightdash/commit/ba055324dc7152db8987ab3de80235440437cf69))
+* **permissions:** give integrations their own manage:LiveSource permission ([#33176](https://github.com/lightdash/lightdash/issues/33176)) ([206b917](https://github.com/lightdash/lightdash/commit/206b917ac3ef73db9fe7c15c53b5c38f233221a6))
+* **permissions:** limit who can query an integration with an access rule ([#33178](https://github.com/lightdash/lightdash/issues/33178)) ([13f7aa1](https://github.com/lightdash/lightdash/commit/13f7aa17ad0e84b37706363c016cc5a7aaca5086))
+
 # [3.408.0](https://github.com/lightdash/lightdash/compare/3.407.0...3.408.0) (2026-11-25)
 
 

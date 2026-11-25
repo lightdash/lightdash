@@ -9,7 +9,6 @@ import OAuth2Server from '@node-oauth/oauth2-server';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { grantFixture } from '../auth/agentConnectionGrants/grant.mock';
-import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { OAuthService } from '../services/OAuthService/OAuthService';
@@ -611,6 +610,11 @@ describe('OAuth2Model.validateScope', () => {
         id: 'client-id',
         grants: ['authorization_code'],
         scopes: ['read'],
+        organizationUuid: null,
+    };
+    const adminClient = {
+        ...client,
+        organizationUuid: 'client-organization-uuid',
     };
     let tracker: Tracker;
     let warn: ReturnType<typeof vi.spyOn>;
@@ -621,81 +625,24 @@ describe('OAuth2Model.validateScope', () => {
 
     beforeEach(() => {
         featureFlagModel.get.mockReset();
-        tracker.on.select(/from "users"/).response({ user_uuid: 'user-uuid' });
         warn = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
     });
 
     afterEach(() => {
         tracker.reset();
         warn.mockRestore();
-    });
-
-    const setFlags = (agentIdentity: boolean, enforcement: boolean) => {
-        featureFlagModel.get.mockImplementation(async ({ featureFlagId }) => ({
-            id: featureFlagId,
-            enabled:
-                featureFlagId === FeatureFlags.AgentIdentity
-                    ? agentIdentity
-                    : enforcement,
-        }));
-    };
-
-    it('rejects a missing user before resolving flags', async () => {
-        tracker.reset();
-        tracker.on.select(/from "users"/).responseOnce(undefined);
-        await expect(
-            model.validateScope(user, client, ['read']),
-        ).rejects.toBeInstanceOf(AuthorizationError);
         expect(featureFlagModel.get).not.toHaveBeenCalled();
-        expect(warn).not.toHaveBeenCalled();
     });
 
-    it('passes through all requested scopes when agent identity is off', async () => {
-        setFlags(false, true);
-        const scopes = ['unknown', 'write'];
-        await expect(model.validateScope(user, client, scopes)).resolves.toBe(
-            scopes,
-        );
-        expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
-            featureFlagId: FeatureFlags.AgentIdentity,
-            user: {
-                organizationUuid: user.organizationUuid,
-                userUuid: 'user-uuid',
-            },
-        });
-        expect(warn).not.toHaveBeenCalled();
-    });
-
-    it.each(['unknown', 'write'])(
-        'logs and passes through disallowed %s scope',
-        async (scope) => {
-            setFlags(true, false);
-            const scopes = [scope];
+    it.each([
+        ['unknown', 'a self-registered', client],
+        ['unknown', 'an admin-created', adminClient],
+        ['write', 'an admin-created', adminClient],
+    ])(
+        'refuses disallowed %s scope for %s client',
+        async (scope, _kind, scopeClient) => {
             await expect(
-                model.validateScope(user, client, scopes),
-            ).resolves.toBe(scopes);
-            expect(warn).toHaveBeenCalledExactlyOnceWith(
-                'oauth_scope_refusal',
-                {
-                    mode: 'log',
-                    clientId: client.id,
-                    scopes,
-                    method: null,
-                    routeTemplate: null,
-                    toolName: null,
-                    action: 'validateScope',
-                    subjectType: 'OAuthClient',
-                },
-            );
-        },
-    );
-
-    it.each(['unknown', 'write'])(
-        'refuses disallowed %s scope in enforce mode',
-        async (scope) => {
-            setFlags(true, true);
-            await expect(
-                model.validateScope(user, client, [scope]),
+                model.validateScope(user, scopeClient, [scope]),
             ).resolves.toBe(false);
             expect(warn).toHaveBeenCalledExactlyOnceWith(
                 'oauth_scope_refusal',
@@ -703,6 +650,8 @@ describe('OAuth2Model.validateScope', () => {
                     mode: 'enforce',
                     clientId: client.id,
                     scopes: [scope],
+                    userUuid: 'user-uuid',
+                    organizationUuid: 'organization-uuid',
                     method: null,
                     routeTemplate: null,
                     toolName: null,
@@ -724,9 +673,30 @@ describe('OAuth2Model.validateScope', () => {
         ],
         [['read', 'write', 'mcp:read', 'mcp:write'], []],
     ])(
-        'accepts known subset %j of registered %j',
+        'accepts known subset %j of registered %j for an admin-created client',
         async (scopes, registeredScopes) => {
-            setFlags(true, true);
+            await expect(
+                model.validateScope(
+                    user,
+                    { ...adminClient, scopes: registeredScopes },
+                    scopes,
+                ),
+            ).resolves.toEqual(scopes);
+            expect(warn).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([
+        [['read', 'write'], ['read']],
+        [['read', 'write', 'mcp:read', 'mcp:write'], ['mcp:read']],
+        [
+            ['read', 'write', 'mcp:read', 'mcp:write'],
+            ['mcp:read', 'mcp:write'],
+        ],
+        [['write'], []],
+    ])(
+        'accepts known scopes %j beyond registered %j for a self-registered client',
+        async (scopes, registeredScopes) => {
             await expect(
                 model.validateScope(
                     user,
@@ -738,36 +708,162 @@ describe('OAuth2Model.validateScope', () => {
         },
     );
 
-    it.each([null, 'log', 'enforce'])(
-        'keeps omitted and empty scopes empty in %s mode',
-        async (mode) => {
-            setFlags(mode !== null, mode === 'enforce');
+    it.each([
+        [['read', 'write'], ['read']],
+        [['read', 'write', 'mcp:read', 'mcp:write'], ['mcp:read']],
+    ])(
+        'refuses scopes %j beyond registered %j for an admin-created client',
+        async (scopes, registeredScopes) => {
             await expect(
-                model.validateScope(user, client, []),
-            ).resolves.toEqual([]);
-            await expect(model.validateScope(user, client)).resolves.toEqual(
-                [],
-            );
+                model.validateScope(
+                    user,
+                    { ...adminClient, scopes: registeredScopes },
+                    scopes,
+                ),
+            ).resolves.toBe(false);
+        },
+    );
+
+    it.each([
+        [['read'], client],
+        [['read', 'write'], client],
+        [['mcp:read', 'mcp:write'], client],
+        [['read'], adminClient],
+        [['read', 'write', 'mcp:read', 'mcp:write'], adminClient],
+    ])(
+        'gives an omitted or empty scope the registered scopes %j',
+        async (registeredScopes, registeredClient) => {
+            const registered = {
+                ...registeredClient,
+                scopes: registeredScopes,
+            };
+            await expect(
+                model.validateScope(user, registered, []),
+            ).resolves.toEqual(registeredScopes);
+            await expect(
+                model.validateScope(user, registered),
+            ).resolves.toEqual(registeredScopes);
             expect(warn).not.toHaveBeenCalled();
         },
     );
 
+    it.each([
+        ['self-registered', client],
+        ['admin-created', adminClient],
+    ])(
+        'refuses an omitted or empty scope when the %s client registered none',
+        async (_kind, registeredClient) => {
+            const unregistered = { ...registeredClient, scopes: [] };
+            await expect(
+                model.validateScope(user, unregistered, []),
+            ).resolves.toBe(false);
+            await expect(model.validateScope(user, unregistered)).resolves.toBe(
+                false,
+            );
+            await expect(
+                model.validateScope(user, {
+                    ...registeredClient,
+                    scopes: undefined,
+                }),
+            ).resolves.toBe(false);
+            expect(warn).toHaveBeenCalledWith(
+                'oauth_scope_refusal',
+                expect.objectContaining({
+                    action: 'validateScope',
+                    scopes: [],
+                }),
+            );
+        },
+    );
+
+    it.each([
+        [['foo'], [], client],
+        [['openid', 'profile'], ['read', 'write'], client],
+        [['openid', 'profile'], [], client],
+        [['foo'], [], adminClient],
+        [['openid'], ['read', 'write', 'mcp:read', 'mcp:write'], adminClient],
+    ])(
+        'refuses only unknown scopes %j without falling back to registered %j',
+        async (scopes, registeredScopes, registeredClient) => {
+            await expect(
+                model.validateScope(
+                    user,
+                    { ...registeredClient, scopes: registeredScopes },
+                    scopes,
+                ),
+            ).resolves.toBe(false);
+        },
+    );
+
+    it.each([
+        [['openid', 'mcp:read'], [], client, ['mcp:read']],
+        [['read', 'foo'], ['read'], client, ['read']],
+        [
+            ['openid', 'profile', 'offline_access', 'read', 'write'],
+            ['mcp:read'],
+            client,
+            ['read', 'write'],
+        ],
+        [
+            ['openid', 'read'],
+            ['read', 'write', 'mcp:read', 'mcp:write'],
+            adminClient,
+            ['read'],
+        ],
+        [['email', 'read'], ['read'], adminClient, ['read']],
+    ])(
+        'drops unknown names from %j for a client registered with %j',
+        async (scopes, registeredScopes, registeredClient, expected) => {
+            await expect(
+                model.validateScope(
+                    user,
+                    { ...registeredClient, scopes: registeredScopes },
+                    scopes,
+                ),
+            ).resolves.toEqual(expected);
+            expect(warn).not.toHaveBeenCalled();
+        },
+    );
+
+    it('keeps the admin ceiling after dropping unknown names', async () => {
+        await expect(
+            model.validateScope(user, { ...adminClient, scopes: ['read'] }, [
+                'openid',
+                'write',
+            ]),
+        ).resolves.toBe(false);
+        expect(warn).toHaveBeenCalledWith(
+            'oauth_scope_refusal',
+            expect.objectContaining({ scopes: ['unknown', 'write'] }),
+        );
+    });
+
+    it('drops unknown registered names when the request has no scope', async () => {
+        await expect(
+            model.validateScope(user, {
+                ...client,
+                scopes: ['openid', 'mcp:read'],
+            }),
+        ).resolves.toEqual(['mcp:read']);
+    });
+
     it('does not accept an unknown scope even when it is registered', async () => {
-        setFlags(true, true);
         await expect(
             model.validateScope(user, { ...client, scopes: ['unknown'] }, [
                 'unknown',
             ]),
         ).resolves.toBe(false);
+        await expect(
+            model.validateScope(user, { ...client, scopes: ['unknown'] }),
+        ).resolves.toBe(false);
     });
 
     it('does not log user or client secrets', async () => {
-        setFlags(true, false);
         const userWithSecret = { ...user, password: 'user-secret' };
         await model.validateScope(
             userWithSecret,
             {
-                ...client,
+                ...adminClient,
                 clientSecret: 'client-secret',
                 redirectUris: ['https://example.com/?secret=private'],
             },
@@ -782,76 +878,182 @@ describe('OAuth2Model.validateScope', () => {
         expect(record).not.toContain('user-secret');
         expect(record).not.toContain('client-secret');
         expect(record).not.toContain('private');
-        expect(record).not.toContain('organization-uuid');
-        expect(record).not.toContain('user-uuid');
+        expect(warn).toHaveBeenCalledWith(
+            'oauth_scope_refusal',
+            expect.objectContaining({
+                userUuid: 'user-uuid',
+                organizationUuid: 'organization-uuid',
+            }),
+        );
     });
 
-    it('exposes the client registered scopes for grant validation', async () => {
-        tracker.on.select('oauth2_clients').responseOnce({
-            client_id: client.id,
+    it('uses a known user UUID without a lookup and logs null when the lookup fails', async () => {
+        tracker.reset();
+        tracker.on.select(/from "users"/).simulateError('lookup failed');
+        await model.validateScope(
+            { ...user, userUuid: 'known-user-uuid' } as typeof user,
+            client,
+            ['unknown'],
+        );
+        await model.validateScope(user, client, ['unknown']);
+        expect(warn).toHaveBeenNthCalledWith(
+            1,
+            'oauth_scope_refusal',
+            expect.objectContaining({ userUuid: 'known-user-uuid' }),
+        );
+        expect(warn).toHaveBeenNthCalledWith(
+            2,
+            'oauth_scope_refusal',
+            expect.objectContaining({
+                userUuid: null,
+                organizationUuid: 'organization-uuid',
+            }),
+        );
+        expect(tracker.history.select).toHaveLength(1);
+    });
+
+    it.each(['authorize', 'refresh', 'token_exchange'] as const)(
+        'logs %s scopes taken from the client registration',
+        async (grant) => {
+            const info = vi
+                .spyOn(Logger, 'info')
+                .mockImplementation(() => Logger);
+            await model.recordScopeResolution(
+                {
+                    ...client,
+                    id: 'https://client.example/metadata.json?token=secret',
+                },
+                user,
+                [],
+                ['read'],
+                grant,
+            );
+            expect(info).toHaveBeenCalledExactlyOnceWith(
+                'oauth_scope_defaulted',
+                {
+                    clientId: 'https://client.example/metadata.json',
+                    resolvedScopes: ['read'],
+                    userUuid: 'user-uuid',
+                    organizationUuid: 'organization-uuid',
+                    grant,
+                },
+            );
+            expect(JSON.stringify(info.mock.calls)).not.toContain('secret');
+            info.mockRestore();
+        },
+    );
+
+    it('logs ignored scope names once, capped in count and length', async () => {
+        const info = vi.spyOn(Logger, 'info').mockImplementation(() => Logger);
+        const longName = 'x'.repeat(200);
+        const ignored = [
+            'openid',
+            'openid',
+            longName,
+            ...Array.from({ length: 12 }, (_, index) => `extra-${index}`),
+        ];
+        await model.recordScopeResolution(
+            client,
+            user,
+            [...ignored, 'mcp:read'],
+            ['mcp:read'],
+            'authorize',
+        );
+        expect(info).toHaveBeenCalledExactlyOnceWith('oauth_scope_ignored', {
+            clientId: client.id,
+            ignoredScopes: [
+                'openid',
+                'x'.repeat(64),
+                ...Array.from({ length: 8 }, (_, index) => `extra-${index}`),
+            ],
+            resolvedScopes: ['mcp:read'],
+            userUuid: 'user-uuid',
+            organizationUuid: 'organization-uuid',
+            grant: 'authorize',
+        });
+        expect(JSON.stringify(info.mock.calls)).not.toContain(longName);
+        info.mockRestore();
+    });
+
+    it('logs registered names it ignores and skips logging when nothing changed', async () => {
+        const info = vi.spyOn(Logger, 'info').mockImplementation(() => Logger);
+        await model.recordScopeResolution(
+            { ...client, scopes: ['openid', 'read'] },
+            user,
+            [],
+            ['read'],
+            'refresh',
+        );
+        expect(info.mock.calls.map(([message]) => message)).toEqual([
+            'oauth_scope_defaulted',
+            'oauth_scope_ignored',
+        ]);
+        info.mockClear();
+        tracker.resetHistory();
+        await model.recordScopeResolution(
+            client,
+            user,
+            ['read'],
+            ['read'],
+            'refresh',
+        );
+        expect(info).not.toHaveBeenCalled();
+        expect(tracker.history.select).toHaveLength(0);
+        info.mockRestore();
+    });
+
+    it.each([null, 'client-organization-uuid'])(
+        'exposes the registered scopes and client organization %s for grant validation',
+        async (organizationUuid) => {
+            tracker.on.select('oauth2_clients').responseOnce({
+                client_id: client.id,
+                redirect_uris: [],
+                grants: client.grants,
+                scopes: client.scopes,
+                organization_uuid: organizationUuid,
+            });
+            await expect(model.getClient(client.id)).resolves.toMatchObject({
+                scopes: client.scopes,
+                organizationUuid,
+            });
+        },
+    );
+});
+
+describe('OAuth2Model client organization', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new OAuth2Model(database, lightdashConfig, featureFlagModel);
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('reads the client organization, not the token organization, for a refresh token', async () => {
+        tracker.on.select('oauth2_refresh_tokens').responseOnce({
+            refresh_token: 'refresh',
+            expires_at: new Date(Date.now() + 60000),
+            scope: ['read'],
+            client_id: 'client-id',
             redirect_uris: [],
-            grants: client.grants,
-            scopes: client.scopes,
+            grants: ['refresh_token'],
+            scopes: ['mcp:read'],
+            client_organization_uuid: null,
+            organization_uuid: 'organization-uuid',
+            user_id: 42,
+            session_expires_at: new Date(Date.now() + 60000),
         });
-        await expect(model.getClient(client.id)).resolves.toMatchObject({
-            scopes: client.scopes,
+        await expect(model.getRefreshToken('refresh')).resolves.toMatchObject({
+            client: { scopes: ['mcp:read'], organizationUuid: null },
+            user: { organizationUuid: 'organization-uuid' },
         });
-    });
-
-    it('applies Console organisation overrides without ENV or preview defaults and rechecks each grant', async () => {
-        const config = {
-            ...lightdashConfigMock,
-            enabledFeatureFlags: new Set<string>(),
-            disabledFeatureFlags: new Set<string>(),
-            previewFeatureFlags: { enabled: false },
-        };
-        const realFlags = new FeatureFlagModel({
-            database,
-            lightdashConfig: config,
-        });
-        const modelWithRealFlags = new OAuth2Model(database, config, realFlags);
-        let enforce = true;
-        let identity = true;
-        tracker.on.select('feature_flags').response(({ bindings }) => ({
-            flag_id: bindings[0],
-            default_enabled: false,
-        }));
-        tracker.on.select('feature_flag_overrides').response(({ bindings }) => {
-            if (!bindings.includes(user.organizationUuid)) return undefined;
-            return {
-                enabled: bindings.includes(FeatureFlags.AgentIdentity)
-                    ? identity
-                    : enforce,
-            };
-        });
-
-        await expect(
-            modelWithRealFlags.validateScope(user, client, ['write']),
-        ).resolves.toBe(false);
-        enforce = false;
-        await expect(
-            modelWithRealFlags.validateScope(user, client, ['write']),
-        ).resolves.toEqual(['write']);
-        expect(warn).toHaveBeenCalledTimes(2);
-        identity = false;
-        await expect(
-            modelWithRealFlags.validateScope(user, client, ['write']),
-        ).resolves.toEqual(['write']);
-        expect(warn).toHaveBeenCalledTimes(2);
-        identity = true;
-        enforce = true;
-        await expect(
-            modelWithRealFlags.validateScope(user, client, ['write']),
-        ).resolves.toBe(false);
-        expect(warn).toHaveBeenCalledTimes(3);
-        await expect(
-            modelWithRealFlags.validateScope(
-                { ...user, organizationUuid: 'other-organization' },
-                client,
-                ['write'],
-            ),
-        ).resolves.toEqual(['write']);
-        expect(warn).toHaveBeenCalledTimes(3);
+        expect(tracker.history.select[0].sql).toContain(
+            '"oauth2_clients"."organization_uuid" as "client_organization_uuid"',
+        );
     });
 });
 
@@ -1282,6 +1484,7 @@ describe('OAuth2Model.getClient client id metadata documents', () => {
             clientId,
             id: clientId,
             scopes: [],
+            organizationUuid: null,
             redirectUris: ['http://localhost/callback'],
             grants: ['authorization_code', 'refresh_token'],
             refreshTokenLifetime: undefined,

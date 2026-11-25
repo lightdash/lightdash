@@ -16,16 +16,16 @@ import { defaultSessionUser } from '../account/account.mock';
 import { assertOAuthCredentialOperationAllowed } from './credentials';
 
 const operations = [
-    ['enqueueLearnSandboxCommand', 'create', 'LearnSandboxCredential'],
-    ['createPersonalAccessToken', 'create', 'PersonalAccessToken'],
-    ['rotatePersonalAccessToken', 'rotate', 'PersonalAccessToken'],
-    ['createServiceAccount', 'create', 'ServiceAccount'],
-    ['rotateServiceAccount', 'rotate', 'ServiceAccount'],
-    ['createScimToken', 'create', 'ScimToken'],
-    ['rotateScimToken', 'rotate', 'ScimToken'],
-    ['createOAuthClient', 'create', 'OAuthClient'],
-    ['updateOAuthClient', 'update', 'OAuthClient'],
-    ['deleteOAuthClient', 'delete', 'OAuthClient'],
+    'enqueueLearnSandboxCommand',
+    'createPersonalAccessToken',
+    'rotatePersonalAccessToken',
+    'createServiceAccount',
+    'rotateServiceAccount',
+    'createScimToken',
+    'rotateScimToken',
+    'createOAuthClient',
+    'updateOAuthClient',
+    'deleteOAuthClient',
 ] as const;
 
 const user = {
@@ -36,19 +36,23 @@ const user = {
     ]),
 };
 
-const oauthAccount = (mode: 'log' | 'enforce' | null, scopes: string[]) =>
+const oauthAccount = (
+    scopes: string[],
+    clientId = 'client',
+    withPolicy = true,
+) =>
     fromOauth(
         user,
-        { accessToken: 'secret', client: { id: 'client' }, scope: scopes },
-        mode === null
-            ? null
-            : {
-                  mode,
+        { accessToken: 'secret', client: { id: clientId }, scope: scopes },
+        withPolicy
+            ? {
+                  mode: 'enforce',
                   getRequest: () => ({
                       method: 'POST',
                       routeTemplate: '/credentials',
                   }),
-              },
+              }
+            : null,
     );
 
 describe('OAuth credential minting', () => {
@@ -57,65 +61,114 @@ describe('OAuth credential minting', () => {
     });
     afterEach(() => vi.restoreAllMocks());
 
-    describe.each(['log', 'enforce'] as const)('%s mode', (mode) => {
-        describe.each([[], ['read'], ['write'], ['mcp:read'], ['mcp:write']])(
-            'scopes %j',
-            (...scopes) => {
-                it.each(operations)(
-                    'refuses %s',
-                    (operation, action, subjectType) => {
-                        const account = oauthAccount(mode, scopes);
-                        expect(() =>
-                            assertOAuthCredentialOperationAllowed(
-                                account,
-                                operation,
-                            ),
-                        ).toThrow(ForbiddenError);
-                        expect(() =>
-                            assertOAuthCredentialOperationAllowed(
-                                account,
-                                operation,
-                            ),
-                        ).toThrow(ForbiddenError);
-                        expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
-                            'oauth_scope_refusal',
-                            {
-                                mode,
-                                clientId: 'client',
-                                scopes,
-                                method: 'POST',
-                                routeTemplate: '/credentials',
-                                toolName: null,
-                                action,
-                                subjectType,
-                            },
-                        );
-                    },
-                );
-            },
-        );
-        it.each(operations)(
-            'refuses %s after conversion to a session user',
-            (operation) => {
-                const account = oauthAccount(mode, ['write']);
+    describe.each([[], ['read'], ['write'], ['mcp:read'], ['mcp:write']])(
+        'scopes %j',
+        (...scopes) => {
+            it.each(operations)('refuses %s', (operation) => {
                 expect(() =>
                     assertOAuthCredentialOperationAllowed(
-                        toSessionUser(account),
+                        oauthAccount(scopes),
                         operation,
                     ),
                 ).toThrow(ForbiddenError);
+                expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
+                    'oauth_credential_mint_refused',
+                    {
+                        operation,
+                        clientId: 'client',
+                        scopes,
+                        userUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid,
+                        cliVersion: null,
+                    },
+                );
+            });
+        },
+    );
+
+    it.each(operations)(
+        'refuses %s after conversion to a session user',
+        (operation) => {
+            expect(() =>
+                assertOAuthCredentialOperationAllowed(
+                    toSessionUser(oauthAccount(['write'])),
+                    operation,
+                ),
+            ).toThrow(ForbiddenError);
+            expect(Logger.warn).toHaveBeenCalledWith(
+                'oauth_credential_mint_refused',
+                expect.objectContaining({
+                    operation,
+                    clientId: 'client',
+                    scopes: ['write'],
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+            );
+        },
+    );
+
+    it.each(operations)(
+        'refuses %s for an OAuth account without a scope policy',
+        (operation) => {
+            expect(() =>
+                assertOAuthCredentialOperationAllowed(
+                    oauthAccount(['write'], 'client', false),
+                    operation,
+                ),
+            ).toThrow(ForbiddenError);
+        },
+    );
+
+    it.each([
+        ['lightdash-cli/3.87.0', '3.87.0'],
+        ['lightdash-cli/3.87.0-beta.1 node', '3.87.0-beta.1'],
+        ['Mozilla/5.0 lightdash-cli/3.87.0', null],
+        ['lightdash-cli/latest', null],
+        [undefined, null],
+    ])('logs the CLI version from user agent %j', (userAgent, cliVersion) => {
+        const account = oauthAccount(['read', 'write']);
+        account.requestContext = { userAgent };
+        expect(() =>
+            assertOAuthCredentialOperationAllowed(
+                account,
+                'createPersonalAccessToken',
+            ),
+        ).toThrow(ForbiddenError);
+        expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
+            'oauth_credential_mint_refused',
+            {
+                operation: 'createPersonalAccessToken',
+                clientId: 'client',
+                scopes: ['read', 'write'],
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                cliVersion,
             },
         );
     });
 
-    it.each(operations)('preserves flag-off OAuth %s', (operation) => {
+    it('logs a metadata document client id without its query', () => {
         expect(() =>
             assertOAuthCredentialOperationAllowed(
-                oauthAccount(null, ['write']),
-                operation,
+                oauthAccount(
+                    ['write', 'https://example.test/?token=secret'],
+                    'https://client.example/metadata.json?token=secret',
+                ),
+                'createServiceAccount',
             ),
-        ).not.toThrow();
-        expect(Logger.warn).not.toHaveBeenCalled();
+        ).toThrow(ForbiddenError);
+        expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
+            'oauth_credential_mint_refused',
+            {
+                operation: 'createServiceAccount',
+                clientId: 'https://client.example/metadata.json',
+                scopes: ['write', 'unknown'],
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                cliVersion: null,
+            },
+        );
     });
 
     describe.each(['session', 'pat', 'service-account'] as const)(
