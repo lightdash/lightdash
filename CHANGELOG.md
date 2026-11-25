@@ -1,3 +1,10 @@
+## [3.395.3](https://github.com/lightdash/lightdash/compare/3.395.2...3.395.3) (2026-11-25)
+
+
+### Bug Fixes
+
+* **semantic-studio:** end the metric view draft check with LIMIT 0 so ratio measures pass ([#33411](https://github.com/lightdash/lightdash/issues/33411)) ([11a05a8](https://github.com/lightdash/lightdash/commit/11a05a86d4fd9e19162f56f722b6e466a212c555))
+
 ## [3.395.2](https://github.com/lightdash/lightdash/compare/3.395.1...3.395.2) (2026-11-25)
 
 
