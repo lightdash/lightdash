@@ -209,6 +209,33 @@ it('keeps a merged cell selected when the rendered rows move by one row', async 
     );
 });
 
+it('clears the selection of a merged cell when its group leaves the rendered rows', async () => {
+    const table = renderGroupedPivot({ enableContextMenu: true });
+    expect(await screen.findByText('City 0')).toBeInTheDocument();
+
+    const viewport = table.parentElement!;
+    viewport.scrollTop = 150 * CELL_HEIGHT;
+    fireEvent.scroll(viewport);
+    await waitFor(() => expect(screen.queryByText('City 0')).toBeNull());
+    fireEvent.click(screen.getByText('Region 1'));
+    expect(screen.getByText('Region 1').closest('td')).toHaveAttribute(
+        'data-is-selected',
+        'true',
+    );
+
+    viewport.scrollTop = 500 * CELL_HEIGHT;
+    fireEvent.scroll(viewport);
+    await waitFor(() => expect(screen.queryByText('Region 1')).toBeNull());
+
+    viewport.scrollTop = 150 * CELL_HEIGHT;
+    fireEvent.scroll(viewport);
+    expect(await screen.findByText('Region 1')).toBeInTheDocument();
+    expect(screen.getByText('Region 1').closest('td')).toHaveAttribute(
+        'data-is-selected',
+        'false',
+    );
+});
+
 it('shows the footer shadow on first render when the rows are taller than the viewport', async () => {
     vi.stubGlobal('ResizeObserver', FakeResizeObserver);
     const VIEWPORT_HEIGHT = 200;
