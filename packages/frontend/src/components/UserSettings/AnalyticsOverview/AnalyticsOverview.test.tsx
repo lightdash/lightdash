@@ -150,7 +150,7 @@ describe('Analytics settings overview', () => {
             screen.queryByRole('option', { name: 'Preview' }),
         ).not.toBeInTheDocument();
         await userEvent.click(screen.getByRole('option', { name: 'Sales' }));
-        await userEvent.click(screen.getByText('Last 7 days'));
+        await userEvent.click(screen.getByText('7 days'));
         await waitFor(() =>
             expect(
                 launched.some(
@@ -194,7 +194,7 @@ describe('Analytics settings overview', () => {
             );
         });
         renderOverview();
-        await userEvent.click(screen.getByText('Last 90 days'));
+        await userEvent.click(screen.getByText('90 days'));
 
         expect(
             await within(
@@ -252,7 +252,7 @@ describe('Analytics settings overview', () => {
         });
         renderOverview();
         await userEvent.click(screen.getByRole('tab', { name: 'Agents' }));
-        await userEvent.click(screen.getByText('Last 90 days'));
+        await userEvent.click(screen.getByText('90 days'));
         // Thirty days is the range the page opens on, so the test moves to one it has not loaded
         const monthlyQueries = () =>
             launched
@@ -306,7 +306,7 @@ describe('Analytics settings overview', () => {
             'src',
             '/minimal/projects/analytics-slug/dashboards/lightdash-analytics-query-activity?hideTabs=true',
         );
-        expect(screen.queryByText('Last 30 days')).not.toBeInTheDocument();
+        expect(screen.queryByText('30 days')).not.toBeInTheDocument();
         expect(
             screen.queryByRole('region', {
                 name: 'How often are queries served from cache?',
@@ -314,7 +314,7 @@ describe('Analytics settings overview', () => {
         ).not.toBeInTheDocument();
         // A tab with no dashboard still draws its own charts
         await userEvent.click(screen.getByRole('tab', { name: 'Content' }));
-        expect(screen.getByText('Last 30 days')).toBeVisible();
+        expect(screen.getByText('30 days')).toBeVisible();
     });
 
     it('opens on the Overview dashboard once it has synced, with no charts or queries of its own', async () => {
@@ -427,7 +427,7 @@ describe('Analytics settings overview', () => {
         ]);
         await userEvent.click(screen.getByRole('tab', { name: 'Queries' }));
         await screen.findByTitle('Queries dashboard');
-        expect(screen.queryByText('Last 90 days')).not.toBeInTheDocument();
+        expect(screen.queryByText('90 days')).not.toBeInTheDocument();
     });
 
     it('hands the chosen date range and project to a dashboard that has those filters', async () => {
@@ -494,7 +494,7 @@ describe('Analytics settings overview', () => {
                 values: ['2026-06-23', '2026-07-22'],
             }),
         ]);
-        await userEvent.click(screen.getByText('Last 90 days'));
+        await userEvent.click(screen.getByText('90 days'));
         await userEvent.click(
             screen.getByRole('combobox', { name: 'Project' }),
         );
@@ -525,7 +525,7 @@ describe('Analytics settings overview', () => {
         expect(
             await screen.findByRole('region', { name: 'Dashboard audiences' }),
         ).toBeVisible();
-        expect(screen.getByText('Last 30 days')).toBeVisible();
+        expect(screen.getByText('30 days')).toBeVisible();
         expect(
             screen.queryByRole('status', { name: 'Loading Adoption app' }),
         ).not.toBeInTheDocument();
