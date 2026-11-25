@@ -190,23 +190,38 @@ const StudioComposer: FC<
     onSubmit,
     attached,
     onDetach,
-}) => (
-    <>
-        <StudioChatRefChips refs={attached} onRemove={onDetach} />
-        <AgentChatInput
-            allowAttachments={false}
-            accessCalloutVariant="inline"
-            loading={loading}
-            onSubmit={onSubmit}
-            placeholder="What should I build or change?"
-            messageCount={messageCount}
-            projectUuid={projectUuid}
-            agentUuid={agentUuid}
-            threadUuid={threadUuid ?? undefined}
-            fullWidth
-        />
-    </>
-);
+}) => {
+    const box = useRef<HTMLDivElement>(null);
+    const shown = useRef(attached);
+    // Something just attached from the code or a field, so the next keystroke starts the question.
+    useEffect(() => {
+        if (
+            attached !== shown.current &&
+            attached.length >= shown.current.length
+        )
+            box.current
+                ?.querySelector<HTMLElement>('[contenteditable="true"]')
+                ?.focus();
+        shown.current = attached;
+    }, [attached]);
+    return (
+        <Box ref={box} display="contents">
+            <StudioChatRefChips refs={attached} onRemove={onDetach} />
+            <AgentChatInput
+                allowAttachments={false}
+                accessCalloutVariant="inline"
+                loading={loading}
+                onSubmit={onSubmit}
+                placeholder="What should I build or change?"
+                messageCount={messageCount}
+                projectUuid={projectUuid}
+                agentUuid={agentUuid}
+                threadUuid={threadUuid ?? undefined}
+                fullWidth
+            />
+        </Box>
+    );
+};
 
 /** Sends a prompt asked for from outside the chat, once. */
 const useAskedPrompt = (
