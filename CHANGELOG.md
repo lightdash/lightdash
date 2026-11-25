@@ -1,3 +1,11 @@
+# [3.408.0](https://github.com/lightdash/lightdash/compare/3.407.0...3.408.0) (2026-11-25)
+
+
+### Features
+
+* **apps:** Design Mode on data apps and in the app builder ([#33449](https://github.com/lightdash/lightdash/issues/33449)) ([29575cf](https://github.com/lightdash/lightdash/commit/29575cf78fe8dd7d130a7ccab869e617eebca25d))
+* **live-sources:** let admins lower each integration's rate limits ([#33443](https://github.com/lightdash/lightdash/issues/33443)) ([e69b9ef](https://github.com/lightdash/lightdash/commit/e69b9ef703ab858492ab4edd10444f15f7ec0e8a))
+
 # [3.407.0](https://github.com/lightdash/lightdash/compare/3.406.0...3.407.0) (2026-11-25)
 
 
