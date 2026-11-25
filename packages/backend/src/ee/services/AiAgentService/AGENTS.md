@@ -43,6 +43,8 @@ N agents  → LLM picks (falls back to UI picker if low confidence)
 
 Requires `isMultiAgentChannel: boolean` guard parameter.
 
+The LLM pick applies the AI router's custom routing instructions (`slackRoutingInstructions.ts`) whenever a candidate's project has them saved, whether or not the router is enabled for the web app. Candidates from one project get that project's instructions unchanged, as the web router does. Candidates from several projects get each project's instructions scoped to that project's agents.
+
 ### Scenario Matrix
 
 #### Multi-Agent Channel
