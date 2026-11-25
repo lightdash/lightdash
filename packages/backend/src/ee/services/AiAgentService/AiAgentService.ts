@@ -162,6 +162,7 @@ import {
     isSlackMessageTooLongError,
     isSlackPrompt,
     isSqlApprovalToolCall,
+    isTaggedForAgent,
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
@@ -12074,16 +12075,18 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    /** The project's API connections the user may query, offered as composer api nodes. */
+    /** The integrations an agent can use: all of them, or those sharing a tag with it. */
     private async getAgentLiveSources(
         user: SessionUser,
         projectUuid: string,
+        agentTags: string[] | null,
     ): Promise<AgentLiveSource[]> {
-        const connections =
+        const connections = (
             await this.externalConnectionService.listApiSourceConnections(
                 fromSession(user),
                 projectUuid,
-            );
+            )
+        ).filter(({ tags }) => isTaggedForAgent(tags, agentTags));
         return connections.flatMap(
             ({
                 externalConnectionUuid,
@@ -17545,7 +17548,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     battleProfile,
                 });
                 const liveSources = hasTrustedPromptUserIdentity
-                    ? await this.getAgentLiveSources(user, prompt.projectUuid)
+                    ? await this.getAgentLiveSources(
+                          user,
+                          prompt.projectUuid,
+                          agentSettings.tags,
+                      )
                     : [];
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({

@@ -132,6 +132,7 @@ const SERVER_OWNED_API_SOURCE_KEYS = [
     'explores',
     'aiHint',
     'targetLabel',
+    'tags',
     'cache',
     'rateLimits',
 ] as const;
@@ -182,8 +183,8 @@ const readSourceName = (value: unknown): string | null => {
 };
 
 const readSourceDetails = (value: unknown) => {
-    const { aiHint, targetLabel } = parseLiveSourceFieldState(value);
-    return { aiHint, targetLabel };
+    const { aiHint, targetLabel, tags } = parseLiveSourceFieldState(value);
+    return { aiHint, targetLabel, tags };
 };
 
 /** Connector settings only: drops any server-owned key a caller sent. */
@@ -211,6 +212,7 @@ export type DeletedLiveSource = {
     exploreEdits: LiveSourceExploreEdits;
     aiHint: string | null;
     targetLabel: string | null;
+    tags: string[];
 };
 
 const kindOf = (
@@ -1076,6 +1078,21 @@ export class ExternalConnectionModel {
                     });
             }
 
+            if (data.tags !== undefined) {
+                await trx(ExternalConnectionsTableName)
+                    .where('external_connection_uuid', uuid)
+                    .update({
+                        api_source: (data.tags?.length
+                            ? trx.raw(
+                                  `api_source || jsonb_build_object('tags', ?::jsonb)`,
+                                  [JSON.stringify(data.tags)],
+                              )
+                            : trx.raw(
+                                  `api_source - 'tags'`,
+                              )) as unknown as string,
+                    });
+            }
+
             // Secret tri-state: `null` clears it, a non-empty string sets it,
             // and undefined/blank leaves it unchanged unless the credential's
             // auth type or credential destination changes.
@@ -1263,14 +1280,24 @@ export class ExternalConnectionModel {
     /** Gives a source a deleted twin's details, keeping any it already has. */
     async restoreLiveSourceDetails(
         uuid: string,
-        details: { aiHint: string | null; targetLabel: string | null },
+        details: {
+            aiHint: string | null;
+            targetLabel: string | null;
+            tags: string[];
+        },
     ): Promise<void> {
         await this.database(ExternalConnectionsTableName)
             .where('external_connection_uuid', uuid)
             .update({
                 api_source: this.database.raw(
-                    `jsonb_strip_nulls(jsonb_build_object('aiHint', ?::text, 'targetLabel', ?::text)) || api_source`,
-                    [details.aiHint, details.targetLabel],
+                    `jsonb_strip_nulls(jsonb_build_object('aiHint', ?::text, 'targetLabel', ?::text, 'tags', ?::jsonb)) || api_source`,
+                    [
+                        details.aiHint,
+                        details.targetLabel,
+                        details.tags.length
+                            ? JSON.stringify(details.tags)
+                            : null,
+                    ],
                 ) as unknown as string,
             });
     }

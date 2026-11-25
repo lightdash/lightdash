@@ -523,6 +523,11 @@ export type ExternalConnection = {
     liveSourceName?: string | null;
     /** What an admin says this live source is for. Reaches the AI agent. */
     aiHint?: string | null;
+    /**
+     * Live sources: tags its explores carry, so an AI agent limited to tags
+     * can use the source when they share one.
+     */
+    tags?: string[] | null;
     /** The name the connection picker showed for the source's target. */
     targetLabel?: string | null;
     /** Live sources: the admin's freshness window; null uses the integration's default. */
@@ -603,11 +608,16 @@ export type CreateExternalConnection = {
 /** Omitted/blank `secret` means the stored secret is left unchanged. */
 export const LIVE_SOURCE_AI_HINT_MAX_LENGTH = 500;
 
+export const LIVE_SOURCE_MAX_TAGS = 20;
+export const LIVE_SOURCE_TAG_MAX_LENGTH = 100;
+
 export type UpdateExternalConnection = Partial<
     Omit<CreateExternalConnection, 'explorePrefix'>
 > & {
     /** Live sources only. Empty or null clears it. */
     aiHint?: string | null;
+    /** Live sources only. Empty or null clears them. */
+    tags?: string[] | null;
 };
 
 /** Whether a new live source can use an explore prefix. */

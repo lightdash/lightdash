@@ -56,6 +56,7 @@ import {
     SettingsRow,
     SettingsSaveFooter,
 } from './LiveSourceSettingsRows';
+import { LiveSourceTagsCard } from './LiveSourceTagsCard';
 import { LiveSourceTestRow } from './LiveSourceTestRow';
 
 const WINDOW_SECONDS = [
@@ -302,6 +303,11 @@ export const LiveSourceSettings: FC<{
                     </SettingsRow>
                     {saveFooter(['name', 'aiHint'])}
                 </SettingsCard>
+
+                <LiveSourceTagsCard
+                    projectUuid={projectUuid}
+                    connection={connection}
+                />
 
                 <SettingsCard title="Caching">
                     <SettingsRow

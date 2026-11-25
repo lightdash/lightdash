@@ -28,6 +28,8 @@ import {
     LIVE_SOURCE_CACHE_TTL_MAX_SECONDS,
     LIVE_SOURCE_CACHE_TTL_MIN_SECONDS,
     LIVE_SOURCE_DAILY_RATE_LIMIT,
+    LIVE_SOURCE_MAX_TAGS,
+    LIVE_SOURCE_TAG_MAX_LENGTH,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -413,6 +415,27 @@ export class ExternalConnectionService extends BaseService {
         this.schedulerClient = args.schedulerClient;
         this.projectModel = args.projectModel;
         this.savedChartModel = args.savedChartModel;
+    }
+
+    /** Trimmed, without blanks or repeats; empty clears them. */
+    private static parseLiveSourceTags(tags: string[] | null): string[] {
+        const parsed = [
+            ...new Set((tags ?? []).map((tag) => tag.trim()).filter(Boolean)),
+        ];
+        if (parsed.length > LIVE_SOURCE_MAX_TAGS) {
+            throw new ParameterError(
+                `A live data source can have at most ${LIVE_SOURCE_MAX_TAGS} tags`,
+            );
+        }
+        const tooLong = parsed.find(
+            (tag) => tag.length > LIVE_SOURCE_TAG_MAX_LENGTH,
+        );
+        if (tooLong !== undefined) {
+            throw new ParameterError(
+                `A tag can be at most ${LIVE_SOURCE_TAG_MAX_LENGTH} characters`,
+            );
+        }
+        return parsed;
     }
 
     private static assertNotSignInType(type: ExternalConnectionAuthType) {
@@ -890,6 +913,31 @@ export class ExternalConnectionService extends BaseService {
                 `The AI hint can be at most ${LIVE_SOURCE_AI_HINT_MAX_LENGTH} characters`,
             );
         }
+        if (data.tags !== undefined && !isLiveSource) {
+            throw new ParameterError('Only live data sources have tags');
+        }
+        const tags =
+            data.tags === undefined
+                ? undefined
+                : ExternalConnectionService.parseLiveSourceTags(data.tags);
+        // A hint or tags only reach the explores, so they need no scan
+        const { aiHint: _aiHint, tags: _tags, ...settings } = data;
+        const changesOnlyExploreDetails =
+            (data.aiHint !== undefined || data.tags !== undefined) &&
+            Object.entries(settings).every(
+                ([key, value]) =>
+                    value === undefined ||
+                    isEqual(value, existing[key as keyof ExternalConnection]),
+            );
+        const changesTags =
+            tags !== undefined && !isEqual(tags, existing.tags ?? []);
+        // Other changes sync the explores without failing the save, which
+        // could leave them on the old tags
+        if (changesTags && !changesOnlyExploreDetails) {
+            throw new ParameterError(
+                'Save tags on their own, without other settings',
+            );
+        }
         if (data.type !== undefined && data.type !== existing.type) {
             ExternalConnectionService.assertNotSignInType(data.type);
         }
@@ -920,6 +968,7 @@ export class ExternalConnectionService extends BaseService {
             {
                 ...data,
                 aiHint,
+                tags,
                 apiKeyName: resolved.apiKeyName,
                 apiKeyLocation: resolved.apiKeyLocation,
                 oauthScopes: resolved.oauthScopes,
@@ -962,16 +1011,14 @@ export class ExternalConnectionService extends BaseService {
         ) {
             await this.scheduleApiSourceSchemaScan(account, updated);
         }
-        const { aiHint: _aiHint, ...settings } = data;
-        const changesOnlyHint =
-            data.aiHint !== undefined &&
-            Object.entries(settings).every(
-                ([key, value]) =>
-                    value === undefined ||
-                    isEqual(value, existing[key as keyof ExternalConnection]),
+        if (changesOnlyExploreDetails && updated.apiSource) {
+            await this.rebuildAfterExploreDetailsChange(
+                account,
+                existing,
+                updated,
+                updated.apiSource,
+                changesTags,
             );
-        if (changesOnlyHint && updated.apiSource) {
-            await this.rebuildAfterHintChange(updated, updated.apiSource);
             return updated;
         }
         // Same target and a saved scan: a failing scan can't hold back a rename
@@ -991,14 +1038,38 @@ export class ExternalConnectionService extends BaseService {
         return updated;
     }
 
-    /** A hint needs no scan. It reaches the prompt either way, so a failed rebuild only logs. */
-    private async rebuildAfterHintChange(
+    /**
+     * A hint or tags need no scan. A hint reaches the prompt either way, so a
+     * failed rebuild only logs. Tags decide which agents see the explores, so
+     * a failed rebuild puts the old tags and hint back to match them.
+     */
+    private async rebuildAfterExploreDetailsChange(
+        account: RegisteredAccount,
+        existing: ExternalConnection,
         connection: ExternalConnection,
         apiSource: ExternalConnectionApiSource,
+        changesTags: boolean,
     ): Promise<void> {
         try {
             await this.rebuildApiSourceExplores(connection, apiSource);
         } catch (error) {
+            if (changesTags) {
+                await this.externalConnectionModel
+                    .update(
+                        connection.externalConnectionUuid,
+                        account.user.id,
+                        {
+                            tags: existing.tags ?? [],
+                            aiHint: existing.aiHint ?? null,
+                        },
+                    )
+                    .catch((rollbackError) =>
+                        this.logger.error(
+                            `Failed to restore the tags of live data source ${connection.externalConnectionUuid}: ${getErrorMessage(rollbackError)}`,
+                        ),
+                    );
+                throw error;
+            }
             this.logger.error(
                 `Failed to rebuild live data source ${connection.externalConnectionUuid} after a hint change: ${getErrorMessage(error)}`,
             );
@@ -1617,6 +1688,7 @@ export class ExternalConnectionService extends BaseService {
                         ),
                         ...(state.aiHint ? [state.aiHint] : []),
                     ],
+                    tags: state.tags,
                 });
                 if (keepFields) {
                     const lost = getLostLiveFieldIds({
