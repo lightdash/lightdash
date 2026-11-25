@@ -23,10 +23,7 @@ import {
 } from '@tsoa/runtime';
 import type express from 'express';
 import { toSessionUser } from '../../auth/account';
-import {
-    allowApiKeyAuthentication,
-    isAuthenticated,
-} from '../authentication';
+import { allowOauthAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
 
 @Route('/api/v2/content/recently-viewed')
@@ -49,7 +46,7 @@ export class RecentContentController extends BaseController {
     }
 
     @Post('/')
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([allowOauthAuthentication, isAuthenticated])
     async recordView(
         @Request() req: express.Request,
         @Body() body: RecordRecentContentView,

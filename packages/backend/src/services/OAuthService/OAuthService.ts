@@ -274,6 +274,7 @@ export class OAuthService extends BaseService {
     }
 
     public async isMobileClient(clientId: string): Promise<boolean> {
+        if (isClientIdMetadataDocumentUrl(clientId)) return false;
         const client = await this.oauthModel.getClient(clientId);
         return client !== false && isMobileOAuthClient(client.redirectUris);
     }
