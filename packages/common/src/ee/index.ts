@@ -13,6 +13,7 @@ export * from './externalConnections/coder';
 export * from './externalConnections/explorePrefix';
 export * from './externalConnections/liveSourceAccess';
 export * from './externalConnections/liveSourceCache';
+export * from './externalConnections/liveSourceRateLimits';
 export * from './externalConnections/liveSourceFields';
 export * from './externalConnections/types';
 export * from './AiRouter';

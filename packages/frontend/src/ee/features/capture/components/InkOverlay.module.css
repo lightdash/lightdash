@@ -35,6 +35,17 @@
     overflow: visible;
 }
 
+.hover {
+    position: absolute;
+    left: var(--hover-left);
+    top: var(--hover-top);
+    width: var(--hover-width);
+    height: var(--hover-height);
+    border: 2px dashed var(--bubble-color);
+    border-radius: 6px;
+    pointer-events: none;
+}
+
 .badge {
     position: absolute;
     left: var(--badge-left);
@@ -44,7 +55,7 @@
     height: 22px;
     padding: 0 6px;
     border-radius: 11px;
-    background: #e03131;
+    background: var(--bubble-color);
     color: #fff;
     font-size: 12px;
     font-weight: 700;
