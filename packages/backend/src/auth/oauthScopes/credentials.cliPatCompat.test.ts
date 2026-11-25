@@ -154,16 +154,16 @@ describe('CLI browser-login personal access token exception', () => {
     });
 
     it.each([
-        ['absent', null, NOW.getTime() + 30 * DAY_MS],
+        ['absent', null, NOW.getTime() + 7 * DAY_MS],
         [
-            'later than 30 days',
+            'later than 7 days',
             new Date(NOW.getTime() + 365 * DAY_MS),
-            NOW.getTime() + 30 * DAY_MS,
+            NOW.getTime() + 7 * DAY_MS,
         ],
         [
-            'earlier than 30 days',
-            new Date(NOW.getTime() + 7 * DAY_MS),
-            NOW.getTime() + 7 * DAY_MS,
+            'earlier than 7 days',
+            new Date(NOW.getTime() + 8 * 3600000),
+            NOW.getTime() + 8 * 3600000,
         ],
     ])(
         'creates a capped token when expiresAt is %s',
@@ -190,7 +190,7 @@ describe('CLI browser-login personal access token exception', () => {
         const { pat, create } = build();
         const account = oauthAccount({ userAgent: 'lightdash-cli/3.87.0' });
         await createPat(pat, account, new Date(NOW.getTime() + 720 * 3600000));
-        expect(createdExpiry(create)).toBe(NOW.getTime() + 30 * DAY_MS);
+        expect(createdExpiry(create)).toBe(NOW.getTime() + 7 * DAY_MS);
         expect(Logger.warn).toHaveBeenCalledWith(
             'oauth_cli_pat_compat_used',
             expect.objectContaining({ cliVersion: '3.87.0' }),
@@ -198,9 +198,9 @@ describe('CLI browser-login personal access token exception', () => {
     });
 
     it('uses a stricter instance maximum expiry', async () => {
-        const { pat, create } = build({ maxExpirationTimeInDays: 10 });
+        const { pat, create } = build({ maxExpirationTimeInDays: 3 });
         await createPat(pat, oauthAccount(), null);
-        expect(createdExpiry(create)).toBe(NOW.getTime() + 10 * DAY_MS);
+        expect(createdExpiry(create)).toBe(NOW.getTime() + 3 * DAY_MS);
     });
 
     it('still refuses an expiry in the past', async () => {

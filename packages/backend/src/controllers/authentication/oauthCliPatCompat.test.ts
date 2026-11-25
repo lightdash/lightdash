@@ -155,13 +155,13 @@ const post = async ({
     }
 };
 
-it('creates a 30-day token for old CLI browser login over the PAT route', async () => {
+it('creates a 7-day token for old CLI browser login over the PAT route', async () => {
     const before = Date.now();
     const { status, create } = await post();
     expect(status).toBe(200);
     const { expiresAt } = create.mock.calls[0][1] as { expiresAt: Date };
-    expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 30 * DAY_MS);
-    expect(expiresAt.getTime()).toBeLessThanOrEqual(Date.now() + 30 * DAY_MS);
+    expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 7 * DAY_MS);
+    expect(expiresAt.getTime()).toBeLessThanOrEqual(Date.now() + 7 * DAY_MS);
     expect(Logger.warn).toHaveBeenCalledWith(
         'oauth_cli_pat_compat_used',
         expect.objectContaining({
