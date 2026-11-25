@@ -55,6 +55,13 @@ export const evictSavedDashboardResults = (queryClient: QueryClient) => {
             .map((query) => [query, false]),
     );
     if (onScreen.size === 0) return;
+    // A request started before the save may answer with older data, so its
+    // tile fetches once more when it lands
+    const startedBeforeSave = new Set(
+        [...onScreen.keys()].filter(
+            (query) => query.state.fetchStatus === 'fetching',
+        ),
+    );
     const release = (query: Query) => {
         onScreen.delete(query);
         if (onScreen.size === 0) unsubscribe();
@@ -66,8 +73,13 @@ export const evictSavedDashboardResults = (queryClient: QueryClient) => {
             release(query);
         } else if (event.type === 'updated') {
             if (event.action.type === 'fetch') onScreen.set(query, true);
-            if (event.action.type === 'success' && onScreen.get(query))
+            if (event.action.type !== 'success') return;
+            if (startedBeforeSave.delete(query)) {
+                onScreen.set(query, false);
+                void Promise.resolve().then(() => query.fetch());
+            } else if (onScreen.get(query)) {
                 release(query);
+            }
         } else if (event.type === 'observerRemoved') {
             // Next tick, so a tile remounting in the same commit keeps it
             setTimeout(() => {

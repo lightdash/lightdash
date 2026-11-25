@@ -64,23 +64,26 @@ describe('evictSavedDashboardResults', () => {
         expect(queryClient.getQueryData(tileKey('later'))).toBe('later');
     });
 
-    it('drops a result whose request started before the save', async () => {
-        let respond: (value: string) => void = () => {};
+    it('fetches again after a request that started before the save', async () => {
+        const responses: ((value: string) => void)[] = [];
         const unmount = new QueryObserver(queryClient, {
             queryKey: tileKey('shown'),
             queryFn: () =>
                 new Promise<string>((resolve) => {
-                    respond = resolve;
+                    responses.push(resolve);
                 }),
         }).subscribe(() => {});
         evictSavedDashboardResults(queryClient);
 
-        respond('pre-save');
+        responses[0]('pre-save');
+        await flush();
+        expect(responses).toHaveLength(2);
+        responses[1]('post-save');
         await flush();
         unmount();
         await flush();
 
-        expect(queryClient.getQueryData(tileKey('shown'))).toBeUndefined();
+        expect(queryClient.getQueryData(tileKey('shown'))).toBe('post-save');
     });
 
     it('keeps a result whose tile remounts in the same tick', async () => {
