@@ -849,6 +849,57 @@ describe('AiWritebackService.prepareTurn', () => {
         });
     });
 
+    it.each([
+        { studio: true, reason: 'merged' as const },
+        { studio: true, reason: 'closed' as const },
+        { studio: false, reason: 'merged' as const },
+    ])(
+        'a save after the thread pull request is $reason starts a fresh one only in Studio ($studio)',
+        async ({ studio, reason }) => {
+            const service = buildService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: true }),
+                } as AnyType,
+                projectModel: {
+                    get: vi.fn().mockResolvedValue(githubProject()),
+                } as AnyType,
+                aiWritebackThreadModel: {
+                    findByAiThreadUuid: vi.fn().mockResolvedValue(null),
+                    findActiveWorkstreamByRepo: vi
+                        .fn()
+                        .mockResolvedValue(workstreamRow),
+                    findByAiThreadUuidAndPrUrl: vi.fn(),
+                } as AnyType,
+            });
+            vi.spyOn(
+                (service as AnyType).githubProvider,
+                'resolveInstallation',
+            ).mockResolvedValue({} as AnyType);
+            vi.spyOn(
+                (service as AnyType).githubProvider,
+                'getPullRequestEditState',
+            ).mockResolvedValue({ editable: false, reason });
+
+            const turn = (service as AnyType).prepareTurn({
+                user: userWithOrg(true),
+                projectUuid: 'p1',
+                aiThreadUuid: 't1',
+                continuesThreadPullRequest: studio,
+            });
+
+            if (studio) {
+                await expect(turn).resolves.toMatchObject({
+                    kind: 'run',
+                    turn: { existingRow: null, isResume: false },
+                });
+            } else {
+                await expect(turn).rejects.toThrow(
+                    WritebackThreadPrClosedError,
+                );
+            }
+        },
+    );
+
     it('forces a fresh workstream when startNewPullRequest is set', async () => {
         const findActiveWorkstreamByRepo = vi.fn();
         const findByAiThreadUuidAndPrUrl = vi.fn();

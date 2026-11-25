@@ -1,36 +1,184 @@
 import { z } from 'zod';
-import { type HydraApiSource } from '../ee/externalConnections/types';
+import {
+    type HydraApiSource,
+    type HydraSettings,
+} from '../ee/externalConnections/types';
 import { ApiConnectorType } from '../types/querySources';
 
-type HydraBehaviour = Omit<HydraApiSource, 'connector'>;
-
-/** A Hydra source that behaves like a healthy, unhurried API. */
-export const HYDRA_DEFAULT_SETTINGS: HydraApiSource = {
-    connector: ApiConnectorType.HYDRA,
-    latencyMs: 0,
-    errorRate: 0,
-    retryAfterEvery: 0,
-    retryAfterSeconds: 1,
-    failAuth: false,
+/**
+ * A Hydra source that behaves like a healthy API: it enforces 2 calls at
+ * once, 30 a minute and 300 an hour, and Lightdash declares the same.
+ */
+export const HYDRA_DEFAULT_SETTINGS: HydraSettings = {
     rowCount: 1_000,
-    callsPerMinute: 30,
-    callsPerHour: 300,
+    pageSize: 0,
+    latencyMs: 0,
+    jitterMs: 0,
+    errorRate: 0,
+    failAuth: false,
+    vendorLimits: {
+        concurrentCalls: 2,
+        callsPerSecond: null,
+        buckets: [
+            { id: 'minute', windowMs: 60_000, capacity: 30 },
+            { id: 'hour', windowMs: 3_600_000, capacity: 300 },
+        ],
+    },
+    onLimit: { status: 429, retryAfterFormat: 'seconds' },
+    declaredLimits: 'vendor',
+    mockResponses: [],
 };
 
-/** What a Hydra source accepts; the API and the setup form both check against it. */
-export const HYDRA_SETTINGS_SCHEMA = z.object({
-    connector: z.literal(ApiConnectorType.HYDRA),
-    latencyMs: z.number().int().min(0).max(120_000),
-    errorRate: z.number().min(0).max(1),
-    retryAfterEvery: z.number().int().min(0),
-    retryAfterSeconds: z.number().int().min(0).max(3_600),
-    failAuth: z.boolean(),
-    rowCount: z.number().int().min(0).max(100_000),
-    callsPerMinute: z.number().int().min(1),
-    callsPerHour: z.number().int().min(1),
+/** A Hydra source with no settings, so every one takes its default. */
+export const HYDRA_DEFAULT_SOURCE: HydraApiSource = {
+    connector: ApiConnectorType.HYDRA,
+};
+
+const SETTING_KEYS = Object.keys(
+    HYDRA_DEFAULT_SETTINGS,
+) as (keyof HydraSettings)[];
+
+/** A source's settings with every one it leaves out set to its default. */
+export const withHydraDefaults = (source: HydraApiSource): HydraSettings => ({
+    ...HYDRA_DEFAULT_SETTINGS,
+    ...Object.fromEntries(
+        SETTING_KEYS.filter((key) => source[key] !== undefined).map((key) => [
+            key,
+            source[key],
+        ]),
+    ),
 });
 
-const describeAllowed = (field: z.ZodType): string | null => {
+// Caps keep one call's work small: the gate writes a row per bucket per call
+const MAX_BUCKETS = 5;
+const MAX_BUCKET_ID_LENGTH = 40;
+const MAX_MOCK_RESPONSES = 50;
+
+const count = z.number().int().min(1);
+const errorStatus = z.number().int().min(400).max(599);
+const body = z.record(z.string(), z.unknown());
+
+const rateLimitsSchema = z.object({
+    concurrentCalls: count.nullable(),
+    callsPerSecond: count.nullable(),
+    buckets: z
+        .array(
+            z.object({
+                // "second" counts callsPerSecond
+                id: z
+                    .string()
+                    .min(1)
+                    .max(MAX_BUCKET_ID_LENGTH)
+                    .refine((id) => id !== 'second', 'must not be second'),
+                windowMs: count,
+                capacity: count,
+            }),
+        )
+        .max(MAX_BUCKETS)
+        .refine(
+            (buckets) =>
+                new Set(buckets.map(({ id }) => id)).size === buckets.length,
+            'must have unique ids',
+        ),
+});
+
+const mockResponseSchema = z
+    .object({
+        call: count.optional(),
+        fromCall: count.optional(),
+        toCall: count.optional(),
+        status: z.union([z.literal(200), errorStatus]),
+        retryAfterSeconds: z.number().int().min(0).max(3_600).optional(),
+        body: body.optional(),
+    })
+    .strict()
+    .refine(
+        ({ call, fromCall }) =>
+            (call === undefined) !== (fromCall === undefined),
+        'must set call, or fromCall',
+    )
+    .refine(
+        ({ call, toCall }) => call === undefined || toCall === undefined,
+        'must not set toCall with call',
+    )
+    .refine(
+        ({ fromCall, toCall }) =>
+            fromCall === undefined ||
+            toCall === undefined ||
+            toCall >= fromCall,
+        'must not set toCall before fromCall',
+    )
+    .refine(
+        ({ status, retryAfterSeconds, body: errorBody }) =>
+            status !== 200 ||
+            (retryAfterSeconds === undefined && errorBody === undefined),
+        'must not set retryAfterSeconds or body with status 200',
+    );
+
+const SETTING_SCHEMAS = {
+    rowCount: z.number().int().min(0).max(100_000).optional(),
+    // At least 10, so the row cap fits in a query's 51 calls
+    pageSize: z
+        .number()
+        .int()
+        .refine((size) => size === 0 || (size >= 10 && size <= 10_000), {
+            message: 'must be 0, or from 10 to 10000',
+        })
+        .optional(),
+    latencyMs: z.number().int().min(0).max(120_000).optional(),
+    jitterMs: z.number().int().min(0).max(120_000).optional(),
+    errorRate: z.number().min(0).max(1).optional(),
+    failAuth: z.boolean().optional(),
+    vendorLimits: rateLimitsSchema.nullable().optional(),
+    onLimit: z
+        .object({
+            status: errorStatus,
+            retryAfterFormat: z.enum(['seconds', 'date', 'none']),
+            body: body.optional(),
+        })
+        .strict()
+        .optional(),
+    declaredLimits: z
+        .union([z.literal('vendor'), rateLimitsSchema])
+        .nullable()
+        .optional(),
+    mockResponses: z
+        .array(mockResponseSchema)
+        .max(MAX_MOCK_RESPONSES)
+        .optional(),
+};
+
+/** What the API accepts for a Hydra source; anything else is refused. */
+const HYDRA_INPUT_SCHEMA = z
+    .object({
+        connector: z.literal(ApiConnectorType.HYDRA),
+        ...SETTING_SCHEMAS,
+    })
+    .strict();
+
+/**
+ * How a stored Hydra source reads. It also holds the engine's own keys
+ * (sourceName, fields, lastScan), which are stripped, and a setting saved in
+ * an older shape takes its default, so the source still loads.
+ */
+export const HYDRA_SETTINGS_SCHEMA = z.object({
+    connector: z.literal(ApiConnectorType.HYDRA),
+    // Each setting is optional, so catching to undefined keeps its type
+    ...(Object.fromEntries(
+        Object.entries(SETTING_SCHEMAS).map(([key, schema]) => [
+            key,
+            (schema as z.ZodType).catch(undefined),
+        ]),
+    ) as unknown as typeof SETTING_SCHEMAS),
+});
+
+const unwrap = (field: z.ZodType): z.ZodType =>
+    field instanceof z.ZodOptional
+        ? unwrap(field.unwrap() as z.ZodType)
+        : field;
+
+const describeAllowed = (schema: z.ZodType): string | null => {
+    const field = unwrap(schema);
     if (field instanceof z.ZodBoolean) return 'true or false';
     if (!(field instanceof z.ZodNumber)) return null;
     const kind = field.isInt ? 'a whole number' : 'a number';
@@ -46,57 +194,24 @@ const describeAllowed = (field: z.ZodType): string | null => {
  * allows, or null when they are valid.
  */
 export const getHydraSettingsProblem = (value: unknown): string | null => {
-    const parsed = HYDRA_SETTINGS_SCHEMA.safeParse(value);
+    const parsed = HYDRA_INPUT_SCHEMA.safeParse(value);
     if (parsed.success) return null;
     const [issue] = parsed.error.issues;
-    const key = String(issue.path[0] ?? '');
-    const field = HYDRA_SETTINGS_SCHEMA.shape[
-        key as keyof typeof HYDRA_SETTINGS_SCHEMA.shape
-    ] as z.ZodType | undefined;
-    const allowed = field ? describeAllowed(field) : null;
-    return allowed ? `${key} must be ${allowed}` : issue.message;
-};
-
-const KEYS = Object.keys(HYDRA_DEFAULT_SETTINGS).filter(
-    (key): key is keyof HydraBehaviour => key !== 'connector',
-);
-
-const isKey = (key: string): key is keyof HydraBehaviour =>
-    (KEYS as string[]).includes(key);
-
-/** Hydra's settings as one line of `key=value` pairs, as the setup form shows them. */
-export const formatHydraBehaviour = (settings: HydraApiSource): string =>
-    KEYS.filter((key) => settings[key] !== HYDRA_DEFAULT_SETTINGS[key])
-        .map((key) => `${key}=${settings[key]}`)
-        .join(' ');
-
-/**
- * Reads `key=value` pairs separated by spaces or commas; keys left out keep
- * their defaults. Null when a key is unknown or a value doesn't fit it.
- */
-export const parseHydraBehaviour = (text: string): HydraApiSource | null => {
-    const settings: HydraApiSource = { ...HYDRA_DEFAULT_SETTINGS };
-    const pairs = text.split(/[\s,]+/).filter(Boolean);
-    for (const pair of pairs) {
-        const [key, value, ...rest] = pair.split('=');
-        if (!key || value === undefined || rest.length > 0 || !isKey(key)) {
-            return null;
-        }
-        if (key === 'failAuth') {
-            if (value !== 'true' && value !== 'false') return null;
-            settings.failAuth = value === 'true';
-        } else {
-            const number = Number(value);
-            if (value === '' || !Number.isFinite(number) || number < 0) {
-                return null;
-            }
-            if (key === 'errorRate') {
-                if (number > 1) return null;
-            } else if (!Number.isInteger(number)) {
-                return null;
-            }
-            settings[key] = number;
-        }
+    if (issue.code === 'unrecognized_keys') {
+        const path = [...issue.path, ...issue.keys].map(String).join('.');
+        return `${path} is not a Hydra setting`;
     }
-    return getHydraSettingsProblem(settings) === null ? settings : null;
+    const path = issue.path.map(String).join('.');
+    if (issue.code === 'custom') return `${path} ${issue.message}`;
+    if (issue.code === 'too_big' && issue.origin === 'array') {
+        return `${path} must have at most ${issue.maximum} entries`;
+    }
+    const field =
+        issue.path.length === 1
+            ? (SETTING_SCHEMAS[path as keyof typeof SETTING_SCHEMAS] as
+                  | z.ZodType
+                  | undefined)
+            : undefined;
+    const allowed = field ? describeAllowed(field) : null;
+    return allowed ? `${path} must be ${allowed}` : `${path}: ${issue.message}`;
 };

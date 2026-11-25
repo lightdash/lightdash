@@ -55,6 +55,8 @@ import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgen
 import { type MobilePushNotificationService } from '../services/MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 import type { ProjectHomepageService } from '../services/ProjectHomepageService';
+import { type IncrementalDbtCompileService } from '../services/SemanticStudioService/IncrementalDbtCompileService';
+import { type SemanticStudioCheckoutService } from '../services/SemanticStudioService/SemanticStudioCheckoutService';
 import { type SemanticStudioService } from '../services/SemanticStudioService/SemanticStudioService';
 import { createReviewJiraIssue } from './tasks/createReviewJiraIssue';
 import { createReviewLinearIssue } from './tasks/createReviewLinearIssue';
@@ -86,6 +88,8 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     >;
     aiAgentService: AiAgentService;
     semanticStudioService: SemanticStudioService;
+    semanticStudioCheckoutService: SemanticStudioCheckoutService;
+    incrementalDbtCompileService: IncrementalDbtCompileService;
     dataAppAnalysisService: DataAppAnalysisService;
     aiAgentMemoryService: AiAgentMemoryService;
     aiWritebackService: AiWritebackService;
@@ -175,6 +179,10 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly semanticStudioService: SemanticStudioService;
 
+    protected readonly semanticStudioCheckoutService: SemanticStudioCheckoutService;
+
+    protected readonly incrementalDbtCompileService: IncrementalDbtCompileService;
+
     protected readonly dataAppAnalysisService: DataAppAnalysisService;
 
     protected readonly aiAgentMemoryService: AiAgentMemoryService;
@@ -244,6 +252,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.analyticsProjectService = args.analyticsProjectService;
         this.aiAgentService = args.aiAgentService;
         this.semanticStudioService = args.semanticStudioService;
+        this.semanticStudioCheckoutService = args.semanticStudioCheckoutService;
+        this.incrementalDbtCompileService = args.incrementalDbtCompileService;
         this.dataAppAnalysisService = args.dataAppAnalysisService;
         this.aiAgentMemoryService = args.aiAgentMemoryService;
         this.aiWritebackService = args.aiWritebackService;
@@ -291,7 +301,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         projectUuid: string,
         jobUuid: string,
     ): Promise<IncrementalCompileResult | null> {
-        return this.semanticStudioService.compileAfterMerge(
+        return this.incrementalDbtCompileService.compileAfterMerge(
             user,
             projectUuid,
             jobUuid,
@@ -825,19 +835,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             [EE_SCHEDULER_TASKS.COMPILE_SEMANTIC_STUDIO_BRANCH]: async (
                 payload,
             ) => {
-                await this.semanticStudioService.compileBranch(payload);
-            },
-            [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: async (
-                payload,
-                _helpers,
-            ) => {
-                await this.aiAgentService.embedArtifactVersion(payload);
-            },
-            [EE_SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: async (
-                payload,
-                _helpers,
-            ) => {
-                await this.aiAgentService.generateArtifactQuestion(payload);
+                await this.semanticStudioCheckoutService.compileBranch(payload);
             },
             [EE_SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: async (
                 payload,

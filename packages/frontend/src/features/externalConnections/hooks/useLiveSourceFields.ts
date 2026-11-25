@@ -1,5 +1,7 @@
 import {
     type ApiError,
+    type LiveSourceContentUsage,
+    type LiveSourceExploreChange,
     type LiveSourceFieldChange,
     type LiveSourceFields,
 } from '@lightdash/common';
@@ -64,6 +66,62 @@ export const useUpdateLiveSourceFields = (params: LiveSourceParams) => {
                 apiError: error,
             });
         },
+    });
+};
+
+/** Switches explores on or off, or changes their label, description or AI hint. */
+export const useUpdateLiveSourceExplores = (params: LiveSourceParams) => {
+    const lightdashApi = useLightdashApi();
+    const applyFields = useApplyFields(params);
+    const { showToastApiError } = useToaster();
+    return useMutation<LiveSourceFields, ApiError, LiveSourceExploreChange[]>({
+        mutationFn: (exploreChanges) =>
+            lightdashApi<LiveSourceFields>({
+                url: getFieldsUrl(params),
+                method: 'PATCH',
+                body: JSON.stringify({ changes: [], exploreChanges }),
+            }),
+        onSuccess: applyFields,
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update explore',
+                apiError: error,
+            });
+        },
+    });
+};
+
+/** The saved charts on an explore, or on one of its fields, and their dashboards. */
+export const useLiveSourceContentUsage = ({
+    exploreName,
+    fieldName,
+    enabled = true,
+    ...params
+}: LiveSourceParams & {
+    exploreName: string;
+    fieldName: string | null;
+    enabled?: boolean;
+}) => {
+    const lightdashApi = useLightdashApi();
+    const query = new URLSearchParams({
+        exploreName,
+        ...(fieldName === null ? {} : { fieldName }),
+    });
+    return useQuery<LiveSourceContentUsage, ApiError>({
+        queryKey: [
+            'live-source-content-usage',
+            params.projectUuid,
+            params.connectionUuid,
+            exploreName,
+            fieldName,
+        ],
+        enabled,
+        queryFn: () =>
+            lightdashApi<LiveSourceContentUsage>({
+                url: `/ee/projects/${params.projectUuid}/external-connections/${params.connectionUuid}/content-usage?${query.toString()}`,
+                method: 'GET',
+                body: undefined,
+            }),
     });
 };
 

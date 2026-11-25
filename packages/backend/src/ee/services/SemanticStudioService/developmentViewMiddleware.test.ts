@@ -20,7 +20,9 @@ const inDevelopmentView = (
         get: (header: string) =>
             header === 'Lightdash-Development-View' ? 'true' : undefined,
         services: {
-            getSemanticStudioService: () => ({ findDevelopmentExplores }),
+            getSemanticStudioCheckoutService: () => ({
+                findDevelopmentExplores,
+            }),
         } as Request['services'],
     } as Request;
     return new Promise((resolve) => {

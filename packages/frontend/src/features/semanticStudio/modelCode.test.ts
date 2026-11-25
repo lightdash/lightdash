@@ -157,6 +157,7 @@ describe('describeModelChange', () => {
         ).toEqual({
             title: 'Orders',
             subtitle: 'New · 2 dimensions · 2 metrics',
+            whole: { kind: 'new', counts: ['2 dimensions', '2 metrics'] },
         });
     });
 
@@ -166,7 +167,7 @@ describe('describeModelChange', () => {
                 contentBefore: content,
                 contentAfter: content,
             }),
-        ).toEqual({ title: 'Orders', subtitle: null });
+        ).toEqual({ title: 'Orders', subtitle: null, whole: null });
     });
 
     it('says a model was removed', () => {
@@ -175,7 +176,11 @@ describe('describeModelChange', () => {
                 contentBefore: content,
                 contentAfter: null,
             }),
-        ).toEqual({ title: 'Orders', subtitle: 'Removed' });
+        ).toEqual({
+            title: 'Orders',
+            subtitle: 'Removed',
+            whole: { kind: 'removed' },
+        });
     });
 
     it('falls back to the name when the YAML cannot be read', () => {
@@ -184,7 +189,7 @@ describe('describeModelChange', () => {
                 contentBefore: null,
                 contentAfter: 'a: [',
             }),
-        ).toEqual({ title: 'orders', subtitle: null });
+        ).toEqual({ title: 'orders', subtitle: null, whole: null });
     });
 });
 
@@ -401,6 +406,7 @@ describe('listPublishedParts', () => {
                         error: null,
                     },
                 ],
+                projectContextEntries: [],
             },
             {
                 draftChangeUuid: 'described',
@@ -419,9 +425,11 @@ describe('listPublishedParts', () => {
                         error: null,
                     },
                 ],
+                projectContextEntries: [],
             },
         ],
         models: [entry],
+        projectContext: null,
         errors: [],
         settled: [],
         inReview: [],

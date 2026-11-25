@@ -1,68 +1,65 @@
-import { type PreAggregateMaterializationSummary } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type PreAggregateMaterializationSummary,
+} from '@lightdash/common';
 import { Badge, Tooltip } from '@mantine/core';
 import { IconDatabaseExport } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
+import {
+    getPreAggregateStatus,
+    PRE_AGGREGATE_STATUS,
+} from './preAggregateStatus';
 
 export const StatusBadge: FC<{
     summary: PreAggregateMaterializationSummary;
 }> = ({ summary }) => {
-    if (summary.definitionError) {
-        return (
-            <Tooltip label={summary.definitionError} maw={300}>
-                <Badge color="red" size="sm">
-                    Definition error
-                </Badge>
-            </Tooltip>
-        );
-    }
+    const kind = getPreAggregateStatus(summary);
+    const { label, color } = PRE_AGGREGATE_STATUS[kind];
+    const badge = (
+        <Badge
+            color={color}
+            size="sm"
+            leftSection={
+                kind === 'external' ? (
+                    <MantineIcon icon={IconDatabaseExport} size="xs" />
+                ) : undefined
+            }
+        >
+            {label}
+        </Badge>
+    );
 
-    if (summary.externalTable) {
-        return (
-            <Tooltip label="Served from a customer-managed warehouse table">
-                <Badge
-                    color="indigo"
-                    size="sm"
-                    leftSection={
-                        <MantineIcon icon={IconDatabaseExport} size="xs" />
-                    }
-                >
-                    External
-                </Badge>
-            </Tooltip>
-        );
-    }
-
-    if (!summary.materialization) {
-        return <Badge size="sm">Never materialized</Badge>;
-    }
-
-    const { status, errorMessage } = summary.materialization;
-
-    switch (status) {
-        case 'active':
+    switch (kind) {
+        case 'invalid':
             return (
-                <Badge color="green" size="sm">
-                    Active
-                </Badge>
+                <Tooltip label={summary.definitionError} maw={300}>
+                    {badge}
+                </Tooltip>
             );
-        case 'in_progress':
+        case 'external':
             return (
-                <Badge color="blue" size="sm">
-                    Building
-                </Badge>
+                <Tooltip label="Served from a customer-managed warehouse table">
+                    {badge}
+                </Tooltip>
             );
         case 'failed':
             return (
-                <Tooltip label={errorMessage ?? 'Unknown error'} maw={300}>
-                    <Badge color="red" size="sm">
-                        Failed
-                    </Badge>
+                <Tooltip
+                    label={
+                        summary.materialization?.errorMessage ?? 'Unknown error'
+                    }
+                    maw={300}
+                >
+                    {badge}
                 </Tooltip>
             );
+        case 'active':
+        case 'in_progress':
         case 'superseded':
-            return <Badge size="sm">Superseded</Badge>;
+        case 'never_built':
+            return badge;
         default:
-            return <Badge size="sm">{status}</Badge>;
+            return assertUnreachable(kind, 'Unknown pre-aggregate status');
     }
 };

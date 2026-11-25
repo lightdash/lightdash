@@ -2,8 +2,10 @@ import {
     type ModelFragmentChange,
     type ModelFragmentRefusal,
 } from '../lightdash/applyModelFragment';
+import assertUnreachable from '../utils/assertUnreachable';
 import { type ApiSuccess } from './api/success';
 import { type UUID } from './api/uuid';
+import { type CiChecks } from './ci';
 import { type Explore } from './explore';
 
 export type SemanticLayerApplyMode =
@@ -140,7 +142,7 @@ export type SemanticLayerDraftModelSave =
 export type ApiSemanticLayerDraftModelSaveResponse =
     ApiSuccess<SemanticLayerDraftModelSave>;
 
-/** How one model's part of a change fared when it was checked on top of a draft. */
+/** How one model's part of a stored change fares when it is replayed on what is live, where a part that no longer fits is refused and the rest still applies. */
 export type SemanticLayerDraftItemResult = {
     model: string;
     /** `ready` passed its checks, `unchanged` changes nothing, `failed` carries the error. */
@@ -151,6 +153,92 @@ export type SemanticLayerDraftItemResult = {
     /** What a person should confirm about a model that passed, such as a relationship measured on part of a table. */
     notes: string[];
 };
+
+/** Why a draft check left a model out; `detail` is the check's or the warehouse's own words. */
+export type SemanticStudioRejection =
+    | { kind: 'query_builder'; detail: string }
+    | { kind: 'warehouse_refused'; detail: string }
+    | { kind: 'breaks_joining_model'; models: string[]; detail: string }
+    | { kind: 'access_change'; fields: string[]; detail: null }
+    | { kind: 'already_failing'; detail: string };
+
+/** One plain sentence on why a model was left out. */
+export const summarizeSemanticStudioRejection = (
+    model: string,
+    rejection: SemanticStudioRejection,
+): string => {
+    switch (rejection.kind) {
+        case 'query_builder':
+            return `${model} can't be used in a query as written.`;
+        case 'warehouse_refused':
+            return `The warehouse refused ${model} when it was checked.`;
+        case 'breaks_joining_model':
+            return `This change would break ${rejection.models.join(', ')}, so ${model} was not added.`;
+        case 'access_change':
+            return `This would change who can see ${rejection.fields.join(', ')} in ${model}, which can't be changed here.`;
+        case 'already_failing':
+            return `${model} was already failing the warehouse check before this change, and the parts it changes fail too.`;
+        default:
+            return assertUnreachable(rejection, 'Unknown rejection kind');
+    }
+};
+
+/** The sentence and the detail behind it, as the agent and a publish failure read it. */
+export const formatSemanticStudioRejection = (
+    model: string,
+    rejection: SemanticStudioRejection,
+): string =>
+    [summarizeSemanticStudioRejection(model, rejection), rejection.detail]
+        .filter(Boolean)
+        .join(' ');
+
+/** Whether asking the agent can fix a rejection; it cannot change access rules or a model that already fails. */
+export const canAgentFixRejection = (
+    kind: SemanticStudioRejection['kind'],
+): boolean => {
+    switch (kind) {
+        case 'query_builder':
+        case 'warehouse_refused':
+        case 'breaks_joining_model':
+            return true;
+        case 'access_change':
+        case 'already_failing':
+            return false;
+        default:
+            return assertUnreachable(kind, 'Unknown rejection kind');
+    }
+};
+
+/** How one model's part of a proposal fared: it joins the draft whole or not at all, so only a failed part carries refusals. */
+export type SemanticLayerProposalItemResult =
+    | {
+          model: string;
+          status: 'ready';
+          changes: ModelFragmentChange[];
+          refusals: [];
+          error: null;
+          rejection: null;
+          notes: string[];
+      }
+    | {
+          model: string;
+          status: 'unchanged';
+          changes: [];
+          refusals: [];
+          error: null;
+          rejection: null;
+          notes: [];
+      }
+    | {
+          model: string;
+          status: 'failed';
+          changes: [];
+          refusals: ModelFragmentRefusal[];
+          error: string;
+          /** Null when the change could not be applied to the model, before any check ran. */
+          rejection: SemanticStudioRejection | null;
+          notes: [];
+      };
 
 /** What one drafted change does to one model, as the agent asked for it. */
 export type SemanticLayerDraftModelInput = {
@@ -177,6 +265,8 @@ export type SemanticLayerDraftChange = {
         /** Why this no longer applies to what is live; null when it does. */
         error: string | null;
     }[];
+    /** Ids of the project context entries this change adds or replaces. */
+    projectContextEntries: string[];
 };
 
 /** A part of a model that changed live and that the draft changes too, with each side's version of it as YAML. */
@@ -207,7 +297,29 @@ export type SemanticLayerDraftReconciliation = {
 };
 
 /** Someone else with a draft of a model, and the parts of it they are changing. */
-export type SemanticLayerDrafter = { name: string; paths: string[] };
+export type SemanticLayerDrafter = {
+    userUuid: string;
+    name: string;
+    paths: string[];
+    /** When they last added to their draft. */
+    lastActiveAt: Date;
+    /** No activity for a week or more. */
+    isStale: boolean;
+    /** Whether the viewer may discard this model's part of their draft: a project admin, once it is stale. */
+    canDiscard: boolean;
+};
+
+/** One model as someone else's draft leaves it, against what is live; read-only. */
+export type SemanticLayerOthersDraftModel = {
+    model: string;
+    /** Null when their draft creates the model. */
+    contentBefore: string | null;
+    /** Null when their draft removes the model. */
+    contentAfter: string | null;
+};
+
+export type ApiSemanticLayerOthersDraftModelResponse =
+    ApiSuccess<SemanticLayerOthersDraftModel>;
 
 /** A model as the draft leaves it, against what is live. */
 export type SemanticLayerDraftModel = {
@@ -234,6 +346,8 @@ export type SemanticLayerSettledDraftChange = {
     pullRequestUrl: string | null;
     /** The models the change touched. */
     models: string[];
+    /** A project admin who discarded it as stale; null when its owner settled it. */
+    discardedBy: { name: string; at: Date } | null;
 };
 
 /** What this person's changes waiting in an open pull request do to one model, against what is live. */
@@ -247,10 +361,22 @@ export type SemanticLayerInReviewModel = {
     contentAfter: string | null;
 };
 
+/** The project context file in a draft, under a name no model can take since model names have no dots. */
+export const SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE = 'lightdash.project_context';
+
+/** What the draft does to the project's context, as its file; publishing makes it what agents read. */
+export type SemanticLayerDraftProjectContext = {
+    /** Null when the project has no context yet. */
+    contentBefore: string | null;
+    contentAfter: string;
+};
+
 export type SemanticLayerDraft = {
     /** Oldest first: each builds on the ones before it. */
     changes: SemanticLayerDraftChange[];
     models: SemanticLayerDraftModel[];
+    /** Null when the draft leaves the project context as it is. */
+    projectContext: SemanticLayerDraftProjectContext | null;
     /** Models the draft leaves unable to compile. */
     errors: { model: string; message: string }[];
     settled: SemanticLayerSettledDraftChange[];
@@ -391,6 +517,45 @@ export type SemanticStudioWorkspace = {
     /** Whether any of its draft went live here, without a pull request. */
     publishedLive: boolean;
 };
+
+/** Sent by a client that wants a person's unpublished model changes applied to what it reads. */
+export const DEVELOPMENT_VIEW_HEADER = 'Lightdash-Development-View';
+
+/** Names the preview project to read instead, for a project whose unpublished changes live on a branch. */
+export const DEVELOPMENT_PREVIEW_HEADER = 'Lightdash-Development-Preview';
+
+export const UNTITLED_WORKSPACE_NAME = 'Untitled';
+
+/** A workspace name trimmed to `maxLength`; a blank one is untitled. */
+export const normalizeWorkspaceName = (name: string, maxLength: number) =>
+    name.trim().slice(0, maxLength) || UNTITLED_WORKSPACE_NAME;
+
+/** A pull request not yet merged or closed; one whose state is unknown counts as open. */
+export const isPullRequestOpen = (
+    pullRequest: SemanticStudioWorkspace['pullRequest'],
+): pullRequest is NonNullable<SemanticStudioWorkspace['pullRequest']> =>
+    pullRequest !== null &&
+    pullRequest.state !== 'merged' &&
+    pullRequest.state !== 'closed';
+
+/** A pull request's state as its CI checks report it. */
+export const pullRequestStateOf = ({
+    state,
+    merged,
+}: Pick<
+    CiChecks,
+    'state' | 'merged'
+>): SemanticStudioWorkspacePullRequestState => {
+    if (merged) return 'merged';
+    return state === 'open' ? 'open' : 'closed';
+};
+
+/** A workspace that has not landed or been dropped yet. */
+export const isOpenWorkspace = ({
+    finishedAt,
+    pullRequest,
+}: Pick<SemanticStudioWorkspace, 'finishedAt' | 'pullRequest'>): boolean =>
+    !finishedAt && (pullRequest === null || isPullRequestOpen(pullRequest));
 
 export type SemanticStudioWorkspaces = {
     /** Your unfinished workspaces, the active one first. */

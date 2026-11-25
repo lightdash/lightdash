@@ -5,7 +5,7 @@ type Props = {
     title: string;
     /** One line on what the subsection controls. */
     description?: ReactNode;
-    /** Rendered next to the title, e.g. a beta badge. */
+    /** Rendered next to the title, e.g. a badge or an inline action. */
     badge?: ReactNode;
     /** Rendered at the far right of the header, e.g. a secondary button. */
     action?: ReactNode;

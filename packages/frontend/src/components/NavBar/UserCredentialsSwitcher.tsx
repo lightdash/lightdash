@@ -2,7 +2,7 @@ import { allowsOptionalUserCredentials } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
@@ -75,8 +75,17 @@ const UserCredentialsSwitcher = () => {
         activeProject?.warehouseConnection,
     );
 
+    // Once dismissed, failing requests on the same page don't bring the prompt
+    // back; only the user asking for it does
+    const dismissedOnThisPage = useRef(false);
+    const savedInThisPrompt = useRef(false);
+
     const handleCredentialsError = useCallback(
-        (error: WarehouseCredentialsErrorDetail['error'] | undefined) => {
+        (
+            error: WarehouseCredentialsErrorDetail['error'] | undefined,
+            requested = false,
+        ) => {
+            if (dismissedOnThisPage.current && !requested) return;
             const warehouseType = activeProject?.warehouseConnection?.type;
             const openModal = () => {
                 setShowCreateModalOnPageLoad(true);
@@ -141,7 +150,7 @@ const UserCredentialsSwitcher = () => {
             const { detail } =
                 event as CustomEvent<WarehouseCredentialsErrorDetail>;
             if (detail.projectUuid !== activeProjectUuid) return;
-            handleCredentialsError(detail.error);
+            handleCredentialsError(detail.error, detail.requested);
         };
         window.addEventListener(WAREHOUSE_CREDENTIALS_ERROR, listener);
         const unregister = registerWarehouseCredentialsPrompt();
@@ -171,6 +180,7 @@ const UserCredentialsSwitcher = () => {
     useEffect(() => {
         // reset state when page changes
         setShowCreateModalOnPageLoad(false);
+        dismissedOnThisPage.current = false;
     }, [location.pathname]);
 
     useEffect(() => {
@@ -324,6 +334,7 @@ const UserCredentialsSwitcher = () => {
                         projectUuid={activeProjectUuid}
                         projectName={activeProject.name}
                         onSuccess={(data) => {
+                            savedInThisPrompt.current = true;
                             mutate({
                                 projectUuid: activeProjectUuid,
                                 userWarehouseCredentialsUuid: data.uuid,
@@ -331,6 +342,9 @@ const UserCredentialsSwitcher = () => {
                         }}
                         onClose={() => {
                             setIsCreatingCredentials(false);
+                            dismissedOnThisPage.current =
+                                !savedInThisPrompt.current;
+                            savedInThisPrompt.current = false;
                             // "Create new" must not reopen as the expired sign-in prompt
                             if (!requiresUserCredentials) {
                                 setShowCreateModalOnPageLoad(false);

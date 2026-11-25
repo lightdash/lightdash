@@ -1,5 +1,8 @@
 import {
     NotFoundError,
+    STUDIO_EDITED_IN,
+    UNTITLED_WORKSPACE_NAME,
+    type SemanticStudioBranchCompile,
     type SemanticStudioWorkspace,
     type SemanticStudioWorkspacePullRequestState,
     type StudioChangeSummary,
@@ -32,13 +35,24 @@ type WorkspaceRow = DbSemanticStudioWorkspace & {
     published_live: boolean;
 };
 
-export type StudioThread = {
+type StudioThread = {
     organizationUuid: string;
     agentUuid: string | null;
     title: string | null;
 };
 
 type Owner = { projectUuid: string; userUuid: string };
+
+/** A branch compile as Studio reads it, with the explores of its last success. */
+export type BranchCompile = Omit<SemanticStudioBranchCompile, 'hasExplores'> & {
+    explores: DbSemanticStudioBranchCompile['explores'];
+};
+
+const activeOf = ({ projectUuid, userUuid }: Owner) => ({
+    project_uuid: projectUuid,
+    created_by_user_uuid: userUuid,
+    is_active: true,
+});
 
 const latestPullRequestUrl = (workspaceAlias: string) =>
     `(SELECT r.pr_url FROM ${AiWritebackRunTableName} r WHERE r.ai_thread_uuid = ${workspaceAlias}.ai_thread_uuid AND r.pr_url IS NOT NULL ORDER BY r.created_at DESC LIMIT 1)`;
@@ -47,7 +61,7 @@ const publishedLive = (workspaceAlias: string) =>
     `EXISTS (SELECT 1 FROM ${ProjectModelDraftChangesTableName} d WHERE d.workspace_uuid = ${workspaceAlias}.semantic_studio_workspace_uuid AND d.status = 'applied' AND d.applied_change_set_uuid IS NOT NULL)`;
 
 // Two switches at once would otherwise both pass the deactivate step and trip the one-active index.
-export const lockStudioWorkspaceOwner = (
+const lockStudioWorkspaceOwner = (
     trx: Knex.Transaction,
     { projectUuid, userUuid }: Owner,
 ) =>
@@ -150,6 +164,7 @@ export class SemanticStudioWorkspaceModel {
         { projectUuid, userUuid }: Owner,
         threadUuid: string | null,
     ) {
+        const [byHand, thisChat, anotherChat] = STUDIO_EDITED_IN;
         return this.database(`${SemanticStudioWorkspacesTableName} as w`)
             .where({
                 'w.project_uuid': projectUuid,
@@ -163,16 +178,23 @@ export class SemanticStudioWorkspaceModel {
                 this.database.raw(
                     `COALESCE((SELECT jsonb_agg(jsonb_build_object('name', name, 'editedIn', edited_in) ORDER BY name) FROM (
                     SELECT m->>'name' AS name, array_agg(DISTINCT CASE
-                        WHEN d.prompt_uuid IS NULL THEN 'by_hand'
-                        WHEN p.ai_thread_uuid = ? THEN 'this_chat'
-                        ELSE 'another_chat' END) AS edited_in
-                    FROM project_model_draft_changes d
+                        WHEN d.prompt_uuid IS NULL THEN ?::text
+                        WHEN p.ai_thread_uuid = ? THEN ?::text
+                        ELSE ?::text END) AS edited_in
+                    FROM ?? d
                     CROSS JOIN LATERAL jsonb_array_elements(d.models::jsonb) m
-                    LEFT JOIN ai_prompt p ON p.ai_prompt_uuid = d.prompt_uuid
+                    LEFT JOIN ?? p ON p.ai_prompt_uuid = d.prompt_uuid
                     WHERE d.workspace_uuid = w.semantic_studio_workspace_uuid AND d.status <> 'discarded'
                     AND d.created_by_user_uuid = w.created_by_user_uuid AND d.project_uuid = w.project_uuid
                     GROUP BY 1) per_model), '[]'::jsonb) AS models`,
-                    [threadUuid],
+                    [
+                        byHand,
+                        threadUuid,
+                        thisChat,
+                        anotherChat,
+                        ProjectModelDraftChangesTableName,
+                        AiPromptTableName,
+                    ],
                 ),
             );
     }
@@ -209,6 +231,157 @@ export class SemanticStudioWorkspaceModel {
         return row ? toWorkspace(row, userUuid) : null;
     }
 
+    /** The owners of the unfinished workspaces whose current pull request is this one, whoever is asking. */
+    async findUnfinishedWithPullRequest(
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<{ workspaceUuid: string; userUuid: string }[]> {
+        const rows = await this.select()
+            .where('w.project_uuid', projectUuid)
+            .whereNull('w.finished_at');
+        return rows.flatMap((row) =>
+            (row.latest_pr_url ?? row.pull_request_url) === prUrl &&
+            row.created_by_user_uuid !== null
+                ? [
+                      {
+                          workspaceUuid: row.semantic_studio_workspace_uuid,
+                          userUuid: row.created_by_user_uuid,
+                      },
+                  ]
+                : [],
+        );
+    }
+
+    /**
+     * Inside a draft write: locks the person's workspaces and returns the active one, starting one named
+     * `name` when none is or naming an untitled one; null when the active one is no longer `expectedWorkspaceUuid`.
+     */
+    static async checkOutForDraft(
+        trx: Knex.Transaction,
+        owner: Owner,
+        {
+            expectedWorkspaceUuid,
+            organizationUuid,
+            name,
+            promptUuid,
+        }: {
+            expectedWorkspaceUuid: string | null;
+            organizationUuid: string;
+            name: string;
+            promptUuid: string | null;
+        },
+    ): Promise<{
+        workspaceUuid: string;
+        startedChange: { workspaceUuid: string; name: string } | null;
+    } | null> {
+        await lockStudioWorkspaceOwner(trx, owner);
+        const active = await trx(SemanticStudioWorkspacesTableName)
+            .where(activeOf(owner))
+            .forUpdate()
+            .first();
+        if (
+            (active?.semantic_studio_workspace_uuid ?? null) !==
+            expectedWorkspaceUuid
+        ) {
+            return null;
+        }
+        const resumed =
+            !active && promptUuid
+                ? await SemanticStudioWorkspaceModel.reopenPromptThread(
+                      trx,
+                      owner,
+                      promptUuid,
+                  )
+                : undefined;
+        const workspace =
+            active ??
+            resumed ??
+            (
+                await trx(SemanticStudioWorkspacesTableName)
+                    .insert({
+                        organization_uuid: organizationUuid,
+                        project_uuid: owner.projectUuid,
+                        created_by_user_uuid: owner.userUuid,
+                        ai_thread_uuid: null,
+                        name,
+                        is_active: true,
+                    })
+                    .returning(['semantic_studio_workspace_uuid', 'name'])
+            )[0];
+        const workspaceUuid = workspace.semantic_studio_workspace_uuid;
+        // A draft still untitled takes the name of its first change; a name someone gave it stays.
+        if (
+            workspace.name === UNTITLED_WORKSPACE_NAME &&
+            name !== UNTITLED_WORKSPACE_NAME
+        ) {
+            await trx(SemanticStudioWorkspacesTableName)
+                .where('semantic_studio_workspace_uuid', workspaceUuid)
+                .update({ name });
+        }
+        if (promptUuid && !active?.ai_thread_uuid) {
+            await SemanticStudioWorkspaceModel.attachPromptThread(
+                trx,
+                workspaceUuid,
+                promptUuid,
+            );
+        }
+        return {
+            workspaceUuid,
+            startedChange: active
+                ? null
+                : { workspaceUuid, name: workspace.name },
+        };
+    }
+
+    /** A chat that keeps writing after its draft was published picks that draft back up, so its edits stay in the chat. */
+    private static async reopenPromptThread(
+        trx: Knex.Transaction,
+        owner: Owner,
+        promptUuid: string,
+    ): Promise<
+        { semantic_studio_workspace_uuid: string; name: string } | undefined
+    > {
+        const prompt = await trx(AiPromptTableName)
+            .select('ai_thread_uuid')
+            .where('ai_prompt_uuid', promptUuid)
+            .first();
+        if (!prompt) return undefined;
+        const [row] = await trx(SemanticStudioWorkspacesTableName)
+            .where({
+                project_uuid: owner.projectUuid,
+                created_by_user_uuid: owner.userUuid,
+                ai_thread_uuid: prompt.ai_thread_uuid,
+            })
+            .update({
+                is_active: true,
+                finished_at: null,
+                updated_at: trx.fn.now(),
+            })
+            .returning(['semantic_studio_workspace_uuid', 'name']);
+        return row;
+    }
+
+    /** A draft keeps the chat that first changed it, so opening the draft opens that chat; a chat already kept by another draft stays there. */
+    private static async attachPromptThread(
+        trx: Knex.Transaction,
+        workspaceUuid: string,
+        promptUuid: string,
+    ) {
+        const prompt = await trx(AiPromptTableName)
+            .select('ai_thread_uuid')
+            .where('ai_prompt_uuid', promptUuid)
+            .first();
+        if (!prompt) return;
+        const taken = await trx(SemanticStudioWorkspacesTableName)
+            .where('ai_thread_uuid', prompt.ai_thread_uuid)
+            .first();
+        if (taken) return;
+        await trx(SemanticStudioWorkspacesTableName)
+            .where('semantic_studio_workspace_uuid', workspaceUuid)
+            .whereNull('ai_thread_uuid')
+            .update({ ai_thread_uuid: prompt.ai_thread_uuid });
+    }
+
     async create(
         owner: Owner,
         organizationUuid: string,
@@ -217,11 +390,7 @@ export class SemanticStudioWorkspaceModel {
         return this.database.transaction(async (trx) => {
             await lockStudioWorkspaceOwner(trx, owner);
             await trx(SemanticStudioWorkspacesTableName)
-                .where({
-                    project_uuid: owner.projectUuid,
-                    created_by_user_uuid: owner.userUuid,
-                    is_active: true,
-                })
+                .where(activeOf(owner))
                 .update({ is_active: false });
             const [row] = await trx(SemanticStudioWorkspacesTableName)
                 .insert({
@@ -244,20 +413,12 @@ export class SemanticStudioWorkspaceModel {
         return this.database.transaction(async (trx) => {
             await lockStudioWorkspaceOwner(trx, owner);
             const independent = await trx(SemanticStudioWorkspacesTableName)
-                .where({
-                    project_uuid: owner.projectUuid,
-                    created_by_user_uuid: owner.userUuid,
-                    is_active: true,
-                })
+                .where(activeOf(owner))
                 .whereNull('ai_thread_uuid')
                 .first();
             if (independent) return independent.semantic_studio_workspace_uuid;
             await trx(SemanticStudioWorkspacesTableName)
-                .where({
-                    project_uuid: owner.projectUuid,
-                    created_by_user_uuid: owner.userUuid,
-                    is_active: true,
-                })
+                .where(activeOf(owner))
                 .whereRaw('ai_thread_uuid IS DISTINCT FROM ?', [
                     thread.threadUuid,
                 ])
@@ -298,11 +459,7 @@ export class SemanticStudioWorkspaceModel {
                 .first();
             if (!target) throw new NotFoundError('No open change matches');
             await trx(SemanticStudioWorkspacesTableName)
-                .where({
-                    project_uuid: owner.projectUuid,
-                    created_by_user_uuid: owner.userUuid,
-                    is_active: true,
-                })
+                .where(activeOf(owner))
                 .update({ is_active: false });
             await trx(SemanticStudioWorkspacesTableName)
                 .where({
@@ -314,15 +471,11 @@ export class SemanticStudioWorkspaceModel {
         });
     }
 
-    async leave({ projectUuid, userUuid }: Owner): Promise<void> {
+    async leave(owner: Owner): Promise<void> {
         await this.database.transaction(async (trx) => {
-            await lockStudioWorkspaceOwner(trx, { projectUuid, userUuid });
+            await lockStudioWorkspaceOwner(trx, owner);
             await trx(SemanticStudioWorkspacesTableName)
-                .where({
-                    project_uuid: projectUuid,
-                    created_by_user_uuid: userUuid,
-                    is_active: true,
-                })
+                .where(activeOf(owner))
                 .update({ is_active: false });
         });
     }
@@ -342,17 +495,13 @@ export class SemanticStudioWorkspaceModel {
     }
 
     /** Ends a workspace: it leaves the person's list and stays as history. */
-    async finish(owner: Owner, workspaceUuid: string | null): Promise<number> {
+    async finish(owner: Owner, workspaceUuid: string): Promise<number> {
         return this.database(SemanticStudioWorkspacesTableName)
             .where({
                 project_uuid: owner.projectUuid,
                 created_by_user_uuid: owner.userUuid,
+                semantic_studio_workspace_uuid: workspaceUuid,
             })
-            .andWhere(
-                workspaceUuid
-                    ? { semantic_studio_workspace_uuid: workspaceUuid }
-                    : { is_active: true },
-            )
             .update({
                 is_active: false,
                 finished_at: this.database.fn.now(),
@@ -399,16 +548,16 @@ export class SemanticStudioWorkspaceModel {
             });
     }
 
-    /** Records what a workspace's current pull request's provider said about it; a merge finishes the workspace. */
+    /** Records what a workspace's current pull request's provider said about it; a merge finishes the workspace. Returns whether a workspace changed. */
     async recordPullRequestState(
         projectUuid: string,
         url: string,
         state: SemanticStudioWorkspacePullRequestState,
         /** Whether a state other than open ends the workspace; false keeps one whose draft is still there. */
         finishes: boolean,
-    ): Promise<void> {
+    ): Promise<boolean> {
         const now = this.database.fn.now();
-        await this.database(SemanticStudioWorkspacesTableName)
+        const updated = await this.database(SemanticStudioWorkspacesTableName)
             .where('project_uuid', projectUuid)
             // An older pull request of the same conversation must not finish the one in review now.
             .andWhereRaw(
@@ -429,6 +578,7 @@ export class SemanticStudioWorkspaceModel {
                     ? { is_active: false, finished_at: now }
                     : {}),
             });
+        return updated > 0;
     }
 
     /** Asks for a new compile of a change's branch; returns the request a compile must still match to be kept. */
@@ -541,10 +691,21 @@ export class SemanticStudioWorkspaceModel {
 
     async findBranchCompile(
         workspaceUuid: string,
-    ): Promise<DbSemanticStudioBranchCompile | null> {
+    ): Promise<BranchCompile | null> {
         const row = await this.database(SemanticStudioBranchCompilesTableName)
             .where('semantic_studio_workspace_uuid', workspaceUuid)
             .first();
-        return row ?? null;
+        return row
+            ? {
+                  status: row.status,
+                  branch: row.branch,
+                  error: row.error,
+                  explores: row.explores,
+                  requestedAt: row.requested_at,
+                  compiledAt: row.compiled_at,
+                  compileRequestUuid: row.compile_request_uuid,
+                  requestedByAgent: row.requested_by_agent,
+              }
+            : null;
     }
 }

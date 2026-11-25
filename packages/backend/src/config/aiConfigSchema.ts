@@ -12,10 +12,6 @@ export const DEFAULT_DEFAULT_AI_PROVIDER = 'openai';
 export const DEFAULT_OPENROUTER_MODEL_NAME = 'openai/gpt-5.2-2025-12-11';
 export const DEFAULT_BEDROCK_MODEL_NAME = 'claude-sonnet-4-5';
 
-export const DEFAULT_OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
-export const DEFAULT_AZURE_EMBEDDING_MODEL = 'text-embedding-3-small';
-export const DEFAULT_BEDROCK_EMBEDDING_MODEL = 'cohere.embed-english-v3';
-
 /**
  * Caps tool-result descriptions to keep AI agent context windows under control.
  * Oversized tool outputs accumulate across the agent loop and can exceed the
@@ -53,17 +49,11 @@ export const aiCopilotConfigSchema = z
         lightdashManagedProviders: z
             .array(z.enum(AI_PROVIDER_KEYS))
             .default([]),
-        defaultEmbeddingModelProvider: z
-            .enum(['openai', 'bedrock', 'azure'])
-            .default(DEFAULT_DEFAULT_AI_PROVIDER),
         providers: z.object({
             openai: z
                 .object({
                     apiKey: z.string(),
                     modelName: z.string().default(DEFAULT_OPENAI_MODEL_NAME),
-                    embeddingModelName: z
-                        .string()
-                        .default(DEFAULT_OPENAI_EMBEDDING_MODEL),
                     baseUrl: z.string().optional(),
                     availableModels: z.array(z.string()).optional(),
                     useChatCompletions: z.boolean().default(false),
@@ -82,9 +72,6 @@ export const aiCopilotConfigSchema = z
                         .enum(['none', 'minimal', 'low', 'medium', 'high'])
                         .nullable()
                         .default(null),
-                    embeddingDeploymentName: z
-                        .string()
-                        .default(DEFAULT_AZURE_EMBEDDING_MODEL),
                     useDeploymentBasedUrls: z.boolean().default(true),
                     useChatCompletions: z.boolean().default(false),
                     customHeaders: customHeadersSchema,
@@ -164,9 +151,6 @@ export const aiCopilotConfigSchema = z
                         modelName: z
                             .string()
                             .default(DEFAULT_BEDROCK_MODEL_NAME),
-                        embeddingModelName: z
-                            .string()
-                            .default(DEFAULT_BEDROCK_EMBEDDING_MODEL),
                         availableModels: z.array(z.string()).optional(),
                         customHeaders: customHeadersSchema,
                         supportsStreaming: supportsStreamingSchema,
@@ -183,9 +167,6 @@ export const aiCopilotConfigSchema = z
                         modelName: z
                             .string()
                             .default(DEFAULT_BEDROCK_MODEL_NAME),
-                        embeddingModelName: z
-                            .string()
-                            .default(DEFAULT_BEDROCK_EMBEDDING_MODEL),
                         availableModels: z.array(z.string()).optional(),
                         customHeaders: customHeadersSchema,
                         supportsStreaming: supportsStreamingSchema,
@@ -200,9 +181,6 @@ export const aiCopilotConfigSchema = z
                         modelName: z
                             .string()
                             .default(DEFAULT_BEDROCK_MODEL_NAME),
-                        embeddingModelName: z
-                            .string()
-                            .default(DEFAULT_BEDROCK_EMBEDDING_MODEL),
                         availableModels: z.array(z.string()).optional(),
                         customHeaders: customHeadersSchema,
                         supportsStreaming: supportsStreamingSchema,
@@ -216,14 +194,8 @@ export const aiCopilotConfigSchema = z
         threadDumpEnabled: z.boolean(),
         debugLoggingEnabled: z.boolean(),
         askAiButtonEnabled: z.boolean(),
-        embeddingEnabled: z.boolean(),
         maxQueryLimit: z.number().positive(),
         runSqlMaxLimit: z.number().positive(),
-        verifiedAnswerSimilarityThreshold: z
-            .number()
-            .min(0)
-            .max(1)
-            .default(0.6),
         mcpConnectionTimeoutMs: z.number().positive().default(20_000),
         mcpAllowPrivateAddresses: z.boolean().default(false),
         toolDescriptionMaxChars: z
@@ -232,38 +204,15 @@ export const aiCopilotConfigSchema = z
             .positive()
             .default(DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS),
     })
-    .superRefine(
-        (
-            {
-                providers,
-                defaultProvider,
-                enabled,
-                defaultEmbeddingModelProvider,
-                embeddingEnabled,
-            },
-            ctx,
-        ) => {
-            if (enabled && providers[defaultProvider] === undefined) {
-                ctx.addIssue({
-                    code: 'custom',
-                    message: `Configuration for the default provider "${defaultProvider}" must be present`,
-                    params: { defaultProvider },
-                    path: ['providers'],
-                });
-            }
-            if (
-                enabled &&
-                embeddingEnabled &&
-                providers[defaultEmbeddingModelProvider] === undefined
-            ) {
-                ctx.addIssue({
-                    code: 'custom',
-                    message: `Configuration for the default embedding provider "${defaultEmbeddingModelProvider}" must be present`,
-                    params: { defaultEmbeddingModelProvider },
-                    path: ['providers'],
-                });
-            }
-        },
-    );
+    .superRefine(({ providers, defaultProvider, enabled }, ctx) => {
+        if (enabled && providers[defaultProvider] === undefined) {
+            ctx.addIssue({
+                code: 'custom',
+                message: `Configuration for the default provider "${defaultProvider}" must be present`,
+                params: { defaultProvider },
+                path: ['providers'],
+            });
+        }
+    });
 
 export type AiCopilotConfigSchemaType = z.infer<typeof aiCopilotConfigSchema>;

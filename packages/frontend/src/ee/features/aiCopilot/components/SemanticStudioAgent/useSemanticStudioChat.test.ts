@@ -1,9 +1,13 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+    useChatOpen,
+    useStoredStudioThread,
+    type StoredThread,
+} from '../../../../../features/semanticStudio/studioChange';
+import {
     useCompileFollowUp,
     useFinishDiscardedWork,
-    useChatOpen,
     useStudioAgent,
     useStudioThread,
 } from './useSemanticStudioChat';
@@ -47,7 +51,6 @@ vi.mock('../../../../../features/semanticStudio/useStudioWorkspaces', () => ({
 }));
 
 vi.mock('../../../../../features/semanticStudio/useSemanticLayerModel', () => ({
-    useKeepsSemanticLayerDraft: () => true,
     useCanEditSemanticLayer: () => true,
     useDraftCheckout: () => ({ data: { branchCompile: held.compile } }),
     useClaimCompileFollowUp: () => ({ mutateAsync: held.claim }),
@@ -59,15 +62,18 @@ vi.mock('../Launcher/useDefaultAiAgent', () => ({
     useDefaultAiAgent: () => ({ agent: null, agents: [{ uuid: 'agent' }] }),
 }));
 
-const THREAD_KEY = 'semantic-studio-agent-thread-project';
+// Each read mounts a fresh hook, so a value has to survive a remount to be seen.
+const storedThread = () =>
+    renderHook(() => useStoredStudioThread('project')).result.current[0];
+const storeThread = (thread: StoredThread | null) => {
+    const { result } = renderHook(() => useStoredStudioThread('project'));
+    act(() => result.current[1](thread));
+};
 
 describe('useFinishDiscardedWork', () => {
     beforeEach(() => {
         held.mutate.mockReset();
-        localStorage.setItem(
-            THREAD_KEY,
-            JSON.stringify({ threadUuid: 'thread', agentUuid: 'agent' }),
-        );
+        storeThread({ threadUuid: 'thread', agentUuid: 'agent' });
     });
 
     it('finishes the active workspace and closes its chat', () => {
@@ -78,9 +84,7 @@ describe('useFinishDiscardedWork', () => {
             kind: 'finish',
             workspaceUuid: 'workspace',
         });
-        expect(JSON.parse(localStorage.getItem(THREAD_KEY) ?? 'null')).toBe(
-            null,
-        );
+        expect(storedThread()).toBe(null);
     });
 
     it('still closes the chat when no workspace is active', () => {
@@ -88,9 +92,7 @@ describe('useFinishDiscardedWork', () => {
         const { result } = renderHook(() => useFinishDiscardedWork('project'));
         act(() => result.current());
         expect(held.mutate).not.toHaveBeenCalled();
-        expect(JSON.parse(localStorage.getItem(THREAD_KEY) ?? 'null')).toBe(
-            null,
-        );
+        expect(storedThread()).toBe(null);
     });
 });
 
@@ -105,25 +107,20 @@ describe('useStudioThread', () => {
 
     beforeEach(() => {
         held.toast.mockReset();
-        localStorage.setItem(
-            THREAD_KEY,
-            JSON.stringify({ threadUuid: 'thread', agentUuid: 'agent' }),
-        );
+        storeThread({ threadUuid: 'thread', agentUuid: 'agent' });
     });
 
     it('forgets a stored thread that no longer exists, without a toast', () => {
         renderHook(() => useStudioThread('project', 'agent', 'thread'));
         fail('AiAgentNotFoundError');
-        expect(JSON.parse(localStorage.getItem(THREAD_KEY) ?? 'null')).toBe(
-            null,
-        );
+        expect(storedThread()).toBe(null);
         expect(held.toast).not.toHaveBeenCalled();
     });
 
     it('keeps the thread and says so on any other failure', () => {
         renderHook(() => useStudioThread('project', 'agent', 'thread'));
         fail('UnexpectedServerError');
-        expect(JSON.parse(localStorage.getItem(THREAD_KEY) ?? 'null')).toEqual({
+        expect(storedThread()).toEqual({
             threadUuid: 'thread',
             agentUuid: 'agent',
         });

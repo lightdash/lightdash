@@ -127,6 +127,7 @@ import {
     TOOL_WRITE_DESCRIPTION,
     toolEditDbtProjectArgsSchema,
     toolEditDbtProjectOutputSchema,
+    toolWriteArgsSchema,
 } from './toolEditDbtProjectArgs';
 import {
     TOOL_EDIT_PROJECT_CONTEXT_DESCRIPTION,
@@ -386,8 +387,11 @@ import {
     toolSearchSemanticLayerOutputSchema,
 } from './toolSearchSemanticLayerArgs';
 import {
+    TOOL_DRAFT_PROJECT_CONTEXT_DESCRIPTION,
     TOOL_PROPOSE_SEMANTIC_LAYER_CHANGE_DESCRIPTION,
     TOOL_READ_SEMANTIC_MODEL_DESCRIPTION,
+    toolDraftProjectContextArgsSchema,
+    toolDraftProjectContextOutputSchema,
     toolListChangesArgsSchema,
     toolListChangesOutputSchema,
     toolProposeSemanticLayerChangeArgsSchema,
@@ -497,7 +501,6 @@ const routeAgentStructuredOutputSchema = z.object({
     agentSpaceAccess: z.array(z.string()),
     agentProjectUuid: z.string(),
     explores: z.array(z.string()),
-    verifiedQuestions: z.array(z.string()),
     instruction: z.string().nullable(),
     confidence: z.enum(['high', 'medium', 'low']),
     reasoning: z.string(),
@@ -1320,15 +1323,15 @@ export const editDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
 
 export const writeToolDefinition: ToolDefinitionWithoutMcpOutput<
     'write',
-    typeof toolEditDbtProjectArgsSchema,
-    typeof toolEditDbtProjectArgsSchema,
+    typeof toolWriteArgsSchema,
+    typeof toolWriteArgsSchema,
     typeof toolEditDbtProjectOutputSchema
 > = defineTool({
     name: 'write',
     title: 'Save dbt change',
     description: TOOL_WRITE_DESCRIPTION,
     availability: ['agent'],
-    inputSchema: toolEditDbtProjectArgsSchema,
+    inputSchema: toolWriteArgsSchema,
     agent: { outputSchema: toolEditDbtProjectOutputSchema },
 });
 
@@ -1387,6 +1390,20 @@ export const readSemanticModelToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolReadSemanticModelArgsSchema,
     agent: { outputSchema: toolReadSemanticModelOutputSchema },
+});
+
+export const draftProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'draftProjectContext',
+    typeof toolDraftProjectContextArgsSchema,
+    typeof toolDraftProjectContextArgsSchema,
+    typeof toolDraftProjectContextOutputSchema
+> = defineTool({
+    name: 'draftProjectContext',
+    title: 'Draft project context',
+    description: TOOL_DRAFT_PROJECT_CONTEXT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolDraftProjectContextArgsSchema,
+    agent: { outputSchema: toolDraftProjectContextOutputSchema },
 });
 
 export const syncDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1908,7 +1925,7 @@ export const listAgentsToolDefinition = defineTool({
     name: 'listAgents',
     title: 'List agents',
     description:
-        'List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection.',
+        'List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, and instructions that define its domain expertise. Prefer route_agent for automatic selection.',
     availability: ['mcp'],
     inputSchema: z.object({
         projectUuid: z.string().optional(),
@@ -2120,6 +2137,7 @@ type AgentToolDefinitionsByName = {
     proposeSemanticLayerChange: typeof proposeSemanticLayerChangeToolDefinition;
     listChanges: typeof listChangesToolDefinition;
     readSemanticModel: typeof readSemanticModelToolDefinition;
+    draftProjectContext: typeof draftProjectContextToolDefinition;
     syncDbtProject: typeof syncDbtProjectToolDefinition;
     exploreRepo: typeof exploreRepoToolDefinition;
     discoverRepos: typeof discoverReposToolDefinition;
@@ -2189,6 +2207,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     proposeSemanticLayerChange: proposeSemanticLayerChangeToolDefinition,
     listChanges: listChangesToolDefinition,
     readSemanticModel: readSemanticModelToolDefinition,
+    draftProjectContext: draftProjectContextToolDefinition,
     syncDbtProject: syncDbtProjectToolDefinition,
     exploreRepo: exploreRepoToolDefinition,
     discoverRepos: discoverReposToolDefinition,
@@ -2265,6 +2284,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     proposeSemanticLayerChangeToolDefinition,
     listChangesToolDefinition,
     readSemanticModelToolDefinition,
+    draftProjectContextToolDefinition,
     syncDbtProjectToolDefinition,
     exploreRepoToolDefinition,
     discoverReposToolDefinition,

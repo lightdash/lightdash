@@ -5,7 +5,10 @@ import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { reportWarehouseCredentialsError } from '../../hooks/userWarehouseCredentials/warehouseCredentialsError';
+import {
+    reportWarehouseCredentialsError,
+    requestWarehouseCredentialsPrompt,
+} from '../../hooks/userWarehouseCredentials/warehouseCredentialsError';
 import { renderWithProviders } from '../../testing/testUtils';
 import UserCredentialsSwitcher from './UserCredentialsSwitcher';
 
@@ -327,6 +330,42 @@ describe('UserCredentialsSwitcher required credentials prompt', () => {
         await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
 
         expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('stays closed after dismissal when a request then fails, until the user asks', async () => {
+        const user = userEvent.setup();
+        let failQuery: (reason: unknown) => void = () => {};
+        const SlowFailingQuery = () => {
+            useQuery({
+                queryKey: ['slow-tile'],
+                queryFn: () =>
+                    new Promise((_resolve, reject) => {
+                        failQuery = reject;
+                    }),
+                retry: false,
+            });
+            return null;
+        };
+        renderWithProviders(
+            <MemoryRouter initialEntries={['/projects/project/home']}>
+                <UserCredentialsSwitcher />
+                <SlowFailingQuery />
+            </MemoryRouter>,
+        );
+        // Dismiss the page-load prompt before the query has failed
+        await user.click(await screen.findByRole('button', { name: 'Close' }));
+
+        failQuery({ error: { name: 'MissingWarehouseCredentialsError' } });
+        reportWarehouseCredentialsError('project', {
+            name: 'MissingWarehouseCredentialsError',
+        });
+        await new Promise((resolve) => {
+            setTimeout(resolve, 50);
+        });
+        expect(screen.queryByRole('dialog')).toBeNull();
+
+        requestWarehouseCredentialsPrompt('project');
+        expect(await screen.findByRole('dialog')).toBeInTheDocument();
     });
 
     it('opens when a request outside the query cache reports missing credentials', async () => {

@@ -1,14 +1,18 @@
 import { FeatureFlags } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
+import {
+    useStoredStudioThread,
+    type StoredThread,
+} from '../../../../../features/semanticStudio/studioChange';
 import {
     useCanEditSemanticLayer,
     useClaimCompileFollowUp,
     useDraftCheckout,
-    useKeepsSemanticLayerDraft,
 } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import {
+    findThreadWorkspace,
     useActiveStudioWorkspace,
     useStudioWorkspaceAction,
     useStudioWorkspaces,
@@ -19,40 +23,13 @@ import {
     useAiAgentThread,
     useCreateAgentThreadMessageMutation,
 } from '../../hooks/useProjectAiAgents';
+import { isAiAgentThreadStreamActive } from '../../store/aiAgentThreadStreamSlice';
+import { useAiAgentStoreSelector } from '../../store/hooks';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
-export type StoredThread = { threadUuid: string; agentUuid: string };
-
-/** The chat this browser has open; it follows the active workspace, see useSyncStudioWorkspace. */
-export const useStoredStudioThread = (projectUuid: string) =>
-    useLocalStorage<StoredThread | null>({
-        key: `semantic-studio-agent-thread-${projectUuid}`,
-        defaultValue: null,
-        getInitialValueInEffect: false,
-    });
-
-/** Whether the chat is open on the change you are on; closing it is remembered per change. */
-export const useChatOpen = (projectUuid: string) => {
-    const [stored] = useStoredStudioThread(projectUuid);
-    const [closed, setClosed] = useLocalStorage<string[]>({
-        key: 'semantic-studio-chat-closed',
-        defaultValue: [],
-        getInitialValueInEffect: false,
-    });
-    const newChat = `new-${projectUuid}`;
-    const change = stored?.threadUuid ?? newChat;
-    const setIsOpen = useCallback(
-        (isOpen: boolean) =>
-            setClosed((current) => {
-                // Opening also reopens a blank new change, which starting one asks for before it has a thread.
-                const others = current.filter(
-                    (key) => key !== change && !(isOpen && key === newChat),
-                );
-                return isOpen ? others : [...others, change].slice(-50);
-            }),
-        [change, newChat, setClosed],
-    );
-    return [!closed.includes(change), setIsOpen] as const;
+/** Asks for the project's agents with the page, so the chat loads alongside the explores and not after them. */
+export const usePrefetchStudioAgent = (projectUuid: string | undefined) => {
+    useDefaultAiAgent(projectUuid);
 };
 
 /** A Studio chat's thread; one that no longer exists is forgotten instead of failing on every load. */
@@ -95,9 +72,9 @@ export const useFinishDiscardedWork = (projectUuid: string) => {
     };
 };
 
+/** The agent and thread of the chat this browser has open. */
 export const useStudioAgent = (projectUuid: string) => {
     const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
-    const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     const canEdit = useCanEditSemanticLayer(projectUuid);
     const isEnabled = flag.data?.enabled === true && canEdit;
     const {
@@ -105,6 +82,47 @@ export const useStudioAgent = (projectUuid: string) => {
         agents,
         isLoadingAgents,
     } = useDefaultAiAgent(projectUuid);
+    const [stored, setStored] = useStoredStudioThread(projectUuid);
+    const storedAgent = agents.find(({ uuid }) => uuid === stored?.agentUuid);
+    return {
+        isLoadingAgents,
+        isEnabled,
+        hasAgents: agents.length > 0,
+        agent: storedAgent ?? defaultAgent ?? agents.at(0),
+        thread:
+            storedAgent && stored
+                ? { agent: storedAgent, threadUuid: stored.threadUuid }
+                : null,
+        setStored,
+    };
+};
+
+export const AGENT_WORKING_HINT = 'The agent is still working on this change.';
+
+/** Whether the agent of this browser's open Studio chat is still mid-turn, so its change is not ready to publish. */
+export const useStudioAgentWorking = (projectUuid: string): boolean => {
+    const [stored] = useStoredStudioThread(projectUuid);
+    const threadUuid = stored?.threadUuid ?? null;
+    return useAiAgentStoreSelector((state) => {
+        const stream =
+            threadUuid === null
+                ? undefined
+                : state.aiAgentThreadStream[threadUuid];
+        // A finished turn is ready even if its connection has not closed yet.
+        return (
+            stream !== undefined &&
+            isAiAgentThreadStreamActive(stream.connection) &&
+            stream.timing.finishedAt === null
+        );
+    });
+};
+
+/** Starts a new chat or goes back to the previous one; with `chatFollowsWorkspace`, the active workspace moves with it. */
+export const useStudioThreadSwitch = (
+    projectUuid: string,
+    { chatFollowsWorkspace }: { chatFollowsWorkspace: boolean },
+) => {
+    const { agents } = useDefaultAiAgent(projectUuid);
     const [stored, setStored] = useStoredStudioThread(projectUuid);
     // One chat back, not a history; the workspaces list holds the rest.
     const [previous, setPrevious] = useLocalStorage<StoredThread | null>({
@@ -116,28 +134,18 @@ export const useStudioAgent = (projectUuid: string) => {
     const workspaceAction = useStudioWorkspaceAction(projectUuid);
     // Switching chats switches workspaces: the one you talk in is the one your changes go to.
     const follow = (next: StoredThread | null) => {
-        if (keepsDraft) return;
-        const workspace = next
-            ? workspaces?.mine.find(
-                  ({ threadUuid }) => threadUuid === next.threadUuid,
-              )
-            : undefined;
+        if (!chatFollowsWorkspace) return;
+        const workspace = findThreadWorkspace(
+            workspaces?.mine ?? [],
+            next?.threadUuid ?? null,
+        );
         workspaceAction.mutate(
             workspace
                 ? { kind: 'activate', workspaceUuid: workspace.workspaceUuid }
                 : { kind: 'leave' },
         );
     };
-    const storedAgent = agents.find(({ uuid }) => uuid === stored?.agentUuid);
     return {
-        isLoadingAgents,
-        isEnabled,
-        agent: storedAgent ?? defaultAgent ?? agents.at(0),
-        thread:
-            storedAgent && stored
-                ? { agent: storedAgent, threadUuid: stored.threadUuid }
-                : null,
-        setStored,
         startNewThread: () => {
             if (stored) setPrevious(stored);
             setStored(null);

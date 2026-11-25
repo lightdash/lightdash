@@ -241,10 +241,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import { Readable, Writable } from 'stream';
 import { getEmbeddedUsageAttribution } from '../../analytics/embeddedUsage';
-import {
-    DownloadCsv,
-    type OnboardingFlow,
-} from '../../analytics/LightdashAnalytics';
+import { DownloadCsv } from '../../analytics/LightdashAnalytics';
 import { getEmbedActorChartSpaceUuids } from '../../auth/account';
 import {
     fromServiceAccount,
@@ -4792,7 +4789,6 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid,
         isRegisteredUser,
         isServiceAccount,
-        onboardingFlow,
         projectUuid,
         queryUuid,
         queryTags,
@@ -4835,7 +4831,6 @@ export class AsyncQueryService extends ProjectService {
                 isPreviewProject,
                 isRegisteredUser,
                 isServiceAccount,
-                onboardingFlow,
                 projectUuid,
                 queryUuid,
                 queryTags,
@@ -4896,7 +4891,6 @@ export class AsyncQueryService extends ProjectService {
                     userUuid,
                     isRegisteredUser,
                     isPreviewProject,
-                    onboardingFlow,
                     queryTags,
                     queryCreatedAt,
                     queryUsage,
@@ -4976,7 +4970,6 @@ export class AsyncQueryService extends ProjectService {
                 isPreviewProject,
                 isRegisteredUser,
                 isServiceAccount,
-                onboardingFlow,
                 projectUuid,
                 queryUuid,
                 queryTags,
@@ -5087,7 +5080,6 @@ export class AsyncQueryService extends ProjectService {
         userUuid,
         isRegisteredUser,
         isPreviewProject,
-        onboardingFlow,
         queryTags,
         queryCreatedAt,
         queryUsage,
@@ -5106,7 +5098,6 @@ export class AsyncQueryService extends ProjectService {
         | 'userUuid'
         | 'isRegisteredUser'
         | 'isPreviewProject'
-        | 'onboardingFlow'
         | 'queryTags'
         | 'queryCreatedAt'
         | 'queryUsage'
@@ -5165,7 +5156,7 @@ export class AsyncQueryService extends ProjectService {
                 status: 'error',
                 errorMessage,
                 context: queryTags.query_context,
-                onboardingFlow,
+                onboardingFlow: 'new',
                 exploreName: queryTags.explore_name ?? null,
                 chartId: queryTags.chart_uuid ?? null,
                 dashboardId: queryTags.dashboard_uuid ?? null,
@@ -5528,7 +5519,6 @@ export class AsyncQueryService extends ProjectService {
         agentIdentity: submittedAgentIdentity,
         authMethod = null,
         resultEntitlementFingerprint = null,
-        onboardingFlow,
         projectUuid,
         query,
         fieldsMap,
@@ -6124,7 +6114,7 @@ export class AsyncQueryService extends ProjectService {
                         isPreviewProject,
                         status: 'success',
                         context: queryTags.query_context,
-                        onboardingFlow,
+                        onboardingFlow: 'new',
                         exploreName: queryTags.explore_name ?? null,
                         chartId: queryTags.chart_uuid ?? null,
                         dashboardId: queryTags.dashboard_uuid ?? null,
@@ -6308,7 +6298,6 @@ export class AsyncQueryService extends ProjectService {
                 userUuid,
                 isRegisteredUser,
                 isPreviewProject,
-                onboardingFlow,
                 queryTags,
                 queryCreatedAt,
                 queryUsage,
@@ -6410,10 +6399,6 @@ export class AsyncQueryService extends ProjectService {
         const isPreviewProject = await this.isExcludedFromUsage(
             query.projectUuid,
         );
-        const onboardingFlow = await this.getOnboardingFlow({
-            userUuid: actor.userUuid,
-            organizationUuid: query.organizationUuid,
-        });
 
         return {
             projectUuid: query.projectUuid ?? '',
@@ -6425,7 +6410,6 @@ export class AsyncQueryService extends ProjectService {
             agentIdentity: query.agentIdentity ?? null,
             isRegisteredUser: actor.isRegisteredUser,
             isServiceAccount: actor.isServiceAccount,
-            onboardingFlow,
             queryTags,
             fieldsMap: query.fields,
             usedParameters: query.usedParameters,
@@ -6479,10 +6463,6 @@ export class AsyncQueryService extends ProjectService {
         const isPreviewProject = await this.isExcludedFromUsage(
             query.projectUuid,
         );
-        const onboardingFlow = await this.getOnboardingFlow({
-            userUuid: actor.userUuid,
-            organizationUuid: query.organizationUuid,
-        });
 
         return {
             projectUuid: query.projectUuid ?? '',
@@ -6492,7 +6472,6 @@ export class AsyncQueryService extends ProjectService {
             queryUuid: query.queryUuid,
             isRegisteredUser: actor.isRegisteredUser,
             isServiceAccount: actor.isServiceAccount,
-            onboardingFlow,
             queryTags,
             fieldsMap: query.fields,
             usedParameters: query.usedParameters,
@@ -7114,15 +7093,7 @@ export class AsyncQueryService extends ProjectService {
                     });
                     span.setAttribute('generatedSql', query);
 
-                    const onboardingFlow = await this.getOnboardingFlow({
-                        userUuid: account.user.id,
-                        organizationUuid: account.organization.organizationUuid,
-                    });
-                    await this.trackFirstQuery(
-                        account,
-                        account.organization.organizationUuid,
-                        onboardingFlow,
-                    );
+                    await this.trackFirstQuery(account);
 
                     // Mirrors runAsyncWarehouseQuery's resolvedDataTimezone:
                     // the session (data) timezone changes results without
@@ -7432,7 +7403,7 @@ export class AsyncQueryService extends ProjectService {
                         organizationId: organizationUuid,
                         projectId: projectUuid,
                         context,
-                        onboardingFlow,
+                        onboardingFlow: 'new' as const,
                         queryId: queryHistoryUuid,
                         warehouseType: warehouseCredentialsType,
                         resolvedQueryTimezone: displayTimezone,
@@ -7494,7 +7465,7 @@ export class AsyncQueryService extends ProjectService {
                                 status: outcome.status,
                                 errorMessage: outcome.errorMessage ?? null,
                                 context,
-                                onboardingFlow,
+                                onboardingFlow: 'new',
                                 exploreName: explore.name,
                                 chartId: chart?.uuid ?? null,
                                 dashboardId: queryTags.dashboard_uuid ?? null,
@@ -7747,7 +7718,6 @@ export class AsyncQueryService extends ProjectService {
                         isPreviewProject,
                         isRegisteredUser: account.isRegisteredUser(),
                         isServiceAccount: account.isServiceAccount(),
-                        onboardingFlow,
                         projectUuid,
                         query: executionPlan.warehouseQuery,
                         fieldsMap,
@@ -12960,7 +12930,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
     }: ExecuteAsyncApiQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
-        await this.assertApiQuerySourcesEnabled(account);
+        this.getLiveSourceResolver();
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -12973,7 +12943,7 @@ export class AsyncQueryService extends ProjectService {
         if (effectiveLimit > maxLimit) {
             throw new ParameterError(`limit must be at most ${maxLimit} rows`);
         }
-        await this.trackFirstQueryForAccount(account);
+        await this.trackFirstQuery(account);
         const requestParameters: ExecuteAsyncApiQueryRequestParams = {
             connectionUuid,
             payload,
@@ -13024,42 +12994,14 @@ export class AsyncQueryService extends ProjectService {
         return { queryUuid };
     }
 
-    private async assertApiQuerySourcesEnabled(account: Account) {
-        assertIsAccountWithOrg(account);
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ApiQuerySources,
-        });
-        if (!enabled) {
-            throw new ForbiddenError('Live data sources are not enabled');
-        }
-    }
-
-    /**
-     * Answers a metric query on a live data source explore with one call to
-     * its integration. Callers MUST authorize the account for the explore.
-     */
-    private async trackFirstQueryForAccount(account: Account): Promise<void> {
-        assertIsAccountWithOrg(account);
-        const { organizationUuid } = account.organization;
-        // Analytics only: never fail the query
-        try {
-            await this.trackFirstQuery(
-                account,
-                organizationUuid,
-                await this.getOnboardingFlow({
-                    userUuid: account.user.id,
-                    organizationUuid,
-                }),
-            );
-        } catch (error) {
-            this.logger.warn(
-                `Failed to track first query for organization ${organizationUuid}: ${getErrorMessage(error)}`,
+    // Live data sources are wired only with a valid Enterprise licence
+    private getLiveSourceResolver(): LiveSourceResolver {
+        if (!this.getLiveSourceForExplore) {
+            throw new ForbiddenError(
+                'Live data sources need an Enterprise licence',
             );
         }
+        return this.getLiveSourceForExplore;
     }
 
     /**
@@ -13159,15 +13101,12 @@ export class AsyncQueryService extends ProjectService {
             });
             throw toLiveQueryError(issues);
         }
-        if (!this.getLiveSourceForExplore) {
-            throw new ForbiddenError('Live data sources are not enabled');
-        }
-        await this.assertApiQuerySourcesEnabled(account);
-        await this.trackFirstQueryForAccount(account);
+        const getLiveSource = this.getLiveSourceResolver();
+        await this.trackFirstQuery(account);
 
         const metricQuery = queryComposer.getMetricQuery();
         const fields = queryComposer.getFields();
-        const source = await this.getLiveSourceForExplore(
+        const source = await getLiveSource(
             account,
             projectUuid,
             apiSource.connectionUuid,
@@ -13964,14 +13903,8 @@ export class AsyncQueryService extends ProjectService {
         cacheHit?: boolean;
     }): void {
         const responseTimeMs = Date.now() - queryCreatedAt.getTime();
-        void Promise.all([
-            this.isExcludedFromUsage(projectUuid),
-            this.getOnboardingFlow({
-                userUuid: account.user.id,
-                organizationUuid,
-            }),
-        ])
-            .then(([isPreviewProject, onboardingFlow]) => {
+        void this.isExcludedFromUsage(projectUuid)
+            .then((isPreviewProject) => {
                 this.analytics.trackAccount(account, {
                     event: 'query.completed',
                     properties: {
@@ -13982,7 +13915,7 @@ export class AsyncQueryService extends ProjectService {
                         isPreviewProject,
                         status: outcome === 'ok' ? 'success' : 'error',
                         context,
-                        onboardingFlow,
+                        onboardingFlow: 'new',
                         exploreName: null,
                         chartId: null,
                         dashboardId: null,
@@ -14136,7 +14069,7 @@ export class AsyncQueryService extends ProjectService {
             throw new ParameterError(getErrorMessage(e));
         }
 
-        await this.trackFirstQueryForAccount(account);
+        await this.trackFirstQuery(account);
 
         // Parameter values change the executed SQL without changing its text
         const sharedCacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
@@ -14414,10 +14347,6 @@ export class AsyncQueryService extends ProjectService {
             );
         }
         const actor = AsyncQueryService.getQueryHistoryActor(query);
-        const onboardingFlow = await this.getOnboardingFlow({
-            userUuid: actor.userUuid,
-            organizationUuid: query.organizationUuid,
-        });
 
         return {
             actor,
@@ -14427,7 +14356,6 @@ export class AsyncQueryService extends ProjectService {
             projectUuid: query.projectUuid,
             organizationUuid: query.organizationUuid,
             isPreviewProject: await this.isExcludedFromUsage(query.projectUuid),
-            onboardingFlow,
             queryUuid,
             sql: query.compiledSql,
             references: {
@@ -14830,7 +14758,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
         );
 
-        await this.trackFirstQueryForAccount(account);
+        await this.trackFirstQuery(account);
 
         // Table versions invalidate cached SQL results after refresh.
         const externalSourceSalt = resolvedTables
@@ -14937,11 +14865,6 @@ export class AsyncQueryService extends ProjectService {
             context,
         );
 
-        const onboardingFlow = await this.getOnboardingFlow({
-            userUuid: account.user.id,
-            organizationUuid,
-        });
-
         // External SQL always runs in-process: its references are bound to
         // private file URIs that only this process resolved
         this.prometheusMetrics?.trackQueryStateTransition(
@@ -14973,7 +14896,6 @@ export class AsyncQueryService extends ProjectService {
                 isPreviewProject:
                     projectSummary.type === ProjectType.PREVIEW ||
                     projectSummary.provisioningSource === 'playground',
-                onboardingFlow,
                 queryUuid,
                 sql,
                 references: { kind: 'bound', referenceCtes },
@@ -15056,7 +14978,6 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             organizationUuid,
             isPreviewProject,
-            onboardingFlow,
             queryUuid,
             sql,
             references,
@@ -15211,7 +15132,6 @@ export class AsyncQueryService extends ProjectService {
                         projectUuid,
                         organizationUuid,
                         isPreviewProject,
-                        onboardingFlow,
                         queryUuid,
                         sql,
                         columns,
@@ -15279,7 +15199,6 @@ export class AsyncQueryService extends ProjectService {
                 isPreviewProject,
                 isRegisteredUser: actor.isRegisteredUser,
                 isServiceAccount: actor.isServiceAccount,
-                onboardingFlow,
                 projectUuid,
                 queryUuid,
                 queryTags,
@@ -15412,7 +15331,6 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         organizationUuid,
         isPreviewProject,
-        onboardingFlow,
         queryUuid,
         sql,
         columns,
@@ -15432,7 +15350,6 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string;
         organizationUuid: string;
         isPreviewProject: boolean;
-        onboardingFlow: RunDuckdbQueryArgs['onboardingFlow'];
         queryUuid: string;
         sql: string;
         columns: DuckdbQueryColumns;
@@ -15513,7 +15430,7 @@ export class AsyncQueryService extends ProjectService {
                 isPreviewProject,
                 status: 'success',
                 context,
-                onboardingFlow,
+                onboardingFlow: 'new',
                 exploreName: queryTags.explore_name ?? null,
                 chartId: queryTags.chart_uuid ?? null,
                 dashboardId: queryTags.dashboard_uuid ?? null,

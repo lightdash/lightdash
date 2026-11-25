@@ -1,5 +1,9 @@
 /** The person's draft of the semantic layer: its review page, and the check before it goes live. */
-import { type SemanticLayerDraft } from '@lightdash/common';
+import {
+    SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE,
+    type SemanticLayerDraft,
+    type SemanticLayerDraftProjectContext,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -32,12 +36,15 @@ import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import {
-    PIERRE_HIGHLIGHTER_OPTIONS,
-    PIERRE_POOL_OPTIONS,
-} from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
-import { useStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
+    AGENT_WORKING_HINT,
+    useStudioAgentWorking,
+} from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
+import {
+    PIERRE_HIGHLIGHTER_OPTIONS,
+    PIERRE_POOL_OPTIONS,
+} from '../writeback/pierreDiffConfig';
 import { ChangeDiff } from './ChangeDiff';
 import { DevelopmentBar } from './DevelopmentBar';
 import { useDevelopmentView } from './developmentView';
@@ -51,9 +58,11 @@ import {
 import { MarkPublishedContext } from './draftMarks';
 import { cannotApply, describePublisher } from './draftState';
 import { FieldChangeIcon } from './KindTypeIcon';
+import { LineCounts } from './LineCounts';
 import {
     CHANGE_KIND_LABELS,
     count,
+    CHANGE_GLYPHS,
     countChangedLines,
     countPublishedChanges,
     DRAFT_PARAM,
@@ -74,7 +83,6 @@ import {
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
 import { useDraftPullRequest } from './useStudioCheckout';
-import { LineCounts } from './WorkbenchRail';
 
 /** How many models of the draft, or the one named, still have a part to choose between. */
 const countConflicts = (
@@ -185,6 +193,7 @@ export const ApplyModal: FC<{
 }> = ({ projectUuid, draft, model, onClose }) => {
     const impact = useSemanticLayerDraftImpact(projectUuid, model);
     const apply = useApplySemanticLayerDraft(projectUuid);
+    const isAgentWorking = useStudioAgentWorking(projectUuid);
     const mode = usePublishMode(projectUuid);
     const asPullRequest = mode === 'pull_request';
     const { showToastSuccess, showToastWarning } = useToaster();
@@ -263,9 +272,12 @@ export const ApplyModal: FC<{
             }
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
-            confirmDisabled={scoped.some(
-                (entry) => entry.reconciliation?.state === 'conflict',
-            )}
+            confirmDisabled={
+                isAgentWorking ||
+                scoped.some(
+                    (entry) => entry.reconciliation?.state === 'conflict',
+                )
+            }
             onConfirm={() =>
                 // A promise, since the bar holding this modal leaves with the draft before a callback would run.
                 void apply.mutateAsync({ model, merge: mode === 'merge' }).then(
@@ -369,11 +381,14 @@ const ModelActions: FC<{
     const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
     const [applying, setApplying] = useState(false);
     const [armed, setArmed] = useState(false);
+    const isAgentWorking = useStudioAgentWorking(projectUuid);
     const hasConflict = countConflicts(draft, model) > 0;
-    const blocked = hasConflict || cannotApply(draft, model);
-    const blockedReason = hasConflict
-        ? 'Choose which version to keep first.'
-        : 'Some changes no longer pass their checks.';
+    const blocked = isAgentWorking || hasConflict || cannotApply(draft, model);
+    const blockedReason = isAgentWorking
+        ? AGENT_WORKING_HINT
+        : hasConflict
+          ? 'Choose which version to keep first.'
+          : 'Some changes no longer pass their checks.';
     return (
         <>
             <Menu position="bottom-end" onClose={() => setArmed(false)}>
@@ -469,17 +484,38 @@ const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
     }, [draft, showToastInfo, showToastWarning, setSearchParams]);
 };
 
+/** The project context file as the draft leaves it, read like a model's file. */
+export const ProjectContextDraftFile: FC<{
+    change: SemanticLayerDraftProjectContext;
+    variant: 'full' | 'whole';
+}> = ({ change, variant }) => (
+    <Box component="section" className={classes.model}>
+        <Group className={classes.modelHead} gap="xs" wrap="nowrap">
+            <MantineIcon icon={IconFileCode} color="dimmed" />
+            <Text component="h3" fz="sm" fw={500} truncate flex={1} miw={0}>
+                {SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE}.yml
+            </Text>
+            <LineCounts counts={countChangedLines(change)} />
+        </Group>
+        <ChangeDiff
+            modelName={SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE}
+            change={change}
+            variant={variant}
+        />
+    </Box>
+);
+
 /** A draft in the toolbar: what it changes, the way to its review and back, and publishing it. */
-export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
+export const DraftDevelopmentBar: FC<{
+    projectUuid: string;
+    onDiscarded: () => void;
+}> = ({ projectUuid, onDiscarded }) => {
     const { data: draft } = useSemanticLayerDraft(projectUuid);
     const [searchParams, setSearchParams] = useSearchParams();
     const [publishing, setPublishing] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
     const discard = useDiscardSemanticLayerDraft(projectUuid);
-    const { startNewThread } = useStudioAgent(projectUuid);
     const asPullRequest = usePublishMode(projectUuid) === 'pull_request';
     const sendLabel =
         useDraftPullRequest() !== null
@@ -487,7 +523,10 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
             : 'Open pull request';
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     const check = useCheckSemanticLayerDraftImpact(projectUuid);
+    const isAgentWorking = useStudioAgentWorking(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
+    const hasPublishable =
+        !!draft && (draft.models.length > 0 || draft.projectContext !== null);
     usePublishedUnderNotice(draft);
     // Once nothing is in development there is nothing to preview.
     useEffect(() => {
@@ -495,10 +534,11 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     }, [draft, isEmpty, isPreviewing, setIsPreviewing]);
     if (isEmpty) return null;
     const reviewing = searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW;
-    const blocked = cannotApply(draft, null);
+    const isInvalid = cannotApply(draft, null);
+    const blocked = isAgentWorking || isInvalid;
     const conflicts = countConflicts(draft, null);
     // A removed model has nothing to open.
-    const showsPublish = conflicts === 0 && draft.models.length > 0;
+    const showsPublish = conflicts === 0 && hasPublishable;
     const tryModel =
         draft.models.find((entry) => getChangeKind(entry) !== 'removed')
             ?.model ?? null;
@@ -558,7 +598,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
         <>
             <DevelopmentBar
                 summary={
-                    draft.models.length > 0 ? null : (
+                    hasPublishable ? null : (
                         <Text fz="xs" c="dimmed" truncate>
                             Nothing new to publish
                         </Text>
@@ -599,12 +639,29 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                 {showsPublish ? (
                     <Button.Group>
                         <Tooltip
-                            label="Some changes no longer pass their checks."
+                            label={
+                                isAgentWorking
+                                    ? AGENT_WORKING_HINT
+                                    : 'Some changes no longer pass their checks.'
+                            }
                             disabled={!blocked}
+                            events={{ hover: true, focus: true, touch: false }}
                         >
                             <Button
                                 size="xs"
-                                data-disabled={blocked || undefined}
+                                leftSection={
+                                    isAgentWorking ? (
+                                        <Loader
+                                            size={12}
+                                            color="currentColor"
+                                        />
+                                    ) : null
+                                }
+                                data-disabled={
+                                    (!isAgentWorking && isInvalid) || undefined
+                                }
+                                aria-disabled={blocked}
+                                aria-busy={isAgentWorking}
                                 onClick={() => {
                                     if (!blocked) setPublishing(true);
                                 }}
@@ -631,7 +688,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                                 onSuccess: () => {
                                     setDiscarding(false);
                                     // The chat that built the draft goes with it; it stays one step back.
-                                    startNewThread();
+                                    onDiscarded();
                                 },
                             })
                         }
@@ -675,8 +732,6 @@ const DraftNotes: FC<{ draft: SemanticLayerDraft }> = ({ draft }) => {
         </Stack>
     );
 };
-
-const CHANGE_GLYPHS = { new: '+', changed: '~', removed: '−' };
 
 type DraftProps = { projectUuid: string; draft: SemanticLayerDraft };
 
@@ -724,6 +779,12 @@ export const DraftReview: FC<DraftReviewProps> = ({
                 poolOptions={PIERRE_POOL_OPTIONS}
                 highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
             >
+                {draft.projectContext ? (
+                    <ProjectContextDraftFile
+                        change={draft.projectContext}
+                        variant="full"
+                    />
+                ) : null}
                 {models.map((modelChange) => {
                     const fields = listPublishedParts(draft, modelChange);
                     return (

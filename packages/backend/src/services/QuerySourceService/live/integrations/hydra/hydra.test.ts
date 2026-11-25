@@ -1,6 +1,6 @@
 import {
     FilterOperator,
-    HYDRA_DEFAULT_SETTINGS,
+    HYDRA_DEFAULT_SOURCE,
     ParameterError,
     TooManyRequestsError,
     UnexpectedServerError,
@@ -23,7 +23,7 @@ import { createHydraServer, type HydraServer } from './server';
 const NOW = new Date('2026-11-23T12:00:00Z');
 
 const settingsWith = (overrides: Partial<HydraApiSource> = {}) => ({
-    ...HYDRA_DEFAULT_SETTINGS,
+    ...HYDRA_DEFAULT_SOURCE,
     ...overrides,
 });
 
@@ -31,7 +31,7 @@ const [EVENTS, USERS] = buildLiveExplores({
     connectionUuid: '9b0c3f6e-0d0a-4c55-9a26-5e6d4b7c2a11',
     sourceName: 'hydra',
     name: 'Hydra',
-    apiSource: HYDRA_DEFAULT_SETTINGS,
+    apiSource: HYDRA_DEFAULT_SOURCE,
     scannedFields: [],
     edits: getInitialLiveSourceFieldEdits({
         scannedFields: [],
@@ -243,11 +243,13 @@ describe('Hydra through the shared engine', () => {
         expect(send).toHaveBeenCalledTimes(1);
     });
 
-    it('answers 429 with Retry-After every Nth call', async () => {
+    it('answers its mock responses for the calls they name, then as usual', async () => {
         const { run } = connect({
             settings: settingsWith({
-                retryAfterEvery: 2,
-                retryAfterSeconds: 7,
+                mockResponses: [
+                    { call: 1, status: 200 },
+                    { call: 2, status: 429, retryAfterSeconds: 7 },
+                ],
             }),
         });
         const count = query(EVENTS, {
@@ -260,6 +262,19 @@ describe('Hydra through the shared engine', () => {
             data: { retryAfterSeconds: 7 },
         });
         await expect(run(EVENTS, count)).resolves.toBeDefined();
+    });
+
+    it('reads a page at a time when the source pages', async () => {
+        const byUser = query(EVENTS, {
+            dimensions: [field(EVENTS, 'user_id')],
+            metrics: [field(EVENTS, 'event_count')],
+            limit: 60,
+        });
+        const whole = await connect().run(EVENTS, byUser);
+        const paged = connect({ settings: settingsWith({ pageSize: 20 }) });
+        await expect(paged.run(EVENTS, byUser)).resolves.toEqual(whole);
+        // 61 rows asked for, 20 a page
+        expect(paged.send).toHaveBeenCalledTimes(4);
     });
 
     it('fails sign-in when told to, or without a token', async () => {
@@ -348,11 +363,53 @@ describe('Hydra through the shared engine', () => {
         });
     });
 
-    it('takes its call limits from the source settings', () => {
+    it('declares the vendor limits by default, its own, or none', () => {
+        expect(hydraIntegration.rateLimitsFor?.(settingsWith())).toEqual({
+            concurrentCalls: 2,
+            callsPerSecond: null,
+            buckets: [
+                {
+                    id: 'minute',
+                    label: 'per minute',
+                    windowMs: 60_000,
+                    capacity: 30,
+                },
+                {
+                    id: 'hour',
+                    label: 'per hour',
+                    windowMs: 3_600_000,
+                    capacity: 300,
+                },
+            ],
+        });
         expect(
-            hydraIntegration.limitsFor?.(
-                settingsWith({ callsPerMinute: 2, callsPerHour: 5 }),
+            hydraIntegration.rateLimitsFor?.(
+                settingsWith({
+                    declaredLimits: {
+                        concurrentCalls: 1,
+                        callsPerSecond: 5,
+                        buckets: [
+                            { id: 'burst', windowMs: 2_000, capacity: 3 },
+                        ],
+                    },
+                }),
             ),
-        ).toMatchObject({ callsPerMinute: 2, callsPerHour: 5 });
+        ).toEqual({
+            concurrentCalls: 1,
+            callsPerSecond: 5,
+            buckets: [
+                {
+                    id: 'burst',
+                    label: 'per 2000 ms',
+                    windowMs: 2_000,
+                    capacity: 3,
+                },
+            ],
+        });
+        expect(
+            hydraIntegration.rateLimitsFor?.(
+                settingsWith({ declaredLimits: null }),
+            ),
+        ).toMatchObject({ callsPerSecond: null, buckets: [] });
     });
 });

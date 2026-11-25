@@ -4,7 +4,8 @@ import { type PropsWithChildren } from 'react';
 import { expect, it, vi } from 'vitest';
 import { useSaveStudioSource } from './useStudioSources';
 
-const api = vi.hoisted(() => vi.fn());
+type Request = { url: string; method: string; body: string | undefined };
+const api = vi.hoisted(() => vi.fn<(request: Request) => Promise<unknown>>());
 vi.mock('../../providers/LightdashApi/useLightdashApi', () => ({
     useLightdashApi: () => api,
 }));
@@ -16,9 +17,13 @@ it('reuses the created thread when retrying a save whose response was lost', asy
     const wrapper = ({ children }: PropsWithChildren) => (
         <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
-    const { result } = renderHook(() => useSaveStudioSource('project'), {
-        wrapper,
-    });
+    const startThread = vi.fn((agentUuid: string) =>
+        Promise.resolve({ threadUuid: 'thread', agentUuid }),
+    );
+    const { result } = renderHook(
+        () => useSaveStudioSource('project', startThread),
+        { wrapper },
+    );
     const request = {
         path: 'models/orders.sql',
         content: 'select 1',
@@ -27,9 +32,13 @@ it('reuses the created thread when retrying a save whose response was lost', asy
         threadUuid: null,
         newChangeAgentUuid: 'agent',
     };
-    api.mockResolvedValueOnce({ uuid: 'thread' })
-        .mockRejectedValueOnce(new Error('Connection lost'))
-        .mockResolvedValueOnce({ status: 'failed', error: 'Reload the file' });
+    let saves = 0;
+    api.mockImplementation(() => {
+        saves += 1;
+        return saves === 1
+            ? Promise.reject(new Error('Connection lost'))
+            : Promise.resolve({ status: 'failed', error: 'Reload the file' });
+    });
     await act(async () => {
         await expect(result.current.mutateAsync(request)).rejects.toThrow(
             'Connection lost',
@@ -38,7 +47,12 @@ it('reuses the created thread when retrying a save whose response was lost', asy
     await act(async () => {
         await result.current.mutateAsync(request);
     });
-    expect(api).toHaveBeenCalledTimes(3);
-    expect(api.mock.calls[1][0].body).toBe(api.mock.calls[2][0].body);
-    expect(api.mock.calls[2][0].body).toContain('"threadUuid":"thread"');
+    const calls = api.mock.calls.map(([call]) => call);
+    expect(startThread).toHaveBeenCalledTimes(1);
+    const saveBodies = calls
+        .filter(({ url }) => url.endsWith('/sources/file'))
+        .map(({ body }) => JSON.parse(body ?? 'null'));
+    expect(saveBodies).toHaveLength(2);
+    expect(saveBodies[1]).toEqual(saveBodies[0]);
+    expect(saveBodies[1]).toMatchObject({ threadUuid: 'thread' });
 });

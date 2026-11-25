@@ -9,6 +9,7 @@ import { ATTIO_TOKEN_FORM } from './attioConnection';
 import { GITHUB_TOKEN_FORM } from './githubConnection';
 import { HUBSPOT_TOKEN_FORM } from './hubspotConnection';
 import { HYDRA_TOKEN_FORM } from './hydraConnection';
+import amplitudeIcon from './icons/amplitude.svg';
 import attioIcon from './icons/attio.svg';
 import githubIcon from './icons/github.svg';
 import googleAdsIcon from './icons/google-ads.svg';
@@ -37,7 +38,8 @@ export type LiveSourceSetup =
     | { kind: 'posthog' }
     | { kind: 'token'; form: TokenLiveSourceForm }
     | { kind: 'linkedin_ads' }
-    | { kind: 'salesforce' };
+    | { kind: 'salesforce' }
+    | { kind: 'amplitude' };
 
 export type AvailableLiveSource = Omit<LiveIntegrationCatalogEntry, 'setup'> & {
     status: 'available';
@@ -72,6 +74,7 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.ATTIO]: attioIcon,
     [ApiConnectorType.HUBSPOT]: hubspotIcon,
     [ApiConnectorType.SALESFORCE]: salesforceIcon,
+    [ApiConnectorType.AMPLITUDE]: amplitudeIcon,
     [ApiConnectorType.HYDRA]: hydraIcon,
     shopify: shopifyIcon,
     stripe: stripeIcon,
@@ -80,10 +83,16 @@ const ICONS: Record<string, string> = {
 };
 
 /** One-colour marks, such as GitHub's, drawn dark and lightened in dark mode. */
-const MONO_ICONS = new Set([githubIcon]);
+const MONO_ICONS = new Set([githubIcon, attioIcon]);
 
-export const getLiveSourceIconClass = (icon: string) =>
-    MONO_ICONS.has(icon) ? iconClasses.mono : undefined;
+/** Coloured marks too dark for a dark background, drawn white there, as the vendor does. */
+const WHITE_ON_DARK_ICONS = new Set([pylonIcon]);
+
+export const getLiveSourceIconClass = (icon: string) => {
+    if (MONO_ICONS.has(icon)) return iconClasses.mono;
+    if (WHITE_ON_DARK_ICONS.has(icon)) return iconClasses.whiteOnDark;
+    return undefined;
+};
 
 /** The order sources are offered in; every connector appears once. */
 const DISPLAY_ORDER = [
@@ -99,6 +108,7 @@ const DISPLAY_ORDER = [
     ApiConnectorType.ATTIO,
     ApiConnectorType.HUBSPOT,
     ApiConnectorType.SALESFORCE,
+    ApiConnectorType.AMPLITUDE,
     ApiConnectorType.HYDRA,
 ] as const satisfies readonly ApiConnectorType[];
 

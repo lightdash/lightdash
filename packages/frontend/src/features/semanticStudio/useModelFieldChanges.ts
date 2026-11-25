@@ -1,23 +1,13 @@
-import { getItemId, TimeFrames, type Explore } from '@lightdash/common';
+import { getItemId, TimeFrames } from '@lightdash/common';
 import { useQueries } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import {
-    DEVELOPMENT_PREVIEW_HEADER,
-    DEVELOPMENT_VIEW_HEADER,
-} from './developmentView';
+import { developmentHeadersFor, PUBLISHED_HEADERS } from './developmentView';
 import { diffModelFields, type FieldChange } from './modelFieldDiff';
 import {
     modelVersionQuery,
     useModelVersion,
 } from './useFieldChangesInDevelopment';
-
-export const developmentHeadersFor = (previewProjectUuid: string | null) => ({
-    [DEVELOPMENT_VIEW_HEADER]: 'true',
-    ...(previewProjectUuid
-        ? { [DEVELOPMENT_PREVIEW_HEADER]: previewProjectUuid }
-        : {}),
-});
 
 /** A model live and with the person's changes, and what differs; changes is null until both are read. */
 export const useModelFieldChanges = (
@@ -25,9 +15,7 @@ export const useModelFieldChanges = (
     model: string,
     previewProjectUuid: string | null,
 ) => {
-    const live = useModelVersion(projectUuid, model, {
-        [DEVELOPMENT_VIEW_HEADER]: 'false',
-    });
+    const live = useModelVersion(projectUuid, model, PUBLISHED_HEADERS);
     const mine = useModelVersion(
         projectUuid,
         model,
@@ -41,34 +29,12 @@ export const useModelFieldChanges = (
                 : null,
         [live.data, mine.data],
     );
-    return { live: live.data ?? null, mine: mine.data ?? null, changes };
-};
-
-/** Explore's id of each field a change adds or redefines, by its `table.name` key. */
-export const findChangedFieldIds = (
-    mine: Explore,
-    changes: FieldChange[],
-): Map<string, { id: string; isMetric: boolean }> => {
-    const table = mine.tables[mine.baseTable];
-    const ids = new Map<string, { id: string; isMetric: boolean }>();
-    if (!table) return ids;
-    changes.forEach(({ key, kind }) => {
-        const name = key.slice(table.name.length + 1);
-        const metric = kind === 'removed' ? undefined : table.metrics[name];
-        const dimension =
-            kind === 'removed' ? undefined : table.dimensions[name];
-        if (metric) ids.set(key, { id: getItemId(metric), isMetric: true });
-        else if (dimension && !dimension.hidden) {
-            ids.set(key, { id: getItemId(dimension), isMetric: false });
-        }
-    });
-    return ids;
+    return { live: live.data ?? null, changes };
 };
 
 /** A field a change touches, as Explore names it; a removed one is named from the live version. */
 export type ChangedField = FieldChange & {
     fieldId: string;
-    isMetric: boolean;
     /** The date it is a grain of, or is the base of; null for anything else. */
     date: { base: string; grain: TimeFrames | null } | null;
 };
@@ -93,19 +59,12 @@ export const withOneGrainPerDate = (fields: ChangedField[]) => {
     return fields.filter((field) => !field.date || kept.has(field));
 };
 
-const describeChangedFields = (
-    live: Explore | null,
-    mine: Explore,
-): ChangedField[] =>
-    diffModelFields(live, mine).flatMap((change) => {
-        const source = change.kind === 'removed' ? live : mine;
-        const table = source?.tables[source.baseTable];
-        if (!table) return [];
-        const name = change.key.slice(table.name.length + 1);
-        const metric = table.metrics[name];
-        const dimension = metric ? undefined : table.dimensions[name];
-        const field = metric ?? dimension;
-        if (!field || field.hidden) return [];
+/** The changes Explore can show, named as Explore names them; a hidden field is left out. */
+const describeChangedFields = (changes: FieldChange[]): ChangedField[] =>
+    changes.flatMap((change) => {
+        const { field, name } = change;
+        if (field.hidden) return [];
+        const dimension = change.isMetric ? undefined : change.field;
         const base = dimension?.isIntervalBase
             ? name
             : dimension?.timeIntervalBaseDimensionName;
@@ -113,7 +72,6 @@ const describeChangedFields = (
             {
                 ...change,
                 fieldId: getItemId(field),
-                isMetric: !!metric,
                 date: base
                     ? { base, grain: dimension?.timeInterval ?? null }
                     : null,
@@ -130,9 +88,12 @@ export const useChangeSet = (
     const lightdashApi = useLightdashApi();
     const sides = useQueries({
         queries: models.flatMap((model) => [
-            modelVersionQuery(lightdashApi, projectUuid, model, {
-                [DEVELOPMENT_VIEW_HEADER]: 'false',
-            }),
+            modelVersionQuery(
+                lightdashApi,
+                projectUuid,
+                model,
+                PUBLISHED_HEADERS,
+            ),
             modelVersionQuery(
                 lightdashApi,
                 projectUuid,
@@ -155,7 +116,11 @@ export const useChangeSet = (
                           const live = sides[index * 2].data ?? null;
                           return [
                               model,
-                              mine ? describeChangedFields(live, mine) : [],
+                              mine
+                                  ? describeChangedFields(
+                                        diffModelFields(live, mine),
+                                    )
+                                  : [],
                           ];
                       }),
                   ),

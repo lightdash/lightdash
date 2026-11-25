@@ -7,18 +7,19 @@ import {
     ModelFieldChanges,
     PullRequestUsage,
 } from '../../../../../features/semanticStudio/ModelFieldChanges';
-import { useWholePullRequestDiff } from '../../hooks/usePullRequestDiff';
+import { type StudioPullRequest } from '../../../../../features/semanticStudio/studioChange';
+import { MODEL_VERSION_KEY } from '../../../../../features/semanticStudio/studioQueryKeys';
 import {
     getModelOfFile,
     splitPatchIntoFiles,
     type DiffFile,
-} from '../ChatElements/ToolCalls/splitPatch';
+} from '../../../../../features/writeback/splitPatch';
+import { useWholePullRequestDiff } from '../../../../../features/writeback/usePullRequestDiff';
 import {
     DiffWorkers,
     FileDiff,
 } from '../ChatElements/ToolCalls/WritebackDiffModal';
 import classes from './SemanticStudioAgent.module.css';
-import { type StudioPullRequest } from './useStudioPullRequest';
 
 const LineCounts: FC<{ files: DiffFile[] }> = ({ files }) => {
     const additions = files.reduce((sum, file) => sum + file.additions, 0);
@@ -59,7 +60,7 @@ export const PullRequestChanges: FC<{
         if (seenSha.current === commitSha) return;
         seenSha.current = commitSha;
         void queryClient.invalidateQueries({
-            queryKey: ['semantic-studio-model-version', projectUuid],
+            queryKey: [MODEL_VERSION_KEY, projectUuid],
         });
     }, [commitSha, projectUuid, queryClient]);
     const files = useMemo(
@@ -120,7 +121,6 @@ export const PullRequestChanges: FC<{
                                         projectUuid={projectUuid}
                                         model={model}
                                         previewProjectUuid={previewProjectUuid}
-                                        cacheKey={commitSha ?? prUrl}
                                         isCompiled
                                     />
                                     {modelFiles.map((file) => (

@@ -1,16 +1,54 @@
 import {
     assertUnreachable,
     diffModelDocuments,
+    isWholeModelPath,
+    MODEL_FRAGMENT_REFUSAL_TEXT,
+    parseModelPartPath,
     type ModelFragmentChange,
     type ModelFragmentRefusal,
     type SemanticLayerDraft,
     type SemanticLayerDraftModel,
+    type SemanticLayerDrafter,
     type SemanticLayerModelChange,
 } from '@lightdash/common';
 import { parseDiffFromFile } from '@pierre/diffs';
+import { formatDistanceToNow } from 'date-fns';
 import { load } from 'js-yaml';
 
 export const VIEW_PARAM = 'view';
+/** What the workbench shows, beside the model's own tabs that share the param. */
+const STUDIO_VIEWS = [
+    'models',
+    'code',
+    'sources',
+    'changes',
+    'workspaces',
+] as const;
+export type StudioView = (typeof STUDIO_VIEWS)[number];
+export const MODEL_TABS = [
+    'fields',
+    'lineage',
+    'pre-aggregates',
+    'history',
+    'settings',
+] as const;
+export type ModelTab = (typeof MODEL_TABS)[number];
+
+const isStudioView = (value: string | null): value is StudioView =>
+    STUDIO_VIEWS.some((view) => view === value);
+
+export const readStudioView = (
+    searchParams: URLSearchParams,
+): StudioView | null => {
+    const value = searchParams.get(VIEW_PARAM);
+    return isStudioView(value) ? value : null;
+};
+
+/** Search params that name a workbench view, plus any others. */
+export type StudioParams = { [VIEW_PARAM]?: StudioView } & Record<
+    string,
+    string
+>;
 export const FIELD_PARAM = 'field';
 export const DRAFT_PARAM = 'draft';
 export const DRAFT_REVIEW = 'review';
@@ -67,12 +105,11 @@ export const findFieldBlock = (
 
 /** A changed part in plain words: the key and what it is on, or the name of a whole field or join. */
 const describePart = (path: string): string => {
-    if (path === '') return 'the whole model';
-    const segments = path.split('.');
-    const isKey = segments.length % 2 === 1 && segments.length > 1;
-    return isKey
-        ? `${segments.at(-1)} of ${segments.at(-2)}`
-        : (segments.at(-1) ?? path);
+    const part = parseModelPartPath(path);
+    if (part === null) return path;
+    if (part.part === 'model') return 'the whole model';
+    if (part.part === 'key') return part.key;
+    return part.key === null ? part.name : `${part.key} of ${part.name}`;
 };
 
 /** What a published change did, for one with no question to name it. */
@@ -123,6 +160,34 @@ export const CHANGE_KIND_LABELS: Record<ChangeKind, string> = {
     removed: 'Removed',
 };
 
+export const CHANGE_GLYPHS: Record<ChangeKind, string> = {
+    new: '+',
+    changed: '~',
+    removed: '−',
+};
+
+/** How a field change is marked wherever it is listed. */
+export const CHANGE_KIND_STYLE: Record<
+    ChangeKind,
+    { label: string; glyph: string; color: string }
+> = {
+    new: {
+        label: CHANGE_KIND_LABELS.new,
+        glyph: CHANGE_GLYPHS.new,
+        color: 'green',
+    },
+    changed: {
+        label: CHANGE_KIND_LABELS.changed,
+        glyph: CHANGE_GLYPHS.changed,
+        color: 'yellow',
+    },
+    removed: {
+        label: CHANGE_KIND_LABELS.removed,
+        glyph: CHANGE_GLYPHS.removed,
+        color: 'red',
+    },
+};
+
 /** What an applied change did to a model, as its history reads it. */
 export const CHANGE_KIND_VERBS: Record<ChangeKind, string> = {
     new: 'Created',
@@ -141,20 +206,18 @@ export const getChangeKind = ({
 export const refusalText = (
     model: string,
     { path, reason }: ModelFragmentRefusal,
-): string => `Left out ${model}.${path} (${reason.replaceAll('_', ' ')})`;
+): string =>
+    `Left out ${model}.${path} because it ${MODEL_FRAGMENT_REFUSAL_TEXT[reason]}.`;
 
 /** The field or join a change path names, and the key changed on it; a null key means the whole thing. */
 const parseChangePath = (
     path: string,
 ): { name: string | null; key: string | null } => {
-    const [head, first, second, third, fourth] = path.split('.');
-    if (head === 'joins' || head === 'metrics') {
-        return { name: first ?? null, key: second ?? null };
-    }
-    if (head !== 'dimensions') return { name: null, key: head };
-    return second === 'metrics' || second === 'additional_dimensions'
-        ? { name: third ?? null, key: fourth ?? null }
-        : { name: first ?? null, key: second ?? null };
+    const part = parseModelPartPath(path);
+    if (part === null || part.part === 'model')
+        return { name: null, key: null };
+    if (part.part === 'key') return { name: null, key: part.key };
+    return { name: part.name, key: part.key };
 };
 
 const WHOLE_PART_VERBS: Record<ModelFragmentChange['action'], string> = {
@@ -173,8 +236,9 @@ export const summarizeModelChanges = (
     const whole: string[] = [];
     const partial = new Map<string, { keys: string[]; redefines: boolean }>();
     changes.forEach(({ path, action }) => {
-        const { name, key } =
-            path === model ? { name: model, key: null } : parseChangePath(path);
+        const { name, key } = isWholeModelPath(model, path)
+            ? { name: model, key: null }
+            : parseChangePath(path);
         if (key === null) {
             whole.push(`${WHOLE_PART_VERBS[action]} ${name ?? path}`);
             return;
@@ -197,7 +261,7 @@ export const summarizeModelChanges = (
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
 
-export type FieldChangeKind = 'dimension' | 'metric' | 'join' | 'model';
+type FieldChangeKind = 'dimension' | 'metric' | 'join' | 'model';
 
 /** One thing a change touched, in the words of the semantic layer. */
 export type FieldChange = {
@@ -212,10 +276,19 @@ export type FieldChange = {
 };
 
 const kindOfPath = (path: string): FieldChangeKind => {
-    const [head, , second] = path.split('.');
-    if (head === 'joins') return 'join';
-    if (head === 'metrics' || second === 'metrics') return 'metric';
-    return head === 'dimensions' ? 'dimension' : 'model';
+    const part = parseModelPartPath(path);
+    if (part?.part !== 'entry') return 'model';
+    switch (part.group) {
+        case 'joins':
+            return 'join';
+        case 'metrics':
+            return 'metric';
+        case 'dimensions':
+        case 'additional_dimensions':
+            return 'dimension';
+        default:
+            return assertUnreachable(part, 'Unknown model part');
+    }
 };
 
 const loadRecord = (content: string | null): Record<string, unknown> => {
@@ -304,7 +377,7 @@ export const listFieldChanges = (
     >();
     changes.forEach(({ path, action }) => {
         // A whole model being created or removed is the model's own header, not a row.
-        if (path === model || path === '') return;
+        if (isWholeModelPath(model, path)) return;
         const { name, key } = parseChangePath(path);
         const kind = kindOfPath(path);
         const id = `${kind}:${name ?? model}`;
@@ -395,6 +468,53 @@ const parseModel = (content: string): ModelSummary => {
 export const count = (amount: number, noun: string) =>
     `${amount} ${noun}${amount === 1 ? '' : 's'}`;
 
+/** Parts of a model someone's draft changes, grouped in plain words: "2 metrics and the primary key". */
+export const summarizeDraftedPaths = (paths: string[]): string => {
+    if (paths.length === 0 || paths.includes('')) return 'this model';
+    const named = { metric: new Set<string>(), dimension: new Set<string>() };
+    const joins = new Set<string>();
+    const settings = new Set<string>();
+    paths.forEach((path) => {
+        const part = parseModelPartPath(path);
+        if (part?.part !== 'entry') {
+            settings.add(part?.part === 'key' ? part.key : path);
+            return;
+        }
+        const kind = kindOfPath(path);
+        if (kind === 'join') joins.add(part.name);
+        else if (kind === 'metric' || kind === 'dimension')
+            named[kind].add(part.name);
+    });
+    const [onlySetting] = settings;
+    const groups = [
+        ...(named.metric.size > 0 ? [count(named.metric.size, 'metric')] : []),
+        ...(named.dimension.size > 0
+            ? [count(named.dimension.size, 'dimension')]
+            : []),
+        ...(joins.size > 0 ? [count(joins.size, 'join')] : []),
+        ...(settings.size === 1
+            ? [`the ${onlySetting.replaceAll('_', ' ')}`]
+            : settings.size > 1
+              ? [count(settings.size, 'model setting')]
+              : []),
+    ];
+    return groups.length <= 1
+        ? (groups[0] ?? 'this model')
+        : `${groups.slice(0, -1).join(', ')} and ${groups[groups.length - 1]}`;
+};
+
+/** Who is editing what, and when they last did: "Name is editing 2 metrics · last active 2 hours ago". */
+export const describeDrafter = ({
+    name,
+    paths,
+    lastActiveAt,
+}: SemanticLayerDrafter): string =>
+    `${name} is editing ${summarizeDraftedPaths(paths)} · last active ${formatDistanceToNow(new Date(lastActiveAt), { addSuffix: true })}`;
+
+/** Each part a draft changes, named as precisely as the path allows. */
+export const listDraftedParts = (paths: string[]): string[] =>
+    paths.map(describePart);
+
 const CHANGE_KIND_PAST: Record<ChangeKind, string> = {
     new: 'Added',
     changed: 'Changed',
@@ -426,23 +546,43 @@ export const describeFieldChanges = (fields: FieldChange[]): string =>
         )
         .join('. ');
 
-/** A model's title and, when it is new or removed, what happened to it, in words. */
+/** A whole model added, with what it holds, or removed. */
+export type WholeModelChange =
+    | { kind: 'new'; counts: string[] }
+    | { kind: 'removed' };
+
+/** A model's title and, when it is new or removed, what happened to it, in words and as data. */
 export const describeModelChange = (
     model: string,
     change: ContentChange | null,
-): { title: string; subtitle: string | null } => {
+): {
+    title: string;
+    subtitle: string | null;
+    whole: WholeModelChange | null;
+} => {
     const parsed = parseModel(
         change?.contentAfter ?? change?.contentBefore ?? '',
     );
     const title = parsed?.label ?? model;
     const kind = change ? getChangeKind(change) : 'changed';
     if (kind === 'removed') {
-        return { title, subtitle: CHANGE_KIND_LABELS.removed };
+        return {
+            title,
+            subtitle: CHANGE_KIND_LABELS.removed,
+            whole: { kind: 'removed' },
+        };
     }
-    if (kind === 'changed' || !parsed) return { title, subtitle: null };
+    if (kind === 'changed' || !parsed) {
+        return { title, subtitle: null, whole: null };
+    }
+    const counts = [
+        count(parsed.dimensions, 'dimension'),
+        count(parsed.metrics, 'metric'),
+    ];
     return {
         title,
-        subtitle: `${CHANGE_KIND_LABELS.new} · ${count(parsed.dimensions, 'dimension')} · ${count(parsed.metrics, 'metric')}`,
+        subtitle: [CHANGE_KIND_LABELS.new, ...counts].join(' · '),
+        whole: { kind: 'new', counts },
     };
 };
 
@@ -489,7 +629,7 @@ export const listPublishedParts = (
               entry,
           );
 
-/** How many changes a publish carries: each part touched, and each model added or removed whole. */
+/** How many changes a publish carries: each part touched, each model added or removed whole, and each project context entry. */
 export const countPublishedChanges = (
     draft: SemanticLayerDraft,
     model: string | null,
@@ -500,4 +640,11 @@ export const countPublishedChanges = (
             (total, entry) =>
                 total + Math.max(listPublishedParts(draft, entry).length, 1),
             0,
-        );
+        ) +
+    (model === null
+        ? new Set(
+              draft.changes.flatMap(
+                  ({ projectContextEntries }) => projectContextEntries,
+              ),
+          ).size
+        : 0);

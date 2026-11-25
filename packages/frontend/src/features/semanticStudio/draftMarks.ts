@@ -1,3 +1,4 @@
+import { type SemanticLayerDrafter } from '@lightdash/common';
 import { createContext } from 'react';
 import { type ChangeKind, type FieldChange } from './modelCode';
 
@@ -6,8 +7,8 @@ export type DraftMarks = {
     labels: Map<string, string>;
     /** What this person's draft does to each model it touches. */
     kinds: Map<string, ChangeKind>;
-    /** Who else has unpublished changes to each model. */
-    others: Map<string, string[]>;
+    /** Who else has unpublished changes to each model, and what. */
+    others: Map<string, SemanticLayerDrafter[]>;
     /** This person's changes to each model that wait in an open pull request. */
     inReview: Map<string, { pullRequestUrl: string; fields: FieldChange[] }>;
     /** What this person published to each model on this visit to Studio. */
@@ -15,7 +16,7 @@ export type DraftMarks = {
 };
 
 /** What one publish did to a model: created or changed it, and its fields. */
-export type PublishedModel = { kind: ChangeKind; fields: FieldChange[] };
+type PublishedModel = { kind: ChangeKind; fields: FieldChange[] };
 
 // Read once for the page: every row asking the draft itself costs a subscription per row.
 export const DraftMarksContext = createContext<DraftMarks>({

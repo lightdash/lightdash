@@ -467,6 +467,7 @@ export * from './utils/learnSandbox';
 export * from './utils/learnYamlKeyTypos';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/lightdashSqlVariables';
+export * from './utils/metricViewDefinition';
 export * from './utils/metricsExplorer';
 export * from './utils/normalizeCellRawForFilter';
 export * from './utils/oauth';

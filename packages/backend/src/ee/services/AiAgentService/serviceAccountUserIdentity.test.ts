@@ -37,7 +37,6 @@ type PrivateService = {
         conversation: {
             messageHistory: [];
             compactionSummary: null;
-            resolveMessageHistory: () => Promise<[]>;
         },
         options: {
             prompt: unknown;
@@ -101,7 +100,7 @@ const buildService = () => {
             findClaimableByUser: vi.fn().mockResolvedValue([]),
         },
         lightdashConfig: {
-            ai: { copilot: { embeddingEnabled: false } },
+            ai: { copilot: {} },
         },
         aiOrganizationSettingsService: {
             isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
@@ -129,6 +128,9 @@ const buildService = () => {
         },
         featureFlagService: {
             get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
+        externalConnectionService: {
+            listApiSourceConnections: vi.fn().mockResolvedValue([]),
         },
         groupsModel: { findUserGroups: vi.fn().mockResolvedValue([]) },
         aiAgentSkillModel: { findBoundToAgent: vi.fn().mockResolvedValue([]) },
@@ -166,7 +168,6 @@ const buildService = () => {
 const conversation = {
     messageHistory: [] as [],
     compactionSummary: null,
-    resolveMessageHistory: async () => [] as [],
 };
 
 describe('agent user identity by actor', () => {

@@ -42,7 +42,6 @@ import type {
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentUserMemoriesResponse,
-    ApiAiAgentVerifiedArtifactsResponse,
     ApiAiCreditDailyUsageResponse,
     ApiAiCreditUsageResponse,
     ApiAiGenerateChartMetadataResponse,
@@ -95,6 +94,7 @@ import type {
     ApiInstallRegistryChartTypeResponse,
     ApiListDataAppVizsResponse,
     ApiListRegistryChartTypesResponse,
+    ApiLiveSourceContentUsageResponse,
     ApiLiveSourceFieldsResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
@@ -125,6 +125,7 @@ import type {
     EmbedUrl,
     ExternalConnection,
     ExternalConnectionLinkedApps,
+    ExternalConnectionRateLimitUsage,
     ExternalConnectionSample,
     ExternalFetchResponse,
     ManagedAgentRuntimeInfo,
@@ -490,6 +491,7 @@ import {
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftStateResponse,
     type ApiSemanticLayerDraftUsageResponse,
+    type ApiSemanticLayerOthersDraftModelResponse,
     type ApiSemanticStudioBranchCompileFollowUpResponse,
     type ApiSemanticStudioCheckoutResponse,
     type ApiSemanticStudioSourceFileResponse,
@@ -1744,6 +1746,7 @@ type ApiResults =
     | ApiVirtualViewAsCodeUpsertResponse['results']
     | ApiExternalConnectionAsCodeListResponse['results']
     | ApiExternalConnectionAsCodeUpsertResponse['results']
+    | ApiLiveSourceContentUsageResponse['results']
     | ApiLiveSourceFieldsResponse['results']
     | ApiExplorePrefixCheckResponse['results']
     | ApiReattachableLiveSourcesResponse['results']
@@ -1832,7 +1835,6 @@ type ApiResults =
     | ApiAiAgentEvaluationRunResponse['results']
     | ApiAiAgentEvaluationRunSummaryListResponse['results']
     | ApiAiAgentEvaluationRunResultsResponse['results']
-    | ApiAiAgentVerifiedArtifactsResponse['results']
     | ApiCreateEvaluationResponse['results']
     | ApiAgentSuggestionsResponse['results']
     | ApiAppendInstructionResponse['results']
@@ -1920,6 +1922,7 @@ type ApiResults =
     | ExternalConnection
     | ExternalConnection[]
     | ExternalConnectionLinkedApps
+    | ExternalConnectionRateLimitUsage
     | ExternalConnectionSample
     | ExternalConnectionSample[]
     | AppExternalConnectionLink
@@ -1937,6 +1940,7 @@ type ApiResults =
     | ApiAiProviderCredentialCreatedResponse['results']
     | ApiProjectAiCredentialResponse['results']
     | ApiSemanticLayerDraftResponse['results']
+    | ApiSemanticLayerOthersDraftModelResponse['results']
     | ApiSemanticLayerDraftModelSaveResponse['results']
     | ApiSemanticLayerDraftedModelsResponse['results']
     | ApiSemanticLayerDraftStateResponse['results']

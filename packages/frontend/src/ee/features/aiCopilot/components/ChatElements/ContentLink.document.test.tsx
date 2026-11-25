@@ -26,7 +26,6 @@ const message: AiAgentMessageAssistant = {
     reasoning: [],
     savedQueryUuid: null,
     artifacts: null,
-    referencedArtifacts: null,
     modelConfig: null,
     tokenUsage: null,
     responseTiming: null,

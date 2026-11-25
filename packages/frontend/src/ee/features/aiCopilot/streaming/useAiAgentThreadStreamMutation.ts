@@ -24,6 +24,7 @@ import {
     markFirstToken,
     markStreamRecovering,
     markToolCallDecided,
+    markTurnFinished,
     setError,
     setAccessRefusal,
     setMessage,
@@ -428,6 +429,7 @@ export function useAiAgentThreadStreamMutation() {
                         inactivityMonitor.reset();
                         if (value.type === 'finish') {
                             receivedTerminalChunk = true;
+                            dispatch(markTurnFinished({ threadUuid }));
                         }
                         if (
                             !receivedFirstToken &&

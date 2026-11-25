@@ -10,9 +10,6 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // Blocks or degrades every page.
     FeatureFlags.OrganizationTrialBlock,
     FeatureFlags.OrganizationTrialWarning,
-    // Changes the signup flow and needs SMTP for the email OTP. The register
-    // page evaluates it anonymously, so an override can't switch it back off.
-    FeatureFlags.NewOnboarding,
     // Off pending a security review.
     FeatureFlags.SsoOrganizationSettings,
     // Security hardening: previews must not accept long-lived GitHub PATs.

@@ -34,7 +34,6 @@ import {
     type WritebackMergeResult,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { createHash } from 'node:crypto';
 import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
@@ -102,17 +101,17 @@ import {
     type SandboxSpec,
 } from '../SandboxRuntime';
 import {
+    type DbtScriptChange,
+    type DbtScriptCheck,
+} from '../SemanticStudioService/dbtManifestPatch';
+import {
     diffLineCounts,
     runCodeMode,
     unifiedDiffs,
     validateSemanticLayerYaml,
     type CodeModeLibraries,
     type CodeModeRepo,
-} from '../SemanticStudioService/codeMode/codeMode';
-import {
-    type DbtScriptChange,
-    type DbtScriptCheck,
-} from '../SemanticStudioService/codeMode/dbtManifestPatch';
+} from './codeMode';
 import {
     ALLOWED_TOOLS,
     ASSISTANT_TEXT_TAIL_CHARS,
@@ -191,6 +190,7 @@ import {
     resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
     resolveWritebackAgentPermissionsApply,
+    sourceRevision,
     splitStreamBuffer,
     summarizeRepoListing,
     summarizeToolInput,
@@ -2073,6 +2073,7 @@ export class AiWritebackService extends BaseService {
             dbtSourceUuid: args.dbtSourceUuid,
             prUrl: args.prUrl,
             startNewPullRequest: args.startNewPullRequest,
+            continuesThreadPullRequest: args.continuesThreadPullRequest,
         });
         const fallBack = (
             reason: 'not_runnable' | 'not_github' | 'agent_pull_request',
@@ -2156,9 +2157,7 @@ export class AiWritebackService extends BaseService {
                     `${root}${expectedSource.path}`,
                 );
                 const revision =
-                    current === null
-                        ? null
-                        : createHash('sha256').update(current).digest('hex');
+                    current === null ? null : sourceRevision(current);
                 if (revision !== expectedSource.revision) {
                     throw new ParameterError(
                         'This file changed since you opened it. Reload it to see the latest version, then make your edit again.',
@@ -3070,6 +3069,7 @@ export class AiWritebackService extends BaseService {
                 dbtSourceUuid,
                 prUrl,
                 startNewPullRequest,
+                continuesThreadPullRequest: args.continuesThreadPullRequest,
             });
         } catch (error) {
             await persistRunFailed(error);
@@ -3618,6 +3618,7 @@ export class AiWritebackService extends BaseService {
         dbtSourceUuid,
         prUrl,
         startNewPullRequest,
+        continuesThreadPullRequest,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -3626,6 +3627,7 @@ export class AiWritebackService extends BaseService {
         dbtSourceUuid: string | undefined;
         prUrl: string | null | undefined;
         startNewPullRequest: boolean | undefined;
+        continuesThreadPullRequest?: boolean;
     }): Promise<PreparedTurn> {
         if (!isUserWithOrg(user)) {
             throw new WritebackAccessError(
@@ -3748,7 +3750,14 @@ export class AiWritebackService extends BaseService {
                 installation,
             });
             if (!editState.editable && editState.reason) {
-                throw new WritebackThreadPrClosedError(editState.reason);
+                // Studio's draft is the thread's open pull request, so once it settles the next save starts a new one.
+                if (!continuesThreadPullRequest) {
+                    throw new WritebackThreadPrClosedError(editState.reason);
+                }
+                this.logger.info(
+                    `AiWriteback: workstream ${existingRow.ai_writeback_thread_uuid} pull request is ${editState.reason}; starting a fresh pull request.`,
+                );
+                existingRow = null;
             }
         }
 
