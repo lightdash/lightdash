@@ -1,11 +1,17 @@
 import {
+    QueryHistoryStatus,
+    type ApiGetAsyncQueryResults,
+} from '@lightdash/common';
+import {
     useIsFetching,
     useQueryClient,
     type Query,
+    type QueryCache,
     type QueryClient,
     type QueryKey,
 } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
+import { type DashboardChartReadyQuery } from './useDashboardChartReadyQuery';
 
 const DASHBOARD_RELATED_QUERIES = [
     'saved_query',
@@ -55,6 +61,22 @@ export const waitForTileSlot = async <T>(
     }
 };
 
+// A model tile loads its rows by query uuid after its request returns
+const isAwaitingRows = (queryCache: QueryCache, query: Query) => {
+    if (query.queryKey[0] !== 'dashboard_chart_ready_query') return false;
+    const data = query.state.data as DashboardChartReadyQuery | undefined;
+    const queryUuid = data?.executeQueryResponse?.queryUuid;
+    if (!queryUuid || query.state.fetchStatus !== 'idle') return false;
+    return !queryCache.findAll(['query-page']).some((page) => {
+        const [, args] = page.queryKey as [string, { queryUuid?: string }];
+        const results = page.state.data as ApiGetAsyncQueryResults | undefined;
+        return (
+            args.queryUuid === queryUuid &&
+            results?.status === QueryHistoryStatus.READY
+        );
+    });
+};
+
 // A save keeps on-screen results, so tiles don't reload; each is dropped once
 // its tile unmounts, unless refetched since, so a later visit fetches fresh
 export const evictSavedDashboardResults = (queryClient: QueryClient) => {
@@ -82,6 +104,10 @@ export const evictSavedDashboardResults = (queryClient: QueryClient) => {
                 !waitingForSlot.has(query),
         ),
     );
+    // Rows still loading may also predate the save, so those tiles run again now
+    const awaitingRows = [...onScreen.keys()].filter((query) =>
+        isAwaitingRows(queryCache, query),
+    );
     const release = (query: Query) => {
         onScreen.delete(query);
         if (onScreen.size === 0) unsubscribe();
@@ -93,6 +119,7 @@ export const evictSavedDashboardResults = (queryClient: QueryClient) => {
             release(query);
         } else if (event.type === 'updated') {
             if (event.action.type === 'fetch') onScreen.set(query, true);
+            if (event.action.type === 'error') startedBeforeSave.delete(query);
             if (event.action.type !== 'success') return;
             if (startedBeforeSave.delete(query)) {
                 onScreen.set(query, false);
@@ -112,6 +139,9 @@ export const evictSavedDashboardResults = (queryClient: QueryClient) => {
                 queryCache.remove(query);
             });
         }
+    });
+    awaitingRows.forEach((query) => {
+        void query.fetch().catch(() => {});
     });
 };
 

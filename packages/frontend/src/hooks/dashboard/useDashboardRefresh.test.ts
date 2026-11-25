@@ -1,3 +1,4 @@
+import { QueryHistoryStatus } from '@lightdash/common';
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import {
     evictSavedDashboardResults,
@@ -125,5 +126,35 @@ describe('evictSavedDashboardResults', () => {
 
         expect(calls).toBe(1);
         unmount();
+    });
+
+    it('runs a tile again when its rows were still loading at the save', async () => {
+        const calls: string[] = [];
+        const mountModelTile = (chartUuid: string) =>
+            new QueryObserver(queryClient, {
+                queryKey: tileKey(chartUuid),
+                queryFn: () => {
+                    calls.push(chartUuid);
+                    return { executeQueryResponse: { queryUuid: chartUuid } };
+                },
+                staleTime: Infinity,
+            }).subscribe(() => {});
+        const rowsPage = (queryUuid: string, status: QueryHistoryStatus) =>
+            queryClient.setQueryData(['query-page', { queryUuid, page: 1 }], {
+                status,
+                queryUuid,
+            });
+        const unmountLoading = mountModelTile('loading');
+        const unmountLoaded = mountModelTile('loaded');
+        await flush();
+        rowsPage('loading', QueryHistoryStatus.EXECUTING);
+        rowsPage('loaded', QueryHistoryStatus.READY);
+
+        evictSavedDashboardResults(queryClient);
+        await flush();
+
+        expect(calls).toEqual(['loading', 'loaded', 'loading']);
+        unmountLoading();
+        unmountLoaded();
     });
 });
