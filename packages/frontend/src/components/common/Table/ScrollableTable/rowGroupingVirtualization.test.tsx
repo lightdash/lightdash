@@ -171,18 +171,18 @@ const scrollViewportTo = async (table: HTMLTableElement, rowIndex: number) => {
 };
 
 // The browser sizes a row from its tallest cell. A merged cell whose value has
-// more lines than the rows it covers grows those rows, so it must not show more
-// lines than it covers.
+// more lines than fit in the rows it covers grows those rows, so it must not
+// show more lines than fit.
 const getValueLineLimit = (cell: HTMLTableCellElement) => {
     const limit = cell
         .querySelector<HTMLElement>(':scope > span')
-        ?.style.getPropertyValue('--merged-row-span');
+        ?.style.getPropertyValue('--merged-line-clamp');
     return limit ? Number(limit) : undefined;
 };
 
-it('limits a merged value to the rows its cell covers when a group restarts on the first rendered row', async () => {
+it('shows the lines of a merged value that fit in the rows its cell covers', async () => {
     const pairOf = (rowIndex: number) =>
-        `Pair ${Math.floor(rowIndex / 2)}\nsecond line`;
+        `Pair ${Math.floor(rowIndex / 2)}\nsecond line\nthird line`;
     const table = renderGroupedTable({ getRegion: pairOf });
     expect(await screen.findByText('City 0')).toBeInTheDocument();
 
@@ -198,10 +198,14 @@ it('limits a merged value to the rows its cell covers when a group restarts on t
     );
     expect(pairCells[0].textContent).toBe(pairOf(rows[0].rowIndex));
     expect(pairCells[0]).not.toHaveAttribute('rowspan');
-    pairCells.forEach((cell) => {
-        expect(getValueLineLimit(cell)).toBe(
-            Number(cell.getAttribute('rowspan') ?? 1),
-        );
+    // One row fits one line. Two rows fit all three lines.
+    expect(getValueLineLimit(pairCells[0])).toBe(1);
+    const twoRowCells = pairCells.filter(
+        (cell) => cell.getAttribute('rowspan') === '2',
+    );
+    expect(twoRowCells.length).toBeGreaterThan(0);
+    twoRowCells.forEach((cell) => {
+        expect(getValueLineLimit(cell)).toBe(3);
     });
 
     const cityCell = Array.from(rows[0].tr.querySelectorAll('td')).find(
