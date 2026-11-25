@@ -11,7 +11,7 @@ import {
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import {
     assertOAuthCredentialOperationAllowed,
-    CLI_OAUTH_PAT_COMPAT_MAX_DAYS,
+    CLI_OAUTH_PAT_COMPAT_MAX_HOURS,
     isCliOAuthPatCompatCandidate,
     logCliOAuthPatCompatUsed,
 } from '../auth/oauthScopes/credentials';
@@ -21,7 +21,8 @@ import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAcces
 import { type FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { BaseService } from './BaseService';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
 type PersonalAccessTokenServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -63,7 +64,7 @@ export class PersonalAccessTokenService extends BaseService {
         const requested = expiresAt ? new Date(expiresAt).getTime() : NaN;
         return new Date(
             Math.min(
-                now + CLI_OAUTH_PAT_COMPAT_MAX_DAYS * DAY_MS,
+                now + CLI_OAUTH_PAT_COMPAT_MAX_HOURS * HOUR_MS,
                 ...(maxExpirationTimeInDays
                     ? [now + maxExpirationTimeInDays * DAY_MS]
                     : []),

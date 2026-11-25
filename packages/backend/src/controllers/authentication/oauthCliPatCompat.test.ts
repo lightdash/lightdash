@@ -37,7 +37,8 @@ vi.mock('../../logging/logger', () => ({
     },
 }));
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 const path = '/api/v1/user/me/personal-access-tokens';
 
 const user = {
@@ -155,13 +156,13 @@ const post = async ({
     }
 };
 
-it('creates a 7-day token for old CLI browser login over the PAT route', async () => {
+it('creates an 8-hour token for old CLI browser login over the PAT route', async () => {
     const before = Date.now();
     const { status, create } = await post();
     expect(status).toBe(200);
     const { expiresAt } = create.mock.calls[0][1] as { expiresAt: Date };
-    expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 7 * DAY_MS);
-    expect(expiresAt.getTime()).toBeLessThanOrEqual(Date.now() + 7 * DAY_MS);
+    expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 8 * HOUR_MS);
+    expect(expiresAt.getTime()).toBeLessThanOrEqual(Date.now() + 8 * HOUR_MS);
     expect(Logger.warn).toHaveBeenCalledWith(
         'oauth_cli_pat_compat_used',
         expect.objectContaining({

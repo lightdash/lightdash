@@ -471,9 +471,8 @@ working until 15 March 2027 (`CLI_OAUTH_PAT_COMPAT_UNTIL` in
 `auth/oauthScopes/credentials.ts`). A token for the `lightdash-cli` client
 with the `write` scope, not bound to an agent connection, in an organization
 without `agent-identity`, can create a personal access token. That token
-expires after at most 7 days, or sooner if `PAT_MAX_EXPIRATION_TIME_IN_DAYS`
-is lower. Each use logs `oauth_cli_pat_compat_used`. Rotation and every other
-credential operation stay refused. After that date, old CLI browser login
+expires after at most 8 hours. Each use logs `oauth_cli_pat_compat_used`.
+Rotation and every other credential operation stay refused. After that date, old CLI browser login
 fails with `Failed to create PAT: 403 Forbidden`; upgrade the CLI to 3.88.0 or
 later, or use `lightdash login --token`.
 

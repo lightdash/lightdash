@@ -23,7 +23,8 @@ import { defaultSessionUser } from '../account/account.mock';
 import { grantFixture } from '../agentConnectionGrants/grant.mock';
 import { CLI_OAUTH_PAT_COMPAT_UNTIL } from './credentials';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 const NOW = new Date('2026-12-01T12:00:00Z');
 const OLD_CLI_USER_AGENT =
     'node-fetch/1.0 (+https://github.com/bitinn/node-fetch)';
@@ -154,16 +155,16 @@ describe('CLI browser-login personal access token exception', () => {
     });
 
     it.each([
-        ['absent', null, NOW.getTime() + 7 * DAY_MS],
+        ['absent', null, NOW.getTime() + 8 * HOUR_MS],
         [
-            'later than 7 days',
-            new Date(NOW.getTime() + 365 * DAY_MS),
-            NOW.getTime() + 7 * DAY_MS,
+            'later than 8 hours',
+            new Date(NOW.getTime() + 8 * DAY_MS),
+            NOW.getTime() + 8 * HOUR_MS,
         ],
         [
-            'earlier than 7 days',
-            new Date(NOW.getTime() + 8 * 3600000),
-            NOW.getTime() + 8 * 3600000,
+            'earlier than 8 hours',
+            new Date(NOW.getTime() + HOUR_MS),
+            NOW.getTime() + HOUR_MS,
         ],
     ])(
         'creates a capped token when expiresAt is %s',
@@ -189,18 +190,18 @@ describe('CLI browser-login personal access token exception', () => {
     it('creates the token the 3.87.0 CLI requests and reads a CLI user agent', async () => {
         const { pat, create } = build();
         const account = oauthAccount({ userAgent: 'lightdash-cli/3.87.0' });
-        await createPat(pat, account, new Date(NOW.getTime() + 720 * 3600000));
-        expect(createdExpiry(create)).toBe(NOW.getTime() + 7 * DAY_MS);
+        await createPat(pat, account, new Date(NOW.getTime() + 8 * HOUR_MS));
+        expect(createdExpiry(create)).toBe(NOW.getTime() + 8 * HOUR_MS);
         expect(Logger.warn).toHaveBeenCalledWith(
             'oauth_cli_pat_compat_used',
             expect.objectContaining({ cliVersion: '3.87.0' }),
         );
     });
 
-    it('uses a stricter instance maximum expiry', async () => {
-        const { pat, create } = build({ maxExpirationTimeInDays: 3 });
+    it('keeps the 8-hour cap under a longer instance maximum', async () => {
+        const { pat, create } = build({ maxExpirationTimeInDays: 1 });
         await createPat(pat, oauthAccount(), null);
-        expect(createdExpiry(create)).toBe(NOW.getTime() + 3 * DAY_MS);
+        expect(createdExpiry(create)).toBe(NOW.getTime() + 8 * HOUR_MS);
     });
 
     it('still refuses an expiry in the past', async () => {

@@ -34,7 +34,7 @@ const cliVersionFromUserAgent = (
 // Remove the exception and this constant after this date.
 export const CLI_OAUTH_PAT_COMPAT_UNTIL = new Date('2027-03-15T00:00:00Z');
 
-export const CLI_OAUTH_PAT_COMPAT_MAX_DAYS = 7;
+export const CLI_OAUTH_PAT_COMPAT_MAX_HOURS = 8;
 
 export const isCliOAuthPatCompatCandidate = (
     account: Account,
