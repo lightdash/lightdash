@@ -2,27 +2,35 @@ import {
     toolEditDbtProjectMetadataSchema,
     toolEditDbtProjectOutputSchema,
 } from '@lightdash/common';
-import { getEditDbtProject } from './editDbtProject';
+import { getEditDbtProject, getWrite } from './editDbtProject';
 
-type EditDbtProjectTool = ReturnType<typeof getEditDbtProject>;
+type DbtWriteTool =
+    | ReturnType<typeof getEditDbtProject>
+    | ReturnType<typeof getWrite>;
 
 const executeEditDbtProject = async (
-    tool: EditDbtProjectTool,
+    tool: DbtWriteTool,
     args: Partial<{
         prompt: string;
         prUrl: string | null;
         startNewPullRequest: boolean | null;
         requestedBy: 'user_asked' | 'offer_accepted' | 'agent_initiated';
         script: string | null;
+        moreToDo: boolean;
     }> = {},
 ) => {
-    if (!tool.execute) throw new Error('tool has no execute');
-    const output = await tool.execute(
+    const { execute } = tool;
+    if (!execute) throw new Error('tool has no execute');
+    const output = await execute(
         {
             prompt: 'fix the descriptions',
             prUrl: null,
             startNewPullRequest: false,
             requestedBy: 'user_asked',
+            script: null,
+            note: null,
+            options: [],
+            moreToDo: false,
             ...args,
         },
         {
@@ -42,7 +50,9 @@ describe('getEditDbtProject', () => {
         const editDbtProject = vi.fn();
 
         const output = await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+            }),
             { requestedBy: 'agent_initiated' },
         );
 
@@ -65,7 +75,9 @@ describe('getEditDbtProject', () => {
             });
 
             const output = await executeEditDbtProject(
-                getEditDbtProject({ editDbtProject, acceptsScript: false }),
+                getEditDbtProject({
+                    editDbtProject,
+                }),
                 { requestedBy },
             );
 
@@ -82,7 +94,9 @@ describe('getEditDbtProject', () => {
         });
 
         await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+            }),
             {
                 startNewPullRequest: true,
             },
@@ -101,7 +115,9 @@ describe('getEditDbtProject', () => {
         });
 
         await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+            }),
             {
                 startNewPullRequest: null,
             },
@@ -120,7 +136,9 @@ describe('getEditDbtProject', () => {
         });
 
         await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+            }),
         );
 
         expect(editDbtProject).toHaveBeenCalledWith(
@@ -137,7 +155,9 @@ describe('getEditDbtProject', () => {
         });
 
         const output = await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+            }),
         );
 
         expect(output.metadata).toEqual({
@@ -159,7 +179,9 @@ describe('getEditDbtProject', () => {
         });
 
         const output = await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+            }),
         );
 
         expect(toolEditDbtProjectOutputSchema.safeParse(output).success).toBe(
@@ -175,7 +197,9 @@ describe('getEditDbtProject', () => {
             .mockRejectedValue(new Error('Unable to enqueue writeback'));
 
         const output = await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            getEditDbtProject({
+                editDbtProject,
+            }),
         );
 
         expect(output.metadata).toEqual({
@@ -194,25 +218,31 @@ describe('getEditDbtProject', () => {
         );
     });
 
-    it('saves with a script only when code mode is on', async () => {
+    it('saves a script only through write, always on the open draft', async () => {
         const editDbtProject = vi.fn().mockResolvedValue({
             status: 'started',
             inSandbox: true,
             aiWritebackRunUuid: 'run-1',
         });
 
-        await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: true }),
-            { script: 'yaml.set()' },
-        );
-        await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: false }),
-            { script: 'yaml.set()' },
-        );
+        await executeEditDbtProject(getWrite({ editDbtProject }), {
+            script: 'yaml.set()',
+            prUrl: 'https://github.com/o/r/pull/1',
+            startNewPullRequest: true,
+        });
+        await executeEditDbtProject(getEditDbtProject({ editDbtProject }), {
+            script: 'yaml.set()',
+        });
 
-        expect(editDbtProject.mock.calls.map(([args]) => args.script)).toEqual([
-            'yaml.set()',
-            null,
+        expect(
+            editDbtProject.mock.calls.map(([args]) => [
+                args.script,
+                args.prUrl,
+                args.startNewPullRequest,
+            ]),
+        ).toEqual([
+            ['yaml.set()', null, null],
+            [null, null, false],
         ]);
     });
 
@@ -224,7 +254,9 @@ describe('getEditDbtProject', () => {
         });
 
         const output = await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject, acceptsScript: true }),
+            getWrite({
+                editDbtProject,
+            }),
             { script: 'yaml.remove()' },
         );
 
@@ -244,14 +276,13 @@ describe('getEditDbtProject', () => {
             '--- a/models/a.yml\n+++ b/models/a.yml\n@@ -1,1 +1,1 @@\n-a\n+b\n',
         ];
         const output = await executeEditDbtProject(
-            getEditDbtProject({
+            getWrite({
                 editDbtProject: vi.fn().mockResolvedValue({
                     status: 'started',
                     inSandbox: false,
                     aiWritebackRunUuid: 'run-1',
                     diffs,
                 }),
-                acceptsScript: true,
             }),
             { script: 'yaml.set()' },
         );
@@ -276,18 +307,36 @@ describe('getEditDbtProject', () => {
     it('says a save that falls back to the sandbox takes minutes', async () => {
         const started = (inSandbox: boolean) =>
             executeEditDbtProject(
-                getEditDbtProject({
+                getWrite({
                     editDbtProject: vi.fn().mockResolvedValue({
                         status: 'started',
                         inSandbox,
                         aiWritebackRunUuid: 'run-1',
                     }),
-                    acceptsScript: true,
                 }),
                 { script: 'yaml.set()' },
             );
 
         expect((await started(true)).result).toContain('a few minutes');
         expect((await started(false)).result).not.toContain('a few minutes');
+    });
+
+    it('ends a script save on its card only when the request has nothing left', async () => {
+        const saved = (moreToDo: boolean) =>
+            executeEditDbtProject(
+                getWrite({
+                    editDbtProject: vi.fn().mockResolvedValue({
+                        status: 'started',
+                        inSandbox: false,
+                        aiWritebackRunUuid: 'run-1',
+                    }),
+                }),
+                { script: 'yaml.set()', moreToDo },
+            );
+
+        expect((await saved(false)).result).toContain('write nothing more');
+        expect((await saved(true)).result).toContain(
+            'go on with the rest of what they asked',
+        );
     });
 });

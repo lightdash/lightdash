@@ -1,14 +1,17 @@
-import { type AiAgentMessageUser } from '@lightdash/common';
+import {
+    UNTITLED_WORKSPACE_NAME,
+    type AiAgentMessageUser,
+} from '@lightdash/common';
 import { useEffect, useRef } from 'react';
+import { useStoredStudioThread } from '../../../../../features/semanticStudio/studioChange';
 import { splitStudioChatCode } from '../../../../../features/semanticStudio/studioChatRefs';
 import {
+    findActiveWorkspace,
+    findThreadWorkspace,
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
-import {
-    useStoredStudioThread,
-    useStudioThread,
-} from './useSemanticStudioChat';
+import { useStudioThread } from './useSemanticStudioChat';
 
 const NAME_LENGTH = 60;
 
@@ -20,7 +23,7 @@ export const nameFromRequest = (request: string | undefined): string => {
             .split('\n')
             .map((text) => text.trim())
             .find((text) => text && !/, lines \d+ to \d+:$/.test(text)) ?? '';
-    if (!line) return 'Untitled';
+    if (!line) return UNTITLED_WORKSPACE_NAME;
     const named = line.charAt(0).toUpperCase() + line.slice(1);
     return named.length > NAME_LENGTH
         ? `${named.slice(0, NAME_LENGTH - 1).trimEnd()}…`
@@ -28,9 +31,9 @@ export const nameFromRequest = (request: string | undefined): string => {
 };
 
 /**
- * Keeps the open chat and the server's active workspace in step: another
- * browser's switch opens the same chat here, and a chat that starts changing
- * something gets its workspace without anyone naming it.
+ * Keeps the open chat and the server's active workspace in step: picking a
+ * draft, here or in another browser, opens its chat, and with `syncThread` a
+ * chat that starts changing something gets its workspace without anyone naming it.
  */
 export const useSyncStudioWorkspace = (
     projectUuid: string,
@@ -40,12 +43,11 @@ export const useSyncStudioWorkspace = (
     const [stored, setStored] = useStoredStudioThread(projectUuid);
     const { data: workspaces } = useStudioWorkspaces(projectUuid);
     const action = useStudioWorkspaceAction(projectUuid);
-    const active = workspaces?.mine.find(({ isActive }) => isActive) ?? null;
+    const active = findActiveWorkspace(workspaces);
 
     const followed = useRef<string | null>(null);
     useEffect(() => {
         if (
-            !syncThread ||
             !active?.threadUuid ||
             !active.agentUuid ||
             followed.current === active.workspaceUuid
@@ -59,7 +61,7 @@ export const useSyncStudioWorkspace = (
                 agentUuid: active.agentUuid,
             });
         }
-    }, [syncThread, active, stored, setStored]);
+    }, [active, stored, setStored]);
 
     const { data: thread } = useStudioThread(
         projectUuid,
@@ -74,9 +76,7 @@ export const useSyncStudioWorkspace = (
     useEffect(() => {
         if (!syncThread || !stored || !hasChanges || !workspaces || isLoading)
             return;
-        const own = workspaces.mine.find(
-            ({ threadUuid }) => threadUuid === stored.threadUuid,
-        );
+        const own = findThreadWorkspace(workspaces.mine, stored.threadUuid);
         if (own?.isActive || started.current === stored.threadUuid) return;
         started.current = stored.threadUuid;
         mutate({
@@ -90,40 +90,6 @@ export const useSyncStudioWorkspace = (
         syncThread,
         stored,
         hasChanges,
-        workspaces,
-        isLoading,
-        mutate,
-        firstRequest,
-    ]);
-
-    // The generated title says what the change is better than the first message, unless someone renamed it.
-    const title = thread?.title?.trim() ?? '';
-    const retitled = useRef<string | null>(null);
-    useEffect(() => {
-        if (!syncThread || !stored || !title || !workspaces || isLoading)
-            return;
-        const own = workspaces.mine.find(
-            ({ threadUuid }) => threadUuid === stored.threadUuid,
-        );
-        if (!own || own.name === title) return;
-        // A workspace the server started before the chat had a title is named for no request.
-        if (
-            own.name !== nameFromRequest(firstRequest?.message) &&
-            own.name !== nameFromRequest(undefined)
-        ) {
-            return;
-        }
-        if (retitled.current === `${own.workspaceUuid}:${title}`) return;
-        retitled.current = `${own.workspaceUuid}:${title}`;
-        mutate({
-            kind: 'rename',
-            workspaceUuid: own.workspaceUuid,
-            name: title,
-        });
-    }, [
-        syncThread,
-        stored,
-        title,
         workspaces,
         isLoading,
         mutate,

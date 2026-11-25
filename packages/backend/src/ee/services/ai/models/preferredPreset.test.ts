@@ -1,5 +1,5 @@
-import { findSemanticStudioPreset } from '../../SemanticStudioService/modelPreference';
 import { findPreferredPreset, getOrgModelCatalogue } from './index';
+import { findSemanticStudioPreset } from './modelPreference';
 import { MODEL_PRESETS } from './presets';
 
 const catalogueOf = (

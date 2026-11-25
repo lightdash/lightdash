@@ -24,7 +24,8 @@ const testConnection = async (
         sensitive: true,
     });
 
-export const useTestConnection = () => {
+/** `showErrorToast: false` when the caller shows the error itself. */
+export const useTestConnection = ({ showErrorToast = true } = {}) => {
     const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     return useMutation<
@@ -35,6 +36,7 @@ export const useTestConnection = () => {
         mutationFn: (args: TestConnectionParams) =>
             testConnection(lightdashApi, args),
         onError: ({ error }) => {
+            if (!showErrorToast) return;
             showToastApiError({
                 title: 'Test request failed',
                 apiError: error,

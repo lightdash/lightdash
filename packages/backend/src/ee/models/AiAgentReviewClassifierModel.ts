@@ -395,6 +395,7 @@ type ToolCallEvidenceRow = {
 
 const TOOL_NAME_PRIORITY = new Map<string, number>([
     ['editDbtProject', 95],
+    ['write', 95],
     ['proposeWriteback', 95],
     ['propose_writeback', 95],
     ['runAiWriteback', 95],
@@ -425,6 +426,7 @@ const MCP_TOOL_NAME_SCORE = 50;
 // relevance-ranked top-5 supportingEvidence selection.
 const TOOL_OUTCOME_NAMES = new Set([
     'editDbtProject',
+    'write',
     'proposeWriteback',
     'propose_writeback',
     'runAiWriteback',

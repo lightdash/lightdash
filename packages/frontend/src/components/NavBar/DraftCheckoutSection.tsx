@@ -1,7 +1,9 @@
 import { type SemanticStudioCheckout } from '@lightdash/common';
-import { Anchor, Box, Button, Group, Text } from '@mantine/core';
-import { IconGitBranch } from '@tabler/icons-react';
+import { Button, Group, Menu, Text, Tooltip } from '@mantine/core';
+import { IconArrowRight, IconGitBranch } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Link } from 'react-router';
+import { getSemanticStudioUrl } from '../../features/semanticStudio/urls';
 import {
     describeBranchCompile,
     useCompileCheckout,
@@ -11,7 +13,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
 import classes from './ProjectSwitcher.module.css';
 
-/** Says the whole app shows a checked-out draft, and goes back to what is published in one click. */
+/** The checked-out draft: click to open it in Semantic Layer, or leave it for Published. */
 export const DraftCheckoutSection: FC<{
     projectUuid: string;
     checkout: SemanticStudioCheckout;
@@ -23,59 +25,66 @@ export const DraftCheckoutSection: FC<{
     const compile = checkout.branchCompile;
     const compileState = compile ? describeBranchCompile(compile) : null;
     return (
-        <Group
-            className={classes.draftSection}
-            gap="sm"
-            wrap="nowrap"
-            align="center"
-        >
-            <MantineIcon
-                icon={IconGitBranch}
-                size="md"
-                color="yellow.5"
-                className={classes.draftIcon}
-            />
-            <Box miw={0} flex={1}>
-                <Text fz="xs" fw={600} lineClamp={2}>
+        <Group className={classes.draftSection} gap={4} wrap="nowrap">
+            <Menu.Item
+                component={Link}
+                to={getSemanticStudioUrl(projectUuid, { ref: null })}
+                title={`View ${checkout.name}`}
+                leftSection={
+                    <MantineIcon icon={IconGitBranch} color="yellow.5" />
+                }
+                rightSection={
+                    <MantineIcon
+                        icon={IconArrowRight}
+                        className={classes.draftOpenArrow}
+                    />
+                }
+                flex={1}
+                miw={0}
+            >
+                <Text fz="xs" fw={500} truncate>
                     {checkout.name}
                 </Text>
                 {compileState ? (
-                    <Text fz="xs" c="dimmed">
-                        {compileState}{' '}
-                        {compile?.status === 'failed' ? (
-                            <Anchor
-                                component="button"
-                                type="button"
-                                fz="xs"
-                                disabled={isCompiling}
-                                onClick={() => compileAgain()}
-                            >
-                                Compile again
-                            </Anchor>
-                        ) : null}
+                    <Text fz={11} c="dimmed" truncate>
+                        {compileState}
                     </Text>
                 ) : null}
-            </Box>
-            <Button
-                size="compact-xs"
-                variant="default"
-                flex="none"
-                loading={isLoading}
-                onClick={() =>
-                    mutate(
-                        { kind: 'leave' },
-                        {
-                            onError: ({ error }) =>
-                                showToastApiError({
-                                    title: 'Could not go back to Published',
-                                    apiError: error,
-                                }),
-                        },
-                    )
-                }
-            >
-                Back to Published
-            </Button>
+            </Menu.Item>
+            {compile?.status === 'failed' ? (
+                <Button
+                    size="compact-xs"
+                    variant="subtle"
+                    flex="none"
+                    loading={isCompiling}
+                    onClick={() => compileAgain()}
+                >
+                    Retry
+                </Button>
+            ) : null}
+            <Tooltip label="Back to Published" withinPortal={false}>
+                <Button
+                    size="compact-xs"
+                    variant="subtle"
+                    color="gray"
+                    flex="none"
+                    loading={isLoading}
+                    onClick={() =>
+                        mutate(
+                            { kind: 'leave' },
+                            {
+                                onError: ({ error }) =>
+                                    showToastApiError({
+                                        title: 'Could not go back to Published',
+                                        apiError: error,
+                                    }),
+                            },
+                        )
+                    }
+                >
+                    Leave
+                </Button>
+            </Tooltip>
         </Group>
     );
 };

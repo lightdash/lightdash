@@ -1,13 +1,3 @@
-/* Pins the diff to the app's colour scheme rather than the system's. */
-.diffViewport,
-.diffHost {
-    color-scheme: light;
-
-    @mixin dark {
-        color-scheme: dark;
-    }
-}
-
 .diffViewport {
     max-height: 480px;
     overflow: auto;
@@ -16,6 +6,22 @@
 }
 
 /* A whole file fills its pane, which must be positioned: the viewport needs a definite height to scroll. */
+/* The overview scrolls as one page, so a file never scrolls inside it. */
+.diffViewport[data-full] {
+    max-height: none;
+    overflow: visible;
+}
+
+.diffViewport[data-folded] {
+    max-height: calc(40 * var(--diffs-line-height));
+    overflow: hidden;
+    mask-image: linear-gradient(to bottom, black 75%, transparent);
+}
+
+.unfold {
+    margin: 4px var(--mantine-spacing-sm) 8px;
+}
+
 .diffViewport.whole {
     position: absolute;
     inset: 0;

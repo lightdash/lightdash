@@ -1,9 +1,19 @@
 import { z } from 'zod';
 import {
+    MODEL_FRAGMENT_ACTIONS,
+    MODEL_FRAGMENT_REFUSAL_REASONS,
+} from '../../../../lightdash/applyModelFragment';
+import { parseRemovablePartPath } from '../../../../lightdash/diffModelDocuments';
+import {
+    type SemanticLayerDraftItemResult,
+    type SemanticStudioRejection,
+} from '../../../../types/semanticStudio';
+import {
     baseOutputMetadataSchema,
     structuredToolOutputSchema,
 } from '../outputMetadata';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
+import { toolEditProjectContextArgsSchema } from './toolEditProjectContextArgs';
 
 const SEMANTIC_LAYER_FRAGMENT_GUIDE = [
     "Each entry of `models` names one model and gives a YAML fragment of what to add or patch on it. A model that does not exist yet needs `sql_from` (its table, or a single SELECT for a derived model) and `dimensions`. A dimension needs `name`, `type` (string, number, date, timestamp or boolean) and `sql`, written as ${TABLE}.column. A metric that aggregates one column goes in `metrics` under that dimension, with a `type` (count, count_distinct, sum, average, min, max, median) and optional `filters`, a list of single `field: value` pairs. A metric over an expression goes in top-level `metrics` with its own `sql` in this warehouse's SQL dialect; one that combines other metrics uses `type: number` and ${metric_name}. A derived dimension goes in `additional_dimensions` under its dimension. A join goes in `joins` with `join` (the other model) and `sql_on`, written as ${model.field} = ${other_model.field}.",
@@ -14,9 +24,20 @@ const SEMANTIC_LAYER_FRAGMENT_GUIDE = [
 export const TOOL_PROPOSE_SEMANTIC_LAYER_CHANGE_DESCRIPTION = [
     "Add a change to the person's draft of this project's semantic layer. It builds on what is already in the draft, every check runs against the warehouse, and nothing goes live until they apply the draft.",
     ...SEMANTIC_LAYER_FRAGMENT_GUIDE,
-    'Because a person reviews the draft, a fragment may also redefine an existing field: give only the keys that change, and null removes a key. `remove` lists paths to delete, written dimensions.<name>, dimensions.<name>.metrics.<name>, dimensions.<name>.additional_dimensions.<name>, metrics.<name> or joins.<name>; `removeModel` deletes the whole model. A field can be hidden with `hidden: true`. Showing a hidden field again, and who can see a model or field (tags, required_attributes, any_attributes, sql_filter), cannot be changed and comes back under `refusals`.',
-    'A `ready` model passed its checks and joined the draft, and a `note` on it says what was only estimated and needs the person to confirm; `unchanged` means the entry changes nothing; `failed` carries the error to fix before proposing again, and that entry stays out of the draft.',
+    'Because a person reviews the draft, a fragment may also redefine an existing field: give only the keys that change, and null removes a key. `remove` lists paths to delete, written dimensions.<name>, dimensions.<name>.metrics.<name>, dimensions.<name>.additional_dimensions.<name>, metrics.<name> or joins.<name>; `removeModel` deletes the whole model. A field can be hidden with `hidden: true`. Showing a hidden field again, and who can see a model or field (tags, required_attributes, any_attributes, sql_filter), cannot be changed: such a part comes back under `refusals` and fails its model.',
+    'A `ready` model passed its checks and joined the draft, and a `note` on it says what was only estimated and needs the person to confirm; `unchanged` means the entry changes nothing; `failed` carries the error or the `refusals` to fix before proposing again. A model joins the draft whole or not at all, so every entry for a failed model stays out of the draft: propose the whole change to that model again. An edit by hand runs the same checks, so it is no way around a failure.',
 ].join(' ');
+
+// A path that names no whole field or join would only come back as not found.
+const isRemovablePath = (path: string): boolean =>
+    parseRemovablePartPath(path) !== null;
+
+/** Whether the person's request goes on after a Studio change; false lets the turn end on the change's card. */
+export const studioMoreToDoSchema = z
+    .boolean()
+    .describe(
+        "True when the person's request has steps left after this change, such as running a query they asked for, so you carry them out next; false when this change finishes it.",
+    );
 
 export const toolProposeSemanticLayerChangeArgsSchema = z.object({
     models: z
@@ -33,8 +54,25 @@ export const toolProposeSemanticLayerChangeArgsSchema = z.object({
                     .describe(
                         'YAML mapping of what to add or change on this model, without `name` or `type`; null when the entry only removes.',
                     ),
+                fromMetricView: z
+                    .object({
+                        table: z.string(),
+                        schema: z.string().nullable(),
+                        database: z.string().nullable(),
+                    })
+                    .nullable()
+                    .describe(
+                        'A metric view, named as describeWarehouseTable takes it, to import whole: the model gets every dimension and measure with the labels, descriptions, synonyms and definitions the warehouse holds, so `yaml` must be null. On a model that already exists it fills in what is missing and updates the rest. Null otherwise.',
+                    ),
                 remove: z
-                    .array(z.string())
+                    .array(
+                        z
+                            .string()
+                            .refine(
+                                isRemovablePath,
+                                'Write a path to delete as dimensions.<name>, dimensions.<name>.metrics.<name>, dimensions.<name>.additional_dimensions.<name>, metrics.<name> or joins.<name>.',
+                            ),
+                    )
                     .describe('Paths on this model to delete; empty for none.'),
                 removeModel: z
                     .boolean()
@@ -49,7 +87,7 @@ export const toolProposeSemanticLayerChangeArgsSchema = z.object({
         .string()
         .nullable()
         .describe(
-            'A short name for the change, describing the request. Used only when this edit starts a new change.',
+            'A short name for the change, describing the request. Used only when this edit starts a new change or the checked-out one is still untitled.',
         ),
     note: z
         .string()
@@ -63,6 +101,7 @@ export const toolProposeSemanticLayerChangeArgsSchema = z.object({
         .describe(
             'At most two things the person might ask for next instead, each written as they would say it in under 8 words. Each shows as a button that sends it. Empty for none.',
         ),
+    moreToDo: studioMoreToDoSchema,
 });
 
 export type ToolProposeSemanticLayerChangeArgs = z.infer<
@@ -72,41 +111,54 @@ export type ToolProposeSemanticLayerChangeArgs = z.infer<
 export const TOOL_READ_SEMANTIC_MODEL_DESCRIPTION =
     "Read one model's YAML as the person's draft leaves it, which is what a proposal builds on. An unknown name returns the name of every model.";
 
-const proposalMetadataSchema = z.object({
-    status: z.literal('success'),
-    models: z.array(
+const rejectionSchema: z.ZodType<SemanticStudioRejection> =
+    z.discriminatedUnion('kind', [
+        z.object({ kind: z.literal('query_builder'), detail: z.string() }),
+        z.object({ kind: z.literal('warehouse_refused'), detail: z.string() }),
         z.object({
-            model: z.string(),
-            status: z.enum(['ready', 'unchanged', 'failed']),
-            changes: z.array(
-                z.object({
-                    path: z.string(),
-                    action: z.enum([
-                        'created',
-                        'added',
-                        'patched',
-                        'redefined',
-                        'removed',
-                    ]),
-                }),
-            ),
-            refusals: z.array(
-                z.object({
-                    path: z.string(),
-                    reason: z.enum([
-                        'access',
-                        'name_taken',
-                        'incomplete',
-                        'invalid_filter',
-                        'not_found',
-                    ]),
-                }),
-            ),
-            error: z.string().nullable(),
-            // Absent on results stored before notes existed.
-            notes: z.array(z.string()).optional(),
+            kind: z.literal('breaks_joining_model'),
+            models: z.array(z.string()),
+            detail: z.string(),
+        }),
+        z.object({
+            kind: z.literal('access_change'),
+            fields: z.array(z.string()),
+            detail: z.null(),
+        }),
+        z.object({ kind: z.literal('already_failing'), detail: z.string() }),
+    ]);
+
+// Typed as the draft's item result so the two cannot drift apart.
+const proposalItemResultSchema: z.ZodType<
+    Omit<SemanticLayerDraftItemResult, 'notes'> & {
+        notes?: string[];
+        rejection?: SemanticStudioRejection | null;
+    }
+> = z.object({
+    model: z.string(),
+    status: z.enum(['ready', 'unchanged', 'failed']),
+    changes: z.array(
+        z.object({
+            path: z.string(),
+            action: z.enum(MODEL_FRAGMENT_ACTIONS),
         }),
     ),
+    refusals: z.array(
+        z.object({
+            path: z.string(),
+            reason: z.enum(MODEL_FRAGMENT_REFUSAL_REASONS),
+        }),
+    ),
+    error: z.string().nullable(),
+    // Absent on results stored before rejections had a kind, which then show only `error`.
+    rejection: rejectionSchema.nullish(),
+    // Absent on results stored before notes existed.
+    notes: z.array(z.string()).optional(),
+});
+
+const proposalMetadataSchema = z.object({
+    status: z.literal('success'),
+    models: z.array(proposalItemResultSchema),
     diffs: z.array(
         z.object({
             model: z.string(),
@@ -124,7 +176,7 @@ const proposalMetadataSchema = z.object({
     // Absent on results stored before a change carried a note and offers.
     note: z.string().nullable().default(null),
     options: z.array(z.string()).default([]),
-    // True when the result came back with advice to act on, a metric to run, or parts refused, before the turn ends.
+    // True when the result came back with advice to act on, a metric to run, or the person's request has steps left, before the turn ends.
     needsFollowUp: z.boolean().default(false),
 });
 
@@ -146,21 +198,6 @@ export type ToolProposeSemanticLayerChangeOutput = z.infer<
 >;
 
 export type SemanticLayerProposal = z.infer<typeof proposalMetadataSchema>;
-
-/** The line kept as the reply when a turn ends on its card with nothing written, so history and copy still read. */
-export const describeSemanticLayerProposals = (
-    proposals: Pick<SemanticLayerProposal, 'models'>[],
-): string => {
-    const ready = proposals.flatMap(({ models }) =>
-        models.filter(({ status }) => status === 'ready'),
-    );
-    if (ready.length === 0) return 'Nothing changed in the draft.';
-    const names = [...new Set(ready.map(({ model }) => model))];
-    const leftOut = ready.some(({ refusals }) => refusals.length > 0)
-        ? ' Some parts were left out.'
-        : '';
-    return `Changed ${names.join(', ')} in the draft.${leftOut}`;
-};
 
 export const isToolProposeSemanticLayerChangeResult =
     makeBuiltInToolResultGuard(
@@ -189,10 +226,49 @@ export type ToolReadSemanticModelOutput = z.infer<
     typeof toolReadSemanticModelOutputSchema
 >;
 
+export const TOOL_DRAFT_PROJECT_CONTEXT_DESCRIPTION = [
+    "Add or replace one entry of this project's context (`lightdash.project_context.yml`) in the person's draft: the definitions and routing facts agents read before answering. It joins the draft like a model change and agents read it once the person publishes the draft.",
+    'Use it for a durable, project-specific fact: a definition or acronym, which model answers a kind of question, or a note about one model or field. It does not change any model.',
+].join(' ');
+
+export const toolDraftProjectContextArgsSchema =
+    toolEditProjectContextArgsSchema.extend({
+        changeName: toolProposeSemanticLayerChangeArgsSchema.shape.changeName,
+    });
+
+export type ToolDraftProjectContextArgs = z.infer<
+    typeof toolDraftProjectContextArgsSchema
+>;
+
+export const toolDraftProjectContextOutputSchema = structuredToolOutputSchema({
+    metadata: baseOutputMetadataSchema,
+    structuredContent: z.object({
+        entryId: z.string(),
+        op: z.enum(['create', 'update']),
+        draftChangeUuid: z.string(),
+    }),
+});
+
+export type ToolDraftProjectContextOutput = z.infer<
+    typeof toolDraftProjectContextOutputSchema
+>;
+
+// Who made a model's edits: the person in the editor, this chat, or another chat.
+export const STUDIO_EDITED_IN = [
+    'by_hand',
+    'this_chat',
+    'another_chat',
+] as const;
+
 const studioChangeSummarySchema = z.object({
     name: z.string(),
     isCheckedOut: z.boolean(),
-    models: z.array(z.string()),
+    models: z.array(
+        z.object({
+            name: z.string(),
+            editedIn: z.array(z.enum(STUDIO_EDITED_IN)),
+        }),
+    ),
 });
 export type StudioChangeSummary = z.infer<typeof studioChangeSummarySchema>;
 export const toolListChangesArgsSchema = z.object({});

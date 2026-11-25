@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     OpenIdIdentityIssuerType,
     type ApiError,
     type CreateEmailOnlyUserArgs,
@@ -13,7 +12,6 @@ import { useEffect, type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { type LightdashApi } from '../api';
 import AuthLayout from '../components/common/AuthLayout';
-import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import PageSpinner from '../components/PageSpinner';
 import CreateEmailOnlyUserForm from '../components/RegisterForms/CreateEmailOnlyUserForm';
@@ -21,7 +19,6 @@ import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import useToaster from '../hooks/toaster/useToaster';
 import { useEmailStatus } from '../hooks/useEmailVerification';
 import { useFlashMessages } from '../hooks/useFlashMessages';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useTracking from '../providers/Tracking/useTracking';
@@ -47,51 +44,27 @@ const isAnySsoEnabled = (auth: HealthState['auth'] | undefined) =>
         auth.azuread.enabled ||
         auth.oidc.enabled);
 
-const RegisterTermsFooter: FC<{ isNewLayout: boolean }> = ({ isNewLayout }) =>
-    isNewLayout ? (
-        <Text c="dimmed" ta="center" fz="xs">
-            By continuing, you agree to our{' '}
-            <Anchor
-                href="https://www.lightdash.com/terms-of-service"
-                target="_blank"
-                inherit
-            >
-                Terms of Service
-            </Anchor>{' '}
-            and{' '}
-            <Anchor
-                href="https://www.lightdash.com/privacy-policy"
-                target="_blank"
-                inherit
-            >
-                Privacy Policy
-            </Anchor>
-            .
-        </Text>
-    ) : (
-        <Text c="dimmed" ta="center" fz="sm" fw={500}>
-            By creating an account, you agree to
-            <br />
-            our{' '}
-            <Anchor
-                href="https://www.lightdash.com/privacy-policy"
-                target="_blank"
-                fz="sm"
-                fw={500}
-            >
-                Privacy Policy
-            </Anchor>{' '}
-            and our{' '}
-            <Anchor
-                href="https://www.lightdash.com/terms-of-service"
-                target="_blank"
-                fz="sm"
-                fw={500}
-            >
-                Terms of Service.
-            </Anchor>
-        </Text>
-    );
+const RegisterTermsFooter: FC = () => (
+    <Text c="dimmed" ta="center" fz="xs">
+        By continuing, you agree to our{' '}
+        <Anchor
+            href="https://www.lightdash.com/terms-of-service"
+            target="_blank"
+            inherit
+        >
+            Terms of Service
+        </Anchor>{' '}
+        and{' '}
+        <Anchor
+            href="https://www.lightdash.com/privacy-policy"
+            target="_blank"
+            inherit
+        >
+            Privacy Policy
+        </Anchor>
+        .
+    </Text>
+);
 
 const Register: FC = () => {
     const lightdashApi = useLightdashApi();
@@ -100,7 +73,6 @@ const Register: FC = () => {
     const emailStatus = useEmailStatus(
         !!health.data?.isAuthenticated && !!health.data?.hasEmailClient,
     );
-    const { isNewLayout } = useAuthLayoutVariant();
     const { showToastError, showToastApiError } = useToaster();
     const flashMessages = useFlashMessages();
 
@@ -114,10 +86,6 @@ const Register: FC = () => {
     }, [flashMessages.data, showToastError]);
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
-    const emailOnlySignupFlag = useServerFeatureFlag(
-        FeatureFlags.NewOnboarding,
-        { retry: 3 },
-    );
     const { identify, track } = useTracking();
     const redirectUrl = sanitizeRedirectUrl(
         location.state?.from
@@ -146,11 +114,7 @@ const Register: FC = () => {
         },
     );
 
-    if (
-        health.isInitialLoading ||
-        emailOnlySignupFlag.isInitialLoading ||
-        emailStatus.isInitialLoading
-    ) {
+    if (health.isInitialLoading || emailStatus.isInitialLoading) {
         return <PageSpinner />;
     }
 
@@ -163,12 +127,7 @@ const Register: FC = () => {
         return <Navigate to="/verify-email" replace />;
     }
 
-    const isEmailOnlySignup =
-        (emailOnlySignupFlag.data?.enabled ?? false) &&
-        !!health.data?.hasEmailClient;
-    const signupOnboardingFlow = emailOnlySignupFlag.data?.enabled
-        ? 'new'
-        : 'legacy';
+    const isEmailOnlySignup = !!health.data?.hasEmailClient;
 
     const ssoLogins = isAnySsoEnabled(health.data?.auth) && (
         <Stack>
@@ -176,7 +135,7 @@ const Register: FC = () => {
                 <ThirdPartySignInButton
                     key={providerName}
                     providerName={providerName}
-                    intent={isNewLayout ? 'continue' : 'signup'}
+                    intent="continue"
                     redirect={redirectUrl}
                 />
             ))}
@@ -192,7 +151,7 @@ const Register: FC = () => {
                         name: EventName.SIGNUP_FORM_SUBMITTED,
                         properties: {
                             variant: 'email_only',
-                            onboardingFlow: signupOnboardingFlow,
+                            onboardingFlow: 'new',
                         },
                     });
                     mutate(data);
@@ -206,7 +165,7 @@ const Register: FC = () => {
                         name: EventName.SIGNUP_FORM_SUBMITTED,
                         properties: {
                             variant: 'password',
-                            onboardingFlow: signupOnboardingFlow,
+                            onboardingFlow: 'new',
                         },
                     });
                     mutate(data);
@@ -218,11 +177,10 @@ const Register: FC = () => {
             {ssoLogins}
             {ssoLogins && passwordLogin && (
                 <Divider
-                    my={isNewLayout ? undefined : 'md'}
                     labelPosition="center"
                     label={
                         <Text c="dimmed" size="sm" fw={500}>
-                            {isNewLayout ? 'or' : 'OR'}
+                            or
                         </Text>
                     }
                 />
@@ -235,9 +193,8 @@ const Register: FC = () => {
             pageTitle="Register"
             title="Create an account"
             subtitle="Start building analytics in minutes."
-            legacyTitle="Sign up"
             withCustomerLogos
-            footer={<RegisterTermsFooter isNewLayout={isNewLayout} />}
+            footer={<RegisterTermsFooter />}
         >
             {logins}
         </AuthLayout>

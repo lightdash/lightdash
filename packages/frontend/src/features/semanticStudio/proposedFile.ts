@@ -1,6 +1,4 @@
-/** The file a proposed diff is for, from its `+++` line. */
-export const proposedPathOf = (patch: string) =>
-    /^\+\+\+ (?:b\/)?(\S+)/m.exec(patch)?.[1] ?? null;
+import { patchPathOf } from '../writeback/splitPatch';
 
 const findBlock = (lines: string[], block: string[], from: number) => {
     const fits = (at: number) =>
@@ -20,7 +18,7 @@ export const applyProposal = (
     path: string,
     content: string,
 ): string | null => {
-    const patch = proposal.find((code) => proposedPathOf(code) === path);
+    const patch = proposal.find((code) => patchPathOf(code) === path);
     if (!patch) return null;
     const hunks = patch.split(/^@@[^\n]*$/m).slice(1);
     const lines = content.split('\n');

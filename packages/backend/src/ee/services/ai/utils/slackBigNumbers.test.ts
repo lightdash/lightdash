@@ -58,8 +58,6 @@ const composerArtifact = (
     dashboardConfig: null,
     promptUuid: 'prompt',
     versionCreatedAt: new Date(),
-    verifiedByUserUuid: null,
-    verifiedAt: null,
 });
 
 const visualizeResult = (versionUuid: string, queryUuid: string | null) => ({

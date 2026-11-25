@@ -11,8 +11,10 @@ import {
     MetricType,
     NotFoundError,
     ParameterError,
+    ParseError,
     ProjectType,
     SupportedDbtAdapter,
+    upsertProjectContextEntries,
     ValidationErrorType,
     ValidationSourceType,
     WarehouseTypes,
@@ -23,37 +25,34 @@ import {
     type LightdashModelFragment,
     type PossibleAbilities,
     type Project,
+    type ProjectContextEntry,
     type SemanticLayerModelChange,
     type SemanticStudioWorkspace,
     type SemanticStudioWorkspacePullRequestState,
     type SessionUser,
 } from '@lightdash/common';
+import { type Knex } from 'knex';
 import { Readable } from 'node:stream';
 import { stringify } from 'yaml';
-import {
-    readCompiledDbtManifest,
-    saveCompiledDbtManifest,
-} from '../../../services/ProjectService/compiledDbtManifest';
 import { user } from '../../../services/ProjectService/ProjectService.mock';
-import { type DbSemanticStudioBranchCompile } from '../../database/entities/semanticStudioBranchCompiles';
 import {
     ModelDocumentsChangedError,
     type ChangeSet,
     type DraftImpactCheck,
+    type OtherDrafter,
     type ProjectModelDocumentModel,
     type StoredDraftChange,
 } from '../../models/ProjectModelDocumentModel';
-import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
-import { type ApiCheckout } from '../AiWritebackService/providers/GithubProvider';
-import { type DbtScriptChange } from './codeMode/dbtManifestPatch';
+import { findDbtDraftExplores, saveDbtTryOut } from './dbtTryOut';
 import {
-    isSourcePath,
     SemanticStudioService,
     type SemanticStudioServiceArguments,
 } from './SemanticStudioService';
 
 const ORGANIZATION_UUID = '00000000-0000-0000-0000-000000000001';
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000002';
+// The models are mocked, so nothing reads the transaction they are handed.
+const TRX = {} as Knex.Transaction;
 const USER_UUID = '00000000-0000-0000-0000-000000000003';
 
 const orders = `type: model
@@ -92,6 +91,29 @@ const REVENUE_YAML = `dimensions:
         type: sum
 `;
 
+const OTHER_UUID = '00000000-0000-0000-0000-000000000004';
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const otherDrafter = ({
+    name = 'Person A',
+    lastActiveAt = new Date(),
+    changes,
+}: {
+    name?: string;
+    lastActiveAt?: Date;
+    changes: ReturnType<typeof draftModel>[][];
+}): OtherDrafter => ({
+    userUuid: OTHER_UUID,
+    name,
+    models: [...new Set(changes.flat().map((model) => model.name))],
+    lastActiveAt,
+    changes: changes.map((models, index) => ({
+        draftChangeUuid: `other-change-${index}`,
+        workspaceUuid: 'other-workspace',
+        models,
+    })),
+});
+
 const withAbility = (
     rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0],
 ): SessionUser => ({
@@ -105,12 +127,15 @@ const deployer = withAbility([
     { subject: 'Project', action: 'view' },
 ]);
 const viewer = withAbility([]);
+const projectAdmin = withAbility([
+    { subject: 'DeployProject', action: 'manage' },
+    { subject: 'Project', action: 'manage' },
+]);
 const repoWriter = withAbility([
     { subject: 'DeployProject', action: 'manage' },
     { subject: 'Project', action: 'view' },
     { subject: 'SourceCode', action: 'manage' },
 ]);
-const PREVIEW_UUID = 'preview-project';
 const PULL_REQUEST_URL = 'https://github.example/acme/analytics/pull/1';
 const GITHUB_REPO = {
     type: DbtProjectType.GITHUB,
@@ -158,9 +183,6 @@ const setup = ({
     inReview = [],
     baseContents = [],
     usedFields = [],
-    previewOf = PROJECT_UUID,
-    previewExplores = {},
-    previewCompile = null,
     publishedSince = new Map(),
     enabled = true,
     dbtConnection = { type: DbtProjectType.NONE },
@@ -176,15 +198,10 @@ const setup = ({
         name: `explore_${index}`,
         type,
     })),
-    latestCompileJob = null,
-    checkout = null,
+    liveContext = [],
 }: {
     stored?: { name: string; content: string; version?: number }[];
-    otherDrafters?: {
-        name: string;
-        models: string[];
-        changes: ReturnType<typeof draftModel>[][];
-    }[];
+    otherDrafters?: OtherDrafter[];
     /** Changes sent as pull requests that are still open. */
     inReview?: {
         pullRequestUrl: string;
@@ -193,10 +210,6 @@ const setup = ({
     baseContents?: [string, string | null][];
     /** Field ids a saved chart reads. */
     usedFields?: string[];
-    /** The project the preview project was built from. */
-    previewOf?: string;
-    previewExplores?: Record<string, Explore | ExploreError>;
-    previewCompile?: JobStatusType | null;
     publishedSince?: Map<
         string,
         { by: string | null; at: Date; isYours: boolean }
@@ -221,11 +234,19 @@ const setup = ({
         type?: ExploreType;
         baseTable?: string;
     }[];
-    /** The job of the project's last explore save. */
-    latestCompileJob?: string | null;
-    /** The project branch as Studio reads it. */
-    checkout?: ApiCheckout | null;
+    /** The project context agents read now. */
+    liveContext?: ProjectContextEntry[];
 } = {}) => {
+    let projectContext = liveContext;
+    const upsertEntries = vi.fn(
+        async (_projectUuid: string, entries: ProjectContextEntry[]) => {
+            projectContext = upsertProjectContextEntries(
+                projectContext,
+                entries,
+            );
+            return projectContext;
+        },
+    );
     const track = vi.fn();
     const upsert = vi.fn(
         (
@@ -247,6 +268,8 @@ const setup = ({
             stale -= 1;
             throw new ModelDocumentsChangedError();
         }
+        // Stands in for the transaction: a throw here writes nothing.
+        await args.withSettled?.(TRX);
         upsert(args.projectUuid, args.documents, args.userUuid);
         return { changeSetUuid: 'change-set', deployed: await deploy() };
     };
@@ -366,33 +389,13 @@ const setup = ({
         }): Promise<{ url: string } | null> => ({ url: prUrl }),
     );
     const queueImpactCheck = vi.fn(async () => undefined);
-    const createPreviewForPullRequest = vi.fn(async () => null);
-    const compileExploresFromManifest = vi.fn(
-        async (): Promise<(Explore | ExploreError)[]> => [TRY_OUT_EXPLORE],
-    );
     const files = new Map<string, Buffer>();
-    const branchCompiles = new Map<string, DbSemanticStudioBranchCompile>();
-    let compileRequests = 0;
-    const queueBranchCompile = vi.fn(
-        async (_payload: CompileSemanticStudioBranchPayload) => undefined,
-    );
-    const compileExploresFromBranch = vi.fn(
-        async (): Promise<(Explore | ExploreError)[]> => [BRANCH_EXPLORE],
-    );
-    const findPullRequestBranch = vi.fn(async () => 'studio-branch');
     const mergePullRequest = vi.fn(async () => ({
         merged: true,
         sha: 'merge-sha',
         compileJobUuid: 'job-1',
     }));
     const scheduleCompileAfterMerge = vi.fn(async () => 'job-2');
-    const saveExploresToCacheAndIndexCatalog = vi.fn(
-        async (_args: {
-            explores: (Explore | ExploreError)[];
-            complete?: boolean;
-            jobUuid?: string | null;
-        }) => 'index-job',
-    );
     let activeWorkspace: { threadUuid: string; prUrl: string | null } | null =
         null;
     const unused = async (): Promise<never> => {
@@ -417,7 +420,7 @@ const setup = ({
             projectUuid: PROJECT_UUID,
             name: 'A change',
             threadUuid: activeWorkspace.threadUuid,
-            agentUuid: null,
+            agentUuid: 'agent-studio',
             owner: { userUuid: USER_UUID, name: 'Someone' },
             isMine: true,
             isActive: true,
@@ -430,6 +433,10 @@ const setup = ({
             publishedLive: false,
         };
     const workspaces: SemanticStudioWorkspace[] = [];
+    const findInProject = async () => {
+        const workspace = await findActive();
+        return [...workspaces, ...(workspace ? [workspace] : [])];
+    };
     const getPullRequestState = vi.fn(
         async (): Promise<SemanticStudioWorkspacePullRequestState | null> =>
             null,
@@ -441,11 +448,16 @@ const setup = ({
             state: SemanticStudioWorkspacePullRequestState,
             finishes: boolean,
         ) => {
+            let changed = activeWorkspace?.prUrl === url;
             for (const workspace of workspaces) {
-                if (workspace.pullRequest?.url === url) {
+                if (
+                    workspace.pullRequest?.url === url &&
+                    !workspace.finishedAt
+                ) {
                     workspace.pullRequest.state = state;
                     workspace.finishedAt = new Date();
                     workspace.isActive = false;
+                    changed = true;
                 }
             }
             if (
@@ -455,17 +467,16 @@ const setup = ({
             ) {
                 activeWorkspace = null;
             }
+            return changed;
         },
     );
     const args: SemanticStudioServiceArguments = {
         analytics: { track },
+        projectContextModel: {
+            getDocument: async () => projectContext,
+            upsertEntries,
+        },
         aiWritebackService: {
-            openStudioCheckout: async () => {
-                if (checkout === null) throw new Error('No checkout');
-                return { checkout, root: '' };
-            },
-            saveWithScript: unused,
-            findPullRequestBranch,
             mergePullRequest,
             scheduleCompileAfterMerge,
         },
@@ -481,10 +492,14 @@ const setup = ({
                           title: null,
                       }
                     : null,
-            findInProject: async () => {
-                const workspace = await findActive();
-                return [...workspaces, ...(workspace ? [workspace] : [])];
-            },
+            findInProject,
+            findUnfinishedWithPullRequest: async (_projectUuid, prUrl) =>
+                (await findInProject()).flatMap(
+                    ({ workspaceUuid, owner, finishedAt, pullRequest }) =>
+                        !finishedAt && pullRequest?.url === prUrl
+                            ? [{ workspaceUuid, userUuid: owner.userUuid }]
+                            : [],
+                ),
             find: async (workspaceUuid, userUuid) =>
                 workspaceUuid.startsWith('workspace-')
                     ? {
@@ -516,82 +531,22 @@ const setup = ({
             attachPullRequest: async (_owner, url) => {
                 if (activeWorkspace) activeWorkspace.prUrl = url;
             },
-            attachThreadPullRequest: async () => undefined,
             recordPullRequestState,
-            requestBranchCompile: async (workspaceUuid) => {
-                compileRequests += 1;
-                const compileRequestUuid = `request-${compileRequests}`;
-                const previous = branchCompiles.get(workspaceUuid);
-                branchCompiles.set(workspaceUuid, {
-                    semantic_studio_workspace_uuid: workspaceUuid,
-                    compile_request_uuid: compileRequestUuid,
-                    status: 'compiling',
-                    branch: previous?.branch ?? null,
-                    error: null,
-                    explores: previous?.explores ?? null,
-                    requested_at: new Date(),
-                    compiled_at: previous?.compiled_at ?? null,
-                });
-                return compileRequestUuid;
-            },
-            finishBranchCompile: async (
-                workspaceUuid,
-                compileRequestUuid,
-                outcome,
-            ) => {
-                const row = branchCompiles.get(workspaceUuid);
-                if (row?.compile_request_uuid !== compileRequestUuid)
-                    return false;
-                branchCompiles.set(
-                    workspaceUuid,
-                    outcome.status === 'ready'
-                        ? {
-                              ...row,
-                              ...outcome,
-                              error: null,
-                              compiled_at: new Date(),
-                          }
-                        : { ...row, ...outcome },
-                );
-                return true;
-            },
-            findBranchCompile: async (workspaceUuid) =>
-                branchCompiles.get(workspaceUuid) ?? null,
             deleteFinishedBranchCompiles: async () => undefined,
         },
         featureFlagModel: {
             get: async () => ({ id: 'semantic-studio-editing', enabled }),
         },
         projectModel: {
-            get: async (projectUuid) =>
-                projectUuid === PREVIEW_UUID
-                    ? {
-                          projectUuid: PREVIEW_UUID,
-                          organizationUuid: ORGANIZATION_UUID,
-                          upstreamProjectUuid: previewOf,
-                          type: ProjectType.PREVIEW,
-                          createdByUserUuid: USER_UUID,
-                          dbtConnection,
-                      }
-                    : {
-                          projectUuid: PROJECT_UUID,
-                          organizationUuid: ORGANIZATION_UUID,
-                          upstreamProjectUuid: undefined,
-                          type: ProjectType.DEFAULT,
-                          createdByUserUuid: USER_UUID,
-                          dbtConnection,
-                      },
+            get: async () => ({
+                projectUuid: PROJECT_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                upstreamProjectUuid: undefined,
+                type: ProjectType.DEFAULT,
+                createdByUserUuid: USER_UUID,
+                dbtConnection,
+            }),
             getAllExploreSummaries: async () => exploreSummaries,
-            findExploresByBaseTables: async (
-                _projectUuid: string,
-                baseTables: string[],
-            ) =>
-                exploreSummaries.flatMap(({ name, type, baseTable }) =>
-                    baseTable !== undefined && baseTables.includes(baseTable)
-                        ? [{ name, type: type ?? null }]
-                        : [],
-                ),
-            findExploresFromCache: async () => previewExplores,
             deleteCachedExplores,
         },
         projectModelDocumentModel: {
@@ -654,6 +609,7 @@ const setup = ({
                 changeName,
                 models,
                 baseVersions,
+                projectContextEntries,
             }) => {
                 const draftChangeUuid = `draft-${drafts.length + 1}`;
                 const started = !activeWorkspace;
@@ -670,6 +626,7 @@ const setup = ({
                     createdAt: new Date(),
                     models,
                     baseVersions,
+                    projectContextEntries,
                 });
                 const checkedOut =
                     workspaceUuid ?? workspaceOf(activeWorkspace.threadUuid);
@@ -685,6 +642,7 @@ const setup = ({
                 drafts: selection,
                 status,
                 pullRequestUrl,
+                withSettled,
             }) => {
                 if (pullRequestUrl) recordedPullRequests.push(pullRequestUrl);
                 const holds = (change: StoredDraftChange) =>
@@ -694,6 +652,8 @@ const setup = ({
                             ({ name }) => name === selection.model,
                         ));
                 const settling = drafts.filter(holds);
+                // Runs before anything settles, so a throw leaves the draft as it was.
+                await withSettled?.(TRX, settling.length);
                 const kept = drafts.flatMap((change) => {
                     if (!holds(change)) return [change];
                     const rest = change.models.filter(
@@ -727,7 +687,6 @@ const setup = ({
         },
         schedulerClient: {
             checkSemanticLayerDraftImpact: queueImpactCheck,
-            compileSemanticStudioBranch: queueBranchCompile,
         },
         validationService: { generateValidation },
         savedChartModel: { analyzeFieldImpact },
@@ -760,15 +719,7 @@ const setup = ({
             compileQuery,
             runSqlQuery,
             setExplores,
-            compileExploresFromManifest,
-            compileExploresFromBranch,
-            saveExploresToCacheAndIndexCatalog,
         },
-        jobModel: { findLatestCompileStatus: async () => previewCompile },
-        projectCompileLogModel: {
-            findLatestJobUuid: async () => latestCompileJob,
-        },
-        writebackPreviewService: { createPreviewForPullRequest },
         fileStorageClient: {
             isEnabled: () => true,
             uploadTxt: async (txt, id) => {
@@ -792,11 +743,13 @@ const setup = ({
     return {
         service,
         workspaces,
+        projectContext: () => projectContext,
+        upsertEntries,
         getPullRequestState,
         recordPullRequestState,
-        aiWritebackService: args.aiWritebackService,
         fileStorageClient: args.fileStorageClient,
         workspaceModel: args.workspaceModel,
+        projectModelDocumentModel: args.projectModelDocumentModel,
         setActiveWorkspace: (next: typeof activeWorkspace) => {
             activeWorkspace = next;
         },
@@ -806,15 +759,9 @@ const setup = ({
         startWorkspace,
         finishWorkspace,
         workspaceOf,
-        compileExploresFromManifest,
-        compileExploresFromBranch,
-        findPullRequestBranch,
         mergePullRequest,
-        queueBranchCompile,
-        branchCompiles,
         upsert,
         scheduleCompileAfterMerge,
-        saveExploresToCacheAndIndexCatalog,
         openPullRequest,
         updatePullRequest,
         recordedPullRequests,
@@ -1095,7 +1042,13 @@ describe('SemanticStudioService', () => {
                     null,
                 );
             expect(results[0].status).toBe('failed');
-            expect(results[0].error).toContain('This would break orders');
+            expect(results[0].error).toContain(
+                'This change would break orders',
+            );
+            expect(results[0].rejection).toMatchObject({
+                kind: 'breaks_joining_model',
+                models: ['orders'],
+            });
             expect(draftChangeUuid).toBeNull();
         });
 
@@ -1114,6 +1067,23 @@ describe('SemanticStudioService', () => {
                     null,
                 );
             expect(results[0].refusals[0].reason).toBe('access');
+            expect(draftChangeUuid).toBeNull();
+        });
+
+        it('adds none of a model when part of its change is refused', async () => {
+            const { results, draftChangeUuid } =
+                await setup().service.proposeDraftChange(
+                    deployer,
+                    PROJECT_UUID,
+                    [
+                        draftModel(
+                            'label: Sales\ndimensions:\n  - name: amount\n    required_attributes:\n      team: sales\n',
+                        ),
+                    ],
+                    null,
+                    null,
+                );
+            expect(results[0]).toMatchObject({ status: 'failed', changes: [] });
             expect(draftChangeUuid).toBeNull();
         });
 
@@ -1538,10 +1508,7 @@ dimensions:
         it('compiles the drafted models for the person who drafted them', async () => {
             const context = setup();
             expect(
-                await context.service.findDevelopmentExplores(
-                    deployer,
-                    PROJECT_UUID,
-                ),
+                await context.service.findDraftExplores(deployer, PROJECT_UUID),
             ).toBeNull();
             await context.service.proposeDraftChange(
                 deployer,
@@ -1550,7 +1517,7 @@ dimensions:
                 null,
                 null,
             );
-            const explores = await context.service.findDevelopmentExplores(
+            const explores = await context.service.findDraftExplores(
                 deployer,
                 PROJECT_UUID,
             );
@@ -1574,82 +1541,14 @@ dimensions:
             );
             expect(
                 (
-                    await context.service.findDevelopmentExplores(
+                    await context.service.findDraftExplores(
                         deployer,
                         PROJECT_UUID,
                     )
                 )?.get('orders'),
             ).toBeNull();
             expect(
-                await context.service.findDevelopmentExplores(
-                    viewer,
-                    PROJECT_UUID,
-                ),
-            ).toBeNull();
-        });
-    });
-
-    describe('the development view of a dbt project', () => {
-        const branch: ExploreError = {
-            name: 'payments',
-            label: 'Payments',
-            errors: [],
-        };
-        const dbt = (overrides: Parameters<typeof setup>[0] = {}) =>
-            setup({
-                dbtConnection: DBT_IN_GITHUB,
-                exploreTypes: [ExploreType.DEFAULT, ExploreType.VIRTUAL],
-                previewExplores: { payments: branch },
-                ...overrides,
-            });
-
-        it("reads the explores of the pull request's preview, and hides what the branch removes", async () => {
-            const explores = await dbt().service.findPreviewExplores(
-                repoWriter,
-                PROJECT_UUID,
-                PREVIEW_UUID,
-            );
-            expect(explores?.get('payments')).toBe(branch);
-            expect(explores?.get('explore_0')).toBeNull();
-            expect(explores?.has('explore_1')).toBe(false);
-        });
-
-        it('does not hide live models while the preview holds only explores copied into it', async () => {
-            const explores = await dbt({
-                previewExplores: {
-                    copied: { ...branch, type: ExploreType.VIRTUAL },
-                },
-            }).service.findPreviewExplores(
-                repoWriter,
-                PROJECT_UUID,
-                PREVIEW_UUID,
-            );
-            expect(explores?.get('explore_0')).not.toBeNull();
-        });
-
-        it('is nothing for a preview of another project, a person who cannot write, or a project that keeps a draft', async () => {
-            expect(
-                await dbt({
-                    previewOf: 'another-project',
-                }).service.findPreviewExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                    PREVIEW_UUID,
-                ),
-            ).toBeNull();
-            expect(
-                await dbt().service.findPreviewExplores(
-                    deployer,
-                    PROJECT_UUID,
-                    PREVIEW_UUID,
-                ),
-            ).toBeNull();
-            expect(
-                await setup().service.findPreviewExplores(
-                    deployer,
-                    PROJECT_UUID,
-                    PREVIEW_UUID,
-                ),
+                await context.service.findDraftExplores(viewer, PROJECT_UUID),
             ).toBeNull();
         });
     });
@@ -1659,171 +1558,47 @@ dimensions:
             prUrl: 'https://github.com/acme/shop/pull/1',
             explores: [TRY_OUT_EXPLORE],
         };
-        const dbt = (overrides: Parameters<typeof setup>[0] = {}) =>
-            setup({ dbtConnection: DBT_IN_GITHUB, ...overrides });
 
-        it('shows the person who made the change what it compiles to, and no one else', async () => {
-            const context = dbt();
-            expect(
-                await context.service.findDevelopmentExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                ),
-            ).toBeNull();
-            await context.service.saveDbtScriptTryOut(
-                repoWriter,
-                PROJECT_UUID,
+        it('is forgotten once its own pull request settles, not another one', async () => {
+            const context = setup({ dbtConnection: DBT_IN_GITHUB });
+            const owner = {
+                projectUuid: PROJECT_UUID,
+                userUuid: repoWriter.userUuid,
+            };
+            const findTryOut = () =>
+                findDbtDraftExplores(
+                    {
+                        storage: context.fileStorageClient,
+                        workspaceModel: {
+                            findActive: context.workspaceModel.findActive,
+                            findBranchCompile: async () => null,
+                        },
+                    },
+                    owner,
+                );
+            await saveDbtTryOut(
+                context.fileStorageClient,
+                owner,
                 null,
                 project,
             );
-            expect(
-                (
-                    await context.service.findDevelopmentExplores(
-                        repoWriter,
-                        PROJECT_UUID,
-                    )
-                )?.get('try_out'),
-            ).toEqual(TRY_OUT_EXPLORE);
-            expect(
-                await context.service.findDevelopmentExplores(
-                    deployer,
-                    PROJECT_UUID,
-                ),
-            ).toBeNull();
-        });
-
-        it('is forgotten once its own pull request closes, not another one', async () => {
-            const context = dbt();
-            await context.service.saveDbtScriptTryOut(
-                repoWriter,
-                PROJECT_UUID,
-                null,
-                project,
-            );
-            await context.service.retireDbtTryOut(
+            await context.service.recordPullRequestState(
                 repoWriter,
                 PROJECT_UUID,
                 'https://github.com/acme/shop/pull/2',
+                'closed',
+                false,
             );
-            expect(
-                await context.service.findDevelopmentExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                ),
-            ).not.toBeNull();
-            await context.service.retireDbtTryOut(
+            expect(await findTryOut()).not.toBeNull();
+            await context.service.recordPullRequestState(
                 repoWriter,
                 PROJECT_UUID,
                 project.prUrl,
+                'merged',
+                false,
             );
-            expect(
-                await context.service.findDevelopmentExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                ),
-            ).toBeNull();
+            expect(await findTryOut()).toBeNull();
         });
-
-        it("reads the active workspace's own change, not an older one for another pull request", async () => {
-            const context = dbt();
-            await context.service.saveDbtScriptTryOut(
-                repoWriter,
-                PROJECT_UUID,
-                null,
-                project,
-            );
-            context.setActiveWorkspace({
-                threadUuid: 'thread-2',
-                prUrl: 'https://github.com/acme/shop/pull/2',
-            });
-            expect(
-                await context.service.findDevelopmentExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                ),
-            ).toBeNull();
-            await context.service.saveDbtScriptTryOut(
-                repoWriter,
-                PROJECT_UUID,
-                'thread-2',
-                project,
-            );
-            expect(
-                (
-                    await context.service.findDevelopmentExplores(
-                        repoWriter,
-                        PROJECT_UUID,
-                    )
-                )?.get('try_out'),
-            ).toEqual(TRY_OUT_EXPLORE);
-            context.setActiveWorkspace({
-                threadUuid: 'thread-1',
-                prUrl: project.prUrl,
-            });
-            expect(
-                (
-                    await context.service.findDevelopmentExplores(
-                        repoWriter,
-                        PROJECT_UUID,
-                    )
-                )?.get('try_out'),
-            ).toEqual(TRY_OUT_EXPLORE);
-        });
-
-        it('stands in for a preview that has not compiled yet', async () => {
-            const context = dbt({ previewExplores: {} });
-            await context.service.saveDbtScriptTryOut(
-                repoWriter,
-                PROJECT_UUID,
-                null,
-                project,
-            );
-            expect(
-                (
-                    await context.service.findPreviewExplores(
-                        repoWriter,
-                        PROJECT_UUID,
-                        PREVIEW_UUID,
-                    )
-                )?.get('try_out'),
-            ).toEqual(TRY_OUT_EXPLORE);
-        });
-
-        it.each([
-            [JobStatusType.RUNNING, 'try_out'],
-            [JobStatusType.ERROR, 'try_out'],
-            [JobStatusType.DONE, 'payments'],
-        ])(
-            'reads a reused preview only once its compile is done (%s)',
-            async (previewCompile, shown) => {
-                const context = dbt({
-                    previewExplores: {
-                        payments: {
-                            name: 'payments',
-                            label: 'Payments',
-                            errors: [],
-                        },
-                    },
-                    previewCompile,
-                });
-                await context.service.saveDbtScriptTryOut(
-                    repoWriter,
-                    PROJECT_UUID,
-                    null,
-                    project,
-                );
-                const explores = await context.service.findPreviewExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                    PREVIEW_UUID,
-                );
-                expect(
-                    ['try_out', 'payments'].filter((name) =>
-                        explores?.has(name),
-                    ),
-                ).toEqual([shown]);
-            },
-        );
     });
 
     describe('the order of a draft', () => {
@@ -1911,7 +1686,7 @@ dimensions:
                 {
                     model: 'orders',
                     fieldId: 'orders_amount',
-                    label: expect.any(String),
+                    label: 'Amount',
                     kind: 'changed',
                     charts: [{ uuid: 'chart-1', name: 'Saved chart' }],
                     dashboards: 0,
@@ -1928,14 +1703,12 @@ dimensions:
             const at = new Date('2026-01-02T00:00:00Z');
             const context = setup({
                 otherDrafters: [
-                    {
+                    otherDrafter({
                         name: 'Ada Lovelace',
-                        models: ['orders'],
                         changes: [[draftModel('label: Sales\n')]],
-                    },
-                    {
+                    }),
+                    otherDrafter({
                         name: 'Alan Turing',
-                        models: ['customers'],
                         changes: [
                             [
                                 draftModel('label: People\n', {
@@ -1943,7 +1716,7 @@ dimensions:
                                 }),
                             ],
                         ],
-                    },
+                    }),
                 ],
                 publishedSince: new Map([
                     ['orders', { by: 'Grace Hopper', at, isYours: false }],
@@ -1963,7 +1736,14 @@ dimensions:
             expect(draft.models).toEqual([
                 expect.objectContaining({
                     model: 'orders',
-                    alsoChanging: [{ name: 'Ada Lovelace', paths: ['label'] }],
+                    alsoChanging: [
+                        expect.objectContaining({
+                            name: 'Ada Lovelace',
+                            paths: ['label'],
+                            isStale: false,
+                            canDiscard: false,
+                        }),
+                    ],
                     publishedSince: { by: 'Grace Hopper', at, isYours: false },
                 }),
             ]);
@@ -1991,6 +1771,146 @@ dimensions:
                 contentAfter: expect.stringContaining('revenue:'),
             },
         ]);
+    });
+
+    describe("someone else's draft", () => {
+        const stale = () =>
+            otherDrafter({
+                lastActiveAt: new Date(Date.now() - 8 * DAY_MS),
+                changes: [[draftModel('label: Sales\n')]],
+            });
+        const recent = () =>
+            otherDrafter({
+                lastActiveAt: new Date(Date.now() - DAY_MS),
+                changes: [[draftModel('label: Sales\n')]],
+            });
+
+        it('marks a draft stale after a week, and only an admin may discard it', async () => {
+            const context = setup({ otherDrafters: [stale()] });
+            const drafterAs = async (person: SessionUser) =>
+                (await context.service.getDraft(person, PROJECT_UUID))
+                    .othersDrafting[0].drafters[0];
+            expect(await drafterAs(projectAdmin)).toEqual(
+                expect.objectContaining({
+                    userUuid: OTHER_UUID,
+                    isStale: true,
+                    canDiscard: true,
+                }),
+            );
+            expect(await drafterAs(deployer)).toEqual(
+                expect.objectContaining({ isStale: true, canDiscard: false }),
+            );
+        });
+
+        it('shows their draft of a model against live', async () => {
+            const context = setup({ otherDrafters: [recent()] });
+            const shown = await context.service.getOthersDraftModel(
+                deployer,
+                PROJECT_UUID,
+                OTHER_UUID,
+                'orders',
+            );
+            expect(shown.contentBefore).toBe(orders);
+            expect(shown.contentAfter).toContain('label: Sales');
+            await expect(
+                context.service.getOthersDraftModel(
+                    viewer,
+                    PROJECT_UUID,
+                    OTHER_UUID,
+                    'orders',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                context.service.getOthersDraftModel(
+                    deployer,
+                    PROJECT_UUID,
+                    OTHER_UUID,
+                    'customers',
+                ),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('lets an admin discard a stale draft of a model, as its owner', async () => {
+            const context = setup({ otherDrafters: [stale()] });
+            const update = vi.spyOn(
+                context.projectModelDocumentModel,
+                'updateDraftChangeStatus',
+            );
+            await context.service.discardOthersDraftModel(
+                projectAdmin,
+                PROJECT_UUID,
+                OTHER_UUID,
+                'orders',
+            );
+            expect(update).toHaveBeenCalledWith({
+                projectUuid: PROJECT_UUID,
+                userUuid: OTHER_UUID,
+                workspaceUuid: 'other-workspace',
+                drafts: { changeUuids: ['other-change-0'], model: 'orders' },
+                status: 'discarded',
+                pullRequestUrl: null,
+                discardedByUserUuid: USER_UUID,
+            });
+        });
+
+        it('records no discarder when owners discard their own draft', async () => {
+            const context = setup();
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+                null,
+            );
+            const update = vi.spyOn(
+                context.projectModelDocumentModel,
+                'updateDraftChangeStatus',
+            );
+            await context.service.discardDraft(deployer, PROJECT_UUID, {
+                kind: 'model',
+                model: 'orders',
+            });
+            expect(update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userUuid: USER_UUID,
+                    status: 'discarded',
+                    discardedByUserUuid: null,
+                }),
+            );
+        });
+
+        it.each([
+            ['someone who is not an admin', deployer, stale],
+            ['an admin, but the draft is not stale', projectAdmin, recent],
+            ['someone who cannot use Studio', viewer, stale],
+        ])('refuses %s', async (_case, person, drafter) => {
+            const context = setup({ otherDrafters: [drafter()] });
+            const update = vi.spyOn(
+                context.projectModelDocumentModel,
+                'updateDraftChangeStatus',
+            );
+            await expect(
+                context.service.discardOthersDraftModel(
+                    person,
+                    PROJECT_UUID,
+                    OTHER_UUID,
+                    'orders',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(update).not.toHaveBeenCalled();
+        });
+
+        it('only ever reaches other people, never the viewer', async () => {
+            const context = setup({ otherDrafters: [stale()] });
+            await expect(
+                context.service.discardOthersDraftModel(
+                    projectAdmin,
+                    PROJECT_UUID,
+                    USER_UUID,
+                    'orders',
+                ),
+            ).rejects.toThrow(NotFoundError);
+        });
     });
 
     describe('reconciling the draft with live', () => {
@@ -2261,6 +2181,7 @@ dimensions:
             context.drafts.push({
                 draftChangeUuid: 'draft-2',
                 baseVersions: null,
+                projectContextEntries: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -2282,6 +2203,7 @@ dimensions:
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
                 baseVersions: null,
+                projectContextEntries: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -2312,6 +2234,7 @@ dimensions:
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
                 baseVersions: null,
+                projectContextEntries: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -2342,6 +2265,7 @@ dimensions:
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
                 baseVersions: null,
+                projectContextEntries: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -2499,7 +2423,11 @@ dimensions:
         expect(outcome.results[1]).toMatchObject({
             model: 'missing',
             status: 'failed',
-            error: 'The warehouse rejected this model: relation "public.missing" does not exist',
+            error: 'The warehouse refused missing when it was checked. relation "public.missing" does not exist',
+            rejection: {
+                kind: 'warehouse_refused',
+                detail: 'relation "public.missing" does not exist',
+            },
         });
         expect(runSqlQuery.mock.calls.map(([, , sql]) => sql)).toEqual(
             expect.arrayContaining([
@@ -2549,9 +2477,12 @@ dimensions:
             model: 'orders',
             status: 'failed',
         });
-        expect(outcome.results[1].error).toContain(
-            'This model does not work in a query: Tried to reference a dimension',
-        );
+        expect(outcome.results[1]).toMatchObject({
+            error: expect.stringContaining(
+                "orders can't be used in a query as written. Tried to reference a dimension",
+            ),
+            rejection: { kind: 'query_builder' },
+        });
         const groupings = compileQuery.mock.calls
             .map(([{ body }]) => body)
             .filter(({ metrics }) => metrics.includes('orders_revenue'))
@@ -2605,6 +2536,7 @@ dimensions:
             context.drafts.push({
                 draftChangeUuid: 'legacy',
                 baseVersions: null,
+                projectContextEntries: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -2893,12 +2825,12 @@ dimensions:
         await expect(
             propose(setup({ dbtConnection: DBT_IN_GITHUB }), deployer),
         ).rejects.toThrow(ParameterError);
-        expect(await setup().service.canEditModels(viewer, PROJECT_UUID)).toBe(
-            false,
-        );
         expect(
-            await setup().service.canEditModels(deployer, PROJECT_UUID),
-        ).toBe(true);
+            await setup().service.getStoredModels(viewer, PROJECT_UUID),
+        ).toEqual({ models: [] });
+        expect(
+            await setup().service.getStoredModels(deployer, PROJECT_UUID),
+        ).toEqual({ models: ['orders'] });
     });
 
     it('refuses to replace models that were deployed from elsewhere', async () => {
@@ -3177,9 +3109,11 @@ dimensions:
             );
             await context.service.applyDraft(repoWriter, PROJECT_UUID, null);
             await context.service.recordPullRequestState(
+                repoWriter,
                 PROJECT_UUID,
                 PULL_REQUEST_URL,
                 'closed',
+                false,
             );
             expect(context.recordPullRequestState).toHaveBeenLastCalledWith(
                 PROJECT_UUID,
@@ -3189,9 +3123,11 @@ dimensions:
             );
             expect(context.drafts).toHaveLength(1);
             await context.service.recordPullRequestState(
+                repoWriter,
                 PROJECT_UUID,
                 PULL_REQUEST_URL,
                 'merged',
+                false,
             );
             expect(context.recordPullRequestState).toHaveBeenLastCalledWith(
                 PROJECT_UUID,
@@ -3262,6 +3198,7 @@ dimensions:
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
                 baseVersions: null,
+                projectContextEntries: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -3332,8 +3269,8 @@ dimensions:
                 appliesAs: 'dbt_pull_request',
             });
             expect(
-                await dbt().service.canEditModels(repoWriter, PROJECT_UUID),
-            ).toBe(false);
+                await dbt().service.getStoredModels(repoWriter, PROJECT_UUID),
+            ).toEqual({ models: [] });
             expect(
                 await dbt().service.getDraft(repoWriter, PROJECT_UUID),
             ).toEqual(expect.objectContaining({ changes: [] }));
@@ -3341,14 +3278,14 @@ dimensions:
 
         it('needs permission to write to the repository, and the GitHub App', async () => {
             expect(
-                await repo().service.canEditModels(deployer, PROJECT_UUID),
-            ).toBe(false);
+                await repo().service.getStoredModels(deployer, PROJECT_UUID),
+            ).toEqual({ models: [] });
             expect(
-                await repo({ appInstalled: false }).service.canEditModels(
+                await repo({ appInstalled: false }).service.getStoredModels(
                     repoWriter,
                     PROJECT_UUID,
                 ),
-            ).toBe(false);
+            ).toEqual({ models: [] });
         });
 
         it('keeps no history of its own and undoes nothing', async () => {
@@ -3528,565 +3465,6 @@ dimensions:
     });
 });
 
-describe('saving a hand edit', () => {
-    const edit = (prUrl: string | null) => ({
-        revision: null,
-        path: 'models/orders.yml',
-        content: 'version: 2',
-        prUrl,
-        threadUuid: null,
-    });
-
-    it('passes the loaded revision to both save attempts and permits continuation', async () => {
-        const context = setup();
-        const save = vi
-            .spyOn(context.aiWritebackService, 'saveWithScript')
-            .mockResolvedValueOnce({ status: 'checked', diffs: [] })
-            .mockResolvedValueOnce({
-                status: 'script_failed',
-                error: 'changed',
-                logs: [],
-            });
-        await expect(
-            context.service.saveSource(deployer, PROJECT_UUID, {
-                ...edit(null),
-                revision: 'original',
-            }),
-        ).resolves.toEqual({ status: 'failed', error: 'changed' });
-        expect(save).toHaveBeenCalledTimes(2);
-        for (const [args, , options] of save.mock.calls) {
-            expect(args.startNewPullRequest).toBe(false);
-            expect(options.expectedSource).toEqual({
-                path: 'models/orders.yml',
-                revision: 'original',
-            });
-        }
-    });
-
-    it("says in a person's words that a closed pull request can no longer be edited", async () => {
-        const context = setup();
-        vi.spyOn(
-            context.aiWritebackService,
-            'saveWithScript',
-        ).mockRejectedValue(new WritebackThreadPrClosedError('merged'));
-        await expect(
-            context.service.saveSource(deployer, PROJECT_UUID, edit(null)),
-        ).rejects.toThrow(
-            "This draft's pull request is merged, so it can no longer be edited. Go back to Published and edit there to start a new draft.",
-        );
-    });
-
-    it('keeps a save with no conversation as a draft of its own', async () => {
-        const context = setup();
-        vi.spyOn(context.aiWritebackService, 'saveWithScript')
-            .mockResolvedValueOnce({ status: 'checked', diffs: [] })
-            .mockResolvedValueOnce({
-                status: 'saved',
-                changedModels: [],
-                explores: null,
-                checked: true,
-                result: {
-                    output: '',
-                    exitCode: 0,
-                    prUrl: 'https://github.com/acme/shop/pull/7',
-                    prAction: 'opened',
-                    commitSha: 'abc',
-                    additions: 1,
-                    deletions: 0,
-                    projectName: 'Shop',
-                    repository: 'acme/shop',
-                    steps: [],
-                    dbtSourceUuid: null,
-                },
-            });
-        const create = vi
-            .spyOn(context.workspaceModel, 'create')
-            .mockResolvedValue('workspace-new');
-        const attach = vi.spyOn(context.workspaceModel, 'attachPullRequest');
-        await context.service.saveSource(deployer, PROJECT_UUID, edit(null));
-        expect(create).toHaveBeenCalledWith(
-            { projectUuid: PROJECT_UUID, userUuid: deployer.userUuid },
-            ORGANIZATION_UUID,
-            'Edit orders.yml',
-        );
-        expect(attach).toHaveBeenCalledWith(
-            expect.objectContaining({ workspaceUuid: 'workspace-new' }),
-            'https://github.com/acme/shop/pull/7',
-        );
-    });
-
-    it('refuses to continue a thread owned by someone else', async () => {
-        const context = setup();
-        vi.spyOn(context.workspaceModel, 'findStudioThread').mockResolvedValue(
-            null,
-        );
-        const save = vi.spyOn(context.aiWritebackService, 'saveWithScript');
-        await expect(
-            context.service.saveSource(deployer, PROJECT_UUID, {
-                ...edit(null),
-                threadUuid: 'other-thread',
-            }),
-        ).rejects.toThrow(ForbiddenError);
-        expect(save).not.toHaveBeenCalled();
-    });
-
-    it('returns a null revision for a missing file and a content hash for an existing file', async () => {
-        const context = setup();
-        const readFile = vi
-            .fn()
-            .mockResolvedValueOnce(null)
-            .mockResolvedValueOnce('select 1');
-        vi.spyOn(
-            context.aiWritebackService,
-            'openStudioCheckout',
-        ).mockResolvedValue({
-            root: 'dbt/',
-            checkout: {
-                prUrl: null,
-                branch: 'main',
-                baseBranch: 'main',
-                headSha: 'head',
-                listFiles: async () => [],
-                readFile,
-                readFileAt: async () => null,
-                listFilesChangedSince: async () => [],
-            },
-        });
-        await expect(
-            context.service.readSource(
-                deployer,
-                PROJECT_UUID,
-                null,
-                'models/orders.sql',
-            ),
-        ).resolves.toEqual({
-            path: 'models/orders.sql',
-            content: null,
-            revision: null,
-        });
-        const file = await context.service.readSource(
-            deployer,
-            PROJECT_UUID,
-            null,
-            'models/orders.sql',
-        );
-        expect(file.revision).toMatch(/^[a-f0-9]{64}$/);
-        expect(file.content).toBe('select 1');
-        expect(readFile).toHaveBeenCalledWith('dbt/models/orders.sql');
-    });
-
-    it('refuses a pull request that is not your own change', async () => {
-        const context = setup();
-        await expect(
-            context.service.saveSource(
-                deployer,
-                PROJECT_UUID,
-                edit(PULL_REQUEST_URL),
-            ),
-        ).rejects.toThrow(ForbiddenError);
-        context.setActiveWorkspace({
-            threadUuid: 'thread',
-            prUrl: PULL_REQUEST_URL,
-        });
-        await expect(
-            context.service.saveSource(
-                deployer,
-                PROJECT_UUID,
-                edit(PULL_REQUEST_URL),
-            ),
-        ).rejects.toThrow('not used in these tests');
-    });
-
-    it('refuses a path outside the project files', async () => {
-        const context = setup();
-        await expect(
-            context.service.saveSource(deployer, PROJECT_UUID, {
-                ...edit(null),
-                path: 'models/../profiles.yml',
-            }),
-        ).rejects.toThrow(ParameterError);
-    });
-});
-
-describe('checking a dbt change against the compiled manifest', () => {
-    const MODEL = {
-        unique_id: 'model.shop.orders',
-        resource_type: 'model',
-        name: 'orders',
-        package_name: 'shop',
-        patch_path: 'shop://models/schema.yml',
-        description: '',
-        meta: {},
-        columns: {},
-    };
-    const COMPILED = {
-        commitSha: 'compiled-sha',
-        manifest: {
-            metadata: {
-                dbt_schema_version:
-                    'https://schemas.getdbt.com/dbt/manifest/v12.json',
-                generated_at: '',
-                adapter_type: 'postgres',
-                project_name: 'shop',
-            },
-            nodes: { [MODEL.unique_id]: MODEL },
-            metrics: {},
-            docs: {},
-        },
-        exploresJobUuid: 'compile-job',
-    };
-    const SCHEMA = 'version: 2\nmodels:\n  - name: orders\n';
-    /** A branch where one commit since the compile changed `path`; nothing changed since `head-sha`. */
-    const branchWith = (
-        path: string,
-        next: string,
-        headCommitSha: string | null,
-    ): DbtScriptChange => ({
-        edits: new Map(),
-        readHead: async (at) => (at === path ? next : null),
-        readAt: async (at, commitSha) => {
-            if (at !== path) return null;
-            return commitSha === COMPILED.commitSha ? SCHEMA : next;
-        },
-        listChangedSince: async (commitSha) =>
-            commitSha === 'head-sha' ? [] : [path],
-        headCommitSha,
-    });
-    const check = async (change: DbtScriptChange) => {
-        const context = setup({ dbtConnection: DBT_IN_GITHUB });
-        await saveCompiledDbtManifest(
-            context.fileStorageClient,
-            PROJECT_UUID,
-            COMPILED,
-        );
-        const result = await context.service.checkDbtScriptChange(
-            repoWriter,
-            PROJECT_UUID,
-            change,
-            { checkQueries: false },
-        );
-        const compiled = await readCompiledDbtManifest(
-            context.fileStorageClient,
-            PROJECT_UUID,
-        );
-        return { context, result, compiled };
-    };
-    const described = `${SCHEMA}    description: Orders\n`;
-
-    it('moves the compiled manifest on to the project branch head, so a save checks only its own change', async () => {
-        const { context, result, compiled } = await check(
-            branchWith('models/schema.yml', described, 'head-sha'),
-        );
-        expect(compiled?.commitSha).toBe('head-sha');
-        expect(compiled?.manifest.nodes[MODEL.unique_id]).toMatchObject({
-            description: 'Orders',
-        });
-        expect(result).toEqual({
-            status: 'passed',
-            changedModels: [],
-            explores: [],
-        });
-        expect(context.compileExploresFromManifest).not.toHaveBeenCalled();
-    });
-
-    it('leaves the compiled manifest alone from a pull request branch', async () => {
-        const { context, result, compiled } = await check(
-            branchWith('models/schema.yml', described, null),
-        );
-        expect(compiled?.commitSha).toBe(COMPILED.commitSha);
-        expect(result).toMatchObject({
-            status: 'passed',
-            changedModels: ['orders'],
-        });
-        expect(context.compileExploresFromManifest).toHaveBeenCalledTimes(1);
-    });
-
-    it('leaves the compiled manifest alone when only dbt can parse what changed', async () => {
-        const { result, compiled } = await check(
-            branchWith('models/orders.sql', 'select 1', 'head-sha'),
-        );
-        expect(compiled?.commitSha).toBe(COMPILED.commitSha);
-        expect(result).toEqual({
-            status: 'unsupported',
-            reason: 'models/orders.sql needs dbt to parse',
-        });
-    });
-});
-
-describe('compiling after a merge', () => {
-    const model = (name: string, meta: Record<string, unknown> = {}) => ({
-        unique_id: `model.shop.${name}`,
-        resource_type: 'model',
-        name,
-        package_name: 'shop',
-        patch_path: `shop://models/${name}.yml`,
-        description: '',
-        meta,
-        columns: {},
-    });
-    const STORED = {
-        commitSha: 'compiled-sha',
-        manifest: {
-            metadata: {
-                dbt_schema_version:
-                    'https://schemas.getdbt.com/dbt/manifest/v12.json',
-                generated_at: '',
-                adapter_type: 'postgres',
-                project_name: 'shop',
-            },
-            nodes: Object.fromEntries(
-                [
-                    model('orders', {
-                        joins: [{ join: 'customers' }, { join: 'payments' }],
-                    }),
-                    model('customers'),
-                    model('payments'),
-                ].map((node) => [node.unique_id, node]),
-            ),
-            metrics: {},
-            docs: {},
-        },
-        exploresJobUuid: 'compile-job',
-    };
-    const explore = (name: string, baseTable = name): Explore => ({
-        name,
-        label: name,
-        tags: [],
-        baseTable,
-        joinedTables: [],
-        tables: {},
-        targetDatabase: SupportedDbtAdapter.POSTGRES,
-    });
-    const schemaOf = (path: string) =>
-        path.endsWith('.sql')
-            ? 'select 1'
-            : `version: 2\nmodels:\n  - name: ${path.slice('models/'.length, -'.yml'.length)}\n`;
-    /** The project branch at `head-sha`, where `changes` are the files changed since the compile. */
-    const branchWith = (changes: Record<string, string>): ApiCheckout => ({
-        prUrl: null,
-        branch: 'main',
-        baseBranch: null,
-        headSha: 'head-sha',
-        listFiles: async () => [],
-        readFile: async (path) => changes[path] ?? null,
-        readFileAt: async (path, commitSha) => {
-            if (!(path in changes)) return null;
-            return commitSha === 'head-sha' ? changes[path] : schemaOf(path);
-        },
-        listFilesChangedSince: async () => Object.keys(changes),
-    });
-    const DESCRIBED = {
-        'models/customers.yml': `${schemaOf('models/customers.yml')}    description: Who buys\n`,
-    };
-    const SUMMARIES = ['orders', 'customers', 'payments'].map((name) => ({
-        name,
-        baseTable: name,
-    }));
-    const compileAfterMerge = async ({
-        changes = DESCRIBED,
-        latestCompileJob = 'compile-job',
-        exploreSummaries = SUMMARIES,
-        compiled = [
-            explore('orders'),
-            explore('customers'),
-            explore('payments'),
-        ],
-        checked = null,
-    }: {
-        /** What a check of the pull request saw changed and compiled to, before it merged. */
-        checked?: {
-            changes: Record<string, string>;
-            explores: (Explore | ExploreError)[];
-        } | null;
-        changes?: Record<string, string>;
-        latestCompileJob?: string | null;
-        exploreSummaries?: {
-            name: string;
-            type?: ExploreType;
-            baseTable?: string;
-        }[];
-        compiled?: (Explore | ExploreError)[];
-    } = {}) => {
-        const context = setup({
-            dbtConnection: DBT_IN_GITHUB,
-            latestCompileJob,
-            exploreSummaries,
-            checkout: branchWith(changes),
-        });
-        context.compileExploresFromManifest.mockResolvedValue(compiled);
-        await saveCompiledDbtManifest(
-            context.fileStorageClient,
-            PROJECT_UUID,
-            STORED,
-        );
-        if (checked) {
-            context.compileExploresFromManifest.mockResolvedValueOnce(
-                checked.explores,
-            );
-            const pullRequest = branchWith(checked.changes);
-            await context.service.checkDbtScriptChange(
-                repoWriter,
-                PROJECT_UUID,
-                {
-                    edits: new Map(),
-                    readHead: (path) => pullRequest.readFile(path),
-                    readAt: (path, commitSha) =>
-                        pullRequest.readFileAt(path, commitSha),
-                    listChangedSince: () =>
-                        pullRequest.listFilesChangedSince(''),
-                    headCommitSha: null,
-                },
-                { checkQueries: false },
-            );
-        }
-        const result = await context.service.compileAfterMerge(
-            repoWriter,
-            PROJECT_UUID,
-            'merge-job',
-        );
-        const stored = await readCompiledDbtManifest(
-            context.fileStorageClient,
-            PROJECT_UUID,
-        );
-        return { context, result, stored };
-    };
-
-    it('saves only the explores a YAML change reaches, and moves the manifest on with them', async () => {
-        const { context, result, stored } = await compileAfterMerge();
-        // Orders joins customers, so it changes too; payments only compiles to be joined.
-        expect(context.compileExploresFromManifest).toHaveBeenCalledWith(
-            repoWriter,
-            PROJECT_UUID,
-            expect.anything(),
-            null,
-            [
-                'model.shop.orders',
-                'model.shop.customers',
-                'model.shop.payments',
-            ],
-        );
-        expect(
-            context.saveExploresToCacheAndIndexCatalog,
-        ).toHaveBeenCalledTimes(1);
-        expect(
-            context.saveExploresToCacheAndIndexCatalog.mock.calls[0][0],
-        ).toMatchObject({
-            explores: [explore('orders'), explore('customers')],
-            complete: false,
-            jobUuid: 'merge-job',
-        });
-        expect(result).toEqual({
-            indexCatalogJobUuid: 'index-job',
-            errorCount: 0,
-            total: 2,
-        });
-        expect(stored).toMatchObject({
-            commitSha: 'head-sha',
-            exploresJobUuid: 'merge-job',
-        });
-        expect(stored?.manifest.nodes['model.shop.customers']).toMatchObject({
-            description: 'Who buys',
-        });
-    });
-
-    it('saves what the merged change was checked to compile to, without compiling it again', async () => {
-        const checkedExplores = [
-            { ...explore('orders'), label: 'Checked orders' },
-            { ...explore('customers'), label: 'Checked customers' },
-            explore('payments'),
-        ];
-        const { context, result } = await compileAfterMerge({
-            checked: { changes: DESCRIBED, explores: checkedExplores },
-        });
-        // Once for the check; the compile after the merge reuses it.
-        expect(context.compileExploresFromManifest).toHaveBeenCalledTimes(1);
-        expect(
-            context.saveExploresToCacheAndIndexCatalog.mock.calls[0][0],
-        ).toMatchObject({ explores: checkedExplores.slice(0, 2) });
-        expect(result).toMatchObject({ total: 2 });
-    });
-
-    it('compiles again when the merged change differs from the checked one', async () => {
-        const { context } = await compileAfterMerge({
-            checked: {
-                changes: {
-                    'models/customers.yml': `${schemaOf('models/customers.yml')}    description: Older\n`,
-                },
-                explores: [explore('orders'), explore('customers')],
-            },
-        });
-        expect(context.compileExploresFromManifest).toHaveBeenCalledTimes(2);
-        expect(
-            context.saveExploresToCacheAndIndexCatalog.mock.calls[0][0],
-        ).toMatchObject({
-            explores: [explore('orders'), explore('customers')],
-        });
-    });
-
-    it('stays incremental when a reached model has pre-aggregate explores in the cache', async () => {
-        const { result } = await compileAfterMerge({
-            exploreSummaries: [
-                ...SUMMARIES,
-                {
-                    name: '__preagg__customers__daily',
-                    type: ExploreType.PRE_AGGREGATE,
-                    baseTable: 'customers',
-                },
-            ],
-        });
-        expect(result).not.toBeNull();
-    });
-
-    it.each([
-        [
-            'only dbt can parse the change',
-            { changes: { 'models/customers.sql': 'select 2' } },
-        ],
-        [
-            'something else saved explores since the manifest was compiled',
-            { latestCompileJob: 'cli-deploy-job' },
-        ],
-        [
-            'the change adds or removes an explore',
-            {
-                exploreSummaries: [
-                    ...SUMMARIES,
-                    { name: 'vip_customers', baseTable: 'customers' },
-                ],
-            },
-        ],
-        [
-            'an explore it reaches does not compile',
-            {
-                compiled: [
-                    explore('orders'),
-                    { name: 'customers', label: 'customers', errors: [] },
-                ],
-            },
-        ],
-    ])('runs the full compile when %s', async (_label, options) => {
-        const { context, result, stored } = await compileAfterMerge(options);
-        expect(result).toBeNull();
-        expect(
-            context.saveExploresToCacheAndIndexCatalog,
-        ).not.toHaveBeenCalled();
-        expect(stored).toEqual(STORED);
-    });
-});
-
-describe('isSourcePath', () => {
-    it('takes model and project files, and nothing that steps outside them', () => {
-        expect(isSourcePath('models/orders.yml')).toBe(true);
-        expect(isSourcePath('dbt_project.yml')).toBe(true);
-        expect(isSourcePath('macros/cents.sql')).toBe(true);
-        expect(isSourcePath('models/../profiles.yml')).toBe(false);
-        expect(isSourcePath('models/./x/../../.env.yml')).toBe(false);
-        expect(isSourcePath('models//orders.yml')).toBe(false);
-        expect(isSourcePath('profiles.yml')).toBe(false);
-        expect(isSourcePath('/etc/models/x.yml')).toBe(false);
-    });
-});
-
 describe('workspace pull request reconciliation', () => {
     const workspace = (index: number): SemanticStudioWorkspace => ({
         workspaceUuid: String(index),
@@ -4141,6 +3519,45 @@ describe('workspace pull request reconciliation', () => {
         },
     );
 
+    it('refreshes the project once when checks first see a merge made elsewhere', async () => {
+        const context = setup();
+        context.workspaces.push(workspace(1));
+        const url = workspace(1).pullRequest?.url ?? '';
+        await context.service.recordPullRequestState(
+            deployer,
+            PROJECT_UUID,
+            url,
+            'merged',
+            false,
+        );
+        await context.service.recordPullRequestState(
+            deployer,
+            PROJECT_UUID,
+            url,
+            'merged',
+            false,
+        );
+        expect(context.scheduleCompileAfterMerge).toHaveBeenCalledTimes(1);
+        expect(context.scheduleCompileAfterMerge).toHaveBeenCalledWith(
+            deployer,
+            PROJECT_UUID,
+            true,
+        );
+    });
+
+    it('does not compile again for a merge made in the app', async () => {
+        const context = setup();
+        context.workspaces.push(workspace(1));
+        await context.service.mergePullRequest(
+            deployer,
+            PROJECT_UUID,
+            workspace(1).pullRequest?.url ?? '',
+            { sha: undefined, incrementalCompile: false },
+        );
+        expect(context.mergePullRequest).toHaveBeenCalledTimes(1);
+        expect(context.scheduleCompileAfterMerge).not.toHaveBeenCalled();
+    });
+
     it('only checks five own unfinished pull requests, active first', async () => {
         const context = setup();
         context.workspaces.push(
@@ -4182,232 +3599,253 @@ describe('workspace pull request reconciliation', () => {
     });
 });
 
-describe('compiling a dbt change on its branch', () => {
-    const OWN_PULL_REQUEST = 'https://github.com/acme/shop/pull/7';
-    const onChange = (overrides: Parameters<typeof setup>[0] = {}) => {
-        const context = setup({ dbtConnection: DBT_IN_GITHUB, ...overrides });
-        context.setActiveWorkspace({
-            threadUuid: 'thread',
-            prUrl: OWN_PULL_REQUEST,
-        });
-        return context;
+describe('project context in the draft', () => {
+    const hr: ProjectContextEntry = {
+        id: 'hr',
+        kind: 'definition',
+        content: '"HR" = the high-risk cohort.',
+        terms: ['HR'],
+        objects: [],
     };
-    /** Stands in for the worker picking the queued compile up. */
-    const runQueued = (context: ReturnType<typeof setup>, index = 0) =>
-        context.service.compileBranch(
-            context.queueBranchCompile.mock.calls[index][0],
-        );
+    const active = {
+        op: 'create' as const,
+        id: null,
+        kind: 'definition' as const,
+        content: '"Active" means ordered in the last 30 days.',
+        terms: ['active'],
+        objects: [],
+    };
 
-    it('queues a compile of the change on the saved pull request, and shows the person what its branch compiles to', async () => {
-        const context = onChange();
-        await context.service.queueBranchCompile(
-            repoWriter,
-            PROJECT_UUID,
-            OWN_PULL_REQUEST,
-        );
-        expect(context.queueBranchCompile).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: PROJECT_UUID,
-                userUuid: repoWriter.userUuid,
-                workspaceUuid: 'workspace-thread',
-            }),
-        );
-        await runQueued(context);
-        expect(context.findPullRequestBranch).toHaveBeenCalledWith(
-            ORGANIZATION_UUID,
-            PROJECT_UUID,
-            OWN_PULL_REQUEST,
-        );
-        expect(context.compileExploresFromBranch).toHaveBeenCalledWith(
-            {
-                userUuid: repoWriter.userUuid,
-                organizationUuid: ORGANIZATION_UUID,
-            },
-            PROJECT_UUID,
-            'studio-branch',
-        );
-        const explores = await context.service.findDevelopmentExplores(
-            repoWriter,
-            PROJECT_UUID,
-        );
-        expect(explores?.get(BRANCH_EXPLORE.name)).toEqual(BRANCH_EXPLORE);
-    });
-
-    it('queues nothing for a pull request that is not one of your changes, or on a project kept on the server', async () => {
-        const other = onChange();
-        await other.service.queueBranchCompile(
-            repoWriter,
-            PROJECT_UUID,
-            'https://github.com/acme/shop/pull/8',
-        );
-        expect(other.queueBranchCompile).not.toHaveBeenCalled();
-        const native = onChange({
-            dbtConnection: { type: DbtProjectType.NONE },
-        });
-        await native.service.queueBranchCompile(
+    it('drafts an entry, shows the file with its diff, and makes it live on publish', async () => {
+        const context = setup({ liveContext: [hr] });
+        const drafted = await context.service.draftProjectContextEntry(
             deployer,
             PROJECT_UUID,
-            OWN_PULL_REQUEST,
+            active,
+            null,
+            'Active customers',
         );
-        expect(native.queueBranchCompile).not.toHaveBeenCalled();
+        expect(drafted).toMatchObject({ entryId: 'active', op: 'create' });
+        expect(drafted.startedChange?.name).toBe('Active customers');
+        expect(context.projectContext()).toEqual([hr]);
+
+        const draft = await context.service.getDraft(deployer, PROJECT_UUID);
+        expect(draft.models).toEqual([]);
+        expect(draft.changes[0].projectContextEntries).toEqual(['active']);
+        expect(draft.projectContext?.contentBefore).toContain('high-risk');
+        expect(draft.projectContext?.contentBefore).not.toContain('Active');
+        expect(draft.projectContext?.contentAfter).toContain(
+            '"Active" means ordered in the last 30 days.',
+        );
+
+        const published = await context.service.applyDraft(
+            deployer,
+            PROJECT_UUID,
+            null,
+        );
+        expect(published.failures).toEqual([]);
+        expect(context.projectContext()).toEqual([
+            hr,
+            {
+                id: 'active',
+                kind: 'definition',
+                content: active.content,
+                terms: ['active'],
+                objects: [],
+            },
+        ]);
+        expect(context.drafts).toEqual([]);
     });
 
-    it('drops a compile asked for before a newer one', async () => {
-        const context = onChange();
-        await context.service.queueBranchCompile(
-            repoWriter,
+    it('replaces an entry by id on top of an earlier draft of it', async () => {
+        const context = setup({ liveContext: [hr] });
+        await context.service.draftProjectContextEntry(
+            deployer,
             PROJECT_UUID,
-            OWN_PULL_REQUEST,
+            { ...active, op: 'update', id: 'hr', content: 'First.' },
+            null,
+            null,
         );
-        await context.service.queueBranchCompile(
-            repoWriter,
+        await context.service.draftProjectContextEntry(
+            deployer,
             PROJECT_UUID,
-            OWN_PULL_REQUEST,
+            { ...active, op: 'update', id: 'hr', content: 'Second.' },
+            null,
+            null,
         );
-        await runQueued(context, 0);
-        expect(context.branchCompiles.get('workspace-thread')).toMatchObject({
-            status: 'compiling',
-            explores: null,
-        });
-        await runQueued(context, 1);
-        expect(context.branchCompiles.get('workspace-thread')).toMatchObject({
-            status: 'ready',
-            branch: 'studio-branch',
-        });
+        const draft = await context.service.getDraft(deployer, PROJECT_UUID);
+        expect(draft.projectContext?.contentAfter).toContain('Second.');
+        expect(draft.projectContext?.contentAfter).not.toContain('First.');
+        await context.service.applyDraft(deployer, PROJECT_UUID, null);
+        expect(context.projectContext()).toEqual([
+            { ...hr, content: 'Second.', terms: ['active'] },
+        ]);
     });
 
-    it('keeps the last good compile through a failed one, with what failed', async () => {
-        const context = onChange();
-        await context.service.queueBranchCompile(
-            repoWriter,
+    it('leaves the context out of a publish of one model', async () => {
+        const context = setup();
+        await context.service.draftProjectContextEntry(
+            deployer,
             PROJECT_UUID,
-            OWN_PULL_REQUEST,
+            active,
+            null,
+            null,
         );
-        await runQueued(context, 0);
-        context.compileExploresFromBranch.mockRejectedValueOnce(
-            new Error('Compilation Error in model orders'),
-        );
-        await context.service.queueBranchCompile(
-            repoWriter,
+        await context.service.proposeDraftChange(
+            deployer,
             PROJECT_UUID,
-            OWN_PULL_REQUEST,
+            [toDraftModel({ name: 'orders', label: 'All orders' })],
+            null,
+            null,
         );
-        await runQueued(context, 1);
-        expect(context.branchCompiles.get('workspace-thread')).toMatchObject({
-            status: 'failed',
-            error: 'Compilation Error in model orders',
-        });
+        await context.service.applyDraft(deployer, PROJECT_UUID, 'orders');
+        expect(context.upsertEntries).not.toHaveBeenCalled();
         expect(
-            (
-                await context.service.findDevelopmentExplores(
-                    repoWriter,
-                    PROJECT_UUID,
-                )
-            )?.get(BRANCH_EXPLORE.name),
-        ).toEqual(BRANCH_EXPLORE);
+            (await context.service.getDraft(deployer, PROJECT_UUID))
+                .projectContext,
+        ).not.toBeNull();
     });
 
-    it('tells the person which change they are on and where its compile stands', async () => {
-        const context = onChange();
-        expect(
-            await context.service.getCheckout(repoWriter, PROJECT_UUID),
-        ).toMatchObject({
-            workspaceUuid: 'workspace-thread',
-            appliesAs: 'dbt_pull_request',
-            // A draft with a pull request that was never compiled starts compiling when it is read.
-            branchCompile: { status: 'compiling', hasExplores: false },
-        });
-        expect(context.queueBranchCompile).toHaveBeenCalledTimes(1);
-        await context.service.getCheckout(repoWriter, PROJECT_UUID);
-        expect(context.queueBranchCompile).toHaveBeenCalledTimes(1);
-        await context.service.compileCheckout(repoWriter, PROJECT_UUID);
-        expect(
-            (await context.service.getCheckout(repoWriter, PROJECT_UUID))
-                ?.branchCompile,
-        ).toMatchObject({ status: 'compiling', hasExplores: false });
-        // The compile asked for last is the one that is kept.
-        await runQueued(context, 1);
-        expect(
-            (await context.service.getCheckout(repoWriter, PROJECT_UUID))
-                ?.branchCompile,
-        ).toMatchObject({
-            status: 'ready',
-            branch: 'studio-branch',
-            hasExplores: true,
-        });
-        expect(
-            await context.service.getCheckout(viewer, PROJECT_UUID),
-        ).toBeNull();
+    it('refuses on a project whose context lives in its repository', async () => {
+        const context = setup({ dbtConnection: DBT_IN_GITHUB });
         await expect(
-            context.service.compileCheckout(viewer, PROJECT_UUID),
-        ).rejects.toBeInstanceOf(ForbiddenError);
-        context.setActiveWorkspace(null);
-        expect(
-            await context.service.getCheckout(repoWriter, PROJECT_UUID),
-        ).toBeNull();
+            context.service.draftProjectContextEntry(
+                deployer,
+                PROJECT_UUID,
+                active,
+                null,
+                null,
+            ),
+        ).rejects.toThrow(ParameterError);
+        expect(context.drafts).toEqual([]);
     });
 
-    it('publishes the checked-out draft only once its latest edit compiled', async () => {
-        const context = onChange();
-        const publish = () =>
-            context.service.publishCheckout(
-                repoWriter,
+    it('refuses an entry the project context schema rejects', async () => {
+        const context = setup();
+        await expect(
+            context.service.draftProjectContextEntry(
+                deployer,
                 PROJECT_UUID,
-                OWN_PULL_REQUEST,
+                { ...active, content: '' },
+                null,
+                null,
+            ),
+        ).rejects.toThrow(/Invalid lightdash.project_context.yml/);
+        expect(context.drafts).toEqual([]);
+    });
+
+    it('finishes the workspace when a context-only draft is published', async () => {
+        const context = setup();
+        const { startedChange } =
+            await context.service.draftProjectContextEntry(
+                deployer,
+                PROJECT_UUID,
+                active,
+                null,
+                'Active customers',
             );
-        await expect(publish()).rejects.toThrow(
-            'This draft can be published once its latest edit compiles',
-        );
-        await context.service.compileCheckout(repoWriter, PROJECT_UUID);
-        await expect(publish()).rejects.toBeInstanceOf(ParameterError);
-        await runQueued(context);
-        await expect(
-            context.service.publishCheckout(
-                repoWriter,
-                PROJECT_UUID,
-                'https://github.com/acme/shop/pull/8',
-            ),
-        ).rejects.toThrow(
-            'This pull request is not the draft you have checked out',
-        );
-        await expect(
-            context.service.publishCheckout(
-                viewer,
-                PROJECT_UUID,
-                OWN_PULL_REQUEST,
-            ),
-        ).rejects.toBeInstanceOf(ForbiddenError);
-        expect(context.mergePullRequest).not.toHaveBeenCalled();
-        expect(await publish()).toMatchObject({ merged: true });
-        expect(context.mergePullRequest).toHaveBeenCalledWith({
-            user: repoWriter,
-            projectUuid: PROJECT_UUID,
-            prUrl: OWN_PULL_REQUEST,
-            incrementalCompile: true,
-        });
-        expect(context.recordPullRequestState).toHaveBeenCalledWith(
-            PROJECT_UUID,
-            OWN_PULL_REQUEST,
-            'merged',
-            true,
+        await context.service.applyDraft(deployer, PROJECT_UUID, null);
+        expect(context.finishWorkspace).toHaveBeenCalledWith(
+            expect.anything(),
+            startedChange?.workspaceUuid,
         );
     });
 
-    it("says plainly when the pull request's branch cannot be read", async () => {
-        const context = onChange();
-        context.findPullRequestBranch.mockRejectedValueOnce(
-            new ParameterError('Pull request #7 is already merged'),
+    it('takes no context live when the model write keeps conflicting', async () => {
+        const context = setup({ liveContext: [hr], staleCommits: 5 });
+        await context.service.draftProjectContextEntry(
+            deployer,
+            PROJECT_UUID,
+            active,
+            null,
+            null,
         );
-        await context.service.queueBranchCompile(
+        await context.service.proposeDraftChange(
+            deployer,
+            PROJECT_UUID,
+            [toDraftModel({ name: 'orders', label: 'All orders' })],
+            null,
+            null,
+        );
+        await expect(
+            context.service.applyDraft(deployer, PROJECT_UUID, null),
+        ).rejects.toThrow(ModelDocumentsChangedError);
+        expect(context.projectContext()).toEqual([hr]);
+        expect(context.drafts).toHaveLength(2);
+    });
+
+    it('takes no context live when the draft is discarded while it publishes', async () => {
+        const context = setup({ liveContext: [hr] });
+        await context.service.draftProjectContextEntry(
+            deployer,
+            PROJECT_UUID,
+            active,
+            null,
+            null,
+        );
+        const model = context.projectModelDocumentModel;
+        const read = model.findDraftChanges.bind(model);
+        // A discard lands right after the publish reads the draft.
+        vi.spyOn(model, 'findDraftChanges').mockImplementation(
+            async (owner) => {
+                const changes = await read(owner);
+                context.drafts.splice(0);
+                return changes;
+            },
+        );
+        await expect(
+            context.service.applyDraft(deployer, PROJECT_UUID, null),
+        ).rejects.toThrow(/changed while it was being published/);
+        expect(context.projectContext()).toEqual([hr]);
+    });
+
+    it('refuses a publish whose merged context fails the schema, and keeps the draft', async () => {
+        const context = setup();
+        await context.service.draftProjectContextEntry(
+            deployer,
+            PROJECT_UUID,
+            active,
+            null,
+            null,
+        );
+        context.upsertEntries.mockRejectedValueOnce(
+            new ParseError('Invalid lightdash.project_context.yml: bad entry'),
+        );
+        await expect(
+            context.service.applyDraft(deployer, PROJECT_UUID, null),
+        ).rejects.toThrow(
+            /cannot be published: Invalid lightdash.project_context.yml: bad entry/,
+        );
+        expect(context.drafts).toHaveLength(1);
+    });
+
+    it('keeps drafted context and says why once the project keeps its models in a repository', async () => {
+        const context = setup({ dbtConnection: MODELS_IN_GITHUB });
+        await context.service.proposeDraftChange(
             repoWriter,
             PROJECT_UUID,
-            OWN_PULL_REQUEST,
+            [draftModel(REVENUE_YAML)],
+            null,
+            null,
         );
-        await runQueued(context);
-        expect(context.compileExploresFromBranch).not.toHaveBeenCalled();
-        expect(context.branchCompiles.get('workspace-thread')).toMatchObject({
-            status: 'failed',
-            error: "Could not read this draft's branch. Its pull request may be merged, closed or in another repository.",
+        context.draftWorkspaces.set(
+            'draft-2',
+            context.draftWorkspaces.get('draft-1') ?? null,
+        );
+        context.drafts.push({
+            draftChangeUuid: 'draft-2',
+            baseVersions: null,
+            projectContextEntries: [hr],
+            promptUuid: null,
+            question: null,
+            createdAt: new Date(),
+            models: [],
         });
+        await expect(
+            context.service.applyDraft(repoWriter, PROJECT_UUID, null),
+        ).rejects.toThrow(/now keeps it in lightdash.project_context.yml/);
+        expect(context.openPullRequest).not.toHaveBeenCalled();
+        expect(context.upsertEntries).not.toHaveBeenCalled();
+        expect(context.drafts).toHaveLength(2);
     });
 });

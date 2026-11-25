@@ -320,8 +320,6 @@ const AI_WORKER_TASKS = new Set([
     'aiAgentReviewRemediationPreview',
     'aiAgentReviewRemediationCompile',
     'aiAgentReviewRemediationRun',
-    'embedArtifactVersion',
-    'generateArtifactQuestion',
     'appGeneratePipeline',
     'appBuildFromSource',
     'managedAgentHeartbeat',

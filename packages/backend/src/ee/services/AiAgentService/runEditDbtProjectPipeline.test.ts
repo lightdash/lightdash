@@ -192,7 +192,7 @@ const buildService = (overrides: {
         aiAgentReviewClassifierModel,
         slackClient,
         writebackPreviewService,
-        semanticStudioService: { queueBranchCompile },
+        semanticStudioCheckoutService: { queueBranchCompile },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
 
@@ -494,6 +494,7 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
             expect.objectContaining({ userUuid: 'user-1' }),
             PAYLOAD.projectUuid,
             WRITEBACK_RESULT.prUrl,
+            'agent',
         );
     });
 

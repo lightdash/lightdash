@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    getLegacyLiveSourceName,
     type Explore,
     type MetricQuery,
 } from '@lightdash/common';
@@ -7,7 +8,6 @@ import {
     assertLiveResultComplete,
     buildLiveExplores,
     compileLiveMetricQuery,
-    getLegacyLiveSourceName,
     toScannedLiveSourceFields,
 } from '../explores/build';
 import { getInitialLiveSourceFieldEdits } from '../explores/fields';

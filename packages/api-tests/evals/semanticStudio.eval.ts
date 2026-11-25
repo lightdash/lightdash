@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    type AiAgentThread,
     type AiAgentThreadSummary,
     type SemanticLayerDraft,
     type SemanticLayerDraftApplyResult,
@@ -11,15 +12,6 @@ import { pollUntil } from '../helpers/polling';
 import { postgresWarehouseConfig } from '../helpers/projects';
 
 const REPLY_TIMEOUT_MS = 840_000;
-
-type ThreadMessages = {
-    messages: {
-        role: string;
-        status?: string;
-        message: string | null;
-        toolCalls?: { toolName: string }[];
-    }[];
-};
 
 /**
  * A first eval of the Semantic Studio agent on a project with nothing modelled:
@@ -49,24 +41,21 @@ describe('Semantic Studio agent', { concurrent: false }, () => {
         const threadUrl = `${agent}/threads/${thread.body.results.uuid}`;
         // A reply can outlast the client's wait for a response, so it is started and then watched.
         admin.post(`${threadUrl}/generate`, {}).catch(() => undefined);
-        const settled = await pollUntil<Body<ThreadMessages>>(
-            admin,
-            threadUrl,
-            {
-                timeout: REPLY_TIMEOUT_MS,
-                interval: 5_000,
-                condition: ({ results }) => {
-                    const last = results.messages.at(-1);
-                    if (last?.role === 'assistant' && last.status === 'error') {
-                        throw new Error(
-                            `The reply failed: ${last.message ?? 'no message'}`,
-                        );
-                    }
-                    return last?.role === 'assistant' && last.status === 'idle';
-                },
+        const settled = await pollUntil<Body<AiAgentThread>>(admin, threadUrl, {
+            timeout: REPLY_TIMEOUT_MS,
+            interval: 5_000,
+            condition: ({ results }) => {
+                const last = results.messages.at(-1);
+                if (last?.role === 'assistant' && last.status === 'error') {
+                    throw new Error(
+                        `The reply failed: ${last.message ?? 'no message'}`,
+                    );
+                }
+                return last?.role === 'assistant' && last.status === 'idle';
             },
-        );
-        const reply = settled.results.messages.at(-1);
+        });
+        const last = settled.results.messages.at(-1);
+        const reply = last?.role === 'assistant' ? last : null;
         return {
             response: reply?.message ?? '',
             toolNames: (reply?.toolCalls ?? []).map(({ toolName }) => toolName),
@@ -211,9 +200,12 @@ describe('Semantic Studio agent', { concurrent: false }, () => {
 
     it('asks instead of guessing at a request with no target', async () => {
         const before = changesOf(await readDraft()).length;
-        const { draft, response } = await ask('Make it better.');
+        const { draft, response, toolNames } = await ask('Make it better.');
         expect(changesOf(draft)).toHaveLength(before);
-        expect(response).toContain('?');
+        // A Studio thread asks with askUser when it can, and in words otherwise.
+        expect(toolNames.includes('askUser') || response.includes('?')).toBe(
+            true,
+        );
     });
 
     it('does not edit a model that does not exist', async () => {

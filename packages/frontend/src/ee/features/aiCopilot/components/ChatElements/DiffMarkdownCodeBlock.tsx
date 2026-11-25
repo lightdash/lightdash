@@ -19,9 +19,9 @@ import { type CustomRendererProps } from 'streamdown';
 import { AiMarkdownErrorBoundary } from '../../../../../components/common/AiMarkdown/AiMarkdownErrorBoundary';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
+import { recountHunks } from '../../../../../features/writeback/splitPatch';
 import classes from './DiffMarkdownCodeBlock.module.css';
-import { QuietCardsContext } from './ToolCalls/quietCards';
-import { recountHunks } from './ToolCalls/splitPatch';
+import { InStudioChatContext } from './ToolCalls/studioChatContext';
 
 const PlainDiff: FC<{ code: string }> = ({ code }) => (
     <Box component="pre" className={classes.plain}>
@@ -70,7 +70,7 @@ export const DiffMarkdownCodeBlock: FC<CustomRendererProps> = ({
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     // A narrow panel shows each file as one line, opened at a click.
-    const quiet = useContext(QuietCardsContext);
+    const quiet = useContext(InStudioChatContext);
     const [isOpen, setIsOpen] = useState(!quiet);
     // With git's a/ and b/ prefixes the header reads as a rename of the file onto itself.
     const patch = recountHunks(

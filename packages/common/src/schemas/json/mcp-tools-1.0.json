@@ -1648,7 +1648,7 @@
                 "readOnlyHint": true,
                 "title": "Get metadata"
             },
-            "description": "Tool: get_metadata\n\nPurpose:\nGet the full metadata for explores and fields whose IDs you already know, typically from grep_fields: an explore's joined tables, table filters, required filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.\n\nWhen to use:\nCall this for the explores and fields you intend to use whose full detail you do not already have. Batch every explore and field you need into one call. Descriptions and hints truncated elsewhere (\"...(truncated)\") are returned here in full.\n\nInputs:\nEach entry in `requests` is one of:\n- `{ \"type\": \"explore\", \"exploreIds\": [\"orders\", \"customers\"] }` for whole explores.\n- `{ \"type\": \"field\", \"fields\": [{ \"exploreId\": \"orders\", \"fieldId\": \"orders_status\" }] }` for specific fields.\n\nApplying the result:\nUse a metric's default time dimension unless the user asks for a different one.\n",
+            "description": "Tool: get_metadata\n\nPurpose:\nGet the full metadata for explores and fields whose IDs you already know, typically from grep_fields: an explore's joined tables, table filters, required filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.\n\nWhen to use:\nCall this for the explores and fields you intend to use whose full detail you do not already have. Batch every explore and field you need into one call. Descriptions and hints truncated elsewhere (\"...(truncated)\") are returned here in full.\n\nInputs:\nEach entry in `requests` is one of:\n- `{ \"type\": \"explore\", \"exploreIds\": [\"<explore>\", \"<other explore>\"] }` for whole explores.\n- `{ \"type\": \"field\", \"fields\": [{ \"exploreId\": \"<explore>\", \"fieldId\": \"<table>_<field>\" }] }` for specific fields.\n\nApplying the result:\nUse a metric's default time dimension unless the user asks for a different one.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -1687,7 +1687,7 @@
                                                         "type": "string"
                                                     },
                                                     "fieldId": {
-                                                        "description": "The fieldId, e.g. `orders_status`.",
+                                                        "description": "The fieldId, e.g. `<table>_<field>`.",
                                                         "minLength": 1,
                                                         "type": "string"
                                                     }
@@ -2315,7 +2315,7 @@
                         "type": "string"
                     },
                     "patterns": {
-                        "description": "Up to 5 case-insensitive keyword patterns, not full regexes, matched against field names, labels, descriptions, hints and tags. Use `|` to OR synonyms (\"revenue|sales\") and a space or `.*` between words to require all of them (\"order.*status\"). Use short keywords: long natural-language phrases do not match. The patterns run together, so cover every angle of the question in one call (e.g. [\"revenue|sales\", \"country|region\", \"segment|tier\"]).",
+                        "description": "Up to 5 case-insensitive keyword patterns, not full regexes, matched against field names, labels, descriptions, hints and tags. Use `|` to OR synonyms (\"<term>|<synonym>\") and a space or `.*` between words to require all of them (\"<word>.*<word>\"). Use short keywords: long natural-language phrases do not match. The patterns run together, so cover every angle of the question in one call (e.g. [\"<measure>|<synonym>\", \"<dimension>|<synonym>\", \"<filter>|<synonym>\"]).",
                         "items": {
                             "minLength": 1,
                             "type": "string"
@@ -2615,50 +2615,6 @@
                             "type": "object"
                         },
                         "type": "array"
-                    },
-                    "relevantVerifiedAnswers": {
-                        "items": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "artifactType": {
-                                    "enum": ["chart", "dashboard"],
-                                    "type": "string"
-                                },
-                                "artifactVersionUuid": {
-                                    "type": "string"
-                                },
-                                "chartConfig": {
-                                    "additionalProperties": {},
-                                    "propertyNames": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
-                                },
-                                "description": {
-                                    "type": ["string", "null"]
-                                },
-                                "similarity": {
-                                    "type": "number"
-                                },
-                                "title": {
-                                    "type": ["string", "null"]
-                                },
-                                "verifiedQuestion": {
-                                    "type": ["string", "null"]
-                                }
-                            },
-                            "required": [
-                                "artifactVersionUuid",
-                                "chartConfig",
-                                "artifactType",
-                                "verifiedQuestion",
-                                "title",
-                                "description",
-                                "similarity"
-                            ],
-                            "type": "object"
-                        },
-                        "type": "array"
                     }
                 },
                 "required": [
@@ -2835,7 +2791,7 @@
                 "readOnlyHint": true,
                 "title": "List agents"
             },
-            "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
+            "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -5132,12 +5088,6 @@
                     },
                     "reasoning": {
                         "type": "string"
-                    },
-                    "verifiedQuestions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
                     }
                 },
                 "required": [
@@ -5148,7 +5098,6 @@
                     "agentSpaceAccess",
                     "agentProjectUuid",
                     "explores",
-                    "verifiedQuestions",
                     "instruction",
                     "confidence",
                     "reasoning",
@@ -9648,7 +9597,7 @@
                 "readOnlyHint": true,
                 "title": "Search field values"
             },
-            "description": "Tool: search_field_values\n\nPurpose:\nValidate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.\n\nUsage Tips:\n- Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly\n- Omit filters when the search does not need additional filters\n\nReading the result: the values describe observed data, not the permitted filter literals.\n",
+            "description": "Tool: search_field_values\n\nPurpose:\nValidate or disambiguate a candidate value for a specific dimension (e.g. a name or status) before filtering on it. Returns up to 100 unique values matching the query.\n\nUsage Tips:\n- Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly\n- Omit filters when the search does not need additional filters\n\nReading the result: the values describe observed data, not the permitted filter literals.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {

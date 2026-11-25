@@ -20,7 +20,7 @@ const args = {
         onWarehouseCatalogChange: vi.fn(),
     },
     dbtVersion: SupportedDbtVersions.V1_10,
-    partialParseBaselinePath: null,
+    partialParseBaseline: null,
 };
 
 afterEach(() => vi.restoreAllMocks());

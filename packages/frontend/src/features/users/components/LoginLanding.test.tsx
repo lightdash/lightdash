@@ -14,18 +14,17 @@ const LoginFormHarness: FC = () => {
     return (
         <LoginForm
             alternativeLoginIntent={undefined}
+            lastUsedSsoProvider={undefined}
+            loginHint={undefined}
+            preCheckEmail={undefined}
             availability={{ email: true, emailOtp: false }}
             form={form}
             formStatus="idle"
             formStage="precheck"
-            lastUsedSsoProvider={undefined}
-            layout="new"
-            loginHint={undefined}
             mobileLoginIntent="local"
             onClearEmail={() => {}}
             onEmailOtpSuccess={() => {}}
             onSubmit={() => {}}
-            preCheckEmail={undefined}
             redirectUrl="/"
             signupPath={null}
             signupUrl="/register"
