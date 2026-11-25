@@ -2,7 +2,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { rememberGoingLive } from '../../../../../features/semanticStudio/useGoingLive';
-import { usePublishCheckout } from '../../../../../features/semanticStudio/useStudioWorkspaces';
+import { usePublishCheckout } from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import { useStudioAgentWorking } from './useSemanticStudioChat';
 
 /** Confirms merging a dbt draft's pull request, which everyone sees once the project compiles. */
 export const PublishDraftModal: FC<{
@@ -13,13 +14,14 @@ export const PublishDraftModal: FC<{
 }> = ({ projectUuid, prUrl, destination, onClose }) => {
     const queryClient = useQueryClient();
     const { mutate: publish, isLoading } = usePublishCheckout(projectUuid);
+    const isAgentWorking = useStudioAgentWorking(projectUuid);
     return (
         <MantineModal
             opened
             title="Publish draft"
             description={`This merges ${destination}, then the project updates for everyone.`}
             confirmLabel="Publish"
-            confirmLoading={isLoading}
+            confirmLoading={isLoading || isAgentWorking}
             onClose={onClose}
             onConfirm={() =>
                 publish(

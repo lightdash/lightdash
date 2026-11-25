@@ -16,7 +16,7 @@ import { type CSSProperties, type FC } from 'react';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
-} from './pierreDiffConfig';
+} from '../../../../../features/writeback/pierreDiffConfig';
 import classes from './ReviewPrDiffContent.module.css';
 
 type Props = {

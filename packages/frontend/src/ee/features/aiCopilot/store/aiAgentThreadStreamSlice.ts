@@ -194,6 +194,15 @@ export const aiAgentThreadStreamSlice = createSlice({
                 streamingThread.timing.firstTokenAt = Date.now();
             }
         },
+        // The turn's terminal chunk, which can come before the connection closes.
+        markTurnFinished: (
+            state,
+            action: PayloadAction<{ threadUuid: string }>,
+        ) => {
+            const streamingThread = state[action.payload.threadUuid];
+            if (streamingThread)
+                streamingThread.timing.finishedAt ??= Date.now();
+        },
         setMessage: {
             reducer: (
                 state,
@@ -449,6 +458,7 @@ export const aiAgentThreadStreamSlice = createSlice({
 export const {
     startStreaming,
     markFirstToken,
+    markTurnFinished,
     setMessage,
     setParts,
     markToolCallDecided,

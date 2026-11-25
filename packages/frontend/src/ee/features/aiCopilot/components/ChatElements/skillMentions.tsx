@@ -24,6 +24,7 @@ import {
     type ContentMentionMenuState,
 } from './contentMentions';
 import { deleteMentionBeforeCaret } from './mentionBackspace';
+import { composerAnchorRect, repositionOnResize } from './mentionPopup';
 import { SkillMentionNodeView } from './SkillMentionNodeView';
 import { SkillMenuName } from './SkillMenuName';
 
@@ -163,6 +164,7 @@ const generateSkillMentionSuggestion = ({
     render: () => {
         let component: ReactRenderer<SuggestionListRef> | undefined;
         let popup: TippyInstance | undefined;
+        let stopRepositioning: (() => void) | undefined;
         let dismissed = false;
         const emptyMessage = (query: string, editor: Editor) => {
             if (findSkillMention(editor)) {
@@ -178,20 +180,6 @@ const generateSkillMentionSuggestion = ({
             groupLabels: { skills: strings('skillMenu.header') },
             emptyMessage: emptyMessage(query, editor),
         });
-        // The menu spans the composer's text column, from the line below the caret.
-        const anchorRect = (
-            editor: Editor,
-            caret: DOMRect | null | undefined,
-        ) => {
-            const composer = editor.view.dom.getBoundingClientRect();
-            const line = caret ?? composer;
-            return new DOMRect(
-                composer.left,
-                line.top,
-                composer.width,
-                line.height,
-            );
-        };
         const fitToComposer = (editor: Editor) => {
             if (component) {
                 component.element.style.width = `${editor.view.dom.getBoundingClientRect().width}px`;
@@ -215,7 +203,7 @@ const generateSkillMentionSuggestion = ({
                 fitToComposer(props.editor);
                 popup = tippy('body', {
                     getReferenceClientRect: () =>
-                        anchorRect(props.editor, props.clientRect?.()),
+                        composerAnchorRect(props.editor, props.clientRect?.()),
                     appendTo: () => document.body,
                     content: component.element,
                     showOnCreate: true,
@@ -224,6 +212,10 @@ const generateSkillMentionSuggestion = ({
                     placement: 'bottom-start',
                     maxWidth: 'none',
                 })[0];
+                stopRepositioning = repositionOnResize(
+                    popup,
+                    component.element,
+                );
             },
             onUpdate: (props) => {
                 if (dismissed) return;
@@ -238,7 +230,7 @@ const generateSkillMentionSuggestion = ({
                 fitToComposer(props.editor);
                 popup?.setProps({
                     getReferenceClientRect: () =>
-                        anchorRect(props.editor, props.clientRect?.()),
+                        composerAnchorRect(props.editor, props.clientRect?.()),
                 });
             },
             onKeyDown: (props) => {
@@ -260,9 +252,11 @@ const generateSkillMentionSuggestion = ({
             onExit: () => {
                 dismissed = false;
                 onMenuStateChange?.(CLOSED_CONTENT_MENTION_MENU);
+                stopRepositioning?.();
                 popup?.destroy();
                 component?.destroy();
                 popup = undefined;
+                stopRepositioning = undefined;
                 component = undefined;
             },
         };

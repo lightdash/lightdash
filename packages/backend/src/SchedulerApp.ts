@@ -410,6 +410,7 @@ export default class SchedulerApp {
             beforeShutdown: async () => {
                 Logger.debug('Shutdown signal received');
                 Logger.info('Shutting down gracefully');
+                worker.logInFlightJobs('received a shutdown signal');
             },
             onSignal: async () => {
                 if (this.featureFlagCheckFlushInterval) {

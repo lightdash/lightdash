@@ -20,6 +20,7 @@ import {
     stepCanvasZoom,
 } from '../../../features/dashboardTabs/canvasZoomUtils';
 import MantineIcon from '../MantineIcon';
+import classes from './CanvasZoomControls.module.css';
 import { EDIT_SHORTCUTS, toHotkeyItems } from './editShortcuts';
 import { ShortcutHint, ShortcutTooltipLabel } from './ShortcutHint';
 
@@ -63,66 +64,71 @@ export const CanvasZoomControls = memo(() => {
 
     return (
         <Group gap="xxs" wrap="nowrap">
-            <ShortcutHint shortcut={EDIT_SHORTCUTS.zoomOut} position="top">
-                <Tooltip
-                    label={
-                        <ShortcutTooltipLabel
-                            label="Zoom out"
-                            shortcut={EDIT_SHORTCUTS.zoomOut}
-                        />
-                    }
-                >
-                    <ActionIcon
-                        size="md"
-                        aria-label="Zoom out"
-                        disabled={zoom <= MIN_CANVAS_ZOOM}
-                        onClick={zoomOut}
+            <Group gap={0} wrap="nowrap" className={classes.stepper}>
+                <ShortcutHint shortcut={EDIT_SHORTCUTS.zoomOut} position="top">
+                    <Tooltip
+                        label={
+                            <ShortcutTooltipLabel
+                                label="Zoom out"
+                                shortcut={EDIT_SHORTCUTS.zoomOut}
+                            />
+                        }
                     >
-                        <MantineIcon icon={IconMinus} />
-                    </ActionIcon>
-                </Tooltip>
-            </ShortcutHint>
-            <ShortcutHint shortcut={EDIT_SHORTCUTS.zoomReset} position="top">
-                <Tooltip
-                    label={
-                        <ShortcutTooltipLabel
-                            label="Reset to 100%"
-                            shortcut={EDIT_SHORTCUTS.zoomReset}
-                        />
-                    }
-                    disabled={zoom === ACTUAL_SIZE_ZOOM}
+                        <ActionIcon
+                            size="md"
+                            aria-label="Zoom out"
+                            disabled={zoom <= MIN_CANVAS_ZOOM}
+                            onClick={zoomOut}
+                        >
+                            <MantineIcon icon={IconMinus} />
+                        </ActionIcon>
+                    </Tooltip>
+                </ShortcutHint>
+                <ShortcutHint
+                    shortcut={EDIT_SHORTCUTS.zoomReset}
+                    position="top"
                 >
-                    <Button
-                        variant="subtle"
-                        size="xs"
-                        px="xxs"
-                        // Widest label, so the bar keeps its width between steps
-                        miw={44}
-                        onClick={reset}
+                    <Tooltip
+                        label={
+                            <ShortcutTooltipLabel
+                                label="Reset to 100%"
+                                shortcut={EDIT_SHORTCUTS.zoomReset}
+                            />
+                        }
+                        disabled={zoom === ACTUAL_SIZE_ZOOM}
                     >
-                        {Math.round(zoom * 100)}%
-                    </Button>
-                </Tooltip>
-            </ShortcutHint>
-            <ShortcutHint shortcut={EDIT_SHORTCUTS.zoomIn} position="top">
-                <Tooltip
-                    label={
-                        <ShortcutTooltipLabel
-                            label="Zoom in"
-                            shortcut={EDIT_SHORTCUTS.zoomIn}
-                        />
-                    }
-                >
-                    <ActionIcon
-                        size="md"
-                        aria-label="Zoom in"
-                        disabled={zoom >= ACTUAL_SIZE_ZOOM}
-                        onClick={zoomIn}
+                        <Button
+                            variant="subtle"
+                            size="xs"
+                            px="xxs"
+                            // Widest label, so the bar keeps its width between steps
+                            miw={44}
+                            onClick={reset}
+                        >
+                            {Math.round(zoom * 100)}%
+                        </Button>
+                    </Tooltip>
+                </ShortcutHint>
+                <ShortcutHint shortcut={EDIT_SHORTCUTS.zoomIn} position="top">
+                    <Tooltip
+                        label={
+                            <ShortcutTooltipLabel
+                                label="Zoom in"
+                                shortcut={EDIT_SHORTCUTS.zoomIn}
+                            />
+                        }
                     >
-                        <MantineIcon icon={IconPlus} />
-                    </ActionIcon>
-                </Tooltip>
-            </ShortcutHint>
+                        <ActionIcon
+                            size="md"
+                            aria-label="Zoom in"
+                            disabled={zoom >= ACTUAL_SIZE_ZOOM}
+                            onClick={zoomIn}
+                        >
+                            <MantineIcon icon={IconPlus} />
+                        </ActionIcon>
+                    </Tooltip>
+                </ShortcutHint>
+            </Group>
             <ShortcutHint shortcut={EDIT_SHORTCUTS.zoomToFit} position="top">
                 <Tooltip
                     label={

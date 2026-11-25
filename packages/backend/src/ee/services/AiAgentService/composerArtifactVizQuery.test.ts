@@ -132,8 +132,6 @@ const setup = ({
         dashboardConfig: null,
         promptUuid: 'prompt-uuid',
         versionCreatedAt: new Date(),
-        verifiedByUserUuid: null,
-        verifiedAt: null,
     } as AiArtifact;
     const querySourceService = {
         submitQueries: vi.fn(async ({ queries: submitted }) => ({

@@ -1,0 +1,80 @@
+import {
+    CiCheckState,
+    CiMergeState,
+    type ApiError,
+    type CiChecks,
+} from '@lightdash/common';
+import { useQuery } from '@tanstack/react-query';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { PULL_REQUEST_CI_CHECKS_KEY } from './writebackQueryKeys';
+
+const getPullRequestCiChecks = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    prUrl: string,
+    commitSha: string | null,
+): Promise<CiChecks | null> => {
+    const params = new URLSearchParams({ prUrl });
+    // Pin the checks to this card's own commit so a later turn's commit doesn't
+    // retroactively change them; omitted for cards persisted before commitSha
+    // existed (the backend then falls back to the PR's live head).
+    if (commitSha) {
+        params.set('commitSha', commitSha);
+    }
+    return lightdashApi<CiChecks | null>({
+        version: 'v1',
+        url: `/ee/projects/${projectUuid}/ai-writeback/ci-checks?${params.toString()}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const pullRequestCiChecksKey = (
+    projectUuid: string | undefined,
+    prUrl: string | null | undefined,
+    commitSha: string | null,
+) => [PULL_REQUEST_CI_CHECKS_KEY, projectUuid, prUrl, commitSha];
+
+// While any check is still running — or GitHub is still computing
+// mergeability — we re-poll; once both have settled the status is stable.
+const CI_POLL_INTERVAL_MS = 15_000;
+
+/**
+ * Resolve (and poll for) the live CI status of a write-back pull request.
+ * Disabled until both a project and a PR URL are known; keeps polling while
+ * checks are pending or the merge verdict is still unknown, then stops.
+ */
+export const pullRequestCiChecksQuery = (
+    lightdashApi: LightdashApi,
+    projectUuid: string | undefined,
+    prUrl: string | null | undefined,
+    commitSha: string | null,
+) => ({
+    queryKey: pullRequestCiChecksKey(projectUuid, prUrl, commitSha),
+    queryFn: () =>
+        getPullRequestCiChecks(lightdashApi, projectUuid!, prUrl!, commitSha),
+    enabled: !!projectUuid && !!prUrl,
+    refetchInterval: (data: CiChecks | null | undefined) =>
+        // A merged PR is terminal — its mergeable_state often reads
+        // `unknown`, so without this guard the poll would never settle.
+        data &&
+        !data.merged &&
+        (data.overall === CiCheckState.PENDING ||
+            data.mergeState === CiMergeState.UNKNOWN)
+            ? CI_POLL_INTERVAL_MS
+            : (false as const),
+    refetchOnWindowFocus: false,
+    retry: false,
+});
+
+export const usePullRequestCiChecks = (
+    projectUuid: string | undefined,
+    prUrl: string | null | undefined,
+    commitSha: string | null,
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<CiChecks | null, ApiError>(
+        pullRequestCiChecksQuery(lightdashApi, projectUuid, prUrl, commitSha),
+    );
+};

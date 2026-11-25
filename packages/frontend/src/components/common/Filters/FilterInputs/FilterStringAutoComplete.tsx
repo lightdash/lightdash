@@ -9,6 +9,7 @@ import {
     ActionIcon,
     Box,
     Button,
+    Center,
     Group,
     Highlight,
     HoverCard,
@@ -565,35 +566,39 @@ const FilterStringAutoComplete: FC<Props> = ({
                                         disabled ? classes.hidden : undefined
                                     }
                                 >
-                                    {isInitialLoading ? (
-                                        <Loader size={14} color="gray" />
-                                    ) : isError ? (
+                                    {!isInitialLoading && isError ? (
                                         <SearchErrorIndicator
                                             error={error}
                                             isRetrying={isFetching}
                                             onRetry={() => void refetch()}
                                         />
                                     ) : null}
-
-                                    <Tooltip
-                                        label={getUiString(
-                                            'filters.autocomplete.editValuesTooltip',
-                                        )}
-                                    >
-                                        <ActionIcon
-                                            size="sm"
-                                            onClick={openManageValues}
-                                            className={
-                                                isWrapperHovered
-                                                    ? undefined
-                                                    : classes.hidden
-                                            }
+                                    {/* Spinner takes the manage-values slot so it never overlaps pills */}
+                                    {isInitialLoading ? (
+                                        <Center w={24} h={24}>
+                                            <Loader size={14} color="gray" />
+                                        </Center>
+                                    ) : (
+                                        <Tooltip
+                                            label={getUiString(
+                                                'filters.autocomplete.editValuesTooltip',
+                                            )}
                                         >
-                                            <MantineIcon
-                                                icon={IconListDetails}
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
+                                            <ActionIcon
+                                                size="sm"
+                                                onClick={openManageValues}
+                                                className={
+                                                    isWrapperHovered
+                                                        ? undefined
+                                                        : classes.hidden
+                                                }
+                                            >
+                                                <MantineIcon
+                                                    icon={IconListDetails}
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    )}
                                 </Group>
                             }
                             topContent={

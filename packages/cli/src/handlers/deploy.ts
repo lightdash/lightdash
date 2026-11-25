@@ -10,6 +10,7 @@ import {
     getWarehouseLocation,
     isExploreError,
     LightdashError,
+    ParameterError,
     ParseError,
     Project,
     ProjectType,
@@ -62,7 +63,7 @@ import {
     selectProject,
     type ProjectSelection,
 } from './selectProject';
-import { resolveProjectSourceUuid } from './sourceSelection';
+import { getProjectSources, resolveProjectSourceUuid } from './sourceSelection';
 import { getProjectDeploySettings } from './timestampConversion';
 
 type DeployHandlerOptions = DbtCompileOptions & {
@@ -85,6 +86,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     validateWarehouseColumns: boolean;
     partialCompilation?: boolean;
     source?: string;
+    prune?: boolean;
 };
 
 type DeployArgs = DeployHandlerOptions & {
@@ -760,12 +762,40 @@ const createNewProject = async (
     }
 };
 
+const assertPruneWithoutCombinedManifest = (
+    options: Pick<DeployHandlerOptions, 'prune' | 'combineManifest'>,
+): void => {
+    if (options.prune && options.combineManifest) {
+        throw new ParameterError(
+            '--prune cannot be used with --combine-manifest. It would remove the explores that come from the other manifest.',
+        );
+    }
+};
+
+const assertPruneOnSingleDbtSource = async (
+    projectUuid: string,
+): Promise<void> => {
+    const sources = await getProjectSources(projectUuid).catch(
+        (error: unknown) => {
+            if (error instanceof LightdashError && error.statusCode === 404)
+                return [];
+            throw error;
+        },
+    );
+    if (sources.length > 1) {
+        throw new ParameterError(
+            '--prune cannot be used on a project with more than one dbt source. It would remove the explores of the other sources.',
+        );
+    }
+};
+
 export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     assertAgentCommandAllowed('deploy', originalOptions);
     const options = {
         ...originalOptions,
     };
     GlobalState.setVerbose(options.verbose);
+    assertPruneWithoutCombinedManifest(options);
 
     // Detect project type and configure options accordingly
     const projectTypeConfig = await detectProjectType({
@@ -855,6 +885,12 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         // Log current project info
         logSelectedProject(existingProjectSelection, config, 'Deploying to');
 
+        if (options.prune) {
+            await assertPruneOnSingleDbtSource(
+                existingProjectSelection.projectUuid,
+            );
+        }
+
         sourceUuid = await resolveProjectSourceUuid(
             existingProjectSelection.projectUuid,
             options.source,
@@ -908,7 +944,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     await deploy(explores, {
         ...options,
         projectUuid,
-        complete: isProjectComplete,
+        complete: options.prune === true || isProjectComplete,
         dbtModelNames,
         fusionEmptyMeta,
         sourceUuid,

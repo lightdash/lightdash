@@ -277,9 +277,9 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                 <Text c="dimmed" fz="xs">
                     While Bedrock is configured it is the only provider Ask AI
                     uses, so agents pinned to another provider stop working
-                    until you repoint them. Verified-answer semantic search and
-                    AI repository editing are unavailable, because both would
-                    send content outside these regions.
+                    until you repoint them. AI repository editing is
+                    unavailable, because it would send content outside these
+                    regions.
                 </Text>
             )}
 

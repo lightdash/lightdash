@@ -12,6 +12,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { ConnectWarehouseAction } from '../common/ConnectWarehouseAction';
 import { EmptyState } from '../common/EmptyState';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -166,7 +167,9 @@ const LightdashVisualization = memo(
                                     )}
                                 </Fragment>
                             }
-                        ></EmptyState>
+                        >
+                            <ConnectWarehouseAction error={apiErrorDetail} />
+                        </EmptyState>
                     </div>
                 );
             }

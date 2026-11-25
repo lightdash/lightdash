@@ -1,7 +1,13 @@
 import {
+    getDbtSaves,
+    isDbtWriteToolName,
     isToolEditDbtProjectResult,
     type AiAgentThread,
 } from '@lightdash/common';
+import {
+    isSameFile,
+    patchPathOf,
+} from '../../../../../features/writeback/splitPatch';
 
 const DIFF_BLOCK = /```(?:diff|patch)[^\n]*\n([\s\S]*?)```/g;
 
@@ -30,9 +36,7 @@ export const getOpenProposal = (
         // A save that failed leaves the proposal to be saved again.
         if (
             !hasFailed &&
-            reply.toolCalls.some(
-                ({ toolName }) => toolName === 'editDbtProject',
-            )
+            reply.toolCalls.some(({ toolName }) => isDbtWriteToolName(toolName))
         )
             return [];
         const diffs = [...(reply.message ?? '').matchAll(DIFF_BLOCK)].map(
@@ -52,13 +56,7 @@ export const getSavingChange = (
     shown: SavingChange | null,
     isPullRequestDiffCurrent: boolean,
 ): SavingChange | null => {
-    const latest = messages
-        .flatMap((message) =>
-            message.role === 'assistant'
-                ? message.toolResults.filter(isToolEditDbtProjectResult)
-                : [],
-        )
-        .at(-1);
+    const latest = getDbtSaves(messages).at(-1);
     if (!latest) return null;
     const { metadata } = latest;
     if (metadata.status === 'pending') {
@@ -74,9 +72,6 @@ export const getSavingChange = (
         : null;
 };
 
-const pathOf = (patch: string) =>
-    /^\+\+\+ (?:b\/)?(\S+)/m.exec(patch)?.[1] ?? null;
-
 const addedLines = (patch: string) =>
     patch
         .split('\n')
@@ -86,16 +81,14 @@ const addedLines = (patch: string) =>
 
 /** A proposed diff is saved once the pull request adds every line it adds, to the same file, however it got there. */
 export const isInPullRequest = (proposed: string, pullRequestDiff: string) => {
-    const path = pathOf(proposed);
+    const path = patchPathOf(proposed);
     const added = addedLines(proposed);
     if (!path || added.length === 0) return false;
     const file = pullRequestDiff.split(/\n(?=diff --git )/).find((section) => {
-        const filePath = pathOf(section);
+        const filePath = patchPathOf(section);
         return (
             !!filePath &&
-            (filePath === path ||
-                filePath.endsWith(`/${path}`) ||
-                path.endsWith(`/${filePath}`))
+            (isSameFile(filePath, path) || isSameFile(path, filePath))
         );
     });
     if (!file) return false;

@@ -23,17 +23,18 @@ import {
     isDevelopmentViewPinned,
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
-import { useCompileCheckout } from '../../../../../features/semanticStudio/useSemanticLayerModel';
-import { useClosePullRequest } from '../../hooks/useClosePullRequest';
-import { useWritebackProgress } from '../../hooks/useWritebackProgress';
-import { PublishDraftModal } from './PublishDraftModal';
-import { TryItButton } from './TryItButton';
-import { useFinishDiscardedWork } from './useSemanticStudioChat';
-import { useStudioPublish } from './useStudioPublish';
 import {
     type StudioPendingChange,
     type StudioPullRequest,
-} from './useStudioPullRequest';
+} from '../../../../../features/semanticStudio/studioChange';
+import { TryItButton } from '../../../../../features/semanticStudio/TryItButton';
+import { getSemanticStudioUrl } from '../../../../../features/semanticStudio/urls';
+import { useCompileCheckout } from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import { useWritebackProgress } from '../../../../../features/writeback/useWritebackProgress';
+import { useClosePullRequest } from '../../hooks/useClosePullRequest';
+import { PublishDraftModal } from './PublishDraftModal';
+import { useFinishDiscardedWork } from './useSemanticStudioChat';
+import { onlyWritersCanPublish, useStudioPublish } from './useStudioPublish';
 
 /** What a dbt project's Studio conversation has saved so far: its pull request, a look at the result, and publishing it. */
 export const StudioDevelopmentBar: FC<{
@@ -49,6 +50,7 @@ export const StudioDevelopmentBar: FC<{
         mergesHere,
         branch,
         step,
+        isAgentWorking,
     } = useStudioPublish(projectUuid, prUrl, ciChecks);
     const compileAgain = useCompileCheckout(projectUuid);
     const { data: credential } = useGithubUserCredential();
@@ -83,7 +85,7 @@ export const StudioDevelopmentBar: FC<{
                     w={240}
                     label={
                         mergesHere
-                            ? `Only people who can write to ${branch ?? "the project's branch"} can publish.`
+                            ? onlyWritersCanPublish(branch)
                             : 'Merge it in your repository to publish.'
                     }
                 >
@@ -99,12 +101,18 @@ export const StudioDevelopmentBar: FC<{
                     </Button>
                 </Tooltip>
             ) : isMine ? (
-                <Tooltip multiline w={240} label={step.hint}>
+                <Tooltip
+                    multiline
+                    w={240}
+                    label={step.hint}
+                    events={{ hover: true, focus: true, touch: false }}
+                >
                     <Button
                         size="xs"
                         variant={canPublish ? 'filled' : 'default'}
                         leftSection={
-                            compile?.status === 'compiling' ? (
+                            compile?.status === 'compiling' ||
+                            isAgentWorking ? (
                                 <Loader size={12} color="gray" />
                             ) : compile?.status === 'failed' ? (
                                 <MantineIcon
@@ -115,8 +123,12 @@ export const StudioDevelopmentBar: FC<{
                             ) : null
                         }
                         loading={compileAgain.isLoading}
-                        data-disabled={step.action === null || undefined}
+                        data-disabled={
+                            (step.action === null && !isAgentWorking) ||
+                            undefined
+                        }
                         aria-disabled={step.action === null}
+                        aria-busy={isAgentWorking}
                         onClick={() => {
                             if (step.action === 'compile')
                                 compileAgain.mutate();
@@ -143,7 +155,9 @@ export const StudioDevelopmentBar: FC<{
                     {previewProjectUuid ? (
                         <Menu.Item
                             component={Link}
-                            to={`/projects/${previewProjectUuid}/semantic-layer`}
+                            to={getSemanticStudioUrl(previewProjectUuid, {
+                                ref: null,
+                            })}
                             target="_blank"
                             leftSection={
                                 <MantineIcon icon={IconExternalLink} />

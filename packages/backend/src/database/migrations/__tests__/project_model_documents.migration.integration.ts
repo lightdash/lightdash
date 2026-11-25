@@ -1,7 +1,9 @@
+import { UNTITLED_WORKSPACE_NAME } from '@lightdash/common';
 import {
     up as addWorkspace,
     down as dropWorkspace,
 } from '../../../ee/database/migrations/20261117170000_add_workspace_uuid_to_project_model_draft_changes';
+import { ProjectContextModel } from '../../../ee/models/ProjectContextModel';
 import {
     ModelDocumentsChangedError,
     ProjectModelDocumentModel,
@@ -18,6 +20,14 @@ import {
     up as addBaseVersions,
     down as dropBaseVersions,
 } from '../20261111200000_add_base_versions_to_project_model_draft_changes';
+import {
+    up as addProjectContextEntries,
+    down as dropProjectContextEntries,
+} from '../20261124120000_add_project_context_entries_to_project_model_draft_changes';
+import {
+    up as addDiscardedBy,
+    down as dropDiscardedBy,
+} from '../20261124171501_add_discarded_by_to_project_model_draft_changes';
 
 describe('Project model documents on PostgreSQL', () => {
     let migrated: MigratedDatabase;
@@ -105,6 +115,7 @@ describe('Project model documents on PostgreSQL', () => {
             workspaceUuid: null,
             promptUuid: null,
             baseVersions,
+            projectContextEntries: null,
             models: models.map((name) => ({
                 name,
                 yaml: 'label: Drafted\n',
@@ -124,6 +135,8 @@ describe('Project model documents on PostgreSQL', () => {
 
     test('down and up remove and restore the tables', async () => {
         const { database } = migrated;
+        await database.transaction(dropDiscardedBy);
+        await database.transaction(dropProjectContextEntries);
         await database.transaction(dropWorkspace);
         await database.transaction(dropBaseVersions);
         await database.transaction(down);
@@ -137,6 +150,8 @@ describe('Project model documents on PostgreSQL', () => {
         await database.transaction(addPullRequestUrl);
         await database.transaction(addBaseVersions);
         await database.transaction(addWorkspace);
+        await database.transaction(addProjectContextEntries);
+        await database.transaction(addDiscardedBy);
         expect(await database.schema.hasTable('project_model_revisions')).toBe(
             true,
         );
@@ -319,12 +334,40 @@ describe('Project model documents on PostgreSQL', () => {
             drafts: { changeUuids: [draftChangeUuid], model: 'customers' },
             status: 'discarded',
             pullRequestUrl: null,
+            discardedByUserUuid: null,
         });
         expect(settled).toBe(1);
         expect(await draftedModels()).toEqual([['orders']]);
         expect(
             await model.findSettledDraftChanges(projectUuid, userUuid),
-        ).toEqual([expect.objectContaining({ status: 'discarded' })]);
+        ).toEqual([
+            expect.objectContaining({ status: 'discarded', discardedBy: null }),
+        ]);
+    });
+
+    test('a discard by someone other than the owner records who and when', async () => {
+        const [admin] = await migrated
+            .database('users')
+            .insert({ first_name: 'Person', last_name: 'B' } as never)
+            .returning('user_uuid');
+        const draftChangeUuid = await draft(['orders']);
+        await model.updateDraftChangeStatus({
+            projectUuid,
+            userUuid,
+            workspaceUuid: null,
+            drafts: { changeUuids: [draftChangeUuid], model: null },
+            status: 'discarded',
+            pullRequestUrl: null,
+            discardedByUserUuid: admin.user_uuid,
+        });
+        expect(
+            await model.findSettledDraftChanges(projectUuid, userUuid),
+        ).toEqual([
+            expect.objectContaining({
+                status: 'discarded',
+                discardedBy: { name: 'Person B', at: expect.any(Date) },
+            }),
+        ]);
     });
 
     test('names who else is drafting a model and what was published under a draft', async () => {
@@ -348,9 +391,17 @@ describe('Project model documents on PostgreSQL', () => {
         });
         expect(await model.findOtherDrafters(projectUuid, userUuid)).toEqual([
             {
+                userUuid: other.user_uuid,
                 name: 'Ada Lovelace',
                 models: ['orders'],
-                changes: [[expect.objectContaining({ name: 'orders' })]],
+                lastActiveAt: expect.any(Date),
+                changes: [
+                    {
+                        draftChangeUuid: expect.any(String),
+                        workspaceUuid: null,
+                        models: [expect.objectContaining({ name: 'orders' })],
+                    },
+                ],
             },
         ]);
         expect(
@@ -477,6 +528,7 @@ describe('Project model documents on PostgreSQL', () => {
             drafts,
             status: 'applied',
             pullRequestUrl: 'https://github.example/acme/analytics/pull/1',
+            discardedByUserUuid: null,
         });
         expect(
             await model.findSettledDraftChanges(projectUuid, userUuid),
@@ -520,6 +572,7 @@ describe('Project model documents on PostgreSQL', () => {
             drafts,
             status: 'discarded',
             pullRequestUrl: null,
+            discardedByUserUuid: null,
         });
         await expect(
             apply(new Map(), [{ name: 'orders', content: 'v1' }], { drafts }),
@@ -576,6 +629,7 @@ describe('Project model documents on PostgreSQL', () => {
             ...owner,
             workspaceUuid: null,
             baseVersions: null,
+            projectContextEntries: null,
             promptUuid: null,
             changeName: 'Orders revenue',
             models: [
@@ -610,16 +664,137 @@ describe('Project model documents on PostgreSQL', () => {
                 organization.organization_uuid,
             ),
         ).rejects.toThrow(ModelDocumentsChangedError);
-        expect(await workspaces.listChanges(owner)).toEqual(
+        expect(await workspaces.listChanges(owner, null)).toEqual(
             expect.arrayContaining([
                 {
                     name: 'Orders revenue',
                     isCheckedOut: false,
-                    models: ['orders'],
+                    models: [{ name: 'orders', editedIn: ['by_hand'] }],
                 },
                 { name: 'Second', isCheckedOut: true, models: [] },
             ]),
         );
+    });
+
+    test('an untitled draft takes the name of its first change and a given name stays', async () => {
+        const workspaces = new SemanticStudioWorkspaceModel({
+            database: migrated.database,
+        });
+        const owner = { projectUuid, userUuid };
+        const change = (workspaceUuid: string, changeName: string) =>
+            model.createCheckedOutDraftChange(
+                {
+                    ...owner,
+                    workspaceUuid,
+                    baseVersions: null,
+                    projectContextEntries: null,
+                    promptUuid: null,
+                    changeName,
+                    models: [
+                        {
+                            name: 'orders',
+                            yaml: 'label: Orders',
+                            remove: [],
+                            removeModel: false,
+                        },
+                    ],
+                },
+                organization.organization_uuid,
+            );
+        const untitled = await workspaces.create(
+            owner,
+            organization.organization_uuid,
+            UNTITLED_WORKSPACE_NAME,
+        );
+        await change(untitled, UNTITLED_WORKSPACE_NAME);
+        expect((await workspaces.find(untitled, userUuid))?.name).toBe(
+            UNTITLED_WORKSPACE_NAME,
+        );
+        const first = await change(untitled, 'Add revenue to orders');
+        expect(first.startedChange).toBeNull();
+        expect((await workspaces.find(untitled, userUuid))?.name).toBe(
+            'Add revenue to orders',
+        );
+        await change(untitled, 'Something else');
+        expect((await workspaces.find(untitled, userUuid))?.name).toBe(
+            'Add revenue to orders',
+        );
+
+        const named = await workspaces.create(
+            owner,
+            organization.organization_uuid,
+            'Orders cleanup',
+        );
+        await change(named, 'Add revenue to orders');
+        expect((await workspaces.find(named, userUuid))?.name).toBe(
+            'Orders cleanup',
+        );
+    });
+
+    test('a chat that writes after its draft was published reopens that draft', async () => {
+        const workspaces = new SemanticStudioWorkspaceModel({
+            database: migrated.database,
+        });
+        const owner = { projectUuid, userUuid };
+        const [{ ai_thread_uuid: threadUuid }] = await migrated
+            .database('ai_thread')
+            .insert({
+                organization_uuid: organization.organization_uuid,
+                project_uuid: projectUuid,
+                created_from: 'semantic_studio',
+            } as never)
+            .returning('ai_thread_uuid');
+        const [{ ai_prompt_uuid: promptUuid }] = await migrated
+            .database('ai_prompt')
+            .insert({
+                ai_thread_uuid: threadUuid,
+                prompt: 'Add a model',
+            } as never)
+            .returning('ai_prompt_uuid');
+        const input = {
+            ...owner,
+            workspaceUuid: null,
+            baseVersions: null,
+            projectContextEntries: null,
+            promptUuid,
+            changeName: 'A model',
+            models: [
+                {
+                    name: 'orders',
+                    yaml: 'label: Orders',
+                    remove: [],
+                    removeModel: false,
+                },
+            ],
+        };
+        const first = await model.createCheckedOutDraftChange(
+            input,
+            organization.organization_uuid,
+        );
+        await migrated
+            .database('semantic_studio_workspaces')
+            .where('semantic_studio_workspace_uuid', first.workspaceUuid)
+            .update({
+                is_active: false,
+                finished_at: migrated.database.fn.now(),
+            });
+
+        const second = await model.createCheckedOutDraftChange(
+            input,
+            organization.organization_uuid,
+        );
+
+        expect(second.workspaceUuid).toBe(first.workspaceUuid);
+        expect(await workspaces.findActive(owner)).toMatchObject({
+            workspaceUuid: first.workspaceUuid,
+            threadUuid,
+        });
+        expect(
+            await migrated
+                .database('semantic_studio_workspaces')
+                .where('semantic_studio_workspace_uuid', first.workspaceUuid)
+                .first(),
+        ).toMatchObject({ finished_at: null });
     });
 
     test('a draft belongs only to its workspace', async () => {
@@ -669,6 +844,7 @@ describe('Project model documents on PostgreSQL', () => {
                 workspaceUuid,
                 promptUuid: null,
                 baseVersions: null,
+                projectContextEntries: null,
                 models: [
                     {
                         name,
@@ -699,5 +875,144 @@ describe('Project model documents on PostgreSQL', () => {
             .delete();
         // A change outlives its workspace as one from before workspaces.
         expect(await modelsIn(null)).toEqual(['legacy', 'customers']);
+    });
+
+    describe('project context published with the draft', () => {
+        const entry = {
+            id: 'active',
+            kind: 'definition' as const,
+            content: '"Active" means ordered in the last 30 days.',
+            terms: ['active'],
+            objects: [],
+        };
+        const contextModel = () =>
+            new ProjectContextModel({ database: migrated.database });
+        const writeContext = async (
+            trx: Parameters<ProjectContextModel['upsertEntries']>[2],
+        ) => {
+            await contextModel().upsertEntries(projectUuid, [entry], trx);
+        };
+
+        test('a failed deploy takes the context back with the models', async () => {
+            const drafts = {
+                changeUuids: [await draft(['orders'])],
+                model: null,
+            };
+            await expect(
+                model.createChangeSet(
+                    {
+                        projectUuid,
+                        userUuid,
+                        workspaceUuid: null,
+                        source: { kind: 'draft', promptUuid: null, drafts },
+                        readVersions: new Map(),
+                        documents: [{ name: 'orders', content: 'v1' }],
+                        withSettled: writeContext,
+                    },
+                    async () => {
+                        throw new Error('deploy failed');
+                    },
+                ),
+            ).rejects.toThrow('deploy failed');
+            expect(await contextModel().getDocument(projectUuid)).toEqual([]);
+            expect(await draftedModels()).toEqual([['orders']]);
+        });
+
+        test('a draft settled meanwhile writes no context', async () => {
+            const drafts = {
+                changeUuids: [await draft(['orders'])],
+                model: null,
+            };
+            await model.updateDraftChangeStatus({
+                projectUuid,
+                userUuid,
+                workspaceUuid: null,
+                drafts,
+                status: 'discarded',
+                pullRequestUrl: null,
+                discardedByUserUuid: null,
+            });
+            await expect(
+                model.createChangeSet(
+                    {
+                        projectUuid,
+                        userUuid,
+                        workspaceUuid: null,
+                        source: { kind: 'draft', promptUuid: null, drafts },
+                        readVersions: new Map(),
+                        documents: [{ name: 'orders', content: 'v1' }],
+                        withSettled: writeContext,
+                    },
+                    async () => 'deployed',
+                ),
+            ).rejects.toThrow(ModelDocumentsChangedError);
+            expect(await contextModel().getDocument(projectUuid)).toEqual([]);
+        });
+
+        test('settling a context-only draft commits or rolls back with its context', async () => {
+            const drafts = { changeUuids: [await draft([])], model: null };
+            const settle = (
+                withSettled: (
+                    trx: Parameters<ProjectContextModel['upsertEntries']>[2],
+                    settled: number,
+                ) => Promise<void>,
+            ) =>
+                model.updateDraftChangeStatus({
+                    projectUuid,
+                    userUuid,
+                    workspaceUuid: null,
+                    drafts,
+                    status: 'applied',
+                    pullRequestUrl: null,
+                    discardedByUserUuid: null,
+                    withSettled,
+                });
+            await expect(
+                settle(async (trx) => {
+                    await writeContext(trx);
+                    throw new Error('refused');
+                }),
+            ).rejects.toThrow('refused');
+            expect(await contextModel().getDocument(projectUuid)).toEqual([]);
+            expect(await draftedModels()).toEqual([[]]);
+
+            let settledRows = -1;
+            await settle(async (trx, settled) => {
+                settledRows = settled;
+                await writeContext(trx);
+            });
+            expect(settledRows).toBe(1);
+            expect(await contextModel().getDocument(projectUuid)).toEqual([
+                entry,
+            ]);
+            expect(await draftedModels()).toEqual([]);
+        });
+
+        test('a discard that lands first leaves nothing to settle', async () => {
+            const drafts = { changeUuids: [await draft([])], model: null };
+            await model.updateDraftChangeStatus({
+                projectUuid,
+                userUuid,
+                workspaceUuid: null,
+                drafts,
+                status: 'discarded',
+                pullRequestUrl: null,
+                discardedByUserUuid: null,
+            });
+            let settledRows = -1;
+            await model.updateDraftChangeStatus({
+                projectUuid,
+                userUuid,
+                workspaceUuid: null,
+                drafts,
+                status: 'applied',
+                pullRequestUrl: null,
+                discardedByUserUuid: null,
+                withSettled: async (_trx, settled) => {
+                    settledRows = settled;
+                },
+            });
+            expect(settledRows).toBe(0);
+        });
     });
 });

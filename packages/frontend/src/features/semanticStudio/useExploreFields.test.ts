@@ -4,9 +4,17 @@ import { type Explore, type Source } from './model';
 import { draftModel } from './studioCheckout.mock';
 import { useExploreFields } from './useExploreFields';
 
-const compiledQuery = vi.hoisted(() => vi.fn());
+// The project has no explore of a model the change adds, so asking for it fails.
 vi.mock('../../hooks/useExplore', () => ({
-    useExploreByProjectUuid: compiledQuery,
+    useExploreByProjectUuid: (
+        _name: string,
+        _projectUuid: string,
+        { enabled }: { enabled: boolean },
+    ) => ({
+        data: undefined,
+        isInitialLoading: false,
+        error: enabled ? { error: { message: 'Explore not found' } } : null,
+    }),
 }));
 vi.mock('../externalConnections/hooks/useLiveSourceFields', () => ({
     useLiveSourceFields: () => ({ data: undefined }),
@@ -34,11 +42,6 @@ const source: Source = {
 
 describe('useExploreFields', () => {
     it('reads the fields of a model the change adds from the change, without asking for a live explore', () => {
-        compiledQuery.mockReturnValue({
-            data: undefined,
-            isInitialLoading: false,
-            error: null,
-        });
         const { result } = renderHook(() =>
             useExploreFields({
                 projectUuid: 'project',
@@ -48,9 +51,6 @@ describe('useExploreFields', () => {
                 draft: draftModel('payments', null, 'payments yaml'),
             }),
         );
-        expect(compiledQuery).toHaveBeenLastCalledWith('payments', 'project', {
-            enabled: false,
-        });
         expect(result.current.fields).toEqual([]);
         expect(result.current.error).toBeNull();
     });

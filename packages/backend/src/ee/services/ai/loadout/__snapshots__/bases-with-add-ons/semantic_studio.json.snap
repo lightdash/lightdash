@@ -9,6 +9,7 @@
         "analyzeFieldImpact",
         "askUser",
         "describeWarehouseTable",
+        "draftProjectContext",
         "getMetadata",
         "grepFields",
         "grepWarehouseColumns",
