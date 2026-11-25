@@ -17,6 +17,12 @@
     overflow: hidden auto;
 }
 
+.top {
+    display: flex;
+    flex-direction: column;
+    gap: rem(4px);
+}
+
 .header {
     display: flex;
     align-items: center;
@@ -53,8 +59,20 @@
     color: var(--mantine-color-dimmed);
 }
 
+.shortcut {
+    font-size: rem(11px);
+    color: var(--mantine-color-placeholder);
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.item:is(:hover, :focus-visible) .shortcut {
+    opacity: 1;
+}
+
 /* The rail clips the labels, so they are hidden rather than cut mid-letter. */
-.sidebar[data-collapsed='true'] :is(.sectionLabel, .itemLabel) {
+.sidebar[data-collapsed='true']
+    :is(.sectionLabel, .itemLabel, .itemSection[data-position='right']) {
     opacity: 0;
 }
 
