@@ -68,6 +68,14 @@ const SOURCES: {
         scan: {},
     },
     {
+        name: 'Google Play',
+        apiSource: {
+            connector: ApiConnectorType.GOOGLE_PLAY,
+            packageName: 'com.example.app',
+        },
+        scan: {},
+    },
+    {
         name: 'LinkedIn Ads',
         apiSource: {
             connector: ApiConnectorType.LINKEDIN_ADS,

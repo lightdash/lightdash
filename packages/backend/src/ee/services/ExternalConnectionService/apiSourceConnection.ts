@@ -34,11 +34,13 @@ export const validateApiSourceConnection = ({
     type,
     origin,
     oauthTokenUrl,
+    oauthScopes,
 }: {
     apiSource?: ExternalConnectionApiSource | null;
     type: ExternalConnectionAuthType;
     origin: string;
     oauthTokenUrl?: string | null;
+    oauthScopes?: string[] | null;
 }): void => {
     if (!apiSource) {
         if (type === 'oauth_authorization_code') {
@@ -53,5 +55,6 @@ export const validateApiSourceConnection = ({
         type,
         origin,
         oauthTokenUrl,
+        oauthScopes,
     });
 };

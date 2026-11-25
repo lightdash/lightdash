@@ -14,6 +14,7 @@ import attioIcon from './icons/attio.svg';
 import githubIcon from './icons/github.svg';
 import googleAdsIcon from './icons/google-ads.svg';
 import googleAnalyticsIcon from './icons/google-analytics.svg';
+import googlePlayIcon from './icons/google-play.svg';
 import googleSearchConsoleIcon from './icons/google-search-console.svg';
 import hubspotIcon from './icons/hubspot.svg';
 import hydraIcon from './icons/hydra.svg';
@@ -39,7 +40,8 @@ export type LiveSourceSetup =
     | { kind: 'token'; form: TokenLiveSourceForm }
     | { kind: 'linkedin_ads' }
     | { kind: 'salesforce' }
-    | { kind: 'amplitude' };
+    | { kind: 'amplitude' }
+    | { kind: 'google_play' };
 
 export type AvailableLiveSource = Omit<LiveIntegrationCatalogEntry, 'setup'> & {
     status: 'available';
@@ -69,6 +71,7 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.GOOGLE_ADS]: googleAdsIcon,
     [ApiConnectorType.LINKEDIN_ADS]: linkedinAdsIcon,
     [ApiConnectorType.YOUTUBE_ANALYTICS]: youtubeAnalyticsIcon,
+    [ApiConnectorType.GOOGLE_PLAY]: googlePlayIcon,
     [ApiConnectorType.GITHUB]: githubIcon,
     [ApiConnectorType.PYLON]: pylonIcon,
     [ApiConnectorType.ATTIO]: attioIcon,
@@ -103,6 +106,7 @@ const DISPLAY_ORDER = [
     ApiConnectorType.GOOGLE_ADS,
     ApiConnectorType.LINKEDIN_ADS,
     ApiConnectorType.YOUTUBE_ANALYTICS,
+    ApiConnectorType.GOOGLE_PLAY,
     ApiConnectorType.GITHUB,
     ApiConnectorType.PYLON,
     ApiConnectorType.ATTIO,

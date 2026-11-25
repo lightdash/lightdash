@@ -69,6 +69,7 @@ export enum ApiConnectorType {
     META_ADS = 'meta_ads',
     GOOGLE_ADS = 'google_ads',
     YOUTUBE_ANALYTICS = 'youtube_analytics',
+    GOOGLE_PLAY = 'google_play',
     LINKEDIN_ADS = 'linkedin_ads',
     GITHUB = 'github',
     PYLON = 'pylon',
