@@ -934,7 +934,7 @@ describe('GoogleDriveClient', () => {
             );
 
             expect((error as Error).message).toContain(
-                'Lightdash wrote 25,000 of 30,001 rows into the tab before the error, so the tab can contain a mix of new and old rows until the next successful sync.',
+                'The sync stopped part-way. Rows 1-25,000 of the tab are new, and the rest may be from the previous sync. The next successful sync replaces them.',
             );
         });
 
@@ -1098,8 +1098,8 @@ describe('GoogleDriveClient', () => {
                 ),
             );
 
-            expect((error as Error).message).toContain(
-                'Lightdash wrote 71,428 of 150,001 rows into the tab before the error, so the tab can contain a mix of new and old rows until the next successful sync.',
+            expect((error as Error).message).toBe(
+                'Google Sheets could not write 150,001 rows (including the header, about 6.4 MB) to the tab "Sheet1". The sync stopped part-way. Rows 1-71,428 of the tab are new, and the rest may be from the previous sync. The next successful sync replaces them. Google error: Google Drive internal error encountered. Please try again later.',
             );
             expect(fake.tabValues('Sheet1')[71_427][1]).toBe('new-71426');
             expect(fake.tabValues('Sheet1')[71_428][1]).toBe('old-71427');

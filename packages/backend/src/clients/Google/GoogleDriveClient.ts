@@ -1370,7 +1370,7 @@ export class GoogleDriveClient {
         }
         const outcome =
             context.rowsInTab > 0
-                ? `Lightdash wrote ${formatCount(context.rowsInTab)} of ${formatCount(context.rowCount)} rows into the tab before the error, so the tab can contain a mix of new and old rows until the next successful sync.`
+                ? `The sync stopped part-way. Rows 1-${formatCount(context.rowsInTab)} of the tab are new, and the rest may be from the previous sync. The next successful sync replaces them.`
                 : 'The data in the tab was not changed.';
         const message = `Google Sheets could not write ${formatCount(context.rowCount)} rows (including the header, about ${formatMegabytes(context.totalBytes)}) to the tab "${context.tabTitle}". ${outcome} Google error: ${getErrorMessage(error)}`;
         if (error instanceof GoogleSheetsQuotaError) {
