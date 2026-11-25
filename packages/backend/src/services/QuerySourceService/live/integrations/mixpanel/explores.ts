@@ -122,7 +122,7 @@ const metric = (
 // Mixpanel answers an unknown event name with zeros, not an error, and field
 // value search can't list event names yet
 const EVENT_NAME_HINT =
-    'Event names are case-sensitive and must match Mixpanel exactly, often Title Case with spaces ("Signed Up", not signed_up or sign_up). Field value search cannot list them: ask the user for the names rather than guessing. Mixpanel returns zeros, not an error, for a name that does not exist, so if every date is 0 check the name before saying there is no data.';
+    'Event names are case-sensitive and must match Mixpanel exactly, often Title Case with spaces ("Signed Up", not signed_up or sign_up). Field value search cannot list them: query Top events today for the exact names of events fired today, and otherwise ask the user rather than guessing. Mixpanel returns zeros, not an error, for a name that does not exist, so if every date is 0 check the name before saying there is no data.';
 
 const NOT_ADDITIVE_HINT =
     'Not additive: never sum rows across dates or property values; choose a coarser date grain instead.';
