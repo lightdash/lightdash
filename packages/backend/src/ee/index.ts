@@ -21,6 +21,7 @@ import { OrganizationService } from '../services/OrganizationService/Organizatio
 import { isAnalyticsProjectAvailable } from '../services/ProjectService/analyticsProject/analyticsProjectAvailability';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { provisionTrainingProject } from '../services/ProjectService/provisionTrainingProject';
+import { getLiveRateLimitDeadlineMs } from '../services/QuerySourceService/live/rateLimitDeadlines';
 import { QuerySourceRegistry } from '../services/QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from '../services/QuerySourceService/QuerySourceService';
 import { ApiQuerySource } from '../services/QuerySourceService/sources/ApiQuerySource';
@@ -144,7 +145,10 @@ import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
 import { developmentViewMiddleware } from './services/SemanticStudioService/developmentViewMiddleware';
+import { DraftChecker } from './services/SemanticStudioService/DraftChecker';
+import { IncrementalDbtCompileService } from './services/SemanticStudioService/IncrementalDbtCompileService';
 import { RepoModelSource } from './services/SemanticStudioService/repoModels';
+import { SemanticStudioCheckoutService } from './services/SemanticStudioService/SemanticStudioCheckoutService';
 import { SemanticStudioService } from './services/SemanticStudioService/SemanticStudioService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
 import { CommercialSlackService } from './services/SlackService/SlackService';
@@ -457,13 +461,45 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getGithubAppInstallationsModel(),
                     }),
                     savedChartModel: models.getSavedChartModel(),
+                    projectContextModel:
+                        models.getProjectContextModel<ProjectContextModel>(),
+                    aiWritebackService:
+                        repository.getAiWritebackService<AiWritebackService>(),
+                    fileStorageClient: clients.getFileStorageClient(),
+                }),
+            semanticStudioCheckoutService: ({
+                models,
+                repository,
+                clients,
+                context,
+            }) =>
+                new SemanticStudioCheckoutService({
+                    analytics: context.lightdashAnalytics,
+                    studio: repository.getSemanticStudioService<SemanticStudioService>(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
+                    projectModel: models.getProjectModel(),
+                    workspaceModel:
+                        models.getSemanticStudioWorkspaceModel<SemanticStudioWorkspaceModel>(),
+                    projectService: repository.getProjectService(),
+                    fileStorageClient: clients.getFileStorageClient(),
                     jobModel: models.getJobModel(),
-                    projectCompileLogModel: models.getProjectCompileLogModel(),
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
+                    incrementalDbtCompile:
+                        repository.getIncrementalDbtCompileService<IncrementalDbtCompileService>(),
+                }),
+            incrementalDbtCompileService: ({ models, repository, clients }) =>
+                new IncrementalDbtCompileService({
+                    projectModel: models.getProjectModel(),
+                    projectService: repository.getProjectService(),
+                    checker: new DraftChecker(repository.getProjectService()),
                     fileStorageClient: clients.getFileStorageClient(),
+                    projectCompileLogModel: models.getProjectCompileLogModel(),
+                    aiWritebackService:
+                        repository.getAiWritebackService<AiWritebackService>(),
                 }),
             homepageRecommendedActionSkipsService: ({ models }) =>
                 new HomepageRecommendedActionSkipsService({
@@ -605,13 +641,19 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 registry.register(
                     new ApiQuerySource({
                         asyncQueryService: repository.getAsyncQueryService(),
-                        getLiveSource: (account, projectUuid, connectionUuid) =>
+                        getLiveSource: (
+                            account,
+                            projectUuid,
+                            connectionUuid,
+                            queryContext,
+                        ) =>
                             repository
                                 .getExternalConnectionService<ExternalConnectionService>()
                                 .getLiveSource(
                                     account,
                                     projectUuid,
                                     connectionUuid,
+                                    getLiveRateLimitDeadlineMs(queryContext),
                                 ),
                         listSchemaTables: (account, projectUuid) =>
                             repository
@@ -929,6 +971,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getProjectContextService<ProjectContextService>(),
                     semanticStudioService:
                         repository.getSemanticStudioService<SemanticStudioService>(),
+                    semanticStudioCheckoutService:
+                        repository.getSemanticStudioCheckoutService<SemanticStudioCheckoutService>(),
+                    incrementalDbtCompileService:
+                        repository.getIncrementalDbtCompileService<IncrementalDbtCompileService>(),
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),
                     githubAppInstallationsModel:
@@ -1217,6 +1263,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 repository,
                 utils,
                 clients,
+                prometheusMetrics,
             }) =>
                 new ExternalConnectionService({
                     allowedPrivateHostCidrs:
@@ -1226,7 +1273,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     externalConnectionModel:
                         models.getExternalConnectionModel(),
                     appModel: models.getAppModel(),
-                    featureFlagModel: models.getFeatureFlagModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     projectModel: models.getProjectModel(),
@@ -1252,6 +1298,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     .externalConnectionAllowedPrivateHostCidrs,
                         }),
                     lightdashConfig: context.lightdashConfig,
+                    prometheusMetrics,
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),
@@ -1427,8 +1474,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             projectService,
                             canViewProject,
                             trigger,
-                            featureFlagService:
-                                repository.getFeatureFlagService(),
                             projectModel: models.getProjectModel(),
                             onboardingModel: models.getOnboardingModel(),
                             catalogService: repository.getCatalogService(),
@@ -1641,6 +1686,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         account,
                         projectUuid,
                         connectionUuid,
+                        queryContext,
                     ) =>
                         repository
                             .getExternalConnectionService<ExternalConnectionService>()
@@ -1648,6 +1694,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 account,
                                 projectUuid,
                                 connectionUuid,
+                                getLiveRateLimitDeadlineMs(queryContext),
                             ),
                     externalSourceTableResolver: (
                         projectUuid,
@@ -1973,6 +2020,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 aiAgentService: context.serviceRepository.getAiAgentService(),
                 semanticStudioService:
                     context.serviceRepository.getSemanticStudioService<SemanticStudioService>(),
+                semanticStudioCheckoutService:
+                    context.serviceRepository.getSemanticStudioCheckoutService<SemanticStudioCheckoutService>(),
+                incrementalDbtCompileService:
+                    context.serviceRepository.getIncrementalDbtCompileService<IncrementalDbtCompileService>(),
                 dataAppAnalysisService:
                     context.serviceRepository.getDataAppAnalysisService<DataAppAnalysisService>(),
                 aiAgentMemoryService:

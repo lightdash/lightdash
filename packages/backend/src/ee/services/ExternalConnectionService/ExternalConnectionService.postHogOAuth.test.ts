@@ -111,9 +111,20 @@ const buildService = ({
             },
         ),
         create: vi.fn(async () => connection),
-        tryAcquireApiSourceCallLease: vi.fn().mockResolvedValue(true),
-        tryCountApiSourceCall: vi.fn().mockResolvedValue(true),
-        releaseApiSourceCallLease: vi.fn().mockResolvedValue(undefined),
+        chargeApiSourceRateBuckets: vi.fn().mockResolvedValue({
+            charged: true,
+            now: new Date(),
+            windows: [],
+        }),
+        refundApiSourceRateBuckets: vi.fn().mockResolvedValue(undefined),
+        holdApiSourceRateBuckets: vi.fn().mockResolvedValue(undefined),
+        bookApiSourceRateTurn: vi.fn().mockImplementation(async () => ({
+            booked: true,
+            turnAt: new Date(),
+            now: new Date(),
+        })),
+        tryTakeApiSourceRateSlot: vi.fn().mockResolvedValue(true),
+        releaseApiSourceRateSlot: vi.fn().mockResolvedValue(undefined),
         setApiSourceSchema: vi.fn().mockResolvedValue(undefined),
         update: vi.fn(async () => connection),
     };
@@ -127,7 +138,6 @@ const buildService = ({
         allowedPrivateHostCidrs: {},
         externalConnectionModel,
         analytics: { track: vi.fn() },
-        featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         oauthAuthorizationCodeTokenClient:
             new OAuthAuthorizationCodeTokenClient({
                 allowedPrivateHostCidrs: {},
@@ -160,7 +170,12 @@ const buildService = ({
 };
 
 const runQuery = async (service: ExternalConnectionService) => {
-    const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+    const source = await service.getLiveSource(
+        account,
+        'proj-1',
+        'conn-1',
+        60_000,
+    );
     return runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 });
 };
 

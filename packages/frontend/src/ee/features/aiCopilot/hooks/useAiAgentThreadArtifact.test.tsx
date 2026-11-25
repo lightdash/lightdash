@@ -84,7 +84,7 @@ describe('useAiAgentThreadArtifact', () => {
                 },
             ],
             isReady: true,
-            isInitialLoading: false,
+            isFirstLookupPending: false,
         });
     });
 
@@ -131,7 +131,7 @@ describe('useAiAgentThreadArtifact', () => {
         deepResearchRegistrationStateMock.mockReturnValue({
             registrations: [],
             isReady: false,
-            isInitialLoading: true,
+            isFirstLookupPending: true,
         });
 
         renderHook(() =>
@@ -152,7 +152,7 @@ describe('useAiAgentThreadArtifact', () => {
         deepResearchRegistrationStateMock.mockReturnValue({
             registrations: [],
             isReady: false,
-            isInitialLoading: true,
+            isFirstLookupPending: true,
         });
         const { result, rerender } = renderHook(
             ({ currentThread }) =>
@@ -176,7 +176,7 @@ describe('useAiAgentThreadArtifact', () => {
         deepResearchRegistrationStateMock.mockReturnValue({
             registrations: [],
             isReady: true,
-            isInitialLoading: false,
+            isFirstLookupPending: false,
         });
         rerender({ currentThread: regularArtifactThread });
         expect(result.current.isAutoOpenPending).toBe(false);
@@ -186,7 +186,7 @@ describe('useAiAgentThreadArtifact', () => {
         deepResearchRegistrationStateMock.mockReturnValue({
             registrations: [],
             isReady: false,
-            isInitialLoading: true,
+            isFirstLookupPending: true,
         });
 
         const { rerender } = renderHook(() =>

@@ -48,7 +48,6 @@ import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatEleme
 import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultAgentButton/DefaultAgentButton';
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
-import { SuggestedQuestions } from '../../features/aiCopilot/components/SuggestedQuestions/SuggestedQuestions';
 import { ThreadRetentionNotice } from '../../features/aiCopilot/components/ThreadRetentionNotice';
 import { type StartDeepResearchArgs } from '../../features/aiCopilot/deepResearch/types';
 import { getAiAgentPageBase } from '../../features/aiCopilot/hooks/aiAgentRouting';
@@ -66,10 +65,7 @@ import { useDashboardPageContextCuration } from '../../features/aiCopilot/hooks/
 import { useStartDeepResearchForThreadMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
 import { useDeepResearchAccess } from '../../features/aiCopilot/hooks/useDeepResearchAccess';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
-import {
-    useCreateAgentThreadMutation,
-    useVerifiedQuestions,
-} from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { useCreateAgentThreadMutation } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { setThreadSqlMode } from '../../features/aiCopilot/store/aiAgentThreadModeSlice';
 import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import { type AiAgentToolResult } from '../../features/aiCopilot/types';
@@ -254,10 +250,6 @@ const AiAgentNewThreadPage: FC = () => {
         skipNavigation: true,
         onToolResult: handleToolResult,
     });
-    const { data: verifiedQuestions } = useVerifiedQuestions(
-        projectUuid,
-        agentUuid,
-    );
     const startDeepResearch = useStartDeepResearchForThreadMutation(
         projectUuid!,
     );
@@ -568,16 +560,6 @@ const AiAgentNewThreadPage: FC = () => {
                             }
                         />
                     </Stack>
-
-                    {verifiedQuestions && (
-                        <SuggestedQuestions
-                            questions={verifiedQuestions}
-                            onQuestionClick={(question) =>
-                                onSubmit({ message: question, toolHints: [] })
-                            }
-                            isLoading={isCreatingThread}
-                        />
-                    )}
 
                     {previewItems.length > 0 && projectUuid && (
                         <Stack gap="xs">

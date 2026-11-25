@@ -1,3 +1,4 @@
+import { type ExternalConnectionTestResponse } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -5,9 +6,10 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import { HUBSPOT_TOKEN_FORM } from './hubspotConnection';
 import { TokenLiveSourceModal } from './TokenLiveSourceModal';
 
-const { create, suggestion } = vi.hoisted(() => ({
+const { create, suggestion, tested } = vi.hoisted(() => ({
     create: vi.fn(),
     suggestion: { value: null as string | null },
+    tested: { data: undefined as ExternalConnectionTestResponse | undefined },
 }));
 
 vi.mock('../hooks/useCreateExternalConnection', () => ({
@@ -18,7 +20,12 @@ vi.mock('../hooks/useCreateExternalConnection', () => ({
 }));
 
 vi.mock('../hooks/useTestConnectionConfig', () => ({
-    useTestConnectionConfig: () => ({ mutate: vi.fn(), isLoading: false }),
+    useTestConnectionConfig: () => ({
+        mutate: vi.fn(),
+        isLoading: false,
+        data: tested.data,
+        reset: () => undefined,
+    }),
 }));
 
 vi.mock('../hooks/useNewSourceId', async () => {
@@ -54,6 +61,28 @@ describe('TokenLiveSourceModal', () => {
         create.mockReset();
         create.mockResolvedValue({ externalConnectionUuid: 'connection-1' });
         suggestion.value = null;
+        tested.data = undefined;
+    });
+
+    it('shows what the integration says to fix when it rejects the token', () => {
+        tested.data = {
+            status: 403,
+            contentType: 'application/json',
+            headers: {},
+            body: { code: 'authentication_failed' },
+            truncated: false,
+            liveCheck: {
+                ok: false,
+                summary: "Signed in, but this account can't read from HubSpot",
+                detail: 'HubSpot rejected the access token. Check its scopes.',
+                facts: [],
+            },
+        };
+        renderModal();
+
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            /^HubSpot rejected the access token\. Check its scopes\.$/,
+        );
     });
 
     it('creates the source with the explore prefix the admin typed', async () => {

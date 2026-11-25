@@ -7,7 +7,10 @@ import {
     ParseError,
     type WarehouseTypes,
 } from '@lightdash/common';
-import { loadLightdashModels } from '@lightdash/common/lightdash/loader';
+import {
+    loadLightdashModels,
+    NATIVE_MODEL_DIRECTORIES,
+} from '@lightdash/common/lightdash/loader';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import fs from 'fs/promises';
 import os from 'os';
@@ -50,7 +53,7 @@ const walk = (dir) => {
         else if (entry.isFile() && /\\.ya?ml$/.test(entry.name)) read(file);
     }
 };
-for (const dir of ['models', 'lightdash/models']) {
+for (const dir of ${JSON.stringify(NATIVE_MODEL_DIRECTORIES)}) {
     const file = path.join(root, dir);
     if (fs.existsSync(file) && fs.statSync(file).isDirectory()) { walk(file); break; }
 }

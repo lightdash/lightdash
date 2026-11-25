@@ -29,7 +29,7 @@ export const useAiAgentThreadArtifact = ({
     const {
         registrations: deepResearchRegistrations,
         isReady: isDeepResearchRegistrationLookupReady,
-        isInitialLoading: isDeepResearchRegistrationLookupInitialLoading,
+        isFirstLookupPending: isDeepResearchRegistrationLookupPending,
     } = useDeepResearchThreadRunRegistrationState({
         projectUuid: threadUuid ? projectUuid : undefined,
         threadUuid: threadUuid ?? '',
@@ -155,8 +155,7 @@ export const useAiAgentThreadArtifact = ({
 
     // Until Deep Research is ruled out, the pane may still open and shift the transcript.
     const isAutoOpenPending =
-        isDeepResearchRegistrationLookupInitialLoading &&
-        lastArtifactMessage !== null;
+        isDeepResearchRegistrationLookupPending && lastArtifactMessage !== null;
 
     return { isAutoOpenPending };
 };

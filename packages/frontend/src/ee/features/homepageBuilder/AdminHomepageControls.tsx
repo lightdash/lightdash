@@ -25,7 +25,7 @@ import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEn
 import { Can } from '../../../providers/Ability';
 import classes from './adminHomepageControls.module.css';
 import { getGreeting } from './greeting';
-import { useIsNewOnboardingOrg } from './hooks/useIsNewOnboardingOrg';
+import { useIsNewOrg } from './hooks/useIsNewOrg';
 import {
     useHomepageOpening,
     useOrgHomepageSettings,
@@ -63,7 +63,7 @@ const OpeningMenu: FC<{
         false,
     );
     // A brand-new org never saw the classic homepage, so there is nothing to announce
-    const { isNewOrg } = useIsNewOnboardingOrg();
+    const { isNewOrg } = useIsNewOrg();
     const showNotice =
         !noticeClosed &&
         !isNewOrg &&

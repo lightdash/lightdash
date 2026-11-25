@@ -16,6 +16,7 @@ import {
     run as runGraphileWorker,
     Runner,
     type CronItem,
+    type Worker,
     type WorkerEvents,
     type WorkerPool,
 } from 'graphile-worker';
@@ -162,6 +163,7 @@ const PG_PING_QUERY = `SELECT pg_notify('jobs:insert', '')`;
 type ManagedRunner = {
     runner: Runner;
     workerPool: WorkerPool | null;
+    workers: Set<Worker>;
     stopPromise: Promise<void> | null;
     releaseErrors: unknown[];
 };
@@ -558,6 +560,39 @@ export class SchedulerWorker extends SchedulerTask {
         );
     }
 
+    logInFlightJobs(reason: string): void {
+        const jobs = [...this.managedRunners].flatMap(({ workers }) =>
+            [...workers].flatMap((worker) => {
+                const job = worker.getActiveJob();
+                if (!job) return [];
+                const payload = job.payload as
+                    | { organizationUuid?: unknown }
+                    | null
+                    | undefined;
+                return [
+                    {
+                        taskIdentifier: job.task_identifier,
+                        graphileJobId: job.id,
+                        organizationUuid:
+                            typeof payload?.organizationUuid === 'string'
+                                ? payload.organizationUuid
+                                : null,
+                    },
+                ];
+            }),
+        );
+        if (jobs.length === 0) return;
+        Logger.warn(
+            `Scheduler worker ${reason} with ${jobs.length} in-flight jobs: ${jobs
+                .map(
+                    ({ taskIdentifier, graphileJobId }) =>
+                        `${taskIdentifier}#${graphileJobId}`,
+                )
+                .join(', ')}`,
+            { reason, jobs },
+        );
+    }
+
     async stop() {
         this.isStopping = true;
         this.migrationQuiesce?.stop();
@@ -638,10 +673,12 @@ export class SchedulerWorker extends SchedulerTask {
         ) as WorkerEvents;
         let workerPool: WorkerPool | null = null;
         const releaseErrors: unknown[] = [];
+        const workers = new Set<Worker>();
         events.once('pool:create', ({ workerPool: createdWorkerPool }) => {
             workerPool = createdWorkerPool;
         });
         events.on('worker:create', ({ worker }) => {
+            workers.add(worker);
             const graphileWorker = worker;
             const release = graphileWorker.release.bind(graphileWorker);
             // Graphile 0.13 uses Promise.all for release, so one rejected
@@ -681,6 +718,7 @@ export class SchedulerWorker extends SchedulerTask {
         const managedRunner: ManagedRunner = {
             runner,
             workerPool,
+            workers,
             stopPromise: null,
             releaseErrors,
         };
@@ -2305,7 +2343,7 @@ export class SchedulerWorker extends SchedulerTask {
                 const result =
                     await this.projectService.reconcilePlaygroundBundles();
                 Logger.info(
-                    `Playground bundle ${result.version}: moved ${result.adopted} projects, ${result.waiting} waiting, ${result.failed} failed`,
+                    `Playground bundle ${result.version}: untagged ${result.untagged} repointed projects, moved ${result.adopted} projects, ${result.waiting} waiting, ${result.failed} failed`,
                 );
             },
             [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: async () => {

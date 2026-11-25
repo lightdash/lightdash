@@ -3,7 +3,7 @@ import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { AskUserQuestionCard } from './AskUserQuestionCard';
-import { QuietCardsContext } from './ToolCalls/quietCards';
+import { InStudioChatContext } from './ToolCalls/studioChatContext';
 
 const period: AskUserQuestion = {
     header: 'Period',
@@ -39,12 +39,12 @@ describe('AskUserQuestionCard', () => {
     it('shows only the choices for a lone question in a quiet chat', () => {
         render(
             <MantineProvider env="test">
-                <QuietCardsContext.Provider value>
+                <InStudioChatContext.Provider value>
                     <AskUserQuestionCard
                         questions={[period]}
                         onSubmit={vi.fn()}
                     />
-                </QuietCardsContext.Provider>
+                </InStudioChatContext.Provider>
             </MantineProvider>,
         );
         expect(screen.queryByText('Which month?')).toBeNull();

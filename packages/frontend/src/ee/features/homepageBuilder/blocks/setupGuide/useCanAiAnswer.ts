@@ -1,6 +1,5 @@
-import { FeatureFlags } from '@lightdash/common';
 import { useExternalConnections } from '../../../../../features/externalConnections/hooks/useExternalConnections';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import { useLiveSourcesAvailability } from '../../../../../features/externalConnections/hooks/useLiveSourcesAvailability';
 import { type RecommendedActionsState } from '../useRecommendedActions';
 
 // Live sources compile into explores, so AI can answer before a warehouse
@@ -8,10 +7,9 @@ export const useCanAiAnswer = (
     projectUuid: string,
     actions: RecommendedActionsState,
 ) => {
-    const isNewOnboarding =
-        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
+    const { isAvailable } = useLiveSourcesAvailability();
     const connections = useExternalConnections(
-        isNewOnboarding ? projectUuid : undefined,
+        isAvailable ? projectUuid : undefined,
     );
     return {
         isLoading: connections.isInitialLoading,

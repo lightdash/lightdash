@@ -41,6 +41,24 @@
     color: var(--mantine-color-dimmed);
 }
 
+.testOutcome {
+    display: inline-flex;
+    animation: testOutcomeIn 200ms ease-out;
+}
+
+@keyframes testOutcomeIn {
+    from {
+        opacity: 0;
+        transform: translateY(2px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .testOutcome {
+        animation: none;
+    }
+}
+
 .settingsCode {
     font-size: 12px;
 }

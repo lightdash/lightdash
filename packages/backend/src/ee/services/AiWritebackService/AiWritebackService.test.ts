@@ -849,6 +849,57 @@ describe('AiWritebackService.prepareTurn', () => {
         });
     });
 
+    it.each([
+        { studio: true, reason: 'merged' as const },
+        { studio: true, reason: 'closed' as const },
+        { studio: false, reason: 'merged' as const },
+    ])(
+        'a save after the thread pull request is $reason starts a fresh one only in Studio ($studio)',
+        async ({ studio, reason }) => {
+            const service = buildService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: true }),
+                } as AnyType,
+                projectModel: {
+                    get: vi.fn().mockResolvedValue(githubProject()),
+                } as AnyType,
+                aiWritebackThreadModel: {
+                    findByAiThreadUuid: vi.fn().mockResolvedValue(null),
+                    findActiveWorkstreamByRepo: vi
+                        .fn()
+                        .mockResolvedValue(workstreamRow),
+                    findByAiThreadUuidAndPrUrl: vi.fn(),
+                } as AnyType,
+            });
+            vi.spyOn(
+                (service as AnyType).githubProvider,
+                'resolveInstallation',
+            ).mockResolvedValue({} as AnyType);
+            vi.spyOn(
+                (service as AnyType).githubProvider,
+                'getPullRequestEditState',
+            ).mockResolvedValue({ editable: false, reason });
+
+            const turn = (service as AnyType).prepareTurn({
+                user: userWithOrg(true),
+                projectUuid: 'p1',
+                aiThreadUuid: 't1',
+                continuesThreadPullRequest: studio,
+            });
+
+            if (studio) {
+                await expect(turn).resolves.toMatchObject({
+                    kind: 'run',
+                    turn: { existingRow: null, isResume: false },
+                });
+            } else {
+                await expect(turn).rejects.toThrow(
+                    WritebackThreadPrClosedError,
+                );
+            }
+        },
+    );
+
     it('forces a fresh workstream when startNewPullRequest is set', async () => {
         const findActiveWorkstreamByRepo = vi.fn();
         const findByAiThreadUuidAndPrUrl = vi.fn();
@@ -6684,5 +6735,87 @@ describe('AiWritebackService.canReadSourceCode', () => {
         await expect(
             service.canReadSourceCode({ user: user(true), projectUuid: 'p1' }),
         ).resolves.toBe(false);
+    });
+});
+
+describe('AiWritebackService.readWithScript', () => {
+    const files: Record<string, string> = {
+        'dbt/models/orders.yml': 'models:\n  - name: orders\n',
+        'README.md': '# readme\n',
+    };
+    const checkoutOf = (prUrl: string | null) => ({
+        checkout: {
+            prUrl,
+            branch: prUrl ? 'studio/orders' : 'main',
+            baseBranch: 'main',
+            headSha: 'head-sha',
+            listFiles: vi.fn().mockResolvedValue(Object.keys(files)),
+            readFile: vi.fn(async (path: string) => files[path] ?? null),
+            readFileAt: vi.fn().mockResolvedValue(null),
+            listFilesChangedSince: vi.fn().mockResolvedValue(null),
+        },
+        root: 'dbt/',
+    });
+    const setUp = (threadPrUrl: string | null) => {
+        const service = buildService();
+        Object.assign(service, {
+            aiWritebackRunModel: {
+                findLatestPrUrlByThread: vi.fn().mockResolvedValue(threadPrUrl),
+            },
+        });
+        const open = vi.spyOn(service, 'openStudioCheckout');
+        const read = (script: string) =>
+            service.readWithScript(
+                {
+                    user: defaultSessionUser,
+                    projectUuid: 'project-1',
+                    aiThreadUuid: 'thread-1',
+                },
+                script,
+            );
+        return { open, read };
+    };
+
+    it("reads the chat's pull request branch by project path", async () => {
+        const { open, read } = setUp(PR_7);
+        open.mockResolvedValue(checkoutOf(PR_7));
+        await expect(
+            read(
+                "console.log(repo.list()); console.log(repo.read('models/orders.yml'));",
+            ),
+        ).resolves.toEqual({
+            branch: 'studio/orders',
+            onPullRequest: true,
+            logs: ['["models/orders.yml"]', 'models:\n  - name: orders\n'],
+            error: null,
+        });
+        expect(open).toHaveBeenCalledWith(
+            defaultSessionUser,
+            'project-1',
+            PR_7,
+        );
+    });
+
+    it('reads what is published once the pull request is gone', async () => {
+        const { open, read } = setUp(PR_7);
+        open.mockRejectedValueOnce(new ParameterError('merged'));
+        open.mockResolvedValueOnce(checkoutOf(null));
+        await expect(read("console.log('ok');")).resolves.toMatchObject({
+            branch: 'main',
+            onPullRequest: false,
+            logs: ['ok'],
+        });
+        expect(open).toHaveBeenLastCalledWith(
+            defaultSessionUser,
+            'project-1',
+            null,
+        );
+    });
+
+    it('refuses a script that changes files', async () => {
+        const { open, read } = setUp(null);
+        open.mockResolvedValue(checkoutOf(null));
+        const result = await read("repo.write('models/x.yml', 'a: 1\\n');");
+        expect(result.error).toMatch(/cannot change files/);
     });
 });

@@ -145,9 +145,6 @@ describe.each([false, true])(
                     getThreadMessages: vi.fn().mockResolvedValue([]),
                     findThread: vi.fn().mockResolvedValue({ agentUuid: null }),
                     getPendingSqlApprovalForPrompt,
-                    findThreadReferencedArtifacts: vi
-                        .fn()
-                        .mockResolvedValue(new Map()),
                     findArtifactsByThreadUuid: vi.fn().mockResolvedValue([]),
                     findArtifactVersionsByPromptUuid: vi
                         .fn()

@@ -51,6 +51,7 @@ import {
     CreateScheduledDeliveryFn,
     DescribeWarehouseTableFn,
     DiscoverReposFn,
+    DraftProjectContextFn,
     EditContentFn,
     EditDbtProjectFn,
     EditProjectContextFn,
@@ -92,6 +93,7 @@ import {
     ProposeSemanticLayerChangeFn,
     ReadAttachmentsFn,
     ReadContentFn,
+    ReadFn,
     ReadPinnedThreadFn,
     ReadSemanticModelFn,
     RecordMcpToolCallFn,
@@ -122,6 +124,7 @@ import {
     UpdateSlackMessageFn,
     UpdateUserNameFn,
     ValidateContentFn,
+    VerifyFn,
     WaitForSqlApprovalFn,
 } from './aiAgentDependencies';
 
@@ -144,6 +147,8 @@ export type AiAgentMcpServer = AiMcpServer & {
     resolvedCredential: AiMcpCredentialPayload | null;
     resolvedCredentialScope: 'shared' | 'user' | null;
     oauthProvider?: OAuthClientProvider;
+    // Fetches a bearer token when the server is first reached, replacing resolvedCredential
+    bearerTokenProvider?: () => Promise<string>;
     enabledToolNames?: string[];
 };
 
@@ -321,6 +326,8 @@ export type AiAgentArgs = AnyAiModel & {
     isSemanticStudioThread: boolean;
     // Whether that thread proposes into a draft; false on a dbt project, where it edits the repository.
     semanticStudioDrafts: boolean;
+    // Whether the project keeps its context on the server, drafted like a model; false when a repository holds it.
+    semanticStudioKeepsContext: boolean;
     // Which GitHub identity a writeback PR would be attributed to (advisory,
     // resolved at prompt-assembly time). null when not applicable/unresolved.
     writebackAttribution: AiWritebackAttribution | null;
@@ -339,8 +346,8 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the repo host has server-side code search (GitHub yes, GitLab no).
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
-    // Semantic Studio saves changes with a code mode script instead of the sandbox.
-    semanticStudioCodeMode: boolean;
+    // A Studio dbt project's layout from its last compile; null otherwise.
+    semanticStudioProjectMap: string | null;
     canRunSql: boolean;
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.
@@ -504,6 +511,9 @@ export type AiAgentDependencies = {
     /** Runs a metric query on the person's draft over what is published. */
     runDraftQuery: RunAsyncQueryFn;
     readSemanticModel: ReadSemanticModelFn;
+    draftProjectContext: DraftProjectContextFn;
+    verify: VerifyFn;
+    read: ReadFn;
     syncDbtProject: SyncDbtProjectFn;
     exploreRepo: ExploreRepoFn;
     discoverRepos: DiscoverReposFn;
