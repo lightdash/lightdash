@@ -12957,11 +12957,13 @@ export class AppGenerateService extends BaseService {
         return lines;
     }
 
-    private static readonly DESCRIPTION_MAX_LEN = 200;
+    // A safety limit, not a context budget: model files are read on demand.
+    // Metrics cannot be split across files, so this bounds a model's header.
+    private static readonly DESCRIPTION_MAX_LEN = 4_000;
 
     private static truncateDescription(s: string): string {
         return s.length > AppGenerateService.DESCRIPTION_MAX_LEN
-            ? `${s.slice(0, AppGenerateService.DESCRIPTION_MAX_LEN - 1)}…`
+            ? `${s.slice(0, AppGenerateService.DESCRIPTION_MAX_LEN)}… [truncated]`
             : s;
     }
 
@@ -13020,8 +13022,8 @@ export class AppGenerateService extends BaseService {
      * model-level parameters, and model-level filters (`sql_filter`,
      * `required_filters`, `default_filters`). Joins, parameters, and filters
      * are explore-scoped rather than table-scoped, so they're passed in
-     * explicitly. Hidden fields are skipped; descriptions are truncated to
-     * keep the output bounded.
+     * explicitly. Hidden fields are skipped; descriptions are written whole
+     * up to a high safety limit.
      */
     private static renderTableModel(
         modelName: string,
