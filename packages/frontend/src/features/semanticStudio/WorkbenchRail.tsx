@@ -1,4 +1,7 @@
-import { type PreAggregateMaterializationSummary } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type PreAggregateMaterializationSummary,
+} from '@lightdash/common';
 import { Box, Text, TextInput, Tooltip } from '@mantine/core';
 import {
     IconBolt,
@@ -25,28 +28,112 @@ import {
     PRE_AGGREGATE_STATUS,
 } from '../../components/PreAggregateMaterializations/preAggregateStatus';
 import { AddSourceButton } from './AddSourceButton';
+import {
+    ConnectWarehouseDock,
+    LiveSourceSuggestion,
+    ModelTableDock,
+    VirtualViewSuggestion,
+} from './ConnectionDock';
 import { DraftMarksContext } from './draftMarks';
 import { LineCounts } from './LineCounts';
 import {
     containerOf,
     flattenTree,
+    getSource,
     nodeKey,
     searchResultId,
     type NodeRef,
     type TreeNode,
 } from './model';
 import { CHANGE_KIND_LABELS, describeDrafter } from './modelCode';
-import { WAREHOUSE_SETTINGS_PATH } from './realProject';
 import { SearchResultsList } from './SearchResultsList';
 import { NodeIcon } from './shared';
+import { getNextSourceStep } from './sourceSteps';
 import { useAddToStudioChat, startStudioChatRefDrag } from './studioChatRefs';
-import { addPath } from './useAddSource';
+import { useAddSource, WAREHOUSE_OPTION } from './useAddSource';
 import { useProjectSearch } from './useProjectSearch';
 import { type ViewModel } from './useSemanticStudio';
-import { WarehouseStatusLine } from './WarehouseStatusLine';
+import { useWarehouseSummary } from './warehouseSummary';
 import classes from './WorkbenchRail.module.css';
 
 const ROW_HEIGHT = 28;
+
+/** Under the tree: the one next source worth adding, if any. */
+const RailFooter: FC<{
+    view: ViewModel;
+    onBuildModel: (() => void) | null;
+}> = ({ view, onBuildModel }) => {
+    const { options, pathOf, addInPlace, hasWarehouse } = useAddSource(view);
+    const { summary } = useWarehouseSummary(view.project.id);
+    const option = (key: string) =>
+        options.find((candidate) => candidate.key === key);
+    const hasKind = (kind: string) =>
+        view.project.sources.some((source) => source.kind === kind);
+    if (hasWarehouse === null) return null;
+    // Counts explores against tables rather than matching them, close enough for a nudge
+    const modelledCount = view.project.explores.filter(
+        ({ sourceId }) => getSource(view.project, sourceId).kind === 'modelled',
+    ).length;
+    const tableCount = summary?.tables.length ?? 0;
+    const connect = option(WAREHOUSE_OPTION);
+    const sql = option('sql');
+    const live = option('live');
+    const step = getNextSourceStep({
+        has: {
+            warehouse: hasWarehouse,
+            models: modelledCount > 0,
+            views: hasKind('sqlViews'),
+            live: hasKind('live'),
+        },
+        can: {
+            warehouse: !!connect,
+            models: !!onBuildModel && modelledCount < tableCount,
+            views: !!sql,
+            live: !!live,
+        },
+    });
+    switch (step) {
+        case 'connectWarehouse':
+            return connect ? (
+                <ConnectWarehouseDock path={pathOf(connect) ?? ''} />
+            ) : null;
+        case 'modelFirstTable':
+            return onBuildModel ? (
+                <ModelTableDock
+                    title="Model your first table"
+                    subtitle={`${tableCount} ${tableCount === 1 ? 'table' : 'tables'}`}
+                    warehouseType={view.project.warehouse?.type ?? null}
+                    onStart={onBuildModel}
+                />
+            ) : null;
+        case 'modelAnotherTable':
+            return onBuildModel ? (
+                <>
+                    <ModelTableDock
+                        title="Model another table"
+                        subtitle={`${modelledCount} of ${tableCount} modelled`}
+                        warehouseType={view.project.warehouse?.type ?? null}
+                        onStart={onBuildModel}
+                    />
+                    {sql && !hasKind('sqlViews') ? (
+                        <VirtualViewSuggestion path={pathOf(sql) ?? ''} />
+                    ) : null}
+                </>
+            ) : null;
+        case 'addVirtualView':
+            return sql ? (
+                <VirtualViewSuggestion path={pathOf(sql) ?? ''} />
+            ) : null;
+        case 'addLiveSource':
+            return live ? (
+                <LiveSourceSuggestion onAdd={() => addInPlace(live)} />
+            ) : null;
+        case null:
+            return null;
+        default:
+            return assertUnreachable(step, 'Unknown source step');
+    }
+};
 
 /** Says whose unpublished work a model has: this person's, someone else's, or both. */
 const DraftMarker: FC<{ model: string; isMine: boolean }> = ({
@@ -234,7 +321,9 @@ export const Rail: FC<{
     expanded: Set<string>;
     onToggle: (key: string) => void;
     onOpen: (ref: NodeRef) => void;
-}> = ({ view, expanded, onToggle, onOpen }) => {
+    /** Starts the chat on the next model to build; null where models can't be built here. */
+    onBuildModel: (() => void) | null;
+}> = ({ view, expanded, onToggle, onOpen, onBuildModel }) => {
     const search = useProjectSearch(view.project, view.tree);
     const [activeResult, setActiveResult] = useState(0);
     const { results } = search.results;
@@ -272,14 +361,6 @@ export const Rail: FC<{
 
     return (
         <Box className={classes.rail}>
-            <WarehouseStatusLine
-                projectUuid={view.project.id}
-                settingsPath={
-                    view.canOpenSettings
-                        ? addPath(view, WAREHOUSE_SETTINGS_PATH)
-                        : null
-                }
-            />
             <Box className={classes.railHeader}>
                 <TextInput
                     size="xs"
@@ -319,6 +400,7 @@ export const Rail: FC<{
                     onSelect={(node) => view.select(node.ref)}
                 />
             )}
+            <RailFooter view={view} onBuildModel={onBuildModel} />
         </Box>
     );
 };

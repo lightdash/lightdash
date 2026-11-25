@@ -82,9 +82,14 @@ export const useAddSource = (view: ViewModel, kind?: Kind) => {
         }
     };
     const { data: project } = useProject(view.project.id);
-    const hasWarehouse =
-        !!project?.warehouseConnection ||
-        view.project.sources.some((source) => source.kind === 'modelled');
+    // Null until the project loads, so nothing offers to connect one that exists
+    const hasWarehouse: boolean | null = view.project.sources.some(
+        (source) => source.kind === 'modelled',
+    )
+        ? true
+        : project
+          ? !!project.warehouseConnection
+          : null;
     const allowed = ADD_OPTIONS.filter(
         (option) =>
             (!kind || option.kind === kind) &&
@@ -92,15 +97,17 @@ export const useAddSource = (view: ViewModel, kind?: Kind) => {
             isAvailable(option) &&
             view.permissions[option.kind],
     );
-    // One warehouse per project: once it has one, it is not offered again.
-    const options = allowed.filter(
-        (option) => option.key !== WAREHOUSE_OPTION || !hasWarehouse,
+    // One warehouse per project, and a virtual view runs its SQL on it
+    const options = allowed.filter((option) =>
+        option.key === WAREHOUSE_OPTION
+            ? hasWarehouse === false
+            : option.key !== 'sql' || hasWarehouse === true,
     );
     const pathOf = (option: AddOption) =>
         option.path ? addPath(view, option.path) : null;
     const addInPlace = (option: AddOption) =>
         option.key === 'live' ? liveSources?.add() : externalSources?.add();
-    return { options, pathOf, addInPlace };
+    return { options, pathOf, addInPlace, hasWarehouse };
 };
 
 export const addPath = (view: ViewModel, path: string) =>

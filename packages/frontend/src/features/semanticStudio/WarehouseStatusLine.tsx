@@ -8,19 +8,13 @@ import {
 } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { TableListingFailureNotice } from '../sqlRunner/components/TableListingFailureNotice';
 import classes from './WarehouseStatusLine.module.css';
-import { useWarehouseSummary, type WarehouseSummary } from './warehouseSummary';
+import { useWarehouseSummary, warehouseDetails } from './warehouseSummary';
 
-/** The warehouse's type, then where its tables are and how many, once listed. */
+/** The warehouse's type, then what is known about its tables. */
 export const WarehouseHeading: FC<{
     type: WarehouseTypes;
-    summary: WarehouseSummary | null;
-}> = ({ type, summary }) => {
-    const details = [
-        summary?.location ?? null,
-        summary
-            ? `${summary.tableCount} ${summary.tableCount === 1 ? 'table' : 'tables'}`
-            : null,
-    ].filter((detail) => detail !== null);
+    details: string[];
+}> = ({ type, details }) => {
     return (
         <Box className={classes.heading}>
             <Group gap="xs" wrap="nowrap" flex="none">
@@ -38,16 +32,25 @@ export const WarehouseHeading: FC<{
     );
 };
 
-/** What the models read from, at the top of the source panel; settingsPath is null for people who can't open settings. */
+/** What the models read from; named is false under a title that already names the warehouse, and settingsPath is null for people who can't open settings. */
 export const WarehouseStatusLine: FC<{
     projectUuid: string;
+    named: boolean;
     settingsPath: string | null;
-}> = ({ projectUuid, settingsPath }) => {
-    const { type, summary, listingFailure } = useWarehouseSummary(projectUuid);
+}> = ({ projectUuid, named, settingsPath }) => {
+    const { type, isListing, summary, listingFailure } =
+        useWarehouseSummary(projectUuid);
     if (!type) return null;
+    const details = isListing ? ['Listing tables…'] : warehouseDetails(summary);
     return (
         <Box className={classes.status} aria-label="Warehouse">
-            <WarehouseHeading type={type} summary={summary} />
+            {named ? (
+                <WarehouseHeading type={type} details={details} />
+            ) : details.length > 0 ? (
+                <Text fz="sm" c="dimmed" truncate>
+                    {details.join(' · ')}
+                </Text>
+            ) : null}
             {listingFailure ? (
                 <TableListingFailureNotice failure={listingFailure} />
             ) : null}

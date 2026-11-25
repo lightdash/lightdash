@@ -43,10 +43,21 @@ export const summarizeWarehouseCatalog = (
     return { location, tableCount: tables.length, tables };
 };
 
+/** Where the warehouse's tables are and how many, once listed. */
+export const warehouseDetails = (summary: WarehouseSummary | null): string[] =>
+    [
+        summary?.location ?? null,
+        !summary
+            ? null
+            : summary.tableCount === 0
+              ? 'No tables this connection can see'
+              : `${summary.tableCount} ${summary.tableCount === 1 ? 'table' : 'tables'}`,
+    ].filter((detail) => detail !== null);
+
 export const modelTablePrompt = (table: WarehouseTable) =>
     `Turn ${table.reference} into a model with its column descriptions.`;
 
-/** With tables listed, the warehouse card offers each one, so the starters keep only the two open asks. */
+/** With tables listed, the rail card offers modelling them, so the starters keep only the two open asks. */
 export const getStudioStarters = (
     summary: WarehouseSummary | null,
 ): { label: string; prompt: string }[] => {
@@ -58,9 +69,10 @@ export const getStudioStarters = (
 /** The project's warehouse and what its catalog lists; summary is null until listed or when listing fails, and listingFailure says why it failed. */
 export const useWarehouseSummary = (projectUuid: string) => {
     const { data: project } = useProject(projectUuid);
-    const { data: catalog, error } = useTables({ projectUuid });
+    const { data: catalog, error, isLoading } = useTables({ projectUuid });
     return {
         type: project?.warehouseConnection?.type ?? null,
+        isListing: isLoading,
         summary: catalog ? summarizeWarehouseCatalog(catalog) : null,
         listingFailure: error ? getTableListingFailure(error.error) : null,
     };
