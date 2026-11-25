@@ -473,7 +473,7 @@ export class DraftChecker {
                 )
             ).flat(),
         );
-        // A metric view refuses SELECT * in a subquery, so it is read directly and the whole statement reads no rows
+        // A metric view refuses SELECT * in a subquery, so it is read directly; LIMIT 0 because measures alone still aggregate one row over zero rows
         const source = (sqlTable: string) =>
             metricViews.has(sqlTable) ? sqlTable : noRows(sqlTable);
         const from = [
@@ -482,7 +482,9 @@ export class DraftChecker {
                 (join) =>
                     `LEFT JOIN ${source(explore.tables[join.table].sqlTable)} AS ${alias(join.table)} ON ${join.compiledSqlOn}`,
             ),
-            ...(metricViews.size > 0 ? ['WHERE 1 = 0', 'GROUP BY ALL'] : []),
+            ...(metricViews.size > 0
+                ? ['WHERE 1 = 0', 'GROUP BY ALL', 'LIMIT 0']
+                : []),
         ].join('\n');
         const select = (expressions: string[]) =>
             `SELECT ${expressions.map((sql, index) => `${sql} AS c${index}`).join(',\n')}\nFROM ${from}`;
