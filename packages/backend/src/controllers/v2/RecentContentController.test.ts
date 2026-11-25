@@ -5,8 +5,10 @@ import { RecentContentController } from './RecentContentController';
 
 describe('RecentContentController', () => {
     const recordView = vi.fn();
+    const isMobileClient = vi.fn();
     const controller = new RecentContentController({
         getRecentContentService: () => ({ recordView }),
+        getOauthService: () => ({ isMobileClient }),
     } as unknown as ConstructorParameters<typeof RecentContentController>[0]);
     const view = {
         projectUuid: 'project',
@@ -15,6 +17,8 @@ describe('RecentContentController', () => {
     };
     beforeEach(() => {
         recordView.mockReset();
+        isMobileClient.mockReset();
+        isMobileClient.mockResolvedValue(false);
     });
 
     it.each(['jwt', 'service-account', 'personal-access-token', 'oauth'])(
@@ -39,6 +43,28 @@ describe('RecentContentController', () => {
         await controller.recordView({ account } as express.Request, view);
         expect(recordView).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: account.user.id }),
+            view,
+        );
+    });
+
+    it('records a view opened in the mobile app', async () => {
+        isMobileClient.mockResolvedValue(true);
+        const session = buildAccount();
+        const account = {
+            ...session,
+            authentication: {
+                type: 'oauth',
+                source: 'token',
+                token: 'token',
+                clientId: 'mobile-client',
+                scopes: ['read', 'write'],
+                agentConnectionGrant: null,
+            },
+        } as Account;
+        await controller.recordView({ account } as express.Request, view);
+        expect(isMobileClient).toHaveBeenCalledWith('mobile-client');
+        expect(recordView).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: session.user.id }),
             view,
         );
     });

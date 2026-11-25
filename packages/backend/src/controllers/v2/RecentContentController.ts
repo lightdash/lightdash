@@ -1,9 +1,13 @@
 import {
+    assertRegisteredAccount,
     assertSessionAuth,
+    ForbiddenError,
+    type Account,
     type ApiErrorPayload,
     type ApiRecentContentResponse,
     type ApiSuccessEmpty,
     type RecordRecentContentView,
+    type RegisteredAccount,
     type UUID,
 } from '@lightdash/common';
 import {
@@ -19,7 +23,10 @@ import {
 } from '@tsoa/runtime';
 import type express from 'express';
 import { toSessionUser } from '../../auth/account';
-import { isAuthenticated } from '../authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+} from '../authentication';
 import { BaseController } from '../baseController';
 
 @Route('/api/v2/content/recently-viewed')
@@ -42,15 +49,37 @@ export class RecentContentController extends BaseController {
     }
 
     @Post('/')
-    @Middlewares([isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     async recordView(
         @Request() req: express.Request,
         @Body() body: RecordRecentContentView,
     ): Promise<ApiSuccessEmpty> {
-        assertSessionAuth(req.account);
+        const account = await this.assertViewerOpensContent(req.account);
         await this.services
             .getRecentContentService()
-            .recordView(toSessionUser(req.account), body);
+            .recordView(toSessionUser(account), body);
         return { status: 'ok', results: undefined };
+    }
+
+    private async assertViewerOpensContent(
+        account: Account | undefined,
+    ): Promise<RegisteredAccount> {
+        const { authentication } = account ?? {};
+        if (authentication?.type === 'session') {
+            assertRegisteredAccount(account);
+            return account;
+        }
+        if (
+            authentication?.type === 'oauth' &&
+            (await this.services
+                .getOauthService()
+                .isMobileClient(authentication.clientId))
+        ) {
+            assertRegisteredAccount(account);
+            return account;
+        }
+        throw new ForbiddenError(
+            `${authentication?.type} Account is not session auth`,
+        );
     }
 }
