@@ -1,3 +1,15 @@
+# [3.397.0](https://github.com/lightdash/lightdash/compare/3.396.1...3.397.0) (2026-11-25)
+
+
+### Bug Fixes
+
+* **ai:** make the pinned-chart rule tool-agnostic and let runSavedChart report the chart it ran ([#33416](https://github.com/lightdash/lightdash/issues/33416)) ([0a46ead](https://github.com/lightdash/lightdash/commit/0a46ead9c79ad3c82c4ca7f9e9d7649716f02aa7))
+
+
+### Features
+
+* **semantic-studio:** guide each source step from the rail and fold the warehouse into its group ([#33418](https://github.com/lightdash/lightdash/issues/33418)) ([c4c5532](https://github.com/lightdash/lightdash/commit/c4c5532906fedffee7411171e93b476e2df6ff50))
+
 ## [3.396.1](https://github.com/lightdash/lightdash/compare/3.396.0...3.396.1) (2026-11-25)
 
 
