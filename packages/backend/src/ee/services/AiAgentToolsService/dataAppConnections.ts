@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     ParameterError,
     uniqueAliasFromName,
     type AppExternalConnectionLink,
@@ -10,10 +11,18 @@ import type {
 
 const describeUnusableSlug = (
     lookup: Exclude<ConnectionSlugLookup, { status: 'found' }>,
-): string =>
-    lookup.status === 'not_found'
-        ? `"${lookup.slug}" was not found in this project`
-        : `"${lookup.slug}" is not available for you to link to data apps`;
+): string => {
+    switch (lookup.status) {
+        case 'not_found':
+            return `"${lookup.slug}" was not found in this project`;
+        case 'live_source':
+            return `"${lookup.slug}" is a live data source, which data apps can't use`;
+        case 'not_linkable':
+            return `"${lookup.slug}" is not available for you to link to data apps`;
+        default:
+            return assertUnreachable(lookup, 'Unknown connection lookup');
+    }
+};
 
 /**
  * Links to add for the requested connections: skips ones already linked and

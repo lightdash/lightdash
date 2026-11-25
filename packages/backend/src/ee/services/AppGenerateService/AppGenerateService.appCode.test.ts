@@ -2676,23 +2676,32 @@ describe('AppGenerateService.importAppCode external connection links', () => {
         );
     });
 
-    it('never links an integration from the manifest', async () => {
+    it('skips an integration in the manifest with a warning, keeping other links', async () => {
         const { service, appModel, externalConnectionModel } = buildService();
         appModel.findApp.mockResolvedValue(undefined);
-        externalConnectionModel.findBySlug.mockResolvedValue(
-            makeConnection({ kind: 'live_source' }),
+        externalConnectionModel.findBySlug.mockImplementation(
+            async (_project: string, _org: string, slug: string) =>
+                slug === 'pylon'
+                    ? makeConnection({ kind: 'live_source' })
+                    : makeConnection(),
         );
 
-        await expect(
-            service.importAppCode(makeUser(), PROJECT_UUID, {
-                code: makeCode(undefined, {
-                    externalConnections: [
-                        { alias: 'stripe', connectionSlug: 'stripe-api' },
-                    ],
-                }),
-            } as ImportAppCodeRequestBody),
-        ).rejects.toThrow(ForbiddenError);
-        expect(externalConnectionModel.replaceAppLinks).not.toHaveBeenCalled();
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, {
+                externalConnections: [
+                    { alias: 'stripe', connectionSlug: 'stripe-api' },
+                    { alias: 'support', connectionSlug: 'pylon' },
+                ],
+            }),
+        } as ImportAppCodeRequestBody);
+
+        expect(externalConnectionModel.replaceAppLinks).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+            [{ externalConnectionUuid: CONN_UUID, alias: 'stripe' }],
+        );
+        expect(result.warnings).toEqual([
+            expect.stringContaining('"pylon" is a live data source'),
+        ]);
     });
 
     it('warns and skips a missing slug while still applying resolvable links', async () => {

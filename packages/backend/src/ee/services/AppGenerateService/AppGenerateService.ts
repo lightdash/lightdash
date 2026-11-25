@@ -2069,6 +2069,13 @@ export class AppGenerateService extends BaseService {
                         `Skipped linking external connection alias "${link.alias}": no connection with slug "${link.connectionSlug}" exists in the target project. Upload it first ('lightdash upload --external-connections ${link.connectionSlug}') or fix connectionSlug in lightdash-app.yml.`,
                     );
                     break;
+                case 'live_source':
+                    // Manifests downloaded before integrations got their own
+                    // permission can still name one: skip it so re-upload works.
+                    linkWarnings.push(
+                        `Skipped linking external connection alias "${link.alias}": "${link.connectionSlug}" is a live data source, which data apps can't use. Remove it from lightdash-app.yml.`,
+                    );
+                    break;
                 case 'not_linkable':
                     throw new ForbiddenError(
                         'You do not have permission to link this external connection',
@@ -2107,9 +2114,8 @@ export class AppGenerateService extends BaseService {
                         slug,
                     );
                 if (!connection) return { slug, status: 'not_found' };
-                // Live data sources are never linked to apps.
                 if (getConnectionKind(connection) === 'live_source') {
-                    return { slug, status: 'not_linkable' };
+                    return { slug, status: 'live_source' };
                 }
                 if (
                     ability.cannot(
