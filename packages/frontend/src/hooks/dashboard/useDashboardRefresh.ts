@@ -76,7 +76,10 @@ export const evictSavedDashboardResults = (queryClient: QueryClient) => {
             if (event.action.type !== 'success') return;
             if (startedBeforeSave.delete(query)) {
                 onScreen.set(query, false);
-                void Promise.resolve().then(() => query.fetch());
+                // Its error lands in the query state, as with any tile fetch
+                void Promise.resolve()
+                    .then(() => query.fetch())
+                    .catch(() => {});
             } else if (onScreen.get(query)) {
                 release(query);
             }
