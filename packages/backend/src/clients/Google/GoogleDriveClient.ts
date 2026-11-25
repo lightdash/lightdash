@@ -146,6 +146,7 @@ type SheetProperties = {
     hidden: boolean;
     rowCount: number;
     columnCount: number;
+    basicFilter?: sheets_v4.Schema$BasicFilter;
 };
 
 type WriteContext = {
@@ -1054,6 +1055,7 @@ export class GoogleDriveClient {
                     gridRowCount: targetRowCount,
                     gridColumnCount: targetColumnCount,
                     formatRequests,
+                    basicFilter: target?.basicFilter,
                     onRowsInTab: (rows) => {
                         context.rowsInTab = rows;
                     },
@@ -1086,24 +1088,27 @@ export class GoogleDriveClient {
         const response = await GoogleDriveClient.catchApiError(
             sheets.spreadsheets.get({
                 spreadsheetId: fileId,
-                fields: 'sheets(properties(sheetId,title,hidden,gridProperties(rowCount,columnCount)))',
+                fields: 'sheets(properties(sheetId,title,hidden,gridProperties(rowCount,columnCount)),basicFilter)',
             }),
         );
-        return (response.data.sheets ?? []).flatMap(({ properties }) =>
-            properties?.title &&
-            properties.sheetId !== null &&
-            properties.sheetId !== undefined
-                ? [
-                      {
-                          sheetId: properties.sheetId,
-                          title: properties.title,
-                          hidden: properties.hidden ?? false,
-                          rowCount: properties.gridProperties?.rowCount ?? 0,
-                          columnCount:
-                              properties.gridProperties?.columnCount ?? 0,
-                      },
-                  ]
-                : [],
+        return (response.data.sheets ?? []).flatMap(
+            ({ properties, basicFilter }) =>
+                properties?.title &&
+                properties.sheetId !== null &&
+                properties.sheetId !== undefined
+                    ? [
+                          {
+                              sheetId: properties.sheetId,
+                              title: properties.title,
+                              hidden: properties.hidden ?? false,
+                              rowCount:
+                                  properties.gridProperties?.rowCount ?? 0,
+                              columnCount:
+                                  properties.gridProperties?.columnCount ?? 0,
+                              ...(basicFilter ? { basicFilter } : {}),
+                          },
+                      ]
+                    : [],
         );
     }
 
@@ -1126,6 +1131,7 @@ export class GoogleDriveClient {
             gridRowCount: number;
             gridColumnCount: number;
             formatRequests: sheets_v4.Schema$Request[];
+            basicFilter?: sheets_v4.Schema$BasicFilter;
             onRowsInTab: (rows: number) => void;
         },
     ) {
@@ -1214,14 +1220,72 @@ export class GoogleDriveClient {
             { deleteSheet: { sheetId: args.stagingSheetId } },
         ];
 
+        // A paste skips the rows that a basic filter hides, so the filter
+        // is off during the swap and the last batch sets it back.
+        const { basicFilter } = args;
+        const clearFilterRequests: sheets_v4.Schema$Request[] = basicFilter
+            ? [{ clearBasicFilter: { sheetId: args.sheetId } }]
+            : [];
+        const restoreFilterRequests: sheets_v4.Schema$Request[] = basicFilter
+            ? [{ setBasicFilter: { filter: basicFilter } }]
+            : [];
+        let filterCleared = false;
+
+        try {
+            await GoogleDriveClient.runSwapBatches(sheets, fileId, {
+                ...args,
+                pieces,
+                requestsFor: (index) => [
+                    ...(index === 0
+                        ? [...clearFilterRequests, ...growRequests]
+                        : []),
+                    copy(pieces[index]),
+                    ...(index === pieces.length - 1
+                        ? [...finishRequests, ...restoreFilterRequests]
+                        : []),
+                ],
+                onBatchDone: (index) => {
+                    filterCleared =
+                        basicFilter !== undefined && index < pieces.length - 1;
+                },
+            });
+        } catch (e) {
+            if (filterCleared && basicFilter) {
+                await GoogleDriveClient.catchApiError(
+                    sheets.spreadsheets.batchUpdate(
+                        {
+                            spreadsheetId: fileId,
+                            requestBody: { requests: restoreFilterRequests },
+                        },
+                        { retry: false },
+                    ),
+                ).catch((error) =>
+                    Logger.warn(
+                        `Unable to restore the Google Sheets filter: ${getErrorMessage(error)}`,
+                    ),
+                );
+            }
+            throw e;
+        }
+    }
+
+    private static async runSwapBatches(
+        sheets: sheets_v4.Sheets,
+        fileId: string,
+        args: {
+            stagingSheetId: number;
+            rowCount: number;
+            pieces: Array<{ start: number; end: number }>;
+            requestsFor: (index: number) => sheets_v4.Schema$Request[];
+            onBatchDone: (index: number) => void;
+            onRowsInTab: (rows: number) => void;
+        },
+    ) {
+        const { pieces } = args;
         await pieces.reduce(async (previous, piece, index) => {
             await previous;
             const isLast = index === pieces.length - 1;
-            const requests = [
-                ...(index === 0 ? growRequests : []),
-                copy(piece),
-                ...(isLast ? finishRequests : []),
-            ];
+            const requests = args.requestsFor(index);
             const batchStartedAt = Date.now();
             await GoogleDriveClient.withWriteRetry(
                 async () => {
@@ -1256,6 +1320,7 @@ export class GoogleDriveClient {
                 `tab swap of rows ${piece.start + 1}-${piece.end}`,
             );
             args.onRowsInTab(piece.end);
+            args.onBatchDone(index);
             Logger.info(
                 `Copied rows ${piece.start + 1}-${piece.end} of ${args.rowCount} into the Google Sheets tab (batch ${index + 1} of ${pieces.length}) in ${Date.now() - batchStartedAt} ms`,
             );

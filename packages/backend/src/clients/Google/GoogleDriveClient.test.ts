@@ -1129,6 +1129,69 @@ describe('GoogleDriveClient', () => {
             expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
         });
 
+        const addBasicFilter = (
+            fake: GoogleSheetsFake,
+            hiddenRows: number[],
+        ) => {
+            const sheet = fake.sheet('Sheet1');
+            sheet.basicFilter = {
+                range: { sheetId: sheet.sheetId },
+                filterSpecs: [{ columnIndex: 0 }],
+            };
+            sheet.filteredRows = new Set(hiddenRows);
+            return sheet.basicFilter;
+        };
+
+        test.each([
+            ['one swap batch', 10],
+            ['several swap batches', 150_000],
+        ])(
+            'replaces rows that a basic filter hides and keeps the filter (%s)',
+            async (_name, count) => {
+                const fake = new GoogleSheetsFake([
+                    { title: 'Sheet1', rows: makeWideRows(count, 'old') },
+                ]);
+                useFake(fake);
+                const filter = addBasicFilter(fake, [1, 2, 3, 100_000]);
+                const rows = makeWideRows(count, 'new');
+
+                await makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    rows,
+                );
+
+                expect(fake.tabValues('Sheet1')).toEqual(rows);
+                expect(fake.sheet('Sheet1').basicFilter).toEqual(filter);
+            },
+        );
+
+        test('restores the basic filter when a later swap batch fails', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeWideRows(150_000, 'old') },
+            ]);
+            useFake(fake);
+            const filter = addBasicFilter(fake, [1]);
+            let copyBatch = 0;
+            fake.beforeBatchUpdate = (requests) => {
+                if (requests.some((r) => 'copyPaste' in (r as object))) {
+                    copyBatch += 1;
+                    if (copyBatch >= 2) throw googleInternalError();
+                }
+            };
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeWideRows(150_000, 'new'),
+                ),
+            );
+
+            expect(error).toBeInstanceOf(UnexpectedGoogleSheetsError);
+            expect(fake.sheet('Sheet1').basicFilter).toEqual(filter);
+        });
+
         test('writes to the first visible tab when no tab name is set', async () => {
             const fake = new GoogleSheetsFake([
                 { title: 'Hidden', rows: [['keep']] },

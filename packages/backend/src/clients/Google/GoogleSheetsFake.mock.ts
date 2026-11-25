@@ -15,6 +15,9 @@ type FakeSheet = {
     columnCount: number;
     values: (CellValue | undefined)[][];
     numberFormats: Array<{ range: GridRange; numberFormat: unknown }>;
+    basicFilter?: AnyType;
+    // Rows that the basic filter hides while it is set.
+    filteredRows: Set<number>;
 };
 
 type GridRange = {
@@ -109,6 +112,9 @@ export class GoogleSheetsFake {
                     data: {
                         properties: { title: 'Fake spreadsheet' },
                         sheets: this.sheets.map((sheet, index) => ({
+                            ...(sheet.basicFilter
+                                ? { basicFilter: sheet.basicFilter }
+                                : {}),
                             properties: {
                                 sheetId: sheet.sheetId,
                                 title: sheet.title,
@@ -272,6 +278,7 @@ export class GoogleSheetsFake {
                 properties.gridProperties?.columnCount ?? DEFAULT_COLUMN_COUNT,
             values: [],
             numberFormats: [],
+            filteredRows: new Set(),
         };
         this.nextSheetId += 1;
         this.sheets.push(sheet);
@@ -351,6 +358,7 @@ export class GoogleSheetsFake {
             ...s,
             values: s.values.map((row) => (row ? [...row] : row)),
             numberFormats: [...s.numberFormats],
+            filteredRows: new Set(s.filteredRows),
         }));
         const { nextSheetId } = this;
         try {
@@ -441,13 +449,28 @@ export class GoogleSheetsFake {
                 }
                 for (let r = s.r0; r < s.r1; r += 1) {
                     const target = d.r0 + r - s.r0;
-                    destination.values[target] =
-                        destination.values[target] ?? [];
-                    for (let c = s.c0; c < s.c1; c += 1) {
-                        destination.values[target][d.c0 + c - s.c0] =
-                            source.values[r]?.[c];
+                    // Like Google, a paste skips rows a basic filter hides.
+                    const hiddenByFilter =
+                        destination.basicFilter &&
+                        destination.filteredRows.has(target);
+                    if (!hiddenByFilter) {
+                        destination.values[target] =
+                            destination.values[target] ?? [];
+                        for (let c = s.c0; c < s.c1; c += 1) {
+                            destination.values[target][d.c0 + c - s.c0] =
+                                source.values[r]?.[c];
+                        }
                     }
                 }
+                return {};
+            }
+            case 'clearBasicFilter': {
+                this.sheetById(body.sheetId).basicFilter = undefined;
+                return {};
+            }
+            case 'setBasicFilter': {
+                this.sheetById(body.filter.range.sheetId).basicFilter =
+                    body.filter;
                 return {};
             }
             case 'repeatCell': {
