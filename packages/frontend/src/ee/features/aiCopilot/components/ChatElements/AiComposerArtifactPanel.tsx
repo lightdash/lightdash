@@ -60,6 +60,7 @@ import { AiComposerNodeResult } from './AiComposerNodeResult';
 import { AiComposerRunQueryVisualization } from './AiComposerRunQueryVisualization';
 import { ArtifactWindowControls } from './ArtifactFocusToggle';
 import { ArtifactPanelHeading } from './ArtifactPanelHeading';
+import { ComposerLineageTour } from './composerLineageTour/ComposerLineageTour';
 import {
     AiComposerVizConfigPanel,
     type AiComposerVizConfigPanelMode,
@@ -279,6 +280,17 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         : !!canExportData;
     // Downloads the displayed node's result as run, like an embedded classic artifact
     const downloadQueryUuid = isResultReady ? (queryUuid ?? null) : null;
+    const hasActionsMenu =
+        canExportImage ||
+        canDownloadResults ||
+        !!mergeChartActions ||
+        !!composerSave;
+    const isTourReady =
+        !isEmbed &&
+        initialView === 'chart' &&
+        config.queries.length > 1 &&
+        isResultReady &&
+        !!queryUuid;
 
     const head = (
         <Box className={clsx(styles.head, styles.flushHead)}>
@@ -290,6 +302,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
             />
             <Group gap={4} className={styles.headRight}>
                 <SegmentedControl
+                    data-tour="composer-view-toggle"
                     mr={4}
                     classNames={{
                         root: styles.viewToggle,
@@ -310,13 +323,11 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                         },
                     ]}
                 />
-                {(canExportImage ||
-                    canDownloadResults ||
-                    !!mergeChartActions ||
-                    !!composerSave) && (
+                {hasActionsMenu && (
                     <Menu withArrow position="bottom-end">
                         <Menu.Target>
                             <ActionIcon
+                                data-tour="composer-quick-actions"
                                 size="sm"
                                 aria-label={getUiString(
                                     'aiAgent.composer.actions.quickActions',
@@ -509,6 +520,13 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     </Box>
                 </Stack>
             </Box>
+            <ComposerLineageTour
+                ready={isTourReady}
+                queries={config.queries}
+                terminalNodeId={config.terminalNodeId}
+                hasActionsMenu={hasActionsMenu}
+                onShowLineage={(show) => setView(show ? 'lineage' : 'chart')}
+            />
             <AiChartImageExportModal
                 chartRef={imageExportRef}
                 chartName={title}
