@@ -921,6 +921,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.getExternalConnectionSchema': [
         AgentCapability.ReadDiscover,
     ],
+    'ExternalConnectionController.getLiveSourceAccess': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.getLiveSourceContentUsage': [
         AgentCapability.Administration,
     ],
@@ -976,6 +979,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateLiveSourceCache': [
+        AgentCapability.Administration,
+    ],
+    'ExternalConnectionController.updateLiveSourceAccess': [
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateLiveSourceFields': [

@@ -9,6 +9,7 @@ import {
     TimeoutError,
     type CreateExternalConnection,
     type ExternalConnection,
+    type LiveSourceAccessRule,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
@@ -80,6 +81,8 @@ const buildService = ({
     namesHeldAtClaim = [],
     hasExplores = false,
     chartCount = 0,
+    userAttributes = {},
+    orgAttributeNames = [],
 }: {
     connections?: ExternalConnection[];
     canView?: boolean;
@@ -90,6 +93,10 @@ const buildService = ({
     namesHeldAtClaim?: string[];
     hasExplores?: boolean;
     chartCount?: number;
+    /** The querying user's attribute values. */
+    userAttributes?: Record<string, string[]>;
+    /** Attribute names that exist in the organization. */
+    orgAttributeNames?: string[];
 } = {}) => {
     let fieldState: LiveSourceFieldState = {
         lastScan: null,
@@ -194,6 +201,23 @@ const buildService = ({
                 },
             ),
         restoreLiveSourceDetails: vi.fn().mockResolvedValue(undefined),
+        setLiveSourceAccessRule: vi
+            .fn()
+            .mockImplementation(
+                async (
+                    uuid: string,
+                    accessRule: LiveSourceAccessRule | null,
+                ) => {
+                    connections.forEach((connection, index) => {
+                        if (connection.externalConnectionUuid === uuid) {
+                            connections.splice(index, 1, {
+                                ...connection,
+                                accessRule,
+                            });
+                        }
+                    });
+                },
+            ),
         saveLiveSourceTargetLabel: vi.fn().mockResolvedValue(undefined),
         withLiveSourceBuildLock: vi.fn(
             async (
@@ -266,6 +290,14 @@ const buildService = ({
         listApiSourceExploreHashes: vi.fn().mockResolvedValue([]),
         getApiSourceFieldIds: vi.fn().mockResolvedValue([]),
     };
+    const userAttributesModel = {
+        getAttributeValuesForOrgMember: vi
+            .fn()
+            .mockResolvedValue(userAttributes),
+        find: vi
+            .fn()
+            .mockResolvedValue(orgAttributeNames.map((name) => ({ name }))),
+    };
     const service = new ExternalConnectionService({
         projectModel,
         savedChartModel,
@@ -274,6 +306,7 @@ const buildService = ({
         externalConnectionModel,
         analytics,
         schedulerClient,
+        userAttributesModel,
     } as never);
     vi.spyOn(
         service as unknown as { createAuditedAbility: () => unknown },
@@ -289,6 +322,7 @@ const buildService = ({
         schedulerClient,
         projectModel,
         savedChartModel,
+        userAttributesModel,
     };
 };
 
@@ -2274,6 +2308,7 @@ describe('ExternalConnectionService live source explores', () => {
         tags: [],
         aiHint: null,
         targetLabel: null,
+        accessRule: null,
         ...overrides,
     });
 
@@ -2812,5 +2847,198 @@ describe('ExternalConnectionService live source explores', () => {
             60_000,
         );
         expect(source.integration.connector).toBe(ApiConnectorType.POSTHOG);
+    });
+});
+
+describe('ExternalConnectionService live source access rule', () => {
+    const rule: LiveSourceAccessRule = {
+        required: { team: ['sales', 'support'] },
+        any: { region: ['emea'] },
+    };
+    const baseTableOf = (
+        projectModel: ReturnType<typeof buildService>['projectModel'],
+    ) =>
+        projectModel.replaceApiSourceExplores.mock.calls
+            .at(-1)?.[2]
+            .map(
+                (explore: {
+                    baseTable: string;
+                    tables: Record<string, unknown>;
+                }) => explore.tables[explore.baseTable],
+            );
+
+    it('stores the rule and copies it onto every explore it rebuilds', async () => {
+        const { service, externalConnectionModel, projectModel } = buildService(
+            { orgAttributeNames: ['team', 'region'] },
+        );
+
+        const saved = await service.updateLiveSourceAccess(
+            account,
+            'proj-1',
+            'conn-1',
+            {
+                required: { team: [' sales ', 'support', 'sales'] },
+                any: { region: ['emea'] },
+            },
+        );
+
+        expect(saved).toMatchObject(rule);
+        expect(
+            externalConnectionModel.setLiveSourceAccessRule,
+        ).toHaveBeenCalledWith('conn-1', rule);
+        const baseTables = baseTableOf(projectModel);
+        expect(baseTables.length).toBeGreaterThan(0);
+        baseTables.forEach((table: Record<string, unknown>) =>
+            expect(table).toMatchObject({
+                requiredAttributes: rule.required,
+                anyAttributes: rule.any,
+            }),
+        );
+        await expect(
+            service.getLiveSourceAccess(account, 'proj-1', 'conn-1'),
+        ).resolves.toMatchObject(rule);
+    });
+
+    it('puts the previous rule back when the explores fail to rebuild', async () => {
+        const previous: LiveSourceAccessRule = {
+            required: { team: ['support'] },
+            any: {},
+        };
+        const { service, externalConnectionModel, projectModel } = buildService(
+            {
+                orgAttributeNames: ['team', 'region'],
+                connections: [posthogConnection({ accessRule: previous })],
+            },
+        );
+        projectModel.replaceApiSourceExplores.mockRejectedValueOnce(
+            new Error('explore clash'),
+        );
+
+        await expect(
+            service.updateLiveSourceAccess(account, 'proj-1', 'conn-1', rule),
+        ).rejects.toThrow('explore clash');
+
+        expect(
+            externalConnectionModel.setLiveSourceAccessRule.mock.calls,
+        ).toEqual([
+            ['conn-1', rule],
+            ['conn-1', previous],
+        ]);
+        await expect(
+            service.getLiveSourceAccess(account, 'proj-1', 'conn-1'),
+        ).resolves.toMatchObject(previous);
+    });
+
+    it('gives the editor the organization attributes and their own values', async () => {
+        const { service } = buildService({
+            orgAttributeNames: ['team', 'region'],
+            userAttributes: { team: ['sales'] },
+        });
+        await expect(
+            service.getLiveSourceAccess(account, 'proj-1', 'conn-1'),
+        ).resolves.toEqual({
+            required: {},
+            any: {},
+            attributeNames: ['region', 'team'],
+            yourAttributes: { team: ['sales'] },
+        });
+    });
+
+    it('clears the rule and its explore conditions when sent empty', async () => {
+        const { service, externalConnectionModel, projectModel } = buildService(
+            {
+                connections: [posthogConnection({ accessRule: rule })],
+            },
+        );
+
+        const saved = await service.updateLiveSourceAccess(
+            account,
+            'proj-1',
+            'conn-1',
+            { required: {}, any: {} },
+        );
+
+        expect(saved).toMatchObject({ required: {}, any: {} });
+        expect(
+            externalConnectionModel.setLiveSourceAccessRule,
+        ).toHaveBeenCalledWith('conn-1', null);
+        baseTableOf(projectModel).forEach((table: Record<string, unknown>) => {
+            expect(table.requiredAttributes).toBeUndefined();
+            expect(table.anyAttributes).toBeUndefined();
+        });
+    });
+
+    it.each([
+        ['an unknown attribute', { required: { nope: ['x'] }, any: {} }],
+        ['an attribute with no values', { required: { team: [' '] }, any: {} }],
+    ])('refuses %s', async (_case, body) => {
+        const { service, externalConnectionModel } = buildService({
+            orgAttributeNames: ['team'],
+        });
+        await expect(
+            service.updateLiveSourceAccess(account, 'proj-1', 'conn-1', body),
+        ).rejects.toThrow(ParameterError);
+        expect(
+            externalConnectionModel.setLiveSourceAccessRule,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('is managed only by those who manage the source', async () => {
+        const { service } = buildService({ canView: true, canManage: false });
+        await expect(
+            service.getLiveSourceAccess(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(ForbiddenError);
+        await expect(
+            service.updateLiveSourceAccess(account, 'proj-1', 'conn-1', rule),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('keeps the rule when a rescan rebuilds the explores', async () => {
+        const { service, projectModel } = buildService({
+            connections: [posthogConnection({ accessRule: rule })],
+        });
+
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        const baseTables = baseTableOf(projectModel);
+        expect(baseTables.length).toBeGreaterThan(0);
+        baseTables.forEach((table: Record<string, unknown>) =>
+            expect(table).toMatchObject({ requiredAttributes: rule.required }),
+        );
+    });
+
+    it.each([
+        ['matches the rule', { team: ['sales'], region: ['emea'] }, true],
+        ['misses a required attribute', { region: ['emea'] }, false],
+        ['matches none of the any attributes', { team: ['sales'] }, false],
+    ])(
+        'lets a user who %s query the source directly: %s',
+        async (_case, userAttributes, allowed) => {
+            const { service } = buildService({
+                connections: [posthogConnection({ accessRule: rule })],
+                userAttributes,
+            });
+            const query = service.getLiveSource(
+                account,
+                'proj-1',
+                'conn-1',
+                60_000,
+            );
+            if (allowed) {
+                await expect(query).resolves.toBeDefined();
+            } else {
+                await expect(query).rejects.toThrow(ForbiddenError);
+            }
+        },
+    );
+
+    it('hides a source the user fails the rule for from their list', async () => {
+        const { service } = buildService({
+            connections: [posthogConnection({ accessRule: rule })],
+            userAttributes: {},
+        });
+        await expect(
+            service.listApiSourceConnections(account, 'proj-1'),
+        ).resolves.toEqual([]);
     });
 });

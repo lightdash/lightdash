@@ -9,7 +9,12 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconInfoCircle, IconPlus, IconSettings } from '@tabler/icons-react';
+import {
+    IconInfoCircle,
+    IconLock,
+    IconPlus,
+    IconSettings,
+} from '@tabler/icons-react';
 import {
     type FC,
     type KeyboardEvent,
@@ -32,6 +37,7 @@ import { formatChartCount } from './liveSourceCatalog';
  */
 import { LiveSourceIcon } from './LiveSourceIcon';
 import {
+    describeLiveSourceAccessRule,
     formatFreshness,
     getLiveSourceFreshness,
     toLiveSourceRow,
@@ -44,6 +50,25 @@ import { getRateLimitStat } from './rateLimitFormat';
 const stopPropagation = (event: MouseEvent) => event.stopPropagation();
 
 /** Opens one source's settings, in the table: an icon. */
+/** A lock beside a source that only some people can query, with its rule as a tooltip. */
+const AccessRuleBadge: FC<{ connection: LiveSourceConnection }> = ({
+    connection,
+}) => {
+    const rule = describeLiveSourceAccessRule(connection.accessRule);
+    if (!rule) return null;
+    const label = `Only people whose ${rule} can query it`;
+    return (
+        <Tooltip label={label} withinPortal multiline maw={320}>
+            <MantineIcon
+                icon={IconLock}
+                size={14}
+                color="dimmed"
+                aria-label={label}
+            />
+        </Tooltip>
+    );
+};
+
 const LiveSourceSettingsIcon: FC<{
     connection: LiveSourceConnection;
     onOpenSettings: (connectionUuid: string) => void;
@@ -172,15 +197,17 @@ export const LiveSourcesTable: FC<{
                             {integration}
                         </Text>
                     </Group>
-                    <Text
-                        role="cell"
-                        className={tableClasses.name}
-                        miw={0}
-                        truncate
-                        title={target}
-                    >
-                        {connection.name}
-                    </Text>
+                    <Group role="cell" gap={6} wrap="nowrap" miw={0}>
+                        <Text
+                            className={tableClasses.name}
+                            miw={0}
+                            truncate
+                            title={target}
+                        >
+                            {connection.name}
+                        </Text>
+                        <AccessRuleBadge connection={connection} />
+                    </Group>
                     <span role="cell" className={tableClasses.number}>
                         {used.dataRead}
                     </span>
@@ -287,6 +314,19 @@ export const LiveSourceSummary: FC<{
                         ? `${exploresInUse.toLocaleString()} of ${explores.length.toLocaleString()}`
                         : '—'
                 }
+            />
+            <Stat
+                label="Who can query"
+                value={
+                    describeLiveSourceAccessRule(connection.accessRule)
+                        ? 'Limited by a rule'
+                        : 'Everyone in the project'
+                }
+                title={
+                    describeLiveSourceAccessRule(connection.accessRule) ??
+                    undefined
+                }
+                labelExtra={<AccessRuleBadge connection={connection} />}
             />
             <Stat
                 label="Used by"

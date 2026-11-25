@@ -9,6 +9,7 @@ import {
     type ApiExternalConnectionSchemaResponse,
     type ApiListExternalConnectionLinkedAppsResponse,
     type ApiListExternalConnectionSamplesResponse,
+    type ApiLiveSourceAccessResponse,
     type ApiLiveSourceContentUsageResponse,
     type ApiLiveSourceFieldsResponse,
     type ApiProposeExternalConnectionConfigRequest,
@@ -28,6 +29,7 @@ import {
     type ExternalConnectionListItem,
     type ExternalFetchRequest,
     type ExternalFetchResponse,
+    type LiveSourceAccessRule,
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import {
@@ -40,6 +42,7 @@ import {
     Patch,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -363,6 +366,65 @@ export class ExternalConnectionController extends BaseController {
         return {
             status: 'ok',
             results: await this.getService().updateLiveSourceCache(
+                req.account,
+                projectUuid,
+                connectionUuid,
+                body,
+            ),
+        };
+    }
+
+    /**
+     * Who can query a live data source, as user attribute conditions. Empty
+     * conditions mean everyone who can query the project can query it.
+     * @summary Get live data source access rule
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/{connectionUuid}/access')
+    @OperationId('getLiveSourceAccess')
+    async getLiveSourceAccess(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+    ): Promise<ApiLiveSourceAccessResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getLiveSourceAccess(
+                req.account,
+                projectUuid,
+                connectionUuid,
+            ),
+        };
+    }
+
+    /**
+     * Replace who can query a live data source and rebuild its explores.
+     * Attribute names must exist in the organization; sending empty
+     * conditions lets everyone in the project query it again.
+     * @summary Update live data source access rule
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('external-connections/{connectionUuid}/access')
+    @OperationId('updateLiveSourceAccess')
+    async updateLiveSourceAccess(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+        @Body() body: LiveSourceAccessRule,
+    ): Promise<ApiLiveSourceAccessResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().updateLiveSourceAccess(
                 req.account,
                 projectUuid,
                 connectionUuid,

@@ -43,9 +43,11 @@ import {
     toLiveSourceAccessValues,
     type LiveSourceAccessValues,
 } from './liveSourceAccess';
+import { LiveSourceAccessRuleModal } from './LiveSourceAccessRuleModal';
 import { getApiSourceTarget } from './liveSourceCatalog';
 import { LiveSourceRateLimitsCard } from './LiveSourceRateLimits';
 import {
+    describeLiveSourceAccessRule,
     formatFreshness,
     getLiveSourceFreshness,
     type LiveSourceConnection,
@@ -129,6 +131,8 @@ export const LiveSourceSettings: FC<{
     );
     const testSource = useTestConnection({ showErrorToast: false });
     const [isPurgeOpen, setIsPurgeOpen] = useState(false);
+    const [isAccessRuleOpen, setIsAccessRuleOpen] = useState(false);
+    const accessRule = describeLiveSourceAccessRule(connection.accessRule);
     const { data: projectCache } = useResultsCacheStatus(projectUuid);
     /** The project doesn't cache results, so the source has nothing to tune or clear. */
     const isProjectCacheOff = projectCache?.enabled === false;
@@ -304,6 +308,25 @@ export const LiveSourceSettings: FC<{
                     {saveFooter(['name', 'aiHint'])}
                 </SettingsCard>
 
+                <SettingsCard title="Who can query">
+                    <SettingsRow
+                        label="Access rule"
+                        hint={
+                            accessRule
+                                ? `Only people whose ${accessRule}`
+                                : 'Everyone in the project'
+                        }
+                    >
+                        <Button
+                            size="xs"
+                            variant="default"
+                            onClick={() => setIsAccessRuleOpen(true)}
+                        >
+                            Edit
+                        </Button>
+                    </SettingsRow>
+                </SettingsCard>
+
                 <LiveSourceTagsCard
                     projectUuid={projectUuid}
                     connection={connection}
@@ -464,6 +487,13 @@ export const LiveSourceSettings: FC<{
                 </SettingsCard>
             </Stack>
 
+            {isAccessRuleOpen ? (
+                <LiveSourceAccessRuleModal
+                    projectUuid={projectUuid}
+                    connection={connection}
+                    onClose={() => setIsAccessRuleOpen(false)}
+                />
+            ) : null}
             <MantineModal
                 opened={isPurgeOpen}
                 onClose={() => setIsPurgeOpen(false)}

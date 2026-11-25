@@ -1,6 +1,6 @@
 import {
-    AuthorizationError,
     FilterOperator,
+    ForbiddenError,
     MetricType,
     type Account,
     type MetricQuery,
@@ -66,7 +66,7 @@ describe('auditAndFilterExplore', () => {
                 explore: EXPLORE_WITH_TABLE_REQUIRED_ATTRIBUTES,
                 userAttributes: { access_level: ['1'] },
             }),
-        ).toThrow(AuthorizationError);
+        ).toThrow(ForbiddenError);
 
         expect(auditLogger).toHaveBeenCalledTimes(1);
         const event = auditLogger.mock.calls[0][0];
@@ -124,7 +124,7 @@ describe('auditAndFilterExplore', () => {
                 explore: EXPLORE_WITH_TABLE_ANY_ATTRIBUTES,
                 userAttributes: {},
             }),
-        ).toThrow(AuthorizationError);
+        ).toThrow(ForbiddenError);
 
         expect(auditLogger.mock.calls[0][0].resource.metadata).toMatchObject({
             anyAttributes:

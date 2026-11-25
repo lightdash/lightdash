@@ -1281,6 +1281,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     projectModel: models.getProjectModel(),
+                    userAttributesModel: models.getUserAttributesModel(),
                     savedChartModel: models.getSavedChartModel(),
                     encryptionUtil: utils.getEncryptionUtil(),
                     appGenerateService:

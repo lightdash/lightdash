@@ -14974,17 +14974,21 @@ export class ProjectService
         projectUuid,
         exploreNames,
         organizationUuid,
+        omitDeniedExplores,
     }: {
         account: Account;
         projectUuid: string;
         exploreNames: string[];
         organizationUuid?: string;
+        /** Leaves out explores the account's user attributes deny, instead of refusing them all. */
+        omitDeniedExplores?: boolean;
     }): Promise<Record<string, Explore | ExploreError>> {
         const { explores } = await this.findExploresWithUserAccessControls({
             account,
             projectUuid,
             exploreNames,
             organizationUuid,
+            omitDeniedExplores,
         });
         return explores;
     }
@@ -14995,12 +14999,15 @@ export class ProjectService
         exploreNames,
         organizationUuid,
         userAttributeOverrides,
+        omitDeniedExplores = false,
     }: {
         account: Account;
         projectUuid: string;
         exploreNames: string[];
         organizationUuid?: string;
         userAttributeOverrides?: UserAttributeValueMap;
+        /** Leaves out explores the account's user attributes deny, instead of refusing them all. */
+        omitDeniedExplores?: boolean;
     }): Promise<{
         explores: Record<string, Explore | ExploreError>;
         userAccessControls: UserAccessControls;
@@ -15099,13 +15106,23 @@ export class ProjectService
                         if (!shouldFilterExplore) {
                             acc[explore.name] = explore;
                         } else {
-                            acc[explore.name] = auditAndFilterExplore({
-                                account,
-                                projectUuid,
-                                explore,
-                                userAttributes:
-                                    userAccessControls.userAttributes,
-                            });
+                            try {
+                                acc[explore.name] = auditAndFilterExplore({
+                                    account,
+                                    projectUuid,
+                                    explore,
+                                    userAttributes:
+                                        userAccessControls.userAttributes,
+                                });
+                            } catch (error) {
+                                if (
+                                    omitDeniedExplores &&
+                                    error instanceof ForbiddenError
+                                ) {
+                                    return acc;
+                                }
+                                throw error;
+                            }
                         }
                     }
                     if (!isExploreError(explore)) {
@@ -16946,6 +16963,8 @@ export class ProjectService
                             ),
                         ),
                         organizationUuid: account.organization.organizationUuid,
+                        // A tile the viewer can't access offers no filters; the others still do.
+                        omitDeniedExplores: true,
                     }),
                 ]);
 

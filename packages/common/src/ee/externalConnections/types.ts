@@ -1,5 +1,6 @@
 import { type UUID } from '../../types/api/uuid';
 import { type ApiConnectorType } from '../../types/querySources';
+import { type LiveSourceAccessRule } from './liveSourceAccess';
 import { type LiveSourceRateLimitSettings } from './liveSourceRateLimits';
 
 export type ExternalConnectionAuthType =
@@ -534,6 +535,11 @@ export type ExternalConnection = {
     cacheTtlSeconds?: number | null;
     /** Live sources: results fetched before this are never reused. */
     cachePurgedAt?: Date | null;
+    /**
+     * Live sources: who can query it, as user attribute conditions; null when
+     * everyone in the project can. Returned only to those who manage it.
+     */
+    accessRule?: LiveSourceAccessRule | null;
     /** Live sources: the lower rate limits an admin set; null when none are set. */
     adminRateLimits?: LiveSourceRateLimitSettings | null;
     hasSecret: boolean;

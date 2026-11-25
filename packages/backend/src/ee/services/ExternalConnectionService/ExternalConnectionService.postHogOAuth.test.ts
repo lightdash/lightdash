@@ -130,6 +130,10 @@ const buildService = ({
     };
     const fetchToken = vi.fn();
     const service = new ExternalConnectionService({
+        userAttributesModel: {
+            getAttributeValuesForOrgMember: vi.fn().mockResolvedValue({}),
+            find: vi.fn().mockResolvedValue([]),
+        },
         projectModel: {
             replaceApiSourceExplores: vi.fn(),
             deleteApiSourceExplores: vi.fn(),

@@ -93,6 +93,7 @@ import type {
     ApiInstallRegistryChartTypeResponse,
     ApiListDataAppVizsResponse,
     ApiListRegistryChartTypesResponse,
+    ApiLiveSourceAccessResponse,
     ApiLiveSourceContentUsageResponse,
     ApiLiveSourceFieldsResponse,
     ApiManagedAgentActionResponse,
@@ -1747,6 +1748,7 @@ type ApiResults =
     | ApiExternalConnectionAsCodeUpsertResponse['results']
     | ApiLiveSourceContentUsageResponse['results']
     | ApiLiveSourceFieldsResponse['results']
+    | ApiLiveSourceAccessResponse['results']
     | ApiExplorePrefixCheckResponse['results']
     | ApiReattachableLiveSourcesResponse['results']
     | ApiSpaceAsCodeListResponse['results']
