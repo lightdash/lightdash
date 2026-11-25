@@ -173,16 +173,18 @@ const TableProvider: FC<
         });
     }, [handleToggleCell]);
 
+    const selectedCellId = selectedCell?.id ?? null;
+    const value = useMemo(
+        () => ({
+            selectedCell: selectedCellId,
+            toggleCell: handleDebouncedToggleCell,
+            scrollPositions,
+        }),
+        [selectedCellId, handleDebouncedToggleCell, scrollPositions],
+    );
+
     return (
-        <TableContext.Provider
-            value={{
-                selectedCell: selectedCell?.id ?? null,
-                toggleCell: handleDebouncedToggleCell,
-                scrollPositions,
-            }}
-        >
-            {children}
-        </TableContext.Provider>
+        <TableContext.Provider value={value}>{children}</TableContext.Provider>
     );
 };
 
@@ -231,7 +233,7 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
             return () => observer.disconnect();
         }, [containerRef]);
 
-        const { isAtTop, isAtBottom } = useMemo(() => {
+        const scrollPositions = useMemo(() => {
             if (!containerSize) {
                 return {
                     isAtTop: false,
@@ -264,7 +266,7 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
                     className={clsx(classes.table, rest.className)}
                 >
                     <TableProvider
-                        scrollPositions={{ isAtBottom, isAtTop }}
+                        scrollPositions={scrollPositions}
                         renderedRows={renderedRows}
                     >
                         {children}
@@ -287,8 +289,12 @@ const SectionProvider: FC<React.PropsWithChildren<SectionContextType>> = ({
     sectionType,
     withSticky = false,
 }) => {
+    const value = useMemo(
+        () => ({ sectionType, withSticky }),
+        [sectionType, withSticky],
+    );
     return (
-        <SectionContext.Provider value={{ sectionType, withSticky }}>
+        <SectionContext.Provider value={value}>
             {children}
         </SectionContext.Provider>
     );
@@ -312,9 +318,8 @@ const RowProvider: FC<React.PropsWithChildren<RowContextType>> = ({
     children,
     index,
 }) => {
-    return (
-        <RowContext.Provider value={{ index }}>{children}</RowContext.Provider>
-    );
+    const value = useMemo(() => ({ index }), [index]);
+    return <RowContext.Provider value={value}>{children}</RowContext.Provider>;
 };
 
 const useRowContext = () => {

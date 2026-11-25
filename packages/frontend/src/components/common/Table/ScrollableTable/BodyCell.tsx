@@ -108,6 +108,10 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         openTooltip,
         500,
     );
+    const { start: startCopyingTimer } = useTimeout(
+        () => setCopying(false),
+        300,
+    );
     const item = cell.column.columnDef.meta?.item;
 
     const isMenuShown = canHaveMenu && isMenuOpen;
@@ -159,13 +163,9 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         copy(displayValue);
         showToastSuccess({ title: 'Copied to clipboard!' });
 
-        setCopying((copyingState) => {
-            if (!copyingState) {
-                setTimeout(() => setCopying(false), 300);
-            }
-            return true;
-        });
-    }, [isMenuOpen, displayValue, copy, showToastSuccess]);
+        setCopying(true);
+        startCopyingTimer();
+    }, [isMenuOpen, displayValue, copy, showToastSuccess, startCopyingTimer]);
 
     useEffect(() => {
         const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
