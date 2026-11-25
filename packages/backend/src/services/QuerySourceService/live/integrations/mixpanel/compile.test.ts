@@ -304,5 +304,26 @@ describe('compileMixpanelQuery', () => {
                 ),
             ).toThrow(/Match the cohort grain/);
         });
+
+        it('refuses a cohort range that needs more periods than Mixpanel reads', () => {
+            const cohorts = (end: string) =>
+                retention.query(
+                    ['cohort_week', 'weeks_after'],
+                    ['retained_users'],
+                    [
+                        retention.rule('cohort', FilterOperator.IN_BETWEEN, [
+                            '2025-11-01',
+                            end,
+                        ]),
+                    ],
+                );
+            // 52 weeks after start is Mixpanel's cap: 2025-11-01 to 2026-10-23 needs 52
+            expect(retention.compile(cohorts('2026-10-23'))).toMatchObject({
+                unit: 'week',
+            });
+            expect(() => retention.compile(cohorts('2026-10-24'))).toThrow(
+                /Shorten the cohort date range: Mixpanel reads at most 52 weeks after start, and this range needs 53/,
+            );
+        });
     });
 });

@@ -18,6 +18,7 @@ import {
 import { resolveAbsoluteDateRange } from '../../query/dateRange';
 import { isMixpanelProperty, type MixpanelProperty } from './explores';
 import {
+    getRetentionPeriods,
     MIXPANEL_CALLS_PER_QUERY,
     MIXPANEL_MAX_EVENTS,
     MIXPANEL_SEGMENTATION_METRICS,
@@ -269,6 +270,15 @@ const toRetention = (
         throw refuse(
             periodIds[0],
             'Match the cohort grain to the retention period: Mixpanel uses one grain for both.',
+        );
+    }
+    // Mixpanel reads a capped number of periods; past it the later cohorts
+    // would come back short, so the range is refused instead
+    const periods = getRetentionPeriods(query.start, query.end, unit);
+    if (periods.capped) {
+        throw refuse(
+            null,
+            `Shorten the cohort date range: Mixpanel reads at most ${periods.max} ${unit}s after start, and this range needs ${periods.needed}.`,
         );
     }
     const single = (name: string) => {

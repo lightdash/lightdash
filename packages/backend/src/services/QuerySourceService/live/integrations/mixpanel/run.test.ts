@@ -564,10 +564,12 @@ describe('toWhereExpression', () => {
 
 describe('getRetentionPeriods', () => {
     it('reads enough periods to reach the end of the range, capped per unit', () => {
-        expect(getRetentionPeriods('2026-10-01', '2026-10-31', 'week')).toEqual(
-            { count: 6, capped: false },
-        );
-        expect(getRetentionPeriods('2025-01-01', '2026-10-31', 'day')).toEqual({
+        expect(
+            getRetentionPeriods('2026-10-01', '2026-10-31', 'week'),
+        ).toMatchObject({ count: 6, capped: false });
+        expect(
+            getRetentionPeriods('2025-01-01', '2026-10-31', 'day'),
+        ).toMatchObject({
             count: 90,
             capped: true,
         });

@@ -464,7 +464,7 @@ export const getRetentionPeriods = (
 ) => {
     const needed = Math.ceil(countDays(start, end) / UNIT_DAYS[unit]) + 1;
     const max = MIXPANEL_MAX_RETENTION_PERIODS[unit];
-    return { count: Math.min(needed, max), capped: needed > max };
+    return { needed, max, count: Math.min(needed, max), capped: needed > max };
 };
 
 const runRetention = async (
