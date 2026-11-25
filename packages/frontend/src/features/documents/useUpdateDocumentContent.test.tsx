@@ -44,6 +44,13 @@ describe('Document content mutation', () => {
         client.setQueryData(['document', 'project', 'document'], original);
         client.setQueryData(['document', 'project', 'report'], original);
         client.setQueryData(['document', 'other-project', 'report'], original);
+        client.setQueryData(['document-versions', 'project', 'document'], {
+            pages: [],
+        });
+        client.setQueryData(
+            ['document-versions', 'project', 'another-document'],
+            { pages: [] },
+        );
         const wrapper = ({ children }: PropsWithChildren) => (
             <QueryClientProvider client={client}>
                 {children}
@@ -84,6 +91,17 @@ describe('Document content mutation', () => {
                 ?.isInvalidated,
         ).toBe(true);
         expect(request).toEqual(before);
+        expect(
+            client.getQueryState(['document-versions', 'project', 'document'])
+                ?.isInvalidated,
+        ).toBe(true);
+        expect(
+            client.getQueryState([
+                'document-versions',
+                'project',
+                'another-document',
+            ])?.isInvalidated,
+        ).toBe(false);
     });
 
     it('preserves cached content when a stale base version conflicts', async () => {
@@ -100,6 +118,17 @@ describe('Document content mutation', () => {
         });
         await waitFor(() => expect(result.current.isError).toBe(true));
         expect(result.current.error).toEqual(conflict);
+        expect(
+            client.getQueryState(['document-versions', 'project', 'document'])
+                ?.isInvalidated,
+        ).toBe(true);
+        expect(
+            client.getQueryState([
+                'document-versions',
+                'project',
+                'another-document',
+            ])?.isInvalidated,
+        ).toBe(false);
         expect(api).toHaveBeenCalledTimes(1);
         expect(
             client.getQueryData(['document', 'project', 'document']),
