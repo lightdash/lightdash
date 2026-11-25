@@ -94,7 +94,7 @@ export type SettingsContext = {
     isAiOrganizationSettingsLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
-    isApiQuerySourcesEnabled: boolean;
+    isLiveSourcesAvailable: boolean;
     // Chart Studio uses org themes, so it opens Themes without data apps.
     isChartStudioAvailable: boolean;
     isResultsCacheAvailable: boolean;

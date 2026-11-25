@@ -97,7 +97,7 @@ export const initialDashboardEditState: DashboardEditState = {
     haveTilesChanged: false,
     tileLayoutHistory: EMPTY_TILE_LAYOUT_HISTORY,
     canvasZoom: 1,
-    canvasBackground: 'grid',
+    canvasBackground: 'dots',
     selectedTileUuid: null,
     textFocusTileUuid: null,
     tabs: [],

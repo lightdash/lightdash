@@ -68,10 +68,14 @@ export const AGENT_TOOL_CAPABILITIES = {
     discoverRepos: [AgentCapability.ReadDiscover],
     editContent: [AgentCapability.ContentWrite],
     editDbtProject: [AgentCapability.DbtWriteback],
+    write: [AgentCapability.DbtWriteback],
     editProjectContext: [AgentCapability.DbtWriteback],
     proposeSemanticLayerChange: [AgentCapability.DbtWriteback],
     listChanges: [AgentCapability.ReadDiscover],
     readSemanticModel: [AgentCapability.ReadDiscover],
+    draftProjectContext: [AgentCapability.DbtWriteback],
+    verify: [AgentCapability.DbtWriteback],
+    read: [AgentCapability.ReadDiscover],
     exploreRepo: [AgentCapability.ReadDiscover],
     exportChartAsCode: [AgentCapability.Export],
     findCharts: [AgentCapability.ReadDiscover],
@@ -349,8 +353,6 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'AiAgentController.getModelOptions': [AgentCapability.ReadDiscover],
     'AiAgentController.getUserAgentPreferences': [AgentCapability.ReadDiscover],
-    'AiAgentController.getVerifiedArtifacts': [AgentCapability.ReadDiscover],
-    'AiAgentController.getVerifiedQuestions': [AgentCapability.ReadDiscover],
     'AiAgentController.interruptAgentThreadMessage': [
         AgentCapability.ReadDiscover,
     ],
@@ -377,7 +379,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentController.sendVisualizeSlackChart': [
         AgentCapability.Administration,
     ],
-    'AiAgentController.setArtifactVersionVerified': [AgentCapability.Publish],
     'AiAgentController.setUserDefaultAgent': [AgentCapability.ReadDiscover],
     'AiAgentController.startMcpOAuthConnection': [
         AgentCapability.Administration,
@@ -915,8 +916,14 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.getExternalConnectionApiUsage': [
         AgentCapability.ReadDiscover,
     ],
+    'ExternalConnectionController.getExternalConnectionRateLimitUsage': [
+        AgentCapability.ReadDiscover,
+    ],
     'ExternalConnectionController.getExternalConnectionSchema': [
         AgentCapability.ReadDiscover,
+    ],
+    'ExternalConnectionController.getLiveSourceContentUsage': [
+        AgentCapability.Administration,
     ],
     'ExternalConnectionController.getLiveSourceFields': [
         AgentCapability.Administration,
@@ -1071,6 +1078,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.applyDraft': [AgentCapability.DbtWriteback],
     'SemanticStudioController.applyDraftModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.checkDraftImpact': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.claimCompileFollowUp': [
+        AgentCapability.DbtWriteback,
+    ],
     'SemanticStudioController.compileCheckout': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getCheckout': [AgentCapability.ReadDiscover],
     'SemanticStudioController.publishCheckout': [AgentCapability.DbtWriteback],
@@ -1082,6 +1092,12 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.DbtWriteback,
     ],
     'SemanticStudioController.getDraft': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getOthersDraftModel': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.discardOthersDraftModel': [
+        AgentCapability.DbtWriteback,
+    ],
     'SemanticStudioController.moveDraftChange': [AgentCapability.DbtWriteback],
     'SemanticStudioController.keepDraftModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getDraftState': [AgentCapability.DbtWriteback],

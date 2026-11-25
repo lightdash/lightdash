@@ -21,7 +21,7 @@ import {
 } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import styles from './AskUserQuestionCard.module.css';
-import { QuietCardsContext } from './ToolCalls/quietCards';
+import { InStudioChatContext } from './ToolCalls/studioChatContext';
 
 const isTypingTarget = (target: EventTarget) =>
     target instanceof HTMLElement &&
@@ -62,7 +62,7 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
     const current = answers[index];
     const canAdvance = getAnswerText(current) !== '';
     // A lone question is already the reply above the card, so a narrow chat shows the choices only.
-    const isBare = useContext(QuietCardsContext) && questions.length === 1;
+    const isBare = useContext(InStudioChatContext) && questions.length === 1;
 
     // Focus the card so number keys pick options without a click first.
     const cardRef = useRef<HTMLDivElement>(null);

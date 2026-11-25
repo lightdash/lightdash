@@ -1,0 +1,26 @@
+{
+    "base": "semantic_studio",
+    "addOns": [
+        "askUser",
+        "projectContext",
+        "pullRequests",
+        "sqlCatalog",
+        "writeback"
+    ],
+    "toolNames": [
+        "askUser",
+        "read",
+        "runSql",
+        "verify",
+        "write"
+    ],
+    "promptSections": [
+        "aiWriteback",
+        "projectContext",
+        "runSql",
+        "semanticStudio"
+    ],
+    "skills": [
+        "repository-writeback"
+    ]
+}

@@ -53,7 +53,10 @@ describe.each(Object.values(SupportedDbtVersions))(
                 dbtVersion,
                 dbtProjectDirectory: directory,
                 selector: 'tag:absent',
-                partialParseBaselinePath: baselinePath,
+                partialParseBaseline: {
+                    path: baselinePath,
+                    access: 'read-write',
+                },
             });
         });
 

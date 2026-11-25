@@ -17,8 +17,6 @@ import {
     type DataAppInstructionInvestigateJobPayload,
     type DataAppInvestigateJobPayload,
     type DataAppTemplate,
-    type EmbedArtifactVersionJobPayload,
-    type GenerateArtifactQuestionJobPayload,
     type SlackPromptJobPayload,
 } from '../ee';
 import { type UUID } from './api/uuid';
@@ -226,8 +224,6 @@ export const EE_SCHEDULER_TASKS = {
     SEND_CONTENT_REVIEW_NOTIFICATION: 'sendContentReviewNotification',
     CREATE_REVIEW_JIRA_ISSUE: 'createReviewJiraIssue',
     CREATE_REVIEW_LINEAR_ISSUE: 'createReviewLinearIssue',
-    EMBED_ARTIFACT_VERSION: 'embedArtifactVersion',
-    GENERATE_ARTIFACT_QUESTION: 'generateArtifactQuestion',
     APP_GENERATE_PIPELINE: 'appGeneratePipeline',
     APP_BUILD_FROM_SOURCE: 'appBuildFromSource',
     APP_CAPTURE_THUMBNAIL: 'appCaptureThumbnail',
@@ -246,6 +242,7 @@ export const EE_SCHEDULER_TASKS = {
     CONSOLIDATE_AI_AGENT_MEMORY_PARTITION: 'consolidateAiAgentMemoryPartition',
     CLEAN_MCP_TOOL_CALLS: 'cleanMcpToolCalls',
     CLEAN_RATE_COUNTERS: 'cleanRateCounters',
+    CLEAN_API_SOURCE_RATE_LIMITS: 'cleanApiSourceRateLimits',
     REBUILD_OUTDATED_API_SOURCE_EXPLORES: 'rebuildOutdatedApiSourceExplores',
     CLEAN_DATA_APP_ANALYSES: 'cleanDataAppAnalyses',
     CLEAN_AI_AGENT_THREADS: 'cleanAiAgentThreads',
@@ -391,8 +388,6 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SEND_CONTENT_REVIEW_NOTIFICATION]: SendContentReviewNotificationPayload;
     [SCHEDULER_TASKS.CREATE_REVIEW_JIRA_ISSUE]: CreateReviewJiraIssuePayload;
     [SCHEDULER_TASKS.CREATE_REVIEW_LINEAR_ISSUE]: CreateReviewLinearIssuePayload;
-    [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
-    [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
     [SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;
     [SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE]: AppBuildFromSourceJobPayload;
     [SCHEDULER_TASKS.APP_CAPTURE_THUMBNAIL]: AppCaptureThumbnailJobPayload;
@@ -406,6 +401,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORY_PARTITION]: AiAgentMemoryConsolidatePartitionJobPayload;
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_RATE_COUNTERS]: TraceTaskBase;
+    [SCHEDULER_TASKS.CLEAN_API_SOURCE_RATE_LIMITS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_DATA_APP_ANALYSES]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: TraceTaskBase;
@@ -450,8 +446,6 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.SEND_CONTENT_REVIEW_NOTIFICATION]: SendContentReviewNotificationPayload;
     [EE_SCHEDULER_TASKS.CREATE_REVIEW_JIRA_ISSUE]: CreateReviewJiraIssuePayload;
     [EE_SCHEDULER_TASKS.CREATE_REVIEW_LINEAR_ISSUE]: CreateReviewLinearIssuePayload;
-    [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
-    [EE_SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
     [EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;
     [EE_SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE]: AppBuildFromSourceJobPayload;
     [EE_SCHEDULER_TASKS.APP_CAPTURE_THUMBNAIL]: AppCaptureThumbnailJobPayload;
@@ -465,6 +459,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORY_PARTITION]: AiAgentMemoryConsolidatePartitionJobPayload;
     [EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_RATE_COUNTERS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.CLEAN_API_SOURCE_RATE_LIMITS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_DATA_APP_ANALYSES]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: TraceTaskBase;

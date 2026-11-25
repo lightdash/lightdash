@@ -39,6 +39,7 @@ A `create_env` that changes the dependency layer rebuilds the parent and takes m
 - Database: `psql` in the guest with the `PG*` values from `rainbow.toml` `[env]`; `exec` does not load them for you.
 - Logs: `logs` with service `dev`.
 - Outbound calls fail by policy unless `rainbow.toml` `[[egress.allow]]` admits the host; `egress` lists what was refused.
+- Live data sources: previews have Hydra, a test integration that needs no credentials or egress. How to add and drive one: `packages/backend/src/services/QuerySourceService/live/integrations/hydra/AGENTS.md`.
 
 ## Verify
 

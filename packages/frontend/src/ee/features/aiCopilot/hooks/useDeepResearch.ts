@@ -419,7 +419,12 @@ export const useDeepResearchThreadRunRegistrationState = ({
     return {
         registrations,
         isReady: serverRuns.isSuccess && !serverRuns.isFetching,
-        isInitialLoading: serverRuns.isInitialLoading,
+        // Only the first attempt may hold the page; a refetch after a failure resets
+        // the query to loading, which would otherwise gate the page forever.
+        isFirstLookupPending:
+            serverRuns.isInitialLoading &&
+            serverRuns.failureCount === 0 &&
+            serverRuns.errorUpdateCount === 0,
     };
 };
 

@@ -32,7 +32,7 @@ export type JoinGraph = { tables: JoinTableNode[]; links: JoinLink[] };
 const REFERENCE = /\$\{\s*([^.}\s]+)\.([^}\s]+)\s*\}/g;
 
 /** `${orders.customer_id} = ${customers.customer_id}` -> `orders.customer_id = customers.customer_id`. */
-export const formatJoinKeys = (sqlOn: string): string =>
+const formatJoinKeys = (sqlOn: string): string =>
     sqlOn.replace(REFERENCE, '$1.$2').replace(/\s+/g, ' ').trim();
 
 const ownColumns = (join: CompiledExploreJoin): string[] => [

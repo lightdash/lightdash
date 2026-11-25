@@ -465,6 +465,9 @@ describe('trusted surface to persisted chart identity', () => {
                 lightdashConfig: f.config,
             } as ConstructorParameters<typeof AiAgentModel>[0]),
             featureFlagService: f.featureFlagService,
+            externalConnectionService: {
+                listApiSourceConnections: vi.fn().mockResolvedValue([]),
+            },
             aiOrganizationSettingsService: {
                 isMcpEnabled: vi.fn().mockResolvedValue(true),
                 isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
@@ -560,7 +563,6 @@ describe('trusted surface to persisted chart identity', () => {
                 {
                     messageHistory: [],
                     compactionSummary: null,
-                    resolveMessageHistory: async () => [],
                 },
                 {
                     prompt: prompt as AiWebAppPrompt,

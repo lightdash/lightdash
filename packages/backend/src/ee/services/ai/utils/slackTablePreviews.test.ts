@@ -116,8 +116,6 @@ const artifact = (
         dashboardConfig: null,
         promptUuid: 'prompt',
         versionCreatedAt: new Date(),
-        verifiedByUserUuid: null,
-        verifiedAt: null,
     };
 };
 

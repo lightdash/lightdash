@@ -35,10 +35,16 @@ export const useShortcutHints = (enabled: boolean) => {
     useEffect(() => {
         if (!enabled) return;
         let timer: number | undefined;
-        const hide = () => {
-            window.clearTimeout(timer);
-            delete document.body.dataset[HINTS_ATTRIBUTE];
+        // A macOS screenshot takes the key-up without blurring the window:
+        // the next pointer move then reports that no modifier is held
+        const onMouseMove = (event: MouseEvent) => {
+            if (!event.metaKey && !event.ctrlKey) hide();
         };
+        function hide() {
+            window.clearTimeout(timer);
+            window.removeEventListener('mousemove', onMouseMove);
+            delete document.body.dataset[HINTS_ATTRIBUTE];
+        }
         const onKeyDown = (event: KeyboardEvent) => {
             if (!MODIFIER_KEYS.includes(event.key)) {
                 // A shortcut typed straight away needs no hint; shown hints stay
@@ -48,6 +54,7 @@ export const useShortcutHints = (enabled: boolean) => {
             if (event.repeat || isTypingTarget(event.target) || isModalOpen())
                 return;
             window.clearTimeout(timer);
+            window.addEventListener('mousemove', onMouseMove);
             timer = window.setTimeout(() => {
                 document.body.dataset[HINTS_ATTRIBUTE] = '';
             }, HINT_DELAY_MS);

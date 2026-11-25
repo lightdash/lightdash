@@ -32,7 +32,7 @@ const buildAdapter = (
             onWarehouseCatalogChange: vi.fn(),
         },
         dbtVersion: SupportedDbtVersions.V1_10,
-        partialParseBaselinePath: null,
+        partialParseBaseline: null,
     });
 
 afterEach(() => {

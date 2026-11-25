@@ -126,7 +126,7 @@ const draftedFields = (
     ].map((field) => ({ ...field, draftState: states.get(field.id) ?? null }));
 };
 
-export type ExploreDetails = {
+type ExploreDetails = {
     ymlPath: string | null;
     joinedTables: string[];
     visibleTo: string | null;
@@ -167,7 +167,8 @@ export const useExploreFields = ({
             // Explores the integration scans list their fields; any other
             // explore of the source shows its compiled fields
             const curated = live.data.explores.find(
-                ({ exploreName }) => exploreName === explore.name,
+                ({ exploreName, canEditFields }) =>
+                    canEditFields && exploreName === explore.name,
             );
             if (curated) {
                 return curated.fields.map((field) =>
@@ -212,7 +213,8 @@ export const useExploreFields = ({
         liveConnection &&
         (!live.data ||
             live.data.explores.some(
-                ({ exploreName }) => exploreName === explore.name,
+                ({ exploreName, canEditFields }) =>
+                    canEditFields && exploreName === explore.name,
             ))
             ? live
             : compiled;

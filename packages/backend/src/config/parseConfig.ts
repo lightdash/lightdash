@@ -52,7 +52,6 @@ import {
     DEFAULT_BEDROCK_MODEL_NAME,
     DEFAULT_DEFAULT_AI_PROVIDER,
     DEFAULT_GOOGLE_MODEL_NAME,
-    DEFAULT_OPENAI_EMBEDDING_MODEL,
     DEFAULT_OPENAI_MODEL_NAME,
     DEFAULT_OPENROUTER_MODEL_NAME,
     DEFAULT_VERTEX_MODEL_NAME,
@@ -1338,7 +1337,6 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
-            embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
             availableModels: getArrayFromCommaSeparatedList(
                 'BEDROCK_AVAILABLE_MODELS',
             ),
@@ -1360,7 +1358,6 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
-            embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
             availableModels: getArrayFromCommaSeparatedList(
                 'BEDROCK_AVAILABLE_MODELS',
             ),
@@ -1380,7 +1377,6 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
-            embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
             availableModels: getArrayFromCommaSeparatedList(
                 'BEDROCK_AVAILABLE_MODELS',
             ),
@@ -1410,12 +1406,8 @@ export const getAiConfig = () => ({
     requiresFeatureFlag:
         process.env.AI_COPILOT_REQUIRES_FEATURE_FLAG === 'true',
     askAiButtonEnabled: process.env.ASK_AI_BUTTON_ENABLED === 'true',
-    embeddingEnabled: process.env.AI_EMBEDDING_ENABLED === 'true',
     defaultProvider:
         process.env.AI_DEFAULT_PROVIDER || DEFAULT_DEFAULT_AI_PROVIDER,
-    defaultEmbeddingModelProvider:
-        process.env.AI_DEFAULT_EMBEDDING_PROVIDER ||
-        DEFAULT_DEFAULT_AI_PROVIDER,
     // Which instance-level provider keys are Lightdash's. Set by Lightdash's
     // own infrastructure on Lightdash Cloud deployments that run on Lightdash
     // keys; never set by customers. Everything else — self-hosted installs,
@@ -1447,8 +1439,6 @@ export const getAiConfig = () => ({
                       'true',
                   reasoningEffort:
                       process.env.AZURE_AI_REASONING_EFFORT || null,
-                  embeddingDeploymentName:
-                      process.env.AZURE_EMBEDDING_DEPLOYMENT_NAME,
                   useDeploymentBasedUrls:
                       process.env.AZURE_USE_DEPLOYMENT_BASED_URLS !== 'false',
                   useChatCompletions:
@@ -1467,9 +1457,6 @@ export const getAiConfig = () => ({
                   modelName:
                       process.env.OPENAI_MODEL_NAME ||
                       DEFAULT_OPENAI_MODEL_NAME,
-                  embeddingModelName:
-                      process.env.OPENAI_EMBEDDING_MODEL ||
-                      DEFAULT_OPENAI_EMBEDDING_MODEL,
                   baseUrl: process.env.OPENAI_BASE_URL?.trim() || undefined,
                   availableModels: getArrayFromCommaSeparatedList(
                       'OPENAI_AVAILABLE_MODELS',
@@ -1593,10 +1580,6 @@ export const getAiConfig = () => ({
         getIntegerFromEnvironmentVariable('AI_COPILOT_RUN_SQL_MAX_LIMIT') ||
         getIntegerFromEnvironmentVariable('AI_COPILOT_MAX_QUERY_LIMIT') ||
         AI_DEFAULT_MAX_QUERY_LIMIT,
-    verifiedAnswerSimilarityThreshold:
-        getFloatFromEnvironmentVariable(
-            'AI_VERIFIED_ANSWER_SIMILARITY_THRESHOLD',
-        ) ?? 0.6,
     mcpConnectionTimeoutMs:
         getIntegerFromEnvironmentVariable('AI_COPILOT_MCP_TIMEOUT_MS') ||
         20_000,
@@ -1784,6 +1767,7 @@ export type LightdashConfig = {
     maxPayloadSize: string;
     httpServer: {
         keepAliveTimeoutMs: number;
+        responseCompressionEnabled: boolean;
     };
     query: {
         maxLimit: number;
@@ -3851,6 +3835,8 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'HTTP_KEEP_ALIVE_TIMEOUT_MS',
                 ) ?? 620_000,
+            responseCompressionEnabled:
+                process.env.HTTP_RESPONSE_COMPRESSION_ENABLED !== 'false',
         },
         query: {
             underlyingDataMaxDimensions:
