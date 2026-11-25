@@ -82,6 +82,39 @@ describe('mountInspector', () => {
         );
     });
 
+    const chart = (valueTicks: string[]) => `
+        <svg>
+            <g class="recharts-bar-rectangles">
+                <g class="recharts-bar-rectangle"><path id="first" name="undefined" data-loc="src/Chart.jsx:45"></path></g>
+                <g class="recharts-bar-rectangle"><path id="second" name="undefined" data-loc="src/Chart.jsx:45"></path></g>
+            </g>
+            <g class="recharts-xAxis-tick-labels">
+                <text class="recharts-cartesian-axis-tick-value">credit_card</text>
+                <text class="recharts-cartesian-axis-tick-value">bank_transfer</text>
+            </g>
+            <g class="recharts-yAxis-tick-labels">
+                ${valueTicks
+                    .map(
+                        (tick) =>
+                            `<text class="recharts-cartesian-axis-tick-value">${tick}</text>`,
+                    )
+                    .join('')}
+            </g>
+        </svg>`;
+
+    it('names a chart bar by its tick on the category axis', () => {
+        expect(labelOf(chart(['0', '1K', '2K']), '#second')).toBe(
+            '[bar "bank_transfer" @src/Chart.jsx:45]',
+        );
+    });
+
+    it('leaves a bar unnamed when either axis could be naming the bars', () => {
+        // Two bars and two ticks on each axis: nothing says which names them.
+        expect(labelOf(chart(['0', '2K']), '#second')).toBe(
+            '[path @src/Chart.jsx:45]',
+        );
+    });
+
     it('says what a control is for, from its label and role', () => {
         expect(
             labelOf('<button aria-label="Close panel">×</button>', 'button'),

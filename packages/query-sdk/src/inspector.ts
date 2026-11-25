@@ -93,7 +93,8 @@ const squash = (value: string | null | undefined): string =>
 function ownName(el: Element): string {
     for (const attribute of NAME_ATTRIBUTES) {
         const value = squash(el.getAttribute(attribute));
-        if (value) return value;
+        // A chart library writes a missing name out as the word.
+        if (value && value !== 'undefined' && value !== 'null') return value;
     }
     const labelledBy = squash(el.getAttribute('aria-labelledby'));
     if (labelledBy) {
@@ -114,12 +115,38 @@ function ownName(el: Element): string {
     return '';
 }
 
-function buildLabel(el: Element): string {
-    // A role says what the element is for; without one, its tag does.
-    const tag = squash(el.getAttribute('role')) || el.tagName.toLowerCase();
+const BAR = 'recharts-bar-rectangle';
+const AXIS_TICKS = ['recharts-xAxis-tick-labels', 'recharts-yAxis-tick-labels'];
 
-    let text = '';
-    let cur: Element | null = el;
+/**
+ * A chart bar carries no name of its own: its place among its series' bars
+ * is the place of its tick on the category axis. Empty unless exactly one
+ * axis has a tick per bar, so a value axis is never taken for the names.
+ */
+function barName(el: Element): string {
+    const bar = el.closest(`.${BAR}`);
+    const svg = el.closest('svg');
+    if (!bar || !bar.parentElement || !svg) return '';
+    const bars = Array.from(bar.parentElement.children).filter((child) =>
+        child.classList.contains(BAR),
+    );
+    const named = AXIS_TICKS.map((axis) =>
+        Array.from(
+            svg.querySelectorAll(`.${axis} .recharts-cartesian-axis-tick-value`),
+        ).map((tick) => squash(tick.textContent)),
+    ).filter((ticks) => ticks.length === bars.length);
+    return named.length === 1 ? (named[0][bars.indexOf(bar)] ?? '') : '';
+}
+
+function buildLabel(el: Element): string {
+    const bar = barName(el);
+    // A role says what the element is for; without one, its tag does.
+    const tag = bar
+        ? 'bar'
+        : squash(el.getAttribute('role')) || el.tagName.toLowerCase();
+
+    let text = bar;
+    let cur: Element | null = bar ? null : el;
     for (let i = 0; i < ANCESTOR_TEXT_LOOKBACK && cur; i += 1) {
         const raw = ownName(cur) || squash(cur.textContent);
         if (raw) {
