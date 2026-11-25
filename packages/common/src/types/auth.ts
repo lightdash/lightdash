@@ -32,6 +32,8 @@ export type AuthType = 'session' | 'pat' | 'service-account' | 'jwt' | 'oauth';
 export type PersonalAccessTokenAuth = {
     type: 'pat';
     source: string; // The api key
+    /** The token was created through the old CLI browser-login exception */
+    cliOAuthPatCompat: boolean;
 };
 
 export type SessionAuth = {

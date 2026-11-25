@@ -472,9 +472,11 @@ working until 15 March 2027 (`CLI_OAUTH_PAT_COMPAT_UNTIL` in
 with the `write` scope, not bound to an agent connection, in an organization
 without `agent-identity`, can create a personal access token. That token
 expires after at most 8 hours. Each use logs `oauth_cli_pat_compat_used`.
-Rotation and every other credential operation stay refused. After that date, old CLI browser login
-fails with `Failed to create PAT: 403 Forbidden`; upgrade the CLI to 3.88.0 or
-later, or use `lightdash login --token`.
+Rotation and every other credential operation stay refused. The personal
+access token itself cannot be rotated and cannot create or rotate credentials,
+and each refusal logs `oauth_cli_pat_credential_refused`. After that date, old
+CLI browser login fails with `Failed to create PAT: 403 Forbidden`; upgrade the
+CLI to 3.88.0 or later, or use `lightdash login --token`.
 
 ### Personal credential overlay
 

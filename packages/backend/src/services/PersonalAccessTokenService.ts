@@ -11,6 +11,7 @@ import {
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import {
     assertOAuthCredentialOperationAllowed,
+    assertPersonalAccessTokenRotationAllowed,
     CLI_OAUTH_PAT_COMPAT_MAX_HOURS,
     isCliOAuthPatCompatCandidate,
     logCliOAuthPatCompatUsed,
@@ -135,6 +136,7 @@ export class PersonalAccessTokenService extends BaseService {
         const result = await this.personalAccessTokenModel.create(
             { userId: account.user.userId },
             tokenData,
+            { cliOAuthPatCompat: cliPatCompat },
         );
         if (cliPatCompat && tokenData.expiresAt)
             logCliOAuthPatCompatUsed(account, tokenData.expiresAt);
@@ -238,6 +240,7 @@ export class PersonalAccessTokenService extends BaseService {
             userUuid: account.user.id,
             tokenUuid: personalAccessTokenUuid,
         });
+        assertPersonalAccessTokenRotationAllowed(account, existingToken);
 
         // Business decision, we don't want to rotate tokens that don't expire. Rotation is a security feature that should be used with tokens that expire.
         if (!existingToken.expiresAt) {

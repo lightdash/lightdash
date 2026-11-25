@@ -66,10 +66,57 @@ export const logCliOAuthPatCompatUsed = (
     });
 };
 
+type OAuthCredentialOperation = keyof typeof OAUTH_CREDENTIAL_OPERATIONS;
+
+const isCliOAuthPatActor = (actor: Account | SessionUser): boolean =>
+    isAccount(actor)
+        ? actor.authentication.type === 'pat' &&
+          actor.authentication.cliOAuthPatCompat === true
+        : actor.personalAccessToken?.cliOAuthPatCompat === true;
+
+const refuseCliOAuthPat = (
+    actor: Account | SessionUser,
+    operation: OAuthCredentialOperation,
+    markedToken: 'actor' | 'target',
+    message: string,
+): never => {
+    Logger.warn('oauth_cli_pat_credential_refused', {
+        operation,
+        markedToken,
+        userUuid: isAccount(actor) ? actor.user.id : actor.userUuid,
+        organizationUuid:
+            (isAccount(actor)
+                ? actor.organization.organizationUuid
+                : actor.organizationUuid) ?? null,
+        cliVersion: cliVersionFromUserAgent(actor.requestContext?.userAgent),
+    });
+    throw new ForbiddenError(message);
+};
+
+export const assertPersonalAccessTokenRotationAllowed = (
+    actor: Account | SessionUser,
+    token: { cliOAuthPatCompat: boolean },
+): void => {
+    if (token.cliOAuthPatCompat !== true) return;
+    refuseCliOAuthPat(
+        actor,
+        'rotatePersonalAccessToken',
+        'target',
+        'Personal access tokens created by CLI browser login cannot be rotated',
+    );
+};
+
 export const assertOAuthCredentialOperationAllowed = (
     actor: Account | SessionUser,
-    operation: keyof typeof OAUTH_CREDENTIAL_OPERATIONS,
+    operation: OAuthCredentialOperation,
 ): void => {
+    if (isCliOAuthPatActor(actor))
+        refuseCliOAuthPat(
+            actor,
+            operation,
+            'actor',
+            'Personal access tokens created by CLI browser login cannot manage credentials',
+        );
     const context = getOAuthScopeContext(
         isAccount(actor) ? actor.user.ability : actor.ability,
     );

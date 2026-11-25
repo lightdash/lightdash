@@ -9,12 +9,18 @@ export type DbPersonalAccessToken = {
     last_used_at: Date | null;
     description: string;
     expires_at: Date | null;
+    cli_oauth_pat_compat: boolean;
 };
 
 type DbCreatePersonalAccessToken = Omit<
     DbPersonalAccessToken,
-    'personal_access_token_uuid' | 'created_at' | 'rotated_at' | 'last_used_at'
->;
+    | 'personal_access_token_uuid'
+    | 'created_at'
+    | 'rotated_at'
+    | 'last_used_at'
+    | 'cli_oauth_pat_compat'
+> &
+    Partial<Pick<DbPersonalAccessToken, 'cli_oauth_pat_compat'>>;
 
 type DbRotatePersonalAccessToken = {
     token_hash: string;

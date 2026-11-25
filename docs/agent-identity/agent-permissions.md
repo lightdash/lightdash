@@ -248,7 +248,8 @@ scopes, with no feature flag. A token with no scopes has no access, and OAuth
 tokens cannot create personal access tokens, service accounts, SCIM tokens or
 OAuth clients. Until 15 March 2027, browser login in CLI releases before
 3.88.0 can still create a personal access token that expires after at most 8
-hours, outside organizations with `agent-identity` on.
+hours, outside organizations with `agent-identity` on. That token cannot be
+rotated and cannot create or rotate credentials.
 
 ## MCP settings
 

@@ -2368,7 +2368,7 @@ export class UserService extends BaseService {
             throw new AuthorizationError();
         }
         const {
-            data: { user, personalAccessToken },
+            data: { user, personalAccessToken, cliOAuthPatCompat },
             cacheHit,
         } = results;
         if (!user.isActive) {
@@ -2399,7 +2399,11 @@ export class UserService extends BaseService {
             user.userUuid,
             LocalIssuerTypes.API_TOKEN,
         );
-        const userWithOrganization: SessionUser = { ...user, ...organization };
+        const userWithOrganization: SessionUser = {
+            ...user,
+            ...organization,
+            personalAccessToken: { cliOAuthPatCompat },
+        };
 
         const now = new Date();
         if (
