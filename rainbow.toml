@@ -543,10 +543,15 @@ S3_HOST = "host"
 # one that key can write to.
 UPLOADS_S3_BUCKET = "config"
 # Google Sheets sync: the OAuth client a user connects Google with, and the
-# key for the sheet picker. Google needs an exact redirect URI per host, so
-# connecting works only on the fixed envs gsheets, gsheets-2 and gsheets-3;
-# other envs show the option and Google refuses the redirect. Without
-# AUTH_GOOGLE_ENABLED the login page keeps no Google button.
+# key for the sheet picker. The client belongs to the shared Google test
+# account (team password manager, Shared vault), and its consent screen is
+# in testing with that account as the only test user, so Google refuses
+# every other account. Envs are public: treat the token as
+# public and never connect your own account. Testing tokens expire after
+# 7 days; reconnect when a sync fails with invalid_grant. Google needs an
+# exact redirect URI per host, so connecting works only on the fixed envs
+# gsheets, gsheets-2 and gsheets-3. Without AUTH_GOOGLE_ENABLED the login
+# page keeps no Google button.
 AUTH_GOOGLE_OAUTH2_CLIENT_ID = "oauth-client"
 AUTH_GOOGLE_OAUTH2_CLIENT_SECRET = "oauth-client"
 GOOGLE_DRIVE_API_KEY = "api-key"

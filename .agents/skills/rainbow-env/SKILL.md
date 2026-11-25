@@ -65,9 +65,12 @@ Done when every claim you report names the env, the commit it served (`list_envs
 
 Google needs an exact redirect URI per host, so Google Sheets sync works only on three fixed env names: `gsheets`, `gsheets-2` and `gsheets-3` (`https://<name>.lightdash.rainbowmachine.dev`). Other envs show the option, and Google refuses the redirect. Pick a free name with `list_envs`.
 
+Connect only the shared Google test account. Its sign-in, with a one-time code, is in the team password manager's Shared vault. Never connect your own account. The consent screen is in testing with that account as the only test user, so Google refuses every other account. Envs are public, so treat the token as public.
+
 1. `create_env({repo: "lightdash/lightdash", branch, name: "gsheets"})`. The same call serves another branch at the same URL.
-2. Sign in to Lightdash, open a chart's Google Sheets sync and connect Google once per env. The env stores the refresh token in its database.
+2. Sign in to Lightdash, open a chart's Google Sheets sync and connect Google once per env, as the test account. The env stores the refresh token in its database.
 3. `fork_env` the env for each experiment. A fork keeps the database, so it keeps the token: no new consent. `kill_env` the fork after.
 4. For charts above the default 5,000-row limit, `set_env` `LIGHTDASH_QUERY_MAX_LIMIT` on the fork. Read the sync in `logs` with service `dev`, and check `egress` for refused hosts.
+5. Testing tokens expire after 7 days. When a sync fails with `invalid_grant`, connect Google again on the env.
 
-The OAuth client and the picker key live in the Google Cloud project `lightdash-cloud-dev`, and in the 1Password item "Rainbow previews - Google Sheets OAuth". A new pool name needs its redirect URI and JavaScript origin added to that client.
+The OAuth client and the picker key belong to the test account's own Google Cloud project, and are in the same Shared vault. A new pool name needs its redirect URI and JavaScript origin added to that client.
