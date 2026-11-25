@@ -291,7 +291,8 @@ const AnalyticsOverview = ({
     );
     const lastDay = new Date(`${filters.end}T00:00:00Z`);
     lastDay.setUTCDate(lastDay.getUTCDate() - 1);
-    const dateLabel = `${new Date(`${filters.start}T00:00:00Z`).toLocaleDateString(undefined, { dateStyle: 'medium', timeZone: 'UTC' })} – ${lastDay.toLocaleDateString(undefined, { dateStyle: 'medium', timeZone: 'UTC' })} (UTC)`;
+    // One range, so a year the two days share is written once: "Oct 26 – Nov 24, 2026"
+    const dateLabel = `${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeZone: 'UTC' }).formatRange(new Date(`${filters.start}T00:00:00Z`), lastDay)} (UTC)`;
 
     const dateNote = (
         <Tooltip label="Excludes today so every day in the range is complete.">
