@@ -208,7 +208,11 @@ const AnalyticsDashboardEmbed = ({
                         gap="md"
                         className={`${classes.filterControls} ${classes.dashboardControls}`}
                     >
-                        {tabFollowsDate && controls.dateNote}
+                        {tabFollowsDate && (
+                            <Box className={classes.dateNoteSlot}>
+                                {controls.dateNote}
+                            </Box>
+                        )}
                         {projectFilter && controls.project}
                         {tabFollowsDate && controls.date}
                     </Group>
