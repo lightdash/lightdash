@@ -43,6 +43,9 @@ type RegisteredMcpPrompt = {
         description?: string;
         argsSchema?: ZodRawShape;
     };
+    callback: () => Promise<{
+        messages: Array<{ content: { type: string; text: string } }>;
+    }>;
 };
 
 const mockRegisteredMcpTools: RegisteredMcpTool[] = [];
@@ -79,9 +82,13 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', async (importOriginal) => ({
                     (
                         name: string,
                         config: RegisteredMcpPrompt['config'],
-                        _callback: unknown,
+                        callback: RegisteredMcpPrompt['callback'],
                     ) => {
-                        mockRegisteredMcpPrompts.push({ name, config });
+                        mockRegisteredMcpPrompts.push({
+                            name,
+                            config,
+                            callback,
+                        });
                         return {};
                     },
                 ),
@@ -861,19 +868,20 @@ describe('MCP tool contracts', () => {
             }),
         );
 
-        const prompts = mockRegisteredMcpPrompts.map(({ name, config }) => ({
-            name,
-            title: config.title,
-            description: config.description,
-            argsSchema: schemaToJson(config.argsSchema, 'input'),
-            prompt:
-                name === 'lightdash-analyst'
-                    ? getMcpAnalystPrompt({
-                          queryPath: classicQueryPath(true, false),
-                          documentsEnabled: false,
-                      })
-                    : null,
-        }));
+        const prompts = await Promise.all(
+            mockRegisteredMcpPrompts.map(
+                async ({ name, config, callback }) => ({
+                    name,
+                    title: config.title,
+                    description: config.description,
+                    argsSchema: schemaToJson(config.argsSchema, 'input'),
+                    prompt:
+                        name === 'lightdash-analyst'
+                            ? (await callback()).messages[0].content.text
+                            : null,
+                }),
+            ),
+        );
         const tools = mockRegisteredMcpTools.map(({ name, config }) => ({
             name,
             agentName:
