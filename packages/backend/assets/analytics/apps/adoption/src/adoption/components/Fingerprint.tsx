@@ -67,7 +67,7 @@ export const Fingerprint = ({ organisation, selectedId, selectedPart, shownParts
     // The line under the top row is there to part it from rows below, so it goes when the people are folded away
     const divider = (peopleRows ? arePeopleShown && peopleRows.length > 0 : rows.length > 0) ? 'border-b' : '';
     return (
-        <div data-ad-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-x-auto overflow-y-auto pb-2">
+        <div data-adoption-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-x-auto overflow-y-auto pb-2">
             <table className="w-full border-separate border-spacing-0 text-sm">
                 <thead className="sticky top-0 z-20 bg-card">
                     <tr>
@@ -106,19 +106,19 @@ export const Fingerprint = ({ organisation, selectedId, selectedPart, shownParts
                                     {arePeopleShown ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
                                     <span>
                                         <span className="block font-semibold">{focus ? focus.team.name : 'Everyone'}</span>
-                                        <span className="ad-count block text-xs text-muted-foreground">{formatCount(organisation.total)} people</span>
+                                        <span className="adoption-count block text-xs text-muted-foreground">{formatCount(organisation.total)} people</span>
                                     </span>
                                 </button>
                             ) : (
                                 <>
                                     <div className="font-semibold">{focus ? focus.team.name : 'Everyone'}</div>
-                                    <div className="ad-count text-xs text-muted-foreground">{formatCount(organisation.total)} people</div>
+                                    <div className="adoption-count text-xs text-muted-foreground">{formatCount(organisation.total)} people</div>
                                 </>
                             )}
                         </td>
                         {everyone.map((count, index) => !isShown(index) ? null : (
                             <td key={PARTS[index].key} className={`${divider} p-1`}>
-                                <div className="ad-count flex h-9 items-center justify-center rounded text-xs font-medium text-muted-foreground">
+                                <div className="adoption-count flex h-9 items-center justify-center rounded text-xs font-medium text-muted-foreground">
                                     {formatShare(count, organisation.total)}
                                 </div>
                             </td>
@@ -138,7 +138,7 @@ export const Fingerprint = ({ organisation, selectedId, selectedPart, shownParts
                                 return (
                                     <td key={part.key} className="p-1">
                                         <div
-                                            className={`${used ? 'ad-heat text-white' : 'text-muted-foreground'} flex h-9 w-full items-center justify-center rounded text-xs`}
+                                            className={`${used ? 'adoption-heat text-white' : 'text-muted-foreground'} flex h-9 w-full items-center justify-center rounded text-xs`}
                                             style={{ ['--share' as string]: 1, ...style }}
                                             {...sweeping}
                                             title={`${person.name} ${used ? 'used' : 'did not use'} ${part.label.toLowerCase()} in the last 30 days`}
@@ -159,7 +159,7 @@ export const Fingerprint = ({ organisation, selectedId, selectedPart, shownParts
                                     onClick={() => onOpen(row.id, null)}
                                 >
                                     <span className={`block truncate font-medium ${row.isNoTeam ? 'italic' : ''}`}>{row.name}</span>
-                                    <span className="ad-count block text-xs text-muted-foreground">{formatCount(row.people)} people</span>
+                                    <span className="adoption-count block text-xs text-muted-foreground">{formatCount(row.people)} people</span>
                                 </button>
                             </td>
                             {row.parts.map((count, index) => {
@@ -172,7 +172,7 @@ export const Fingerprint = ({ organisation, selectedId, selectedPart, shownParts
                                         <button
                                             type="button"
                                             {...sweeping}
-                                            className={`ad-heat ad-count flex h-9 w-full items-center justify-center rounded text-xs font-medium outline-offset-1 hover:outline hover:outline-1 hover:outline-foreground ${isOpen ? 'outline outline-2 outline-foreground' : ''} ${share > 0.55 ? 'text-white' : 'text-foreground'}`}
+                                            className={`adoption-heat adoption-count flex h-9 w-full items-center justify-center rounded text-xs font-medium outline-offset-1 hover:outline hover:outline-1 hover:outline-foreground ${isOpen ? 'outline outline-2 outline-foreground' : ''} ${share > 0.55 ? 'text-white' : 'text-foreground'}`}
                                             style={{ ['--share' as string]: share, ...style }}
                                             title={`${row.name}: ${formatCount(count)} of ${formatCount(row.people)} people used ${PARTS[index].label.toLowerCase()} in the last 30 days`}
                                             onClick={() => onOpen(row.id, index)}

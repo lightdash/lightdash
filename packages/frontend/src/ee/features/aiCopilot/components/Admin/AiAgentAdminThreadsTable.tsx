@@ -25,6 +25,7 @@ import {
     IconMessages,
     IconRadar,
     IconRobotFace,
+    IconTags,
     IconTextCaption,
     IconThumbDown,
     IconThumbUp,
@@ -476,6 +477,30 @@ const AiAgentAdminThreadsTable = ({
                             </Group>
                         )}
                     </Group>
+                );
+            },
+        },
+        {
+            accessorKey: 'metadata',
+            header: 'Metadata',
+            enableSorting: false,
+            enableEditing: false,
+            size: 130,
+            Header: ({ column }) => (
+                <Group gap="two" wrap="nowrap">
+                    <MantineIcon icon={IconTags} color="dimmed" />
+                    {column.columnDef.header}
+                </Group>
+            ),
+            Cell: ({ row }) => {
+                const { metadata } = row.original;
+                const count = metadata ? Object.keys(metadata).length : 0;
+                return count === 0 ? (
+                    <MantineIcon icon={IconCircleDotted} color="dimmed" />
+                ) : (
+                    <Badge variant="default">
+                        {count} {count === 1 ? 'field' : 'fields'}
+                    </Badge>
                 );
             },
         },

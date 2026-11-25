@@ -59,14 +59,11 @@ export const withOneGrainPerDate = (fields: ChangedField[]) => {
     return fields.filter((field) => !field.date || kept.has(field));
 };
 
-/** The changes Explore can show, named as Explore names them; a hidden field is left out, and so is a hidden metric unless `keepsHiddenMetrics`. */
-export const describeChangedFields = (
-    changes: FieldChange[],
-    { keepsHiddenMetrics }: { keepsHiddenMetrics: boolean },
-): ChangedField[] =>
+/** The changes Explore can show, named as Explore names them; a hidden field is left out. */
+const describeChangedFields = (changes: FieldChange[]): ChangedField[] =>
     changes.flatMap((change) => {
         const { field, name } = change;
-        if (field.hidden && !(keepsHiddenMetrics && change.isMetric)) return [];
+        if (field.hidden) return [];
         const dimension = change.isMetric ? undefined : change.field;
         const base = dimension?.isIntervalBase
             ? name
@@ -122,7 +119,6 @@ export const useChangeSet = (
                               mine
                                   ? describeChangedFields(
                                         diffModelFields(live, mine),
-                                        { keepsHiddenMetrics: false },
                                     )
                                   : [],
                           ];

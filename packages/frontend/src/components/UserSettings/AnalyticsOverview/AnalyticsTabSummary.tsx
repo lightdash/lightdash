@@ -35,7 +35,7 @@ const AnalyticsTabSummary = ({
             cols={{ base: 1, xs: 2, lg: summary.metrics.length }}
             spacing="md"
         >
-            {summary.metrics.map(({ title, metric, compact }) => {
+            {summary.metrics.map(({ title, metric, compact, decimals }) => {
                 const raw =
                     result.data?.[0]?.[analyticsFieldId(summary.query, metric)];
                 const value =
@@ -58,7 +58,10 @@ const AnalyticsTabSummary = ({
                                     label={
                                         value === null
                                             ? 'No recorded activity'
-                                            : formatAnalyticsNumber(value)
+                                            : formatAnalyticsNumber(
+                                                  value,
+                                                  decimals,
+                                              )
                                     }
                                 >
                                     <Text className={classes.summaryValue}>
@@ -72,7 +75,10 @@ const AnalyticsTabSummary = ({
                                                         maximumFractionDigits: 2,
                                                     },
                                                 ).format(value)
-                                              : formatAnalyticsNumber(value)}
+                                              : formatAnalyticsNumber(
+                                                    value,
+                                                    decimals,
+                                                )}
                                     </Text>
                                 </Tooltip>
                             )}

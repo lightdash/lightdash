@@ -246,7 +246,11 @@ const LineageFlow: FC<
     }, [width, height, fitView]);
 
     return (
-        <Box className={styles.graph} ref={ref}>
+        <Box
+            className={styles.graph}
+            ref={ref}
+            data-tour="composer-lineage-graph"
+        >
             <ReactFlow<PipelineFlowNode>
                 proOptions={{ hideAttribution: true }}
                 className={clsx(
@@ -421,7 +425,10 @@ export const AiComposerLineage: FC<Props> = ({
                     defaultSize={DEFAULT_SIZES[1]}
                     min={20}
                 >
-                    <Box className={styles.steps}>
+                    <Box
+                        className={styles.steps}
+                        data-tour="composer-lineage-steps"
+                    >
                         <PipelineNotebook
                             ref={notebookRef}
                             nodes={layers.flatMap((layer) => layer.nodes)}

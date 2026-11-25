@@ -468,7 +468,7 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
                             ) : layout === 'map' ? (
                                 // The outer box is measured for the room the window leaves; the inner one is the map's own size
                                 <div ref={fit.ref}>
-                                <div ref={canvas.ref} className="ad-canvas" style={{ height: drawingHeight }}>
+                                <div ref={canvas.ref} className="adoption-canvas" style={{ height: drawingHeight }}>
                                     {canvas.isMeasured && (
                                         <PeopleMap
                                             width={canvas.width}
@@ -661,7 +661,7 @@ export default function AdoptionApp() {
     };
     return (
         <div className="min-h-screen bg-background text-foreground">
-            <div data-ad-page className="px-3 pb-4 pt-3 sm:px-6">
+            <div data-adoption-page className="px-3 pb-4 pt-3 sm:px-6">
                 {source.fixture && <p className="m-0 mb-2 text-xs text-muted-foreground">Invented sample data ({source.fixture}).</p>}
                 {membership.error ? (
                     <Failure text={membership.error} />

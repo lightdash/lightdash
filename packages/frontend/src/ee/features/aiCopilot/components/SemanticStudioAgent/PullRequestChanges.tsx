@@ -121,7 +121,6 @@ export const PullRequestChanges: FC<{
                                         projectUuid={projectUuid}
                                         model={model}
                                         previewProjectUuid={previewProjectUuid}
-                                        cacheKey={commitSha ?? prUrl}
                                         isCompiled
                                     />
                                     {modelFiles.map((file) => (

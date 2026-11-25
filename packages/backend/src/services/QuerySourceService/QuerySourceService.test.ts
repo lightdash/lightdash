@@ -31,6 +31,11 @@ import {
     grantFixture,
     projectGrantFixture,
 } from '../../auth/agentConnectionGrants/grant.mock';
+import { AppRuntimeConfigErrors } from '../../config/appRuntimeAvailability';
+import {
+    lightdashConfigMock,
+    lightdashConfigWithAppRuntimeMock,
+} from '../../config/lightdashConfig.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
@@ -91,6 +96,7 @@ const createFakeSource = (
     definition: { sourceType, label: sourceType, description: 'fake source' },
     supportsPivot: sourceType !== QuerySourceType.EXTERNAL,
     requiredFeatureFlags: [],
+    unavailableReason: null,
     scanSchema: vi.fn().mockResolvedValue({ sourceType, tables: [] }),
     getQueryReferences: (query: SourceQuery) => {
         if (query.sourceType !== QuerySourceType.DUCKDB) return [];
@@ -967,7 +973,9 @@ describe('QuerySourceService', () => {
  * is carried through.
  */
 describe('python query source gating', () => {
-    const createRegistry = () => {
+    const createRegistry = (
+        lightdashConfig = lightdashConfigWithAppRuntimeMock,
+    ) => {
         const fakes = createRegistryWithFakes();
         const executeAsyncPythonQuery = vi
             .fn()
@@ -975,6 +983,7 @@ describe('python query source gating', () => {
         fakes.registry.register(
             new PythonQuerySource({
                 asyncQueryService: { executeAsyncPythonQuery },
+                lightdashConfig,
             }),
         );
         return { ...fakes, executeAsyncPythonQuery };
@@ -1010,6 +1019,31 @@ describe('python query source gating', () => {
                 references: { orders: 'orders-query-uuid' },
             }),
         );
+    });
+
+    it('hides python without a configured sandbox and refuses its nodes', async () => {
+        // The default mock selects e2b without an API key
+        const { registry, executeAsyncPythonQuery, sqlSource } =
+            createRegistry(lightdashConfigMock);
+        const { service } = createService(registry);
+
+        const { sources } = await service.listSources(account, projectUuid);
+        expect(sources.map(({ sourceType }) => sourceType)).not.toContain(
+            QuerySourceType.PYTHON,
+        );
+        await expect(
+            service.executeSourceQueries({
+                ...executionContext,
+                account,
+                projectUuid,
+                queries: pipeline,
+                context: QueryExecutionContext.AI,
+            }),
+        ).rejects.toThrow(
+            `python queries are unavailable: ${AppRuntimeConfigErrors.e2bApiKey}`,
+        );
+        expect(sqlSource.submitQuery).not.toHaveBeenCalled();
+        expect(executeAsyncPythonQuery).not.toHaveBeenCalled();
     });
 });
 
@@ -1822,7 +1856,10 @@ describe('composer bound run', () => {
             new DuckdbQuerySource({ asyncQueryService: asService }),
         );
         registry.register(
-            new PythonQuerySource({ asyncQueryService: asService }),
+            new PythonQuerySource({
+                asyncQueryService: asService,
+                lightdashConfig: lightdashConfigWithAppRuntimeMock,
+            }),
         );
         registry.register(
             new MergeQuerySource({ asyncQueryService: asService }),

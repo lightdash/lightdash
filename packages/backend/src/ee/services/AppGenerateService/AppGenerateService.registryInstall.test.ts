@@ -1687,3 +1687,533 @@ describe('importAppCode with registry provenance', () => {
         expect(outcome.warning).toMatch(/slug "my-trellis" differs/);
     });
 });
+
+describe('AppGenerateService.ensureRegistryChartTypes', () => {
+    const HEATMAP_ENTRY = makeEntry({
+        slug: 'heatmap',
+        name: 'Heatmap',
+        version: '0.4.0',
+    });
+    const installedRow = (
+        version: string,
+        slug = 'heatmap',
+        registrySlug = 'heatmap',
+    ) => ({
+        app_id: `app-uuid-${registrySlug}`,
+        slug,
+        registry_slug: registrySlug,
+        latest_ready_registry_version: version,
+        created_by_user_uuid: 'installer-user-uuid',
+    });
+    const requirements = [{ slug: 'heatmap', minVersion: '0.4.0' }];
+    const usableTypes = (entries: [string, string, string][]) =>
+        new Map(
+            entries.map(([registrySlug, appSlug, registryVersion]) => [
+                registrySlug,
+                { appSlug, vizSchema: VIZ_SCHEMA, registryVersion },
+            ]),
+        );
+    const ensureService = (overrides: Parameters<typeof buildService>[0]) =>
+        buildService({
+            ...overrides,
+            appModel: {
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue({
+                        version: 1,
+                        status: 'ready',
+                        viz_schema: VIZ_SCHEMA,
+                    }),
+                ...overrides.appModel,
+            },
+        });
+
+    async function installable() {
+        const sourceTar = await buildTar([
+            { name: 'src/App.tsx', content: 'x' },
+        ]);
+        const distTar = await buildTar([
+            { name: 'dist/index.html', content: '<html/>' },
+        ]);
+        return {
+            fakeS3: makeFakeS3(),
+            downloadArtifact: vi
+                .fn()
+                .mockImplementation((_e: unknown, kind: 'source' | 'dist') =>
+                    Promise.resolve(kind === 'source' ? sourceTar : distTar),
+                ),
+        };
+    }
+
+    it('returns an empty map and calls nothing for no requirements', async () => {
+        const listRegistryInstalledApps = vi.fn();
+        const getIndex = vi.fn();
+        const svc = ensureService({
+            appModel: { listRegistryInstalledApps },
+            chartRegistryClient: { getIndex },
+        });
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            [],
+        );
+
+        expect(result).toEqual(new Map());
+        expect(listRegistryInstalledApps).not.toHaveBeenCalled();
+        expect(getIndex).not.toHaveBeenCalled();
+    });
+
+    it('uses an existing install at or above minVersion without calling the registry', async () => {
+        const getIndex = vi.fn();
+        const svc = ensureService({
+            appModel: {
+                listRegistryInstalledApps: vi
+                    .fn()
+                    .mockResolvedValue([installedRow('0.4.0', 'heatmap-2')]),
+            },
+            chartRegistryClient: { isEnabled: () => false, getIndex },
+        });
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            requirements,
+        );
+
+        expect(result).toEqual(
+            usableTypes([['heatmap', 'heatmap-2', '0.4.0']]),
+        );
+        expect(getIndex).not.toHaveBeenCalled();
+    });
+
+    it('installs a missing type and returns its project app slug', async () => {
+        const { fakeS3, downloadArtifact } = await installable();
+        const createWithVersion = vi.fn().mockResolvedValue(undefined);
+        const svc = ensureService({
+            appModel: {
+                // initial read, then the install's own lookup, then the re-read
+                listRegistryInstalledApps: vi
+                    .fn()
+                    .mockResolvedValueOnce([])
+                    .mockResolvedValueOnce([])
+                    .mockResolvedValue([installedRow('0.4.0', 'heatmap-1')]),
+                createWithVersion,
+            },
+            chartRegistryClient: {
+                getIndex: vi.fn().mockResolvedValue(makeIndex([HEATMAP_ENTRY])),
+                downloadArtifact,
+            },
+            s3ClientOverride: fakeS3,
+        });
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            requirements,
+        );
+
+        expect(createWithVersion).toHaveBeenCalledTimes(1);
+        expect(result).toEqual(
+            usableTypes([['heatmap', 'heatmap-1', '0.4.0']]),
+        );
+    });
+
+    it('upgrades an install that is below minVersion', async () => {
+        const { fakeS3, downloadArtifact } = await installable();
+        const createVersion = vi.fn().mockResolvedValue({ version: 2 });
+        const svc = ensureService({
+            appModel: {
+                listRegistryInstalledApps: vi
+                    .fn()
+                    .mockResolvedValueOnce([installedRow('0.3.0')])
+                    .mockResolvedValueOnce([installedRow('0.3.0')])
+                    .mockResolvedValue([installedRow('0.4.0')]),
+                getLatestVersion: vi.fn().mockResolvedValue({ version: 1 }),
+                createVersion,
+                updateApp: vi.fn().mockResolvedValue(undefined),
+            },
+            chartRegistryClient: {
+                getIndex: vi.fn().mockResolvedValue(makeIndex([HEATMAP_ENTRY])),
+                downloadArtifact,
+            },
+            s3ClientOverride: fakeS3,
+        });
+        const repin = vi.spyOn(
+            svc as unknown as {
+                repinConsumersOfDataAppViz: () => Promise<number>;
+            },
+            'repinConsumersOfDataAppViz',
+        );
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            requirements,
+        );
+
+        expect(createVersion).toHaveBeenCalledTimes(1);
+        expect(repin).not.toHaveBeenCalled();
+        expect(result).toEqual(usableTypes([['heatmap', 'heatmap', '0.4.0']]));
+    });
+
+    it('leaves a newer-than-required install alone when the index has a later version', async () => {
+        const createVersion = vi.fn();
+        const getIndex = vi
+            .fn()
+            .mockResolvedValue(
+                makeIndex([makeEntry({ slug: 'heatmap', version: '0.5.0' })]),
+            );
+        const svc = ensureService({
+            appModel: {
+                listRegistryInstalledApps: vi
+                    .fn()
+                    .mockResolvedValue([installedRow('0.4.0')]),
+                createVersion,
+            },
+            chartRegistryClient: { getIndex },
+        });
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            requirements,
+        );
+
+        expect(createVersion).not.toHaveBeenCalled();
+        expect(getIndex).not.toHaveBeenCalled();
+        expect(result).toEqual(usableTypes([['heatmap', 'heatmap', '0.4.0']]));
+    });
+
+    it('omits a type when the registry is disabled and it is not installed', async () => {
+        const svc = ensureService({
+            chartRegistryClient: { isEnabled: () => false },
+        });
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            requirements,
+        );
+
+        expect(result).toEqual(new Map());
+    });
+
+    it('omits a type whose index version is below minVersion', async () => {
+        const createWithVersion = vi.fn();
+        const svc = ensureService({
+            appModel: { createWithVersion },
+            chartRegistryClient: {
+                getIndex: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeIndex([
+                            makeEntry({ slug: 'heatmap', version: '0.3.0' }),
+                        ]),
+                    ),
+            },
+        });
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            requirements,
+        );
+
+        expect(createWithVersion).not.toHaveBeenCalled();
+        expect(result).toEqual(new Map());
+    });
+
+    it('omits a type whose install throws, and still returns the others', async () => {
+        const radarEntry = makeEntry({ slug: 'radar', version: '1.0.0' });
+        const { fakeS3, downloadArtifact } = await installable();
+        const svc = ensureService({
+            appModel: {
+                // initial read, heatmap lookup, radar lookup, radar re-read
+                listRegistryInstalledApps: vi
+                    .fn()
+                    .mockResolvedValueOnce([])
+                    .mockResolvedValueOnce([])
+                    .mockResolvedValueOnce([])
+                    .mockResolvedValue([
+                        installedRow('1.0.0', 'radar-1', 'radar'),
+                    ]),
+                createWithVersion: vi.fn().mockResolvedValue(undefined),
+            },
+            chartRegistryClient: {
+                getIndex: vi
+                    .fn()
+                    .mockResolvedValue(makeIndex([HEATMAP_ENTRY, radarEntry])),
+                downloadArtifact: vi
+                    .fn()
+                    .mockRejectedValueOnce(new Error('boom'))
+                    .mockImplementation(downloadArtifact),
+            },
+            s3ClientOverride: fakeS3,
+        });
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            [...requirements, { slug: 'radar', minVersion: '1.0.0' }],
+        );
+
+        expect(result).toEqual(usableTypes([['radar', 'radar-1', '1.0.0']]));
+    });
+
+    it('omits everything missing when the index fetch throws', async () => {
+        const svc = ensureService({
+            appModel: {
+                listRegistryInstalledApps: vi
+                    .fn()
+                    .mockResolvedValue([
+                        installedRow('2.0.0', 'radar-1', 'radar'),
+                    ]),
+            },
+            chartRegistryClient: {
+                getIndex: vi.fn().mockRejectedValue(new Error('offline')),
+            },
+        });
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            [...requirements, { slug: 'radar', minVersion: '1.0.0' }],
+        );
+
+        expect(result).toEqual(usableTypes([['radar', 'radar-1', '2.0.0']]));
+    });
+
+    it('returns only the usable types and skips the registry when the ability check rejects', async () => {
+        const getIndex = vi.fn();
+        const svc = ensureService({
+            appModel: {
+                listRegistryInstalledApps: vi
+                    .fn()
+                    .mockResolvedValue([
+                        installedRow('2.0.0', 'radar-1', 'radar'),
+                    ]),
+            },
+            chartRegistryClient: { getIndex },
+        });
+        vi.spyOn(
+            svc as unknown as { assertDataAppAbility: () => Promise<never> },
+            'assertDataAppAbility',
+        ).mockRejectedValue(new ForbiddenError('nope'));
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            [...requirements, { slug: 'radar', minVersion: '1.0.0' }],
+        );
+
+        expect(result).toEqual(usableTypes([['radar', 'radar-1', '2.0.0']]));
+        expect(getIndex).not.toHaveBeenCalled();
+    });
+    it('uses a type that another install added while ours threw', async () => {
+        const svc = ensureService({
+            appModel: {
+                // initial read, the install's own lookup, then the re-read
+                listRegistryInstalledApps: vi
+                    .fn()
+                    .mockResolvedValueOnce([])
+                    .mockResolvedValueOnce([])
+                    .mockResolvedValue([installedRow('0.4.0', 'heatmap-1')]),
+            },
+            chartRegistryClient: {
+                getIndex: vi.fn().mockResolvedValue(makeIndex([HEATMAP_ENTRY])),
+                downloadArtifact: vi
+                    .fn()
+                    .mockRejectedValue(new Error('slug already taken')),
+            },
+        });
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            requirements,
+        );
+
+        expect(result).toEqual(
+            usableTypes([['heatmap', 'heatmap-1', '0.4.0']]),
+        );
+    });
+
+    it('returns a type at the version the re-read shows when it is still below minVersion after its install', async () => {
+        const { fakeS3, downloadArtifact } = await installable();
+        const svc = ensureService({
+            appModel: {
+                listRegistryInstalledApps: vi
+                    .fn()
+                    .mockResolvedValueOnce([])
+                    .mockResolvedValueOnce([])
+                    .mockResolvedValue([installedRow('0.3.0', 'heatmap-1')]),
+                createWithVersion: vi.fn().mockResolvedValue(undefined),
+            },
+            chartRegistryClient: {
+                getIndex: vi.fn().mockResolvedValue(makeIndex([HEATMAP_ENTRY])),
+                downloadArtifact,
+            },
+            s3ClientOverride: fakeS3,
+        });
+        const warn = vi.spyOn(
+            (svc as unknown as { logger: { warn: () => void } }).logger,
+            'warn',
+        );
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            requirements,
+        );
+
+        expect(result).toEqual(
+            usableTypes([['heatmap', 'heatmap-1', '0.3.0']]),
+        );
+        expect(warn).toHaveBeenCalledWith(
+            expect.stringMatching(/"heatmap" installed .* but is not usable/),
+        );
+    });
+
+    it('returns the latest renderable schema of each usable type', async () => {
+        const schema: DataAppVizSchema = { ...VIZ_SCHEMA, fields: [] };
+        const getLatestRenderableDataAppVizVersion = vi.fn().mockResolvedValue({
+            version: 3,
+            status: 'ready',
+            viz_schema: schema,
+        });
+        const svc = ensureService({
+            appModel: {
+                listRegistryInstalledApps: vi
+                    .fn()
+                    .mockResolvedValue([installedRow('0.4.0', 'heatmap-2')]),
+                getLatestRenderableDataAppVizVersion,
+            },
+            chartRegistryClient: { isEnabled: () => false },
+        });
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            requirements,
+        );
+
+        expect(getLatestRenderableDataAppVizVersion).toHaveBeenCalledWith(
+            'app-uuid-heatmap',
+        );
+        expect(result).toEqual(
+            new Map([
+                [
+                    'heatmap',
+                    {
+                        appSlug: 'heatmap-2',
+                        vizSchema: schema,
+                        registryVersion: '0.4.0',
+                    },
+                ],
+            ]),
+        );
+    });
+
+    it('omits a type with no renderable version', async () => {
+        const svc = ensureService({
+            appModel: {
+                listRegistryInstalledApps: vi
+                    .fn()
+                    .mockResolvedValue([installedRow('0.4.0', 'heatmap-2')]),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(null),
+            },
+            chartRegistryClient: { isEnabled: () => false },
+        });
+
+        const result = await svc.ensureRegistryChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+            requirements,
+        );
+
+        expect(result).toEqual(new Map());
+    });
+
+    describe('an install below the highest version a binding needs', () => {
+        const below = [{ slug: 'heatmap', minVersion: '0.7.0' }];
+
+        it('returns the installed version and installs nothing when the registry has no newer version', async () => {
+            const createVersion = vi.fn();
+            const createWithVersion = vi.fn();
+            const svc = ensureService({
+                appModel: {
+                    listRegistryInstalledApps: vi
+                        .fn()
+                        .mockResolvedValue([installedRow('0.6.0')]),
+                    createVersion,
+                    createWithVersion,
+                },
+                chartRegistryClient: {
+                    getIndex: vi.fn().mockResolvedValue(
+                        makeIndex([
+                            makeEntry({
+                                slug: 'heatmap',
+                                version: '0.6.0',
+                            }),
+                        ]),
+                    ),
+                },
+            });
+
+            const result = await svc.ensureRegistryChartTypes(
+                fakeUser,
+                PROJECT_UUID,
+                below,
+            );
+
+            expect(createVersion).not.toHaveBeenCalled();
+            expect(createWithVersion).not.toHaveBeenCalled();
+            expect(result).toEqual(
+                usableTypes([['heatmap', 'heatmap', '0.6.0']]),
+            );
+        });
+
+        it('upgrades and returns the new version when the registry offers it', async () => {
+            const { fakeS3, downloadArtifact } = await installable();
+            const createVersion = vi.fn().mockResolvedValue({ version: 2 });
+            const svc = ensureService({
+                appModel: {
+                    listRegistryInstalledApps: vi
+                        .fn()
+                        .mockResolvedValueOnce([installedRow('0.6.0')])
+                        .mockResolvedValueOnce([installedRow('0.6.0')])
+                        .mockResolvedValue([installedRow('0.7.0')]),
+                    getLatestVersion: vi.fn().mockResolvedValue({ version: 1 }),
+                    createVersion,
+                    updateApp: vi.fn().mockResolvedValue(undefined),
+                },
+                chartRegistryClient: {
+                    getIndex: vi.fn().mockResolvedValue(
+                        makeIndex([
+                            makeEntry({
+                                slug: 'heatmap',
+                                version: '0.7.0',
+                            }),
+                        ]),
+                    ),
+                    downloadArtifact,
+                },
+                s3ClientOverride: fakeS3,
+            });
+
+            const result = await svc.ensureRegistryChartTypes(
+                fakeUser,
+                PROJECT_UUID,
+                below,
+            );
+
+            expect(createVersion).toHaveBeenCalledTimes(1);
+            expect(result).toEqual(
+                usableTypes([['heatmap', 'heatmap', '0.7.0']]),
+            );
+        });
+    });
+});

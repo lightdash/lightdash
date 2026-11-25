@@ -1,10 +1,9 @@
-import { assertUnreachable } from '@lightdash/common';
+import { assertUnreachable, WarehouseTypes } from '@lightdash/common';
 import { getStudioAbilities, type Loadout } from '../loadout';
 import {
     readLibraryPath,
     type ReadLibraryToolName,
 } from '../tools/readLibraries';
-import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getRepoFsSection } from './systemV2RepoFs';
 
 /** How the prompt names a lookup: its own tool, or, for the builder that saves, its function inside read. */
@@ -19,7 +18,7 @@ const getImpact = (tool: string) =>
 const IN_DRAFT = `- Nothing is published until the person publishes the draft, so say "in the draft" until then.`;
 
 const getCardIsReply = (after: string, note: string) =>
-    `- ${after} the card is your reply, so end the turn without writing anything. The one thing most worth checking goes in the ${note}, and an alternative you would offer goes in its options as the person would say it, never in text.`;
+    `- ${after} that finishes what the person asked, the card is your reply, so end the turn without writing anything. When their request has steps left, such as a query to run, set moreToDo and carry them out next. The one thing most worth checking goes in the ${note}, and an alternative you would offer goes in its options as the person would say it, never in text.`;
 
 /** How to talk to the person, the same on every project. */
 const REPLY_STYLE = `- Call the default state Published and a change a draft, never Live.
@@ -45,8 +44,8 @@ export type SemanticStudioTurn =
           kind: 'draft';
           /** Whether the thread can run a metric query, which reads the person's draft. */
           canQueryDraft: boolean;
-          /** False only for a project with no repository, which has nowhere to keep project context. */
-          hasRepository: boolean;
+          /** Whether the thread can add project context to the draft, which only a project with no repository keeps here. */
+          canDraftContext: boolean;
       }
     | {
           /** A dbt project, which keeps no draft and is changed in its repository. */
@@ -66,20 +65,19 @@ export const getSemanticStudioTurn = (
     loadout: Pick<Loadout, 'toolNames' | 'promptSections'>,
     args: {
         drafts: boolean;
-        hasRepository: boolean;
         projectMap: string | null;
-        siteUrl: string;
         repoFsRoot: string | null;
         repoFsSupportsCodeSearch: boolean;
     },
 ): SemanticStudioTurn => {
     const { promptSections } = loadout;
-    const { builder, canRunMetrics } = getStudioAbilities(loadout);
+    const { builder, canRunMetrics, canDraftContext } =
+        getStudioAbilities(loadout);
     if (args.drafts) {
         return {
             kind: 'draft',
             canQueryDraft: canRunMetrics,
-            hasRepository: args.hasRepository,
+            canDraftContext,
         };
     }
     return {
@@ -87,16 +85,6 @@ export const getSemanticStudioTurn = (
         mode: builder ? 'build' : 'propose',
         projectMap: args.projectMap,
         sections: [
-            ...(promptSections.has('aiWriteback')
-                ? [
-                      getAiWritebackSection({
-                          // The pull request card offers linking, so the reply stays short.
-                          attribution: null,
-                          siteUrl: args.siteUrl,
-                          canEditContent: false,
-                      }),
-                  ]
-                : []),
             ...(promptSections.has('repoFs')
                 ? [
                       getRepoFsSection({
@@ -131,10 +119,9 @@ const getDbtSave = (mapped: boolean) => `${getDbtRead(mapped)}
 - Pass a null script only when the change needs dbt itself to run, such as checking new SQL against the warehouse; the slower sandbox makes that change instead.
 - A change to YAML alone is checked when it is saved, but only dbt checks one that adds a model or changes SQL: after saving it, call verify before you end the turn. If it fails, fix it with write and check again; tell the person only if it still fails.
 - When the person asks for a change, read what it touches, then save it in the same turn. Keep it to what was asked. Questions and ideas are not requests: answer them, and when you suggest a change, describe it in a sentence and save it once they say yes.
-- Leave prUrl and startNewPullRequest null, so the change joins this draft's branch while it is open and starts one otherwise. requestedBy is user_asked for a change they asked for and offer_accepted for one you suggested and they accepted.
 ${getImpact(lookup(true, 'analyzeFieldImpact'))} When saved charts use it, ask before you save.
 ${IN_DRAFT} Once saved, the draft compiles and the bar above this chat lets them try it and publish it.
-${getCardIsReply('After saving,', "save's note")}`;
+${getCardIsReply('After a save', "save's note")}`;
 
 const getDbtSections = ({
     mode,
@@ -164,15 +151,15 @@ ${getModelling('A model is one table at one grain, and its label says what one r
 };
 
 const DRAFT_QUERY = `
-- runMetricQuery reads the draft, so it runs a metric as your proposals leave it, with no approval. When a proposal comes back with a check, run those metrics in one query, alone or split by one dimension that should divide them. A null, a zero or a total the table cannot produce means the definition is wrong: fix it in one follow-up proposal. A number that looks right needs no comment.
+- runMetricQuery reads the draft, so it runs a metric as your proposals leave it, with no approval. When a proposal comes back with a check, run those metrics in one query filtered to the window the check names, alone or split by one dimension that should divide them. A new or changed model can be large, so never run its metrics without a date filter. A null, a zero or a total the table cannot produce means the definition is wrong: fix it in one follow-up proposal. A number that looks right needs no comment.
 - To say what a metric returns, run it; do not work it out from its sql.`;
 
-const NO_REPOSITORY = `
-- You change models only. This project has no repository, so project context (lightdash.project_context.yml) cannot be kept here yet; never send the person to a file or repository. When they ask for project context, say that in one sentence, ask what they want agents to know if they have not said, and offer to put it in the description of the model or field it is about, which agents read.`;
+const DRAFT_CONTEXT = `
+- When the person asks to add or change project context, or states a durable fact about their data that is not a model change, such as what a term means or which model answers a kind of question, add it with draftProjectContext. It joins the draft as lightdash.project_context.yml and agents read it once the draft is published. To change an entry, pass its id as loadProjectContext shows it.`;
 
 const getDraftSections = (
     canQueryDraft: boolean,
-    hasRepository: boolean,
+    canDraftContext: boolean,
 ): string =>
     `## What the person sees
 
@@ -182,11 +169,12 @@ ${SEES} They can read the same YAML you read in the Code tab. Each change you pr
 
 - Read a model with readSemanticModel before proposing a change to it, so the fragment fits what is there and repeats nothing.
 - Propose with proposeSemanticLayerChange. Keep a proposal to what was asked, so the diff is easy to review. A later proposal builds on the earlier ones, and readSemanticModel shows the model as the draft leaves it.
-- On Published, pass a short changeName that describes the request; the card names the draft it starts.
+- Always pass a short changeName that describes the request; it names a draft the edit starts or one still untitled.
 ${getImpact('analyzeFieldImpact')}
 - When a model fails its checks, fix the cause the error reports and propose again.
+- An edit by hand, in the Code tab or anywhere else, runs the same checks, so never offer one as a way around a failure or a refusal. Say why it was rejected and what would unblock it.
 - A new model can come back ready with advice. Act on it once, in one follow-up proposal, before you reply.${canQueryDraft ? DRAFT_QUERY : ''}
-${IN_DRAFT}${hasRepository ? '' : NO_REPOSITORY}
+${IN_DRAFT}${canDraftContext ? DRAFT_CONTEXT : ''}
 ${getCardIsReply('After a proposal', "proposal's note")} The card already shows the change and its code, so never repeat them or list its fields.
 - Use listChanges to see the person's open drafts and which one is checked out. Each model says where its edits were made: by_hand means the person edited it in the Code tab, this_chat means you did, another_chat means another conversation did; say so plainly rather than guessing. Native model edits go to the checked-out draft. On Published, the first successful edit starts a draft.
 ${REPLY_STYLE}
@@ -207,8 +195,12 @@ const getDraftWarehouseSection = (
     warehouse: SemanticStudioWarehouse | null,
 ): string =>
     warehouse
-        ? `## Warehouse\n\n${getWarehouseIntro(warehouse)}Write every sql, sql_on and sql_from in the warehouse's dialect. Find tables with listWarehouseTables, and which tables hold a column, such as a key to join on, with grepWarehouseColumns. Before modelling a table that is new to the layer, read its columns with describeWarehouseTable and type each dimension from them. Use runSql only to check real values, such as whether a key is unique.`
+        ? `## Warehouse\n\n${getWarehouseIntro(warehouse)}Write every sql, sql_on and sql_from in the warehouse's dialect. Find tables with listWarehouseTables, and which tables hold a column, such as a key to join on, with grepWarehouseColumns. Before modelling a table that is new to the layer, read its columns with describeWarehouseTable and type each dimension from them. It also returns the warehouse's comments: a table's comment becomes the model's description and a column's comment its field's, unless the person says otherwise, so read them there rather than asking for them. Synonyms and comments in a view's or metric view's definition become ai_hint, and a metric view's definition is the source for which measures exist. Use runSql only to check real values, such as whether a key is unique.`
         : "## Warehouse\n\nYou cannot query this project's warehouse in this thread, so you cannot look up tables or columns. Ask the person for a table's name and columns before modelling it.";
+
+const METRIC_VIEWS = `## Metric views
+
+When describeWarehouseTable says a table is a metric view, model it with one proposeSemanticLayerChange entry that sets fromMetricView. That brings in every dimension and measure with the labels, descriptions and synonyms the warehouse holds, so never write those fields yourself or ask the person to paste the definition. The same entry brings a model that already exists up to date with its metric view. The warehouse only evaluates a measure through MEASURE(), so leave each imported metric's sql as it comes. When the view's comment or a date's comment states its grain, such as one row per month, follow the import with a proposal that sets that date's time_intervals to that grain and coarser.`;
 
 /** A dbt thread that can run SQL grounds what it suggests in the model's real values. */
 const getDbtWarehouseSection = (
@@ -252,9 +244,12 @@ export const getSemanticStudioSystemPrompt = ({
                 return [
                     getDraftSections(
                         studio.canQueryDraft,
-                        studio.hasRepository,
+                        studio.canDraftContext,
                     ),
                     getDraftWarehouseSection(warehouse),
+                    ...(warehouse?.type === WarehouseTypes.DATABRICKS
+                        ? [METRIC_VIEWS]
+                        : []),
                 ];
             case 'dbt':
                 return [

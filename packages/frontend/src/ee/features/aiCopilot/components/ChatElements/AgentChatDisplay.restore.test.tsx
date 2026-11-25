@@ -107,6 +107,7 @@ const thread: AiAgentThread = {
     liveStatus: null,
     binding: null,
     threadContext: null,
+    metadata: null,
     firstMessage: { uuid: 'prompt-1', message: 'Build me a revenue app' },
     user: { uuid: 'user-1', name: 'Demo User' },
     compactions: [],

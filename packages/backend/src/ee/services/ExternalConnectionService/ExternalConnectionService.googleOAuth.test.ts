@@ -159,7 +159,6 @@ const buildService = ({
         allowedPrivateHostCidrs: {},
         externalConnectionModel,
         analytics: { track: vi.fn() },
-        featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         oauthAuthorizationCodeTokenClient:
             new OAuthAuthorizationCodeTokenClient({
                 allowedPrivateHostCidrs: {},

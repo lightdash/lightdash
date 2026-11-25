@@ -26,6 +26,7 @@ import {
 } from './liveSourceActions';
 import { formatChartCount, getLiveSource } from './liveSourceCatalog';
 import { type LiveSourceConnection } from './liveSourceRows';
+import { MixpanelConnectionModal } from './MixpanelConnectionModal';
 import { getPostHogSignInUrl, toPostHogFormValues } from './postHogConnection';
 import { PostHogConnectionModal } from './PostHogConnectionModal';
 import { ReattachLiveSourceModal } from './ReattachLiveSourceModal';
@@ -154,6 +155,7 @@ export const LiveSourceManager: FC<{
                         return null;
                     // A new key pair means adding the source again
                     case 'amplitude':
+                    case 'mixpanel':
                         return null;
                     case 'linkedin_ads': {
                         const { apiSource } = connection;
@@ -281,6 +283,15 @@ const LiveSourceConnectDialog: FC<{
         case 'amplitude':
             return (
                 <AmplitudeConnectionModal
+                    opened
+                    onClose={onClose}
+                    projectUuid={projectUuid}
+                    onCreated={onCreated}
+                />
+            );
+        case 'mixpanel':
+            return (
+                <MixpanelConnectionModal
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}

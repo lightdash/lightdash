@@ -1,60 +1,29 @@
-import { Group, Stack, Text, Tooltip, VisuallyHidden } from '@mantine/core';
+import { Group, Stack, Text, VisuallyHidden } from '@mantine/core';
 import { useQueries } from '@tanstack/react-query';
-import { useMemo, type FC } from 'react';
+import { type FC } from 'react';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { developmentHeadersFor, PUBLISHED_HEADERS } from './developmentView';
 import { FieldUsage } from './DraftInsights';
-import { describeShift } from './metricComparison';
 import { CHANGE_KIND_STYLE } from './modelCode';
-import { findTouchedFields, type FieldChange } from './modelFieldDiff';
+import { findTouchedFields } from './modelFieldDiff';
 import { modelVersionQuery } from './useFieldChangesInDevelopment';
-import { useMetricShift } from './useMetricTotals';
-import {
-    describeChangedFields,
-    useModelFieldChanges,
-} from './useModelFieldChanges';
+import { useModelFieldChanges } from './useModelFieldChanges';
 import { useSemanticLayerFieldUsage } from './useSemanticLayerModel';
 
-/** What the person's changes do to this model's fields, in plain words, with each new or changed metric's total next to it. */
+/** What the person's changes do to this model's fields, in plain words. */
 export const ModelFieldChanges: FC<{
     projectUuid: string;
     model: string;
     /** The preview project that holds the changes, for a pull request that has one. */
     previewProjectUuid: string | null;
-    /** The pull request's latest commit, so totals are read again after it moves. */
-    cacheKey: string;
     /** Until the draft compiles its fields are the old ones, so an empty diff says nothing yet. */
     isCompiled: boolean;
-}> = ({ projectUuid, model, previewProjectUuid, cacheKey, isCompiled }) => {
+}> = ({ projectUuid, model, previewProjectUuid, isCompiled }) => {
     const { live, changes } = useModelFieldChanges(
         projectUuid,
         model,
         previewProjectUuid,
     );
-    const metricIds = useMemo(
-        () =>
-            new Map(
-                describeChangedFields(changes ?? [], {
-                    keepsHiddenMetrics: true,
-                })
-                    .filter(
-                        ({ kind, isMetric }) => isMetric && kind !== 'removed',
-                    )
-                    .map(({ key, fieldId }) => [key, fieldId]),
-            ),
-        [changes],
-    );
-    const ids = [...metricIds.values()];
-    // Asking live for a metric it does not have fails the whole query.
-    const liveIds = (changes ?? [])
-        .filter(({ key, kind }) => kind === 'changed' && metricIds.has(key))
-        .map(({ key }) => metricIds.get(key) ?? key);
-    const { after, before } = useMetricShift(projectUuid, model, {
-        ids,
-        liveIds,
-        headers: developmentHeadersFor(previewProjectUuid),
-        cacheKey,
-    });
     if (!changes) return null;
     if (changes.length === 0) {
         return (
@@ -65,36 +34,6 @@ export const ModelFieldChanges: FC<{
             </Text>
         );
     }
-    const renderTotal = (key: string, kind: FieldChange['kind']) => {
-        const id = metricIds.get(key);
-        if (!id || after.isError) return null;
-        const value = after.data?.[id];
-        const old = kind === 'changed' ? before.data?.[id] : undefined;
-        const shift = old && value ? describeShift(old.raw, value.raw) : null;
-        return (
-            <Tooltip
-                label={
-                    old
-                        ? 'Total over every row, live and with your changes.'
-                        : 'Total over every row, with your changes.'
-                }
-            >
-                <Text fz="xs" flex="none">
-                    {old ? (
-                        <Text span inherit c="dimmed">
-                            {old.formatted} →{' '}
-                        </Text>
-                    ) : null}
-                    {value?.formatted ?? '…'}
-                    {shift ? (
-                        <Text span inherit c="orange" ml={6}>
-                            {shift}
-                        </Text>
-                    ) : null}
-                </Text>
-            </Tooltip>
-        );
-    };
     return (
         <Stack gap={6}>
             {live ? null : (
@@ -127,14 +66,8 @@ export const ModelFieldChanges: FC<{
                             {attributes.join(', ')}
                         </Text>
                     ) : null}
-                    {renderTotal(key, kind)}
                 </Group>
             ))}
-            {after.isError ? (
-                <Text fz="xs" c="dimmed">
-                    Could not run the totals: {after.error.error.message}
-                </Text>
-            ) : null}
         </Stack>
     );
 };

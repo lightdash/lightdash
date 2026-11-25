@@ -141,6 +141,16 @@ export type AmplitudeApiSource = {
 };
 
 /**
+ * A Mixpanel project, read with a service account; the connection's origin
+ * says whether its data lives in the US, the EU or India.
+ */
+export type MixpanelApiSource = {
+    connector: ApiConnectorType.MIXPANEL;
+    /** The Mixpanel project id, the number after /project/ in its URL. */
+    projectId: string;
+};
+
+/**
  * Hydra, the test integration: its rows are seeded from the sign-in token,
  * and these settings make its fake API slow, fail, page or rate limit.
  * Every setting is optional; one left out takes its default
@@ -224,6 +234,7 @@ export type ExternalConnectionApiSource =
     | HubspotApiSource
     | SalesforceApiSource
     | AmplitudeApiSource
+    | MixpanelApiSource
     | HydraApiSource;
 
 /** The settings of one integration's sources. */
@@ -315,6 +326,34 @@ export const AMPLITUDE_PATHS = {
 /** Amplitude signs Dashboard REST API calls in with HTTP Basic: the API key, then the secret key. */
 export const AMPLITUDE_AUTH_HEADER = 'Authorization';
 
+/** Mixpanel's Query API, by where the project's data lives. */
+export const MIXPANEL_REGION_ORIGINS = {
+    us: 'https://mixpanel.com',
+    eu: 'https://eu.mixpanel.com',
+    in: 'https://in.mixpanel.com',
+} as const;
+export type MixpanelRegion = keyof typeof MIXPANEL_REGION_ORIGINS;
+
+export const getMixpanelRegion = (origin: string): MixpanelRegion => {
+    const trimmed = origin.replace(/\/+$/, '');
+    if (trimmed === MIXPANEL_REGION_ORIGINS.eu) return 'eu';
+    if (trimmed === MIXPANEL_REGION_ORIGINS.in) return 'in';
+    return 'us';
+};
+
+/** The Query API endpoints a source reads. */
+export const MIXPANEL_PATHS = {
+    segmentation: '/api/query/segmentation',
+    funnels: '/api/query/funnels',
+    funnelsList: '/api/query/funnels/list',
+    retention: '/api/query/retention',
+    eventNames: '/api/query/events/names',
+    topEvents: '/api/query/events/top',
+} as const;
+
+/** Mixpanel signs Query API calls in with HTTP Basic: the service account's username, then its secret. */
+export const MIXPANEL_AUTH_HEADER = 'Authorization';
+
 export const HUBSPOT_ORIGIN = 'https://api.hubapi.com';
 
 export const getHubspotPropertiesPath = (object: string) =>
@@ -322,6 +361,13 @@ export const getHubspotPropertiesPath = (object: string) =>
 
 export const getHubspotSearchPath = (object: string) =>
     `/crm/v3/objects/${object}/search`;
+
+/** The objects whose pipelines and stages a source reads. */
+export const HUBSPOT_PIPELINE_OBJECTS = ['deals', 'tickets'] as const;
+export type HubspotPipelineObject = (typeof HUBSPOT_PIPELINE_OBJECTS)[number];
+
+export const getHubspotPipelinesPath = (object: string) =>
+    `/crm/v3/pipelines/${object}`;
 /** Every Salesforce call goes to this REST API version, so responses keep one shape. */
 export const SALESFORCE_API_VERSION = 'v62.0';
 

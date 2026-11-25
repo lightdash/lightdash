@@ -25,6 +25,7 @@ import {
     buildAccount,
     defaultSessionUser,
 } from '../../auth/account/account.mock';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { QuerySourceController } from '../../controllers/v2/QuerySourceController';
 import { AiAgentToolsService } from '../../ee/services/AiAgentToolsService/AiAgentToolsService';
 import { CatalogSearchContext } from '../../models/CatalogModel/CatalogModel';
@@ -126,6 +127,7 @@ const setup = (
     const registry = QuerySourceRegistry.withBuiltInSources({
         asyncQueryService,
         projectService,
+        lightdashConfig: lightdashConfigMock,
     } as unknown as Parameters<
         typeof QuerySourceRegistry.withBuiltInSources
     >[0]);

@@ -42,21 +42,17 @@ export const diffDraftFields = (
 /** How a draft's notices name whoever put a change live under it; another of the reader's own changes reads as theirs. */
 export const describePublisher = (
     published: SemanticLayerDraftModel['publishedSince'],
-): { subject: string; where: string; option: string; keepLabel: string } => {
+): { subject: string; where: string } => {
     if (published?.isYours) {
         return {
             subject: 'You',
             where: ' from another change',
-            option: 'You, in another change',
-            keepLabel: 'Keep the published version',
         };
     }
     const by = published?.by ?? null;
     return {
         subject: by ?? 'Someone',
         where: '',
-        option: by ?? 'Someone else',
-        keepLabel: by ? `Keep ${by}'s version` : 'Keep their version',
     };
 };
 

@@ -7,6 +7,7 @@ import { createAnalyticsExplores } from '../../services/ProjectService/analytics
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
+    analyticsLibraryChartBindings,
     analyticsSampleDashboards,
 } from './sampleContent';
 
@@ -41,11 +42,17 @@ describe('analytics sample content', () => {
                 expect(tile.x + tile.w).toBeLessThanOrEqual(36);
             }
         }
+        // No dashboard keeps a tab called Overview but the Overview dashboard itself
         expect(
-            analyticsContentAsCode[1].dashboard.tiles
-                .filter((tile) => tile.tabSlug === 'overview')
-                .at(-1)?.w,
-        ).toBe(36);
+            analyticsContentAsCode
+                .filter(
+                    ({ dashboard }) =>
+                        dashboard.slug !== 'lightdash-analytics-home',
+                )
+                .flatMap(({ dashboard }) =>
+                    dashboard.tabs.map(({ name }) => name),
+                ),
+        ).not.toContain('Overview');
     });
     it('uses unique stable keys and fields available in the system explores', () => {
         const explores = createAnalyticsExplores();
@@ -107,14 +114,64 @@ describe('analytics sample content', () => {
         }
     });
 
+    it('shows the latest day on both versions of the latest-day cards', () => {
+        const allCharts = analyticsContentAsCode.flatMap(
+            ({ charts }) => charts,
+        );
+        const cards = [
+            ['lightdash-analytics-ai-tokens-ai-users', 'ai_usage_event_ts_day'],
+            [
+                'lightdash-analytics-overview-agent-requesters-trend',
+                'agent_requests_requested_at_day',
+            ],
+            [
+                'lightdash-analytics-query-activity-query-users',
+                'query_events_event_ts_day',
+            ],
+            [
+                'lightdash-analytics-query-activity-avg-execution-time',
+                'query_events_event_ts_day',
+            ],
+            [
+                'lightdash-analytics-query-activity-p90-execution-time',
+                'query_events_event_ts_day',
+            ],
+        ];
+        for (const [slug, day] of cards) {
+            const fallback = allCharts.find((chart) => chart.slug === slug)!;
+            // A big number shows the first row: one row, newest day first.
+            expect(fallback.chartConfig.type).toBe(ChartType.BIG_NUMBER);
+            expect(fallback.metricQuery.dimensions).toEqual([day]);
+            expect(fallback.metricQuery.sorts).toEqual([
+                { fieldId: day, descending: true },
+            ]);
+            expect(fallback.metricQuery.limit).toBe(1);
+            expect(fallback.description).toContain(
+                'on the latest day in the selected period',
+            );
+            expect(fallback.description).not.toContain('daily trend');
+
+            const binding = analyticsLibraryChartBindings.get(slug)!;
+            expect(binding.optionValues).toMatchObject({
+                valueAggregation: 'latest',
+                label: 'Latest day',
+            });
+            expect(binding.query?.dimensions).toEqual([day]);
+            expect(binding.query?.description).toContain(
+                'on the latest day in the selected period, with the daily trend',
+            );
+        }
+    });
+
     it('keeps existing identities while separating AI and query content', () => {
+        // The token tiles that follow the Date filter belong to AI token usage
         expect(analyticsSampleDashboards[0].key).toBe(
-            'lightdash-analytics-overview',
+            'lightdash-analytics-ai-tokens',
         );
         const aiDashboard = analyticsSampleDashboards[0];
         expect(aiDashboard.name).toBe('AI usage');
         expect(aiDashboard.spaceSlug).toBe('lightdash-usage-overview');
-        expect(aiDashboard.charts).toHaveLength(8);
+        expect(aiDashboard.charts).toHaveLength(9);
         expect(
             aiDashboard.charts.every(
                 ({ tableName }) => tableName === 'ai_usage',
@@ -129,5 +186,181 @@ describe('analytics sample content', () => {
                 ({ tableName }) => tableName === 'query_events',
             ),
         ).toBe(true);
+    });
+
+    describe('AI token usage, Any period tab', () => {
+        const overviewTiles = (dashboardSlug: string) =>
+            analyticsContentAsCode
+                .find(({ dashboard }) => dashboard.slug === dashboardSlug)!
+                .dashboard.tiles.filter(
+                    (tile) =>
+                        tile.tabSlug ===
+                        (dashboardSlug === 'lightdash-analytics-ai-tokens'
+                            ? 'any-period'
+                            : 'overview'),
+                )
+                .map(({ properties, x, y, w, h }) => ({
+                    chartSlug:
+                        'chartSlug' in properties ? properties.chartSlug : null,
+                    x,
+                    y,
+                    w,
+                    h,
+                }));
+
+        it('opens the tab with one caption row that tells the three token totals apart', () => {
+            const { dashboard, charts } = analyticsContentAsCode.find(
+                ({ dashboard: { slug } }) =>
+                    slug === 'lightdash-analytics-ai-tokens',
+            )!;
+            const [first, ...others] = dashboard.tiles.filter(
+                (tile) =>
+                    tile.tabSlug === 'any-period' &&
+                    tile.type === DashboardTileTypes.MARKDOWN,
+            );
+            // One more caption sits above the two tiles added under the nine
+            expect(others).toHaveLength(1);
+            expect(first).toMatchObject({
+                x: 0,
+                y: 0,
+                w: 36,
+                h: 1,
+                properties: { hideFrame: true },
+            });
+            const { content } = first.properties as { content: string };
+            expect(content).toContain('follows the Date filter');
+            expect(content).toContain('Tokens (all usage)');
+            expect(content).toContain('Tokens in billing scope');
+            // The tab is first, and the month-to-date tabs follow it
+            expect(dashboard.tabs.map(({ name }) => name)).toEqual([
+                'Any period',
+                'Feature',
+                'Channel',
+                'Person',
+                'Project',
+                'Agent',
+                'All usage',
+                'Completeness & attribution',
+            ]);
+            // The Date filter reaches the any-period tiles only. The Project filter reaches every chart
+            const [date, project] = dashboard.filters!.dimensions!;
+            expect(date.label).toBe('Date');
+            expect(project.label).toBe('Project');
+            charts.forEach(({ slug }) =>
+                expect(project.tileTargets?.[slug]).toEqual({
+                    fieldId: 'ai_usage_project_id',
+                    tableName: 'ai_usage',
+                }),
+            );
+            charts.forEach(({ slug }) =>
+                expect(date.tileTargets?.[slug] !== false).toBe(
+                    dashboard.tiles.some(
+                        (tile) =>
+                            tile.tabSlug === 'any-period' &&
+                            'chartSlug' in tile.properties &&
+                            tile.properties.chartSlug === slug,
+                    ),
+                ),
+            );
+            // The caption carries the caveat, so the token tiles do not repeat it.
+            const overviewSlugs = dashboard.tiles
+                .filter((tile) => tile.tabSlug === 'any-period')
+                .flatMap(({ properties }) =>
+                    'chartSlug' in properties ? [properties.chartSlug] : [],
+                );
+            for (const chart of charts.filter(({ slug }) =>
+                overviewSlugs.includes(slug),
+            )) {
+                expect(chart.description).not.toMatch(/cost/i);
+            }
+        });
+
+        it('lays out the overview tiles at their explicit positions', () => {
+            const prefix = 'lightdash-analytics-ai-tokens-';
+            expect(overviewTiles('lightdash-analytics-ai-tokens')).toEqual(
+                expect.arrayContaining(
+                    [
+                        ['ai-calls', 0, 1, 9, 4],
+                        ['tokens', 9, 1, 9, 4],
+                        ['ai-users', 18, 1, 9, 4],
+                        ['output-tokens', 27, 1, 9, 4],
+                        ['tokens-by-feature', 0, 5, 36, 7],
+                        ['ai-calls-by-day', 0, 12, 18, 7],
+                        ['tokens-by-day', 18, 12, 18, 7],
+                        ['tokens-by-model', 0, 19, 18, 8],
+                        ['calls-by-model', 18, 19, 18, 8],
+                    ].map(([key, x, y, w, h]) => ({
+                        chartSlug: `${prefix}${key}`,
+                        x,
+                        y,
+                        w,
+                        h,
+                    })),
+                ),
+            );
+            // Nine charts and the caption row above them, then a caption and two charts by person
+            // and by feature that came from the old Retries & tokens tab
+            expect(overviewTiles('lightdash-analytics-ai-tokens')).toHaveLength(
+                13,
+            );
+        });
+
+        it('falls back to a bar chart for tokens by feature and binds the heatmap', () => {
+            const slug = 'lightdash-analytics-ai-tokens-tokens-by-feature';
+            const tokensByFeature = analyticsContentAsCode
+                .flatMap(({ charts }) => charts)
+                .find((item) => item.slug === slug)!;
+            expect(tokensByFeature.chartConfig.type).toBe(ChartType.CARTESIAN);
+            // The feature under its plain name, as on AI token usage
+            expect(tokensByFeature.metricQuery.dimensions).toEqual([
+                'ai_usage_feature_name',
+            ]);
+            expect(analyticsLibraryChartBindings.get(slug)).toMatchObject({
+                slug: 'heatmap',
+                // The colour range stops at the 95th percentile, so one huge day does not wash out the rest
+                minVersion: '0.5.1',
+                optionValues: { colorClampPercentile: 95 },
+            });
+        });
+
+        it('lays the Queries volume tab out with its filtered tiles above the fixed-window ones', () => {
+            const prefix = 'lightdash-analytics-query-activity-';
+            const queries = analyticsContentAsCode.find(
+                ({ dashboard }) =>
+                    dashboard.slug === 'lightdash-analytics-query-activity',
+            )!.dashboard;
+            expect(queries.tabs.map(({ name }) => name)).toEqual([
+                'Volume',
+                'Speed & failures',
+                'Origins & caching',
+                'Metrics & dimensions',
+            ]);
+            expect(
+                queries.tiles
+                    .filter(
+                        (tile) =>
+                            tile.tabSlug === 'volume' &&
+                            'chartSlug' in tile.properties,
+                    )
+                    .map(({ properties, x, y, w, h }) => [
+                        (properties as { chartSlug: string }).chartSlug.slice(
+                            prefix.length,
+                        ),
+                        x,
+                        y,
+                        w,
+                        h,
+                    ]),
+            ).toEqual([
+                ['queries', 0, 1, 18, 4],
+                ['query-users', 18, 1, 18, 4],
+                ['queries-by-day', 0, 5, 18, 8],
+                ['active-users-by-day', 18, 5, 18, 8],
+                // A note says these three cover their own period
+                ['query-calendar', 0, 14, 36, 6],
+                ['querying-users-month-over-month', 0, 20, 16, 7],
+                ['queries-run-month-over-month', 16, 20, 20, 7],
+            ]);
+        });
     });
 });

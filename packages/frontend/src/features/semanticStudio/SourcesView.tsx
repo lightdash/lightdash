@@ -17,6 +17,7 @@ import {
     UnstyledButton,
     useComputedColorScheme,
 } from '@mantine/core';
+import { EditStateManager } from '@pierre/diffs/edit';
 import {
     EditProvider,
     File,
@@ -26,11 +27,12 @@ import {
 import { type FileTreeIconConfig } from '@pierre/trees';
 import { FileTree, useFileTree } from '@pierre/trees/react';
 import {
+    IconArrowBackUp,
+    IconArrowForwardUp,
     IconCheck,
     IconGitCompare,
     IconLock,
     IconListDetails,
-    IconPencil,
     IconSearch,
 } from '@tabler/icons-react';
 import {
@@ -44,6 +46,7 @@ import {
 import { useSearchParams } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
+import MantineModal from '../../components/common/MantineModal';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import {
@@ -62,7 +65,11 @@ import tabClasses from './ModelTabs.module.css';
 import {
     createEditor,
     editorOptionsFor,
+    leaveOnEscape,
+    MOD_KEY,
     readSelection,
+    REDO_KEYS,
+    replaceText,
     type Attached,
 } from './pierreEditor';
 import { applyProposal, fileBefore } from './proposedFile';
@@ -75,6 +82,7 @@ import {
     keepUnsaved,
     moveUnsaved,
     unsavedEditKey,
+    useUnsavedPaths,
 } from './unsavedEdits';
 import {
     modelNameOfSourcePath,
@@ -238,8 +246,9 @@ export const SourcesRail: FC<{
     }, [hasOverview, selected, firstChange, open]);
     // The tree keeps its first options, so its listener reads the latest through a ref.
     const fileSet = useMemo(() => new Set(all), [all]);
-    const latest = useRef({ open, selected, files: fileSet });
-    latest.current = { open, selected, files: fileSet };
+    const unsaved = useUnsavedPaths(target.projectUuid, target.prUrl);
+    const latest = useRef({ open, selected, files: fileSet, unsaved });
+    latest.current = { open, selected, files: fileSet, unsaved };
     const { model } = useFileTree({
         paths: [],
         icons: SOURCE_ICONS,
@@ -250,6 +259,10 @@ export const SourcesRail: FC<{
         initialExpandedPaths: ancestorsOf(selected),
         flattenEmptyDirectories: true,
         initialSelectedPaths: selected ? [selected] : [],
+        renderRowDecoration: ({ item }) =>
+            latest.current.unsaved.has(item.path)
+                ? { text: '●', title: 'Unsaved edits' }
+                : null,
         onSelectionChange: ([path]) => {
             if (path && latest.current.files.has(path)) {
                 latest.current.open(path);
@@ -281,6 +294,8 @@ export const SourcesRail: FC<{
             ),
         [model, changes],
     );
+    // The tree has no redraw of its own; setting its icons redraws the unsaved marks.
+    useEffect(() => model.setIcons(SOURCE_ICONS), [model, unsaved]);
     const [search, setSearch] = useState('');
     return (
         <Box className={railClasses.rail}>
@@ -373,6 +388,13 @@ const saveErrorText = ({ error }: ApiError) =>
         : 'This file could not be saved. Try again in a moment.';
 
 /** One file as code: edit it, see what the change does to it, save it into the change, or add lines to the chat. */
+// The linter knows model and source properties; dbt's own project files are another shape.
+const isDbtPropertiesFile = (path: string) =>
+    /\.ya?ml$/.test(path) &&
+    !/(^|\/)(dbt_project|packages|dependencies|profiles|selectors)\.ya?ml$/.test(
+        path,
+    );
+
 export const SourcePane: FC<{
     target: SourcesTarget;
     onSaved: (prUrl: string, thread: StoredThread | null) => void;
@@ -421,8 +443,9 @@ export const SourcePane: FC<{
             : null;
     const save = useSaveStudioSource(target.projectUuid, target.startThread);
     const [layout, setLayout] = useState<Layout>('diff');
-    // Pierre owns the document while editing: it starts from `base` and reports each change into `text`.
-    const [base, setBase] = useState<string | null>(null);
+    // A file typed in before its comparison loaded stays as code, so the view does not change under the cursor.
+    const [typedAsCode, setTypedAsCode] = useState<string | null>(null);
+    // Pierre owns the document while editing: it starts from what it is mounted with and reports each change into `text`.
     const [text, setText] = useState<string | null>(null);
     const [revision, setRevision] = useState(0);
     const [notice, setNotice] = useState<Notice>(null);
@@ -450,10 +473,35 @@ export const SourcePane: FC<{
     }
     const value = text ?? loaded ?? '';
     const isDirty = text !== null && text !== loaded;
-    // Code is read until the person asks to edit it; unsaved text keeps it in editing.
-    const [editingKey, setEditingKey] = useState<string | null>(null);
     const { track } = useTracking();
-    const isEditing = canEdit && (isDirty || editingKey === editKey);
+    // The files tracked so far, so a first edit counts once per file until it is saved or dropped.
+    const trackedEdits = useRef(new Set<string>());
+    // The text the editor was last mounted with, so a remount keeps what is typed.
+    const mounted = useRef<{
+        key: string;
+        text: string | null;
+        stateKey: string;
+        path: string | null;
+        revision: number;
+    } | null>(null);
+    const generations = useRef(new Map<string, number>());
+    // Where the caret and scroll were before a remount of the same text, put back once the new editor attaches.
+    const restoreView = useRef<{
+        state: ReturnType<Attached['getViewState']>;
+        focused: boolean;
+    } | null>(null);
+    const pane = useRef<HTMLDivElement>(null);
+    // A view restore queued for the next frame skips an editor that has gone since.
+    useEffect(
+        () => () => {
+            codeRef.current = null;
+        },
+        [],
+    );
+    const [history, setHistory] = useState({ canUndo: false, canRedo: false });
+    const [isComparingProposal, setIsComparingProposal] = useState(false);
+    // A save from Published moves the file to its new change, so the save's notice follows it there.
+    const carriedNotice = useRef<{ key: string; notice: Notice } | null>(null);
     // A proposal shown in the editor is the agent's until the person types over it.
     const hasOwnEdits = isDirty && text !== offered;
     const isBeingSaved = isSaving && isDirty && !hasOwnEdits;
@@ -470,10 +518,14 @@ export const SourcePane: FC<{
         }
         shownKey.current = editKey;
         const kept = findUnsaved(editKey);
-        setBase(kept?.text ?? null);
         setText(kept?.text ?? null);
         if (kept) sourceRevision.current = kept.revision;
-        setNotice(null);
+        setNotice(
+            carriedNotice.current?.key === editKey
+                ? carriedNotice.current.notice
+                : null,
+        );
+        carriedNotice.current = null;
         setProposedFrom(null);
         setOffered(null);
         setRevision((current) => current + 1);
@@ -481,7 +533,7 @@ export const SourcePane: FC<{
     const linted = useDeferredValue(value);
     const markers = useMemo(
         () =>
-            path && /\.ya?ml$/.test(path)
+            path && isDbtPropertiesFile(path)
                 ? lintDbtYaml(linted).map((problem) => ({
                       ...problem,
                       severity: 'error' as const,
@@ -503,23 +555,57 @@ export const SourcePane: FC<{
                 : null,
         [proposal, path, loaded],
     );
+    // What the person's edits would replace: a pending proposal, or a newer version saved since they started.
+    const pending =
+        proposed !== null && proposed !== offered && hasOwnEdits
+            ? proposed
+            : null;
+    const isBehind =
+        hasOwnEdits &&
+        file?.content != null &&
+        sourceRevision.current !== null &&
+        file.revision !== sourceRevision.current;
+    const incoming = pending ?? (isBehind ? loaded : null);
+    const proposalKey = useRef<string | null>(null);
     // Like an editor's agent: a proposal for the open file lands in it as an unsaved edit, once.
     useEffect(() => {
+        // Just switched files: wait a render for its kept edits, which a proposal must not replace.
+        if (proposalKey.current !== editKey) {
+            proposalKey.current = editKey;
+            return;
+        }
         if (hasOwnEdits || proposed === offered) return;
         setOffered(proposed);
         setProposedFrom(proposed === null ? null : loaded);
-        setBase(proposed);
         setText(proposed);
         if (proposed !== null) setLayout('diff');
         setRevision((current) => current + 1);
-    }, [proposed, offered, hasOwnEdits, loaded]);
+    }, [proposed, offered, hasOwnEdits, loaded, editKey, revision]);
     const where = target.changeName ?? 'live';
 
     const reset = () => {
-        setBase(null);
         setText(null);
         setProposedFrom(null);
         setRevision((current) => current + 1);
+        trackedEdits.current.delete(editKey);
+        setTypedAsCode(null);
+    };
+    const editContent = (
+        contents: string,
+        editor: { canUndo: boolean; canRedo: boolean },
+    ) => {
+        setHistory({ canUndo: editor.canUndo, canRedo: editor.canRedo });
+        if (notice?.tone === 'info') setNotice(null);
+        if (shownLayout === 'code' && typedAsCode !== editKey)
+            setTypedAsCode(editKey);
+        if (contents !== value && !trackedEdits.current.has(editKey)) {
+            trackedEdits.current.add(editKey);
+            track({
+                name: EventName.SEMANTIC_STUDIO_EDIT_STARTED,
+                properties: { projectId: target.projectUuid, kind: 'file' },
+            });
+        }
+        setText(contents);
     };
     const submit = () => {
         if (!path || !isDirty || isBeingSaved || save.isLoading || !canEdit)
@@ -576,14 +662,24 @@ export const SourcePane: FC<{
                     }
                     if (isStillOpen()) {
                         reset();
-                        setNotice(
-                            result.checked
-                                ? null
-                                : {
-                                      tone: 'info',
-                                      text: 'Saved. SQL is checked when dbt next builds the draft.',
-                                  },
-                        );
+                        const savedTo = target.prUrl
+                            ? `Saved to ${where}.`
+                            : 'Saved as a new draft.';
+                        const notice: Notice = {
+                            tone: 'info',
+                            text: result.checked
+                                ? savedTo
+                                : `${savedTo} SQL is checked when dbt next builds the draft.`,
+                        };
+                        setNotice(notice);
+                        carriedNotice.current = {
+                            key: unsavedEditKey(
+                                target.projectUuid,
+                                result.prUrl,
+                                path,
+                            ),
+                            notice,
+                        };
                     }
                     onSaved(result.prUrl, result.thread);
                 },
@@ -597,7 +693,7 @@ export const SourcePane: FC<{
     };
     const addToChat = () => {
         const picked = readSelection(codeRef.current);
-        if (!path || !picked) return;
+        if (!path || !picked) return false;
         onAddToChat({
             modelName: modelNameOfSourcePath(path),
             fieldName: null,
@@ -607,6 +703,7 @@ export const SourcePane: FC<{
             fieldType: null,
             code: { path, ...picked },
         });
+        return true;
     };
     // Pierre keeps the first options it is given, so they read the latest through refs.
     const actions = useRef({ addToChat });
@@ -615,6 +712,16 @@ export const SourcePane: FC<{
         const attach = (code: Attached) => {
             codeRef.current = code;
             code.setMarkers(markersRef.current);
+            // A file opened again resumes its undo history.
+            setHistory({ canUndo: code.canUndo, canRedo: code.canRedo });
+            const restore = restoreView.current;
+            restoreView.current = null;
+            if (restore)
+                requestAnimationFrame(() => {
+                    if (codeRef.current !== code) return;
+                    if (restore.focused) code.focus();
+                    code.setViewState(restore.state);
+                });
         };
         const add = () => actions.current.addToChat();
         return [
@@ -652,10 +759,10 @@ export const SourcePane: FC<{
             ? (live?.content ?? null)
             : before
         : proposedFrom;
-    const shownLayout = compare !== null ? layout : 'code';
-    // Switching layout remounts Pierre, so it restarts from what is typed so far.
+    const shownLayout =
+        compare !== null && typedAsCode !== editKey ? layout : 'code';
     const pickLayout = (next: Layout) => {
-        setBase(value);
+        setTypedAsCode(null);
         setLayout(next);
     };
     const options = {
@@ -663,7 +770,54 @@ export const SourcePane: FC<{
         overflow: 'scroll',
         disableFileHeader: true,
     } as const;
-    const current = { name: fileName(path), contents: base ?? loaded ?? '' };
+    // Pierre takes `edit` when it mounts, so a lock or unlock mounts it again.
+    // A file read after it opened mounts again, so its retained document starts from the read text.
+    const surfaceKey = `${path}:${shownLayout}:${revision}:${canEdit}:${loaded !== null}`;
+    // Any remount (layout, a late comparison, a lock) restarts from what is typed so far.
+    if (mounted.current?.key !== surfaceKey) {
+        const previous = mounted.current;
+        // Same file and text (a layout switch or a lock), so the caret and scroll stay where they were.
+        // A read-only editor never attaches, so a view kept at a lock waits for the unlock.
+        restoreView.current =
+            previous?.path !== path || previous.revision !== revision
+                ? null
+                : codeRef.current
+                  ? {
+                        state: codeRef.current.getViewState(),
+                        focused:
+                            pane.current?.contains(document.activeElement) ??
+                            false,
+                    }
+                  : restoreView.current;
+        codeRef.current = null;
+        // On the render that switches files, `text` is still the last file's.
+        const mountedText =
+            shownKey.current === editKey
+                ? text
+                : (findUnsaved(editKey)?.text ?? null);
+        const contents = mountedText ?? loaded ?? '';
+        // Pierre keeps each file's document and undo history under this key; a different text starts a new one.
+        let generation = generations.current.get(editKey) ?? 0;
+        const retained = EditStateManager.get(
+            shownLayout === 'code' ? 'file' : 'file-diff',
+            `${editKey}:${generation}`,
+        );
+        if (retained && retained.document.getText() !== contents) {
+            generation += 1;
+            generations.current.set(editKey, generation);
+        }
+        mounted.current = {
+            key: surfaceKey,
+            text: mountedText,
+            stateKey: `${editKey}:${generation}`,
+            path,
+            revision,
+        };
+    }
+    const current = {
+        name: fileName(path),
+        contents: mounted.current.text ?? loaded ?? '',
+    };
     const dir = path.split('/').slice(0, -1).join('/');
     const status = !change
         ? null
@@ -675,7 +829,7 @@ export const SourcePane: FC<{
               null;
     // Like a pull request's compare: what the diff starts from, and what it shows.
     const comparison = `${!canEdit ? 'Before' : isChangedFile || !target.prUrl ? 'Published' : 'This draft'} → ${
-        proposedFrom !== null
+        proposedFrom !== null && !hasOwnEdits
             ? isSaving
                 ? 'Being saved'
                 : 'Proposal'
@@ -685,10 +839,8 @@ export const SourcePane: FC<{
     }`;
     const check = (isOn: boolean) =>
         isOn ? <MantineIcon icon={IconCheck} size={14} /> : null;
-    // Pierre takes `edit` when it mounts, so entering or leaving editing mounts it again.
-    const surfaceKey = `${path}:${shownLayout}:${revision}:${isEditing}`;
     return (
-        <Box className={tabClasses.codePane}>
+        <Box className={tabClasses.codePane} ref={pane}>
             <Group
                 className={tabClasses.codeToolbar}
                 justify="space-between"
@@ -753,62 +905,28 @@ export const SourcePane: FC<{
                 </Group>
                 <Group gap="xs" wrap="nowrap" flex="none">
                     {!canEdit ? (
-                        <Tooltip
-                            label={target.readOnlyReason ?? 'Read only'}
-                            multiline
-                            maw={280}
-                        >
-                            <Box
-                                className={classes.readOnly}
-                                aria-label={
-                                    target.readOnlyReason ?? 'Read only'
-                                }
+                        <Group gap={4} wrap="nowrap" miw={0}>
+                            <MantineIcon
+                                icon={IconLock}
+                                size={14}
+                                color="dimmed"
+                            />
+                            <Text
+                                fz="xs"
+                                c="dimmed"
+                                truncate
+                                maw={320}
+                                title={target.readOnlyReason ?? undefined}
                             >
-                                <MantineIcon
-                                    icon={IconLock}
-                                    size={14}
-                                    color="dimmed"
-                                />
-                            </Box>
-                        </Tooltip>
-                    ) : isEditing ? null : (
-                        <Tooltip
-                            label={
-                                target.prUrl
-                                    ? `Saves to ${where}`
-                                    : 'Saving starts a draft. Published stays as it is.'
-                            }
-                        >
-                            <Button
-                                size="compact-xs"
-                                variant="default"
-                                leftSection={
-                                    <MantineIcon icon={IconPencil} size={12} />
-                                }
-                                onClick={() => {
-                                    track({
-                                        name: EventName.SEMANTIC_STUDIO_EDIT_STARTED,
-                                        properties: {
-                                            projectId: target.projectUuid,
-                                            kind: 'file',
-                                        },
-                                    });
-                                    setEditingKey(editKey);
-                                }}
-                            >
-                                Edit
-                            </Button>
-                        </Tooltip>
-                    )}
-                    {isEditing && !isDirty ? (
-                        <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            color="gray"
-                            onClick={() => setEditingKey(null)}
-                        >
-                            Done
-                        </Button>
+                                {target.readOnlyReason ?? 'Read only'}
+                            </Text>
+                        </Group>
+                    ) : !isDirty ? (
+                        <Text fz="xs" c="dimmed" truncate maw={240}>
+                            {target.prUrl
+                                ? `Saves to ${where}`
+                                : 'Saving starts a draft'}
+                        </Text>
                     ) : null}
                     {isFetching && !isDirty ? (
                         <Loader size={12} color="gray" />
@@ -878,6 +996,30 @@ export const SourcePane: FC<{
                             </Menu.Dropdown>
                         </Menu>
                     ) : null}
+                    {canEdit ? (
+                        <>
+                            <Tooltip label={`Undo (${MOD_KEY}Z)`}>
+                                <ActionIcon
+                                    aria-label="Undo"
+                                    className={tabClasses.history}
+                                    disabled={!history.canUndo}
+                                    onClick={() => codeRef.current?.undo()}
+                                >
+                                    <MantineIcon icon={IconArrowBackUp} />
+                                </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label={`Redo (${REDO_KEYS})`}>
+                                <ActionIcon
+                                    aria-label="Redo"
+                                    className={tabClasses.history}
+                                    disabled={!history.canRedo}
+                                    onClick={() => codeRef.current?.redo()}
+                                >
+                                    <MantineIcon icon={IconArrowForwardUp} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </>
+                    ) : null}
                     {isDirty && !isBeingSaved ? (
                         <>
                             <Button
@@ -886,9 +1028,14 @@ export const SourcePane: FC<{
                                 color="gray"
                                 disabled={save.isLoading}
                                 onClick={() => {
-                                    reset();
                                     setNotice(null);
-                                    setEditingKey(null);
+                                    // Your own edits go back as an edit, so undo brings them back; a proposal is set aside.
+                                    if (offered === null && codeRef.current)
+                                        replaceText(
+                                            codeRef.current,
+                                            loaded ?? '',
+                                        );
+                                    else reset();
                                 }}
                             >
                                 Discard
@@ -899,13 +1046,14 @@ export const SourcePane: FC<{
                                         {target.prUrl
                                             ? `Commits to ${where}`
                                             : 'Opens a pull request'}
-                                        <Kbd size="xs">⌘S</Kbd>
+                                        <Kbd size="xs">{`${MOD_KEY}S`}</Kbd>
                                     </Group>
                                 }
                             >
                                 <Button
                                     size="compact-xs"
                                     loading={save.isLoading}
+                                    disabled={!canEdit}
                                     onClick={submit}
                                 >
                                     {target.prUrl
@@ -918,20 +1066,83 @@ export const SourcePane: FC<{
                     <CopyActionIcon value={value} copyLabel="Copy" />
                 </Group>
             </Group>
-            {proposed && proposed !== offered && hasOwnEdits ? (
+            {incoming !== null ? (
                 <Alert color="violet" radius={0} py={8}>
-                    <Text fz="xs">
-                        {isSaving
-                            ? 'The agent is saving a change to this file. Discard your edits to see it here.'
-                            : 'The agent proposed a change to this file. Discard your edits to see it here.'}
-                    </Text>
+                    <Group gap="xs" justify="space-between" wrap="nowrap">
+                        <Text fz="xs">
+                            {pending === null
+                                ? 'This file changed since you started editing. Your edits are kept here.'
+                                : isSaving
+                                  ? 'The agent is saving a change to this file. Your edits are kept here.'
+                                  : 'The agent proposed a change to this file. Your edits are kept here.'}
+                        </Text>
+                        <Button
+                            size="compact-xs"
+                            variant="default"
+                            flex="none"
+                            onClick={() => setIsComparingProposal(true)}
+                        >
+                            Compare
+                        </Button>
+                    </Group>
                 </Alert>
             ) : null}
+            <MantineModal
+                opened={isComparingProposal && incoming !== null}
+                onClose={() => setIsComparingProposal(false)}
+                onCancel={() => {
+                    setIsComparingProposal(false);
+                    // Kept over a newer version, the edits save over it.
+                    if (pending === null && file?.content != null && text) {
+                        sourceRevision.current = file.revision;
+                        keepUnsaved(editKey, text, file.revision);
+                    }
+                }}
+                title={
+                    pending === null
+                        ? 'Your edits → the latest version'
+                        : "Your edits → the agent's proposal"
+                }
+                size="xl"
+                cancelLabel="Keep my edits"
+                confirmLabel={
+                    pending === null
+                        ? 'Use the latest version'
+                        : 'Use the proposal'
+                }
+                onConfirm={() => {
+                    setIsComparingProposal(false);
+                    reset();
+                    setNotice(null);
+                }}
+            >
+                {incoming !== null ? (
+                    <WorkerPoolContextProvider
+                        poolOptions={PIERRE_POOL_OPTIONS}
+                        highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                    >
+                        <MultiFileDiff
+                            oldFile={{ name: fileName(path), contents: value }}
+                            newFile={{
+                                name: fileName(path),
+                                contents: incoming,
+                            }}
+                            options={{
+                                ...options,
+                                diffStyle: 'unified',
+                                diffIndicators: 'bars',
+                                lineDiffType: 'word',
+                            }}
+                        />
+                    </WorkerPoolContextProvider>
+                ) : null}
+            </MantineModal>
             {notice ? (
                 <Alert
                     color={notice.tone === 'error' ? 'red' : 'blue'}
                     radius={0}
                     py={8}
+                    classNames={{ wrapper: classes.noticeRow }}
                     withCloseButton
                     onClose={() => setNotice(null)}
                 >
@@ -943,14 +1154,14 @@ export const SourcePane: FC<{
             <Box
                 className={classes.sourceCode}
                 onKeyDownCapture={(event) => {
+                    leaveOnEscape(event.nativeEvent, codeRef.current);
                     if (!(event.metaKey || event.ctrlKey)) return;
                     const key = event.key.toLowerCase();
                     if (key === 's') {
                         event.preventDefault();
                         submit();
-                    } else if (key === 'l') {
+                    } else if (key === 'l' && addToChat()) {
                         event.preventDefault();
-                        addToChat();
                     }
                 }}
             >
@@ -967,23 +1178,28 @@ export const SourcePane: FC<{
                             {shownLayout === 'code' ? (
                                 <File
                                     key={surfaceKey}
+                                    editStateKey={mounted.current.stateKey}
                                     className={classes.sourceHost}
                                     file={current}
                                     options={options}
                                     edit={
-                                        isEditing &&
+                                        canEdit &&
                                         !save.isLoading &&
                                         !isBeingSaved
                                     }
                                     editorOptions={fileOptions}
                                     onEditChange={(event) =>
-                                        setText(event.file.contents)
+                                        editContent(
+                                            event.file.contents,
+                                            event.editor,
+                                        )
                                     }
                                     onEditComplete={() => 'accept'}
                                 />
                             ) : (
                                 <MultiFileDiff
                                     key={surfaceKey}
+                                    editStateKey={mounted.current.stateKey}
                                     className={classes.sourceHost}
                                     oldFile={{
                                         name: fileName(path),
@@ -1000,13 +1216,16 @@ export const SourcePane: FC<{
                                         lineDiffType: 'word',
                                     }}
                                     edit={
-                                        isEditing &&
+                                        canEdit &&
                                         !save.isLoading &&
                                         !isBeingSaved
                                     }
                                     editorOptions={diffOptions}
                                     onEditChange={(event) =>
-                                        setText(event.file.contents)
+                                        editContent(
+                                            event.file.contents,
+                                            event.editor,
+                                        )
                                     }
                                     onEditComplete={() => 'accept'}
                                 />

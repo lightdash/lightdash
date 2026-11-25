@@ -1,0 +1,21 @@
+.list {
+    display: grid;
+    grid-template-columns: fit-content(40%) minmax(0, 1fr);
+    column-gap: var(--mantine-spacing-md);
+    row-gap: var(--mantine-spacing-xs);
+    margin: 0;
+}
+
+.row {
+    display: contents;
+}
+
+.key {
+    overflow-wrap: anywhere;
+}
+
+.value {
+    margin: 0;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}

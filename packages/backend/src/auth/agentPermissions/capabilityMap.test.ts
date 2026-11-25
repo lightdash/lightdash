@@ -134,10 +134,13 @@ it('covers the tools registered by the real MCP service across feature variants'
                 makeMcpServerOptions({
                     mcpContentWritesEnabled: enabled,
                     scheduledDeliveryEnabled: enabled,
-                    runSqlEnabled: enabled,
-                    runMetricQueryEnabled: enabled,
-                    queryEnabled: enabled,
-                    filterExpressionsEnabled: enabled,
+                    queryPath: enabled
+                        ? {
+                              type: 'composer',
+                              sqlRunnerEnabled: true,
+                              filterExpressionsEnabled: true,
+                          }
+                        : { type: 'contentOnly' },
                     documentsEnabled: enabled,
                     dataAppBuildsEnabled: enabled,
                     chartTypeBuildsEnabled: enabled,
@@ -295,7 +298,11 @@ it('covers common agent definitions and all runtime variants without stale entri
         { enableComposerQueries: true },
         { enableAskUser: true },
         { enableContentTools: false },
-        { isSemanticStudioThread: true, semanticStudioDrafts: true },
+        {
+            isSemanticStudioThread: true,
+            semanticStudioDrafts: true,
+            semanticStudioKeepsContext: true,
+        },
         { isSemanticStudioThread: true, semanticStudioDrafts: false },
         { enableContentReads: false, enableContentTools: false },
         { decisions: undefined, canRunSql: false, enableDataAccess: false },

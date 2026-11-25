@@ -30,6 +30,8 @@ describe('hubspotConnection', () => {
                 '/crm/v3/objects/tickets/search',
                 '/crm/v3/properties/leads',
                 '/crm/v3/objects/leads/search',
+                '/crm/v3/pipelines/deals',
+                '/crm/v3/pipelines/tickets',
             ],
         });
     });

@@ -10,8 +10,8 @@ const EDGED = new Set<string>();
 export const DotSwatch = ({ colourBy, kind }: { colourBy: ColourBy; kind: MarkKind }) => {
     const attr = markAttr(colourBy, kind);
     return (
-        <svg className="ad-swatch" width={10} height={10} aria-hidden>
-            <g className="ad-dots">
+        <svg className="adoption-swatch" width={10} height={10} aria-hidden>
+            <g className="adoption-dots">
                 <circle
                     data-kind={attr}
                     cx={5}
@@ -28,11 +28,11 @@ export const DotSwatch = ({ colourBy, kind }: { colourBy: ColourBy; kind: MarkKi
 const SharedSwatch = ({ colourBy }: { colourBy: ColourBy }) => {
     const { dotRadius, ringRadius, ringWidth } = getSharedDotShape(5.5);
     return (
-        <svg className="ad-swatch" width={12} height={12} aria-hidden>
-            <g className="ad-dots">
+        <svg className="adoption-swatch" width={12} height={12} aria-hidden>
+            <g className="adoption-dots">
                 <circle data-kind={markAttr(colourBy, KIND_ORDER[colourBy][0])} cx={6} cy={6} r={dotRadius - 0.5} strokeWidth={1} />
             </g>
-            <circle className="ad-shared" cx={6} cy={6} r={ringRadius} strokeWidth={ringWidth} />
+            <circle className="adoption-shared" cx={6} cy={6} r={ringRadius} strokeWidth={ringWidth} />
         </svg>
     );
 };
@@ -54,7 +54,7 @@ const FadeScale = ({ colour, low, high, solidFirst }: { colour: string; low: str
     // the entries of the other colourings; the names of its two ends hang beneath it.
     <li className="relative w-52 shrink-0 text-xs">
         <span
-            className="ad-scale block h-3 w-full rounded-sm"
+            className="adoption-scale block h-3 w-full rounded-sm"
             style={{
                 ['--scale-colour' as string]: colour,
                 ...(solidFirst && { backgroundImage: 'linear-gradient(to left, color-mix(in srgb, var(--scale-colour) 15%, transparent), var(--scale-colour))' }),
@@ -74,7 +74,7 @@ const NoneItem = ({ colourBy, kind, counts, hint }: { colourBy: ColourBy; kind: 
         <>
             <DotSwatch colourBy={colourBy} kind={kind} />
             <span className={hint ? 'underline decoration-dotted decoration-muted-foreground underline-offset-4' : undefined}>{KIND_LABELS[colourBy][kind]}</span>
-            {counts && <span className="ad-count text-muted-foreground">{formatCount(counts.get(kind) ?? 0)}</span>}
+            {counts && <span className="adoption-count text-muted-foreground">{formatCount(counts.get(kind) ?? 0)}</span>}
         </>
     );
     return (

@@ -51,6 +51,7 @@ import {
     CreateScheduledDeliveryFn,
     DescribeWarehouseTableFn,
     DiscoverReposFn,
+    DraftProjectContextFn,
     EditContentFn,
     EditDbtProjectFn,
     EditProjectContextFn,
@@ -325,6 +326,8 @@ export type AiAgentArgs = AnyAiModel & {
     isSemanticStudioThread: boolean;
     // Whether that thread proposes into a draft; false on a dbt project, where it edits the repository.
     semanticStudioDrafts: boolean;
+    // Whether the project keeps its context on the server, drafted like a model; false when a repository holds it.
+    semanticStudioKeepsContext: boolean;
     // Which GitHub identity a writeback PR would be attributed to (advisory,
     // resolved at prompt-assembly time). null when not applicable/unresolved.
     writebackAttribution: AiWritebackAttribution | null;
@@ -343,16 +346,13 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the repo host has server-side code search (GitHub yes, GitLab no).
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
-    // Semantic Studio saves changes with a code mode script instead of the sandbox.
-    semanticStudioCodeMode: boolean;
-    // False only for a Studio project with no repository.
-    semanticStudioHasRepository: boolean;
     // A Studio dbt project's layout from its last compile; null otherwise.
     semanticStudioProjectMap: string | null;
     canRunSql: boolean;
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.
     enableComposerQueries: boolean;
+    enableComposerPythonNodes: boolean;
     // The project's live data sources the user can view, listed in the prompt
     // for the field tools.
     liveSources: AgentLiveSource[];
@@ -512,6 +512,7 @@ export type AiAgentDependencies = {
     /** Runs a metric query on the person's draft over what is published. */
     runDraftQuery: RunAsyncQueryFn;
     readSemanticModel: ReadSemanticModelFn;
+    draftProjectContext: DraftProjectContextFn;
     verify: VerifyFn;
     read: ReadFn;
     syncDbtProject: SyncDbtProjectFn;

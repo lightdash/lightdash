@@ -7,7 +7,7 @@ Use it to test anything live data sources do (adding a source, charts, dashboard
 ## Turn it on
 
 - **Env var:** `LIVE_SOURCES_HYDRA_ENABLED=true`. `.env.development` and `rainbow.toml` set it, so local instances and PR previews have it; everywhere else Hydra is absent. Check `GET /api/v1/health`: `hasHydraLiveSource` must be `true`. If it is false locally, look for an override in `.env.development.local`, then restart the API.
-- **Feature flag:** `api-query-sources`. On by default in previews. Locally, `POST /api/v2/feature-flag/api-query-sources` with `{"enabled": true}`.
+- **Licence:** live data sources need a valid Enterprise licence (`LICENSE_KEY`); `GET /api/v1/health` shows `license.valid`.
 - **Results cache:** cache hits need the project's results cache on: `PATCH /api/v1/projects/<projectUuid>/results-cache-config` with `{"cacheEnabled": true}`.
 
 ## Add a source

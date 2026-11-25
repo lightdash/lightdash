@@ -3,12 +3,11 @@ import { Group, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core';
 import clsx from 'clsx';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
-import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import styles from './AddLiveSourceModal.module.css';
-import { CustomLiveSourceRequestCard } from './CustomLiveSourceRequestCard';
+import { CustomLiveSourceRequest } from './CustomLiveSourceRequest';
 import { isGoogleConnector } from './googleConnection';
 import { LiveSourceBetaTitle } from './LiveSourceBetaBadge';
 import {
@@ -62,7 +61,6 @@ export const AddLiveSourceModal: FC<Props> = ({
 }) => {
     const { user } = useApp();
     const { track } = useTracking();
-    const { showToastSuccess } = useToaster();
     // Only what this instance can connect: Google sources need its Google
     // sign-in, LinkedIn Ads and Salesforce an app most servers won't have.
     const isConnectable = (connector: ApiConnectorType) => {
@@ -86,10 +84,6 @@ export const AddLiveSourceModal: FC<Props> = ({
                 integration: CUSTOM_LIVE_SOURCE_ID,
                 customIntegrationName,
             },
-        });
-        showToastSuccess({
-            title: `Requested ${customIntegrationName}`,
-            subtitle: 'Thanks, it helps us decide what to build next',
         });
     };
     return (
@@ -116,8 +110,8 @@ export const AddLiveSourceModal: FC<Props> = ({
                             <CardHead entry={entry} />
                         </UnstyledButton>
                     ))}
-                    <CustomLiveSourceRequestCard onRequest={requestCustom} />
                 </SimpleGrid>
+                <CustomLiveSourceRequest onRequest={requestCustom} />
             </Stack>
         </MantineModal>
     );

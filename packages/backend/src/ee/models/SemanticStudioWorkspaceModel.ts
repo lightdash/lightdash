@@ -1,6 +1,7 @@
 import {
     NotFoundError,
     STUDIO_EDITED_IN,
+    UNTITLED_WORKSPACE_NAME,
     type SemanticStudioBranchCompile,
     type SemanticStudioWorkspace,
     type SemanticStudioWorkspacePullRequestState,
@@ -253,7 +254,7 @@ export class SemanticStudioWorkspaceModel {
 
     /**
      * Inside a draft write: locks the person's workspaces and returns the active one, starting one named
-     * `name` when none is; null when the active one is no longer `expectedWorkspaceUuid`.
+     * `name` when none is or naming an untitled one; null when the active one is no longer `expectedWorkspaceUuid`.
      */
     static async checkOutForDraft(
         trx: Knex.Transaction,
@@ -284,8 +285,17 @@ export class SemanticStudioWorkspaceModel {
         ) {
             return null;
         }
+        const resumed =
+            !active && promptUuid
+                ? await SemanticStudioWorkspaceModel.reopenPromptThread(
+                      trx,
+                      owner,
+                      promptUuid,
+                  )
+                : undefined;
         const workspace =
             active ??
+            resumed ??
             (
                 await trx(SemanticStudioWorkspacesTableName)
                     .insert({
@@ -299,6 +309,15 @@ export class SemanticStudioWorkspaceModel {
                     .returning(['semantic_studio_workspace_uuid', 'name'])
             )[0];
         const workspaceUuid = workspace.semantic_studio_workspace_uuid;
+        // A draft still untitled takes the name of its first change; a name someone gave it stays.
+        if (
+            workspace.name === UNTITLED_WORKSPACE_NAME &&
+            name !== UNTITLED_WORKSPACE_NAME
+        ) {
+            await trx(SemanticStudioWorkspacesTableName)
+                .where('semantic_studio_workspace_uuid', workspaceUuid)
+                .update({ name });
+        }
         if (promptUuid && !active?.ai_thread_uuid) {
             await SemanticStudioWorkspaceModel.attachPromptThread(
                 trx,
@@ -312,6 +331,34 @@ export class SemanticStudioWorkspaceModel {
                 ? null
                 : { workspaceUuid, name: workspace.name },
         };
+    }
+
+    /** A chat that keeps writing after its draft was published picks that draft back up, so its edits stay in the chat. */
+    private static async reopenPromptThread(
+        trx: Knex.Transaction,
+        owner: Owner,
+        promptUuid: string,
+    ): Promise<
+        { semantic_studio_workspace_uuid: string; name: string } | undefined
+    > {
+        const prompt = await trx(AiPromptTableName)
+            .select('ai_thread_uuid')
+            .where('ai_prompt_uuid', promptUuid)
+            .first();
+        if (!prompt) return undefined;
+        const [row] = await trx(SemanticStudioWorkspacesTableName)
+            .where({
+                project_uuid: owner.projectUuid,
+                created_by_user_uuid: owner.userUuid,
+                ai_thread_uuid: prompt.ai_thread_uuid,
+            })
+            .update({
+                is_active: true,
+                finished_at: null,
+                updated_at: trx.fn.now(),
+            })
+            .returning(['semantic_studio_workspace_uuid', 'name']);
+        return row;
     }
 
     /** A draft keeps the chat that first changed it, so opening the draft opens that chat; a chat already kept by another draft stays there. */

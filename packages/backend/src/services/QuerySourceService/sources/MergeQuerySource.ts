@@ -110,6 +110,8 @@ export class MergeQuerySource implements QuerySourceClient {
 
     readonly requiredFeatureFlags: FeatureFlags[] = [];
 
+    readonly unavailableReason: string | null = null;
+
     private readonly asyncQueryService: MergeQuerySourceArguments['asyncQueryService'];
 
     // One compile per submitted query object: validation and submission share it

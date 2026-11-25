@@ -156,18 +156,6 @@ export enum FeatureFlags {
     AiMcpGithubPat = 'ai-mcp-github-pat',
 
     /**
-     * Gate the whole new onboarding experience as one unit: email-only
-     * signup (register collects only an email; ownership proven via email
-     * OTP), the full-page organization setup experience shown after
-     * registration, and the dbt-less "connect to your warehouse" onboarding
-     * path including the Snowflake "connect via CLI (SSO)" auth method in
-     * project creation. Off by default. Note: the register page evaluates
-     * this flag anonymously, so per-org overrides do not apply there —
-     * enable instance-wide (or for everyone in posthog) to turn on signup.
-     */
-    NewOnboarding = 'new-onboarding',
-
-    /**
      * Cloud-only: let an organization send report/notification emails from
      * their own verified domain (email whitelabelling) instead of the
      * Lightdash address. Gates both the setup UI and the admin API. Requires a
@@ -199,14 +187,6 @@ export enum FeatureFlags {
      * PREVIEW_ENABLED_FEATURE_FLAGS.
      */
     ComposeSqlRunner = 'compose-sql-runner',
-
-    /**
-     * Enable api query sources: queries sent live to an external API (HogQL
-     * to PostHog) through a project connection, and the Live data sources
-     * project settings page. Off by default; enable per org. Also on wherever
-     * NewOnboarding is on, unless a user or org override turns it off.
-     */
-    ApiQuerySources = 'api-query-sources',
 
     /**
      * Keeps the models of a project that has no dbt connection on the server,

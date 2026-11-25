@@ -1019,27 +1019,6 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 element: <NavBarLayout />,
                 children: [
                     {
-                        path: '/onboarding/invite-expert',
-                        handle: { hideAILauncher: true },
-                        lazy: async () => {
-                            const OnboardingInviteExpert =
-                                await loadLazyRouteDefault(
-                                    './pages/OnboardingInviteExpert',
-                                    () =>
-                                        import('./pages/OnboardingInviteExpert'),
-                                );
-                            return {
-                                Component: () => (
-                                    <TrackPage
-                                        name={PageName.ONBOARDING_INVITE_EXPERT}
-                                    >
-                                        <OnboardingInviteExpert />
-                                    </TrackPage>
-                                ),
-                            };
-                        },
-                    },
-                    {
                         path: '/createProject/:method?',
                         lazy: async () => {
                             const CreateProject = await loadLazyRouteDefault(

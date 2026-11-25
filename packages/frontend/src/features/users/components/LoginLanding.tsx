@@ -34,7 +34,6 @@ import {
 } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { z } from 'zod';
-import { useAuthLayoutVariant } from '../../../components/common/AuthLayout/useAuthLayoutVariant';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ThirdPartySignInButton } from '../../../components/common/ThirdPartySignInButton';
@@ -140,7 +139,6 @@ export const LoginForm: FC<{
     formStatus: 'idle' | 'loading';
     formStage: 'precheck' | 'login';
     lastUsedSsoProvider: OpenIdIdentityIssuerType | undefined;
-    layout: 'new' | 'legacy';
     loginHint: string | undefined;
     mobileLoginIntent: MobileLoginIntent | undefined;
     onClearEmail: () => void;
@@ -158,7 +156,6 @@ export const LoginForm: FC<{
     formStatus,
     formStage,
     lastUsedSsoProvider,
-    layout,
     loginHint,
     mobileLoginIntent,
     onClearEmail,
@@ -170,7 +167,6 @@ export const LoginForm: FC<{
     signupUrl,
     ssoOptions,
 }) => {
-    const isNewLayout = layout === 'new';
     const isFormLoading = formStatus === 'loading';
     const ssoButtons = ssoOptions.length > 0 && (
         <Stack>
@@ -178,7 +174,7 @@ export const LoginForm: FC<{
                 <ThirdPartySignInButton
                     key={providerName}
                     providerName={providerName}
-                    intent={isNewLayout ? 'continue' : 'signin'}
+                    intent="continue"
                     redirect={redirectUrl}
                     loginHint={loginHint}
                     disabled={isFormLoading}
@@ -195,7 +191,7 @@ export const LoginForm: FC<{
             labelPosition="center"
             label={
                 <Text c="dimmed" size="sm" fw={500}>
-                    {isNewLayout ? 'or' : 'OR'}
+                    or
                 </Text>
             }
         />
@@ -204,24 +200,23 @@ export const LoginForm: FC<{
     return (
         <form name="login" onSubmit={form.onSubmit(onSubmit)}>
             <Stack gap="lg">
-                {isNewLayout && ssoButtons ? (
+                {ssoButtons ? (
                     <>
                         {ssoButtons}
                         {ssoDivider}
                     </>
                 ) : null}
                 <TextInput
-                    label={isNewLayout ? 'Work email' : 'Email address'}
+                    label="Work email"
                     name="email"
                     type="email"
                     inputMode="email"
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}
-                    placeholder={
-                        isNewLayout ? 'maya@acme.com' : 'Your email address'
-                    }
+                    placeholder="maya@acme.com"
                     required
+                    autoFocus
                     {...form.getInputProps('email')}
                     disabled={isFormLoading}
                     rightSectionPointerEvents="all"
@@ -261,7 +256,7 @@ export const LoginForm: FC<{
                             type="submit"
                             loading={isFormLoading}
                             disabled={isFormLoading}
-                            fullWidth={isNewLayout}
+                            fullWidth
                             data-cy="signin-button"
                         >
                             Sign in
@@ -280,7 +275,7 @@ export const LoginForm: FC<{
                         type="submit"
                         loading={isFormLoading}
                         disabled={isFormLoading}
-                        fullWidth={isNewLayout}
+                        fullWidth
                         data-cy="signin-button"
                     >
                         Continue
@@ -302,28 +297,16 @@ export const LoginForm: FC<{
                             : 'work email'}
                     </Button>
                 ) : null}
-                {!isNewLayout && ssoButtons ? (
-                    <>
-                        {availability.email ||
-                        availability.emailOtp ||
-                        formStage === 'precheck'
-                            ? ssoDivider
-                            : null}
-                        {ssoButtons}
-                    </>
-                ) : null}
                 {!mobileLoginIntent ? (
                     <Text mx="auto" mt="md" fz="sm">
-                        {isNewLayout
-                            ? 'New to Lightdash?'
-                            : "Don't have an account?"}{' '}
+                        New to Lightdash?{' '}
                         {signupPath ? (
                             <Anchor component={Link} to={signupPath} fz="sm">
-                                {isNewLayout ? 'Create an account' : 'Sign up'}
+                                Create an account
                             </Anchor>
                         ) : (
                             <Anchor href={signupUrl} fz="sm">
-                                {isNewLayout ? 'Create an account' : 'Sign up'}
+                                Create an account
                             </Anchor>
                         )}
                     </Text>
@@ -337,7 +320,6 @@ const Login: FC<{}> = () => {
     const { health } = useApp();
     const { identify, track } = useTracking();
     const location = useLocation();
-    const { isNewLayout } = useAuthLayoutVariant();
 
     const { showToastError, showToastApiError } = useToaster();
     const flashMessages = useFlashMessages();
@@ -601,7 +583,6 @@ const Login: FC<{}> = () => {
             formStatus={isFormLoading ? 'loading' : 'idle'}
             formStage={formStage}
             lastUsedSsoProvider={lastUsedSsoProvider}
-            layout={isNewLayout ? 'new' : 'legacy'}
             loginHint={preCheckEmail ?? lastLoginMethod?.email}
             mobileLoginIntent={mobileLoginIntent}
             onClearEmail={() => {

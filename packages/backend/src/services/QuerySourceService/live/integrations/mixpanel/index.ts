@@ -1,0 +1,151 @@
+import {
+    ApiConnectorType,
+    getMixpanelRegion,
+    LIVE_INTEGRATION_CATALOG,
+    MIXPANEL_PATHS,
+    MIXPANEL_REGION_ORIGINS,
+    ParameterError,
+    TimeFrames,
+} from '@lightdash/common';
+import {
+    ALL_PUSHDOWN_REFUSED,
+    defineLiveIntegration,
+    jsonRequest,
+} from '../../integration';
+import { getIsoDateInTimeZone } from '../../query/dateRange';
+import { compileMixpanelQuery } from './compile';
+import { toMixpanelError } from './errors';
+import {
+    MIXPANEL_DATE_FILTERS,
+    MIXPANEL_EVENTS_EXPLORE,
+    MIXPANEL_FUNNEL_EXPLORE,
+    MIXPANEL_NUMBER_FILTERS,
+    MIXPANEL_PROPERTY_FILTERS,
+    MIXPANEL_RETENTION_EXPLORE,
+    MIXPANEL_TOP_EVENTS_EXPLORE,
+} from './explores';
+import {
+    MIXPANEL_CALLS_PER_QUERY,
+    MIXPANEL_MAX_QUERY_ROWS,
+    mixpanelRequestSchema,
+    runMixpanelQuery,
+} from './run';
+import { summarizeMixpanelTest } from './testSummary';
+import { mixpanelUseCases } from './useCases';
+
+const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.MIXPANEL];
+const LABEL = CATALOG.messageLabel;
+
+const PROJECT_ID = /^\d{1,20}$/;
+
+export const mixpanelIntegration = defineLiveIntegration({
+    connector: ApiConnectorType.MIXPANEL,
+    label: LABEL,
+    settings: CATALOG.settings,
+    origins: [
+        MIXPANEL_REGION_ORIGINS.us,
+        MIXPANEL_REGION_ORIGINS.eu,
+        MIXPANEL_REGION_ORIGINS.in,
+    ],
+    access: () => ({
+        pathPrefixes: Object.values(MIXPANEL_PATHS),
+        methods: ['GET'],
+    }),
+    limits: {
+        callsPerQuery: MIXPANEL_CALLS_PER_QUERY,
+        timeoutMs: 60_000,
+        maxRows: MIXPANEL_MAX_QUERY_ROWS,
+    },
+    // Reports take one date range in the project's time zone, by day or month
+    // (retention by day, week or month), and `where` filters of `==` and `!=`
+    // on event properties, ANDed.
+    capabilities: {
+        filters: {
+            operators: {
+                string: MIXPANEL_PROPERTY_FILTERS,
+                number: MIXPANEL_NUMBER_FILTERS,
+                date: MIXPANEL_DATE_FILTERS,
+            },
+            multipleValues: true,
+            or: false,
+            nestedGroups: false,
+        },
+        metricFilters: false,
+        dates: {
+            rangeRequired: true,
+            operators: MIXPANEL_DATE_FILTERS,
+            grains: [TimeFrames.DAY, TimeFrames.WEEK, TimeFrames.MONTH],
+            timezone: 'fixed',
+        },
+        pushdown: ALL_PUSHDOWN_REFUSED,
+    },
+    explores: [
+        MIXPANEL_TOP_EVENTS_EXPLORE,
+        MIXPANEL_EVENTS_EXPLORE,
+        MIXPANEL_FUNNEL_EXPLORE,
+        MIXPANEL_RETENTION_EXPLORE,
+    ],
+    plannedModelNames: ['profiles', 'insights', 'property_sums'],
+    level: {
+        value: 3,
+        description:
+            'Segmentation and retention return counts, uniques and averages per event, period and property; funnels return the steps of a funnel saved in the app.',
+    },
+    auth: {
+        description:
+            'A service account (username and secret over HTTP Basic) added to the project; no vendor review. The Query API needs a Growth or Enterprise plan.',
+        testWith: 'paid_account',
+        needs: ['gmail', 'card'],
+        token: true,
+        oauth: 'none',
+    },
+    paging: {
+        description:
+            'No paging: segmentation returns up to 10,000 property values per call, funnels and retention every cohort and step at once.',
+    },
+    // Mixpanel allows 60 Query API calls an hour and 5 at once per project,
+    // shared with every other client. One call at a time and 40 an hour leave
+    // room for them.
+    rateLimits: {
+        concurrentCalls: 1,
+        callsPerSecond: null,
+        buckets: [
+            {
+                id: 'hour',
+                label: 'per hour',
+                windowMs: 3_600_000,
+                capacity: 40,
+            },
+        ],
+        note: 'Mixpanel allows 60 queries an hour and 5 at once per project, shared with every other client; Lightdash keeps to 40 an hour.',
+    },
+    useCases: mixpanelUseCases,
+    validate: ({ projectId }) => {
+        if (!PROJECT_ID.test(projectId)) {
+            throw new ParameterError(
+                'Mixpanel project IDs are numbers: the one after /project/ in the project URL',
+            );
+        }
+    },
+    checkAuth: ({ type }) => {
+        if (type !== 'api_key') {
+            throw new ParameterError(
+                'Mixpanel live data sources sign in with a service account username and secret',
+            );
+        }
+    },
+    describeTarget: ({ origin, settings, targetLabel }) => {
+        const region = getMixpanelRegion(origin).toUpperCase();
+        return `Mixpanel project ${settings.projectId}${targetLabel ? ` "${targetLabel}"` : ''}, ${region} data region`;
+    },
+    parseRequest: jsonRequest(`${LABEL} report`, mixpanelRequestSchema),
+    compile: ({ explore, metricQuery, timezone, now }) =>
+        compileMixpanelQuery({
+            explore,
+            metricQuery,
+            today: getIsoDateInTimeZone(now, timezone),
+        }),
+    run: runMixpanelQuery,
+    toError: (response) => toMixpanelError(response),
+    summarizeTest: summarizeMixpanelTest,
+});
