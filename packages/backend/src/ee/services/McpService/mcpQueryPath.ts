@@ -9,11 +9,7 @@ export type McpQueryPath =
           sqlRunnerEnabled: boolean;
           filterExpressionsEnabled: boolean;
       }
-    | {
-          type: 'composer';
-          sqlRunnerEnabled: boolean;
-          filterExpressionsEnabled: boolean;
-      };
+    | { type: 'composer'; sqlRunnerEnabled: boolean };
 
 export type McpQueryTools = {
     /** list_explores, grep_fields, get_metadata, search_field_values */
@@ -51,13 +47,14 @@ export const getMcpQueryTools = (queryPath: McpQueryPath): McpQueryTools => {
                 query: false,
                 filterExpressionsEnabled: queryPath.filterExpressionsEnabled,
             };
+        // semanticLayer node filters are always expressions
         case 'composer':
             return {
                 discovery: true,
-                runMetricQuery: true,
-                runSql: queryPath.sqlRunnerEnabled,
+                runMetricQuery: false,
+                runSql: false,
                 query: true,
-                filterExpressionsEnabled: queryPath.filterExpressionsEnabled,
+                filterExpressionsEnabled: true,
             };
         default:
             return assertUnreachable(queryPath, 'Unknown MCP query path');

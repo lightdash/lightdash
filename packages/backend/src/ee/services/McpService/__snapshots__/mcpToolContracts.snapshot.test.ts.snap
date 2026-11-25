@@ -1245,7 +1245,7 @@ Finds spaces, charts, dashboards, or Data Apps by name or description within a p
 Usage tips:
 - If results aren't relevant, retry with the full user query or more specific terms.
 - A dashboard result previews at most its first 5 charts; use "read_content" to see all of them.
-- If neither run_metric_query nor run_sql is available, search here first: saved charts/dashboards may answer the question. Search before claiming information is unavailable or suggesting raw SQL or elevated permissions.",
+- If this session has no query tool, search here first: saved charts/dashboards may answer the question. Search before claiming information is unavailable or suggesting raw SQL or elevated permissions.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {

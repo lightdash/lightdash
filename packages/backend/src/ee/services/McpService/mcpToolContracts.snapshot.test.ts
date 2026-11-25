@@ -225,9 +225,9 @@ const mcpQueryPathsByType: {
         type: 'classic',
         ...options,
     })),
-    composer: queryRunnerOptionCombinations.map((options) => ({
+    composer: [false, true].map((sqlRunnerEnabled) => ({
         type: 'composer',
-        ...options,
+        sqlRunnerEnabled,
     })),
 };
 const mcpQueryPaths: McpQueryPath[] = Object.values(mcpQueryPathsByType).flat();
@@ -551,6 +551,39 @@ describe('MCP tool contracts', () => {
         },
     );
 
+    it('names no classic query tool in composer get_query_result', async () => {
+        const mcpService = makeMcpService();
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer(
+            makeMcpServerOptions({
+                queryPath: { type: 'composer', sqlRunnerEnabled: true },
+            }),
+        );
+        const { description } = mockRegisteredMcpTools.find(
+            ({ name }) => name === McpToolName.GET_QUERY_RESULT,
+        )!.config;
+        expect(description).toMatch(/query node/);
+        expect(description).not.toMatch(
+            /render_chart|run_metric_query|run_sql/,
+        );
+    });
+
+    it('lists the filter-expression search_field_values on the composer query path', async () => {
+        const mcpService = makeMcpService();
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer(
+            makeMcpServerOptions({
+                queryPath: { type: 'composer', sqlRunnerEnabled: false },
+            }),
+        );
+        const tool = mockRegisteredMcpTools.find(
+            ({ name }) => name === McpToolName.SEARCH_FIELD_VALUES,
+        );
+        expect(tool?.config.description).toContain(
+            'read the `filter-expressions` skill',
+        );
+    });
+
     it.each<{ name: string; queryPath: McpQueryPath }>([
         {
             name: 'structured-filter',
@@ -565,7 +598,6 @@ describe('MCP tool contracts', () => {
             queryPath: {
                 type: 'composer',
                 sqlRunnerEnabled: true,
-                filterExpressionsEnabled: false,
             },
         },
         {
@@ -573,7 +605,6 @@ describe('MCP tool contracts', () => {
             queryPath: {
                 type: 'composer',
                 sqlRunnerEnabled: false,
-                filterExpressionsEnabled: false,
             },
         },
     ])(
@@ -923,17 +954,30 @@ describe('MCP tool contracts', () => {
 
         mockRegisteredMcpTools.length = 0;
         mockRegisteredMcpPrompts.length = 0;
-        await mcpService.createServer(
-            makeMcpServerOptions({
-                queryPath: {
-                    type: 'composer',
-                    sqlRunnerEnabled: true,
-                    filterExpressionsEnabled: false,
-                },
-                dataAppBuildsEnabled: true,
-                chartTypeBuildsEnabled: true,
-                customChartTypesEnabled: true,
-            }),
+        const createServer = (queryPath: McpQueryPath) =>
+            mcpService.createServer(
+                makeMcpServerOptions({
+                    queryPath,
+                    dataAppBuildsEnabled: true,
+                    chartTypeBuildsEnabled: true,
+                    customChartTypesEnabled: true,
+                }),
+            );
+        // Classic lists every tool but query, which goes where composer lists it.
+        await createServer({ type: 'composer', sqlRunnerEnabled: true });
+        const queryTool = mockRegisteredMcpTools.find(
+            ({ name }) => name === McpToolName.QUERY,
+        );
+        mockRegisteredMcpTools.length = 0;
+        mockRegisteredMcpPrompts.length = 0;
+        await createServer(classicQueryPath(true, false));
+        expect(queryTool).toBeDefined();
+        mockRegisteredMcpTools.splice(
+            mockRegisteredMcpTools.findIndex(
+                ({ name }) => name === McpToolName.GET_QUERY_RESULT,
+            ),
+            0,
+            queryTool!,
         );
 
         const prompts = await Promise.all(
@@ -1128,6 +1172,12 @@ describe('MCP tool contracts', () => {
         McpToolName.RENDER_CHART,
         McpToolName.SEARCH_FIELD_VALUES,
     ];
+    const composerDiscoveryTools = [
+        McpToolName.LIST_EXPLORES,
+        McpToolName.GREP_FIELDS,
+        McpToolName.GET_METADATA,
+        McpToolName.SEARCH_FIELD_VALUES,
+    ];
 
     it.each<{
         name: string;
@@ -1172,14 +1222,20 @@ describe('MCP tool contracts', () => {
             instructions: '4. `run_metric_query`',
         },
         {
-            name: 'composer',
-            queryPath: {
-                type: 'composer',
-                sqlRunnerEnabled: false,
-                filterExpressionsEnabled: false,
-            },
+            name: 'composer without SQL Runner',
+            queryPath: { type: 'composer', sqlRunnerEnabled: false },
             tools: [
-                ...classicQueryTools,
+                ...composerDiscoveryTools,
+                McpToolName.QUERY,
+                McpToolName.GET_QUERY_RESULT,
+            ],
+            instructions: '4. `query`',
+        },
+        {
+            name: 'composer with SQL Runner',
+            queryPath: { type: 'composer', sqlRunnerEnabled: true },
+            tools: [
+                ...composerDiscoveryTools,
                 McpToolName.QUERY,
                 McpToolName.GET_QUERY_RESULT,
             ],
@@ -1459,7 +1515,6 @@ describe('MCP tool contracts', () => {
                 expected: {
                     type: 'composer',
                     sqlRunnerEnabled: true,
-                    filterExpressionsEnabled: true,
                 },
             },
             {
@@ -1471,7 +1526,6 @@ describe('MCP tool contracts', () => {
                 expected: {
                     type: 'composer',
                     sqlRunnerEnabled: false,
-                    filterExpressionsEnabled: true,
                 },
             },
             {
@@ -1483,7 +1537,6 @@ describe('MCP tool contracts', () => {
                 expected: {
                     type: 'composer',
                     sqlRunnerEnabled: true,
-                    filterExpressionsEnabled: true,
                 },
             },
             {
