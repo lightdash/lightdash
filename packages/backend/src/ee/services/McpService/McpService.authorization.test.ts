@@ -222,8 +222,11 @@ describe('MCP scoped tool catalogue', () => {
             },
         } as unknown as ConstructorParameters<typeof McpService>[0]);
         const options = makeMcpServerOptions({
-            runSqlEnabled: true,
-            runMetricQueryEnabled: true,
+            queryPath: {
+                type: 'classic',
+                sqlRunnerEnabled: true,
+                filterExpressionsEnabled: false,
+            },
             dataAppBuildsEnabled: true,
             chartTypeBuildsEnabled: true,
             customChartTypesEnabled: true,

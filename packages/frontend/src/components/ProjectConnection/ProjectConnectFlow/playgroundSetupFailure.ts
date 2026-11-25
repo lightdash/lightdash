@@ -18,21 +18,3 @@ export const getPlaygroundSetupFailure = (
     }
     return 'unknown';
 };
-
-export const PLAYGROUND_SETUP_FAILURE_MESSAGES: Record<
-    PlaygroundSetupFailure,
-    string
-> = {
-    unavailable:
-        "Sample projects aren't available on this instance. Your invite is still ready below.",
-    'previously-removed':
-        "Your organization's sample project was removed and can't be set up again. Your invite is still ready below.",
-    forbidden:
-        "You don't have permission to create a sample project. Your invite is still ready below.",
-    unknown:
-        'Something went wrong while preparing your sample project. Your invite is still ready below.',
-};
-
-export const isRetryablePlaygroundSetupFailure = (
-    failure: PlaygroundSetupFailure,
-): boolean => failure === 'unknown';

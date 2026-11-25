@@ -124,6 +124,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
                             completedTours: {
                                 ...body.results.completedTours,
                                 dashboardEditTour: true,
+                                composerLineageTour: true,
                             },
                         },
                     },

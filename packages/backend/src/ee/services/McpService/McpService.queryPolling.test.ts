@@ -677,9 +677,11 @@ const makeMcpService = ({
     mockRegisteredMcpToolInputSchemas.clear();
     service.setupHandlers(
         makeMcpServerOptions({
-            runSqlEnabled: true,
-            runMetricQueryEnabled: true,
-            filterExpressionsEnabled,
+            queryPath: {
+                type: 'classic',
+                sqlRunnerEnabled: true,
+                filterExpressionsEnabled,
+            },
             agentIdentityEnabled,
         }),
     );
@@ -961,7 +963,13 @@ describe('MCP catalogue audit', () => {
             const { service, mcpToolCallModel } = makeMcpService();
             service.recordToolList({
                 catalogue: makeMcpServerOptions(
-                    { runSqlEnabled: true, filterExpressionsEnabled: true },
+                    {
+                        queryPath: {
+                            type: 'classic',
+                            sqlRunnerEnabled: true,
+                            filterExpressionsEnabled: true,
+                        },
+                    },
                     pinnedProjectUuid,
                 ),
                 authInfo: {
@@ -987,8 +995,9 @@ describe('MCP catalogue audit', () => {
                                 projectPinned: pinnedProjectUuid !== undefined,
                                 mcpContentWritesEnabled: true,
                                 scheduledDeliveryEnabled: true,
+                                queryPath: 'classic',
                                 runSqlEnabled: true,
-                                runMetricQueryEnabled: false,
+                                runMetricQueryEnabled: true,
                                 queryEnabled: false,
                                 filterExpressionsEnabled: true,
                                 documentsEnabled: false,

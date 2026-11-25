@@ -166,7 +166,7 @@ export const useDbtChangeSelection = ({
         if (prUrl === sourcesPrUrl) return;
         // A save from live started a change of its own, with a conversation to ask about it in.
         if (thread) setStoredThread(thread);
-        else if (!sourcesTarget.threadUuid) startNewThread();
+        else if (!sourcesTarget.threadUuid) setStoredThread(null);
         setOpenedPrUrl(prUrl);
         setIsOnLive(false);
         setIsChatOpen(true);

@@ -1,11 +1,23 @@
 import {
     describeSemanticLayerProposals,
+    DimensionType,
+    METRIC_VIEW_TABLE_TYPE,
+    toolDraftProjectContextOutputSchema,
+    toolProposeSemanticLayerChangeArgsSchema,
     toolProposeSemanticLayerChangeOutputSchema,
     toolReadSemanticModelOutputSchema,
+    WarehouseTableType,
+    WarehouseTypes,
     type StudioChangeSummary,
+    type WarehouseTableMetadata,
 } from '@lightdash/common';
-import type { ProposeSemanticLayerChangeFn } from '../types/aiAgentDependencies';
+import type {
+    DescribeWarehouseTableFn,
+    ProposeSemanticLayerChangeFn,
+} from '../types/aiAgentDependencies';
+import type { MetricViewCheckDependencies } from './metricViewCheck';
 import {
+    getDraftProjectContext,
     getListChanges,
     getProposeSemanticLayerChange,
     getReadSemanticModel,
@@ -22,6 +34,32 @@ vi.mock('../../../../logging/logger', () => ({
     default: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
+const metricView = (isMeasure: boolean): WarehouseTableMetadata => ({
+    tableType: isMeasure ? METRIC_VIEW_TABLE_TYPE : WarehouseTableType.TABLE,
+    comment: null,
+    columns: [
+        {
+            name: 'Order Count',
+            type: DimensionType.NUMBER,
+            comment: 'Orders placed.',
+            isMeasure,
+        },
+    ],
+    definition: null,
+    metricView: null,
+});
+
+let described = metricView(true);
+
+const describeWarehouseTable: DescribeWarehouseTableFn = async () => ({
+    columns: [],
+    resolvedSchema: 'analytics',
+    resolvedDatabase: 'catalog',
+    partitioning: null,
+    metadata: described,
+    warehouseType: WarehouseTypes.DATABRICKS,
+});
+
 const callOptions = {
     messages: [],
     toolCallId: 'tool-call-1',
@@ -30,20 +68,43 @@ const callOptions = {
 
 const propose = async (
     proposeSemanticLayerChange: ProposeSemanticLayerChangeFn,
-    yaml: string,
+    yaml: string | null,
     canRunMetrics = false,
+    fromMetricView: {
+        table: string;
+        schema: null;
+        database: null;
+    } | null = null,
+    moreToDo = false,
+    metricViewCheck: MetricViewCheckDependencies | null = null,
 ) => {
     const tool = getProposeSemanticLayerChange({
         proposeSemanticLayerChange,
+        describeWarehouseTable,
+        readSemanticModel: async () => ({
+            content: null,
+            inDraft: false,
+            modelNames: [],
+        }),
         canRunMetrics,
+        metricViewCheck,
     });
     if (!tool.execute) throw new Error('tool has no execute');
     const output = await tool.execute(
         {
-            models: [{ name: 'orders', yaml, remove: [], removeModel: false }],
+            models: [
+                {
+                    name: 'orders',
+                    yaml,
+                    fromMetricView,
+                    remove: [],
+                    removeModel: false,
+                },
+            ],
             changeName: null,
             note: 'Counts refunds too.',
             options: ['Leave refunds out'],
+            moreToDo,
         },
         callOptions,
     );
@@ -64,7 +125,250 @@ it('lists changes with their checkout and touched models', async () => {
     });
 });
 
+it('takes only a path that names a part of a model to remove', () => {
+    const parse = (path: string) =>
+        toolProposeSemanticLayerChangeArgsSchema.safeParse({
+            models: [
+                {
+                    name: 'orders',
+                    yaml: null,
+                    fromMetricView: null,
+                    remove: [path],
+                    removeModel: false,
+                },
+            ],
+            changeName: null,
+            note: null,
+            options: [],
+            moreToDo: false,
+        });
+    [
+        'dimensions.amount',
+        'dimensions.amount.metrics.revenue',
+        'dimensions.amount.additional_dimensions.amount_usd',
+        'metrics.average_amount',
+        'joins.buyer',
+    ].forEach((path) => expect(parse(path).success).toBe(true));
+    [
+        'revenue',
+        'orders.amount',
+        'dimensions.amount.revenue',
+        'metrics',
+    ].forEach((path) => {
+        const parsed = parse(path);
+        expect(parsed.success).toBe(false);
+        expect(parsed.error?.issues[0].message).toContain(
+            'dimensions.<name>.metrics.<name>',
+        );
+    });
+});
+
+const DATED_MODEL = [
+    'type: model',
+    'name: orders',
+    'sql_from: analytics.orders',
+    'dimensions:',
+    '  - name: order_date',
+    '    type: date',
+    '    sql: ${TABLE}.order_date',
+    '',
+].join('\n');
+
 describe('getProposeSemanticLayerChange', () => {
+    describe('importing a metric view', () => {
+        const table = { table: 'order_metrics', schema: null, database: null };
+        const nothingProposed = {
+            results: [],
+            diffs: [],
+            draftChangeUuid: null,
+            startedChange: null,
+        };
+
+        it('proposes the model built from the warehouse description', async () => {
+            described = metricView(true);
+            const proposed = vi.fn<ProposeSemanticLayerChangeFn>(
+                async () => nothingProposed,
+            );
+
+            await propose(proposed, null, false, table);
+
+            const [[model]] = proposed.mock.calls[0];
+            expect(model).toEqual({
+                name: 'orders',
+                yaml: [
+                    'sql_from: catalog.analytics.order_metrics',
+                    'dimensions: []',
+                    'metrics:',
+                    '  order_count:',
+                    '    type: number',
+                    '    sql: MEASURE(`Order Count`)',
+                    '    label: Order count',
+                    '    description: Orders placed.',
+                    '',
+                ].join('\n'),
+                remove: [],
+                removeModel: false,
+            });
+        });
+
+        it('checks an import against the view by month instead of an all-time total', async () => {
+            described = metricView(true);
+            const contentAfter = [
+                'type: model',
+                'name: orders',
+                'sql_from: catalog.analytics.order_metrics',
+                'primary_key: [order_date]',
+                'dimensions:',
+                '  - name: order_date',
+                '    type: date',
+                '    sql: ${TABLE}.order_date',
+                'metrics:',
+                '  revenue:',
+                '    type: number',
+                '    sql: MEASURE(`Revenue`)',
+                '    description: Revenue from orders.',
+                '',
+            ].join('\n');
+            const imported: ProposeSemanticLayerChangeFn = async () => ({
+                results: [
+                    {
+                        model: 'orders',
+                        status: 'ready',
+                        changes: [{ path: 'metrics.revenue', action: 'added' }],
+                        refusals: [],
+                        error: null,
+                        rejection: null,
+                        notes: [],
+                    },
+                ],
+                diffs: [{ model: 'orders', contentBefore: null, contentAfter }],
+                draftChangeUuid: 'draft-1',
+                startedChange: null,
+            });
+            const runSqlJob = vi.fn(async () => ({
+                queryUuid: 'view-query',
+                rows: [{ period: '2020-01-01', m0: 10 }],
+                columns: ['period', 'm0'],
+                rowCount: 1,
+                executionStats: null,
+            }));
+            const runDraftQuery = vi.fn(async () => ({
+                queryUuid: 'draft-query',
+                rows: [
+                    {
+                        orders_order_date_month: '2020-01-01',
+                        orders_revenue: 10,
+                    },
+                ],
+                cacheMetadata: { cacheHit: false },
+                fields: {},
+                executionStats: null,
+            }));
+
+            const output = await propose(imported, null, true, table, false, {
+                runDraftQuery,
+                runSqlJob,
+            });
+
+            expect(output.result).toContain('2020-01: revenue 10 = 10');
+            expect(output.result).not.toContain('runMetricQuery');
+            expect(output.result).toContain('write nothing more');
+            expect(output.metadata).toMatchObject({ needsFollowUp: false });
+        });
+
+        it('refuses a metric view that takes parameters', async () => {
+            described = {
+                ...metricView(true),
+                metricView: {
+                    source: null,
+                    filter: null,
+                    parameterized: true,
+                    dimensions: [],
+                    measures: [],
+                    joins: [],
+                },
+            };
+            const proposed = vi.fn<ProposeSemanticLayerChangeFn>(
+                async () => nothingProposed,
+            );
+
+            const output = await propose(proposed, null, false, table);
+
+            expect(proposed).not.toHaveBeenCalled();
+            expect(output.result).toContain('takes parameters');
+        });
+
+        it.each([
+            ['an imported metric view', table, false],
+            ['a new model written as yaml', null, true],
+        ])(
+            'gives primary key advice for %s only when it is not a metric view',
+            async (_, fromMetricView, advisesKey) => {
+                described = metricView(true);
+                const created = `type: model
+name: orders
+sql_from: public.orders
+dimensions:
+  - name: id
+    type: number
+    sql: \${TABLE}.id
+`;
+                const output = await propose(
+                    async () => ({
+                        results: [
+                            {
+                                model: 'orders',
+                                status: 'ready',
+                                changes: [
+                                    { path: 'orders', action: 'created' },
+                                ],
+                                refusals: [],
+                                error: null,
+                                rejection: null,
+                                notes: [],
+                            },
+                        ],
+                        diffs: [
+                            {
+                                model: 'orders',
+                                contentBefore: null,
+                                contentAfter: created,
+                            },
+                        ],
+                        draftChangeUuid: 'draft-1',
+                        startedChange: null,
+                    }),
+                    fromMetricView === null ? created : null,
+                    false,
+                    fromMetricView,
+                );
+                expect(output.result.includes('no primary_key')).toBe(
+                    advisesKey,
+                );
+            },
+        );
+
+        it.each([
+            [
+                'a table that is not a metric view',
+                false,
+                null,
+                'not a metric view',
+            ],
+            ['yaml given with it', true, 'label: Orders', 'not both'],
+        ])('proposes nothing for %s', async (_, isMeasure, yaml, reason) => {
+            described = metricView(isMeasure);
+            const proposed = vi.fn<ProposeSemanticLayerChangeFn>(
+                async () => nothingProposed,
+            );
+
+            const output = await propose(proposed, yaml, false, table);
+
+            expect(proposed).not.toHaveBeenCalled();
+            expect(output.result).toContain(reason);
+        });
+    });
+
     it('reports a passing model as ready, with its diff and its place in the draft', async () => {
         const output = await propose(
             async () => ({
@@ -75,6 +379,7 @@ describe('getProposeSemanticLayerChange', () => {
                         changes: [{ path: 'metrics.total', action: 'added' }],
                         refusals: [],
                         error: null,
+                        rejection: null,
                         notes: [],
                     },
                 ],
@@ -112,6 +417,7 @@ describe('getProposeSemanticLayerChange', () => {
                     changes: [{ path: 'metrics.total', action: 'added' }],
                     refusals: [],
                     error: null,
+                    rejection: null,
                     notes: [],
                 },
             ],
@@ -119,7 +425,7 @@ describe('getProposeSemanticLayerChange', () => {
                 {
                     model: 'orders',
                     contentBefore: 'before',
-                    contentAfter: 'after',
+                    contentAfter: DATED_MODEL,
                 },
             ],
             draftChangeUuid: 'draft-1',
@@ -127,7 +433,7 @@ describe('getProposeSemanticLayerChange', () => {
         });
         const asked = await propose(proposeMetric, 'metrics: {}', true);
         expect(asked.result).toContain(
-            'check: run orders_total once with runMetricQuery',
+            'check: run orders_total once with runMetricQuery, which reads the draft, filtered to the last 3 full months of orders_order_date.',
         );
         expect(asked.metadata).toMatchObject({ needsFollowUp: true });
         expect(asked.result).not.toContain('write nothing more');
@@ -135,6 +441,78 @@ describe('getProposeSemanticLayerChange', () => {
         expect(notAsked.result).not.toContain('runMetricQuery');
         expect(notAsked.result).toContain('write nothing more');
         expect(notAsked.metadata).toMatchObject({ needsFollowUp: false });
+    });
+
+    it('never asks for a check that would read every row of a model with no date', async () => {
+        const output = await propose(
+            async () => ({
+                results: [
+                    {
+                        model: 'events',
+                        status: 'ready',
+                        changes: [
+                            {
+                                path: 'metrics.active_accounts',
+                                action: 'added',
+                            },
+                        ],
+                        refusals: [],
+                        error: null,
+                        rejection: null,
+                        notes: [],
+                    },
+                ],
+                diffs: [
+                    {
+                        model: 'events',
+                        contentBefore: 'before',
+                        contentAfter: DATED_MODEL.replace(
+                            'name: orders',
+                            'name: events',
+                        ).replace('type: date', 'type: string'),
+                    },
+                ],
+                draftChangeUuid: 'draft-1',
+                startedChange: null,
+            }),
+            'metrics: {}',
+            true,
+        );
+        expect(output.result).toContain(
+            'check: events has no date to bound a query, so do not run events_active_accounts',
+        );
+        expect(output.result).not.toContain('runMetricQuery');
+    });
+
+    it('keeps the turn going after a clean change while the request has steps left', async () => {
+        const proposeLabel: ProposeSemanticLayerChangeFn = async () => ({
+            results: [
+                {
+                    model: 'orders',
+                    status: 'ready',
+                    changes: [{ path: 'label', action: 'patched' }],
+                    refusals: [],
+                    error: null,
+                    rejection: null,
+                    notes: [],
+                },
+            ],
+            diffs: [],
+            draftChangeUuid: 'draft-1',
+            startedChange: null,
+        });
+        const thenQuery = await propose(
+            proposeLabel,
+            'label: Orders',
+            true,
+            null,
+            true,
+        );
+        expect(thenQuery.result).not.toContain('write nothing more');
+        expect(thenQuery.metadata).toMatchObject({ needsFollowUp: true });
+        const editOnly = await propose(proposeLabel, 'label: Orders', true);
+        expect(editOnly.result).toContain('write nothing more');
+        expect(editOnly.metadata).toMatchObject({ needsFollowUp: false });
     });
 
     it('says when the edit started a change and checked it out', async () => {
@@ -147,6 +525,7 @@ describe('getProposeSemanticLayerChange', () => {
                         changes: [{ path: 'metrics.total', action: 'added' }],
                         refusals: [],
                         error: null,
+                        rejection: null,
                         notes: [],
                     },
                 ],
@@ -164,34 +543,58 @@ describe('getProposeSemanticLayerChange', () => {
         });
     });
 
-    it('keeps the turn open when a part of a ready model was refused', async () => {
+    it('says parts were left out for a result stored before a model joined whole or not at all', () => {
+        expect(
+            describeSemanticLayerProposals([
+                {
+                    models: [
+                        {
+                            model: 'orders',
+                            status: 'ready',
+                            changes: [
+                                { path: 'metrics.total', action: 'removed' },
+                            ],
+                            refusals: [
+                                {
+                                    path: 'dimensions.status',
+                                    reason: 'name_taken',
+                                },
+                            ],
+                            error: null,
+                            rejection: null,
+                        },
+                    ],
+                },
+            ]),
+        ).toBe('Changed orders in the draft. Some parts were left out.');
+    });
+
+    it('tells the agent why a part was refused in a sentence it can act on', async () => {
         const output = await propose(
             async () => ({
                 results: [
                     {
                         model: 'orders',
-                        status: 'ready',
-                        changes: [{ path: 'metrics.total', action: 'removed' }],
+                        status: 'failed',
+                        changes: [],
                         refusals: [
                             { path: 'dimensions.status', reason: 'name_taken' },
                         ],
-                        error: null,
+                        error: 'None of this change to orders was added.',
+                        rejection: null,
                         notes: [],
                     },
                 ],
                 diffs: [],
-                draftChangeUuid: 'draft-1',
+                draftChangeUuid: null,
                 startedChange: null,
             }),
             'label: Orders',
         );
-        expect(output.result).not.toContain('write nothing more');
-        expect(output.metadata).toMatchObject({ needsFollowUp: true });
-        expect(
-            output.metadata.status === 'success'
-                ? describeSemanticLayerProposals([output.metadata])
-                : null,
-        ).toBe('Changed orders in the draft. Some parts were left out.');
+        expect(output.result).toContain(
+            'refusals: dimensions.status uses a name another field of this model already has.',
+        );
+        expect(output.result).toContain('Nothing joined the draft.');
     });
 
     it('says nothing joined the draft when no model passed', async () => {
@@ -204,6 +607,7 @@ describe('getProposeSemanticLayerChange', () => {
                         changes: [],
                         refusals: [],
                         error: 'bad YAML',
+                        rejection: null,
                         notes: [],
                     },
                 ],
@@ -254,5 +658,51 @@ describe('getReadSemanticModel', () => {
 
     it('names the models when the name is unknown', async () => {
         expect((await read(null)).result).toContain('orders, customers');
+    });
+});
+
+describe('getDraftProjectContext', () => {
+    const entry = {
+        op: 'create' as const,
+        id: null,
+        kind: 'definition' as const,
+        content: '"Active" means ordered in the last 30 days.',
+        terms: ['active'],
+        objects: [],
+    };
+    const args = { ...entry, changeName: 'Define active' };
+
+    it('passes the entry and the change name to the draft and says when agents read it', async () => {
+        const draftProjectContext = vi.fn(async () => ({
+            entryId: 'active',
+            op: 'create' as const,
+            draftChangeUuid: 'draft-1',
+            startedChange: { workspaceUuid: 'workspace-1', name: 'Context' },
+        }));
+        const tool = getDraftProjectContext({ draftProjectContext });
+        const output = toolDraftProjectContextOutputSchema.parse(
+            await tool.execute?.(args, callOptions),
+        );
+        expect(draftProjectContext).toHaveBeenCalledWith(
+            entry,
+            'Define active',
+        );
+        expect(output.structuredContent).toEqual({
+            entryId: 'active',
+            op: 'create',
+            draftChangeUuid: 'draft-1',
+        });
+        expect(output.result).toContain('Added project context entry "active"');
+        expect(output.result).toContain('Started draft "Context"');
+    });
+
+    it('reports a refusal as an error and drafts nothing', async () => {
+        const tool = getDraftProjectContext({
+            draftProjectContext: async () => {
+                throw new Error('kept in the repository');
+            },
+        });
+        const output = await tool.execute?.(args, callOptions);
+        expect(output).toMatchObject({ metadata: { status: 'error' } });
     });
 });

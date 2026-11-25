@@ -9,7 +9,9 @@ import {
     DbtProjectType,
     isOpenWorkspace,
     isPullRequestOpen,
+    SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE,
     type SemanticLayerBlocker,
+    type SemanticLayerDrafter,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -24,6 +26,7 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
+import { WorkerPoolContextProvider } from '@pierre/diffs/react';
 import {
     IconArrowLeft,
     IconArrowUpRight,
@@ -40,7 +43,6 @@ import {
     useRef,
     useState,
     type FC,
-    type ReactNode,
 } from 'react';
 import {
     createSearchParams,
@@ -69,11 +71,16 @@ import {
     useStudioPullRequest,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
 import { useSyncStudioWorkspace } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSyncStudioWorkspace';
+import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useProject } from '../../hooks/useProject';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { LiveSourceManager } from '../externalConnections/liveSources/LiveSourceManager';
 import { ExternalSourceManager } from '../externalSources/components/ExternalSourceManager';
+import {
+    PIERRE_HIGHLIGHTER_OPTIONS,
+    PIERRE_POOL_OPTIONS,
+} from '../writeback/pierreDiffConfig';
 import { useDevelopmentView } from './developmentView';
 import {
     DraftMarksContext,
@@ -102,7 +109,8 @@ import {
     type StudioView,
 } from './modelCode';
 import { ModelCodeView } from './ModelTabs';
-import { DraftReview } from './SemanticLayerDraft';
+import { DraftReview, ProjectContextDraftFile } from './SemanticLayerDraft';
+import { describeBlocker } from './studioBlocker';
 import { useChatOpen, useStoredStudioThread } from './studioChange';
 import {
     AddToStudioChatContext,
@@ -159,36 +167,7 @@ const SourcesRail = lazy(() =>
 
 /** Why the models cannot be changed here, for someone who would otherwise expect to. */
 const BlockedNotice: FC<{ blocker: SemanticLayerBlocker }> = ({ blocker }) => {
-    const text = ((): ReactNode => {
-        switch (blocker) {
-            // Someone without the right to deploy has nothing to be told.
-            case 'no_access':
-                return null;
-            case 'unsupported_connection':
-                return "Read-only. This dbt connection can't be written to.";
-            case 'no_repository_access':
-                return 'Read-only. You need write access to the repository.';
-            case 'github_app_missing':
-                return (
-                    <>
-                        Read-only until the GitHub App is installed.{' '}
-                        <Anchor
-                            component={Link}
-                            to="/generalSettings/integrations"
-                            inherit
-                        >
-                            Install it
-                        </Anchor>
-                    </>
-                );
-            case 'models_from_outside':
-                return 'Read-only. These models were deployed from outside this app.';
-            case 'preview_project':
-                return 'Read-only. This is a preview of a pull request.';
-            default:
-                return assertUnreachable(blocker, 'Unknown blocker');
-        }
-    })();
+    const text = describeBlocker(blocker);
     return text ? (
         <Group className={classes.toolbar} px="sm" role="note">
             <Text fz="xs" c="dimmed">
@@ -203,6 +182,8 @@ const EDIT_PARAM = 'edit';
 
 const BUILD_MODEL_PROMPT =
     'Look through my warehouse and suggest the first model and metrics to add.';
+const NEXT_MODEL_PROMPT =
+    'Look through my warehouse and suggest the next table to model, given what is already modelled.';
 
 export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const view = useSemanticStudio(props);
@@ -287,10 +268,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const {
         agent: studioAgent,
         thread: studioThread,
-        isEnabled: hasChat,
+        isEnabled: isChatEnabled,
         isLoadingAgents,
-        hasAgents,
     } = useStudioAgent(view.project.id);
+    // Nothing to build from until a warehouse is connected
+    const hasChat = isChatEnabled && !(project && !project.warehouseConnection);
+    const isCopilotEnabled =
+        useAiOrganizationSettings().data?.isCopilotEnabled === true;
     const [isChatOpen, setIsChatOpen] = useChatOpen(view.project.id);
     const [askedPrompt, setAskedPrompt] = useState<string | null>(null);
     const agentAvailable = hasChat && !!studioAgent;
@@ -321,9 +305,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             ),
             others: new Map(
                 (draft?.othersDrafting ?? []).map(
-                    ({ model, drafters }): [string, string[]] => [
+                    ({ model, drafters }): [string, SemanticLayerDrafter[]] => [
                         model,
-                        drafters.map(({ name }) => name),
+                        drafters,
                     ],
                 ),
             ),
@@ -364,15 +348,33 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 .map(({ id }) => id),
         [view.project],
     );
+    // The project context file sits among the model files, under a name no model can take.
+    const draftedFiles = useMemo(
+        () => [
+            ...(checkedOutDraft?.models ?? []).map((entry) => ({
+                name: entry.model,
+                change: entry,
+            })),
+            ...(checkedOutDraft?.projectContext
+                ? [
+                      {
+                          name: SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE,
+                          change: checkedOutDraft.projectContext,
+                      },
+                  ]
+                : []),
+        ],
+        [checkedOutDraft],
+    );
     const lineCounts = useMemo(
         () =>
             new Map(
-                (checkedOutDraft?.models ?? []).map((entry) => [
-                    entry.model,
-                    countChangedLines(entry),
+                draftedFiles.map(({ name, change }) => [
+                    name,
+                    countChangedLines(change),
                 ]),
             ),
-        [checkedOutDraft],
+        [draftedFiles],
     );
     const [storedThread, setStoredThread] = useStoredStudioThread(
         view.project.id,
@@ -601,7 +603,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             : hasDraftChanges
               ? {
                     name: 'Draft',
-                    hint: 'Only you see these changes until you publish them.',
+                    hint: 'Not live until you publish. Others can see them, but only you can change them.',
                 }
               : null;
     // Only models with YAML here have a file: a deployed model's YAML lives where it was deployed from.
@@ -617,13 +619,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 .filter(({ contentAfter }) => contentAfter === null)
                 .map(({ model }) => model),
         );
-        const drafted = (checkedOutDraft?.models ?? []).map(
-            ({ model }) => model,
-        );
+        const drafted = draftedFiles.map(({ name }) => name);
         return [...new Set([...drafted, ...(stored?.models ?? [])])]
             .filter((name) => !removed.has(name))
             .sort();
-    }, [checkedOutDraft, stored]);
+    }, [checkedOutDraft, draftedFiles, stored]);
     const requestedFile = searchParams.get(FILE_PARAM);
     const file =
         files.find((name) => name === requestedFile) ??
@@ -686,7 +686,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         dbt.opensInSources || (readsSources && studioView === 'sources');
     if (isSources && sourceFile) lastSourceFile.current = sourceFile;
 
-    const canBuildFirstModel = isEmpty && canBuildModels;
+    // Views, files or live sources alone still leave the first model to build
+    const canBuildFirstModel =
+        (isEmpty ||
+            (hasWarehouse && modelled.length === 0 && !view.selected)) &&
+        canBuildModels;
     const canNudge = canBuildModels && modelled.length === 0;
     const pane = ((): Pane => {
         if (studioView === 'workspaces') return 'workspaces';
@@ -695,9 +699,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         if (isSources) return 'sources';
         if (isChanges) return 'changes';
         if (isReviewingDraft) return 'review';
-        if (!isEmpty) return 'browse';
-        if (!canBuildFirstModel) return 'empty';
-        return 'buildFirst';
+        if (canBuildFirstModel) return 'buildFirst';
+        return isEmpty ? 'empty' : 'browse';
     })();
     // An empty project asks its first question in the page, and the chat opens once it is asked.
     const waitsForFirstAsk =
@@ -770,11 +773,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             };
     const [attached, setAttached] = useState<StudioChatRef[]>([]);
     const attachToChat = (ref: StudioChatRef) => {
-        setAttached((current) =>
-            current.some((item) => sameStudioChatRef(item, ref))
-                ? current
-                : [...current, ref],
-        );
+        // The same lines again replace what was attached, since they may have been edited since.
+        setAttached((current) => [
+            ...current.filter((item) => !sameStudioChatRef(item, ref)),
+            ref,
+        ]);
         setIsChatOpen(true);
     };
     const askAgent = (prompt: string) => {
@@ -956,7 +959,18 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     />
                 ) : null;
             case 'code':
-                return file ? (
+                return file === SEMANTIC_STUDIO_PROJECT_CONTEXT_FILE &&
+                    checkedOutDraft?.projectContext ? (
+                    <WorkerPoolContextProvider
+                        poolOptions={PIERRE_POOL_OPTIONS}
+                        highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                    >
+                        <ProjectContextDraftFile
+                            change={checkedOutDraft.projectContext}
+                            variant="whole"
+                        />
+                    </WorkerPoolContextProvider>
+                ) : file ? (
                     <ModelCodeView
                         key={file}
                         projectUuid={view.project.id}
@@ -1014,14 +1028,15 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                           ? {
                                 icon: null,
                                 title: 'Nothing in this draft yet',
-                                description:
-                                    'Ask for a change in the chat, or open a file from the list and edit it.',
+                                description: studioAgent
+                                    ? 'Ask for a change in the chat, or open a file from the list and edit it.'
+                                    : 'Open a file from the list and edit it.',
                             }
                           : {
                                 icon: null,
                                 title: 'Pick a file',
                                 description:
-                                    'Open one from the list to read it. Editing a file starts a draft.',
+                                    'Open one from the list to read or edit it. Saving a change starts a draft.',
                             };
                     return (
                         <EmptyState
@@ -1096,7 +1111,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     />
                 );
             case 'empty':
-                return <EmptyProject view={view} hasAgents={hasAgents} />;
+                return (
+                    <EmptyProject
+                        view={view}
+                        isLoadingAgents={isLoadingAgents}
+                    />
+                );
             default:
                 return assertUnreachable(pane, 'Unknown pane');
         }
@@ -1159,7 +1179,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             )}
                             <Box className={classes.workspace}>
                                 {!hasChat ? (
-                                    status?.blocker ? (
+                                    // The empty pane says why itself.
+                                    status?.blocker && pane !== 'empty' ? (
                                         <BlockedNotice
                                             blocker={status.blocker}
                                         />
@@ -1252,7 +1273,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                     </Button>
                                                 ) : null}
                                                 {!studioAgent &&
-                                                !isLoadingAgents ? (
+                                                !isLoadingAgents &&
+                                                isCopilotEnabled ? (
                                                     <Button
                                                         size="xs"
                                                         variant="subtle"
@@ -1346,6 +1368,17 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 expanded={expanded}
                                                 onToggle={toggle}
                                                 onOpen={open}
+                                                onBuildModel={
+                                                    canBuildModels
+                                                        ? () =>
+                                                              askAgent(
+                                                                  modelled.length ===
+                                                                      0
+                                                                      ? BUILD_MODEL_PROMPT
+                                                                      : NEXT_MODEL_PROMPT,
+                                                              )
+                                                        : null
+                                                }
                                             />
                                         )}
                                         {pane === 'browse' ? (

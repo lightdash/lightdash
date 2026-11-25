@@ -223,6 +223,14 @@ export const parseModelPartPath = (path: string): ModelPartPath | null => {
         : null;
 };
 
+/** Reads a path that names a whole field or join, the only kind `remove` takes; null for any other path. */
+export const parseRemovablePartPath = (
+    path: string,
+): Extract<ModelPartPath, { part: 'entry' }> | null => {
+    const part = parseModelPartPath(path);
+    return part?.part === 'entry' && part.key === null ? part : null;
+};
+
 /** Whether a path names the whole model: a diff reports it as empty, a fragment by the model's name. */
 export const isWholeModelPath = (model: string, path: string): boolean =>
     path === '' || path === model;

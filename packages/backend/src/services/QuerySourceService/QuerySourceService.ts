@@ -7,6 +7,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     MAX_SOURCE_QUERIES_PER_SUBMISSION,
+    MissingConfigError,
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -183,6 +184,22 @@ export class QuerySourceService extends BaseService {
         });
     }
 
+    private static throwIfSourcesUnavailable(
+        sources: QuerySourceClient[],
+    ): void {
+        const reasons = [...new Set(sources)].flatMap(
+            ({ definition, unavailableReason }) =>
+                unavailableReason === null
+                    ? []
+                    : [
+                          `${definition.sourceType} queries are unavailable: ${unavailableReason}`,
+                      ],
+        );
+        if (reasons.length > 0) {
+            throw new MissingConfigError(reasons.join('; '));
+        }
+    }
+
     private async isSourceEnabled(
         account: Account,
         source: QuerySourceClient,
@@ -273,7 +290,9 @@ export class QuerySourceService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const sources = this.registry.list();
+        const sources = this.registry
+            .list()
+            .filter((source) => source.unavailableReason === null);
         const enabled = await Promise.all(
             sources.map((source) => this.isSourceEnabled(account, source)),
         );
@@ -555,6 +574,9 @@ export class QuerySourceService extends BaseService {
         ) {
             await this.assertAgentSqlAccess(account, projectUuid);
         }
+        QuerySourceService.throwIfSourcesUnavailable(
+            ordered.map(({ source }) => source),
+        );
 
         const submission = ordered.map(({ nodeId, query }) => ({
             ...query,

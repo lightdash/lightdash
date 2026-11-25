@@ -458,10 +458,7 @@ mcpRouter.all(
                 const [
                     mcpContentWritesEnabled,
                     scheduledDeliveryEnabled,
-                    runSqlEnabled,
-                    runMetricQueryEnabled,
-                    queryEnabled,
-                    filterExpressionsEnabled,
+                    queryPath,
                     dataAppBuildsEnabled,
                     chartTypeBuildsEnabled,
                     customChartTypesEnabled,
@@ -472,17 +469,11 @@ mcpRouter.all(
                         pinnedProjectUuid,
                     ),
                     mcpService.isCreateScheduledDeliveryEnabled(req.user!),
-                    mcpService.isRunSqlEnabled(req.user!, pinnedProjectUuid),
-                    mcpService.isRunMetricQueryEnabled(
+                    mcpService.resolveQueryPath(
                         req.user!,
-                        pinnedProjectUuid,
-                    ),
-                    mcpService.isQueryEnabled(
-                        req.user!,
-                        pinnedProjectUuid,
+                        pinnedProjectUuid ?? null,
                         pinnedAgent,
                     ),
-                    mcpService.isFilterExpressionsEnabled(req.user!),
                     mcpService.isDataAppBuildsEnabled(
                         req.user!,
                         pinnedProjectUuid,
@@ -507,10 +498,7 @@ mcpRouter.all(
                     featureAvailability: {
                         mcpContentWritesEnabled,
                         scheduledDeliveryEnabled,
-                        runSqlEnabled,
-                        runMetricQueryEnabled,
-                        queryEnabled,
-                        filterExpressionsEnabled,
+                        queryPath,
                         documentsEnabled: true,
                         dataAppBuildsEnabled,
                         chartTypeBuildsEnabled,

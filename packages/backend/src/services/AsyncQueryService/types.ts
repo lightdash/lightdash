@@ -46,7 +46,6 @@ import {
     type WarehouseTypes,
     type XlsxExportContent,
 } from '@lightdash/common';
-import type { OnboardingFlow } from '../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
@@ -144,6 +143,10 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
     xlsxContent?: XlsxExportContent;
+    // Chart-image exports of a scheduled chart delivery: the delivery's filter
+    // overrides, so the picture matches the rows the delivery's query returned.
+    // Server-side only, never accepted from the API.
+    chartImageSchedulerFilters?: Filters;
     showSubtotals?: boolean;
 };
 
@@ -434,7 +437,6 @@ export type RunAsyncWarehouseQueryArgs = {
     queryUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount?: boolean;
-    onboardingFlow: OnboardingFlow;
     queryTags: RunQueryTags;
     fieldsMap: ItemsMap;
     /** Resolved parameter values for this execution — interpolates parameter
@@ -593,7 +595,6 @@ export type RunDuckdbQueryArgs = {
     projectUuid: string;
     organizationUuid: string;
     isPreviewProject: boolean;
-    onboardingFlow: OnboardingFlow;
     queryUuid: string;
     /** The statement before its reference CTEs are attached. */
     sql: string;

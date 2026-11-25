@@ -7,32 +7,37 @@ import {
 import type { UsageChartSpec } from './usageDashboardTypes';
 
 const month = '${query_events.event_ts_month}';
+export const monthLabel = 'month_label';
 const previousMonth = `LAG(${month}) OVER (ORDER BY ${month})`;
 const adjacentMonth = `date_diff('month', ${previousMonth}, ${month}) = 1`;
 
 export const monthlyQueryComparisonCharts: UsageChartSpec[] = [
     {
         key: 'querying-users-month-over-month',
-        name: 'Querying users · month over month',
+        name: 'People running queries by month',
         metric: 'unique_users',
-        label: 'Querying users',
+        label: 'People',
+        // Newest month first in the table
+        newestFirst: true,
         description:
-            'Distinct recorded user IDs across each whole month, including service accounts. Missing user IDs are excluded. A person querying on several days counts once per month.',
+            'People who ran a query in each month, counted once for the month, including service accounts. ∅ means there is no figure for the month before.',
     },
     {
         key: 'queries-run-month-over-month',
-        name: 'Queries run · month over month',
+        name: 'Queries run by month',
         metric: 'total_queries',
         label: 'Queries run',
+        // Oldest month first, so the chart reads left to right
+        newestFirst: false,
+        compactCounts: true as const,
         description:
-            'Recorded completed query attempts, including cache hits and execution errors. Excludes preview projects and failures before execution.',
+            'Queries run in each month, including cache hits and queries that failed while running. The table beside it has the change from month to month.',
     },
-].map(({ metric, label, ...spec }) => {
+].map(({ metric, label, newestFirst, ...spec }) => {
     const value = `\${query_events.${metric}}`;
     const previous = `LAG(${value}) OVER (ORDER BY ${month})`;
     return {
         ...spec,
-        description: `${spec.description} Last 12 completed UTC calendar months. Changes compare adjacent months only; missing history is not zero activity. Percentage change is unavailable when the previous value is zero. Capture and retention can leave months incomplete.`,
         explore: 'query_events',
         dimensions: ['query_events_event_ts_month'],
         metrics: [`query_events_${metric}`],
@@ -45,13 +50,30 @@ export const monthlyQueryComparisonCharts: UsageChartSpec[] = [
             },
         ],
         timezone: 'UTC',
-        sorts: [{ fieldId: 'query_events_event_ts_month', descending: true }],
+        sorts: [
+            {
+                fieldId: 'query_events_event_ts_month',
+                descending: newestFirst,
+            },
+        ],
         limit: 12,
-        fieldLabels: {
-            query_events_event_ts_month: 'Month (UTC)',
-            [`query_events_${metric}`]: label,
-        },
+        fieldLabels: { [`query_events_${metric}`]: label },
+        // The month is shown by its name ("Oct 2026"); the date itself only orders the rows
+        hiddenColumns: ['query_events_event_ts_month'],
+        columnOrder: [
+            monthLabel,
+            'query_events_event_ts_month',
+            `query_events_${metric}`,
+            'monthly_change',
+            'monthly_change_percent',
+        ],
         tableCalculations: [
+            {
+                name: monthLabel,
+                displayName: 'Month (UTC)',
+                type: TableCalculationType.STRING,
+                sql: `strftime(${month}, '%b %Y')`,
+            },
             {
                 name: 'monthly_change',
                 displayName: 'Change vs previous month',
@@ -64,7 +86,7 @@ export const monthlyQueryComparisonCharts: UsageChartSpec[] = [
                 displayName: 'Change (%)',
                 type: TableCalculationType.NUMBER,
                 sql: `CASE WHEN ${adjacentMonth} THEN (${value} - ${previous}) * 1.0 / NULLIF(${previous}, 0) END`,
-                format: { type: CustomFormatType.PERCENT, round: 1 },
+                format: { type: CustomFormatType.PERCENT, round: 0 },
             },
         ],
     };

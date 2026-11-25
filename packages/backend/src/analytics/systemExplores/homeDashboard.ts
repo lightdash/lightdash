@@ -1,0 +1,288 @@
+import { FilterOperator } from '@lightdash/common';
+import { seriesByDay } from './chartBuilders';
+import { contentCreated } from './contentDashboard';
+import type { LibraryChartBinding } from './libraryCharts';
+import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
+
+// The first tab of Settings > Lightdash analytics: four headline cards, three daily trends and the most
+// active people. Every tile explains itself in its title and description, so no section has text above it.
+const anyActivity =
+    "Includes scheduled deliveries and other automated runs in the person's name.";
+
+const userActivityLabels = {
+    user_activity_activity_date_day: 'Day',
+    user_activity_unique_users: 'People',
+    user_activity_user_name: 'Person',
+    user_activity_total_events: 'Recorded activities',
+    user_activity_total_queries: 'Queries',
+    user_activity_total_ai_calls: 'AI calls',
+};
+
+// A headline card: the plain version is a big number, the library version adds the daily trend behind it.
+// A sum is safe to total over days. A distinct count is not, so it shows the latest day in both versions.
+const card = ({
+    day,
+    metric,
+    distinct = false,
+    description,
+    ...spec
+}: Pick<UsageChartSpec, 'key' | 'name' | 'explore' | 'filters'> & {
+    day: string;
+    metric: string;
+    distinct?: boolean;
+    description: string;
+}): UsageChartSpec => ({
+    ...spec,
+    description,
+    // Newest day first: the big number reads the first row, so it shows the latest day.
+    dimensions: distinct ? [day] : [],
+    metrics: [metric],
+    limit: 1,
+    sorts: [{ fieldId: distinct ? day : metric, descending: true }],
+    visualization: 'number',
+    libraryChart: {
+        slug: 'big-number-with-sparkline-trend',
+        minVersion: '0.8.4',
+        fieldMapping: { value: metric, sparklineMetric: metric, time: day },
+        optionValues: {
+            ...(distinct
+                ? { valueAggregation: 'latest', showComparison: false }
+                : {
+                      valueAggregation: 'sum',
+                      style: 'compact',
+                      showComparison: false,
+                  }),
+            colorSparklineByTrend: false,
+            showSparklineArea: true,
+            showLabel: true,
+            label: distinct ? 'Latest day' : 'Selected period',
+            showCardBorder: false,
+            showCardShadow: false,
+        },
+        query: {
+            dimensions: [day],
+            metrics: [metric],
+            sorts: [{ fieldId: day, descending: false }],
+            limit: 500,
+            description,
+        },
+    },
+});
+
+// One full-width smooth filled line. Each measure has its own tile and scale: people is a distinct count
+// and the others count events, so they cannot share an axis.
+export const trendRows: LibraryChartBinding['optionValues'] = {
+    arrangement: 'rows',
+    minPanelHeight: 70,
+    sharedY: false,
+    markType: 'area',
+    curve: 'smooth',
+    fillOpacity: 25,
+    showLine: true,
+    showPoints: false,
+};
+
+const trend = ({
+    day,
+    metric,
+    ...spec
+}: Pick<
+    UsageChartSpec,
+    'key' | 'name' | 'description' | 'explore' | 'fieldLabels'
+> & {
+    day: string;
+    metric: string;
+}): UsageChartSpec => ({
+    ...spec,
+    dimensions: [day],
+    metrics: [metric],
+    limit: 500,
+    sorts: [{ fieldId: day, descending: false }],
+    visualization: 'line',
+    xField: day,
+    yFields: [metric],
+    libraryChart: {
+        slug: 'vega-trellis',
+        minVersion: '0.6.2',
+        fieldMapping: { x: day, value: metric },
+        optionValues: trendRows,
+        query: null,
+    },
+});
+
+const mostActivePeopleMetrics = [
+    'user_activity_total_events',
+    'user_activity_total_queries',
+    'user_activity_total_ai_calls',
+];
+const mostActivePeopleDescription = `The 10 people with the most recorded activity in the selected period, with their queries and AI calls, leaving out activity with no person recorded. ${anyActivity}`;
+
+export const homeChartSpecs: UsageChartSpec[] = [
+    card({
+        key: 'active-people',
+        name: 'Active people',
+        description: `People with any recorded activity on the latest day in the selected period. ${anyActivity}`,
+        explore: 'user_activity',
+        day: 'user_activity_activity_date_day',
+        metric: 'user_activity_unique_users',
+        distinct: true,
+    }),
+    card({
+        key: 'queries',
+        name: 'Queries',
+        description:
+            'Queries run in the selected period, including failed and scheduled queries.',
+        explore: 'query_events',
+        day: 'query_events_event_ts_day',
+        metric: 'query_events_total_queries',
+    }),
+    card({
+        key: 'agent-requests',
+        name: 'Agent requests',
+        description:
+            'Requests to agents in the selected period. A request counts once, however many steps the agent takes.',
+        explore: 'agent_requests',
+        day: 'agent_requests_requested_at_day',
+        metric: 'agent_requests_total_requests',
+    }),
+    // The same card as Content > Audience, built in one place so the two cannot drift
+    card({ key: 'content-created', ...contentCreated }),
+    trend({
+        key: 'people-by-day',
+        name: 'People with any recorded activity by day',
+        description: anyActivity,
+        explore: 'user_activity',
+        day: 'user_activity_activity_date_day',
+        metric: 'user_activity_unique_users',
+        fieldLabels: userActivityLabels,
+    }),
+    // What the recorded activity is made of. Stacked, so it does not repeat the shape of the two
+    // area charts around it.
+    seriesByDay({
+        key: 'activity-by-type-and-day',
+        name: 'Queries, AI calls and downloads by day',
+        description: `Recorded activity each day, by what it was. ${anyActivity}`,
+        explore: 'user_activity',
+        day: 'user_activity_activity_date_day',
+        series: [
+            { metric: 'user_activity_total_queries', name: 'Queries' },
+            { metric: 'user_activity_total_ai_calls', name: 'AI calls' },
+            { metric: 'user_activity_total_downloads', name: 'Downloads' },
+        ],
+        yName: 'Count',
+        stacked: true,
+    }),
+    trend({
+        key: 'agent-requests-by-day',
+        name: 'Agent requests by day',
+        description:
+            'A request counts once, however many steps the agent takes.',
+        explore: 'agent_requests',
+        day: 'agent_requests_requested_at_day',
+        metric: 'agent_requests_total_requests',
+    }),
+    {
+        key: 'most-active-people',
+        name: 'Most active people (top 10)',
+        description: mostActivePeopleDescription,
+        explore: 'user_activity',
+        dimensions: ['user_activity_user_name', 'user_activity_user_id'],
+        metrics: mostActivePeopleMetrics,
+        // A ranking of people lists people: activity with no person recorded is not one of them
+        filters: [
+            {
+                field: 'user_activity_user_id',
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+        ],
+        limit: 10,
+        sorts: [{ fieldId: 'user_activity_total_events', descending: true }],
+        fieldLabels: userActivityLabels,
+        libraryChart: {
+            slug: 'sortable-pivot-table',
+            minVersion: '0.14.0',
+            fieldMapping: {
+                rowDimension: 'user_activity_user_name',
+                metric: mostActivePeopleMetrics,
+            },
+            // Ranked by the query and by the table. A total of ten people is not the total for everyone.
+            optionValues: {
+                showMiniBars: true,
+                showTotalsRow: false,
+                decimalPlaces: 0,
+                density: 'compact',
+                initialSort: 'firstValue',
+                rowHeaderName: 'Person',
+                valueNames: 'Recorded activities,Queries,AI calls',
+            },
+            query: {
+                dimensions: ['user_activity_user_name'],
+                metrics: mostActivePeopleMetrics,
+                sorts: [
+                    {
+                        fieldId: 'user_activity_total_events',
+                        descending: true,
+                    },
+                ],
+                limit: 10,
+                description: mostActivePeopleDescription,
+            },
+        },
+    },
+];
+
+export const homeDashboardSpec: UsageDashboardSpec = {
+    key: 'lightdash-analytics-home',
+    name: 'Overview',
+    description:
+        'People, queries, agent requests and new content across Lightdash.',
+    tabs: [
+        {
+            key: 'overview',
+            name: 'Overview',
+            sections: [
+                {
+                    title: 'Headlines',
+                    description: '',
+                    note: false,
+                    charts: [
+                        'active-people',
+                        'queries',
+                        'agent-requests',
+                        'content-created',
+                    ],
+                },
+                ...(
+                    [
+                        ['people-by-day', 5],
+                        // Stacked bars need more height than a single line
+                        ['activity-by-type-and-day', 6],
+                        ['agent-requests-by-day', 5],
+                    ] as const
+                ).map(
+                    ([
+                        key,
+                        rowHeight,
+                    ]): UsageDashboardSpec['tabs'][number]['sections'][number] => ({
+                        title: 'Activity by day',
+                        description: '',
+                        note: false,
+                        charts: [key],
+                        layout: 'row',
+                        rowHeight,
+                    }),
+                ),
+                {
+                    title: 'Most active people',
+                    description: '',
+                    note: false,
+                    charts: ['most-active-people'],
+                    layout: 'row',
+                    // Ten rows, with no blank band under them
+                    rowHeight: 7,
+                },
+            ],
+        },
+    ],
+};

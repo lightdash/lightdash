@@ -37,6 +37,7 @@ import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
+import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { DocumentTitle } from '../common/DocumentTitle';
 import ErrorState from '../common/ErrorState';
 import PageBreadcrumbs from '../common/PageBreadcrumbs';
@@ -56,6 +57,7 @@ import PreAggregateMaterializations from '../PreAggregateMaterializations';
 import ProjectUserAccess from '../ProjectAccess';
 import ProjectAppearance from '../ProjectAppearance/ProjectAppearance';
 import { UpdateProjectConnection } from '../ProjectConnection';
+import { SampleProjectConnectionNotice } from '../ProjectConnection/SampleProjectConnectionNotice';
 import ProjectParameters from '../ProjectParameters';
 import ProjectPreviewExpiration from '../ProjectPreviewExpiration';
 import ProjectResultsCache from '../ProjectResultsCache';
@@ -208,7 +210,15 @@ const ProjectSettings: FC<{
                         title="Connection settings"
                         description="Manage this project's warehouse and semantic layer connections."
                     >
-                        <UpdateProjectConnection projectUuid={projectUuid} />
+                        {isPlaygroundProvisioningSource(
+                            project?.provisioningSource,
+                        ) ? (
+                            <SampleProjectConnectionNotice />
+                        ) : (
+                            <UpdateProjectConnection
+                                projectUuid={projectUuid}
+                            />
+                        )}
                     </ProjectSettingsPage>
                 ),
             },

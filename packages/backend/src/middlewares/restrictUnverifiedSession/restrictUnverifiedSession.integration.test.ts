@@ -221,11 +221,6 @@ const allowedRequests: EndpointRequest[] = [
         path: '/api/v1/user',
     },
     {
-        capability: 'verification layout feature flag bootstrap',
-        method: 'GET',
-        path: '/api/v2/feature-flag/new-onboarding',
-    },
-    {
         capability: 'one-time passcode resend',
         method: 'PUT',
         path: '/api/v1/user/me/email/otp',

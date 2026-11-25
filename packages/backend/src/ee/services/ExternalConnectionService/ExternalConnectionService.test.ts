@@ -194,6 +194,9 @@ function buildService(opts: {
         savedChartModel: {
             getChartCountPerField: vi.fn().mockResolvedValue([]),
             getChartCountForExplores: vi.fn().mockResolvedValue(0),
+            getContentOnExplore: vi
+                .fn()
+                .mockResolvedValue({ charts: [], dashboards: [] }),
         },
         allowedPrivateHostCidrs: {},
         externalConnectionModel: model as never,
@@ -222,9 +225,6 @@ function buildService(opts: {
         encryptionUtil: {} as never,
         lightdashConfig: lightdashConfigMock,
         orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
-        featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
-        } as never,
         schedulerClient: { scanApiSourceSchema: vi.fn() },
     });
     return { service, model, orgAiCopilotConfigResolver };

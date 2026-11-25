@@ -1490,6 +1490,7 @@ export class ServiceRepository
             const registry = QuerySourceRegistry.withBuiltInSources({
                 asyncQueryService: this.getAsyncQueryService(),
                 projectService: this.getProjectService(),
+                lightdashConfig: this.context.lightdashConfig,
             });
 
             return new QuerySourceService({

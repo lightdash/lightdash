@@ -17,53 +17,53 @@
     --ad-flow-lapsed: color-mix(in srgb, #adb5bd 35%, transparent);
 }
 
-.ad-mark[data-kind='growth-stayed'] { background-color: var(--ad-flow-stayed); }
-.ad-mark[data-kind='growth-new'] { background-color: var(--ad-flow-new); }
-.ad-mark[data-kind='growth-back'] { background-color: var(--ad-flow-back); }
-.ad-mark[data-kind='growth-dropped'] { background-color: var(--ad-flow-dropped); }
-.ad-mark[data-kind='growth-lapsed'] { background-color: var(--ad-flow-lapsed); }
-.ad-mark[data-kind='growth-never'] {
+.adoption-mark[data-kind='growth-stayed'] { background-color: var(--ad-flow-stayed); }
+.adoption-mark[data-kind='growth-new'] { background-color: var(--ad-flow-new); }
+.adoption-mark[data-kind='growth-back'] { background-color: var(--ad-flow-back); }
+.adoption-mark[data-kind='growth-dropped'] { background-color: var(--ad-flow-dropped); }
+.adoption-mark[data-kind='growth-lapsed'] { background-color: var(--ad-flow-lapsed); }
+.adoption-mark[data-kind='growth-never'] {
     background-color: color-mix(in srgb, var(--ad-recent) 10%, transparent);
     box-shadow: inset 0 0 0 1px var(--ad-recent-none);
 }
 
-.ad-dots circle[data-kind='growth-stayed'] { fill: var(--ad-flow-stayed); }
-.ad-dots circle[data-kind='growth-new'] { fill: var(--ad-flow-new); }
-.ad-dots circle[data-kind='growth-back'] { fill: var(--ad-flow-back); }
-.ad-dots circle[data-kind='growth-dropped'] { fill: var(--ad-flow-dropped); }
-.ad-dots circle[data-kind='growth-lapsed'] { fill: var(--ad-flow-lapsed); }
-.ad-dots circle[data-kind='growth-never'] {
+.adoption-dots circle[data-kind='growth-stayed'] { fill: var(--ad-flow-stayed); }
+.adoption-dots circle[data-kind='growth-new'] { fill: var(--ad-flow-new); }
+.adoption-dots circle[data-kind='growth-back'] { fill: var(--ad-flow-back); }
+.adoption-dots circle[data-kind='growth-dropped'] { fill: var(--ad-flow-dropped); }
+.adoption-dots circle[data-kind='growth-lapsed'] { fill: var(--ad-flow-lapsed); }
+.adoption-dots circle[data-kind='growth-never'] {
     fill: transparent;
     stroke: var(--ad-recent-none);
 }
 
 /* A team's row: people lost grow left from the middle, people gained grow right */
-.ad-flow-bar {
+.adoption-flow-bar {
     display: grid;
     grid-template-columns: 1fr 1px 1fr;
     align-items: center;
     height: 20px;
 }
 
-.ad-flow-bar > span {
+.adoption-flow-bar > span {
     display: flex;
     height: 100%;
 }
 
-.ad-flow-bar > span:first-child {
+.adoption-flow-bar > span:first-child {
     justify-content: flex-end;
 }
 
-.ad-flow-axis {
+.adoption-flow-axis {
     background: var(--border);
     height: 28px !important;
 }
 
-.ad-flow-bar i {
+.adoption-flow-bar i {
     display: block;
     height: 100%;
     min-width: 2px;
 }
 
-.ad-flow-bar > span:first-child i { border-radius: 3px 0 0 3px; }
-.ad-flow-bar > span:last-child i:last-child { border-radius: 0 3px 3px 0; }
+.adoption-flow-bar > span:first-child i { border-radius: 3px 0 0 3px; }
+.adoption-flow-bar > span:last-child i:last-child { border-radius: 0 3px 3px 0; }

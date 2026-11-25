@@ -1,7 +1,11 @@
 import { FieldType } from '@lightdash/common';
 import type { PivotData } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { getGroupedDimColumnIds, getRowSpanMerges } from './getRowSpanMerges';
+import {
+    getGroupedDimColumnIds,
+    getRowSpanMerges,
+    getWindowedRowSpanMerge,
+} from './getRowSpanMerges';
 
 // Builds a getRawValue reader over an array of plain row objects.
 const reader =
@@ -63,9 +67,9 @@ describe('getRowSpanMerges', () => {
         ];
         const merges = getRowSpanMerges(rows.length, ['month'], reader(rows));
         expect(merges.get('month')).toEqual([
-            { isBlockStart: true, rowSpan: 2 },
-            { isBlockStart: false, rowSpan: 0 },
-            { isBlockStart: true, rowSpan: 1 },
+            { isBlockStart: true, rowSpan: 2, blockStartRow: 0 },
+            { isBlockStart: false, rowSpan: 0, blockStartRow: 0 },
+            { isBlockStart: true, rowSpan: 1, blockStartRow: 2 },
         ]);
     });
 
@@ -73,9 +77,9 @@ describe('getRowSpanMerges', () => {
         const rows = [{ month: 'A' }, { month: 'B' }, { month: 'A' }];
         const merges = getRowSpanMerges(rows.length, ['month'], reader(rows));
         expect(merges.get('month')).toEqual([
-            { isBlockStart: true, rowSpan: 1 },
-            { isBlockStart: true, rowSpan: 1 },
-            { isBlockStart: true, rowSpan: 1 },
+            { isBlockStart: true, rowSpan: 1, blockStartRow: 0 },
+            { isBlockStart: true, rowSpan: 1, blockStartRow: 1 },
+            { isBlockStart: true, rowSpan: 1, blockStartRow: 2 },
         ]);
     });
 
@@ -88,16 +92,16 @@ describe('getRowSpanMerges', () => {
         ];
         const merges = getRowSpanMerges(rows.length, ['a', 'b'], reader(rows));
         expect(merges.get('a')).toEqual([
-            { isBlockStart: true, rowSpan: 3 },
-            { isBlockStart: false, rowSpan: 0 },
-            { isBlockStart: false, rowSpan: 0 },
-            { isBlockStart: true, rowSpan: 1 },
+            { isBlockStart: true, rowSpan: 3, blockStartRow: 0 },
+            { isBlockStart: false, rowSpan: 0, blockStartRow: 0 },
+            { isBlockStart: false, rowSpan: 0, blockStartRow: 0 },
+            { isBlockStart: true, rowSpan: 1, blockStartRow: 3 },
         ]);
         expect(merges.get('b')).toEqual([
-            { isBlockStart: true, rowSpan: 2 },
-            { isBlockStart: false, rowSpan: 0 },
-            { isBlockStart: true, rowSpan: 1 },
-            { isBlockStart: true, rowSpan: 1 },
+            { isBlockStart: true, rowSpan: 2, blockStartRow: 0 },
+            { isBlockStart: false, rowSpan: 0, blockStartRow: 0 },
+            { isBlockStart: true, rowSpan: 1, blockStartRow: 2 },
+            { isBlockStart: true, rowSpan: 1, blockStartRow: 3 },
         ]);
     });
 
@@ -108,8 +112,8 @@ describe('getRowSpanMerges', () => {
         ];
         const merges = getRowSpanMerges(rows.length, ['a', 'b'], reader(rows));
         expect(merges.get('b')).toEqual([
-            { isBlockStart: true, rowSpan: 1 },
-            { isBlockStart: true, rowSpan: 1 },
+            { isBlockStart: true, rowSpan: 1, blockStartRow: 0 },
+            { isBlockStart: true, rowSpan: 1, blockStartRow: 1 },
         ]);
     });
 
@@ -117,7 +121,7 @@ describe('getRowSpanMerges', () => {
         const rows = [{ month: 'A' }];
         const merges = getRowSpanMerges(rows.length, ['month'], reader(rows));
         expect(merges.get('month')).toEqual([
-            { isBlockStart: true, rowSpan: 1 },
+            { isBlockStart: true, rowSpan: 1, blockStartRow: 0 },
         ]);
     });
 
@@ -129,5 +133,56 @@ describe('getRowSpanMerges', () => {
     it('returns empty span arrays when rowCount is 0', () => {
         const merges = getRowSpanMerges(0, ['month'], reader([]));
         expect(merges.get('month')).toEqual([]);
+    });
+});
+
+describe('getWindowedRowSpanMerge', () => {
+    // Rows 0-4 are block A, rows 5-6 are block B.
+    const rows = [
+        ...Array.from({ length: 5 }, () => ({ month: 'A' })),
+        { month: 'B' },
+        { month: 'B' },
+    ];
+    const spans = getRowSpanMerges(rows.length, ['month'], reader(rows)).get(
+        'month',
+    );
+
+    it('keeps a block that fits inside the rendered rows', () => {
+        expect(getWindowedRowSpanMerge(spans, 0, 0, 6)).toBe(spans![0]);
+        expect(getWindowedRowSpanMerge(spans, 3, 0, 6)).toBe(spans![3]);
+    });
+
+    it('starts a block on the first rendered row when it began above it', () => {
+        expect(getWindowedRowSpanMerge(spans, 2, 2, 6)).toEqual({
+            isBlockStart: true,
+            rowSpan: 3,
+            blockStartRow: 0,
+        });
+        expect(getWindowedRowSpanMerge(spans, 3, 2, 6)).toBe(spans![3]);
+    });
+
+    it('stops a block at the last rendered row', () => {
+        expect(getWindowedRowSpanMerge(spans, 0, 0, 2)).toEqual({
+            isBlockStart: true,
+            rowSpan: 3,
+            blockStartRow: 0,
+        });
+        expect(getWindowedRowSpanMerge(spans, 5, 3, 5)).toEqual({
+            isBlockStart: true,
+            rowSpan: 1,
+            blockStartRow: 5,
+        });
+    });
+
+    it('clips both ends when the rendered rows sit inside one block', () => {
+        expect(getWindowedRowSpanMerge(spans, 1, 1, 3)).toEqual({
+            isBlockStart: true,
+            rowSpan: 3,
+            blockStartRow: 0,
+        });
+    });
+
+    it('returns undefined for a column that is not merged', () => {
+        expect(getWindowedRowSpanMerge(undefined, 0, 0, 6)).toBeUndefined();
     });
 });

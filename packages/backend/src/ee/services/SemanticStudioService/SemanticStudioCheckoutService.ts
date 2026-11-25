@@ -935,12 +935,17 @@ export class SemanticStudioCheckoutService extends BaseService {
         // With no conversation to hang it on, the new pull request still becomes a draft of its own.
         if (!threadUuid && saved.result.prAction === 'opened') {
             const owner = { projectUuid, userUuid: user.userUuid };
-            const project = await this.projectModel.get(projectUuid);
-            const workspaceUuid = await this.workspaceModel.create(
-                owner,
-                project.organizationUuid,
-                editChangeName(path),
-            );
+            const active = await this.workspaceModel.findActive(owner);
+            // An empty draft made with New draft takes the save instead of being left behind.
+            const workspaceUuid =
+                active && !active.threadUuid && !active.pullRequest
+                    ? active.workspaceUuid
+                    : await this.workspaceModel.create(
+                          owner,
+                          (await this.projectModel.get(projectUuid))
+                              .organizationUuid,
+                          editChangeName(path),
+                      );
             await this.workspaceModel.attachPullRequest(
                 { ...owner, workspaceUuid },
                 savedPrUrl,

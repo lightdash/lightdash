@@ -65,11 +65,9 @@ test.each(['off', 'legacy', 'managed'] as const)(
         vi.spyOn(service, 'isCreateScheduledDeliveryEnabled').mockResolvedValue(
             false,
         );
-        vi.spyOn(service, 'isRunSqlEnabled').mockResolvedValue(false);
-        vi.spyOn(service, 'isRunMetricQueryEnabled').mockResolvedValue(false);
-        vi.spyOn(service, 'isFilterExpressionsEnabled').mockResolvedValue(
-            false,
-        );
+        vi.spyOn(service, 'resolveQueryPath').mockResolvedValue({
+            type: 'contentOnly',
+        });
         vi.spyOn(service, 'isDataAppBuildsEnabled').mockResolvedValue(false);
         vi.spyOn(service, 'isChartTypeBuildsEnabled').mockResolvedValue(false);
         vi.spyOn(service, 'isCustomChartTypesEnabled').mockResolvedValue(false);

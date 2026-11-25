@@ -36,6 +36,7 @@ import {
     VizAggregationOptions,
     VizIndexType,
     WarehouseConnectionError,
+    XlsxExportContent,
     type Account,
     type CapturedQuery,
     type CompileProjectPayload,
@@ -7044,5 +7045,129 @@ describe('scheduler useCachedResults', () => {
 
         expect((await runSync(true)).invalidateCache).toBe(false);
         expect((await runSync(false)).invalidateCache).toBe(true);
+    });
+});
+
+describe('getNotificationPageData — chart XLSX delivery as a chart image', () => {
+    const schedulerFilters = {
+        dimensions: {
+            id: 'root',
+            and: [
+                {
+                    id: 'rule-1',
+                    target: { fieldId: 'orders_status' },
+                    operator: 'equals',
+                    values: ['completed'],
+                },
+            ],
+        },
+    };
+
+    const setup = (chartType: ChartType) => {
+        const chart = {
+            uuid: 'chart-1',
+            name: 'Orders by month',
+            description: undefined,
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            chartConfig: { type: chartType, config: {} },
+            tableConfig: { columnOrder: [] },
+            metricQuery: { dimensions: [], metrics: [], sorts: [] },
+        };
+        const downloadSyncQueryResults = vi.fn().mockResolvedValue({
+            fileUrl: 'https://files.example.com/query-1',
+            s3FileUrl: 's3://bucket/query-1',
+        });
+        const executeAsyncSavedChartQuery = vi
+            .fn()
+            .mockResolvedValue({ queryUuid: 'query-1' });
+        const task = makeTaskWithDeps({
+            lightdashConfig: asDep<'lightdashConfig'>({
+                scheduler: lightdashConfigMock.scheduler,
+                siteUrl: 'https://lightdash.example.com',
+                headlessBrowser: {
+                    internalLightdashHost: 'http://lightdash-dev:3000',
+                },
+                query: {},
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                savedChartModel: {
+                    getSummary: vi.fn().mockResolvedValue(chart),
+                    get: vi.fn().mockResolvedValue(chart),
+                },
+            }),
+            userService: asDep<'userService'>({
+                getAccountByUserUuid: vi.fn().mockResolvedValue({
+                    user: { id: 'user-id-1' },
+                    organization: { organizationUuid: 'org-1' },
+                }),
+            }),
+            analytics: asDep<'analytics'>({
+                trackAccount: vi.fn(),
+                track: vi.fn(),
+            }),
+            fileStorageClient: asDep<'fileStorageClient'>({
+                isEnabled: () => false,
+            }),
+            asyncQueryService: asDep<'asyncQueryService'>({
+                downloadSyncQueryResults,
+                executeAsyncSavedChartQuery,
+            }),
+            slackClient: asDep<'slackClient'>({ isEnabled: false }),
+        });
+        return { task, downloadSyncQueryResults };
+    };
+
+    const chartScheduler = (
+        overrides: Partial<CreateSchedulerAndTargets> = {},
+    ): CreateSchedulerAndTargets =>
+        appScheduler({
+            name: 'Chart delivery',
+            appUuid: null,
+            savedChartUuid: 'chart-1',
+            format: SchedulerFormat.XLSX,
+            options: {
+                formatted: true,
+                limit: 'table',
+                xlsxContent: XlsxExportContent.CHART_IMAGE,
+            },
+            filters: schedulerFilters,
+            ...overrides,
+        } as Partial<CreateSchedulerAndTargets>);
+
+    it("renders a non-table chart as an image with the delivery's filters", async () => {
+        const { task, downloadSyncQueryResults } = setup(ChartType.CARTESIAN);
+
+        await callGetNotificationPageData(task, chartScheduler());
+
+        expect(downloadSyncQueryResults.mock.calls[0][0]).toMatchObject({
+            queryUuid: 'query-1',
+            type: DownloadFileType.XLSX,
+            xlsxContent: XlsxExportContent.CHART_IMAGE,
+            chartImageSchedulerFilters: schedulerFilters,
+        });
+    });
+
+    it('exports a table chart as data rows', async () => {
+        const { task, downloadSyncQueryResults } = setup(ChartType.TABLE);
+
+        await callGetNotificationPageData(task, chartScheduler());
+
+        const args = downloadSyncQueryResults.mock.calls[0][0];
+        expect(args).not.toHaveProperty('xlsxContent');
+        expect(args).not.toHaveProperty('chartImageSchedulerFilters');
+    });
+
+    it('exports data rows when the delivery asks for data', async () => {
+        const { task, downloadSyncQueryResults } = setup(ChartType.CARTESIAN);
+
+        await callGetNotificationPageData(
+            task,
+            chartScheduler({ options: { formatted: true, limit: 'table' } }),
+        );
+
+        expect(downloadSyncQueryResults.mock.calls[0][0]).not.toHaveProperty(
+            'xlsxContent',
+        );
     });
 });

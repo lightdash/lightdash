@@ -39,7 +39,8 @@ export type LiveSourceSetup =
     | { kind: 'token'; form: TokenLiveSourceForm }
     | { kind: 'linkedin_ads' }
     | { kind: 'salesforce' }
-    | { kind: 'amplitude' };
+    | { kind: 'amplitude' }
+    | { kind: 'mixpanel' };
 
 export type AvailableLiveSource = Omit<LiveIntegrationCatalogEntry, 'setup'> & {
     status: 'available';
@@ -75,18 +76,24 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.HUBSPOT]: hubspotIcon,
     [ApiConnectorType.SALESFORCE]: salesforceIcon,
     [ApiConnectorType.AMPLITUDE]: amplitudeIcon,
+    [ApiConnectorType.MIXPANEL]: mixpanelIcon,
     [ApiConnectorType.HYDRA]: hydraIcon,
     shopify: shopifyIcon,
     stripe: stripeIcon,
-    mixpanel: mixpanelIcon,
     jira: jiraIcon,
 };
 
 /** One-colour marks, such as GitHub's, drawn dark and lightened in dark mode. */
-const MONO_ICONS = new Set([githubIcon]);
+const MONO_ICONS = new Set([githubIcon, attioIcon]);
 
-export const getLiveSourceIconClass = (icon: string) =>
-    MONO_ICONS.has(icon) ? iconClasses.mono : undefined;
+/** Coloured marks too dark for a dark background, drawn white there, as the vendor does. */
+const WHITE_ON_DARK_ICONS = new Set([pylonIcon]);
+
+export const getLiveSourceIconClass = (icon: string) => {
+    if (MONO_ICONS.has(icon)) return iconClasses.mono;
+    if (WHITE_ON_DARK_ICONS.has(icon)) return iconClasses.whiteOnDark;
+    return undefined;
+};
 
 /** The order sources are offered in; every connector appears once. */
 const DISPLAY_ORDER = [
@@ -103,6 +110,7 @@ const DISPLAY_ORDER = [
     ApiConnectorType.HUBSPOT,
     ApiConnectorType.SALESFORCE,
     ApiConnectorType.AMPLITUDE,
+    ApiConnectorType.MIXPANEL,
     ApiConnectorType.HYDRA,
 ] as const satisfies readonly ApiConnectorType[];
 

@@ -121,6 +121,7 @@ import {
     getComposerSlackEchartsConfig,
     getComposerSlackRunQueryChart,
     getDataAppVizChartFromArtifact,
+    getDefaultAiAgent,
     getEmbedThreadOwnerIdentifier,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
@@ -321,6 +322,7 @@ import {
 } from '../../../clients/github/Github';
 import { type SlackClient } from '../../../clients/Slack/SlackClient';
 import { safeUrl } from '../../../clients/Slack/SlackMessageBlocks';
+import { getPythonSandboxConfigError } from '../../../config/appRuntimeAvailability';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../../database/errors';
 import Logger from '../../../logging/logger';
@@ -601,6 +603,7 @@ import {
 import {
     ClosePullRequestFn,
     DiscoverReposFn,
+    DraftProjectContextFn,
     EditDbtProjectFn,
     EditProjectContextFn,
     ExploreRepoFn,
@@ -797,6 +800,7 @@ import {
     buildDashboardSuggestionContext,
     getPinnedSuggestionContextInput,
 } from './suggestionPinnedContext';
+import { parseThreadMetadata } from './threadMetadata';
 import {
     getPromptUsageAttribution,
     type AiUsageViewerAttribution,
@@ -1560,7 +1564,22 @@ export class AiAgentService extends BaseService {
         /** Whether the thread is a Studio one, which has its own model when nobody chose one. */
         prefersStudioModel: boolean;
     }): Promise<AiAgentModelConfig | null> {
-        if (threadModelConfig) return threadModelConfig;
+        if (threadModelConfig) {
+            if (
+                requestedModelConfig &&
+                (requestedModelConfig.modelProvider !==
+                    threadModelConfig.modelProvider ||
+                    requestedModelConfig.modelName !==
+                        threadModelConfig.modelName ||
+                    (requestedModelConfig.reasoning ?? false) !==
+                        (threadModelConfig.reasoning ?? false))
+            ) {
+                throw new ParameterError(
+                    "modelConfig must match the thread's model and reasoning settings. Omit modelConfig to continue this thread, or start a new thread to use a different configuration.",
+                );
+            }
+            return threadModelConfig;
+        }
         const pickedModelConfig = requestedModelConfig ?? agentModelConfig;
         const modelConfig =
             pickedModelConfig ??
@@ -5953,6 +5972,7 @@ export class AiAgentService extends BaseService {
         const threadContext = AiAgentService.parseThreadContext(
             body.threadContext,
         );
+        const metadata = parseThreadMetadata(body.metadata);
         if (!body.prompt && !body.binding && threadContext === null) {
             throw new ParameterError(
                 'A prompt, binding or thread context is required to create a thread',
@@ -5999,6 +6019,7 @@ export class AiAgentService extends BaseService {
             battleProfile: body.battleProfile ?? null,
             binding,
             threadContext,
+            metadata,
         });
 
         const modelConfig = await this.resolvePromptModelConfig({
@@ -6643,32 +6664,9 @@ export class AiAgentService extends BaseService {
                 return;
             }
 
-            const { enabled: isNewOnboarding } =
-                await this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.NewOnboarding,
-                });
-            await this.createAgent(
-                user,
-                {
-                    name: isNewOnboarding ? 'Analytics agent' : 'Aurora',
-                    projectUuid,
-                    description: null,
-                    integrations: [],
-                    tags: null,
-                    instruction: `You are ${isNewOnboarding ? '' : 'Aurora, '}this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.`,
-                    imageUrl: null,
-                    groupAccess: [],
-                    userAccess: [],
-                    spaceAccess: [],
-                    enableDataAccess: true,
-                    enableSelfImprovement: false,
-                    enableContentTools: true,
-                    enableUserContext: true,
-                    version: 2,
-                },
-                { autoProvisioned: true },
-            );
+            await this.createAgent(user, getDefaultAiAgent(projectUuid), {
+                autoProvisioned: true,
+            });
         } catch (error) {
             if (
                 error instanceof ForbiddenError ||
@@ -12083,11 +12081,6 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
         agentTags: string[] | null,
     ): Promise<AgentLiveSource[]> {
-        const { enabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.ApiQuerySources,
-        });
-        if (!enabled) return [];
         const connections = (
             await this.externalConnectionService.listApiSourceConnections(
                 fromSession(user),
@@ -12583,6 +12576,9 @@ export class AiAgentService extends BaseService {
         const inlinedFiles: { path: string; content: string }[] = [];
         const images: { fileName: string; part: FilePart }[] = [];
 
+        const dashboardViewFiltersLabel =
+            'Filters in effect on the dashboard (its saved filters plus any the user changed; each applies only to the tiles it targets):';
+
         const describeItem = (item: AiPromptContextItem): string => {
             switch (item.type) {
                 case 'chart': {
@@ -12594,7 +12590,7 @@ export class AiAgentService extends BaseService {
                     const overrideLines: string[] = [];
                     if (overrides.dashboardFilters) {
                         overrideLines.push(
-                            `    Dashboard filters: ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,
+                            `    ${dashboardViewFiltersLabel}\n      ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,
                         );
                     }
                     if (overrides.dashboardParameters) {
@@ -12640,7 +12636,7 @@ export class AiAgentService extends BaseService {
                     }
                     if (overrides.dashboardFilters) {
                         overrideLines.push(
-                            `  Filters applied:\n    ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,
+                            `  ${dashboardViewFiltersLabel}\n    ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,
                         );
                     }
                     if (overrides.dashboardParameters) {
@@ -12861,7 +12857,7 @@ export class AiAgentService extends BaseService {
                     (item.type === 'chart' || item.type === 'dashboard') &&
                     item.runtimeOverrides !== null,
             )
-                ? "When runtime overrides are listed, apply them on top of the chart's saved state when querying."
+                ? 'These overrides are what the user currently sees. Use them when the question is about what the dashboard or chart shows. Leave them out when editing a saved chart or answering a new question, unless the user asks for them.'
                 : null,
         ].filter((sentence): sentence is string => sentence !== null);
         const guidanceSection =
@@ -15186,6 +15182,18 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 changeName,
             );
 
+        const draftProjectContext: DraftProjectContextFn = (
+            entry,
+            changeName,
+        ) =>
+            this.semanticStudioService.draftProjectContextEntry(
+                user,
+                projectUuid,
+                entry,
+                prompt.promptUuid,
+                changeName,
+            );
+
         const listChanges = () =>
             this.semanticStudioService.listChanges(
                 user,
@@ -15385,6 +15393,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             getDraftExplore,
             runDraftQuery,
             readSemanticModel,
+            draftProjectContext,
             verify,
             read,
             exploreRepo,
@@ -17567,15 +17576,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                           promptProject.projectUuid,
                       )
                     : null;
-                // Only a project with no repository has nowhere to keep project context.
-                const semanticStudioHasRepository =
-                    semanticStudioStatus?.appliesAs !== 'live';
-                // Studio saves a dbt change with a script wherever Studio itself is on for the person.
-                const semanticStudioCodeMode =
+                // A dbt project's Studio thread works on pull requests where Studio is on for the person.
+                const semanticStudioWorksAsDbt =
                     semanticStudioStatus !== null &&
                     worksAsDbtPullRequests(semanticStudioStatus);
                 // A dbt project's layout spares the agent surveying the repository.
-                const semanticStudioProjectMap = semanticStudioCodeMode
+                const semanticStudioProjectMap = semanticStudioWorksAsDbt
                     ? await this.incrementalDbtCompileService.getDbtProjectMap(
                           promptProject.projectUuid,
                       )
@@ -17583,7 +17589,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 const semanticStudioDrafts =
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&
-                    !semanticStudioCodeMode;
+                    !semanticStudioWorksAsDbt;
+                const semanticStudioKeepsContext =
+                    semanticStudioDrafts &&
+                    semanticStudioStatus.appliesAs === 'live';
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -17809,6 +17818,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
+                    draftProjectContext,
                     verify,
                     read,
                     exploreRepo,
@@ -18108,8 +18118,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread: isStudioThread,
                     semanticStudioDrafts,
-                    semanticStudioCodeMode,
-                    semanticStudioHasRepository,
+                    semanticStudioKeepsContext,
                     semanticStudioProjectMap,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
@@ -18121,6 +18130,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
+                    enableComposerPythonNodes:
+                        enableComposerQueries &&
+                        getPythonSandboxConfigError(this.lightdashConfig) ===
+                            null,
                     liveSources,
                     canCreateDashboards,
                     canCreateScheduledDeliveries,
@@ -18343,6 +18356,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
+                    draftProjectContext,
                     verify,
                     read,
                     exploreRepo,
@@ -20303,6 +20317,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     return 'Listing your changes...';
                 case 'readSemanticModel':
                     return 'Reading the model...';
+                case 'draftProjectContext':
+                    return 'Drafting the project context...';
                 case 'verify':
                     return 'Checking the change...';
                 case 'read':

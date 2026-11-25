@@ -57,6 +57,35 @@ describe('reading proposals', () => {
         ).toEqual([metadata]);
     });
 
+    it("reads a rejection's kind, and a result saved before rejections had one", () => {
+        const failed = (rejection: unknown) => ({
+            toolType: 'built-in',
+            toolName: 'proposeSemanticLayerChange',
+            metadata: {
+                ...proposal(null),
+                models: [
+                    {
+                        model: 'orders',
+                        status: 'failed',
+                        changes: [],
+                        refusals: [],
+                        error: 'The warehouse rejected this model: no access',
+                        ...(rejection === undefined ? {} : { rejection }),
+                    },
+                ],
+            },
+        });
+        const read = getSavedProposals([
+            failed(undefined),
+            failed({ kind: 'already_failing', detail: 'no access' }),
+            failed({ kind: 'not_a_kind', detail: 'no access' }),
+        ]);
+        expect(read.map(({ models }) => models[0].rejection ?? null)).toEqual([
+            null,
+            { kind: 'already_failing', detail: 'no access' },
+        ]);
+    });
+
     it('reads run outputs, skipping errors and anything without metadata', () => {
         const metadata = proposal('d1');
         expect(
@@ -111,8 +140,10 @@ describe('getProposalPhase', () => {
             question: null,
             createdAt: new Date(0),
             models: [],
+            projectContextEntries: [],
         })),
         models: [],
+        projectContext: null,
         errors: [],
         settled,
         inReview: [],
@@ -122,7 +153,13 @@ describe('getProposalPhase', () => {
         draftChangeUuid: string,
         status: 'applied' | 'undone' | 'discarded',
         pullRequestUrl: string | null = null,
-    ) => ({ draftChangeUuid, status, pullRequestUrl, models: [] });
+    ) => ({
+        draftChangeUuid,
+        status,
+        pullRequestUrl,
+        models: [],
+        discardedBy: null,
+    });
     const latest = { pullRequestFrom: 'latest_applied' } as const;
     const any = { pullRequestFrom: 'any_applied' } as const;
 
@@ -159,7 +196,18 @@ describe('getProposalPhase', () => {
                 ['d1', 'd2'],
                 any,
             ),
-        ).toEqual({ kind: 'discarded' });
+        ).toEqual({ kind: 'discarded', by: null });
+    });
+
+    it('says who discarded a change when it was not its owner', () => {
+        const by = { name: 'Person B', at: new Date(0) };
+        expect(
+            getProposalPhase(
+                draft([], [{ ...settled('d1', 'discarded'), discardedBy: by }]),
+                ['d1'],
+                any,
+            ),
+        ).toEqual({ kind: 'discarded', by });
     });
 
     it('is unknown when the draft as read has not seen the change', () => {

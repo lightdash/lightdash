@@ -26,7 +26,7 @@ export const selectProjectSource = (
     return selected;
 };
 
-const getProjectSources = async (
+export const getProjectSources = async (
     projectUuid: string,
 ): Promise<ProjectDbtSourceSummary[]> =>
     lightdashApi<ApiProjectDbtSourcesResponse['results']>({

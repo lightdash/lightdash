@@ -184,6 +184,7 @@ export const lightdashConfigMock: LightdashConfig = {
     maxPayloadSize: '',
     httpServer: {
         keepAliveTimeoutMs: 620_000,
+        responseCompressionEnabled: true,
     },
     pivotTable: { maxColumnLimit: 0 },
     enableImprovedExcelDates: false,

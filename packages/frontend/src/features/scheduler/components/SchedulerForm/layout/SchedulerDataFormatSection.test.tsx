@@ -1,5 +1,6 @@
 import {
     SchedulerFormat,
+    XlsxExportContent,
     type AppScheduler,
     type Dashboard,
     type DashboardFilterRule,
@@ -480,5 +481,65 @@ describe('SchedulerDataFormatSection - cached results', () => {
         renderSection({ isApp: false, appUuid: undefined });
 
         expect(screen.queryByRole('switch', { name })).not.toBeInTheDocument();
+    });
+});
+
+describe('SchedulerDataFormatSection - xlsx charts as images', () => {
+    const xlsxValues: SchedulerFormValues = {
+        ...DEFAULT_VALUES,
+        format: SchedulerFormat.XLSX,
+    };
+    const dashboard = { tabs: [] } as unknown as Dashboard;
+
+    afterEach(() => {
+        health.hasHeadlessBrowser = true;
+    });
+
+    it('lets a dashboard delivery export charts as images', async () => {
+        const formRef: MutableRefObject<SchedulerForm | null> = {
+            current: null,
+        };
+        renderSection(
+            { isApp: false, appUuid: undefined, dashboard },
+            xlsxValues,
+            formRef,
+        );
+
+        await userEvent.click(screen.getByRole('radio', { name: 'As images' }));
+
+        expect(formRef.current?.values.options.xlsxContent).toBe(
+            XlsxExportContent.CHART_IMAGE,
+        );
+    });
+
+    it('is hidden for csv deliveries', () => {
+        renderSection(
+            { isApp: false, appUuid: undefined, dashboard },
+            { ...DEFAULT_VALUES, format: SchedulerFormat.CSV },
+        );
+
+        expect(
+            screen.queryByRole('radio', { name: 'As images' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('is hidden for app deliveries', () => {
+        renderSection({ isApp: true, capturedQueryCount: 3 }, xlsxValues);
+
+        expect(
+            screen.queryByRole('radio', { name: 'As images' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('is hidden when there is no headless browser to render charts', () => {
+        health.hasHeadlessBrowser = false;
+        renderSection(
+            { isApp: false, appUuid: undefined, dashboard },
+            xlsxValues,
+        );
+
+        expect(
+            screen.queryByRole('radio', { name: 'As images' }),
+        ).not.toBeInTheDocument();
     });
 });

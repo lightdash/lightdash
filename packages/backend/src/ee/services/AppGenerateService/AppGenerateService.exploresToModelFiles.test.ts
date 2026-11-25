@@ -420,6 +420,69 @@ describe('AppGenerateService.exploresToModelFiles', () => {
         }
     });
 
+    const describedExplore = (description: string): Explore =>
+        ({
+            name: 'orders',
+            baseTable: 'orders',
+            joinedTables: [],
+            tables: {
+                orders: {
+                    description,
+                    metrics: {
+                        total_revenue: {
+                            name: 'total_revenue',
+                            type: 'sum',
+                            description,
+                        },
+                    },
+                    dimensions: {
+                        status: { name: 'status', type: 'string', description },
+                    },
+                },
+            },
+        }) as unknown as Explore;
+
+    type DescribedModels = {
+        models: Array<{
+            description: string;
+            meta: { metrics: Record<string, { description: string }> };
+            columns: Array<{ description: string }>;
+        }>;
+    };
+
+    const describedModelOf = (description: string) =>
+        (
+            parseYaml(
+                exploresToModelFiles([
+                    describedExplore(description),
+                ]).files.find((file) => file.filename === 'orders.yml')!
+                    .contents,
+            ) as DescribedModels
+        ).models[0];
+
+    it('writes table, metric and dimension descriptions whole', () => {
+        const description = `${'Counts only settled orders. '.repeat(40)}END`;
+        expect(description.length).toBeGreaterThan(1_000);
+
+        const model = describedModelOf(description);
+
+        expect(model.description).toBe(description);
+        expect(model.meta.metrics.total_revenue.description).toBe(description);
+        expect(model.columns[0].description).toBe(description);
+    });
+
+    it('marks a description cut at the safety limit', () => {
+        const model = describedModelOf('z'.repeat(5_000));
+
+        for (const description of [
+            model.description,
+            model.meta.metrics.total_revenue.description,
+            model.columns[0].description,
+        ]) {
+            expect(description).toBe(`${'z'.repeat(4_000)}… [truncated]`);
+        }
+    });
+
     it('includes effective AI hints for visible metrics and dimensions', () => {
         const explore = {
             name: 'orders',

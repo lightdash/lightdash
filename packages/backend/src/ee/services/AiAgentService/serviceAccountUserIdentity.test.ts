@@ -129,6 +129,9 @@ const buildService = () => {
         featureFlagService: {
             get: vi.fn().mockResolvedValue({ enabled: false }),
         },
+        externalConnectionService: {
+            listApiSourceConnections: vi.fn().mockResolvedValue([]),
+        },
         groupsModel: { findUserGroups: vi.fn().mockResolvedValue([]) },
         aiAgentSkillModel: { findBoundToAgent: vi.fn().mockResolvedValue([]) },
         aiAgentReviewClassifierModel: {

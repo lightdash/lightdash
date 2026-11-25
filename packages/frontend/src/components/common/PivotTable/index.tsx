@@ -116,7 +116,11 @@ import {
     PIVOT_CELL_PADDING,
 } from './getPivotColumnWidths';
 import { getPivotColumnWindows } from './getPivotColumnWindow';
-import { getGroupedDimColumnIds, getRowSpanMerges } from './getRowSpanMerges';
+import {
+    getGroupedDimColumnIds,
+    getRowSpanMerges,
+    getWindowedRowSpanMerge,
+} from './getRowSpanMerges';
 import {
     collectPivotBodyRowValues,
     collectPivotHeaderRowValues,
@@ -986,18 +990,12 @@ const PivotTable: FC<PivotTableProps> = ({
         );
     }, [groupingOnlyMode, data.indexValueTypes, columnOrder, tableRows]);
 
-    // In merge mode, render every row (no virtualization) so rowSpans stay
-    // contiguous — a block's first row must never be unmounted while its
-    // absorbed siblings are visible.
-    const renderedBodyRows = groupingOnlyMode
-        ? projectedRows.map((renderRow, renderIndex) => ({
-              renderRow,
-              renderIndex,
-          }))
-        : virtualRows.map((virtualRow) => ({
-              renderRow: projectedRows[virtualRow.index],
-              renderIndex: virtualRow.index,
-          }));
+    const renderedBodyRows = virtualRows.map((virtualRow) => ({
+        renderRow: projectedRows[virtualRow.index],
+        renderIndex: virtualRow.index,
+    }));
+    const firstRenderedRowIndex = virtualRows[0]?.index ?? 0;
+    const lastRenderedRowIndex = virtualRows.at(-1)?.index ?? 0;
 
     const getUnderlyingFieldValues = useCallback(
         (row: Row<ResultRow>, dataRowIndex: number, colIndex: number) => {
@@ -1929,7 +1927,7 @@ const PivotTable: FC<PivotTableProps> = ({
             </Table.Head>
 
             <Table.Body>
-                {!groupingOnlyMode && paddingTop > 0 && (
+                {paddingTop > 0 && (
                     <VirtualizedArea
                         cellCount={renderedColumnCount}
                         height={paddingTop}
@@ -2087,13 +2085,18 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 // Grouping-only mode: merge repeated row-index
                                 // dimension values with rowSpan. The block's
-                                // first row renders the value spanning the
-                                // block; absorbed rows render no <td> so the
+                                // first rendered row renders the value spanning
+                                // the rest of the block within the rendered
+                                // rows; absorbed rows render no <td> so the
                                 // span covers their position.
-                                const rowSpanMerge =
+                                const rowSpanMerge = getWindowedRowSpanMerge(
                                     rowSpanMergesByColumnId?.get(
                                         cell.column.id,
-                                    )?.[renderIndex];
+                                    ),
+                                    renderIndex,
+                                    firstRenderedRowIndex,
+                                    lastRenderedRowIndex,
+                                );
                                 if (
                                     rowSpanMerge &&
                                     !rowSpanMerge.isBlockStart
@@ -2665,7 +2668,7 @@ const PivotTable: FC<PivotTableProps> = ({
                     );
                 })}
 
-                {!groupingOnlyMode && paddingBottom > 0 && (
+                {paddingBottom > 0 && (
                     <VirtualizedArea
                         cellCount={renderedColumnCount}
                         height={paddingBottom}

@@ -7,11 +7,32 @@ import {
     type ChartAsCode,
     type ConditionalFormattingConfig,
 } from '@lightdash/common';
+import {
+    analyticsColorPalette,
+    ownerStatusColors,
+} from './analyticsColorPalette';
+import { monthLabel } from './monthlyQueryComparisonCharts';
 
 // A shared visual vocabulary for managed content. Queries and identity fields
 // stay intact: a table row can represent several people, projects or surfaces.
-const colors = ['#4263EB', '#0CA678', '#7950F2', '#E67700', '#D6336C'];
+// Series take the Analytics palette, so built-in charts match library charts.
+const colors = analyticsColorPalette.colors.slice(0, 5);
+// Meaning-bearing colours stay fixed whatever the palette.
+// Good and not-good share one pair everywhere: a cache hit, a pass and a success are green, a cache
+// miss, a fail and an error are orange. Waiting is amber and unknown is grey. Red marks error counts in
+// table cells only.
+export const positive = '#34D399';
+export const caution = '#FB923C';
+export const waiting = '#FBBF24';
+// A measure that is itself an outcome keeps the outcome's colour, whatever its place in the chart
+const outcomeColor = (field: string): string | undefined => {
+    if (/_passed_/.test(field)) return positive;
+    if (/_failed_/.test(field)) return caution;
+    return undefined;
+};
 const warning = '#C92A2A';
+const positiveTint = '#D1FAE5';
+const cautionTint = '#FFEDD5';
 
 const numberRule = (
     field: string,
@@ -30,8 +51,9 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
     if (chart.chartConfig.type !== ChartType.TABLE) return chart;
     const { config } = chart.chartConfig;
     const columns = { ...config?.columns };
+    // Narrow enough for five measures beside a name without the last one being cut off
     for (const field of chart.metricQuery.metrics) {
-        columns[field] = { ...columns[field], width: 180 };
+        columns[field] = { ...columns[field], width: 140 };
     }
     for (const field of chart.metricQuery.dimensions) {
         if (field.endsWith('_name'))
@@ -77,9 +99,16 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
     const rules: ConditionalFormattingConfig[] = [
         ...(config?.conditionalFormattings ?? []),
     ];
-    for (const field of chart.metricQuery.metrics) {
+    // Most data apps have a failed load or two, so a tint on every count above zero coloured nearly the
+    // whole table and marked nothing. The bars carry the size.
+    const tintsErrors = chart.tableName !== 'data_app_outcomes';
+    for (const field of tintsErrors ? chart.metricQuery.metrics : []) {
         if (/error|failure|negative_feedback/.test(field)) {
-            rules.push(numberRule(field, FilterOperator.GREATER_THAN, warning));
+            // A light tint with dark text: a solid colour made one failure look like an outage
+            rules.push({
+                ...numberRule(field, FilterOperator.GREATER_THAN, cautionTint),
+                textStyle: undefined,
+            });
         }
     }
     for (const field of chart.metricQuery.dimensions) {
@@ -98,22 +127,33 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
         columns.monthly_change = {
             name: 'Change',
             displayStyle: 'bar',
-            color: colors[1],
-            negativeColor: '#E67700',
+            color: positive,
+            negativeColor: caution,
             width: 180,
         };
         columns.monthly_change_percent = { name: 'Change (%)', width: 150 };
+        // Narrow columns, so the table fits beside the chart without scrolling sideways
+        columns[monthLabel] = { ...columns[monthLabel], width: 130 };
+        const [counted] = chart.metricQuery.metrics;
+        columns[counted] = { ...columns[counted], width: 150 };
+        // Light tints of the same green and orange as the Change bars, with dark text
         rules.push(
-            numberRule(
-                'monthly_change_percent',
-                FilterOperator.GREATER_THAN,
-                '#087F5B',
-            ),
-            numberRule(
-                'monthly_change_percent',
-                FilterOperator.LESS_THAN,
-                '#A65300',
-            ),
+            {
+                ...numberRule(
+                    'monthly_change_percent',
+                    FilterOperator.GREATER_THAN,
+                    positiveTint,
+                ),
+                textStyle: undefined,
+            },
+            {
+                ...numberRule(
+                    'monthly_change_percent',
+                    FilterOperator.LESS_THAN,
+                    cautionTint,
+                ),
+                textStyle: undefined,
+            },
         );
     }
     return {
@@ -134,7 +174,6 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
 
 const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
     if (!chart.slug.endsWith('-queries-run-month-over-month')) return chart;
-    const month = 'query_events_event_ts_month';
     const total = 'query_events_total_queries';
     return {
         ...chart,
@@ -142,16 +181,15 @@ const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
             type: ChartType.CARTESIAN,
             config: {
                 layout: {
-                    xField: month,
-                    yField: [total, 'monthly_change_percent'],
+                    xField: monthLabel,
+                    yField: [total],
                     connectNulls: false,
                 },
                 eChartsConfig: {
                     xAxis: [{ name: 'Month (UTC)' }],
-                    yAxis: [
-                        { name: 'Queries', min: '0' },
-                        { name: 'Change (%)' },
-                    ],
+                    // Bars only. The change is in the table beside the chart: as a line it ran off
+                    // the top whenever a month doubled.
+                    yAxis: [{ name: 'Queries', min: '0' }],
                     series: [
                         {
                             type: CartesianSeriesType.BAR,
@@ -159,20 +197,8 @@ const monthlyComparison = (chart: ChartAsCode): ChartAsCode => {
                             color: colors[0],
                             yAxisIndex: 0,
                             encode: {
-                                xRef: { field: month },
+                                xRef: { field: monthLabel },
                                 yRef: { field: total },
-                            },
-                        },
-                        {
-                            type: CartesianSeriesType.LINE,
-                            name: 'Change vs previous month (%)',
-                            color: colors[1],
-                            showSymbol: true,
-                            smooth: false,
-                            yAxisIndex: 1,
-                            encode: {
-                                xRef: { field: month },
-                                yRef: { field: 'monthly_change_percent' },
                             },
                         },
                     ],
@@ -192,24 +218,12 @@ export const withAnalyticsChartPresentation = (
             chartConfig: {
                 type: ChartType.PIE,
                 config: {
-                    groupFieldIds: ['content_health_owner_status'],
+                    groupFieldIds: ['content_health_owner_status_name'],
                     metricId: 'content_health_total_content',
                     isDonut: true,
                     showLegend: true,
-                    groupLabelOverrides: {
-                        'Active organization member': 'Active member',
-                        'Not an organization member': 'Not a member',
-                        'Unknown user': 'Unknown owner',
-                        Unassigned: 'No owner',
-                    },
-                    groupColorOverrides: {
-                        'Active organization member': colors[1],
-                        Deactivated: colors[3],
-                        Unassigned: colors[0],
-                        'Not an organization member': colors[2],
-                        'Unknown user': '#868E96',
-                        'Not recorded': '#ADB5BD',
-                    },
+                    // The slices are named by the plain-name field
+                    groupColorOverrides: ownerStatusColors,
                 },
             },
         };
@@ -219,13 +233,13 @@ export const withAnalyticsChartPresentation = (
             chart.chartConfig.config?.selectedField?.includes('tokens');
         let style = chart.chartConfig.config?.style;
         if (isTokens) style = Compact.AUTO;
-        // Keep counts and millisecond values exact; preserve other explicit formats.
+        // Keep counts and duration values exact; preserve other explicit formats.
         else if (style === Compact.AUTO) style = undefined;
         let { name } = chart;
         if (chart.slug.endsWith('-avg-execution-time'))
-            name = 'Avg. warehouse time (ms)';
+            name = 'Average warehouse time (s)';
         if (chart.slug.endsWith('-p90-execution-time'))
-            name = 'P90 warehouse time (ms)';
+            name = 'P90 warehouse time (s)';
         return {
             ...chart,
             name,
@@ -247,17 +261,39 @@ export const withAnalyticsChartPresentation = (
                     ...chart.chartConfig.config,
                     showValue: false,
                     showPercentage: true,
-                    valueLabel: 'hidden',
+                    // The share beside each slice: a donut with no numbers only shows which is bigger
+                    valueLabel: 'outside',
                     legendPosition: 'horizontal',
                     legendMaxItemLength: 28,
+                    // Outcomes are recorded in lower case
+                    groupLabelOverrides: {
+                        success: 'Success',
+                        error: 'Error',
+                        cancelled: 'Cancelled',
+                        clarification: 'Needs clarification',
+                        pending: 'Pending',
+                        unknown: 'Unknown',
+                        // A group with no value is drawn with this sign; say what it is
+                        '∅': 'Not recorded',
+                        ...chart.chartConfig.config?.groupLabelOverrides,
+                    },
                     groupColorOverrides: {
                         ...chart.chartConfig.config?.groupColorOverrides,
-                        completed: colors[1],
-                        complete: colors[1],
-                        success: colors[1],
-                        failed: warning,
-                        error: warning,
-                        pending: colors[3],
+                        // Plain names of the same outcomes
+                        Success: positive,
+                        Error: caution,
+                        Cancelled: '#868E96',
+                        Pending: waiting,
+                        'Cache hit': positive,
+                        'Cache miss': caution,
+                        'Not recorded': '#868E96',
+                        '∅': '#868E96',
+                        completed: positive,
+                        complete: positive,
+                        success: positive,
+                        failed: caution,
+                        error: caution,
+                        pending: waiting,
                         unknown: '#868E96',
                     },
                 },
@@ -283,14 +319,6 @@ export const withAnalyticsChartPresentation = (
                 },
                 eChartsConfig: {
                     ...config.eChartsConfig,
-                    ...(chart.slug.endsWith('-apps-loads-and-observed-viewers')
-                        ? {
-                              xAxis: (config.eChartsConfig?.xAxis ?? [{}]).map(
-                                  // Empty strings fall back to the field label.
-                                  (axis) => ({ ...axis, name: ' ' }),
-                              ),
-                          }
-                        : {}),
                     showAxisTicks: false,
                     axisLabelFontSize: 11,
                     axisTitleFontSize: 12,
@@ -310,7 +338,9 @@ export const withAnalyticsChartPresentation = (
                     },
                     series: series.map((item, index) => ({
                         ...item,
-                        color: colors[index % colors.length],
+                        color:
+                            outcomeColor(item.encode.yRef.field) ??
+                            colors[index % colors.length],
                         // A single observed period must remain visible even
                         // when there is no second point to draw a line to.
                         showSymbol:

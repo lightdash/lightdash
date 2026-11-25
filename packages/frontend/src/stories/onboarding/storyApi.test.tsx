@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import { FeatureFlags } from '@lightdash/common';
 
 let restoreFetch = () => {};
 
@@ -32,15 +31,10 @@ describe('onboarding story API', () => {
     });
 
     it('matches route parameters and ignores query strings', async () => {
-        const enabled = await window.fetch(
-            `/api/v1/feature-flag/${FeatureFlags.NewOnboarding}?refresh=true`,
+        const response = await window.fetch(
+            '/api/v1/feature-flag/unknown?refresh=true',
         );
-        expect(await enabled.json()).toEqual({
-            status: 'ok',
-            results: { id: FeatureFlags.NewOnboarding, enabled: true },
-        });
-        const disabled = await window.fetch('/api/v1/feature-flag/unknown');
-        expect(await disabled.json()).toEqual({
+        expect(await response.json()).toEqual({
             status: 'ok',
             results: { id: 'unknown', enabled: false },
         });

@@ -30,6 +30,7 @@ import {
 import { TryItButton } from '../../../../../features/semanticStudio/TryItButton';
 import { getSemanticStudioUrl } from '../../../../../features/semanticStudio/urls';
 import { useCompileCheckout } from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import { useTryItMenuItem } from '../../../../../features/semanticStudio/useTryIt';
 import { useWritebackProgress } from '../../../../../features/writeback/useWritebackProgress';
 import { useClosePullRequest } from '../../hooks/useClosePullRequest';
 import { PublishDraftModal } from './PublishDraftModal';
@@ -50,6 +51,7 @@ export const StudioDevelopmentBar: FC<{
         mergesHere,
         branch,
         step,
+        isAgentWorking,
     } = useStudioPublish(projectUuid, prUrl, ciChecks);
     const compileAgain = useCompileCheckout(projectUuid);
     const { data: credential } = useGithubUserCredential();
@@ -71,13 +73,10 @@ export const StudioDevelopmentBar: FC<{
         }
     }, [isTrying, previewProjectUuid, setIsTrying]);
     const canPublish = isMine && canWriteBranch && step.action === 'publish';
+    const tryIt = useTryItMenuItem(projectUuid, pullRequest);
     return (
         <DevelopmentBar summary={null}>
-            <TryItButton
-                projectUuid={projectUuid}
-                pullRequest={pullRequest}
-                look={canPublish ? 'secondary' : 'primary'}
-            />
+            {tryIt.modal}
             {isMine && !canWriteBranch ? (
                 <Tooltip
                     multiline
@@ -100,12 +99,18 @@ export const StudioDevelopmentBar: FC<{
                     </Button>
                 </Tooltip>
             ) : isMine ? (
-                <Tooltip multiline w={240} label={step.hint}>
+                <Tooltip
+                    multiline
+                    w={240}
+                    label={step.hint}
+                    events={{ hover: true, focus: true, touch: false }}
+                >
                     <Button
                         size="xs"
                         variant={canPublish ? 'filled' : 'default'}
                         leftSection={
-                            compile?.status === 'compiling' ? (
+                            compile?.status === 'compiling' ||
+                            isAgentWorking ? (
                                 <Loader size={12} color="gray" />
                             ) : compile?.status === 'failed' ? (
                                 <MantineIcon
@@ -116,8 +121,12 @@ export const StudioDevelopmentBar: FC<{
                             ) : null
                         }
                         loading={compileAgain.isLoading}
-                        data-disabled={step.action === null || undefined}
+                        data-disabled={
+                            (step.action === null && !isAgentWorking) ||
+                            undefined
+                        }
                         aria-disabled={step.action === null}
+                        aria-busy={isAgentWorking}
                         onClick={() => {
                             if (step.action === 'compile')
                                 compileAgain.mutate();
@@ -141,6 +150,7 @@ export const StudioDevelopmentBar: FC<{
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    {tryIt.item}
                     {previewProjectUuid ? (
                         <Menu.Item
                             component={Link}
@@ -264,7 +274,6 @@ export const StudioSavingBar: FC<{
                 <TryItButton
                     projectUuid={projectUuid}
                     pullRequest={pullRequest}
-                    look="primary"
                 />
             ) : null}
         </DevelopmentBar>

@@ -10,6 +10,7 @@ import {
     type ApiListExternalConnectionLinkedAppsResponse,
     type ApiListExternalConnectionSamplesResponse,
     type ApiLiveSourceAccessResponse,
+    type ApiLiveSourceContentUsageResponse,
     type ApiLiveSourceFieldsResponse,
     type ApiProposeExternalConnectionConfigRequest,
     type ApiProposeExternalConnectionConfigResponse,
@@ -488,8 +489,40 @@ export class ExternalConnectionController extends BaseController {
     }
 
     /**
+     * List the saved charts on one explore of a live data source, or on one
+     * of its fields, and the dashboards showing them: what switching it off
+     * stops. Needs the same access as editing the source.
+     * @summary List content using a live data source explore or field
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/{connectionUuid}/content-usage')
+    @OperationId('getLiveSourceContentUsage')
+    async getLiveSourceContentUsage(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+        @Query() exploreName: string,
+        @Query() fieldName?: string,
+    ): Promise<ApiLiveSourceContentUsageResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getLiveSourceContentUsage(
+                req.account,
+                projectUuid,
+                connectionUuid,
+                exploreName,
+                fieldName ?? null,
+            ),
+        };
+    }
+
+    /**
      * Put fields of a live data source in or out of use, or change their
-     * label, group, description or AI hint
+     * label, group, description or AI hint. `exploreChanges` switches whole
+     * explores on or off, or changes their label, description or AI hint
      * @summary Update live data source fields
      */
     @Middlewares([
@@ -515,6 +548,7 @@ export class ExternalConnectionController extends BaseController {
                 projectUuid,
                 connectionUuid,
                 body.changes,
+                body.exploreChanges,
             ),
         };
     }

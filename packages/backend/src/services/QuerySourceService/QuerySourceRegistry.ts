@@ -3,6 +3,7 @@ import {
     UnexpectedServerError,
     type QuerySourceType,
 } from '@lightdash/common';
+import type { PythonSandboxAvailabilityConfig } from '../../config/appRuntimeAvailability';
 import type { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import { DuckdbQuerySource } from './sources/DuckdbQuerySource';
@@ -25,9 +26,11 @@ export class QuerySourceRegistry {
     static withBuiltInSources({
         asyncQueryService,
         projectService,
+        lightdashConfig,
     }: {
         asyncQueryService: AsyncQueryService;
         projectService: ProjectService;
+        lightdashConfig: PythonSandboxAvailabilityConfig;
     }): QuerySourceRegistry {
         const registry = new QuerySourceRegistry();
         registry.register(
@@ -43,7 +46,9 @@ export class QuerySourceRegistry {
             }),
         );
         registry.register(new DuckdbQuerySource({ asyncQueryService }));
-        registry.register(new PythonQuerySource({ asyncQueryService }));
+        registry.register(
+            new PythonQuerySource({ asyncQueryService, lightdashConfig }),
+        );
         registry.register(new MergeQuerySource({ asyncQueryService }));
         return registry;
     }

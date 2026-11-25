@@ -7,6 +7,10 @@ import { useCheckoutCompile } from '../../../../../features/semanticStudio/useSt
 import { isMergeable } from '../../../../../features/writeback/pullRequestActions';
 import { useProject } from '../../../../../hooks/useProject';
 import useApp from '../../../../../providers/App/useApp';
+import {
+    AGENT_WORKING_HINT,
+    useStudioAgentWorking,
+} from './useSemanticStudioChat';
 
 const CHECKING = {
     label: 'Checking',
@@ -72,6 +76,7 @@ export const useStudioPublish = (
             projectUuid,
         );
     const compile = useCheckoutCompile(projectUuid, prUrl);
+    const isAgentWorking = useStudioAgentWorking(projectUuid);
     // Checks are read, and pull requests merged, on GitHub only.
     const mergesHere = project?.dbtConnection.type === DbtProjectType.GITHUB;
     const destination = `${name}${branch ? ` into ${branch}` : ''}`;
@@ -97,6 +102,9 @@ export const useStudioPublish = (
                 action: 'compile',
             };
         }
+        if (isAgentWorking) {
+            return { label: 'Publish', hint: AGENT_WORKING_HINT, action: null };
+        }
         if (!isMergeable(ciChecks)) {
             return {
                 label: blockedOf(ciChecks).label,
@@ -118,5 +126,6 @@ export const useStudioPublish = (
         mergesHere,
         branch,
         step,
+        isAgentWorking,
     };
 };

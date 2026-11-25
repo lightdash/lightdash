@@ -116,7 +116,8 @@ describe('Data app reach from existing loads', () => {
                     data_app_reach_user_id: 'deleted-user',
                 }),
                 expect.objectContaining({
-                    lightdash_users_name: 'Unknown user',
+                    // No ID at all, because the load came through an embed
+                    lightdash_users_name: 'Embedded viewer',
                     data_app_reach_user_id: null,
                     data_app_reach_distinct_viewers: 0n,
                 }),

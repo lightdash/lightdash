@@ -61,6 +61,7 @@ export const describeSemanticLayerProposals = (
     );
     if (ready.length === 0) return 'Nothing changed in the draft.';
     const names = [...new Set(ready.map(({ model }) => model))];
+    // Only results stored before a model joined whole or not at all.
     const leftOut = ready.some(({ refusals }) => refusals.length > 0)
         ? ' Some parts were left out.'
         : '';
@@ -104,7 +105,8 @@ export type SemanticLayerProposalPhase =
     | { kind: 'applied' }
     | { kind: 'pull_request'; url: string }
     | { kind: 'undone' }
-    | { kind: 'discarded' }
+    /** `by` is a project admin who discarded it as stale; null when its owner did. */
+    | { kind: 'discarded'; by: { name: string; at: Date } | null }
     /** Not in the draft as read: the agent added it after the last read. */
     | { kind: 'unknown' };
 
@@ -133,5 +135,10 @@ export const getProposalPhase = (
     if (settled.length === 0) return { kind: 'unknown' };
     return settled.every(({ status }) => status === 'undone')
         ? { kind: 'undone' }
-        : { kind: 'discarded' };
+        : {
+              kind: 'discarded',
+              by:
+                  settled.find(({ discardedBy }) => discardedBy)?.discardedBy ??
+                  null,
+          };
 };

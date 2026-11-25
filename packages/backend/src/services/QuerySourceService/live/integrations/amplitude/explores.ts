@@ -48,13 +48,19 @@ export const AMPLITUDE_USER_PROPERTIES = [
 export type AmplitudeUserProperty = (typeof AMPLITUDE_USER_PROPERTIES)[number];
 
 const PROPERTY_DESCRIPTIONS: Record<AmplitudeUserProperty, [string, string]> = {
-    country: ['Country', 'Country of the user, as Amplitude resolves it.'],
+    country: [
+        'Country',
+        'Country of the user, as Amplitude resolves it from location data.',
+    ],
     region: ['Region', 'Region or state of the user.'],
     city: ['City', 'City of the user.'],
-    platform: ['Platform', 'Platform, such as Web, iOS or Android.'],
-    os: ['OS', 'Operating system and version.'],
-    device_type: ['Device type', 'Device type, such as Apple iPhone.'],
-    language: ['Language', 'Language the device or browser is set to.'],
+    platform: [
+        'Platform',
+        'Platform the user was on, such as Web, iOS or Android.',
+    ],
+    os: ['OS', "Operating system and version of the user's device."],
+    device_type: ['Device type', 'Device model, such as Apple iPhone.'],
+    language: ['Language', "Language the user's device or browser is set to."],
     version: ['App version', 'Version of the app the user was on.'],
 };
 
@@ -98,7 +104,8 @@ const dateDimensions = (
                 type: DimensionType.DATE,
                 filterOperators: AMPLITUDE_DATE_FILTERS,
                 timeInterval: { base: 'date', grain: TimeFrames.DAY },
-                description: `Day of the ${what}, in the project time zone. Queries without a date filter read the last 30 days.`,
+                description: `Day of the ${what}, in the project time zone.`,
+                aiHint: 'Without a date filter the query reads the last 30 days.',
             };
         }
         return {
@@ -111,7 +118,11 @@ const dateDimensions = (
                 base: 'date',
                 grain: grain === 'week' ? TimeFrames.WEEK : TimeFrames.MONTH,
             },
-            description: `First day of the ${grain}, as Amplitude starts it, in the project time zone. Filter the date to choose the ${grain}s.`,
+            description:
+                grain === 'week'
+                    ? "Week of the activity, shown as its first day in the project time zone. Weeks start on the day Amplitude's project settings use."
+                    : 'Month of the activity, shown as its first day in the project time zone.',
+            aiHint: `Filter Date, not this field, to choose the ${grain}s. Amplitude groups the ${grain}s itself (interval ${AMPLITUDE_INTERVALS[grain]}).`,
         };
     });
 
@@ -121,7 +132,7 @@ const metric = (
     type: MetricType,
     aggregation: ApiSourceMetricAggregation,
     description: string,
-    format?: string,
+    { format, aiHint }: { format?: string; aiHint?: string } = {},
 ): LiveMetricDefinition => ({
     name,
     apiName: name,
@@ -131,6 +142,7 @@ const metric = (
     filterOperators: [],
     aggregation,
     ...(format ? { format } : {}),
+    ...(aiHint ? { aiHint } : {}),
 });
 
 // Event segmentation (/api/2/events/segmentation). Totals add up across days
@@ -139,7 +151,8 @@ export const AMPLITUDE_EVENTS_EXPLORE: LiveExploreDefinition = {
     name: 'events',
     label: 'Events',
     description:
-        'Event counts and unique users per event for one Amplitude project, by day, week or month and one built-in user property. Filter Event to choose the events; without it, every event counts.',
+        'Event counts and unique users per event in one Amplitude project, by day, week or month.',
+    aiHint: 'Without a Date filter the query reads the last 30 days. Filter Event (equals) to choose up to 10 events; without it every event is counted together in one row per period. Amplitude groups by one user property at a time: pick at most one of Country, Region, City, Platform, OS, Device type, Language, App version as a dimension. Unique users, Events per user and Share of active users are not additive: never sum rows across dates; query a coarser date grain instead.',
     dimensions: [
         ...dateDimensions('events', ['date', 'week', 'month']),
         {
@@ -148,8 +161,8 @@ export const AMPLITUDE_EVENTS_EXPLORE: LiveExploreDefinition = {
             label: 'Event',
             type: DimensionType.STRING,
             filterOperators: AMPLITUDE_EVENT_FILTERS,
-            description:
-                'Name of the event, as tracked. Filter it to choose up to 10 events; without a filter, the row counts every event.',
+            description: 'Name of the event, as tracked in Amplitude.',
+            aiHint: 'Filter it (equals) to choose up to 10 events. Without a filter the row counts every event together, not per event.',
         },
         ...userProperties(AMPLITUDE_PROPERTY_FILTERS),
     ],
@@ -159,14 +172,17 @@ export const AMPLITUDE_EVENTS_EXPLORE: LiveExploreDefinition = {
             'Event count',
             MetricType.SUM,
             ADDITIVE,
-            'Times the event was triggered (Amplitude "totals").',
+            'Number of times the event was triggered (Amplitude\'s "totals").',
         ),
         metric(
             'unique_users',
             'Unique users',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            'Users who triggered the event at least once in the period (Amplitude "uniques"). Never add rows together: choose a coarser date grain instead.',
+            'Number of distinct users who triggered the event at least once in the period (Amplitude\'s "uniques").',
+            {
+                aiHint: 'Not additive: never sum rows across dates or properties; choose a coarser date grain instead.',
+            },
         ),
         metric(
             'events_per_user',
@@ -177,16 +193,22 @@ export const AMPLITUDE_EVENTS_EXPLORE: LiveExploreDefinition = {
                 numerator: 'event_count',
                 denominator: 'unique_users',
             },
-            'Average times each user triggered the event in the period (Amplitude "average").',
-            '0.00',
+            'Average number of times each user triggered the event in the period (Amplitude\'s "average").',
+            {
+                format: '0.00',
+                aiHint: 'Not additive; never sum or average rows.',
+            },
         ),
         metric(
             'percent_of_active_users',
             'Share of active users',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            'Unique users of the event divided by all active users in the period (Amplitude "% DAU").',
-            '0.00%',
+            'Users who triggered the event as a share of all active users in the period (Amplitude\'s "% DAU").',
+            {
+                format: '0.00%',
+                aiHint: 'Not additive; never sum or average rows.',
+            },
         ),
     ],
     maxDimensions: null,
@@ -201,7 +223,8 @@ export const AMPLITUDE_USERS_EXPLORE: LiveExploreDefinition = {
     name: 'users',
     label: 'Active users',
     description:
-        'Active and new users for one Amplitude project, by day, week or month and one built-in user property.',
+        'Active and new users in one Amplitude project, by day, week or month.',
+    aiHint: 'Without a Date filter the query reads the last 30 days. Amplitude groups by one user property at a time: pick at most one of Country, Region, City, Platform, OS, Device type, Language, App version as a dimension. Active users is not additive across dates: never sum days into a week or month; use the week or month dimension instead. New users is additive.',
     dimensions: [
         ...dateDimensions('activity', ['date', 'week', 'month']),
         ...userProperties(AMPLITUDE_PROPERTY_FILTERS),
@@ -212,14 +235,17 @@ export const AMPLITUDE_USERS_EXPLORE: LiveExploreDefinition = {
             'Active users',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            'Users who triggered at least one active event in the period. Never add rows together: choose a coarser date grain instead.',
+            'Number of distinct users who triggered at least one active event in the period.',
+            {
+                aiHint: 'Not additive: never sum rows; choose a coarser date grain instead.',
+            },
         ),
         metric(
             'new_users',
             'New users',
             MetricType.SUM,
             ADDITIVE,
-            'Users whose first event was in the period.',
+            'Number of users whose first event in the project was in the period.',
         ),
     ],
     maxDimensions: null,
@@ -234,7 +260,8 @@ export const AMPLITUDE_FUNNEL_EXPLORE: LiveExploreDefinition = {
     name: 'funnel',
     label: 'Funnel',
     description:
-        "A funnel Amplitude computes over the date range: users who did each step in order, and how many converted. Required: filter Step event to the steps in order, from 2 to 10 event names (the Events explore's Event field lists them). Group by Step number and Step event, not by date. User properties filter who enters the funnel.",
+        'A conversion funnel in one Amplitude project: how many users did each step, in order, and how many converted from one step to the next.',
+    aiHint: "Required: filter Step event (equals) to 2-10 event names, in step order; the first value is the first step. Event names are listed by the Events explore's Event field. Group by Step number and Step event, not by date; Date and Conversion window (days) are filter-only. Date filters who entered the funnel (default last 30 days); the conversion window defaults to 30 days. User properties filter who enters the funnel. Amplitude groups by one user property at a time: pick at most one of Country, Region, City, Platform, OS, Device type, Language, App version as a dimension. Users and the rates are per step; never sum them across steps.",
     dimensions: [
         {
             name: 'date',
@@ -243,7 +270,8 @@ export const AMPLITUDE_FUNNEL_EXPLORE: LiveExploreDefinition = {
             type: DimensionType.DATE,
             filterOperators: AMPLITUDE_DATE_FILTERS,
             description:
-                'Filter only: users who entered the funnel in this range. Without a filter, the last 30 days.',
+                'Day a user entered the funnel, in the project time zone.',
+            aiHint: 'Filter only, never select it. Without a filter, users who entered in the last 30 days.',
         },
         {
             name: 'step_number',
@@ -251,7 +279,7 @@ export const AMPLITUDE_FUNNEL_EXPLORE: LiveExploreDefinition = {
             label: 'Step number',
             type: DimensionType.NUMBER,
             filterOperators: [],
-            description: 'Position of the step in the funnel, from 1.',
+            description: 'Position of the step in the funnel, starting at 1.',
         },
         {
             name: 'step_event',
@@ -259,8 +287,8 @@ export const AMPLITUDE_FUNNEL_EXPLORE: LiveExploreDefinition = {
             label: 'Step event',
             type: DimensionType.STRING,
             filterOperators: AMPLITUDE_EVENT_FILTERS,
-            description:
-                'Event of the step. Filter it to the funnel steps, in order: the first value is the first step.',
+            description: 'Event that makes up the step.',
+            aiHint: 'Required filter: list the funnel steps in order, 2 to 10 event names; the first value is step 1.',
         },
         {
             name: 'conversion_window_days',
@@ -269,7 +297,8 @@ export const AMPLITUDE_FUNNEL_EXPLORE: LiveExploreDefinition = {
             type: DimensionType.NUMBER,
             filterOperators: AMPLITUDE_NUMBER_FILTERS,
             description:
-                'Filter only: days a user has to finish the funnel after its first step. Defaults to 30.',
+                'Number of days a user has to complete the funnel after the first step. Defaults to 30.',
+            aiHint: 'Filter only (equals); never select it.',
         },
         ...userProperties(AMPLITUDE_PROPERTY_FILTERS),
     ],
@@ -279,31 +308,32 @@ export const AMPLITUDE_FUNNEL_EXPLORE: LiveExploreDefinition = {
             'Users',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            'Users who reached the step, having done every step before it in order.',
+            'Number of users who reached the step after doing every earlier step in order.',
+            { aiHint: 'Not additive across steps.' },
         ),
         metric(
             'conversion_rate',
             'Conversion from first step',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            'Users at the step divided by users at the first step.',
-            '0.00%',
+            'Users at the step as a share of users at the first step.',
+            { format: '0.00%', aiHint: 'Not additive.' },
         ),
         metric(
             'step_conversion_rate',
             'Conversion from previous step',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            'Users at the step divided by users at the step before.',
-            '0.00%',
+            'Users at the step as a share of users at the previous step.',
+            { format: '0.00%', aiHint: 'Not additive.' },
         ),
         metric(
             'average_time_to_convert_seconds',
             'Average time to step (seconds)',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            'Average seconds from the previous step to this one, for users who reached it.',
-            '#,##0',
+            'Average time, in seconds, from the previous step to this one, for users who reached it.',
+            { format: '#,##0', aiHint: 'Not additive. Empty or 0 for step 1.' },
         ),
     ],
     maxDimensions: null,
@@ -312,19 +342,42 @@ export const AMPLITUDE_FUNNEL_EXPLORE: LiveExploreDefinition = {
     incompatible: [],
 };
 
+const COHORT_TEXTS: Record<
+    string,
+    Pick<LiveDimensionDefinition, 'description' | 'aiHint'>
+> = {
+    date: {
+        description:
+            'Day the users in the cohort did the start event, in the project time zone.',
+        aiHint: 'Without a cohort filter the query reads the last 30 days. Use with Days after start.',
+    },
+    date_week: {
+        description:
+            'Week the users in the cohort did the start event, shown as its first day in the project time zone.',
+        aiHint: 'Filter Cohort, not this field, to choose the weeks. Use only with Weeks after start.',
+    },
+    date_month: {
+        description:
+            'Month the users in the cohort did the start event, shown as its first day in the project time zone.',
+        aiHint: 'Filter Cohort, not this field, to choose the months. Use only with Months after start.',
+    },
+};
+
 // Retention (/api/2/retention). Amplitude counts each cohort's returning
 // users per period after it started; nothing is summed here.
 export const AMPLITUDE_RETENTION_EXPLORE: LiveExploreDefinition = {
     name: 'retention',
     label: 'Retention',
     description:
-        'Retention Amplitude computes: of the users who did the start event in each cohort, how many did the return event in each later day, week or month. Required: add exactly one of Days, Weeks or Months after start; add the cohort date at the same grain to split by cohort. Without filters, new users who came back with any active event; filter Start event and Return event to one event name each to change that.',
+        'Retention in one Amplitude project: of the users who started in each cohort, how many came back on each later day, week or month.',
+    aiHint: 'Required: select exactly one of Days after start, Weeks after start or Months after start; it sets the retention grain. To split by cohort, add the cohort date at the same grain (Cohort with Days, Cohort week with Weeks, Cohort month with Months). Without a Cohort filter the query reads the last 30 days. Start event and Return event are filter-only, one event name each; by default the cohort is new users and any active event counts as a return. Rates and user counts are not additive across periods.',
     dimensions: [
         ...dateDimensions('cohort start', ['date', 'week', 'month']).map(
             (dimension) => ({
                 ...dimension,
                 label: dimension.label.replace('Date', 'Cohort'),
                 name: dimension.name.replace('date', 'cohort'),
+                ...COHORT_TEXTS[dimension.name],
                 ...(dimension.timeInterval
                     ? {
                           timeInterval: {
@@ -342,7 +395,8 @@ export const AMPLITUDE_RETENTION_EXPLORE: LiveExploreDefinition = {
                 label: `${unit[0].toUpperCase()}${unit.slice(1)}s after start`,
                 type: DimensionType.NUMBER,
                 filterOperators: [],
-                description: `${unit[0].toUpperCase()}${unit.slice(1)}s after the start event; 0 is the ${unit} of the start event itself. Pick one: it sets the retention grain, and a cohort grain must match it.`,
+                description: `${unit[0].toUpperCase()}${unit.slice(1)}s since the start event; 0 is the ${unit} of the start event itself.`,
+                aiHint: 'Select exactly one of Days/Weeks/Months after start; the cohort grain must match.',
                 groups: ['Retention period'],
             }),
         ),
@@ -353,7 +407,8 @@ export const AMPLITUDE_RETENTION_EXPLORE: LiveExploreDefinition = {
             type: DimensionType.STRING,
             filterOperators: AMPLITUDE_EVENT_FILTERS,
             description:
-                'Filter only: the event that puts a user in a cohort. Defaults to new users.',
+                'Event that puts a user into a cohort. Defaults to new users.',
+            aiHint: 'Filter only, one event name (equals); never select it.',
         },
         {
             name: 'return_event',
@@ -362,7 +417,8 @@ export const AMPLITUDE_RETENTION_EXPLORE: LiveExploreDefinition = {
             type: DimensionType.STRING,
             filterOperators: AMPLITUDE_EVENT_FILTERS,
             description:
-                'Filter only: the event that counts as coming back. Defaults to any active event.',
+                'Event that counts as coming back. Defaults to any active event.',
+            aiHint: 'Filter only, one event name (equals); never select it.',
         },
     ],
     metrics: [
@@ -371,14 +427,16 @@ export const AMPLITUDE_RETENTION_EXPLORE: LiveExploreDefinition = {
             'Retained users',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            'Users of the cohort who did the return event in the period.',
+            'Number of users in the cohort who did the return event in the period.',
+            { aiHint: 'Not additive across periods.' },
         ),
         metric(
             'cohort_users',
             'Cohort users',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            'Users in the cohort who could have come back in the period.',
+            'Number of users in the cohort who could have come back in the period.',
+            { aiHint: 'Not additive across periods.' },
         ),
         metric(
             'retention_rate',
@@ -389,8 +447,8 @@ export const AMPLITUDE_RETENTION_EXPLORE: LiveExploreDefinition = {
                 numerator: 'retained_users',
                 denominator: 'cohort_users',
             },
-            'Retained users divided by cohort users.',
-            '0.00%',
+            'Retained users as a share of cohort users.',
+            { format: '0.00%', aiHint: 'Not additive.' },
         ),
     ],
     maxDimensions: null,
@@ -404,7 +462,8 @@ export const AMPLITUDE_SESSIONS_EXPLORE: LiveExploreDefinition = {
     name: 'sessions',
     label: 'Sessions',
     description:
-        'Average session length and sessions per active user, per day, for one Amplitude project.',
+        'Average session length and sessions per active user in one Amplitude project, per day.',
+    aiHint: 'Daily grain only. Without a Date filter the query reads the last 30 days. Both metrics are daily averages: never sum them across days, and averaging days gives an unweighted average.',
     dimensions: dateDimensions('sessions', ['date']),
     metrics: [
         metric(
@@ -412,16 +471,16 @@ export const AMPLITUDE_SESSIONS_EXPLORE: LiveExploreDefinition = {
             'Average session length (seconds)',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            'Average length of the day’s sessions, in seconds.',
-            '#,##0',
+            "Average length of the day's sessions, in seconds.",
+            { format: '#,##0', aiHint: 'Not additive across days.' },
         ),
         metric(
             'sessions_per_user',
             'Sessions per user',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            'Average sessions per active user in the day.',
-            '0.00',
+            'Average number of sessions per active user in the day.',
+            { format: '0.00', aiHint: 'Not additive across days.' },
         ),
     ],
     maxDimensions: null,

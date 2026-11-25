@@ -118,6 +118,11 @@
     color: var(--mantine-color-dimmed);
 }
 
+/* A source's status, set apart from the cards it heads. */
+.summary[data-status] {
+    margin-bottom: 16px;
+}
+
 @media (max-width: 900px) {
     .summary {
         grid-template-columns: repeat(2, minmax(0, 1fr));

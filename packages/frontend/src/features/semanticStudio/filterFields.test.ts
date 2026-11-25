@@ -36,56 +36,24 @@ const fields = [
 ];
 const names = (list: Field[]) => list.map(({ name }) => name);
 
-const visible = { showHidden: false, showInternal: false };
-const everything = { showHidden: true, showInternal: true };
-
 describe('filterFields', () => {
-    it('hides fields not in use until asked', () => {
-        expect(names(filterFields(fields, 'all', '', visible))).toEqual([
+    it('shows every field but internal ones not in use', () => {
+        expect(names(filterFields(fields, ''))).toEqual([
             'account_id',
+            'email',
             'kept_internal',
             'notes',
             'revenue',
         ]);
-        expect(
-            names(
-                filterFields(fields, 'all', '', {
-                    showHidden: true,
-                    showInternal: false,
-                }),
-            ),
-        ).toEqual(['account_id', 'email', 'kept_internal', 'notes', 'revenue']);
-    });
-
-    it('shows internal fields not in use only with internal fields on', () => {
-        const withInternal = { showHidden: false, showInternal: true };
-        expect(names(filterFields(fields, 'all', '', withInternal))).toContain(
-            'raw_payload',
-        );
-        expect(
-            names(filterFields(fields, 'all', '', withInternal)),
-        ).not.toContain('email');
-    });
-
-    it('filters by missing description', () => {
-        expect(
-            names(filterFields(fields, 'noDescription', '', everything)),
-        ).toEqual(['notes']);
     });
 
     it('matches label, name and definition, case-insensitively', () => {
-        expect(
-            names(filterFields(fields, 'all', 'ACCOUNT id', visible)),
-        ).toEqual(['account_id']);
-        expect(
-            names(filterFields(fields, 'all', 'amount_usd', visible)),
-        ).toEqual(['revenue']);
-        expect(
-            names(filterFields(fields, 'all', '  email ', everything)),
-        ).toEqual(['email']);
-        expect(
-            filterFields(fields, 'all', 'nothing-like-this', everything),
-        ).toEqual([]);
+        expect(names(filterFields(fields, 'ACCOUNT id'))).toEqual([
+            'account_id',
+        ]);
+        expect(names(filterFields(fields, 'amount_usd'))).toEqual(['revenue']);
+        expect(names(filterFields(fields, '  email '))).toEqual(['email']);
+        expect(filterFields(fields, 'nothing-like-this')).toEqual([]);
     });
 });
 

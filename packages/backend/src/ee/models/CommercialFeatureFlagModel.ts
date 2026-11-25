@@ -6,14 +6,12 @@ import {
 import { Knex } from 'knex';
 import { isAppRuntimeConfigured } from '../../config/appRuntimeAvailability';
 import { LightdashConfig } from '../../config/parseConfig';
-import { FeatureFlagsTableName } from '../../database/entities/featureFlags';
 import { OrganizationTableName } from '../../database/entities/organizations';
 import {
     FeatureFlagLogicArgs,
     FeatureFlagModel,
     FeatureFlagQueryOptions,
 } from '../../models/FeatureFlagModel/FeatureFlagModel';
-import { ExternalConnectionsTableName } from '../database/entities/externalConnections';
 import { isCreatedInAiTrial } from '../services/ai/aiTrial';
 
 export class CommercialFeatureFlagModel extends FeatureFlagModel {
@@ -24,8 +22,6 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             // Add new commercial handlers
             [CommercialFeatureFlags.AiCopilot]:
                 this.getAiCopilotFlag.bind(this),
-            [FeatureFlags.ApiQuerySources]:
-                this.getApiQuerySourcesEnabled.bind(this),
             [FeatureFlags.EnableDataApps]: this.getDataAppsEnabled.bind(this),
         };
     }
@@ -70,44 +66,6 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             !!organization?.created_at &&
             isCreatedInAiTrial(new Date(organization.created_at))
         );
-    }
-
-    // On for orgs on the new onboarding or with a live source already, unless an override says otherwise
-    private async getApiQuerySourcesEnabled(
-        args: FeatureFlagLogicArgs,
-        options: FeatureFlagQueryOptions = {},
-    ): Promise<FeatureFlag> {
-        const override = await this.tryGetOverrideFromDatabase(args, options);
-        if (override) return override;
-        const db = options.trx ?? this.database;
-        const organizationUuid = args.user?.organizationUuid;
-        if (organizationUuid) {
-            const newOnboarding = await this.get(
-                {
-                    featureFlagId: FeatureFlags.NewOnboarding,
-                    user: { organizationUuid },
-                },
-                { ...options, recordCheck: false },
-            );
-            if (newOnboarding.enabled) {
-                return { id: args.featureFlagId, enabled: true };
-            }
-            const liveSource = await db(ExternalConnectionsTableName)
-                .where('organization_uuid', organizationUuid)
-                .where('connection_kind', 'live_source')
-                .whereNull('deleted_at')
-                .first('external_connection_uuid')
-                .catch(() => undefined);
-            if (liveSource) return { id: args.featureFlagId, enabled: true };
-        }
-        const flag = await db(FeatureFlagsTableName)
-            .where('flag_id', args.featureFlagId)
-            .first()
-            .catch(() => undefined);
-        return {
-            id: args.featureFlagId,
-            enabled: flag?.default_enabled ?? false,
-        };
     }
 
     private async getAiCopilotFlag({

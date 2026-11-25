@@ -1406,8 +1406,9 @@ export class UnfurlService extends BaseService {
     /**
      * Renders a saved chart to a PNG buffer without hosting it, for callers
      * that embed the image in another file (e.g. an XLSX export). A dashboard
-     * tile request renders the chart as that tile ran it. Fails rather than
-     * returning a screenshot of an errored chart.
+     * tile request renders the chart as that tile ran it, and a scheduled
+     * chart delivery's filters render the chart as the delivery ran it. Fails
+     * rather than returning a screenshot of an errored chart.
      */
     async captureChartImage({
         chartUuid,
@@ -1415,12 +1416,14 @@ export class UnfurlService extends BaseService {
         projectUuid,
         dashboardTileRenderRequest,
         parameters,
+        schedulerFilters,
     }: {
         chartUuid: string;
         user: SessionUser;
         projectUuid: string;
         dashboardTileRenderRequest?: DashboardTileRenderRequest;
         parameters?: ParametersValuesMap;
+        schedulerFilters?: Filters;
     }): Promise<Buffer> {
         const { chart, minimalUrl } = await this.getViewableChartForExport(
             chartUuid,
@@ -1441,6 +1444,7 @@ export class UnfurlService extends BaseService {
             context: ScreenshotContext.EXPORT_CHART,
             selectedTabs: null,
             dashboardTileRenderRequest,
+            sendNowSchedulerChartFilters: schedulerFilters,
             sendNowSchedulerParameters: parameters,
             requireSuccessfulRender: true,
         });
@@ -2227,6 +2231,7 @@ export class UnfurlService extends BaseService {
                                 tileParameters,
                             [SessionStorageKeys.DASHBOARD_TILE_RENDER_REQUEST]:
                                 dashboardTileRenderRequest,
+                            [SessionStorageKeys.HEADLESS_CAPTURE]: true,
                         },
                     );
 

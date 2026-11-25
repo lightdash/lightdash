@@ -3,7 +3,7 @@
 exports[`AI agent tool contracts > matches the current agent tool contract snapshot 1`] = `
 [
   {
-    "description": "Return the column names and types of one raw, staging or seed table that no explore exposes. It reads cached metadata, so it is fast and needs no approval, and returns schema only, not data.
+    "description": "Return the column names and types of one raw, staging or seed table that no explore exposes. Where the warehouse reports them, it also returns the table type (table, view, metric view), the table and column comments, a view's definition, and each metric view measure's expression, synonyms and window. It reads metadata only, so it is fast and needs no approval, and returns schema only, not data.
 
 For explore-backed tables use grepFields and getMetadata; to find a table's name use listWarehouseTables.",
     "inputSchema": {
@@ -102,6 +102,301 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                   },
                   "type": "array",
                 },
+                "metadata": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "columns": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "comment": {
+                                "type": [
+                                  "string",
+                                  "null",
+                                ],
+                              },
+                              "isMeasure": {
+                                "type": "boolean",
+                              },
+                              "name": {
+                                "type": "string",
+                              },
+                              "type": {
+                                "enum": [
+                                  "string",
+                                  "number",
+                                  "timestamp",
+                                  "date",
+                                  "boolean",
+                                ],
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "name",
+                              "type",
+                              "comment",
+                              "isMeasure",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "comment": {
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
+                        "definition": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "text": {
+                                  "type": "string",
+                                },
+                                "truncated": {
+                                  "type": "boolean",
+                                },
+                              },
+                              "required": [
+                                "text",
+                                "truncated",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "metricView": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "dimensions": {
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "comment": {
+                                        "type": [
+                                          "string",
+                                          "null",
+                                        ],
+                                      },
+                                      "expr": {
+                                        "type": "string",
+                                      },
+                                      "label": {
+                                        "type": [
+                                          "string",
+                                          "null",
+                                        ],
+                                      },
+                                      "name": {
+                                        "type": "string",
+                                      },
+                                      "synonyms": {
+                                        "items": {
+                                          "type": "string",
+                                        },
+                                        "type": "array",
+                                      },
+                                    },
+                                    "required": [
+                                      "name",
+                                      "expr",
+                                      "label",
+                                      "comment",
+                                      "synonyms",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "filter": {
+                                  "type": [
+                                    "string",
+                                    "null",
+                                  ],
+                                },
+                                "joins": {
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "name": {
+                                        "type": "string",
+                                      },
+                                      "on": {
+                                        "type": [
+                                          "string",
+                                          "null",
+                                        ],
+                                      },
+                                      "source": {
+                                        "type": "string",
+                                      },
+                                      "using": {
+                                        "items": {
+                                          "type": "string",
+                                        },
+                                        "type": "array",
+                                      },
+                                    },
+                                    "required": [
+                                      "name",
+                                      "source",
+                                      "on",
+                                      "using",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "measures": {
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "comment": {
+                                        "type": [
+                                          "string",
+                                          "null",
+                                        ],
+                                      },
+                                      "expr": {
+                                        "type": "string",
+                                      },
+                                      "label": {
+                                        "type": [
+                                          "string",
+                                          "null",
+                                        ],
+                                      },
+                                      "name": {
+                                        "type": "string",
+                                      },
+                                      "synonyms": {
+                                        "items": {
+                                          "type": "string",
+                                        },
+                                        "type": "array",
+                                      },
+                                      "window": {
+                                        "items": {
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "offset": {
+                                              "type": [
+                                                "string",
+                                                "null",
+                                              ],
+                                            },
+                                            "order": {
+                                              "type": "string",
+                                            },
+                                            "range": {
+                                              "type": "string",
+                                            },
+                                            "semiAdditive": {
+                                              "anyOf": [
+                                                {
+                                                  "enum": [
+                                                    "first",
+                                                    "last",
+                                                  ],
+                                                  "type": "string",
+                                                },
+                                                {
+                                                  "type": "null",
+                                                },
+                                              ],
+                                            },
+                                          },
+                                          "required": [
+                                            "order",
+                                            "range",
+                                            "semiAdditive",
+                                            "offset",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        "type": "array",
+                                      },
+                                    },
+                                    "required": [
+                                      "name",
+                                      "expr",
+                                      "label",
+                                      "comment",
+                                      "synonyms",
+                                      "window",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                                "parameterized": {
+                                  "type": "boolean",
+                                },
+                                "source": {
+                                  "type": [
+                                    "string",
+                                    "null",
+                                  ],
+                                },
+                              },
+                              "required": [
+                                "source",
+                                "filter",
+                                "parameterized",
+                                "dimensions",
+                                "measures",
+                                "joins",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "tableType": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "table",
+                                "view",
+                                "materialized_view",
+                                "external",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "const": "metric_view",
+                              "type": "string",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "tableType",
+                        "comment",
+                        "columns",
+                        "definition",
+                        "metricView",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Table type, table and column comments, the view or metric-view definition (truncated with a marker past a size cap), and a metric view's dimensions, measures and joins as data; null where the warehouse does not describe tables this way.",
+                },
                 "partitioning": {
                   "anyOf": [
                     {
@@ -170,6 +465,7 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                 "columnCount",
                 "columns",
                 "partitioning",
+                "metadata",
               ],
               "type": "object",
             },
@@ -12166,6 +12462,10 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
+        "moreToDo": {
+          "description": "True when the person's request has steps left after this change, such as running a query they asked for, so you carry them out next; false when this change finishes it.",
+          "type": "boolean",
+        },
         "note": {
           "description": "The one thing about this change most worth checking, under 15 words, shown on its card; null when nothing is.",
           "type": [
@@ -12182,49 +12482,24 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
           "maxItems": 2,
           "type": "array",
         },
-        "prUrl": {
-          "description": "Full URL of an existing pull request to update instead (e.g. 'https://github.com/owner/repo/pull/123'): one the user pasted, or one of several this conversation opened (from listWorkstreams or an earlier editDbtProject result). It must be in this project's repository. Otherwise null.",
-          "type": [
-            "string",
-            "null",
-          ],
-        },
         "prompt": {
-          "description": "A self-contained instruction, written as a direct task: the target model or file when you know it, and the literal change (field names, types, descriptions, SQL). The sandbox does not see this conversation, so include every detail it needs. When the project has more than one dbt source, name the source or its owner/repo verbatim, or you will be asked to choose one.",
-          "type": "string",
-        },
-        "requestedBy": {
-          "description": "Who asked for this repository change: user_asked when the user asked for it in the repository, offer_accepted when the user said yes to a change you offered, agent_initiated when you decided it alone. An agent_initiated change is not opened: the tool tells you to make what the user asked for with the content tools and offer the repository change instead.",
-          "enum": [
-            "user_asked",
-            "offer_accepted",
-            "agent_initiated",
-          ],
+          "description": "The change in words: a one-line summary under 72 characters, like a commit subject, then the models and fields and what each becomes. With a script, the first line becomes the pull request title. With a null script the sandbox makes the change from this alone, so include every detail.",
           "type": "string",
         },
         "script": {
-          "description": "JavaScript that makes the change, run against the repository before the pull request is opened. Paths are relative to the dbt project. Nothing is written unless the whole script succeeds and every changed YAML file passes the semantic layer schema; on failure the tool returns the error, so fix the script and call again. API (synchronous, values are plain JSON): dbt.model(name) -> { yml, sql, keys } | null, where keys is the YAML path of that model; yaml.get(path, keys), yaml.set(path, keys, value), yaml.push(path, keys, value) to append to a list, yaml.remove(path, keys); keys is a list of mapping keys, list indexes, or { name } to pick the list item with that name, e.g. [...m.keys, 'columns', { name: '<column>' }, 'config', 'meta', 'metrics', '<metric>']; set creates missing mappings, and edits keep comments and the rest of the file as it is; repo.list(prefix?), repo.read(path), repo.write(path, text), repo.remove(path) for whole files such as a new model SQL; console.log(...) is returned with errors. Follow where the file already keeps things (e.g. config.meta rather than meta when it uses that). Null when the change needs dbt to run, such as checking new SQL against the warehouse. With a script, start prompt with a one-line summary under 72 characters, like a commit subject: it becomes the pull request title.",
+          "description": "JavaScript that makes the change, run against the repository before the pull request is opened. Paths are relative to the dbt project. Nothing is written unless the whole script succeeds and every changed YAML file passes the semantic layer schema; on failure the tool returns the error, so fix the script and call again. API (synchronous, values are plain JSON): dbt.model(name) -> { yml, sql, keys } | null, where keys is the YAML path of that model; yaml.get(path, keys), yaml.set(path, keys, value), yaml.push(path, keys, value) to append to a list, yaml.remove(path, keys); keys is a list of mapping keys, list indexes, or { name } to pick the list item with that name, e.g. [...m.keys, 'columns', { name: '<column>' }, 'config', 'meta', 'metrics', '<metric>']; set creates missing mappings, and edits keep comments and the rest of the file as it is; repo.list(prefix?), repo.read(path), repo.write(path, text), repo.remove(path) for whole files such as a new model SQL; console.log(...) is returned with errors. Follow where the file already keeps things (e.g. config.meta rather than meta when it uses that). Null when the change needs dbt to run, such as checking new SQL against the warehouse.",
           "type": [
             "string",
-            "null",
-          ],
-        },
-        "startNewPullRequest": {
-          "description": "true opens a new pull request in this conversation for a change unrelated to the open one; null continues the most recent pull request. Ignored when prUrl is set.",
-          "type": [
-            "boolean",
             "null",
           ],
         },
       },
       "required": [
         "prompt",
-        "prUrl",
-        "startNewPullRequest",
-        "requestedBy",
         "script",
         "note",
         "options",
+        "moreToDo",
       ],
       "type": "object",
     },
@@ -18332,13 +18607,13 @@ All branches of an IF must return the same type.",
     },
   },
   {
-    "description": "Run an existing saved chart by its UUID and return the rows it produces, with its saved metric query, filters, sorts and custom metrics applied. Use it to read a pinned chart or one found with findContent without rebuilding its query.",
+    "description": "Run an existing saved chart by its UUID or slug and return the rows it produces, with its saved metric query, filters, sorts and custom metrics applied. Use it to read a pinned chart or one found with findContent without rebuilding its query.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "chartUuid": {
-          "description": "UUID of the saved chart to execute, from the prompt context or a prior findContent result.",
+          "description": "UUID or slug of the saved chart to execute, from the prompt context or a prior findContent result.",
           "type": "string",
         },
       },
@@ -19723,7 +19998,7 @@ Earlier nodes: a node id names one node for the whole thread. A node reads a nod
                     "type": "string",
                   },
                   "joinKey": {
-                    "description": "The dimensions the sources share, one entry per key.",
+                    "description": "The dimensions the sources share, one entry per key. Sources that share them at the same grain belong in a merge; a key that has to be computed or truncated to a shared grain needs a duckdb join instead.",
                     "items": {
                       "additionalProperties": false,
                       "properties": {
@@ -19821,7 +20096,7 @@ Earlier nodes: a node id names one node for the whole thread. A node reads a nod
                     "type": "string",
                   },
                   "sources": {
-                    "description": "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused.",
+                    "description": "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused. Fix a refused merge by narrowing a source with a filter, raising its limit or adding the missing join key, rather than joining the same nodes in a duckdb node.",
                     "items": {
                       "additionalProperties": false,
                       "properties": {
@@ -24921,7 +25196,7 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 - To find existing dashboards, charts or Data Apps, use findContent and list the results as Markdown links named after each item (\`- [Name](url)\`). When nothing matches, offer to build a new chart from the available data.
 - For a dashboard request, plan a concise set of chart titles, build each with generateVisualization, and mention any relevant existing dashboards found via findContent as an alternative. Keep the plan internal.
 - When a user is about to remove, rename or deduplicate a metric or dimension, or asks what uses a field or what a change would break, report the blast radius with analyzeFieldImpact before they make the change.
-- When a pinned chart is in the conversation context (shown as \`Chart "..." (chartUuid: ...)\`) and the user wants to inspect its rows, run it with runSavedChart and that chartUuid instead of rebuilding the query.
+- When the user wants a pinned chart's rows as saved, run the saved chart instead of rebuilding its query.
 - When a user asks which projects exist or which they can access, list the projects they have access to. A conversation works within one project, so for a different project, tell them to start a new conversation in it.
 - For a project-wide question about the semantic layer itself rather than a specific number (e.g. "what metrics do we have?", "find duplicate or confusingly similar metrics", "audit / inventory our metrics"), use searchSemanticLayer.
 
@@ -25148,7 +25423,7 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 - To find existing dashboards, charts or Data Apps, use findContent and list the results as Markdown links named after each item (\`- [Name](url)\`). When nothing matches, offer to build a new chart from the available data.
 - For a dashboard request, plan a concise set of chart titles, build each with generateVisualization, and mention any relevant existing dashboards found via findContent as an alternative. Keep the plan internal.
 - When a user is about to remove, rename or deduplicate a metric or dimension, or asks what uses a field or what a change would break, report the blast radius with analyzeFieldImpact before they make the change.
-- When a pinned chart is in the conversation context (shown as \`Chart "..." (chartUuid: ...)\`) and the user wants to inspect its rows, run it with runSavedChart and that chartUuid instead of rebuilding the query.
+- When the user wants a pinned chart's rows as saved, run the saved chart instead of rebuilding its query.
 - When a user asks which projects exist or which they can access, list the projects they have access to. A conversation works within one project, so for a different project, tell them to start a new conversation in it.
 - For a project-wide question about the semantic layer itself rather than a specific number (e.g. "what metrics do we have?", "find duplicate or confusingly similar metrics", "audit / inventory our metrics"), use searchSemanticLayer.
 
@@ -27153,6 +27428,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "proposeSemanticLayerChange",
   "listChanges",
   "readSemanticModel",
+  "draftProjectContext",
   "syncDbtProject",
   "exploreRepo",
   "discoverRepos",
@@ -27196,7 +27472,7 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 - To find existing dashboards, charts or Data Apps, use findContent and list the results as Markdown links named after each item (\`- [Name](url)\`). When nothing matches, offer to build a new chart from the available data.
 - For a dashboard request, plan a concise set of chart titles, build each with generateVisualization, and mention any relevant existing dashboards found via findContent as an alternative. Keep the plan internal.
 - When a user is about to remove, rename or deduplicate a metric or dimension, or asks what uses a field or what a change would break, report the blast radius with analyzeFieldImpact before they make the change.
-- When a pinned chart is in the conversation context (shown as \`Chart "..." (chartUuid: ...)\`) and the user wants to inspect its rows, run it with runSavedChart and that chartUuid instead of rebuilding the query.
+- When the user wants a pinned chart's rows as saved, run the saved chart instead of rebuilding its query.
 - When a user asks which projects exist or which they can access, list the projects they have access to. A conversation works within one project, so for a different project, tell them to start a new conversation in it.
 - For a project-wide question about the semantic layer itself rather than a specific number (e.g. "what metrics do we have?", "find duplicate or confusingly similar metrics", "audit / inventory our metrics"), use searchSemanticLayer.
 
@@ -27323,7 +27599,7 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 - To find existing dashboards, charts or Data Apps, use findContent and list the results as Markdown links named after each item (\`- [Name](url)\`). When nothing matches, offer to build a new chart from the available data.
 - For a dashboard request, plan a concise set of chart titles, build the dashboard with your dashboard tools, and mention any relevant existing dashboards found via findContent as an alternative. Keep the plan internal.
 - When a user is about to remove, rename or deduplicate a metric or dimension, or asks what uses a field or what a change would break, report the blast radius with analyzeFieldImpact before they make the change.
-- When a pinned chart is in the conversation context (shown as \`Chart "..." (chartUuid: ...)\`) and the user wants to inspect its rows, run it with runSavedChart and that chartUuid instead of rebuilding the query.
+- When the user wants a pinned chart's rows as saved, run the saved chart instead of rebuilding its query.
 - When a user asks which projects exist or which they can access, list the projects they have access to. A conversation works within one project, so for a different project, tell them to start a new conversation in it.
 - For a project-wide question about the semantic layer itself rather than a specific number (e.g. "what metrics do we have?", "find duplicate or confusingly similar metrics", "audit / inventory our metrics"), use searchSemanticLayer.
 
