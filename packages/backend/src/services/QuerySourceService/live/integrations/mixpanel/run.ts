@@ -225,6 +225,35 @@ const mergeRows = () => {
 
 const MONTH_COLUMN = 'month';
 
+/**
+ * The one bucket of an `interval` that spans the range. Mixpanel still lists
+ * every day, with the bucket's value on its first day and 0 on the rest; a
+ * value on any other day means the range was split, which would be wrong to
+ * add up for uniques and averages.
+ */
+const getSingleBucket = (
+    byDate: Record<string, number | null>,
+    start: string,
+): number | null => {
+    const split = Object.entries(byDate).filter(
+        ([date, value]) => toIsoDate(date) !== start && value,
+    );
+    if (split.length > 0) {
+        throw new UnexpectedServerError(
+            `${LABEL} split the range into periods; add a date dimension.`,
+        );
+    }
+    return (
+        Object.entries(byDate).find(
+            ([date]) => toIsoDate(date) === start,
+        )?.[1] ?? null
+    );
+};
+
+/** Mixpanel labels events without the property "undefined". */
+const toSegmentLabel = (label: string) =>
+    label === 'undefined' ? null : label;
+
 const runSegmentation = async (
     request: Extract<MixpanelRequest, { endpoint: 'segmentation' }>,
     projectId: string,
@@ -275,7 +304,9 @@ const runSegmentation = async (
         Object.entries(data.values).forEach(([label, byDate]) => {
             const base: Row = {
                 event,
-                ...(request.groupBy ? { [request.groupBy]: label } : {}),
+                ...(request.groupBy
+                    ? { [request.groupBy]: toSegmentLabel(label) }
+                    : {}),
             };
             const entries = Object.entries(byDate);
             if (request.unit === null) {
@@ -290,12 +321,11 @@ const runSegmentation = async (
                     );
                     return;
                 }
-                if (entries.length > 1) {
-                    throw new UnexpectedServerError(
-                        `${LABEL} split the range into ${entries.length} periods; add a date dimension.`,
-                    );
-                }
-                merged.set(base, column, entries[0]?.[1] ?? null);
+                merged.set(
+                    base,
+                    column,
+                    getSingleBucket(byDate, request.start),
+                );
                 return;
             }
             const dateColumn = request.unit === 'day' ? 'date' : MONTH_COLUMN;
@@ -378,13 +408,21 @@ const runFunnel = async (
         ],
         funnelResponseSchema,
     );
-    const buckets = Object.values(data);
-    if (buckets.length > 1) {
+    // Like segmentation, the range's one bucket is keyed by its first day
+    const buckets = Object.entries(data);
+    const bucket =
+        buckets.find(([date]) => toIsoDate(date) === request.start) ??
+        (buckets.length === 1 ? buckets[0] : undefined);
+    const others = buckets.filter(
+        ([, { steps }]) =>
+            steps !== bucket?.[1].steps && steps.some(({ count }) => count),
+    );
+    if (buckets.length > 0 && (!bucket || others.length > 0)) {
         throw new UnexpectedServerError(
             `${LABEL} split the funnel into ${buckets.length} periods instead of one.`,
         );
     }
-    const steps = buckets[0]?.steps ?? [];
+    const steps = bucket?.[1].steps ?? [];
     const rows = steps.map((step, index) => ({
         step_number: index + 1,
         step_event: step.step_label ?? step.event ?? step.goal ?? null,

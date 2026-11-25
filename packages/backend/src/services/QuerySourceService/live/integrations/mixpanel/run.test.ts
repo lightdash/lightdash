@@ -125,7 +125,10 @@ describe('mixpanelIntegration run', () => {
             segmentation({
                 Purchase: { '2026-10-01': 3, '2026-10-02': 4, '2026-10-03': 5 },
             }),
-            segmentation({ Purchase: { '2026-10-01': 7 } }),
+            // As Mixpanel returns it: the bucket on its first day, 0 after
+            segmentation({
+                Purchase: { '2026-10-01': 7, '2026-10-02': 0, '2026-10-03': 0 },
+            }),
         );
 
         const result = await source.run({
@@ -159,6 +162,33 @@ describe('mixpanelIntegration run', () => {
                 limit: 100,
             }),
         ).rejects.toBeInstanceOf(UnexpectedServerError);
+    });
+
+    it('reads events without the property as an empty value', async () => {
+        const { source } = connect(
+            segmentation({
+                undefined: { '2026-10-01': 2 },
+                US: { '2026-10-01': 1 },
+            }),
+        );
+        const result = await source.run({
+            query: JSON.stringify({ ...SEGMENTATION, groupBy: 'country' }),
+            limit: 100,
+        });
+        expect(result.rows).toEqual([
+            {
+                date: '2026-10-01',
+                event: 'Purchase',
+                country: null,
+                event_count: 2,
+            },
+            {
+                date: '2026-10-01',
+                event: 'Purchase',
+                country: 'US',
+                event_count: 1,
+            },
+        ]);
     });
 
     it('reads a saved funnel as one row per step', async () => {
@@ -234,8 +264,8 @@ describe('mixpanelIntegration run', () => {
     it('reads retention cohorts with every period after the start', async () => {
         const { send, source } = connect(
             jsonResponse({
-                '2026-10-02': { counts: [8, 3], first: 10 },
-                '2026-10-01': { counts: [4, 2, 1], first: 5 },
+                '2026-10-02T00:00:00': { counts: [8, 3], first: 10 },
+                '2026-10-01T00:00:00': { counts: [4, 2, 1], first: 5 },
             }),
         );
 
