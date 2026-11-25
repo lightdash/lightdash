@@ -50,7 +50,7 @@ const renderModal = ({
 
 const openRequest = () =>
     userEvent.click(
-        screen.getByRole('button', { name: 'Request a live source' }),
+        screen.getByRole('button', { name: 'Request a live data source' }),
     );
 
 const customInput = () => screen.getByRole('textbox', { name: 'Source name' });
@@ -93,7 +93,7 @@ describe('AddLiveSourceModal', () => {
         expect(onPick).toHaveBeenCalledWith('hydra');
     });
 
-    it('asks for a source name only after Request a live source is clicked', async () => {
+    it('asks for a source name only after Request a live data source is clicked', async () => {
         renderModal();
 
         expect(
@@ -144,11 +144,30 @@ describe('AddLiveSourceModal', () => {
 
         await userEvent.type(customInput(), 'Hubspot{Enter}');
 
-        expect(screen.getAllByText('Requested Hubspot').length).toBeGreaterThan(
-            0,
+        expect(screen.getByRole('status')).toHaveTextContent(
+            'Requested Hubspot. Thanks!',
         );
-        await openRequest();
+        // The confirmation closes by itself and the button comes back
+        await userEvent.click(
+            await screen.findByRole(
+                'button',
+                { name: 'Request a live data source' },
+                { timeout: 4000 },
+            ),
+        );
         expect(customInput()).toHaveValue('');
+    });
+
+    it('closes the input on Escape and hands focus back', async () => {
+        renderModal();
+        await openRequest();
+
+        await userEvent.type(customInput(), 'Hubspot{Escape}');
+
+        expect(
+            screen.getByRole('button', { name: 'Request a live data source' }),
+        ).toHaveFocus();
+        expect(track).not.toHaveBeenCalled();
     });
 
     it.each(['', '   '])(
