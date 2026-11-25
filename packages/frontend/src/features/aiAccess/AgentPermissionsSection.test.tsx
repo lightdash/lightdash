@@ -397,15 +397,10 @@ describe('reviewed agent permissions', () => {
         ).not.toBeInTheDocument();
         expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
         expect(screen.getByText('Agents can:')).toBeInTheDocument();
-        expect(
-            screen.getByText(
-                'These permissions apply to every role, custom roles included.',
-            ),
-        ).toBeInTheDocument();
         expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'Custom roles' }),
-        ).toHaveAttribute('href', '/generalSettings/customRoles');
+            screen.queryByRole('link', { name: 'Custom roles' }),
+        ).not.toBeInTheDocument();
     });
     it('reviews two global stops once each, keeps the draft on Back and saves only after review', async () => {
         renderSection();
