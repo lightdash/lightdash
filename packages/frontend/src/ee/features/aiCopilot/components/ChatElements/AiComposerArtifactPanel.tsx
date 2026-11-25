@@ -295,6 +295,8 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         !isEmbed &&
         initialView === 'chart' &&
         view === 'chart' &&
+        // Legacy v1 charts load their pivot separately, so "drawn" is not known.
+        config.schemaVersion === 2 &&
         config.queries.length > 1 &&
         isResultReady &&
         !!queryUuid &&
