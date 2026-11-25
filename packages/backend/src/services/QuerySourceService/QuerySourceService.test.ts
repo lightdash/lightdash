@@ -31,6 +31,7 @@ import {
     grantFixture,
     projectGrantFixture,
 } from '../../auth/agentConnectionGrants/grant.mock';
+import { AppRuntimeConfigErrors } from '../../config/appRuntimeAvailability';
 import {
     lightdashConfigMock,
     lightdashConfigWithAppRuntimeMock,
@@ -95,7 +96,7 @@ const createFakeSource = (
     definition: { sourceType, label: sourceType, description: 'fake source' },
     supportsPivot: sourceType !== QuerySourceType.EXTERNAL,
     requiredFeatureFlags: [],
-    getUnavailableReason: () => null,
+    unavailableReason: null,
     scanSchema: vi.fn().mockResolvedValue({ sourceType, tables: [] }),
     getQueryReferences: (query: SourceQuery) => {
         if (query.sourceType !== QuerySourceType.DUCKDB) return [];
@@ -1039,7 +1040,7 @@ describe('python query source gating', () => {
                 context: QueryExecutionContext.AI,
             }),
         ).rejects.toThrow(
-            'python queries are unavailable: E2B API key is not configured (E2B_API_KEY)',
+            `python queries are unavailable: ${AppRuntimeConfigErrors.e2bApiKey}`,
         );
         expect(sqlSource.submitQuery).not.toHaveBeenCalled();
         expect(executeAsyncPythonQuery).not.toHaveBeenCalled();

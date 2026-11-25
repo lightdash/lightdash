@@ -103,6 +103,7 @@ describe('PythonSandboxRunner output limits', () => {
                     appRuntime: {
                         ...lightdashConfigMock.appRuntime,
                         sandboxProvider: 'e2b',
+                        e2bApiKey: 'key',
                     },
                 },
                 logger: silentLogger,
@@ -171,6 +172,7 @@ describe('PythonSandboxRunner provider selection', () => {
                     appRuntime: {
                         ...lightdashConfigMock.appRuntime,
                         sandboxProvider: 'e2b',
+                        e2bApiKey: 'key',
                         e2bPythonTemplateTag: tag,
                     },
                 },
@@ -354,6 +356,7 @@ describe('PythonSandboxRunner stage instrumentation', () => {
                     appRuntime: {
                         ...lightdashConfigMock.appRuntime,
                         sandboxProvider,
+                        e2bApiKey: 'key',
                         e2bPythonTemplateName: 'custom-template',
                         e2bPythonTemplateTag: 'custom-tag',
                     },
@@ -437,6 +440,7 @@ describe('PythonSandboxRunner batching', () => {
                 appRuntime: {
                     ...lightdashConfigMock.appRuntime,
                     sandboxProvider: 'e2b',
+                    e2bApiKey: 'key',
                 },
             },
             logger: silentLogger,
@@ -493,6 +497,7 @@ describe('PythonSandboxRunner batching', () => {
                 appRuntime: {
                     ...lightdashConfigMock.appRuntime,
                     sandboxProvider: 'e2b',
+                    e2bApiKey: 'key',
                 },
             },
             logger: silentLogger,

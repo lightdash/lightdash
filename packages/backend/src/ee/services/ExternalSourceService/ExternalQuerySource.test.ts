@@ -9,6 +9,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import type { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { COMPOSE_ENGINE_MISSING_EXTERNAL_SOURCES_STORAGE_MESSAGE } from '../../../services/AsyncQueryService/ComposeEngineClient';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type { ExternalSourceModel } from '../../models/ExternalSourceModel';
 import { ExternalQuerySource } from './ExternalQuerySource';
@@ -55,6 +56,24 @@ describe('ExternalQuerySource', () => {
         executeAsyncExternalSqlQuery.mockResolvedValue({
             queryUuid: 'query-1',
         });
+    });
+
+    it('is unavailable without pre-aggregates storage', () => {
+        const withoutStorage = new ExternalQuerySource({
+            asyncQueryService: {} as AsyncQueryService,
+            projectService: {} as ProjectService,
+            externalSourceModel: {} as ExternalSourceModel,
+            lightdashConfig: {
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    s3: undefined,
+                },
+            },
+        });
+        expect(source.unavailableReason).toBeNull();
+        expect(withoutStorage.unavailableReason).toBe(
+            COMPOSE_ENGINE_MISSING_EXTERNAL_SOURCES_STORAGE_MESSAGE,
+        );
     });
 
     it('rejects queries of another source type', async () => {

@@ -42,10 +42,7 @@ export class SqlQuerySource implements QuerySourceClient {
 
     readonly requiredFeatureFlags: FeatureFlags[] = [];
 
-    // eslint-disable-next-line class-methods-use-this
-    getUnavailableReason(): string | null {
-        return null;
-    }
+    readonly unavailableReason: string | null = null;
 
     private readonly asyncQueryService: AsyncQueryService;
 

@@ -352,7 +352,6 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.
     enableComposerQueries: boolean;
-    // Composer queries on and a python sandbox configured.
     enableComposerPythonNodes: boolean;
     // The project's live data sources the user can view, listed in the prompt
     // for the field tools.

@@ -4,7 +4,10 @@ import {
     MissingConfigError,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
-import { AppRuntimeConfigErrors } from '../../../config/appRuntimeAvailability';
+import {
+    AppRuntimeConfigErrors,
+    getPythonSandboxConfigError,
+} from '../../../config/appRuntimeAvailability';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import {
     createSandboxProvider,
@@ -112,6 +115,11 @@ export class PythonSandboxRunner {
 
     private getProvider(): SandboxProvider {
         if (!this.provider) {
+            // The same check that hides the python source
+            const configError = getPythonSandboxConfigError(
+                this.lightdashConfig,
+            );
+            if (configError) throw new MissingConfigError(configError);
             const { appRuntime } = this.lightdashConfig;
             const provider = PythonSandboxRunner.getSupportedProvider(
                 appRuntime.sandboxProvider,

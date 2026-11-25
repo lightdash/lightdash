@@ -45,15 +45,13 @@ export class PythonQuerySource implements QuerySourceClient {
 
     private readonly asyncQueryService: PythonQuerySourceArguments['asyncQueryService'];
 
-    private readonly lightdashConfig: PythonSandboxAvailabilityConfig;
+    readonly unavailableReason: string | null;
 
     constructor(args: PythonQuerySourceArguments) {
         this.asyncQueryService = args.asyncQueryService;
-        this.lightdashConfig = args.lightdashConfig;
-    }
-
-    getUnavailableReason(): string | null {
-        return getPythonSandboxConfigError(this.lightdashConfig);
+        this.unavailableReason = getPythonSandboxConfigError(
+            args.lightdashConfig,
+        );
     }
 
     private static assertSourceQuery(query: SourceQuery): PythonSourceQuery {

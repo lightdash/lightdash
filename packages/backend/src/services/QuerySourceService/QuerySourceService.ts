@@ -188,14 +188,14 @@ export class QuerySourceService extends BaseService {
     private static throwIfSourcesUnavailable(
         sources: QuerySourceClient[],
     ): void {
-        const reasons = [...new Set(sources)].flatMap((source) => {
-            const reason = source.getUnavailableReason();
-            return reason === null
-                ? []
-                : [
-                      `${source.definition.sourceType} queries are unavailable: ${reason}`,
-                  ];
-        });
+        const reasons = [...new Set(sources)].flatMap(
+            ({ definition, unavailableReason }) =>
+                unavailableReason === null
+                    ? []
+                    : [
+                          `${definition.sourceType} queries are unavailable: ${unavailableReason}`,
+                      ],
+        );
         if (reasons.length > 0) {
             throw new MissingConfigError(reasons.join('; '));
         }
@@ -205,7 +205,6 @@ export class QuerySourceService extends BaseService {
         account: Account,
         source: QuerySourceClient,
     ): Promise<boolean> {
-        if (source.getUnavailableReason() !== null) return false;
         if (source.requiredFeatureFlags.length === 0) return true;
         assertIsAccountWithOrg(account);
         const user = {
@@ -292,7 +291,9 @@ export class QuerySourceService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const sources = this.registry.list();
+        const sources = this.registry
+            .list()
+            .filter((source) => source.unavailableReason === null);
         const enabled = await Promise.all(
             sources.map((source) => this.isSourceEnabled(account, source)),
         );
@@ -310,8 +311,8 @@ export class QuerySourceService extends BaseService {
     ): Promise<ApiScanQuerySourceSchemaResults> {
         await this.throwIfComposeSqlRunnerDisabled(account);
         const source = this.registry.get(sourceType);
-        QuerySourceService.throwIfSourcesUnavailable([source]);
         await this.throwIfSourcesDisabled(account, [source]);
+        QuerySourceService.throwIfSourcesUnavailable([source]);
         if (source.definition.sourceType === QuerySourceType.SQL) {
             await this.assertAgentSqlAccess(account, projectUuid);
         }
@@ -556,11 +557,11 @@ export class QuerySourceService extends BaseService {
     }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
         const ordered = this.validateQueries(queries, plans);
         QuerySourceService.assertPlansNameDuckdbNodes(ordered, plans);
-        QuerySourceService.throwIfSourcesUnavailable(
-            ordered.map(({ source }) => source),
-        );
         await this.throwIfSourcesDisabled(
             account,
+            ordered.map(({ source }) => source),
+        );
+        QuerySourceService.throwIfSourcesUnavailable(
             ordered.map(({ source }) => source),
         );
         if (

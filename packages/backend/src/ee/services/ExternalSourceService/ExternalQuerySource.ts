@@ -48,17 +48,13 @@ export class ExternalQuerySource implements QuerySourceClient {
 
     private readonly externalSourceModel: ExternalSourceModel;
 
-    private readonly lightdashConfig: ExternalQuerySourceArguments['lightdashConfig'];
+    readonly unavailableReason: string | null;
 
     constructor(args: ExternalQuerySourceArguments) {
         this.asyncQueryService = args.asyncQueryService;
         this.projectService = args.projectService;
         this.externalSourceModel = args.externalSourceModel;
-        this.lightdashConfig = args.lightdashConfig;
-    }
-
-    getUnavailableReason(): string | null {
-        return this.lightdashConfig.preAggregates.s3
+        this.unavailableReason = args.lightdashConfig.preAggregates.s3
             ? null
             : COMPOSE_ENGINE_MISSING_EXTERNAL_SOURCES_STORAGE_MESSAGE;
     }

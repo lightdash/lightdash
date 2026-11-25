@@ -217,6 +217,16 @@ describe('getPythonSandboxConfigError', () => {
             'test',
         ],
         [
+            AppRuntimeConfigErrors.azureSandboxesPythonGroup,
+            {
+                sandboxProvider: 'azure-sandboxes',
+                azureSandboxes: azure,
+                azureSandboxesPythonGroup: null,
+                azureSandboxesPythonDiskImage: 'image',
+            },
+            'test',
+        ],
+        [
             AppRuntimeConfigErrors.azureSandboxesPythonDiskImage,
             {
                 sandboxProvider: 'azure-sandboxes',
