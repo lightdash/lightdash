@@ -2,6 +2,10 @@
     white-space: pre-wrap;
 }
 
+.noticeRow {
+    align-items: center;
+}
+
 .sourceCode {
     flex: 1;
     min-height: 0;

@@ -1142,6 +1142,7 @@ export const SourcePane: FC<{
                     color={notice.tone === 'error' ? 'red' : 'blue'}
                     radius={0}
                     py={8}
+                    classNames={{ wrapper: classes.noticeRow }}
                     withCloseButton
                     onClose={() => setNotice(null)}
                 >
