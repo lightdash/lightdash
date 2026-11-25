@@ -1,11 +1,8 @@
-/* Sits in the agent dock beside the Ask AI button, same shape, sister colour. */
-.toggle {
-    color: var(--mantine-color-indigo-6);
-}
-
+/* Sits in the agent dock beside the Ask AI button, same shape. */
 .toggle[aria-pressed='true'] {
-    border-color: var(--mantine-color-indigo-6);
-    background: var(--mantine-color-indigo-light);
+    box-shadow:
+        0 0 0 3px light-dark(#d1ccff, rgba(94, 76, 255, 0.45)),
+        var(--mantine-shadow-sm);
 }
 
 /* Where the button goes when there is no agent dock on the page. */

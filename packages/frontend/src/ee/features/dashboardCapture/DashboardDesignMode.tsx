@@ -4,7 +4,6 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import { Badge, Button, Group, Tooltip, UnstyledButton } from '@mantine/core';
-import { IconPencil } from '@tabler/icons-react';
 import {
     useCallback,
     useEffect,
@@ -15,7 +14,6 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import MantineIcon from '../../../components/common/MantineIcon';
 import { captureTranscriber } from '../../../features/apps/utils/transcribeCapture';
 import {
     selectActiveTabUuid,
@@ -38,6 +36,7 @@ import { useLauncherDockExtras } from '../aiCopilot/components/Launcher/launcher
 import { useDefaultAiAgent } from '../aiCopilot/components/Launcher/useDefaultAiAgent';
 import { useProjectAiAgentButtonVisibility } from '../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { bubbleColor } from '../capture/bubblePalette';
+import ModeIcon from '../capture/components/ModeIcon';
 import { type Bubble } from '../capture/designSession';
 import {
     type DesignPayload,
@@ -223,7 +222,7 @@ const DashboardDesignSurface: FC<Props> = ({
                 className={`${launcherClasses.dockTab} ${launcherClasses.dockIconTab} ${classes.toggle}`}
                 onClick={() => design.setOn(!design.on)}
             >
-                <MantineIcon icon={IconPencil} size={16} />
+                <ModeIcon size={16} />
             </UnstyledButton>
         </Tooltip>
     );

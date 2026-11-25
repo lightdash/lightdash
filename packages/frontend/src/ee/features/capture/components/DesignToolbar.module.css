@@ -39,15 +39,6 @@
     box-shadow: inset 0 0 0 1px light-dark(#e5e7eb, rgba(255, 255, 255, 0.12));
 }
 
-.modeIconFrame {
-    stroke: #818898;
-}
-
-.modeIconPointer {
-    fill: light-dark(#5e4cff, #8b7fff);
-    stroke: light-dark(#5e4cff, #8b7fff);
-}
-
 .divider {
     width: 1px;
     height: 18px;
