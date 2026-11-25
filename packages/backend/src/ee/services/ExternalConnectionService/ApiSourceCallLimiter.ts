@@ -216,9 +216,9 @@ export class ApiSourceCallLimiter {
                 target,
                 giveUpAt,
             );
-            reached.forEach((limit) => onLimitReached?.(limit));
             let result: T;
             try {
+                reached.forEach((limit) => onLimitReached?.(limit));
                 // eslint-disable-next-line no-await-in-loop
                 result = await call(turn);
             } finally {

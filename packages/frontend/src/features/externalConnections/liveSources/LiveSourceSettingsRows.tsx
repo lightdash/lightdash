@@ -3,7 +3,7 @@
  * hint on the left, a control on the right, grouped in titled cards. Adding a
  * source and changing its settings use the same ones.
  */
-import { Box, Button, Group, Stack, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Button, Group, Stack, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { type FC, type FormEvent, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -82,13 +82,20 @@ export const SettingsCard: FC<{
             <span className={classes.settingsTitle}>
                 {title}
                 {titleInfo ? (
-                    <Tooltip label={titleInfo} multiline maw={320} withinPortal>
-                        <MantineIcon
-                            icon={IconInfoCircle}
-                            size={14}
-                            color="dimmed"
-                            aria-label={titleInfo}
-                        />
+                    <Tooltip
+                        label={titleInfo}
+                        multiline
+                        maw={320}
+                        withinPortal
+                        events={{ hover: true, focus: true, touch: true }}
+                    >
+                        <ActionIcon size="xs" aria-label={titleInfo}>
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                size={14}
+                                color="dimmed"
+                            />
+                        </ActionIcon>
                     </Tooltip>
                 ) : null}
             </span>
