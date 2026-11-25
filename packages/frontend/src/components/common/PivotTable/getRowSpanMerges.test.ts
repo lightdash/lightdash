@@ -3,8 +3,10 @@ import type { PivotData } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     getGroupedDimColumnIds,
+    getMergedValueLineClamp,
     getRowSpanMerges,
     getWindowedRowSpanMerge,
+    TABLE_LINE_HEIGHT_PX,
 } from './getRowSpanMerges';
 
 // Builds a getRawValue reader over an array of plain row objects.
@@ -184,5 +186,42 @@ describe('getWindowedRowSpanMerge', () => {
 
     it('returns undefined for a column that is not merged', () => {
         expect(getWindowedRowSpanMerge(undefined, 0, 0, 6)).toBeUndefined();
+    });
+});
+
+describe('getMergedValueLineClamp', () => {
+    // The real line height of 13px table text.
+    const LINE_HEIGHT_PX = 13 * 1.4286;
+    const tables = [
+        { name: 'results table', rowHeight: 34, paddingY: 8.5 },
+        { name: 'pivot table', rowHeight: 32, paddingY: 9 },
+    ];
+
+    it('shows one line in a cell of one row', () => {
+        tables.forEach(({ rowHeight, paddingY }) => {
+            expect(getMergedValueLineClamp(1, rowHeight, paddingY)).toBe(1);
+        });
+    });
+
+    it('shows three lines in two rows of the results table', () => {
+        expect(getMergedValueLineClamp(2, 34, 8.5)).toBe(3);
+    });
+
+    it('never shows more lines than fit in the rows the cell covers', () => {
+        tables.forEach(({ rowHeight, paddingY }) => {
+            for (let rowSpan = 2; rowSpan <= 100; rowSpan += 1) {
+                const lines = getMergedValueLineClamp(
+                    rowSpan,
+                    rowHeight,
+                    paddingY,
+                );
+                expect(paddingY + lines * LINE_HEIGHT_PX).toBeLessThanOrEqual(
+                    rowSpan * rowHeight,
+                );
+                expect(
+                    paddingY + (lines + 1) * TABLE_LINE_HEIGHT_PX,
+                ).toBeGreaterThanOrEqual(rowSpan * rowHeight);
+            }
+        });
     });
 });

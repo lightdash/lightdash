@@ -28,11 +28,16 @@ import {
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { JsonCellModal } from '../../JsonViewer/JsonCellViewer';
 import { type JsonCellValue } from '../../JsonViewer/utils';
+import { getMergedValueLineClamp } from '../../PivotTable/getRowSpanMerges';
+import { ROW_HEIGHT_PX } from '../constants';
 import { Td, type CellStyleProps } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';
 import bodyCellStyles from './BodyCell.module.css';
 import CellMenu from './CellMenu';
 import CellTooltip from './CellTooltip';
+
+// A cell's padding is 8.5px. A merged cell has no bottom padding.
+const MERGED_CELL_PADDING_Y_PX = 8.5;
 
 interface CommonBodyCellProps {
     columnIndex?: number;
@@ -226,7 +231,15 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                     <Box
                         component="span"
                         className={bodyCellStyles.mergedDimValue}
-                        __vars={{ '--merged-row-span': String(rowSpan ?? 1) }}
+                        __vars={{
+                            '--merged-line-clamp': String(
+                                getMergedValueLineClamp(
+                                    rowSpan ?? 1,
+                                    ROW_HEIGHT_PX,
+                                    MERGED_CELL_PADDING_Y_PX,
+                                ),
+                            ),
+                        }}
                     >
                         {children}
                     </Box>

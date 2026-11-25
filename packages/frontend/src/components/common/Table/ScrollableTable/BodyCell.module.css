@@ -3,15 +3,19 @@
     /* nudge the top-aligned value off the border so it lines up with the first
        row's centered content (cells are 32px tall) */
     padding-top: var(--mantine-spacing-xs);
+    /* The value is top-aligned, so the space below it is empty. Without bottom
+       padding, a 3-line value fits in 2 rows. */
+    padding-bottom: 0 !important;
 }
 
-/* A merged value shows at most one line per row it covers. A taller value
-   would grow those rows, and the rows it covers change as the table scrolls. */
+/* A merged value shows only the lines that fit in the rows it covers. A taller
+   value would grow those rows, and the rows it covers change as the table
+   scrolls. */
 .mergedDimValue {
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: var(--merged-row-span);
-    line-clamp: var(--merged-row-span);
+    -webkit-line-clamp: var(--merged-line-clamp);
+    line-clamp: var(--merged-line-clamp);
     overflow: hidden;
     text-overflow: ellipsis;
 }
