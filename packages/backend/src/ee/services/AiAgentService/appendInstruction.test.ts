@@ -44,6 +44,7 @@ const agent = {
 const buildService = () => {
     const aiAgentModel = {
         getAgent: vi.fn().mockResolvedValue(agent),
+        isSemanticStudioAgent: vi.fn().mockResolvedValue(false),
         appendInstruction: vi.fn().mockResolvedValue('updated instruction'),
     };
     const featureFlagService = {

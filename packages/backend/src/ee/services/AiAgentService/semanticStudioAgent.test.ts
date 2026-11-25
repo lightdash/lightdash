@@ -67,6 +67,22 @@ describe('built-in Semantic Studio agent', () => {
         ).not.toHaveBeenCalled();
     });
 
+    it('takes no appended instruction from someone who can manage agents', async () => {
+        const { service } = buildService({ studioEnabled: true });
+        Object.assign(service, {
+            createAuditedAbility: () => ({ cannot: () => false }),
+        });
+
+        await expect(
+            service.appendInstruction(
+                user as SessionUser,
+                projectUuid,
+                agentUuid,
+                'Always answer in French.',
+            ),
+        ).rejects.toThrow('The Semantic Studio agent cannot be changed');
+    });
+
     it('cannot be deleted', async () => {
         const { service, aiAgentModel } = buildService({ studioEnabled: true });
         Object.assign(service, {
