@@ -19622,7 +19622,7 @@ Earlier nodes: a node id names one node for the whole thread. A node reads a nod
                         "type": "null",
                       },
                     ],
-                    "description": "Metrics the explore lacks, each an aggregation over one of its dimensions. The warehouse computes them over every row, so define a missing metric here rather than in a downstream node.",
+                    "description": "Metrics the explore lacks, each an aggregation over one of its dimensions. The warehouse computes them over every row, so add a missing aggregation here rather than in a transformation.",
                   },
                   "description": {
                     "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
@@ -19636,7 +19636,7 @@ Earlier nodes: a node id names one node for the whole thread. A node reads a nod
                     "type": "array",
                   },
                   "exploreName": {
-                    "description": "The explore to run the metric query against. Query each explore with one semanticLayer node that selects every field the answer needs from it.",
+                    "description": "The explore to run the metric query against. Query each explore with one semanticLayer node.",
                     "type": "string",
                   },
                   "filters": {
@@ -19771,7 +19771,7 @@ Earlier nodes: a node id names one node for the whole thread. A node reads a nod
                         "type": "null",
                       },
                     ],
-                    "description": "Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it, so compare periods here rather than in a downstream node. The column id is generated; read it from the result columns.",
+                    "description": "Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it, so read a metric's earlier-period value here rather than deriving it in a transformation. The column id is generated; read it from the result columns.",
                   },
                   "sorts": {
                     "anyOf": [
@@ -19847,7 +19847,7 @@ Earlier nodes: a node id names one node for the whole thread. A node reads a nod
                     "type": "string",
                   },
                   "sql": {
-                    "description": "A SELECT or WITH statement in the warehouse's SQL dialect. Explores are governed and reusable, so use a sql node only when no explore answers the question or the user asks for SQL.",
+                    "description": "A SELECT or WITH statement in the warehouse's SQL dialect. Explores are governed and reusable, so use a sql node only when the user asks for SQL or a raw table, or no explore can produce the result.",
                     "type": "string",
                   },
                   "title": {

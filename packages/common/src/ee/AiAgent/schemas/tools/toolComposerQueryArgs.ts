@@ -378,7 +378,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         exploreName: z
             .string()
             .describe(
-                'The explore to run the metric query against. Query each explore with one semanticLayer node that selects every field the answer needs from it.',
+                'The explore to run the metric query against. Query each explore with one semanticLayer node.',
             ),
         dimensions: z
             .array(z.string())
@@ -402,13 +402,13 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             .array(composerCustomMetricSchema)
             .nullish()
             .describe(
-                'Metrics the explore lacks, each an aggregation over one of its dimensions. The warehouse computes them over every row, so define a missing metric here rather than in a downstream node.',
+                'Metrics the explore lacks, each an aggregation over one of its dimensions. The warehouse computes them over every row, so add a missing aggregation here rather than in a transformation.',
             ),
         periodComparisons: z
             .array(composerPeriodComparisonSchema)
             .nullish()
             .describe(
-                'Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it, so compare periods here rather than in a downstream node. The column id is generated; read it from the result columns.',
+                "Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it, so read a metric's earlier-period value here rather than deriving it in a transformation. The column id is generated; read it from the result columns.",
             ),
         parameters: z
             .record(z.string(), parameterValueSchema)
@@ -426,7 +426,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         sql: z
             .string()
             .describe(
-                "A SELECT or WITH statement in the warehouse's SQL dialect. Explores are governed and reusable, so use a sql node only when no explore answers the question or the user asks for SQL.",
+                "A SELECT or WITH statement in the warehouse's SQL dialect. Explores are governed and reusable, so use a sql node only when the user asks for SQL or a raw table, or no explore can produce the result.",
             ),
         limit: limitSchema,
     });
