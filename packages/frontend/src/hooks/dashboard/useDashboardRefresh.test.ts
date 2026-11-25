@@ -180,4 +180,57 @@ describe('evictSavedDashboardResults', () => {
         expect(responses).toHaveLength(1);
         expect(queryClient.getQueryData(tileKey('left'))).toBeUndefined();
     });
+
+    it('fetches again after a request that started before the save fails', async () => {
+        let calls = 0;
+        let failFirst: (error: Error) => void = () => {};
+        const unmount = new QueryObserver(queryClient, {
+            queryKey: tileKey('failed'),
+            queryFn: () => {
+                calls += 1;
+                return calls === 1
+                    ? new Promise<string>((_resolve, reject) => {
+                          failFirst = reject;
+                      })
+                    : 'post-save';
+            },
+            retry: false,
+        }).subscribe(() => {});
+        evictSavedDashboardResults(queryClient);
+
+        failFirst(new Error('not found'));
+        await flush();
+
+        expect(calls).toBe(2);
+        expect(queryClient.getQueryData(tileKey('failed'))).toBe('post-save');
+        unmount();
+    });
+
+    it('keeps the result of a retry sent after the save without fetching again', async () => {
+        let calls = 0;
+        let failFirst: (error: Error) => void = () => {};
+        const unmount = new QueryObserver(queryClient, {
+            queryKey: tileKey('retried'),
+            queryFn: () => {
+                calls += 1;
+                return calls === 1
+                    ? new Promise<string>((_resolve, reject) => {
+                          failFirst = reject;
+                      })
+                    : 'retried';
+            },
+            retry: 1,
+            retryDelay: 0,
+        }).subscribe(() => {});
+        evictSavedDashboardResults(queryClient);
+
+        failFirst(new Error('dropped'));
+        await flush();
+        await flush();
+        unmount();
+        await flush();
+
+        expect(calls).toBe(2);
+        expect(queryClient.getQueryData(tileKey('retried'))).toBe('retried');
+    });
 });

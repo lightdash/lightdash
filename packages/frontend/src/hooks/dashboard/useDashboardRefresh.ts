@@ -119,9 +119,13 @@ export const evictSavedDashboardResults = (queryClient: QueryClient) => {
         if (event.type === 'removed') {
             release(query);
         } else if (event.type === 'updated') {
-            if (event.action.type === 'fetch') onScreen.set(query, true);
-            if (event.action.type === 'error') startedBeforeSave.delete(query);
-            if (event.action.type !== 'success') return;
+            const { type } = event.action;
+            // A retry is a new request, sent after the save
+            if (type === 'fetch' || type === 'failed') {
+                startedBeforeSave.delete(query);
+                onScreen.set(query, true);
+            }
+            if (type !== 'success' && type !== 'error') return;
             if (startedBeforeSave.delete(query)) {
                 onScreen.set(query, false);
                 // Not for a tile already gone; its error lands in the query state
@@ -132,7 +136,7 @@ export const evictSavedDashboardResults = (queryClient: QueryClient) => {
                             : undefined,
                     )
                     .catch(() => {});
-            } else if (onScreen.get(query)) {
+            } else if (type === 'success' && onScreen.get(query)) {
                 release(query);
             }
         } else if (event.type === 'observerRemoved') {
