@@ -201,7 +201,7 @@ const AccessForm: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title="Who can query"
+            title="Access"
             icon={IconLock}
             size="lg"
             confirmLabel="Save"
@@ -270,7 +270,7 @@ export const LiveSourceAccessRuleModal: FC<{
             <MantineModal
                 opened
                 onClose={onClose}
-                title="Who can query"
+                title="Access"
                 icon={IconLock}
             >
                 {error ? (

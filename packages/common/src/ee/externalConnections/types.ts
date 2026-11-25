@@ -858,6 +858,8 @@ export type ExternalConnectionApiUsage = {
     externalConnectionUuid: string;
     /** How many days back the usage goes: the query history retention window. */
     windowDays: number;
+    /** Logged queries on the source, whether or not a stored result answered them. */
+    queries: number;
     apiCalls: number;
     /** Queries a stored result answered without calling the integration. */
     cacheHits: number;

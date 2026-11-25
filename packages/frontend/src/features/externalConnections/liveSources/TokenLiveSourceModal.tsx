@@ -93,7 +93,7 @@ export const TokenLiveSourceModal: FC<Props> = ({
         >
             <Stack gap="lg">
                 <LiveSourceSetupCard connector={connector} />
-                <SettingsCard title="Access">
+                <SettingsCard title="Authentication">
                     {account ? (
                         <SettingsRow
                             label={account.label}

@@ -88,7 +88,7 @@ const LimitRow: FC<{
                         size="xs"
                         aria-label={`${row.label} limit`}
                         placeholder={
-                            row.defaultLimit?.toLocaleString() ?? 'No limit'
+                            row.defaultLimit?.toLocaleString() ?? 'Uncapped'
                         }
                         min={1}
                         clampBehavior="none"
@@ -103,23 +103,29 @@ const LimitRow: FC<{
             ) : (
                 <Box className={classes.rateMeter}>
                     <Box className={classes.rateCount}>
-                        {/* A limit nobody set has no count, so its text sits where the max does */}
-                        <Text
-                            inherit
-                            c={meter.isCounted ? undefined : 'dimmed'}
-                        >
-                            {row.defaultLimit === null ? null : meter.text}
+                        {/* Only a counted limit has a count; the rest show their cap alone */}
+                        <Text inherit>
+                            {meter.isCounted ? meter.text : null}
                         </Text>
                         <Text className={classes.rateMax}>
                             {row.defaultLimit === null
                                 ? meter.text
-                                : `Max ${row.defaultLimit.toLocaleString()}`}
+                                : `Max ${(meter.isCounted
+                                      ? row.defaultLimit
+                                      : (row.savedLimit ?? row.defaultLimit)
+                                  ).toLocaleString()}`}
                         </Text>
                     </Box>
                     <Progress
                         size="sm"
                         value={meter.percent}
-                        color={meter.isFull ? 'red' : undefined}
+                        color={
+                            meter.isFull
+                                ? 'red'
+                                : meter.percent >= 80
+                                  ? 'orange'
+                                  : undefined
+                        }
                         aria-label={`${row.label}: ${meter.text}`}
                     />
                 </Box>

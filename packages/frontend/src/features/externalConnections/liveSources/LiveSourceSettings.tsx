@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import {
     Button,
+    Code,
     PasswordInput,
     SegmentedControl,
     Select,
@@ -26,10 +27,12 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
+import { useExternalConnectionApiUsage } from '../hooks/useExternalConnectionApiUsage';
 import {
     usePurgeLiveSourceCache,
     useUpdateLiveSourceCache,
 } from '../hooks/useLiveSourceCache';
+import { useLiveSourceFields } from '../hooks/useLiveSourceFields';
 import { useTestConnection } from '../hooks/useTestConnection';
 import {
     LIVE_SOURCE_UPDATE_MESSAGES,
@@ -51,6 +54,7 @@ import {
     describeLiveSourceAccessRule,
     formatFreshness,
     getLiveSourceFreshness,
+    toLiveSourceRow,
     type LiveSourceConnection,
 } from './liveSourceRows';
 import classes from './LiveSources.module.css';
@@ -79,7 +83,7 @@ const POSTHOG_REGIONS = [
     { value: 'eu', label: 'EU Cloud' },
 ];
 
-type EditableCard = 'details' | 'caching' | 'access';
+type EditableCard = 'details' | 'access';
 
 /** The Details fields held as text, saved with the tags. */
 const DETAIL_KEYS: (keyof LiveSourceAccessValues)[] = ['name', 'aiHint'];
@@ -89,9 +93,6 @@ const formatDate = (date: Date | string) =>
         dateStyle: 'medium',
         timeStyle: 'short',
     });
-
-const formatPurgedAt = (purgedAt: Date | null | undefined) =>
-    purgedAt ? `Last cleared ${formatDate(purgedAt)}` : 'Never cleared';
 
 type Values = LiveSourceAccessValues & {
     /** Seconds, as the select holds it. */
@@ -104,7 +105,7 @@ const TokenRow: FC<{
     label: string;
     form: UseFormReturnType<Values>;
 }> = ({ label, form }) => (
-    <SettingsRow label={label} hint="Saved and encrypted, never shown again">
+    <SettingsRow label={label} hint="Encrypted, never shown again">
         <PasswordInput
             size="xs"
             w={240}
@@ -155,6 +156,24 @@ export const LiveSourceSettings: FC<{
     });
     const accessRule = describeLiveSourceAccessRule(connection.accessRule);
     const { data: projectCache } = useResultsCacheStatus(projectUuid);
+    const { data: apiUsage } = useExternalConnectionApiUsage(projectUuid);
+    const { data: fields } = useLiveSourceFields(params);
+    const { usage } = toLiveSourceRow(connection, apiUsage);
+    const windowDays = apiUsage?.[0]?.windowDays;
+    /** False until the source has been called, so its rows read as empty. */
+    const sourceUsage = apiUsage?.find(
+        ({ externalConnectionUuid }) =>
+            externalConnectionUuid === connection.externalConnectionUuid,
+    );
+    const hasUsage = (sourceUsage?.apiCalls ?? 0) > 0;
+    const cacheHits = sourceUsage?.cacheHits ?? 0;
+    const cacheLookups = sourceUsage?.queries ?? 0;
+    const hitRate =
+        cacheLookups > 0 ? Math.round((cacheHits / cacheLookups) * 100) : 0;
+    const usageWindow =
+        windowDays === undefined
+            ? 'Usage over the query history retention window'
+            : `Usage over the last ${windowDays} days`;
     /** The project doesn't cache results, so the source has nothing to tune or clear. */
     const isProjectCacheOff = projectCache?.enabled === false;
 
@@ -321,24 +340,17 @@ export const LiveSourceSettings: FC<{
         });
     };
 
-    const isTtlChanged = form.values.ttl !== form.getInitialValues().ttl;
-
-    const cancelTtl = () => {
-        form.setFieldValue('ttl', form.getInitialValues().ttl);
-        stopEditing('caching');
-    };
-
-    const submitTtl = (event: FormEvent) => {
-        event.preventDefault();
-        if (!isTtlChanged) return;
-        const { ttl } = form.values;
+    /** One choice with nothing to review, so it saves as soon as it is made. */
+    const saveTtl = (ttl: string | null) => {
+        if (ttl === null || ttl === form.values.ttl) return;
+        const saved = form.values.ttl;
+        form.setFieldValue('ttl', ttl);
         updateCache.mutate(
             { ttlSeconds: Number(ttl) },
             {
-                onSuccess: () => {
-                    form.setInitialValues({ ...form.getInitialValues(), ttl });
-                    stopEditing('caching');
-                },
+                onSuccess: () =>
+                    form.setInitialValues({ ...form.getInitialValues(), ttl }),
+                onError: () => form.setFieldValue('ttl', saved),
             },
         );
     };
@@ -352,8 +364,27 @@ export const LiveSourceSettings: FC<{
                     edit={editProps('details')}
                 >
                     <SettingsRow
+                        label="Explore prefix"
+                        hint="Starts the name of each explore, and can't be changed"
+                    >
+                        {isEditing('details') ? (
+                            <TextInput
+                                w={240}
+                                size="xs"
+                                aria-label="Explore prefix"
+                                disabled
+                                value={connection.liveSourceName ?? ''}
+                                readOnly
+                            />
+                        ) : (
+                            <Code fz="xs">
+                                {connection.liveSourceName ?? '—'}
+                            </Code>
+                        )}
+                    </SettingsRow>
+                    <SettingsRow
                         label="Name"
-                        hint="Shown in explores and to agents"
+                        hint="Shown in explores and to AI agents"
                     >
                         {isEditing('details') ? (
                             <TextInput
@@ -369,7 +400,7 @@ export const LiveSourceSettings: FC<{
                     </SettingsRow>
                     <SettingsRow
                         label="AI hint"
-                        hint="Helps agents pick this source"
+                        hint="Helps AI agents pick this source"
                     >
                         {isEditing('details') ? (
                             <Textarea
@@ -403,36 +434,51 @@ export const LiveSourceSettings: FC<{
                     ) : null}
                 </SettingsCard>
 
-                <SettingsCard
-                    title="Who can query"
-                    edit={{
-                        isEditing: false,
-                        onEdit: () => setIsAccessRuleOpen(true),
-                    }}
-                >
-                    <SettingsRow label="Access rule">
-                        <SettingsValue>
-                            {accessRule
-                                ? `Only people whose ${accessRule}`
-                                : 'Everyone in the project'}
+                <SettingsCard title="Usage" titleInfo={usageWindow}>
+                    <SettingsRow
+                        label="Charts"
+                        hint="Saved charts on this source"
+                    >
+                        <SettingsValue isNumber isEmpty={!fields}>
+                            {fields?.usedByChartCount.toLocaleString() ?? '—'}
+                        </SettingsValue>
+                    </SettingsRow>
+                    <SettingsRow
+                        label="Data read"
+                        hint="Returned by the integration"
+                    >
+                        <SettingsValue isNumber isEmpty={!hasUsage}>
+                            {hasUsage ? usage.dataRead : '—'}
+                        </SettingsValue>
+                    </SettingsRow>
+                    <SettingsRow
+                        label="API calls"
+                        hint="Requests sent to the integration"
+                    >
+                        <SettingsValue isNumber isEmpty={!hasUsage}>
+                            {hasUsage ? usage.apiCalls : '—'}
+                        </SettingsValue>
+                    </SettingsRow>
+                    <SettingsRow
+                        label="Median latency"
+                        hint="How long a typical call takes"
+                    >
+                        <SettingsValue isNumber isEmpty={!usage.medianLatency}>
+                            {usage.medianLatency ?? '—'}
                         </SettingsValue>
                     </SettingsRow>
                 </SettingsCard>
 
-                <SettingsCard
-                    title="Caching"
-                    onSubmit={submitTtl}
-                    edit={isProjectCacheOff ? undefined : editProps('caching')}
-                >
+                <SettingsCard title="Caching">
                     <SettingsRow
-                        label="Keep results for"
+                        label={isProjectCacheOff ? 'Caching' : 'Duration'}
                         hint={
                             isProjectCacheOff ? (
                                 <span className={classes.warningText}>
-                                    Currently disabled
+                                    Off for this project
                                 </span>
                             ) : (
-                                formatPurgedAt(connection.cachePurgedAt)
+                                'How long results are reused'
                             )
                         }
                     >
@@ -445,43 +491,66 @@ export const LiveSourceSettings: FC<{
                             >
                                 Turn on
                             </Button>
-                        ) : isEditing('caching') ? (
-                            <>
-                                <Select
-                                    w={116}
-                                    size="xs"
-                                    aria-label="Caching"
-                                    allowDeselect={false}
-                                    comboboxProps={{ withinPortal: true }}
-                                    data={ttlOptions.map((option) => ({
-                                        value: String(option),
-                                        label: formatFreshness(option),
-                                    }))}
-                                    disabled={updateCache.isLoading}
-                                    {...form.getInputProps('ttl')}
-                                />
+                        ) : (
+                            <Select
+                                w={116}
+                                size="xs"
+                                aria-label="Caching"
+                                allowDeselect={false}
+                                comboboxProps={{ withinPortal: true }}
+                                data={ttlOptions.map((option) => ({
+                                    value: String(option),
+                                    label:
+                                        option === 0
+                                            ? 'No caching'
+                                            : formatFreshness(option),
+                                }))}
+                                disabled={updateCache.isLoading}
+                                value={form.values.ttl}
+                                onChange={saveTtl}
+                            />
+                        )}
+                    </SettingsRow>
+                    {isProjectCacheOff ? null : (
+                        <>
+                            <SettingsRow
+                                label="Hit rate"
+                                hint="Queries served from cache"
+                            >
+                                <SettingsValue
+                                    isNumber
+                                    isEmpty={cacheLookups === 0}
+                                >
+                                    {cacheLookups > 0 ? `${hitRate}%` : '—'}
+                                </SettingsValue>
+                            </SettingsRow>
+                            <SettingsRow
+                                label="Last cleared"
+                                hint="Results from before this are not reused"
+                            >
+                                <SettingsValue
+                                    isEmpty={!connection.cachePurgedAt}
+                                >
+                                    {connection.cachePurgedAt
+                                        ? formatDate(connection.cachePurgedAt)
+                                        : 'Never'}
+                                </SettingsValue>
+                            </SettingsRow>
+                            <SettingsRow
+                                label="Clear cache"
+                                hint="The next query fetches fresh data"
+                            >
                                 <Button
                                     size="xs"
                                     variant="default"
                                     loading={purge.isLoading}
                                     onClick={() => setIsPurgeOpen(true)}
                                 >
-                                    Clear cached results
+                                    Clear
                                 </Button>
-                            </>
-                        ) : (
-                            <SettingsValue>
-                                {formatFreshness(Number(form.values.ttl))}
-                            </SettingsValue>
-                        )}
-                    </SettingsRow>
-                    {!isProjectCacheOff && isEditing('caching') ? (
-                        <SettingsSaveFooter
-                            isChanged={isTtlChanged}
-                            isSaving={updateCache.isLoading}
-                            onCancel={cancelTtl}
-                        />
-                    ) : null}
+                            </SettingsRow>
+                        </>
+                    )}
                 </SettingsCard>
 
                 <LiveSourceRateLimitsCard
@@ -491,6 +560,50 @@ export const LiveSourceSettings: FC<{
 
                 <SettingsCard
                     title="Access"
+                    edit={{
+                        isEditing: false,
+                        onEdit: () => setIsAccessRuleOpen(true),
+                    }}
+                >
+                    {accessRule ? null : (
+                        <SettingsRow
+                            label="Everyone"
+                            hint="Open to the whole project"
+                        >
+                            <Code fz="xs">*</Code>
+                        </SettingsRow>
+                    )}
+                    {(
+                        [
+                            ['required', 'Must match'],
+                            ['any', 'At least one of these must match'],
+                        ] as const
+                    ).flatMap(([key, groupHint]) =>
+                        Object.entries(connection.accessRule?.[key] ?? {}).map(
+                            ([name, values], _index, conditions) => (
+                                <SettingsRow
+                                    key={`${key}:${name}`}
+                                    label={name}
+                                    // Alone in its group, the one condition has to match
+                                    hint={
+                                        conditions.length === 1
+                                            ? 'Must match'
+                                            : groupHint
+                                    }
+                                >
+                                    {values.map((value) => (
+                                        <Code key={value} fz="xs">
+                                            {value}
+                                        </Code>
+                                    ))}
+                                </SettingsRow>
+                            ),
+                        ),
+                    )}
+                </SettingsCard>
+
+                <SettingsCard
+                    title="Authentication"
                     onSubmit={
                         accessKeys.length > 0
                             ? submit('access', accessKeys)
@@ -516,10 +629,10 @@ export const LiveSourceSettings: FC<{
                                     autoComplete="off"
                                     {...form.getInputProps('accountId')}
                                 />
+                            ) : form.values.accountId ? (
+                                <Code fz="xs">{form.values.accountId}</Code>
                             ) : (
-                                <SettingsValue isEmpty={!form.values.accountId}>
-                                    {form.values.accountId || 'Not set'}
-                                </SettingsValue>
+                                <SettingsValue isEmpty>Not set</SettingsValue>
                             )}
                         </SettingsRow>
                     ) : null}
@@ -568,6 +681,10 @@ export const LiveSourceSettings: FC<{
                                 >
                                     Sign in again
                                 </Button>
+                            ) : connection.targetLabel ? (
+                                <SettingsValue>
+                                    {connection.targetLabel}
+                                </SettingsValue>
                             ) : null}
                         </SettingsRow>
                     )}
@@ -585,22 +702,35 @@ export const LiveSourceSettings: FC<{
                             </Button>
                         </SettingsRow>
                     ) : null}
+                    {saveFooter('access', accessKeys)}
+                </SettingsCard>
+
+                <SettingsCard title="Status">
                     {testRequest ? (
                         <LiveSourceTestRow
+                            label="API"
                             hint={
                                 isAccessChanged
-                                    ? 'Checks your unsaved changes above'
-                                    : 'Checks the saved access'
+                                    ? 'Tries your unsaved changes in Authentication'
+                                    : 'Runs a quick check'
                             }
                             test={testSource}
                             onTest={handleTest}
                             inputs={accessKeys.map((key) => form.values[key])}
                         />
-                    ) : null}
-                    {saveFooter('access', accessKeys)}
+                    ) : (
+                        <SettingsRow
+                            label="API"
+                            hint="No test for this integration yet"
+                        >
+                            <Button size="xs" variant="default" disabled>
+                                Test
+                            </Button>
+                        </SettingsRow>
+                    )}
                 </SettingsCard>
 
-                <SettingsCard title="Danger zone">
+                <SettingsCard title="Danger zone" tone="danger">
                     <SettingsRow
                         label="Delete live data source"
                         hint="Charts that use it will stop working"
@@ -628,7 +758,7 @@ export const LiveSourceSettings: FC<{
             <MantineModal
                 opened={isPurgeOpen}
                 onClose={() => setIsPurgeOpen(false)}
-                title="Clear cached results?"
+                title="Clear cache?"
                 role="alertdialog"
                 description={`The next query to "${connection.name}" fetches fresh data.`}
                 confirmLabel="Clear"

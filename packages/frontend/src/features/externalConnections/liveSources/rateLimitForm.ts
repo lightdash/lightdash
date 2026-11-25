@@ -172,7 +172,7 @@ export const getRateLimitHint = (
         case 'callsPerSecond':
             return 'Paced evenly, extra requests queue';
         case 'concurrentCalls':
-            return 'Max in flight, extra requests wait for a slot';
+            return 'How many run at once; the rest wait';
         default:
             return assertUnreachable(row, 'Unknown rate limit row');
     }

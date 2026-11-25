@@ -37,29 +37,37 @@ export const SettingsRow: FC<{
 );
 
 /** A setting as read, in place of its control. */
-export const SettingsValue: FC<{ children: ReactNode; isEmpty?: boolean }> = ({
-    children,
-    isEmpty,
-}) => (
-    <Text className={classes.settingsValue} c={isEmpty ? 'dimmed' : undefined}>
+export const SettingsValue: FC<{
+    children: ReactNode;
+    isEmpty?: boolean;
+    /** A measured number, set with digits that line up. */
+    isNumber?: boolean;
+}> = ({ children, isEmpty, isNumber }) => (
+    <Text
+        className={classes.settingsValue}
+        c={isEmpty ? 'dimmed' : undefined}
+        data-number={(isNumber && !isEmpty) || undefined}
+    >
         {children}
     </Text>
 );
 
-/** Cancel and Save changes under a card that is being edited. */
+/** Cancel and Save under a card that is being edited. */
 export const SettingsSaveFooter: FC<{
     isChanged: boolean;
     isSaving: boolean;
-    /** False keeps Save changes disabled until the fields can be saved. */
+    /** False keeps Save disabled until the fields can be saved. */
     isValid?: boolean;
     /** False for a card with nothing to save, which only closes. */
     hasFields?: boolean;
     onCancel: () => void;
 }> = ({ isChanged, isSaving, isValid = true, hasFields = true, onCancel }) => (
-    <Group justify="flex-end" gap="xs" className={classes.settingsFooter}>
+    // The same size as Edit, which it replaces, so the card doesn't jump
+    <Group justify="flex-end" gap={6} className={classes.settingsEdit}>
         <Button
-            size="xs"
-            variant="default"
+            size="compact-xs"
+            variant="subtle"
+            color="gray"
             disabled={isSaving}
             onClick={onCancel}
         >
@@ -68,11 +76,11 @@ export const SettingsSaveFooter: FC<{
         {hasFields ? (
             <Button
                 type="submit"
-                size="xs"
+                size="compact-xs"
                 disabled={!isChanged || !isValid}
                 loading={isSaving}
             >
-                Save changes
+                Save
             </Button>
         ) : null}
     </Group>
@@ -94,9 +102,11 @@ export const SettingsCard: FC<{
     title?: string;
     /** More about the card, behind an info icon after its title. */
     titleInfo?: string;
+    /** Marks a card whose actions can't be undone. */
+    tone?: 'danger';
     /** Makes the card a form whose rows save together. */
     onSubmit?: (event: FormEvent) => void;
-    /** Puts Edit in the card's footer, for a card that reads until it is used. */
+    /** Puts Edit at the card's foot, for a card that reads until it is used. */
     edit?: {
         isEditing: boolean;
         onEdit: () => void;
@@ -104,61 +114,65 @@ export const SettingsCard: FC<{
         label?: string;
     };
     children: ReactNode;
-}> = ({ title, titleInfo, onSubmit, edit, children }) => {
+}> = ({ title, titleInfo, tone, onSubmit, edit, children }) => {
+    const header = title ? (
+        <Box className={classes.settingsHeader}>
+            <span className={classes.settingsTitle}>
+                {title}
+                {titleInfo ? (
+                    <Tooltip
+                        label={titleInfo}
+                        multiline
+                        maw={320}
+                        withinPortal
+                        events={{ hover: true, focus: true, touch: true }}
+                    >
+                        <ActionIcon size="xs" aria-label={titleInfo}>
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                size={14}
+                                color="dimmed"
+                            />
+                        </ActionIcon>
+                    </Tooltip>
+                ) : null}
+            </span>
+        </Box>
+    ) : null;
     // Sits where Cancel and Save changes appear once it is used
+    // Sits where Cancel and Save appear once it is used
     const editFooter =
         edit && !edit.isEditing ? (
-            <Group justify="flex-end" className={classes.settingsFooter}>
+            <Box className={classes.settingsEdit}>
                 <Button
-                    size="xs"
-                    variant="default"
+                    size="compact-xs"
+                    variant="subtle"
+                    color="gray"
+                    className={classes.editButton}
                     leftSection={<MantineIcon icon={IconPencil} />}
                     aria-label={`Edit ${edit.label ?? title}`}
                     onClick={edit.onEdit}
                 >
                     Edit
                 </Button>
-            </Group>
+            </Box>
         ) : null;
-    return (
-        <Stack gap={6}>
-            {title ? (
-                <span className={classes.settingsTitle}>
-                    {title}
-                    {titleInfo ? (
-                        <Tooltip
-                            label={titleInfo}
-                            multiline
-                            maw={320}
-                            withinPortal
-                            events={{ hover: true, focus: true, touch: true }}
-                        >
-                            <ActionIcon size="xs" aria-label={titleInfo}>
-                                <MantineIcon
-                                    icon={IconInfoCircle}
-                                    size={14}
-                                    color="dimmed"
-                                />
-                            </ActionIcon>
-                        </Tooltip>
-                    ) : null}
-                </span>
-            ) : null}
-            {onSubmit ? (
-                <form
-                    className={classes.settings}
-                    onSubmit={onSubmit}
-                    noValidate
-                >
-                    {children}
-                    {editFooter}
-                </form>
-            ) : (
-                <Box className={classes.settings}>
-                    {children}
-                    {editFooter}
-                </Box>
-            )}
-        </Stack>
+    return onSubmit ? (
+        <form
+            className={classes.settings}
+            data-tone={tone}
+            onSubmit={onSubmit}
+            noValidate
+        >
+            {header}
+            {children}
+            {editFooter}
+        </form>
+    ) : (
+        <Box className={classes.settings} data-tone={tone}>
+            {header}
+            {children}
+            {editFooter}
+        </Box>
     );
 };

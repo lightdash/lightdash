@@ -140,8 +140,8 @@ export const LiveExploreRows: FC<
         <>
             <SettingsCard
                 onSubmit={submit}
+                title="Explores"
                 edit={{
-                    label: 'explores',
                     isEditing,
                     onEdit: () => setDraft({}),
                 }}
@@ -201,12 +201,17 @@ export const LiveExploreRows: FC<
                                     }}
                                 />
                             ) : inUse ? (
-                                <MantineIcon
-                                    icon={IconCheck}
-                                    color="green"
-                                    size="lg"
-                                    aria-label="In use"
-                                />
+                                <Tooltip
+                                    label="In use: people and AI agents can query it"
+                                    withinPortal
+                                >
+                                    <MantineIcon
+                                        icon={IconCheck}
+                                        color="green"
+                                        size="lg"
+                                        aria-label="In use"
+                                    />
+                                </Tooltip>
                             ) : null}
                         </SettingsRow>
                     );
@@ -331,7 +336,7 @@ export const LiveExploreEditAction: FC<
                     <Stack gap="md">
                         <TextInput
                             label="Name"
-                            description="Shown in explores and to agents"
+                            description="Shown in explores and to AI agents"
                             value={draft.label}
                             onChange={(event) =>
                                 set('label')(event.currentTarget.value)
@@ -350,7 +355,7 @@ export const LiveExploreEditAction: FC<
                         />
                         <Textarea
                             label="AI hint"
-                            description="Helps agents use this explore"
+                            description="Helps AI agents use this explore"
                             placeholder="For example: only active customers"
                             autosize
                             minRows={2}

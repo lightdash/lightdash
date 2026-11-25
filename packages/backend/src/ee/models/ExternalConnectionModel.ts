@@ -2388,6 +2388,7 @@ export class ExternalConnectionModel {
             .select<
                 {
                     external_connection_uuid: string;
+                    queries: string | null;
                     api_calls: string | null;
                     cache_hits: string | null;
                     response_bytes: string | null;
@@ -2395,6 +2396,7 @@ export class ExternalConnectionModel {
                 }[]
             >(
                 'external_connection_uuid',
+                this.database.raw('count(*) as queries'),
                 this.database.raw('sum(api_calls) as api_calls'),
                 this.database.raw(
                     'count(*) filter (where cache_hit) as cache_hits',
@@ -2407,6 +2409,7 @@ export class ExternalConnectionModel {
             );
         return rows.map((row) => ({
             externalConnectionUuid: row.external_connection_uuid,
+            queries: Number(row.queries ?? 0),
             apiCalls: Number(row.api_calls ?? 0),
             cacheHits: Number(row.cache_hits ?? 0),
             responseBytes: Number(row.response_bytes ?? 0),

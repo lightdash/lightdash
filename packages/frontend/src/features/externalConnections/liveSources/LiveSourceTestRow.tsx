@@ -16,6 +16,10 @@ import { SettingsRow } from './LiveSourceSettingsRows';
 import classes from './LiveSourceSettingsRows.module.css';
 
 type Props = {
+    /** Defaults to "Test authentication", as it reads under a card of credentials. */
+    label?: string;
+    /** Defaults to "Test". */
+    buttonLabel?: string;
     /** What the test reads with, such as the saved settings or the form's. */
     hint: string;
     /** The test mutation, from `useTestConnection` or `useTestConnectionConfig`. */
@@ -53,6 +57,8 @@ const getOutcome = (
 };
 
 export const LiveSourceTestRow: FC<Props> = ({
+    label = 'Test authentication',
+    buttonLabel = 'Test',
     hint,
     test,
     onTest,
@@ -64,7 +70,7 @@ export const LiveSourceTestRow: FC<Props> = ({
     const outcome = test.isLoading ? null : getOutcome(test.data, test.error);
     return (
         <SettingsRow
-            label="Test access"
+            label={label}
             hint={
                 outcome?.ok ? (
                     <Group
@@ -100,7 +106,7 @@ export const LiveSourceTestRow: FC<Props> = ({
                 loading={test.isLoading}
                 onClick={onTest}
             >
-                Test
+                {buttonLabel}
             </Button>
         </SettingsRow>
     );

@@ -159,7 +159,7 @@ export const PostHogConnectionStep: FC<Props> = ({
                                 isEditing && form.values.apiKey.trim() === ''
                             }
                         >
-                            Test access
+                            Test authentication
                         </Button>
                     </Group>
                 </>

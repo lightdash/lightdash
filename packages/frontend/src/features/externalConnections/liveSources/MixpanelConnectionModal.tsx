@@ -96,7 +96,7 @@ export const MixpanelConnectionModal: FC<Props> = ({
         >
             <Stack gap="lg">
                 <LiveSourceSetupCard connector={CONNECTOR} />
-                <SettingsCard title="Access">
+                <SettingsCard title="Authentication">
                     <SettingsRow
                         label="Data region"
                         hint="Where the project's data lives"
