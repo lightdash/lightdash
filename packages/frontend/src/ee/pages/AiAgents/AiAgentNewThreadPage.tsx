@@ -30,6 +30,7 @@ import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getModelKey } from '../../../components/common/ModelSelector/utils';
 import { useAiAccessGate } from '../../../features/aiAccess/useAiAccessGate';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -199,12 +200,13 @@ const AiAgentNewThreadPage: FC = () => {
         title: string;
     } | null>(null);
 
+    const projectSlug = useOptionalProjectRoute()?.project.slug ?? null;
     const handleToolResult = useCallback(
         (toolResult: AiAgentToolResult) => {
             if (!projectUuid) return;
 
             const dashboardUrl = getDashboardNavigationUrlFromContentToolResult(
-                projectUuid,
+                { projectUuid, projectSlug },
                 toolResult,
             );
             if (!dashboardUrl || isEmbed) return;
@@ -214,7 +216,7 @@ const AiAgentNewThreadPage: FC = () => {
                 title: createdThreadRef.current?.title,
             });
         },
-        [isEmbed, navigateFromAgentChat, projectUuid],
+        [isEmbed, navigateFromAgentChat, projectSlug, projectUuid],
     );
 
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =

@@ -323,6 +323,13 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Tell the page embedding the app that something happened, such as a confirmed import, so it can react right away.',
         wiring: "Call emitEvent('<event-name>', payload) from the user action the embedding page should react to. The payload is JSON, at most 64 KB serialized; keep bulk data on an external connection and emit a reference to it. The call throws on an invalid name or payload and does nothing outside an embed.",
     },
+    {
+        key: 'design-mode',
+        appliesTo: ['data_app'],
+        label: 'Design Mode',
+        description:
+            'Click an element of the running app in Design Mode to pick it, and keep its hold key working after a click inside the app. Design Mode also needs in-app screenshots.',
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);

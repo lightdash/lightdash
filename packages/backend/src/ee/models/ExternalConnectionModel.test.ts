@@ -1,4 +1,8 @@
-import { ConflictError, ParameterError } from '@lightdash/common';
+import {
+    ApiConnectorType,
+    ConflictError,
+    ParameterError,
+} from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -14,6 +18,7 @@ import {
     ExternalConnectionModel,
     parseApiSourceSchemaScan,
     readLiveSourceCacheSettings,
+    readLiveSourceRateLimits,
 } from './ExternalConnectionModel';
 
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000001';
@@ -635,6 +640,23 @@ describe('ExternalConnectionModel', () => {
             expect(secretWrites).toHaveLength(0);
         });
 
+        it("keeps the admin's rate limits when an integration's settings are replaced", async () => {
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .response([makeDbConnection()]);
+            tracker.on.update(ExternalConnectionsTableName).response(1);
+
+            await model.update(CONNECTION_UUID, USER_UUID, {
+                apiSource: { connector: ApiConnectorType.AMPLITUDE },
+            });
+
+            const [write] = tracker.history.update;
+            expect(write.sql).toContain('jsonb_each');
+            expect(write.bindings).toContainEqual(
+                expect.arrayContaining(['rateLimits']),
+            );
+        });
+
         it('leaves the stored secret unchanged when secret is blank', async () => {
             tracker.on
                 .select(ExternalConnectionsTableName)
@@ -1137,6 +1159,27 @@ describe('parseApiSourceSchemaScan', () => {
             scannedAt: requestedAt,
             error: 'The schema scan did not finish',
         });
+    });
+});
+
+describe('readLiveSourceRateLimits', () => {
+    const rateLimits = {
+        buckets: { hour: 100 },
+        callsPerSecond: null,
+        concurrentCalls: 2,
+    };
+
+    it('reads the limits an admin set', () => {
+        expect(readLiveSourceRateLimits({ rateLimits })).toEqual(rateLimits);
+    });
+
+    it.each([
+        {},
+        { rateLimits: null },
+        { rateLimits: { ...rateLimits, buckets: { hour: 0 } } },
+        { rateLimits: { ...rateLimits, concurrentCalls: 'two' } },
+    ])('reads nothing from %j', (value) => {
+        expect(readLiveSourceRateLimits(value)).toBeNull();
     });
 });
 

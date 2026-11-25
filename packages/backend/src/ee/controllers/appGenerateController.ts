@@ -701,7 +701,7 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
-     * Transcribe the audio of a Voice Design recording into timed words.
+     * Transcribe the audio of a Design Mode recording into timed words.
      * Send the raw audio bytes with their Content-Type header.
      * @summary Transcribe capture audio
      */

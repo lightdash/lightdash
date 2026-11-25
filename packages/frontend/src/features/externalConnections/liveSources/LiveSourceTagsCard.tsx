@@ -6,7 +6,7 @@ import {
     LIVE_SOURCE_MAX_TAGS,
     LIVE_SOURCE_TAG_MAX_LENGTH,
 } from '@lightdash/common';
-import { Button, Group, TagsInput } from '@mantine/core';
+import { TagsInput } from '@mantine/core';
 import { isEqual } from 'es-toolkit/compat';
 import { useState, type FC, type FormEvent } from 'react';
 import {
@@ -14,8 +14,11 @@ import {
     useUpdateExternalConnection,
 } from '../hooks/useUpdateExternalConnection';
 import { type LiveSourceConnection } from './liveSourceRows';
-import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
-import rowClasses from './LiveSourceSettingsRows.module.css';
+import {
+    SettingsCard,
+    SettingsRow,
+    SettingsSaveFooter,
+} from './LiveSourceSettingsRows';
 
 export const LiveSourceTagsCard: FC<{
     projectUuid: string;
@@ -62,28 +65,11 @@ export const LiveSourceTagsCard: FC<{
                     onChange={setTags}
                 />
             </SettingsRow>
-            <Group
-                justify="flex-end"
-                gap="xs"
-                className={rowClasses.settingsFooter}
-            >
-                <Button
-                    size="xs"
-                    variant="default"
-                    disabled={!isChanged || updateSource.isLoading}
-                    onClick={() => setTags(savedTags)}
-                >
-                    Cancel
-                </Button>
-                <Button
-                    type="submit"
-                    size="xs"
-                    disabled={!isChanged}
-                    loading={updateSource.isLoading}
-                >
-                    Save changes
-                </Button>
-            </Group>
+            <SettingsSaveFooter
+                isChanged={isChanged}
+                isSaving={updateSource.isLoading}
+                onCancel={() => setTags(savedTags)}
+            />
         </SettingsCard>
     );
 };

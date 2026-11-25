@@ -18,16 +18,24 @@
     white-space: nowrap;
 }
 
-/* A source's rate limits in its settings: the count beside each bar. */
+/* A source's rate limits in its settings: usage beside each limit's field. */
 
+/* Wide enough that the bars line up whatever each limit is. */
 .rateCount {
-    min-width: 84px;
+    min-width: 112px;
     font-size: 13px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
 
-.rateDetail[data-limit-reached] {
+.rateMax {
+    font-size: 11px;
+    line-height: 14px;
+    color: var(--mantine-color-dimmed);
+}
+
+.rateDetail[data-limit-reached],
+.rateError {
     color: var(--mantine-color-red-text);
 }
 

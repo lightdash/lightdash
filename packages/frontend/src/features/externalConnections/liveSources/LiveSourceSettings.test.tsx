@@ -77,6 +77,24 @@ describe('LiveSourceSettings PostHog access', () => {
         update.mockResolvedValue({});
     });
 
+    it('offers Cancel and Save changes only while a card is edited', async () => {
+        const user = userEvent.setup();
+        renderSettings();
+        const buttons = () =>
+            screen.queryAllByRole('button', {
+                name: /^(Cancel|Save changes)$/,
+            });
+
+        expect(buttons()).toHaveLength(0);
+        const project = screen.getByRole('textbox', { name: 'Project ID' });
+        await user.type(project, '9');
+        expect(buttons()).toHaveLength(2);
+        await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+        expect(buttons()).toHaveLength(0);
+        expect(project).toHaveValue('42');
+    });
+
     it('saves a new region, project and key in one request', async () => {
         const user = userEvent.setup();
         renderSettings();

@@ -1,3 +1,10 @@
+# [3.407.0](https://github.com/lightdash/lightdash/compare/3.406.0...3.407.0) (2026-11-25)
+
+
+### Features
+
+* **dashboards:** Design Mode on dashboards, replacing Voice Design ([#33448](https://github.com/lightdash/lightdash/issues/33448)) ([1116dfa](https://github.com/lightdash/lightdash/commit/1116dfae46149fc8a42c48835fc23f498477cacc))
+
 # [3.406.0](https://github.com/lightdash/lightdash/compare/3.405.0...3.406.0) (2026-11-25)
 
 

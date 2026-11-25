@@ -6,6 +6,7 @@ import {
 const SECOND = 1_000;
 const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 
 const timeOf = (date: Date) =>
     date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -43,6 +44,18 @@ export const formatUntil = (until: string, checkedAt: string): string => {
     return `until ${day}, ${timeOf(date)}`;
 };
 
+/** A window named by its length, such as "1 minute window". */
+export const formatWindow = (windowMs: number): string => {
+    const getUnit = () => {
+        if (windowMs > DAY) return { size: DAY, name: 'day' };
+        if (windowMs >= HOUR) return { size: HOUR, name: 'hour' };
+        if (windowMs >= MINUTE) return { size: MINUTE, name: 'minute' };
+        return { size: SECOND, name: 'second' };
+    };
+    const { size, name } = getUnit();
+    return `${windowMs / size} ${name} window`;
+};
+
 /** Used of capacity, such as "410 of 10,000". */
 export const formatUsed = (used: number, capacity: number): string =>
     `${used.toLocaleString()} of ${capacity.toLocaleString()}`;
@@ -59,7 +72,7 @@ export const resetsOf = (
 ) =>
     bucket.resetsAt
         ? formatResetsAt(bucket.resetsAt, checkedAt)
-        : 'No calls in this window';
+        : 'No requests in this window';
 
 /**
  * The summary tile: a vendor pause, else the shortest limit that is full
