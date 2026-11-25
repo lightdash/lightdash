@@ -402,4 +402,50 @@ describe('evictSavedDashboardResults', () => {
         expect(queryClient.getQueryData(tileKey('overlap'))).toBe('post-save');
         unmount();
     });
+
+    it('does not count a request whose fetch was cancelled as still out at the save', async () => {
+        const responses: ((value: string) => void)[] = [];
+        const send = (signal?: AbortSignal) =>
+            sendTileRequest(
+                queryClient,
+                tileKey('cancelled-out'),
+                new Promise<string>((resolve) => {
+                    responses.push(resolve);
+                }),
+                signal,
+            );
+        queryClient.setQueryData(tileKey('cancelled-out'), 'old');
+        const unmount = new QueryObserver(queryClient, {
+            queryKey: tileKey('cancelled-out'),
+            queryFn: () => 'unused',
+            staleTime: Infinity,
+        }).subscribe(() => {});
+        // A request left on the wire by a fetch cancelled at a tab switch
+        const controller = new AbortController();
+        const leftover = send(controller.signal);
+        controller.abort();
+        let freeSlot: () => void = () => {};
+        const slot = new Promise<void>((resolve) => {
+            freeSlot = resolve;
+        });
+        const queued = queryClient.fetchQuery({
+            queryKey: tileKey('cancelled-out'),
+            queryFn: async () => {
+                await slot;
+                return send();
+            },
+        });
+        evictSavedDashboardResults(queryClient);
+
+        responses[0]('leftover');
+        await leftover;
+        freeSlot();
+        await flush();
+        responses[1]('post-save');
+        await queued;
+        await flush();
+
+        expect(responses).toHaveLength(2);
+        unmount();
+    });
 });

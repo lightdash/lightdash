@@ -53,13 +53,24 @@ export const sendTileRequest = async <T>(
     queryClient: QueryClient,
     queryKey: QueryKey,
     request: Promise<T>,
+    // A cancelled fetch's request no longer answers the tile
+    signal?: AbortSignal,
 ) => {
     const query = queryClient.getQueryCache().find(queryKey);
-    if (query) requestsSent.set(query, (requestsSent.get(query) ?? 0) + 1);
+    if (!query) return request;
+    requestsSent.set(query, (requestsSent.get(query) ?? 0) + 1);
+    let isCounted = true;
+    const uncount = () => {
+        if (!isCounted) return;
+        isCounted = false;
+        requestsSent.set(query, (requestsSent.get(query) ?? 1) - 1);
+    };
+    signal?.addEventListener('abort', uncount);
     try {
         return await request;
     } finally {
-        if (query) requestsSent.set(query, (requestsSent.get(query) ?? 1) - 1);
+        signal?.removeEventListener('abort', uncount);
+        uncount();
     }
 };
 

@@ -425,6 +425,7 @@ export const useDashboardChartReadyQuery = (
                 queryClient,
                 queryContext.queryKey,
                 executeTileQuery(),
+                tileQueryQueue ? queryContext.signal : undefined,
             ).catch((error: unknown) => {
                 releaseSlot?.();
                 throw error;
