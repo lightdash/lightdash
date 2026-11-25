@@ -1,3 +1,10 @@
+## [3.395.6](https://github.com/lightdash/lightdash/compare/3.395.5...3.395.6) (2026-11-25)
+
+
+### Performance Improvements
+
+* **common:** reuse Intl.NumberFormat instances when formatting numbers ([#33407](https://github.com/lightdash/lightdash/issues/33407)) ([4d083d0](https://github.com/lightdash/lightdash/commit/4d083d0458835b1713732492e6efa2aeb47896f1))
+
 ## [3.395.5](https://github.com/lightdash/lightdash/compare/3.395.4...3.395.5) (2026-11-25)
 
 
