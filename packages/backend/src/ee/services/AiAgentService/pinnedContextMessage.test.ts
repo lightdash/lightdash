@@ -169,7 +169,7 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
             ].join('\n'),
         );
         expect(content).toContain(
-            "Listed overrides are what the user sees: apply them to questions about the dashboard or chart as shown, including a delivered chart; start a saved-chart edit from the chart's saved definition, and give a standalone question only the filters the user asks for.",
+            'These overrides are what the user currently sees. Use them when the question is about what the dashboard or chart shows. Leave them out when editing a saved chart or answering a new question, unless the user asks for them.',
         );
     });
 
@@ -197,7 +197,7 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
                 '  Parameter values: {"region":"EU"}',
                 '  Date zoom: {"granularity":"Week"}',
                 '',
-                "Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). Listed overrides are what the user sees: apply them to questions about the dashboard or chart as shown, including a delivered chart; start a saved-chart edit from the chart's saved definition, and give a standalone question only the filters the user asks for.",
+                "Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). These overrides are what the user currently sees. Use them when the question is about what the dashboard or chart shows. Leave them out when editing a saved chart or answering a new question, unless the user asks for them.",
             ].join('\n'),
         );
     });
@@ -522,7 +522,9 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         );
         expect(content).not.toContain('artifact-1');
         expect(content).not.toContain('readContent');
-        expect(content).not.toContain('Listed overrides');
+        expect(content).not.toContain(
+            'These overrides are what the user currently sees',
+        );
     });
 
     it('renders a data app restore as one line naming both versions', () => {
