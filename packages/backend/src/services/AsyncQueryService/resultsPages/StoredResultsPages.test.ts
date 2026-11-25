@@ -1,11 +1,14 @@
+import { EventEmitter } from 'events';
 import zlib from 'zlib';
 import { buildResultsPageRowsJson } from './buildResultsPageRows';
 import { formatCases, resultsPageLines } from './resultsPageFixtures.mock';
 import {
     ResultsPageWorkerError,
+    ResultsPageWorkerPool,
     type ResultsPageWorkerHandle,
-    type ResultsPageWorkerPool,
+    type ResultsPageWorkerLike,
 } from './ResultsPageWorkerPool';
+import type { ResultsPageWorkerRequest } from './resultsPageWorkerProtocol';
 import { getStoredResultsPageKey } from './storedResultsPageKey';
 import {
     StoredResultsPages,
@@ -55,6 +58,35 @@ const inlinePool = () => {
     };
     return { pool: pool as unknown as ResultsPageWorkerPool, build };
 };
+
+class EchoWorker extends EventEmitter implements ResultsPageWorkerLike {
+    postMessage({ id, lines, format: buildFormat }: ResultsPageWorkerRequest) {
+        const rows = Buffer.from(buildResultsPageRowsJson(lines, buildFormat));
+        setImmediate(() => {
+            this.emit('message', {
+                id,
+                ok: true,
+                phase: 'rows',
+                rows: new Uint8Array(rows),
+                rowCount: lines.length,
+            });
+            this.emit('message', {
+                id,
+                ok: true,
+                phase: 'compressed',
+                compressed: new Uint8Array(zlib.brotliCompressSync(rows)),
+            });
+        });
+    }
+
+    ref() {}
+
+    unref() {}
+
+    async terminate() {
+        return 0;
+    }
+}
 
 const setup = () => {
     const storage = memoryStorage();
@@ -301,6 +333,43 @@ describe('StoredResultsPages', () => {
         await expect(pages.getRows(args)).resolves.toMatchObject({
             source: 'built',
         });
+    });
+
+    test('a read that never ends gives a worker error, stops the read and stores nothing', async () => {
+        const { storage, args, settle } = setup();
+        const pages = new StoredResultsPages({
+            pool: new ResultsPageWorkerPool({
+                size: 1,
+                brotliQuality: 4,
+                buildTimeoutMs: 20,
+                createWorker: () => new EchoWorker(),
+            }),
+            appVersion: '3.393.0',
+        });
+        let readSignal: AbortSignal | undefined;
+        let finishRead!: (lines: string[]) => void;
+
+        await expect(
+            pages.getRows({
+                ...args,
+                readPageLines: (signal) => {
+                    readSignal = signal;
+                    return new Promise<string[]>((resolve) => {
+                        finishRead = resolve;
+                    });
+                },
+            }),
+        ).rejects.toBeInstanceOf(ResultsPageWorkerError);
+        expect(readSignal?.aborted).toBe(true);
+
+        finishRead([...resultsPageLines]);
+        await settle();
+        await settle();
+        expect(storage.putObjectBytes).not.toHaveBeenCalled();
+
+        const next = await pages.getRows(args);
+        expect(next.source).toBe('built');
+        expect(next.rows.equals(expectedRows)).toBe(true);
     });
 
     test('a results file read error passes through unchanged', async () => {

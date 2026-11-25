@@ -51,6 +51,68 @@ describe('query polling timeout metrics', () => {
     });
 });
 
+describe('results page metrics', () => {
+    beforeEach(() => {
+        prometheus.register.clear();
+        vi.spyOn(http.Server.prototype, 'listen').mockImplementation(
+            function mockListen(this: http.Server) {
+                return this;
+            },
+        );
+    });
+
+    afterEach(() => {
+        prometheus.register.clear();
+        vi.restoreAllMocks();
+    });
+
+    it('counts results pages by source from a zero baseline and records their time', async () => {
+        const metrics = new PrometheusMetrics({
+            ...lightdashConfigMock.prometheus,
+            enabled: true,
+        });
+        metrics.start();
+        const pages = prometheus.register.getSingleMetric(
+            'lightdash_query_results_pages_total',
+        );
+        expect((await pages!.get()).values).toEqual([
+            { labels: { source: 'stored' }, value: 0 },
+            { labels: { source: 'built' }, value: 0 },
+            { labels: { source: 'fallback' }, value: 0 },
+        ]);
+
+        metrics.observeResultsPage('stored', 120);
+        metrics.observeResultsPage('stored', 80);
+        metrics.observeResultsPage('fallback', 3000);
+
+        expect((await pages!.get()).values).toEqual([
+            { labels: { source: 'stored' }, value: 2 },
+            { labels: { source: 'built' }, value: 0 },
+            { labels: { source: 'fallback' }, value: 1 },
+        ]);
+        const durations = await prometheus.register
+            .getSingleMetric('lightdash_query_results_page_duration_seconds')!
+            .get();
+        expect(durations.values).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    metricName:
+                        'lightdash_query_results_page_duration_seconds_sum',
+                    labels: { source: 'stored' },
+                    value: 0.2,
+                }),
+                expect.objectContaining({
+                    metricName:
+                        'lightdash_query_results_page_duration_seconds_count',
+                    labels: { source: 'fallback' },
+                    value: 1,
+                }),
+            ]),
+        );
+        await metrics.stop();
+    });
+});
+
 describe('daily job generation metrics', () => {
     beforeEach(() => {
         prometheus.register.clear();

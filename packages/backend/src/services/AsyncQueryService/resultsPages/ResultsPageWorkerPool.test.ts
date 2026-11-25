@@ -57,11 +57,12 @@ class FakeWorker extends EventEmitter implements ResultsPageWorkerLike {
     }
 }
 
-const fakePool = (size: number) => {
+const fakePool = (size: number, buildTimeoutMs?: number) => {
     const workers: FakeWorker[] = [];
     const pool = new ResultsPageWorkerPool({
         size,
         brotliQuality: 4,
+        buildTimeoutMs,
         createWorker: () => {
             const worker = new FakeWorker();
             workers.push(worker);
@@ -234,6 +235,100 @@ describe('ResultsPageWorkerPool', () => {
 
         await expect(next).resolves.toMatchObject({ rowCount: 1 });
         expect(pool.workersStarted).toBe(2);
+    });
+
+    test('a build whose read never ends frees its slot and the next build runs', async () => {
+        const { pool, workers } = fakePool(1, 20);
+        let readSignal: AbortSignal | undefined;
+
+        const stalled = pool.withWorker(async (_worker, signal) => {
+            readSignal = signal;
+            return new Promise<never>(() => {});
+        });
+
+        await expect(stalled).rejects.toBeInstanceOf(ResultsPageWorkerError);
+        expect(readSignal?.aborted).toBe(true);
+
+        const next = buildAll(pool, ['{"a":1}'], plainFormat);
+        await flush();
+        workers[0].reply();
+        await expect(next).resolves.toMatchObject({ rowCount: 1 });
+    });
+
+    test('a worker that never answers is terminated and replaced', async () => {
+        const { pool, workers } = fakePool(1, 20);
+
+        const silent = buildAll(pool, ['{"a":1}'], plainFormat);
+
+        await expect(silent).rejects.toBeInstanceOf(ResultsPageWorkerError);
+        expect(workers[0].terminated).toBe(true);
+
+        const next = buildAll(pool, ['{"a":2}'], plainFormat);
+        await flush();
+        expect(workers).toHaveLength(2);
+        workers[1].reply();
+        await expect(next).resolves.toMatchObject({ rowCount: 1 });
+        expect(pool.workersStarted).toBe(2);
+    });
+
+    test('a timed-out build cannot start a build after its slot is gone', async () => {
+        const { pool, workers } = fakePool(1, 20);
+        let finishRead!: () => void;
+        let lateBuild: Promise<unknown> | undefined;
+
+        const stalled = pool.withWorker(async (worker) => {
+            await new Promise<void>((resolve) => {
+                finishRead = resolve;
+            });
+            lateBuild = Promise.resolve().then(
+                () => worker.build(['{"late":1}'], plainFormat).rows,
+            );
+            return lateBuild;
+        });
+        await expect(stalled).rejects.toBeInstanceOf(ResultsPageWorkerError);
+
+        const next = buildAll(pool, ['{"a":2}'], plainFormat);
+        await flush();
+        finishRead();
+        await flush();
+
+        await expect(lateBuild).rejects.toBeInstanceOf(ResultsPageWorkerError);
+        expect(workers).toHaveLength(1);
+        expect(workers[0].requests).toHaveLength(1);
+        expect(workers[0].requests[0].lines).toEqual(['{"a":2}']);
+        workers[0].reply();
+        await expect(next).resolves.toMatchObject({ rowCount: 1 });
+    });
+
+    test('a late answer from a terminated worker resolves nothing', async () => {
+        const { pool, workers } = fakePool(1, 20);
+        let job!: ResultsPageBuildJob;
+
+        const silent = pool.withWorker(async (worker) => {
+            job = worker.build(['{"a":1}'], plainFormat);
+            return job.rows;
+        });
+        await expect(silent).rejects.toBeInstanceOf(ResultsPageWorkerError);
+        workers[0].reply();
+
+        await expect(job.rows).rejects.toBeInstanceOf(ResultsPageWorkerError);
+        await expect(job.compressed).rejects.toBeInstanceOf(
+            ResultsPageWorkerError,
+        );
+    });
+
+    test('a build that finishes in time is not cut short', async () => {
+        const { pool, workers } = fakePool(1, 50);
+
+        const build = buildAll(pool, ['{"a":1}'], plainFormat);
+        await flush();
+        workers[0].reply();
+        await expect(build).resolves.toMatchObject({ rowCount: 1 });
+        await new Promise<void>((resolve) => {
+            setTimeout(resolve, 80);
+        });
+
+        expect(workers[0].terminated).toBe(false);
     });
 
     test('rejects with a worker error when a worker cannot start', async () => {

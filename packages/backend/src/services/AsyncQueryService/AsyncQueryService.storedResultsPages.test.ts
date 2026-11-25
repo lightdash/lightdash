@@ -120,6 +120,7 @@ const buildService = ({
         update: vi.fn(async () => undefined),
     };
     const analytics = { trackAccount: vi.fn() };
+    const prometheusMetrics = { observeResultsPage: vi.fn() };
     const logger = {
         info: vi.fn(),
         warn: vi.fn(),
@@ -136,6 +137,7 @@ const buildService = ({
         queryHistoryModel,
         featureFlagModel,
         analytics,
+        prometheusMetrics,
         logger,
         resultsStorageClient,
         storedResultsPages: new StoredResultsPages({
@@ -151,6 +153,7 @@ const buildService = ({
         resultsStorageClient,
         featureFlagModel,
         analytics,
+        prometheusMetrics,
         logger,
     };
 };
@@ -453,4 +456,106 @@ describe('AsyncQueryService stored results pages', () => {
         },
         30_000,
     );
+
+    test("flag on: a results read that stalls is destroyed and the request gets today's body inline", async () => {
+        const [, format] = formatCases[1];
+        const { service, logger, resultsStorageClient, prometheusMetrics } =
+            buildService({
+                history: buildHistory(format),
+                flagEnabled: true,
+                pool: new ResultsPageWorkerPool({
+                    size: 1,
+                    brotliQuality: 4,
+                    buildTimeoutMs: 50,
+                }),
+            });
+        const stalled = new Readable({ read() {} });
+        resultsStorageClient.getDownloadStream.mockResolvedValueOnce(stalled);
+
+        const response = await service.getAsyncQueryResultsResponse(args);
+
+        expect(stalled.destroyed).toBe(true);
+        expect(response.kind).toBe('results');
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.stringContaining('formatting the page inline'),
+        );
+        expect(prometheusMetrics.observeResultsPage).toHaveBeenCalledWith(
+            'fallback',
+            expect.any(Number),
+        );
+        await settle();
+        expect(resultsStorageClient.putObjectBytes).not.toHaveBeenCalled();
+        expect(
+            maskExecutionMs(
+                Buffer.from(
+                    JSON.stringify({
+                        status: 'ok',
+                        results:
+                            response.kind === 'results' && response.results,
+                    }),
+                ),
+            ),
+        ).toBe(maskExecutionMs(await todaysBody(service)));
+    });
+
+    test('flag on: counts a built page, then a stored page', async () => {
+        const [, format] = formatCases[0];
+        const { pool, build } = inlineBuildPool();
+        build.mockImplementation((lines) => {
+            const rows = Buffer.from(`[${lines.join(',')}]`);
+            return {
+                rows: Promise.resolve({ rows, rowCount: lines.length }),
+                compressed: Promise.resolve(zlib.brotliCompressSync(rows)),
+            };
+        });
+        const { service, prometheusMetrics } = buildService({
+            history: buildHistory(format),
+            flagEnabled: true,
+            pool,
+        });
+
+        await bodyOf(service);
+        await settle();
+        await bodyOf(service);
+
+        expect(prometheusMetrics.observeResultsPage.mock.calls).toEqual([
+            ['built', expect.any(Number)],
+            ['stored', expect.any(Number)],
+        ]);
+    });
+
+    test('flag on: counts a worker error as a fallback', async () => {
+        const [, format] = formatCases[0];
+        const { pool, build } = inlineBuildPool();
+        build.mockImplementation(() => {
+            const rejected = Promise.reject(
+                new ResultsPageWorkerError('crashed'),
+            );
+            rejected.catch(() => undefined);
+            return { rows: rejected, compressed: rejected };
+        });
+        const { service, prometheusMetrics } = buildService({
+            history: buildHistory(format),
+            flagEnabled: true,
+            pool,
+        });
+
+        await service.getAsyncQueryResultsResponse(args);
+
+        expect(
+            prometheusMetrics.observeResultsPage,
+        ).toHaveBeenCalledExactlyOnceWith('fallback', expect.any(Number));
+    });
+
+    test('flag off: counts nothing', async () => {
+        const [, format] = formatCases[0];
+        const { service, prometheusMetrics } = buildService({
+            history: buildHistory(format),
+            flagEnabled: false,
+        });
+
+        await service.getAsyncQueryResultsResponse(args);
+
+        expect(prometheusMetrics.observeResultsPage).not.toHaveBeenCalled();
+    });
 });
