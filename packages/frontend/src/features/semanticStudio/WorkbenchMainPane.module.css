@@ -66,6 +66,9 @@
     min-width: 0;
     overflow: hidden;
     line-height: 20px;
+    /* Pulls back the first crumb's padding, so its text starts where the
+       title below it does. */
+    margin-left: -6px;
 }
 
 .crumb {
