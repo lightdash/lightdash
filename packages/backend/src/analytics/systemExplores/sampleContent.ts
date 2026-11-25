@@ -592,7 +592,7 @@ const aiUsageTilePositions: Record<
 // One caption row above the Overview tiles, which start at y = 1.
 // One vocabulary for the three token totals on this dashboard, and what tells them apart
 const aiUsageOverviewCaption =
-    '**This tab follows the Date filter and counts all usage.** The other tabs are fixed to the current month: Tokens (all usage) is the same measure for the month, and Tokens in billing scope is the part of it that counts towards billing.';
+    '**This tab counts all usage and follows the Date filter.** The other tabs always show the current month. On them, Tokens (all usage) is this same count, and Tokens in billing scope is the part of it that counts towards billing.';
 
 export const analyticsSampleDashboards = [
     aiUsageContent,

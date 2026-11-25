@@ -519,6 +519,16 @@ const AnalyticsOverview = ({
                         }
                         aria-hidden={!isAdoption || undefined}
                     >
+                        {/* The same form as the text above a section of a dashboard: a bold title, one line under it */}
+                        <Box mb="sm">
+                            <Text fz="sm" fw={600}>
+                                Adoption by team
+                            </Text>
+                            <Text fz="sm">
+                                Usage and feature adoption across your
+                                organization, team by team.
+                            </Text>
+                        </Box>
                         <AnalyticsAdoptionPreview
                             projectUuid={projectUuid}
                             app={adoptionApp}
