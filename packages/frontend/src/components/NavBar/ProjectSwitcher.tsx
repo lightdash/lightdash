@@ -14,6 +14,7 @@ import {
     Text,
     TextInput,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
@@ -24,9 +25,18 @@ import {
     IconGitBranch,
     IconPlus,
     IconSearch,
+    IconSelector,
     IconX,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { clsx } from 'clsx';
+import {
+    forwardRef,
+    useCallback,
+    useMemo,
+    useState,
+    type ComponentPropsWithoutRef,
+    type FC,
+} from 'react';
 import { matchRoutes, useLocation, useMatch, useNavigate } from 'react-router';
 import { useDraftCheckout } from '../../features/semanticStudio/useSemanticLayerModel';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -191,6 +201,67 @@ const SwitcherLabel: FC<{
     );
 };
 
+type SidebarTargetProps = ComponentPropsWithoutRef<'button'> & {
+    activeProjectName: string;
+    isPreview: boolean;
+    isOnDraft: boolean;
+};
+
+/** Sidebar trigger: the project name and a selector icon. */
+const SidebarTarget = forwardRef<HTMLButtonElement, SidebarTargetProps>(
+    (
+        { activeProjectName, isPreview, isOnDraft, className, ...buttonProps },
+        ref,
+    ) => {
+        const { ref: truncatedRef, isTruncated } =
+            useIsTruncated<HTMLDivElement>();
+
+        return (
+            <UnstyledButton
+                ref={ref}
+                {...buttonProps}
+                className={clsx(classes.sidebarTarget, className)}
+            >
+                <Box className={classes.sidebarLabel}>
+                    {isOnDraft && (
+                        <MantineIcon
+                            icon={IconGitBranch}
+                            size="sm"
+                            color="yellow.5"
+                            className={classes.breadcrumbSeparator}
+                        />
+                    )}
+                    <Tooltip
+                        label={activeProjectName}
+                        position="right"
+                        disabled={!isTruncated}
+                    >
+                        <Text
+                            ref={truncatedRef}
+                            truncate
+                            fw={600}
+                            fz="sm"
+                            miw={0}
+                        >
+                            {activeProjectName}
+                        </Text>
+                    </Tooltip>
+                    {isPreview && (
+                        <Badge size="xs" flex="none" className={classes.badge}>
+                            Preview
+                        </Badge>
+                    )}
+                </Box>
+                <MantineIcon
+                    icon={IconSelector}
+                    color="dimmed"
+                    className={classes.sidebarSelector}
+                />
+            </UnstyledButton>
+        );
+    },
+);
+
 const ProjectRow: FC<{
     item: OrganizationProject;
     previewCount: number;
@@ -335,13 +406,20 @@ const swappableProjectRoutes = (
     ].map((path) => ({ path, handle: { useProjectSlug: false } })),
 ];
 
+/** Where the switcher sits: the top navbar or the left sidebar. */
+type ProjectSwitcherLayout = 'navbar' | 'sidebar';
+
 type ProjectSwitcherProps = {
     /** Selector the dropdown is portaled into, or null to portal into the body.
      *  The desktop navbar targets its own forced-dark subtree. */
     portalTarget: string | null;
+    layout: ProjectSwitcherLayout;
 };
 
-const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
+const ProjectSwitcher: FC<ProjectSwitcherProps> = ({
+    portalTarget,
+    layout,
+}) => {
     const { showToastSuccess } = useToaster();
     const navigate = useNavigate();
 
@@ -612,13 +690,17 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
         </Box>
     );
 
+    const activeProjectName = activeProject?.name ?? 'Select a project';
+    const targetLabel = `Switch project, current: ${activeProject?.name ?? 'none'}${draftCheckout ? `, on the draft ${draftCheckout.name}` : ''}`;
+    const isInSidebar = layout !== 'navbar';
+
     return (
         <>
             <Menu
-                position="bottom-end"
+                position={isInSidebar ? 'bottom-start' : 'bottom-end'}
                 shadow="lg"
                 arrowOffset={16}
-                offset={-2}
+                offset={isInSidebar ? 4 : -2}
                 opened={isMenuOpen}
                 closeOnItemClick={false}
                 onChange={(opened) => {
@@ -636,23 +718,33 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                 classNames={{ dropdown: classes.dropdown, item: classes.item }}
                 zIndex={getDefaultZIndex('max')}
                 {...getNavBarMenuProps(portalTarget)}
+                {...(isInSidebar ? { withArrow: false } : {})}
             >
                 <Menu.Target>
-                    <Button
-                        aria-label={`Switch project, current: ${activeProject?.name ?? 'none'}${draftCheckout ? `, on the draft ${draftCheckout.name}` : ''}`}
-                        variant="default"
-                        size="xs"
-                        className={classes.targetButton}
-                        classNames={{ label: classes.targetButtonLabel }}
-                    >
-                        <SwitcherLabel
-                            activeProjectName={
-                                activeProject?.name ?? 'Select a project'
-                            }
-                            upstreamProjectName={upstreamProject?.name ?? null}
-                            draftName={draftCheckout?.name ?? null}
+                    {isInSidebar ? (
+                        <SidebarTarget
+                            aria-label={targetLabel}
+                            activeProjectName={activeProjectName}
+                            isPreview={upstreamProject !== undefined}
+                            isOnDraft={draftCheckout != null}
                         />
-                    </Button>
+                    ) : (
+                        <Button
+                            aria-label={targetLabel}
+                            variant="default"
+                            size="xs"
+                            className={classes.targetButton}
+                            classNames={{ label: classes.targetButtonLabel }}
+                        >
+                            <SwitcherLabel
+                                activeProjectName={activeProjectName}
+                                upstreamProjectName={
+                                    upstreamProject?.name ?? null
+                                }
+                                draftName={draftCheckout?.name ?? null}
+                            />
+                        </Button>
+                    )}
                 </Menu.Target>
 
                 <Menu.Dropdown
