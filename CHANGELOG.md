@@ -1,3 +1,16 @@
+# [3.406.0](https://github.com/lightdash/lightdash/compare/3.405.0...3.406.0) (2026-11-25)
+
+
+### Features
+
+* **analytics:** let managed charts use library chart types ([#32916](https://github.com/lightdash/lightdash/issues/32916)) ([acea187](https://github.com/lightdash/lightdash/commit/acea187fdd3347aa6773f007e05f1a1bc584ef72))
+* **analytics:** plain names, seconds and design review fixes on the analytics dashboards ([#33059](https://github.com/lightdash/lightdash/issues/33059)) ([dbb6b6e](https://github.com/lightdash/lightdash/commit/dbb6b6effbb4d87bec576d020dce19c42747f683))
+* **analytics:** redesign Agents & AI with library chart types ([#32918](https://github.com/lightdash/lightdash/issues/32918)) ([10df9ff](https://github.com/lightdash/lightdash/commit/10df9ff2118b69359cb4ad133dfb7769cced0515))
+* **analytics:** redesign Queries with library chart types ([#32924](https://github.com/lightdash/lightdash/issues/32924)) ([093eff4](https://github.com/lightdash/lightdash/commit/093eff4eeb472f0586f1b86a6e1983d18dc08575))
+* **analytics:** redesign the remaining analytics dashboards and add a managed Overview ([#33058](https://github.com/lightdash/lightdash/issues/33058)) ([ec60eda](https://github.com/lightdash/lightdash/commit/ec60edad2275baf0f0ee1630f986ad90d8663cc8))
+* **analytics:** rework the Content dashboard and colour model charts by provider ([#33060](https://github.com/lightdash/lightdash/issues/33060)) ([822f281](https://github.com/lightdash/lightdash/commit/822f281f8de73e30507c22e34223cb8845eaa566))
+* **analytics:** the sync removes managed content that is retired from code ([#33061](https://github.com/lightdash/lightdash/issues/33061)) ([fb111e8](https://github.com/lightdash/lightdash/commit/fb111e89eff958ce99fd11f392a434f4712f5532))
+
 # [3.405.0](https://github.com/lightdash/lightdash/compare/3.404.0...3.405.0) (2026-11-25)
 
 
