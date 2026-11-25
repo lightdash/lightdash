@@ -109,12 +109,68 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
                 },
             },
         ]);
-        expect(content).toContain('Filters applied:');
+        expect(content).toContain(
+            '  Filters in effect on the dashboard (its saved filters plus any the user changed; the dashboard applies them to its tiles):\n    ',
+        );
         expect(content).toContain('"values":["US"]');
         expect(content).not.toContain('country-filter-uuid');
         expect(content).not.toContain('tileTargets');
+        expect(content).not.toContain('tile-uuid');
         expect(content).not.toContain('lockedTabUuids');
         expect(content).not.toContain('requiredGroupId');
+    });
+
+    it('renders chart dashboard view state with consistent filter wording', () => {
+        const dashboardFilters: DashboardFilters = {
+            dimensions: [
+                {
+                    id: 'country-filter-uuid',
+                    label: 'Country',
+                    operator: FilterOperator.EQUALS,
+                    target: {
+                        fieldId: 'orders.country',
+                        tableName: 'orders',
+                    },
+                    values: ['US'],
+                    tileTargets: {
+                        'tile-uuid': {
+                            fieldId: 'orders.country',
+                            tableName: 'orders',
+                        },
+                    },
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const content = buildMessage([
+            {
+                type: 'chart',
+                chartUuid: 'chart-1',
+                chartSlug: 'revenue',
+                displayName: 'Revenue',
+                pinnedVersionUuid: null,
+                chartKind: null,
+                runtimeOverrides: {
+                    dashboardFilters,
+                    dashboardParameters: { region: 'EU' },
+                    dateZoom: { granularity: 'Week' },
+                },
+            },
+        ]);
+        expect(content).toContain(
+            [
+                '- Chart "Revenue" (chartSlug: revenue)',
+                '  Dashboard view state when the chart was pinned:',
+                '    Filters in effect on the dashboard (its saved filters plus any the user changed; the dashboard applies them to its tiles):',
+                '      {"dimensions":[{"label":"Country","operator":"equals","target":{"fieldId":"orders.country","tableName":"orders"},"values":["US"]}],"metrics":[],"tableCalculations":[]}',
+                '    Parameter values: {"region":"EU"}',
+                '    Date zoom: {"granularity":"Week"}',
+            ].join('\n'),
+        );
+        expect(content).toContain(
+            "Listed dashboard view state reflects what the user sees on the dashboard: apply it when answering about what the dashboard shows; build saved-chart edits from the chart's saved definition and new queries from only what the user asks for.",
+        );
     });
 
     it('renders the same text as before without named date zooms or per-tile parameters', () => {
@@ -141,7 +197,7 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
                 '  Parameter values: {"region":"EU"}',
                 '  Date zoom: {"granularity":"Week"}',
                 '',
-                "Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). When runtime overrides are listed, apply them on top of the chart's saved state when querying.",
+                "Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). Listed dashboard view state reflects what the user sees on the dashboard: apply it when answering about what the dashboard shows; build saved-chart edits from the chart's saved definition and new queries from only what the user asks for.",
             ].join('\n'),
         );
     });
@@ -466,7 +522,7 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         );
         expect(content).not.toContain('artifact-1');
         expect(content).not.toContain('readContent');
-        expect(content).not.toContain('runtime overrides');
+        expect(content).not.toContain('dashboard view state');
     });
 
     it('renders a data app restore as one line naming both versions', () => {
