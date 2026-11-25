@@ -16,7 +16,6 @@
         "listProjects",
         "resolveUrl",
         "runQuery",
-        "runSavedChart",
         "runSql",
         "searchFieldValues",
         "searchSemanticLayer"

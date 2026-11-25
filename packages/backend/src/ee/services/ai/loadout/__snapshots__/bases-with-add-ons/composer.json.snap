@@ -67,7 +67,6 @@
         "readPinnedThread",
         "resolveUrl",
         "runContentQuery",
-        "runSavedChart",
         "searchFieldValues",
         "searchSemanticLayer",
         "syncDbtProject",

@@ -69,7 +69,6 @@
         "resolveUrl",
         "runContentQuery",
         "runQuery",
-        "runSavedChart",
         "runSql",
         "searchFieldValues",
         "searchSemanticLayer",

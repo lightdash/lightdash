@@ -7,7 +7,7 @@ import {
     type LoadoutInput,
 } from './types';
 
-const hasContentReads = (input: LoadoutInput): boolean =>
+export const hasContentReads = (input: LoadoutInput): boolean =>
     input.enableDataAccess && input.enableContentReads;
 
 const hasContentTools = (input: LoadoutInput): boolean =>

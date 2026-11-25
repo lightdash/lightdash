@@ -13,7 +13,6 @@
         "listKnowledgeDocuments",
         "listProjects",
         "resolveUrl",
-        "runSavedChart",
         "runSql",
         "searchFieldValues",
         "searchSemanticLayer"
