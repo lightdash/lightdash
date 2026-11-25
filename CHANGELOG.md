@@ -1,3 +1,10 @@
+## [3.395.4](https://github.com/lightdash/lightdash/compare/3.395.3...3.395.4) (2026-11-25)
+
+
+### Bug Fixes
+
+* index foreign keys that make user deletes slow ([#33406](https://github.com/lightdash/lightdash/issues/33406)) ([9f6b6ff](https://github.com/lightdash/lightdash/commit/9f6b6ff69e9c391e6197985a21fca5b0a1c68ee4))
+
 ## [3.395.3](https://github.com/lightdash/lightdash/compare/3.395.2...3.395.3) (2026-11-25)
 
 
