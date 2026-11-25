@@ -9,6 +9,11 @@ import {
 /* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
+import {
+    getLiveSourceSignInRequiredMessage,
+    type LiveSourceErrorData,
+    type LiveSourceSignInRequired,
+} from './liveSourceErrors';
 import { MOBILE_ORG_DISABLED_CODE } from './mobileSignIn';
 import type { SharedSignInExpiry } from './sharedSignIn';
 import type { WarehousePhaseTimings, WarehouseQueryPhase } from './warehouse';
@@ -295,6 +300,26 @@ export class MissingWarehouseCredentialsError extends LightdashError {
             name: 'MissingWarehouseCredentialsError',
             statusCode: 400,
             data: {},
+        });
+    }
+}
+
+/**
+ * A live source that queries as each viewer, which this viewer has no usable
+ * sign-in for. The app shows "Connect your account" instead of an error.
+ */
+export class LiveSourceSignInRequiredError extends LightdashError {
+    constructor(signIn: LiveSourceSignInRequired) {
+        const data: LiveSourceErrorData = {
+            liveSourceErrorCode: 'live_source.refused.sign_in_required',
+            liveSourceErrorCodes: ['live_source.refused.sign_in_required'],
+            signIn,
+        };
+        super({
+            message: getLiveSourceSignInRequiredMessage(signIn),
+            name: 'LiveSourceSignInRequiredError',
+            statusCode: 400,
+            data,
         });
     }
 }

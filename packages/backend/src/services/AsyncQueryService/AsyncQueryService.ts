@@ -13248,6 +13248,10 @@ export class AsyncQueryService extends ProjectService {
                 source.cache.scope.kind === 'viewer'
                     ? source.cache.scope.userUuid
                     : null,
+            liveSignIn:
+                source.cache.scope.kind === 'viewer'
+                    ? source.cache.scope.signedInAt?.toISOString()
+                    : undefined,
         });
         // Live results follow the project's result caching, like warehouse
         // results: with it off, every query calls the integration.

@@ -267,6 +267,8 @@ const aiArtifactViewport = {
 export enum ScreenshotContext {
     SCHEDULED_DELIVERY = 'scheduled_delivery',
     SLACK = 'slack',
+    /** A data app the AI agent built, captured as the person who asked. */
+    AI_AGENT_SLACK = 'ai_agent_slack',
     EXPORT_DASHBOARD = 'export_dashboard',
     EXPORT_CHART = 'export_chart',
     EXPORT_AI_ARTIFACT = 'export_ai_artifact',

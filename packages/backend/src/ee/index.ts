@@ -119,6 +119,7 @@ import { ContentReviewRequestService } from './services/ContentReviewRequestServ
 import { DataAppAnalysisService } from './services/DataAppAnalysisService/DataAppAnalysisService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
+import { borrowedIdentityMiddleware } from './services/ExternalConnectionService/borrowedIdentity';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
 import { GoogleServiceAccountTokenProvider } from './services/ExternalConnectionService/GoogleServiceAccountTokenProvider';
 import { OAuthAuthorizationCodeTokenClient } from './services/ExternalConnectionService/OAuthAuthorizationCodeTokenClient';
@@ -1980,6 +1981,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             },
             (expressApp: Express) => {
                 expressApp.use(developmentViewMiddleware);
+            },
+            (expressApp: Express) => {
+                expressApp.use(borrowedIdentityMiddleware);
             },
         ],
         schedulerWorkerFactory: (context) =>

@@ -12,6 +12,12 @@ export type ExternalConnectionAuthType =
 
 export type OAuthClientAuthMethod = 'basic' | 'body';
 
+/**
+ * Whose sign-in a live source queries with: one shared sign-in that answers
+ * everyone alike, or each viewer's own, so the integration's permissions apply.
+ */
+export type LiveSourceSignInMode = 'shared' | 'per_user';
+
 /** Who a connection serves: data apps through the proxy, or live API queries. */
 export type ExternalConnectionKind = 'data_app' | 'live_source';
 
@@ -508,6 +514,11 @@ export type ExternalConnection = {
     cacheTtlSeconds?: number | null;
     /** Live sources: results fetched before this are never reused. */
     cachePurgedAt?: Date | null;
+    /**
+     * Live sources: whose sign-in queries run with. Optional for
+     * compatibility with older servers during rolling upgrades.
+     */
+    signInMode?: LiveSourceSignInMode;
     hasSecret: boolean;
     createdByUserUuid: string | null;
     updatedByUserUuid: string | null;
@@ -569,6 +580,8 @@ export type CreateExternalConnection = {
     oauthClientAuthMethod?: OAuthClientAuthMethod | null;
     customHeaders?: Record<string, string> | null; // static non-secret headers sent on every request
     apiSource?: ExternalConnectionApiSource | null;
+    /** Live sources only; defaults to 'shared'. */
+    signInMode?: LiveSourceSignInMode;
     /**
      * Prefix of a new live source's explore names. Defaults to one derived
      * from the name. It is set once and can't be changed afterwards.
@@ -888,4 +901,19 @@ export type ApiExternalConnectionSchemaResponse = {
     status: 'ok';
     /** Null when the connection was never scanned. */
     results: ApiSourceSchemaScan | null;
+};
+
+/** A viewer's own sign-in to a live source that queries as each viewer. */
+export type LiveSourceUserSignIn = {
+    externalConnectionUuid: string;
+    name: string;
+    connector: ApiConnectorType;
+    isSignedIn: boolean;
+    /** When the viewer last signed in; null when they haven't. */
+    signedInAt: Date | null;
+};
+
+export type ApiLiveSourceUserSignInsResponse = {
+    status: 'ok';
+    results: LiveSourceUserSignIn[];
 };

@@ -19,6 +19,8 @@ export const IGNORE_ERRORS = [
     'ParameterError',
     // Overdue deprecated routes fire once per request — keep GCP logs, drop Sentry.
     'DeprecatedRouteError',
+    // A viewer who has not connected their own account yet; they get a prompt
+    'LiveSourceSignInRequiredError',
 ];
 
 /** Tags an AI agent warning: expected agent errors are the signal, so IGNORE_ERRORS keeps them. */

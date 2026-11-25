@@ -768,6 +768,8 @@ import {
     ExternalConnectionSecretsTableName,
     ExternalConnectionsTable,
     ExternalConnectionsTableName,
+    ExternalConnectionUserCredentialsTable,
+    ExternalConnectionUserCredentialsTableName,
 } from '../ee/database/entities/externalConnections';
 import {
     HomepageRecommendedActionSkipsTable,
@@ -1125,6 +1127,7 @@ declare module 'knex/types/tables' {
         [AiRouterDecisionTableName]: AiRouterDecisionTable;
         [ExternalConnectionsTableName]: ExternalConnectionsTable;
         [ExternalConnectionSecretsTableName]: ExternalConnectionSecretsTable;
+        [ExternalConnectionUserCredentialsTableName]: ExternalConnectionUserCredentialsTable;
         [AppExternalConnectionsTableName]: AppExternalConnectionsTable;
         [ExternalConnectionRateCountersTableName]: ExternalConnectionRateCountersTable;
         [ExternalConnectionSamplesTableName]: ExternalConnectionSamplesTable;

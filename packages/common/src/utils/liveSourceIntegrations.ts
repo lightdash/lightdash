@@ -38,6 +38,11 @@ type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
     getTarget: (apiSource: ApiSourceOf<C>) => string;
     /** Offered by the onboarding tools step. Most sources are added later. */
     inOnboarding?: true;
+    /**
+     * How each viewer signs in when a source queries with their own access.
+     * Integrations without it only offer one shared sign-in.
+     */
+    userSignIn?: 'oauth';
 };
 
 /**
@@ -243,6 +248,7 @@ export const LIVE_INTEGRATION_CATALOG: {
         description: 'Test integration with seeded events and users',
         setup: 'token',
         settings: HYDRA_SETTINGS_SCHEMA,
+        userSignIn: 'oauth',
         getTarget: () => 'Hydra test data',
     },
 };

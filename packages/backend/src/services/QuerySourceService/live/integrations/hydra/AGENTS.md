@@ -65,7 +65,7 @@ Each call is refused at once past `vendorLimits`, then waits, then answers its m
 
 Hydra is a strict OAuth 2.0 vendor (`oauth.ts`), so per-viewer sign-in is tested against the rules a careful vendor enforces:
 
-- **Consent:** `hydraServer.authorize` stands in for the vendor's consent screen. It needs client `HYDRA_OAUTH_CLIENT_ID`, `response_type=code` and PKCE with S256, and redirects back with a code and the state, or `error=access_denied`.
+- **Consent:** `hydraServer.authorize` stands in for the vendor's consent screen; the app serves it at `GET /api/v1/ee/live-sources/hydra/oauth/authorize`, which takes the source as `resource` and signs in the logged-in person by email. Set a source to `"signInMode": "per_user"` and open its connect link to walk through it. It needs client `HYDRA_OAUTH_CLIENT_ID`, `response_type=code` and PKCE with S256, and redirects back with a code and the state, or `error=access_denied`.
 - **Codes:** single use, valid for 60 seconds, bound to the client, the redirect URI and the source that asked. A failed exchange does not use the code up.
 - **Token endpoint** (`hydraServer.token`, reached through `fetchHydraToken`): needs `HYDRA_OAUTH_CLIENT_SECRET`; answers `invalid_client` or `invalid_grant` as the spec says.
 - **Tokens:** an access token works only on the source it was issued for. Each viewer reads rows seeded from their own email, so two viewers see different totals, and the same viewer sees the same totals after signing in again. Any other token is a shared sign-in and seeds its own rows, as before.
