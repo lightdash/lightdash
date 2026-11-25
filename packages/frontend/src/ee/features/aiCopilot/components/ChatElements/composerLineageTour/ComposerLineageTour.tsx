@@ -5,6 +5,7 @@ import { useOnboardingTour } from '../../../../../../hooks/useOnboardingTour';
 import {
     COMPOSER_LINEAGE_TOUR_LINEAGE_FROM,
     getComposerLineageTourSteps,
+    type ComposerLineageTourSave,
 } from './steps';
 
 // A thread can show several composer panels at once; only the first to qualify runs the tour.
@@ -17,7 +18,7 @@ type Props = {
     ready: boolean;
     queries: SourceQuery[];
     terminalNodeId: string;
-    saveInMenu: boolean;
+    save: ComposerLineageTourSave;
     canAddToChat: boolean;
     onShowLineage: (show: boolean) => void;
 };
@@ -28,7 +29,7 @@ export const ComposerLineageTour: FC<Props> = ({
     ready,
     queries,
     terminalNodeId,
-    saveInMenu,
+    save,
     canAddToChat,
     onShowLineage,
 }) => {
@@ -57,10 +58,10 @@ export const ComposerLineageTour: FC<Props> = ({
                 scope: `[data-composer-tour-scope="${CSS.escape(scopeId)}"]`,
                 queries,
                 terminalNodeId,
-                saveInMenu,
+                save,
                 canAddToChat,
             }),
-        [scopeId, queries, terminalNodeId, saveInMenu, canAddToChat],
+        [scopeId, queries, terminalNodeId, save, canAddToChat],
     );
 
     return (

@@ -45,7 +45,7 @@ const Panel = ({ scopeId }: { scopeId: string }) => {
                 ready={!isLineage}
                 queries={queries}
                 terminalNodeId="joined"
-                saveInMenu
+                save="menu"
                 canAddToChat
                 onShowLineage={setIsLineage}
             />

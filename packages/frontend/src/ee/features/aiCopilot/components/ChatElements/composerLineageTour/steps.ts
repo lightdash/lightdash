@@ -50,6 +50,22 @@ const getTourFocus = (
     return { nodeId: terminalNodeId, highlight: 'default' };
 };
 
+/** Where the last step sends the user to save; null drops the step. */
+export type ComposerLineageTourSave = 'menu' | 'agent' | null;
+
+const SAVE_STEP: Record<'menu' | 'agent', (scope: string) => GuidedTourStep> = {
+    menu: (scope) => ({
+        target: `${scope} ${TARGETS.actions}`,
+        title: 'Save to a dashboard',
+        body: 'Add the chart to a dashboard from this menu, or just ask the agent to save it for you.',
+    }),
+    agent: () => ({
+        target: null,
+        title: 'Save to a dashboard',
+        body: 'To keep this chart, just ask the agent in chat to save it for you.',
+    }),
+};
+
 /** Step index from which the panel shows the lineage view. */
 export const COMPOSER_LINEAGE_TOUR_LINEAGE_FROM = 1;
 
@@ -57,15 +73,14 @@ export const getComposerLineageTourSteps = ({
     scope,
     queries,
     terminalNodeId,
-    saveInMenu,
+    save,
     canAddToChat,
 }: {
     /** Selector of the panel the tour belongs to; every target is looked up inside it. */
     scope: string;
     queries: SourceQuery[];
     terminalNodeId: string;
-    /** The panel menu offers saving to a dashboard. */
-    saveInMenu: boolean;
+    save: ComposerLineageTourSave;
     canAddToChat: boolean;
 }): GuidedTourStep[] => {
     const focus = getTourFocus(queries, terminalNodeId);
@@ -91,17 +106,6 @@ export const getComposerLineageTourSteps = ({
                       body: 'Each step shows what it did and its result table, so you can verify the numbers behind the chart.',
                   }),
         },
-        {
-            title: 'Save to a dashboard',
-            ...(saveInMenu
-                ? {
-                      target: `${scope} ${TARGETS.actions}`,
-                      body: 'Add the chart to a dashboard from this menu, or just ask the agent to save it for you.',
-                  }
-                : {
-                      target: null,
-                      body: 'To keep this chart, just ask the agent in chat to save it for you.',
-                  }),
-        },
+        ...(save ? [SAVE_STEP[save](scope)] : []),
     ];
 };

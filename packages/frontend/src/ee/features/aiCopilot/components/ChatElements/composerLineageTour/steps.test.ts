@@ -38,7 +38,7 @@ const stepsFor = (queries: SourceQuery[], terminalNodeId: string) =>
         scope: '[data-panel]',
         queries,
         terminalNodeId,
-        saveInMenu: true,
+        save: 'menu',
         canAddToChat: true,
     });
 
@@ -80,10 +80,22 @@ describe('getComposerLineageTourSteps', () => {
             scope: '[data-panel]',
             queries: [semantic, merge],
             terminalNodeId: 'joined',
-            saveInMenu: false,
+            save: 'agent',
             canAddToChat: true,
         });
-
+        expect(steps).toHaveLength(4);
         expect(steps.at(-1)?.target).toBeNull();
+    });
+
+    it('ends on the cell step when composer charts cannot be saved', () => {
+        const steps = getComposerLineageTourSteps({
+            scope: '[data-panel]',
+            queries: [semantic, merge],
+            terminalNodeId: 'joined',
+            save: null,
+            canAddToChat: true,
+        });
+        expect(steps).toHaveLength(3);
+        expect(steps.at(-1)?.target).toContain('[data-node-id="joined"]');
     });
 });

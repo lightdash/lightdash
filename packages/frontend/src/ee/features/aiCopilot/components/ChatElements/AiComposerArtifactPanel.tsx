@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ChartKind,
+    FeatureFlags,
     getComposerVizPanelOptions,
     getComposerVizPanelValue,
     switchComposerVizKind,
@@ -46,6 +47,7 @@ import { AiComposerLineage } from '../../../../../features/composerCharts/lineag
 import { ArtifactLoadingSketch } from '../../../../../features/composerCharts/lineage/ArtifactLoadingSketch';
 import { useArtifactResultRows } from '../../../../../features/composerCharts/lineage/useArtifactResultRows';
 import { useComposerRunNodeStatuses } from '../../../../../features/composerCharts/lineage/useComposerRunNodeStatuses';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -61,6 +63,7 @@ import { AiComposerRunQueryVisualization } from './AiComposerRunQueryVisualizati
 import { ArtifactWindowControls } from './ArtifactFocusToggle';
 import { ArtifactPanelHeading } from './ArtifactPanelHeading';
 import { ComposerLineageTour } from './composerLineageTour/ComposerLineageTour';
+import { type ComposerLineageTourSave } from './composerLineageTour/steps';
 import {
     AiComposerVizConfigPanel,
     type AiComposerVizConfigPanelMode,
@@ -129,6 +132,9 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const isEmbed = useIsEmbedded();
     const [view, setView] = useState<ArtifactView>(initialView);
     const tourScopeId = useId();
+    const { data: composerChartsFlag } = useServerFeatureFlag(
+        FeatureFlags.ComposerCharts,
+    );
     const [isRunQueryChartDrawn, setIsRunQueryChartDrawn] = useState(false);
     const [imageExportRef, setImageExportRef] =
         useState<RefObject<EChartsReact | null>>();
@@ -291,6 +297,13 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         !!mergeChartActions?.canSave ||
         !!mergeChartActions?.quickSaveDashboard ||
         (composerSave?.kind === 'save' && !composerSave.disabledReason);
+    // No save step unless composer charts are enabled.
+    const tourSave: ComposerLineageTourSave =
+        composerChartsFlag?.enabled !== true
+            ? null
+            : hasSaveInMenu
+              ? 'menu'
+              : 'agent';
     const isTourReady =
         !isEmbed &&
         initialView === 'chart' &&
@@ -539,7 +552,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 ready={isTourReady}
                 queries={config.queries}
                 terminalNodeId={config.terminalNodeId}
-                saveInMenu={hasSaveInMenu}
+                save={tourSave}
                 canAddToChat={onAddToChat !== null}
                 onShowLineage={(show) => setView(show ? 'lineage' : 'chart')}
             />
