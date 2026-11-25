@@ -3,6 +3,7 @@ import { useLocalStorage } from '@mantine/hooks';
 import { IconChevronDown } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useEffect, useState, type FC, type ReactNode } from 'react';
+import { isScopeTourRunning } from '../../features/scopeTours/isScopeTourRunning';
 import MantineIcon from '../common/MantineIcon';
 import classes from './AppSidebar.module.css';
 
@@ -59,7 +60,8 @@ export const SidebarSection: FC<Props> = ({
         getInitialValueInEffect: false,
     });
     const isFolded = foldedSections.includes(sectionKey);
-    const isOpen = isSidebarCollapsed || !isFolded;
+    // A walkthrough points at rows by name, so none may be folded away.
+    const isOpen = isSidebarCollapsed || !isFolded || isScopeTourRunning();
 
     return (
         <Box>

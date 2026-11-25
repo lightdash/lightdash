@@ -34,6 +34,7 @@ import {
 } from './appSidebarNavigation';
 import { SidebarCollapsedContext } from './SidebarCollapsedContext';
 import { SidebarFavorites } from './SidebarFavorites';
+import { SidebarLearnCard } from './SidebarLearnCard';
 import { SidebarMenuTrigger } from './SidebarMenuTrigger';
 import { SidebarSection } from './SidebarSection';
 import { useAppSidebarSections } from './useAppSidebarSections';
@@ -170,6 +171,9 @@ export const AppSidebar: FC<Props> = ({
                                                 : undefined
                                         }
                                         onClick={item.onClick ?? undefined}
+                                        data-tour-nav={
+                                            item.tourNav ?? undefined
+                                        }
                                     />
                                 </Tooltip>
                             ),
@@ -214,6 +218,12 @@ export const AppSidebar: FC<Props> = ({
                                 value={isCollapsed}
                             >
                                 <Box ref={footerRef} className={classes.footer}>
+                                    {projectUuid && (
+                                        <SidebarLearnCard
+                                            projectUuid={projectUuid}
+                                            isSidebarCollapsed={isCollapsed}
+                                        />
+                                    )}
                                     <SettingsMenu />
                                     <HelpMenu />
                                     {isHeadwayEnabled && projectUuid && (
