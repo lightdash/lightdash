@@ -7,6 +7,11 @@ import {
 } from '@pierre/diffs/edit';
 import { type StudioChatCode } from './studioChatRefs';
 
+/** The shortcut modifier as this platform writes it: ⌘ on Apple devices, Ctrl+ elsewhere. */
+const IS_APPLE = /Mac|iPhone|iPad/.test(navigator.userAgent);
+export const MOD_KEY = IS_APPLE ? '⌘' : 'Ctrl+';
+export const REDO_KEYS = IS_APPLE ? '⇧⌘Z' : 'Ctrl+Shift+Z';
+
 /** The editor Pierre attaches to code that is being edited. */
 export const createEditor: EditorFactory<undefined, undefined> = (
     type,
@@ -23,7 +28,14 @@ const offsetOf = (lines: string[], at: Point) =>
 
 export type Attached = Pick<
     CodeEditor,
-    'getText' | 'getViewState' | 'getEditState' | 'setMarkers' | 'undo' | 'redo'
+    | 'getText'
+    | 'getViewState'
+    | 'setViewState'
+    | 'getEditState'
+    | 'setMarkers'
+    | 'undo'
+    | 'redo'
+    | 'focus'
 >;
 
 /** The selected lines and text, from Pierre's zero-based selection. */
@@ -45,7 +57,7 @@ const createChip = (onClick: () => void) => {
     const button = document.createElement('button');
     button.type = 'button';
     const shortcut = document.createElement('span');
-    shortcut.textContent = '⌘L';
+    shortcut.textContent = `${MOD_KEY}L`;
     shortcut.style.opacity = '0.6';
     button.append('Add to chat', shortcut);
     // Black on light, inverted on dark so it still stands out.
@@ -93,4 +105,32 @@ export const leaveOnEscape = (event: KeyboardEvent, code: Attached | null) => {
         range.start.character === range.end.character;
     const focused = event.composedPath()[0];
     if (isCaret && focused instanceof HTMLElement) focused.blur();
+};
+
+export type CodePoint = { lineNumber: number; character: number };
+
+/** Where a click landed in Pierre's rendered code (one-based line, zero-based character), or null off a line of the new file. */
+export const pointInCode = (event: MouseEvent): CodePoint | null => {
+    const path = event.composedPath();
+    const line = path.find(
+        (node): node is HTMLElement =>
+            node instanceof HTMLElement && node.dataset.line !== undefined,
+    );
+    if (!line || line.dataset.lineType?.includes('deletion')) return null;
+    const lineNumber = Number(line.dataset.line);
+    if (!Number.isInteger(lineNumber)) return null;
+    const root = line.getRootNode();
+    const caret =
+        root instanceof ShadowRoot
+            ? document.caretPositionFromPoint(event.clientX, event.clientY, {
+                  shadowRoots: [root],
+              })
+            : null;
+    // Past the end of the text, the caret goes to the end of the line.
+    if (!caret || !line.contains(caret.offsetNode))
+        return { lineNumber, character: line.textContent?.length ?? 0 };
+    const before = document.createRange();
+    before.setStart(line, 0);
+    before.setEnd(caret.offsetNode, caret.offset);
+    return { lineNumber, character: before.toString().length };
 };

@@ -28,6 +28,7 @@ import {
     IconArrowBackUp,
     IconArrowForwardUp,
     IconFileCode,
+    IconLock,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import {
@@ -68,6 +69,10 @@ import {
     createEditor,
     editorOptionsFor,
     leaveOnEscape,
+    MOD_KEY,
+    REDO_KEYS,
+    pointInCode,
+    type CodePoint,
     readSelection,
     type Attached,
 } from './pierreEditor';
@@ -129,11 +134,15 @@ export const ModelCodeView: FC<{
     // Pierre owns the document while editing: it starts from `startedFrom` and reports each change into `text`.
     const [isEditing, setIsEditing] = useState(startsEditing);
     const editorInstance = useRef<Attached | null>(null);
+    // Editing asked for by a click or the overview's pencil, so the caret lands where the person pointed.
+    const openAt = useRef<{ point: CodePoint | null } | null>(
+        startsEditing ? { point: null } : null,
+    );
     const [history, setHistory] = useState({ canUndo: false, canRedo: false });
     const addToStudioChat = useAddToStudioChat();
     const addToChat = () => {
         const picked = readSelection(editorInstance.current);
-        if (!picked || !addToStudioChat) return;
+        if (!picked || !addToStudioChat) return false;
         addToStudioChat({
             modelName,
             fieldName: null,
@@ -143,6 +152,7 @@ export const ModelCodeView: FC<{
             fieldType: null,
             code: { path: `${modelName}.yml`, ...picked },
         });
+        return true;
     };
     // Pierre keeps the first options it is given, so the chip reads the latest through a ref.
     const addToChatRef = useRef(addToChat);
@@ -153,6 +163,12 @@ export const ModelCodeView: FC<{
                 (attached) => {
                     editorInstance.current = attached;
                     setHistory({ canUndo: false, canRedo: false });
+                    const asked = openAt.current;
+                    openAt.current = null;
+                    if (asked)
+                        requestAnimationFrame(() =>
+                            attached.focus(asked.point ?? undefined),
+                        );
                 },
                 () => addToChatRef.current(),
             ),
@@ -207,8 +223,9 @@ export const ModelCodeView: FC<{
         return () => cancelAnimationFrame(frame);
     }, [line, modelName]);
 
-    const startEditing = () => {
+    const startEditing = (event: MouseEvent) => {
         if (!canEdit) return;
+        openAt.current = { point: pointInCode(event) };
         setStartedFrom(shownContent);
         setIsEditing(true);
         setRevision((current) => current + 1);
@@ -237,7 +254,13 @@ export const ModelCodeView: FC<{
                         return;
                     }
                     setJustSaved({ over: content, content: result.content });
-                    setNotice(null);
+                    const savedTo = shown?.workspace?.name;
+                    setNotice({
+                        tone: 'info',
+                        text: savedTo
+                            ? `Saved to ${savedTo}.`
+                            : 'Saved as a new draft.',
+                    });
                     stopEditing();
                 },
                 onError: (error) =>
@@ -269,14 +292,31 @@ export const ModelCodeView: FC<{
                 </Text>
                 {shownContent === null ? null : !canEdit ? (
                     readOnlyReason ? (
-                        <Text fz="xs" c="dimmed" truncate maw={320}>
-                            {readOnlyReason}
-                        </Text>
+                        <Group gap={4} wrap="nowrap" miw={0}>
+                            <MantineIcon
+                                icon={IconLock}
+                                size={14}
+                                color="dimmed"
+                            />
+                            <Text
+                                fz="xs"
+                                c="dimmed"
+                                truncate
+                                maw={320}
+                                title={readOnlyReason}
+                            >
+                                {readOnlyReason}
+                            </Text>
+                        </Group>
                     ) : null
+                ) : !isDirty ? (
+                    <Text fz="xs" c="dimmed" truncate maw={240}>
+                        {where ? `Saves to ${where}` : 'Saving starts a draft'}
+                    </Text>
                 ) : null}
                 {editing ? (
                     <>
-                        <Tooltip label="Undo (⌘Z)">
+                        <Tooltip label={`Undo (${MOD_KEY}Z)`}>
                             <ActionIcon
                                 aria-label="Undo"
                                 className={classes.history}
@@ -286,7 +326,7 @@ export const ModelCodeView: FC<{
                                 <MantineIcon icon={IconArrowBackUp} />
                             </ActionIcon>
                         </Tooltip>
-                        <Tooltip label="Redo (⇧⌘Z)">
+                        <Tooltip label={`Redo (${REDO_KEYS})`}>
                             <ActionIcon
                                 aria-label="Redo"
                                 className={classes.history}
@@ -318,7 +358,7 @@ export const ModelCodeView: FC<{
                                     {where
                                         ? `Saves to ${where}`
                                         : 'Starts a draft'}
-                                    <Kbd size="xs">⌘S</Kbd>
+                                    <Kbd size="xs">{`${MOD_KEY}S`}</Kbd>
                                 </Group>
                             }
                         >
@@ -365,9 +405,8 @@ export const ModelCodeView: FC<{
                     if (key === 's') {
                         event.preventDefault();
                         submit();
-                    } else if (key === 'l' && addToStudioChat) {
+                    } else if (key === 'l' && addToChat()) {
                         event.preventDefault();
-                        addToChat();
                     }
                 }}
             >
@@ -391,6 +430,8 @@ export const ModelCodeView: FC<{
                                 editorOptions={editorOptions}
                                 edit={!save.isLoading}
                                 onEditChange={(event) => {
+                                    if (notice?.tone === 'info')
+                                        setNotice(null);
                                     if (text === null) {
                                         track({
                                             name: EventName.SEMANTIC_STUDIO_EDIT_STARTED,
@@ -413,7 +454,7 @@ export const ModelCodeView: FC<{
                 ) : marksDraft && drafted ? (
                     <Box
                         className={canEdit ? classes.clickToEdit : undefined}
-                        onClick={startEditing}
+                        onClick={(event) => startEditing(event.nativeEvent)}
                     >
                         <WorkerPoolContextProvider
                             poolOptions={PIERRE_POOL_OPTIONS}
@@ -429,7 +470,7 @@ export const ModelCodeView: FC<{
                 ) : (
                     <Box
                         className={canEdit ? classes.clickToEdit : undefined}
-                        onClick={startEditing}
+                        onClick={(event) => startEditing(event.nativeEvent)}
                     >
                         <WorkerPoolContextProvider
                             poolOptions={PIERRE_POOL_OPTIONS}

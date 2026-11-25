@@ -26,6 +26,8 @@ import {
 import { type FileTreeIconConfig } from '@pierre/trees';
 import { FileTree, useFileTree } from '@pierre/trees/react';
 import {
+    IconArrowBackUp,
+    IconArrowForwardUp,
     IconCheck,
     IconGitCompare,
     IconLock,
@@ -43,6 +45,7 @@ import {
 import { useSearchParams } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
+import MantineModal from '../../components/common/MantineModal';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import {
@@ -62,7 +65,9 @@ import {
     createEditor,
     editorOptionsFor,
     leaveOnEscape,
+    MOD_KEY,
     readSelection,
+    REDO_KEYS,
     type Attached,
 } from './pierreEditor';
 import { applyProposal, fileBefore } from './proposedFile';
@@ -455,7 +460,22 @@ export const SourcePane: FC<{
     // The file it was tracked for, so a first edit counts once per file.
     const trackedEdit = useRef<string | null>(null);
     // The text the editor was last mounted with, so a remount keeps what is typed.
-    const mounted = useRef<{ key: string; text: string | null } | null>(null);
+    const mounted = useRef<{
+        key: string;
+        text: string | null;
+        path: string | null;
+        revision: number;
+    } | null>(null);
+    // Where the caret and scroll were before a remount of the same text, put back once the new editor attaches.
+    const restoreView = useRef<{
+        state: ReturnType<Attached['getViewState']>;
+        focused: boolean;
+    } | null>(null);
+    const pane = useRef<HTMLDivElement>(null);
+    const [history, setHistory] = useState({ canUndo: false, canRedo: false });
+    const [isComparingProposal, setIsComparingProposal] = useState(false);
+    // A save from Published moves the file to its new change, so the save's notice follows it there.
+    const carriedNotice = useRef<{ key: string; notice: Notice } | null>(null);
     // A proposal shown in the editor is the agent's until the person types over it.
     const hasOwnEdits = isDirty && text !== offered;
     const isBeingSaved = isSaving && isDirty && !hasOwnEdits;
@@ -474,7 +494,12 @@ export const SourcePane: FC<{
         const kept = findUnsaved(editKey);
         setText(kept?.text ?? null);
         if (kept) sourceRevision.current = kept.revision;
-        setNotice(null);
+        setNotice(
+            carriedNotice.current?.key === editKey
+                ? carriedNotice.current.notice
+                : null,
+        );
+        carriedNotice.current = null;
         setProposedFrom(null);
         setOffered(null);
         setRevision((current) => current + 1);
@@ -522,7 +547,12 @@ export const SourcePane: FC<{
         trackedEdit.current = null;
         setTypedAsCode(null);
     };
-    const editContent = (contents: string) => {
+    const editContent = (
+        contents: string,
+        editor: { canUndo: boolean; canRedo: boolean },
+    ) => {
+        setHistory({ canUndo: editor.canUndo, canRedo: editor.canRedo });
+        if (notice?.tone === 'info') setNotice(null);
         if (shownLayout === 'code' && typedAsCode !== editKey)
             setTypedAsCode(editKey);
         if (contents !== value && trackedEdit.current !== editKey) {
@@ -589,14 +619,24 @@ export const SourcePane: FC<{
                     }
                     if (isStillOpen()) {
                         reset();
-                        setNotice(
-                            result.checked
-                                ? null
-                                : {
-                                      tone: 'info',
-                                      text: 'Saved. SQL is checked when dbt next builds the draft.',
-                                  },
-                        );
+                        const savedTo = target.prUrl
+                            ? `Saved to ${where}.`
+                            : 'Saved as a new draft.';
+                        const notice: Notice = {
+                            tone: 'info',
+                            text: result.checked
+                                ? savedTo
+                                : `${savedTo} SQL is checked when dbt next builds the draft.`,
+                        };
+                        setNotice(notice);
+                        carriedNotice.current = {
+                            key: unsavedEditKey(
+                                target.projectUuid,
+                                result.prUrl,
+                                path,
+                            ),
+                            notice,
+                        };
                     }
                     onSaved(result.prUrl, result.thread);
                 },
@@ -610,7 +650,7 @@ export const SourcePane: FC<{
     };
     const addToChat = () => {
         const picked = readSelection(codeRef.current);
-        if (!path || !picked) return;
+        if (!path || !picked) return false;
         onAddToChat({
             modelName: modelNameOfSourcePath(path),
             fieldName: null,
@@ -620,6 +660,7 @@ export const SourcePane: FC<{
             fieldType: null,
             code: { path, ...picked },
         });
+        return true;
     };
     // Pierre keeps the first options it is given, so they read the latest through refs.
     const actions = useRef({ addToChat });
@@ -628,6 +669,14 @@ export const SourcePane: FC<{
         const attach = (code: Attached) => {
             codeRef.current = code;
             code.setMarkers(markersRef.current);
+            setHistory({ canUndo: false, canRedo: false });
+            const restore = restoreView.current;
+            restoreView.current = null;
+            if (restore)
+                requestAnimationFrame(() => {
+                    if (restore.focused) code.focus();
+                    code.setViewState(restore.state);
+                });
         };
         const add = () => actions.current.addToChat();
         return [
@@ -679,8 +728,22 @@ export const SourcePane: FC<{
     // Pierre takes `edit` when it mounts, so a lock or unlock mounts it again.
     const surfaceKey = `${path}:${shownLayout}:${revision}:${canEdit}`;
     // Any remount (layout, a late comparison, a lock) restarts from what is typed so far.
-    if (mounted.current?.key !== surfaceKey)
-        mounted.current = { key: surfaceKey, text };
+    if (mounted.current?.key !== surfaceKey) {
+        const previous = mounted.current;
+        // Same file and text (a layout switch or a lock), so the caret and scroll stay where they were.
+        restoreView.current =
+            previous?.path === path &&
+            previous.revision === revision &&
+            codeRef.current
+                ? {
+                      state: codeRef.current.getViewState(),
+                      focused:
+                          pane.current?.contains(document.activeElement) ??
+                          false,
+                  }
+                : null;
+        mounted.current = { key: surfaceKey, text, path, revision };
+    }
     const current = {
         name: fileName(path),
         contents: mounted.current.text ?? loaded ?? '',
@@ -696,7 +759,7 @@ export const SourcePane: FC<{
               null;
     // Like a pull request's compare: what the diff starts from, and what it shows.
     const comparison = `${!canEdit ? 'Before' : isChangedFile || !target.prUrl ? 'Published' : 'This draft'} → ${
-        proposedFrom !== null
+        proposedFrom !== null && !hasOwnEdits
             ? isSaving
                 ? 'Being saved'
                 : 'Proposal'
@@ -707,7 +770,7 @@ export const SourcePane: FC<{
     const check = (isOn: boolean) =>
         isOn ? <MantineIcon icon={IconCheck} size={14} /> : null;
     return (
-        <Box className={tabClasses.codePane}>
+        <Box className={tabClasses.codePane} ref={pane}>
             <Group
                 className={tabClasses.codeToolbar}
                 justify="space-between"
@@ -863,6 +926,30 @@ export const SourcePane: FC<{
                             </Menu.Dropdown>
                         </Menu>
                     ) : null}
+                    {canEdit ? (
+                        <>
+                            <Tooltip label={`Undo (${MOD_KEY}Z)`}>
+                                <ActionIcon
+                                    aria-label="Undo"
+                                    className={tabClasses.history}
+                                    disabled={!history.canUndo}
+                                    onClick={() => codeRef.current?.undo()}
+                                >
+                                    <MantineIcon icon={IconArrowBackUp} />
+                                </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label={`Redo (${REDO_KEYS})`}>
+                                <ActionIcon
+                                    aria-label="Redo"
+                                    className={tabClasses.history}
+                                    disabled={!history.canRedo}
+                                    onClick={() => codeRef.current?.redo()}
+                                >
+                                    <MantineIcon icon={IconArrowForwardUp} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </>
+                    ) : null}
                     {isDirty && !isBeingSaved ? (
                         <>
                             <Button
@@ -883,7 +970,7 @@ export const SourcePane: FC<{
                                         {target.prUrl
                                             ? `Commits to ${where}`
                                             : 'Opens a pull request'}
-                                        <Kbd size="xs">⌘S</Kbd>
+                                        <Kbd size="xs">{`${MOD_KEY}S`}</Kbd>
                                     </Group>
                                 }
                             >
@@ -905,13 +992,57 @@ export const SourcePane: FC<{
             </Group>
             {proposed && proposed !== offered && hasOwnEdits ? (
                 <Alert color="violet" radius={0} py={8}>
-                    <Text fz="xs">
-                        {isSaving
-                            ? 'The agent is saving a change to this file. Discard your edits to see it here.'
-                            : 'The agent proposed a change to this file. Discard your edits to see it here.'}
-                    </Text>
+                    <Group gap="xs" justify="space-between" wrap="nowrap">
+                        <Text fz="xs">
+                            {isSaving
+                                ? 'The agent is saving a change to this file. Your edits are kept here.'
+                                : 'The agent proposed a change to this file. Your edits are kept here.'}
+                        </Text>
+                        <Button
+                            size="compact-xs"
+                            variant="default"
+                            flex="none"
+                            onClick={() => setIsComparingProposal(true)}
+                        >
+                            Compare
+                        </Button>
+                    </Group>
                 </Alert>
             ) : null}
+            <MantineModal
+                opened={isComparingProposal && !!proposed && hasOwnEdits}
+                onClose={() => setIsComparingProposal(false)}
+                title="Your edits → the agent's proposal"
+                size="xl"
+                cancelLabel="Keep my edits"
+                confirmLabel="Use the proposal"
+                onConfirm={() => {
+                    setIsComparingProposal(false);
+                    reset();
+                    setNotice(null);
+                }}
+            >
+                {proposed ? (
+                    <WorkerPoolContextProvider
+                        poolOptions={PIERRE_POOL_OPTIONS}
+                        highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                    >
+                        <MultiFileDiff
+                            oldFile={{ name: fileName(path), contents: value }}
+                            newFile={{
+                                name: fileName(path),
+                                contents: proposed,
+                            }}
+                            options={{
+                                ...options,
+                                diffStyle: 'unified',
+                                diffIndicators: 'bars',
+                                lineDiffType: 'word',
+                            }}
+                        />
+                    </WorkerPoolContextProvider>
+                ) : null}
+            </MantineModal>
             {notice ? (
                 <Alert
                     color={notice.tone === 'error' ? 'red' : 'blue'}
@@ -934,9 +1065,8 @@ export const SourcePane: FC<{
                     if (key === 's') {
                         event.preventDefault();
                         submit();
-                    } else if (key === 'l') {
+                    } else if (key === 'l' && addToChat()) {
                         event.preventDefault();
-                        addToChat();
                     }
                 }}
             >
@@ -963,7 +1093,10 @@ export const SourcePane: FC<{
                                     }
                                     editorOptions={fileOptions}
                                     onEditChange={(event) =>
-                                        editContent(event.file.contents)
+                                        editContent(
+                                            event.file.contents,
+                                            event.editor,
+                                        )
                                     }
                                     onEditComplete={() => 'accept'}
                                 />
@@ -992,7 +1125,10 @@ export const SourcePane: FC<{
                                     }
                                     editorOptions={diffOptions}
                                     onEditChange={(event) =>
-                                        editContent(event.file.contents)
+                                        editContent(
+                                            event.file.contents,
+                                            event.editor,
+                                        )
                                     }
                                     onEditComplete={() => 'accept'}
                                 />
