@@ -492,12 +492,17 @@ export const useInfiniteQueryResults = (
 
     const backoffRef = useRef(getInitialBackoffMs());
 
+    const isAwaitingSmallFirstPage =
+        fetchArgs.page === 1 &&
+        fetchArgs.pageSize < DEFAULT_RESULTS_PAGE_SIZE &&
+        fetchedPages.length === 0;
+
     const requestArgs = useMemo(
         () =>
-            fetchAll
+            fetchAll && !isAwaitingSmallFirstPage
                 ? { ...fetchArgs, pageSize: DEFAULT_RESULTS_PAGE_SIZE }
                 : fetchArgs,
-        [fetchAll, fetchArgs],
+        [fetchAll, fetchArgs, isAwaitingSmallFirstPage],
     );
 
     const nextPage = useQuery<
