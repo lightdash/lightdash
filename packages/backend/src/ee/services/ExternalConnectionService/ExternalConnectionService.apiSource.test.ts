@@ -1177,9 +1177,8 @@ describe('ExternalConnectionService live source rate limits', () => {
         );
     });
 
-    it('shows viewers the admin limits beside the integration own', async () => {
+    it('shows managers the admin limits beside the integration own', async () => {
         const { service } = buildService({
-            canManage: false,
             connections: [posthogConnection({ adminRateLimits: settings })],
         });
 
@@ -1199,6 +1198,17 @@ describe('ExternalConnectionService live source rate limits', () => {
                 { id: 'day', capacity: 500, defaultCapacity: null },
             ],
         });
+    });
+
+    it('refuses rate limit usage to those who do not manage the source', async () => {
+        const { service } = buildService({
+            canManage: false,
+            connections: [posthogConnection({ adminRateLimits: settings })],
+        });
+
+        await expect(
+            service.getApiSourceRateLimitUsage(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(ForbiddenError);
     });
 });
 
