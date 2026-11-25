@@ -160,6 +160,17 @@ export class GoogleSheetsFake {
                         this.beforeUpdate(call, this.updateCalls.length - 1);
                         const { sheet, startRow, startColumn } =
                             this.resolveRange(range);
+                        // Google grows the grid only when the start cell
+                        // is inside it.
+                        if (
+                            startRow >= sheet.rowCount ||
+                            startColumn >= sheet.columnCount
+                        ) {
+                            throw googleApiError(
+                                400,
+                                `Range (${range}) exceeds grid limits. Max rows: ${sheet.rowCount}, max columns: ${sheet.columnCount}`,
+                            );
+                        }
                         const rowCount = Math.max(
                             sheet.rowCount,
                             startRow + requestBody.values.length,

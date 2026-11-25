@@ -886,13 +886,46 @@ export class GoogleDriveClient {
         const startedAt = Date.now();
 
         const stagingTitle = `${stagingPrefix}${randomBytes(3).toString('hex')}`;
+        const targetGrid = {
+            rowCount: targetRowCount,
+            columnCount: targetColumnCount,
+        };
+        const growTarget =
+            target !== undefined &&
+            (targetRowCount !== target.rowCount ||
+                targetColumnCount !== target.columnCount);
+        // values.update grows the grid only when its start cell is inside
+        // it, so an in-place write needs the full grid before the first
+        // request. A staged write grows the tab in the swap.
         const setupRequests: sheets_v4.Schema$Request[] = [
             ...staleStagingSheets.map(({ sheetId }) => ({
                 deleteSheet: { sheetId },
             })),
             ...(target
                 ? []
-                : [{ addSheet: { properties: { title: tabTitle } } }]),
+                : [
+                      {
+                          addSheet: {
+                              properties: {
+                                  title: tabTitle,
+                                  gridProperties: targetGrid,
+                              },
+                          },
+                      },
+                  ]),
+            ...(inPlace && growTarget
+                ? [
+                      {
+                          updateSheetProperties: {
+                              properties: {
+                                  sheetId: target.sheetId,
+                                  gridProperties: targetGrid,
+                              },
+                              fields: 'gridProperties.rowCount,gridProperties.columnCount',
+                          },
+                      },
+                  ]
+                : []),
             ...(inPlace
                 ? []
                 : [
@@ -1017,11 +1050,7 @@ export class GoogleDriveClient {
                     stagingSheetId: stagingSheetId!,
                     rowCount,
                     columnCount,
-                    growGrid:
-                        targetRowCount !==
-                            (target?.rowCount ?? NEW_TAB_ROW_COUNT) ||
-                        targetColumnCount !==
-                            (target?.columnCount ?? NEW_TAB_COLUMN_COUNT),
+                    growGrid: growTarget,
                     gridRowCount: targetRowCount,
                     gridColumnCount: targetColumnCount,
                     formatRequests,

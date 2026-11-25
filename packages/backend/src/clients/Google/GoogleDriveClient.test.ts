@@ -915,6 +915,29 @@ describe('GoogleDriveClient', () => {
             );
         });
 
+        test('grows the tab before an in-place write that needs more rows', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeRows(999, 'old') },
+                // Room for the new data once, not twice.
+                { title: 'Filler', rowCount: 19_200_000, columnCount: 1 },
+            ]);
+            useFake(fake);
+            const rows = makeRows(30_000);
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                rows,
+            );
+
+            expect(fake.updateCalls[1].range).toBe("'Sheet1'!A25001");
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+            expect(fake.sheets.map((s) => s.title)).toEqual([
+                'Sheet1',
+                'Filler',
+            ]);
+        });
+
         test('says the tab can mix old and new rows when an in-place write fails', async () => {
             const fake = new GoogleSheetsFake([
                 { title: 'Sheet1', rows: makeRows(40_000, 'old') },
