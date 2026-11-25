@@ -1,4 +1,5 @@
 import {
+    AnyType,
     DimensionType,
     FieldType,
     GoogleSheetsQuotaError,
@@ -933,7 +934,7 @@ describe('GoogleDriveClient', () => {
             );
 
             expect((error as Error).message).toContain(
-                'Lightdash wrote 25,000 of 30,001 rows before the error, so the tab can contain a mix of new and old rows until the next successful sync.',
+                'Lightdash wrote 25,000 of 30,001 rows into the tab before the error, so the tab can contain a mix of new and old rows until the next successful sync.',
             );
         });
 
@@ -1012,6 +1013,99 @@ describe('GoogleDriveClient', () => {
             expect(fake.tabValues('Sheet1')).toEqual([]);
         });
 
+        const copyBatches = (fake: GoogleSheetsFake) =>
+            fake.batchUpdateCalls
+                .map((requests) =>
+                    (requests as Array<Record<string, AnyType>>).filter(
+                        (r) => 'copyPaste' in r,
+                    ),
+                )
+                .filter((copies) => copies.length > 0);
+
+        const makeWideRows = (count: number, prefix: string) => [
+            ['id', 'a', 'b', 'c', 'd', 'e', 'f'],
+            ...Array.from({ length: count }, (_, i) => [
+                i + 1,
+                `${prefix}-${i}`,
+                'b',
+                'c',
+                'd',
+                'e',
+                `${prefix}-f`,
+            ]),
+        ];
+
+        test('swaps a large result in batches of at most 100,000 rows and 500,000 cells', async () => {
+            const fake = new GoogleSheetsFake([
+                {
+                    title: 'Sheet1',
+                    rows: Array.from({ length: 200_000 }, (_, i) => [
+                        `old-${i}`,
+                        'old',
+                        'old',
+                        'old',
+                        'old',
+                        'old',
+                        'old',
+                        'old-extra-column',
+                    ]),
+                },
+            ]);
+            useFake(fake);
+            const rows = makeWideRows(150_000, 'new');
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                rows,
+            );
+
+            const batches = copyBatches(fake);
+            expect(batches).toHaveLength(3);
+            batches.forEach((copies) => {
+                expect(copies).toHaveLength(1);
+                const { startRowIndex, endRowIndex } =
+                    copies[0].copyPaste.source;
+                expect(endRowIndex - startRowIndex).toBeLessThanOrEqual(
+                    100_000,
+                );
+                expect((endRowIndex - startRowIndex) * 7).toBeLessThanOrEqual(
+                    500_000,
+                );
+            });
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+            expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
+        });
+
+        test('says the tab can mix old and new rows when a later swap batch fails', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeWideRows(150_000, 'old') },
+            ]);
+            useFake(fake);
+            let copyBatch = 0;
+            fake.beforeBatchUpdate = (requests) => {
+                if (requests.some((r) => 'copyPaste' in (r as object))) {
+                    copyBatch += 1;
+                    if (copyBatch >= 2) throw googleInternalError();
+                }
+            };
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeWideRows(150_000, 'new'),
+                ),
+            );
+
+            expect((error as Error).message).toContain(
+                'Lightdash wrote 71,428 of 150,001 rows into the tab before the error, so the tab can contain a mix of new and old rows until the next successful sync.',
+            );
+            expect(fake.tabValues('Sheet1')[71_427][1]).toBe('new-71426');
+            expect(fake.tabValues('Sheet1')[71_428][1]).toBe('old-71427');
+            expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
+        });
+
         test('writes to the first visible tab when no tab name is set', async () => {
             const fake = new GoogleSheetsFake([
                 { title: 'Hidden', rows: [['keep']] },
@@ -1068,6 +1162,16 @@ describe('GoogleDriveClient', () => {
                 [0, 1],
                 [1, 2],
                 [2, 3],
+            ]);
+        });
+
+        test('uses the 250,000-cell bound for wide rows', () => {
+            const { chunks } = planGoogleSheetsWriteChunks(
+                Array.from({ length: 10_000 }, () => Array(60).fill(1)),
+            );
+
+            expect(chunks.map((c) => c.end - c.start)).toEqual([
+                4_166, 4_166, 1_668,
             ]);
         });
 
