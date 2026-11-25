@@ -39,8 +39,8 @@
 
 .projectFilter {
     /* Gives up width before the controls drop under the tabs */
-    flex: 1 1 160px;
-    min-width: 160px;
+    flex: 1 1 140px;
+    min-width: 140px;
     max-width: 280px;
 }
 
