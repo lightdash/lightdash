@@ -1,3 +1,10 @@
+# [3.401.0](https://github.com/lightdash/lightdash/compare/3.400.0...3.401.0) (2026-11-25)
+
+
+### Features
+
+* **live-sources:** add Mixpanel events, saved funnels and retention ([#33315](https://github.com/lightdash/lightdash/issues/33315)) ([13d264d](https://github.com/lightdash/lightdash/commit/13d264d4f518d9a4d7e21971790ce75583e60eed))
+
 # [3.400.0](https://github.com/lightdash/lightdash/compare/3.399.0...3.400.0) (2026-11-25)
 
 
