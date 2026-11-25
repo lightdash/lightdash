@@ -7,7 +7,7 @@ import {
     assertUnreachable,
     type ExternalConnectionRateLimitUsage,
 } from '@lightdash/common';
-import { Button, Group, Progress, Text } from '@mantine/core';
+import { Box, Progress, Text } from '@mantine/core';
 import { useState, type FC, type FormEvent } from 'react';
 import { NumberInput } from '../../../components/common/NumberInput';
 import {
@@ -15,8 +15,11 @@ import {
     useUpdateLiveSourceRateLimits,
 } from '../hooks/useExternalConnectionRateLimitUsage';
 import classes from './LiveSources.module.css';
-import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
-import rowClasses from './LiveSourceSettingsRows.module.css';
+import {
+    SettingsCard,
+    SettingsRow,
+    SettingsSaveFooter,
+} from './LiveSourceSettingsRows';
 import {
     getMaxLimit,
     getRateLimitMeter,
@@ -111,14 +114,18 @@ const LimitRow: FC<{
                 size="sm"
                 value={meter.percent}
                 color={meter.isFull ? 'red' : undefined}
-                aria-label={`${row.label}: ${meter.text}`}
+                aria-label={`${row.label}: ${meter.text ?? 'No limit'}`}
             />
-            <Text
-                className={classes.rateCount}
-                c={meter.isCounted ? undefined : 'dimmed'}
-            >
-                {meter.text}
-            </Text>
+            <Box className={classes.rateCount}>
+                <Text inherit c={meter.isCounted ? undefined : 'dimmed'}>
+                    {meter.text}
+                </Text>
+                {row.defaultLimit === null ? null : (
+                    <Text className={classes.rateMax}>
+                        Max {row.defaultLimit.toLocaleString()}
+                    </Text>
+                )}
+            </Box>
             <NumberInput
                 w={96}
                 size="xs"
@@ -160,7 +167,11 @@ const RateLimitsForm: FC<
     };
 
     return (
-        <SettingsCard title="Rate limits" onSubmit={handleSubmit}>
+        <SettingsCard
+            title="Rate limits"
+            titleInfo={usage.note ?? undefined}
+            onSubmit={handleSubmit}
+        >
             {usage.limitedUntil ? (
                 <SettingsRow
                     label={`Paused by ${usage.integrationLabel}`}
@@ -183,31 +194,12 @@ const RateLimitsForm: FC<
                     }
                 />
             ))}
-            {usage.note ? (
-                <Text className={classes.rateNote}>{usage.note}</Text>
-            ) : null}
-            <Group
-                justify="flex-end"
-                gap="xs"
-                className={rowClasses.settingsFooter}
-            >
-                <Button
-                    size="xs"
-                    variant="default"
-                    disabled={!isChanged || update.isLoading}
-                    onClick={() => setEdits(null)}
-                >
-                    Cancel
-                </Button>
-                <Button
-                    type="submit"
-                    size="xs"
-                    disabled={!isChanged || !isValid}
-                    loading={update.isLoading}
-                >
-                    Save changes
-                </Button>
-            </Group>
+            <SettingsSaveFooter
+                isChanged={isChanged}
+                isValid={isValid}
+                isSaving={update.isLoading}
+                onCancel={() => setEdits(null)}
+            />
         </SettingsCard>
     );
 };
