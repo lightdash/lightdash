@@ -820,6 +820,22 @@ describe('useDesignMode', () => {
             surface.pickAt = null;
         });
 
+        it('a pick made after the page scrolled mid-hold sits where it was clicked', async () => {
+            await turnOn();
+            await keyDown({ key: 'Alt', altKey: true });
+            scroll = { x: 0, y: 150 };
+            click(20, 30);
+            await keyUp({ key: 'Alt' });
+            await waitFor(() => expect(collected()).toHaveLength(1));
+            const outline = document.querySelector<HTMLElement>(
+                '[data-mark-outline]',
+            )!;
+            // Where the pick is on screen (20) plus the scroll at the click.
+            expect(
+                parseFloat(outline.style.getPropertyValue('--mark-top')),
+            ).toBe(170);
+        });
+
         it('a click picks', async () => {
             await turnOn();
             await keyDown({ key: 'Alt', altKey: true });

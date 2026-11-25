@@ -1071,6 +1071,8 @@ export const useDesignMode = (
             if (!hold) return;
             if (!hold.current && hold.strokes.length === 0) {
                 hold.startAbs = performance.now();
+                // The page may have scrolled since the key went down.
+                hold.scroll = surfaceRef.current?.getScroll() ?? hold.scroll;
             }
             hold.current = {
                 points: hold.current
@@ -1099,6 +1101,9 @@ export const useDesignMode = (
             forgetHover();
             const drawnBefore = [...hold.strokes];
             const clickedAbs = performance.now();
+            // What was hit is measured now, so it is placed by the scroll now.
+            const clickedScroll =
+                surfaceRef.current?.getScroll() ?? hold.scroll;
             const found = pickAt(holdPoint(hold, point)).catch(() => null);
             hold.settled = hold.settled.then(async () => {
                 const hit = await found;
@@ -1114,7 +1119,11 @@ export const useDesignMode = (
                 refreshInk();
                 hold.lastPick = pickKey;
                 hold.marked = true;
-                const pick: Hold = { ...hold, startAbs: clickedAbs };
+                const pick: Hold = {
+                    ...hold,
+                    startAbs: clickedAbs,
+                    scroll: clickedScroll,
+                };
                 hold.startAbs = performance.now();
                 commit(pick, {
                     kind: 'pick',
