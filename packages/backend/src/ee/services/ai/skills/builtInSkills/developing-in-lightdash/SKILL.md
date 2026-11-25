@@ -16,8 +16,8 @@ This skill is shared with Lightdash's native agent, so its workflows use camelCa
 - Use `read_content`, `edit_content`, and `create_content` for `readContent`, `editContent`, and `createContent`.
 - Use `grep_fields` and `get_metadata` for native `grepFields` and `getMetadata`.
 - Use `generate_hashes` for native `generateHashes`.
-- Replace `runContentQuery` with `run_metric_query` to check a chart's governed semantic-layer `metricQuery`. Do not use `run_sql` for this check.
-- Use `run_sql` where a workflow runs `runContentQuery` with `source.type: "sql"` or `chartType: "sql_chart"`; for a saved SQL chart, pass the `sql` from `read_content`.
+- Replace `runContentQuery` with `run_metric_query` to check a chart's governed semantic-layer `metricQuery`; where `query` is the only query tool, run that `metricQuery` as one semanticLayer node instead. Do not use raw SQL for this check.
+- Use `run_sql` where a workflow runs `runContentQuery` with `source.type: "sql"` or `chartType: "sql_chart"`, or a sql node in `query` where it is the only query tool; for a saved SQL chart, pass the `sql` from `read_content`.
 - Use `query` where a workflow runs `runContentQuery` with `chartType: "composer_chart"`; pass the pipeline from `read_content`.
 
 ## What You Can Do

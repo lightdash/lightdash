@@ -1314,9 +1314,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
 If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
 Stop on terminal errors and correct the request before retrying.
 
-Returns every row of the node's result on completion.
-
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data.",
+Returns every row of the node's result on completion.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "properties": {

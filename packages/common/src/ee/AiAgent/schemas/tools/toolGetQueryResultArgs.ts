@@ -23,9 +23,7 @@ export const TOOL_GET_QUERY_RESULT_COMPOSER_DESCRIPTION = `Poll a node's result 
 ${MCP_QUERY_RESULT_USAGE_NOTE}
 ${MCP_QUERY_ERROR_NOTE}
 
-Returns every row of the node's result on completion.
-
-${MCP_ARTIFACT_INTEGRATION_NOTE}`;
+Returns every row of the node's result on completion.`;
 
 export const toolGetQueryResultArgsSchema = createToolSchema()
     .extend({

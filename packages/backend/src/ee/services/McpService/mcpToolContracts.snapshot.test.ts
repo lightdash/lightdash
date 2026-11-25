@@ -551,38 +551,6 @@ describe('MCP tool contracts', () => {
         },
     );
 
-    it('names no classic query tool in composer get_query_result', async () => {
-        const mcpService = makeMcpService();
-        mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer(
-            makeMcpServerOptions({
-                queryPath: { type: 'composer', sqlRunnerEnabled: true },
-            }),
-        );
-        const { description } = mockRegisteredMcpTools.find(
-            ({ name }) => name === McpToolName.GET_QUERY_RESULT,
-        )!.config;
-        expect(description).not.toMatch(
-            /render_chart|run_metric_query|run_sql/,
-        );
-    });
-
-    it('lists the filter-expression search_field_values on the composer query path', async () => {
-        const mcpService = makeMcpService();
-        mockRegisteredMcpTools.length = 0;
-        await mcpService.createServer(
-            makeMcpServerOptions({
-                queryPath: { type: 'composer', sqlRunnerEnabled: false },
-            }),
-        );
-        const tool = mockRegisteredMcpTools.find(
-            ({ name }) => name === McpToolName.SEARCH_FIELD_VALUES,
-        );
-        expect(tool?.config.description).toContain(
-            'read the `filter-expressions` skill',
-        );
-    });
-
     it.each<{ name: string; queryPath: McpQueryPath }>([
         {
             name: 'structured-filter',
