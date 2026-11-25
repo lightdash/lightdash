@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
+import { analyticsColorPalette } from '../../../analytics/systemExplores/analyticsColorPalette';
 import { type LibraryChartBinding } from '../../../analytics/systemExplores/libraryCharts';
 import {
     analyticsContentAsCode,
@@ -109,12 +110,24 @@ describe('AnalyticsProjectService', () => {
     const findSessionUserAndOrgByUuid = vi.fn();
     const isAnalyticsProjectEnabled = vi.fn();
     const getOrganizations = vi.fn();
+    const getColorPalettes = vi.fn();
+    const createColorPalette = vi.fn();
+    const updateColorPalette = vi.fn();
+    const resolveColorPalette = vi.fn();
+    const updateProjectColorPalette = vi.fn();
     const hash = getAnalyticsContentHash(
         analyticsExplores.createAnalyticsExplores(),
         analyticsContentAsCode,
         analyticsLibraryChartBindings,
     );
     const findProcessingStatus = vi.fn();
+    const managedPalette = {
+        ...analyticsColorPalette,
+        colorPaletteUuid: 'managed-palette',
+        organizationUuid: user.organizationUuid,
+        createdAt: new Date('2026-09-10T00:00:00Z'),
+        isActive: false,
+    };
     const service = new AnalyticsProjectService({
         analytics: { track },
         appModel: {
@@ -147,18 +160,28 @@ describe('AnalyticsProjectService', () => {
         },
         contentAsCodeSnapshotModel: { get: getSnapshot, upsert: saveSnapshot },
         organizationMemberProfileModel: { getOrganizationAdmins },
+        organizationModel: {
+            getColorPalettes,
+            createColorPalette,
+            updateColorPalette,
+        },
         usageDimensionsModel: { getOrganizations },
         coderService: { getOrCreateSpace, upsertChart, upsertDashboard },
         contentVerificationModel: { getByContentUuids: getVerifications },
         dashboardModel: { find: findDashboard, getByIdOrSlug: getDashboard },
         projectHomepageModel: { createPublishedDefaultIfAbsent },
-        savedChartModel: { get: getChart, find: findCharts },
+        savedChartModel: {
+            get: getChart,
+            find: findCharts,
+            resolveColorPalette,
+        },
         spaceModel: { get: getSpace, find: findSpaces },
         projectModel: {
             getSummary: getProjectSummary,
             getAllByOrganizationUuid,
             saveExploresToCache,
             getAnalyticsModelCounts,
+            updateColorPalette: updateProjectColorPalette,
             runInAnalyticsProvisioningLock: async <T>(
                 org: string,
                 callback: () => Promise<T>,
@@ -223,6 +246,17 @@ describe('AnalyticsProjectService', () => {
             defaultProject,
             analyticsProject,
         ]);
+        getColorPalettes.mockResolvedValue([managedPalette]);
+        resolveColorPalette.mockResolvedValue({
+            ...managedPalette,
+            paletteUuid: managedPalette.colorPaletteUuid,
+            paletteName: managedPalette.name,
+            source: {
+                type: 'project',
+                uuid: analyticsProject.projectUuid,
+                name: analyticsProject.name,
+            },
+        });
     });
 
     describe('visit tracking', () => {
@@ -1342,6 +1376,125 @@ describe('AnalyticsProjectService', () => {
             expect(
                 ensureRegistryChartTypes.mock.invocationCallOrder[0],
             ).toBeLessThan(upsertChart.mock.invocationCallOrder[0]);
+        });
+    });
+
+    describe('color palette', () => {
+        const inherited = {
+            colors: ['#000000'],
+            darkColors: null,
+            paletteUuid: 'org-palette',
+            paletteName: 'Brand',
+            source: {
+                type: 'organization',
+                uuid: user.organizationUuid,
+                name: user.organizationName,
+            },
+        };
+
+        it('creates the palette when missing and gives it to the analytics project', async () => {
+            getColorPalettes.mockResolvedValue([]);
+            createColorPalette.mockResolvedValue(managedPalette);
+            resolveColorPalette.mockResolvedValue(inherited);
+            await service.installSampleContent(user);
+            expect(createColorPalette).toHaveBeenCalledExactlyOnceWith(
+                user.organizationUuid,
+                analyticsColorPalette,
+            );
+            expect(updateColorPalette).not.toHaveBeenCalled();
+            expect(resolveColorPalette).toHaveBeenCalledExactlyOnceWith({
+                projectUuid: analyticsProject.projectUuid,
+            });
+            expect(updateProjectColorPalette).toHaveBeenCalledExactlyOnceWith(
+                analyticsProject.projectUuid,
+                managedPalette.colorPaletteUuid,
+            );
+            expect(
+                updateProjectColorPalette.mock.invocationCallOrder[0],
+            ).toBeLessThan(upsertChart.mock.invocationCallOrder[0]);
+        });
+
+        it('ships a light and dark colour for each of the 20 palette slots', () => {
+            const hex = /^#[0-9A-F]{6}$/;
+            for (const colors of [
+                analyticsColorPalette.colors,
+                analyticsColorPalette.darkColors,
+            ]) {
+                expect(colors).toHaveLength(20);
+                expect(new Set(colors).size).toBe(20);
+                expect(colors.every((color) => hex.test(color))).toBe(true);
+            }
+        });
+
+        it.each([
+            { colors: ['#000000'] },
+            { darkColors: null },
+            { darkColors: ['#000000'] },
+        ])('restores the bundled colours after drift: %j', async (drift) => {
+            getColorPalettes.mockResolvedValue([
+                { ...managedPalette, ...drift },
+            ]);
+            await service.installSampleContent(user);
+            expect(createColorPalette).not.toHaveBeenCalled();
+            expect(updateColorPalette).toHaveBeenCalledExactlyOnceWith(
+                user.organizationUuid,
+                managedPalette.colorPaletteUuid,
+                {
+                    uuid: managedPalette.colorPaletteUuid,
+                    colors: analyticsColorPalette.colors,
+                    darkColors: analyticsColorPalette.darkColors,
+                },
+            );
+            expect(updateProjectColorPalette).not.toHaveBeenCalled();
+        });
+
+        it('changes nothing when the palette is current and already assigned', async () => {
+            await service.installSampleContent(user);
+            await service.installSampleContent(user);
+            expect(createColorPalette).not.toHaveBeenCalled();
+            expect(updateColorPalette).not.toHaveBeenCalled();
+            expect(updateProjectColorPalette).not.toHaveBeenCalled();
+        });
+
+        it('keeps another palette an admin chose for the analytics project', async () => {
+            resolveColorPalette.mockResolvedValue({
+                ...inherited,
+                paletteUuid: 'admin-choice',
+                source: {
+                    type: 'project',
+                    uuid: analyticsProject.projectUuid,
+                    name: analyticsProject.name,
+                },
+            });
+            await service.installSampleContent(user);
+            expect(updateProjectColorPalette).not.toHaveBeenCalled();
+        });
+
+        it('leaves the project alone under an instance-wide palette override', async () => {
+            resolveColorPalette.mockResolvedValue({
+                ...inherited,
+                paletteUuid: null,
+                paletteName: null,
+                source: { type: 'config' },
+            });
+            await service.installSampleContent(user);
+            expect(updateProjectColorPalette).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['reading palettes', getColorPalettes],
+            ['creating the palette', createColorPalette],
+            ['assigning the palette', updateProjectColorPalette],
+        ])('still syncs content when %s fails', async (_step, failing) => {
+            getColorPalettes.mockResolvedValue([]);
+            createColorPalette.mockResolvedValue(managedPalette);
+            resolveColorPalette.mockResolvedValue(inherited);
+            failing.mockRejectedValue(new Error('palette unavailable'));
+            await expect(
+                service.installSampleContent(user),
+            ).resolves.toBeUndefined();
+            expect(upsertChart).toHaveBeenCalled();
+            expect(saveSnapshot).toHaveBeenCalled();
         });
     });
 

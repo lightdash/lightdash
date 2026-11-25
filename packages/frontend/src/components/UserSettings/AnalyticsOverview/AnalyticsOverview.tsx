@@ -264,8 +264,9 @@ const AnalyticsOverview = ({
         !isAdoption && !isDashboard && !isWaitingForDashboard;
     const charts = showsOwnCharts ? tab.charts : [];
     const summary = showsOwnCharts ? tab.summary : null;
-    // The headline numbers summarise the whole instance, so they sit on the first tab only
-    const showHeadlines = tab.id === 'overview';
+    // The headline numbers summarise the whole instance, so they sit on the first tab only, and only while
+    // that tab draws its own charts: the Overview dashboard has its own headline cards
+    const showHeadlines = tab.id === 'overview' && showsOwnCharts;
     const headlineSpecs = showHeadlines
         ? analyticsHeadlineMetrics.map(({ query }) => query)
         : [];

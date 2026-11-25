@@ -10,9 +10,20 @@ import {
     type DashboardAsCode,
 } from '@lightdash/common';
 import { adoptionChartSpecs, adoptionDashboardSpec } from './adoptionDashboard';
+import {
+    agentEvaluationsChartSpecs,
+    agentEvaluationsDashboardSpec,
+} from './agentEvaluationsDashboard';
+import { analyticsColorPalette } from './analyticsColorPalette';
+import { contentChartSpecs, contentDashboardSpec } from './contentDashboard';
+import { dataAppsChartSpecs, dataAppsDashboardSpec } from './dataAppsDashboard';
 import { embedChartSpecs, embedDashboardSpec } from './embedDashboard';
+import { homeChartSpecs, homeDashboardSpec } from './homeDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
+import { noteRows } from './noteLayout';
+import { peopleChartSpecs, peopleDashboardSpec } from './peopleDashboard';
 import { peopleNoActivityChartSpecs } from './peopleNoActivityCharts';
+import { toolsChartSpecs, toolsDashboardSpec } from './toolsDashboard';
 import { usageActivityOriginSql } from './usageActivityOrigin';
 import { usageChartSpecs } from './usageDashboardCharts';
 import { usageDashboardSpecs } from './usageDashboardDefinitions';
@@ -21,6 +32,7 @@ import type {
     AnalyticsContentBundle,
     UsageChartSpec,
 } from './usageDashboardTypes';
+import { usageFieldLabels } from './usageFieldLabels';
 
 const withContentLinks = (chart: ChartAsCode): ChartAsCode => {
     if (chart.chartConfig.type !== ChartType.TABLE) return chart;
@@ -112,6 +124,10 @@ const withPeopleDisplayName = (chart: ChartAsCode): ChartAsCode => {
     };
 };
 
+// Appended to every table that shows the person and Activity source columns.
+const userActivityNote =
+    'People without a display name show their primary email, or User <ID> if there is no email. No user recorded means the activity has no user ID. Activity source lists where the activity in each row came from; older rows can be missing embed context.';
+
 const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
     const tableName =
         chart.tableName === 'agent_request_starts'
@@ -136,7 +152,9 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
     const originField = `${tableName}_${originName}`;
     return {
         ...chart,
-        description: `${chart.description} Primary email is shown when no display name is available. User <ID> means neither a display name nor primary email is available; No user recorded means no user identifier was captured. Activity source lists captured origins within each row; older summaries cannot recover missing embed context.`,
+        description: [chart.description, userActivityNote]
+            .filter(Boolean)
+            .join(' '),
         metricQuery: {
             ...chart.metricQuery,
             dimensions: [
@@ -193,7 +211,21 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
     };
 };
 
+export const topCategoryRank = 'top_category_rank';
+const topCategoryTotal = 'top_category_total';
+
+// A chart's own labels, over the shared plain names for the fields it uses.
+const fieldLabelsOf = (spec: UsageChartSpec): Record<string, string> => ({
+    ...Object.fromEntries(
+        [...spec.dimensions, ...spec.metrics].flatMap((field) =>
+            usageFieldLabels[field] ? [[field, usageFieldLabels[field]]] : [],
+        ),
+    ),
+    ...spec.fieldLabels,
+});
+
 const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
+    const labels = fieldLabelsOf(spec);
     const [metric] = spec.metrics;
     const [dimension] = spec.dimensions;
     if (spec.visualization === 'number') {
@@ -234,12 +266,17 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
                 },
                 eChartsConfig: {
                     showAxisTicks: false,
+                    // An unnamed axis falls back to the raw field label.
+                    ...(labels[xField]
+                        ? { xAxis: [{ name: labels[xField] }] }
+                        : {}),
+                    ...(yFields.length === 1 && labels[yFields[0]]
+                        ? { yAxis: [{ name: labels[yFields[0]] }] }
+                        : {}),
                     series: yFields.map((field, index) => ({
-                        ...(spec.fieldLabels?.[field]
-                            ? { name: spec.fieldLabels[field] }
-                            : {}),
+                        ...(labels[field] ? { name: labels[field] } : {}),
                         type: seriesType,
-                        color: ['#5C7CFA', '#12B886'][index % 2],
+                        color: analyticsColorPalette.colors[index % 2],
                         showSymbol: true,
                         smooth: false,
                         yAxisIndex: 0,
@@ -261,13 +298,58 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
                         .map((field) => [field, { visible: false }]),
                 ),
                 ...Object.fromEntries(
-                    Object.entries(spec.fieldLabels ?? {}).map(
-                        ([field, name]) => [field, { name }],
-                    ),
+                    (spec.hiddenColumns ?? []).map((field) => [
+                        field,
+                        { visible: false },
+                    ]),
                 ),
+                ...Object.fromEntries(
+                    Object.entries(labels).map(([field, name]) => [
+                        field,
+                        { name },
+                    ]),
+                ),
+                // The ranking behind a top-categories filter is not something to read
+                ...(spec.topCategories
+                    ? {
+                          [topCategoryTotal]: { visible: false },
+                          [topCategoryRank]: { visible: false },
+                      }
+                    : {}),
             },
         },
     };
+};
+
+// Models named differently from the table their fields belong to
+const tableOfExplore: Record<string, string> = {
+    content_inventory: 'content_health',
+    agent_request_starts: 'agent_requests',
+};
+
+// Ranks each category by its total over the whole result, so a filter can keep the largest ones.
+const topCategoryCalculations = (
+    spec: UsageChartSpec,
+): NonNullable<UsageChartSpec['tableCalculations']> => {
+    if (!spec.topCategories) return [];
+    const table = tableOfExplore[spec.explore] ?? spec.explore;
+    const ref = (field: string) =>
+        `\${${table}.${field.slice(table.length + 1)}}`;
+    const { category, metric } = spec.topCategories;
+    return [
+        {
+            name: topCategoryTotal,
+            displayName: 'Category total',
+            type: TableCalculationType.NUMBER,
+            sql: `SUM(${ref(metric)}) OVER (PARTITION BY ${ref(category)})`,
+        },
+        {
+            name: topCategoryRank,
+            displayName: 'Category rank',
+            type: TableCalculationType.NUMBER,
+            sql: `DENSE_RANK() OVER (ORDER BY \${${topCategoryTotal}} DESC, ${ref(category)})`,
+        },
+    ];
 };
 
 /** Millisecond metrics show as whole numbers: decimals add noise, not signal. */
@@ -322,25 +404,45 @@ const buildChart = (
             ),
             ...wholeMillisecondOverrides(spec.metrics),
         },
-        filters: spec.filters
-            ? {
-                  dimensions: {
-                      id: `${spec.key}-filters`,
-                      and: spec.filters.map(
-                          ({ field, values, operator, settings }) => ({
-                              id: `${spec.key}-${field}`,
-                              target: { fieldId: field },
-                              operator: operator ?? FilterOperator.EQUALS,
-                              values,
-                              ...(settings ? { settings } : {}),
-                          }),
-                      ),
-                  },
-              }
-            : {},
+        filters: {
+            ...(spec.topCategories
+                ? {
+                      tableCalculations: {
+                          id: `${spec.key}-top-categories`,
+                          and: [
+                              {
+                                  id: `${spec.key}-${topCategoryRank}`,
+                                  target: { fieldId: topCategoryRank },
+                                  operator: FilterOperator.LESS_THAN_OR_EQUAL,
+                                  values: [spec.topCategories.count],
+                              },
+                          ],
+                      },
+                  }
+                : {}),
+            ...(spec.filters
+                ? {
+                      dimensions: {
+                          id: `${spec.key}-filters`,
+                          and: spec.filters.map(
+                              ({ field, values, operator, settings }) => ({
+                                  id: `${spec.key}-${field}`,
+                                  target: { fieldId: field },
+                                  operator: operator ?? FilterOperator.EQUALS,
+                                  values,
+                                  ...(settings ? { settings } : {}),
+                              }),
+                          ),
+                      },
+                  }
+                : {}),
+        },
         sorts: spec.sorts,
         limit: spec.limit,
-        tableCalculations: spec.tableCalculations ?? [],
+        tableCalculations: [
+            ...(spec.tableCalculations ?? []),
+            ...topCategoryCalculations(spec),
+        ],
         ...(spec.timezone ? { timezone: spec.timezone } : {}),
     },
     chartConfig: chartConfig(spec),
@@ -353,7 +455,7 @@ const buildChart = (
     },
 });
 
-const note = (
+export const note = (
     tabSlug: string,
     y: number,
     h: number,
@@ -372,16 +474,35 @@ const note = (
 
 const dashboardSpecs = [
     ...usageDashboardSpecs,
+    peopleDashboardSpec,
+    contentDashboardSpec,
+    dataAppsDashboardSpec,
+    toolsDashboardSpec,
+    agentEvaluationsDashboardSpec,
     adoptionDashboardSpec,
     embedDashboardSpec,
+    homeDashboardSpec,
 ];
 
 const allChartSpecs: UsageChartSpec[] = [
+    ...homeChartSpecs,
     ...usageChartSpecs,
+    ...peopleChartSpecs,
+    ...contentChartSpecs,
+    ...dataAppsChartSpecs,
+    ...toolsChartSpecs,
+    ...agentEvaluationsChartSpecs,
     ...adoptionChartSpecs,
     ...embedChartSpecs,
     ...peopleNoActivityChartSpecs,
 ];
+
+// A chart is found by its key alone, so two charts with one key would silently share a definition
+const duplicateKey = allChartSpecs
+    .map(({ key }) => key)
+    .find((key, index, keys) => keys.indexOf(key) !== index);
+if (duplicateKey)
+    throw new Error(`Duplicate built-in chart key: ${duplicateKey}`);
 
 export const usageLibraryChartBindings: ReadonlyMap<
     string,
@@ -436,20 +557,15 @@ export const buildUsageDashboards = (
             });
             let y = 0;
             for (const section of tab.sections) {
-                const noteHeight = section.caption
-                    ? 1
-                    : (section.noteHeight ?? 2);
-                dashboard.tiles.push(
-                    note(
-                        tab.key,
-                        y,
-                        noteHeight,
-                        section.caption
-                            ? section.description
-                            : `### ${section.title}\n\n${section.description}`,
-                    ),
-                );
-                y += noteHeight;
+                if (section.note !== false) {
+                    const content = section.caption
+                        ? section.description
+                        : `### ${section.title}\n\n${section.description}`;
+                    // As tall as its text and no taller
+                    const noteHeight = noteRows(content);
+                    dashboard.tiles.push(note(tab.key, y, noteHeight, content));
+                    y += noteHeight;
+                }
                 const sectionCharts = section.charts.map((key) => {
                     const definition = allChartSpecs.find(
                         (item) => item.key === key,
@@ -488,7 +604,7 @@ export const buildUsageDashboards = (
                     const summary = hasSummaryTrend && index < 2;
                     let h = 7;
                     if (isRow) h = section.rowHeight ?? 7;
-                    else if (isKpiRow) h = 3;
+                    else if (isKpiRow) h = 4;
                     // Compact breakdowns keep a short viewport; longer results
                     // remain available through the table's existing scroll.
                     else if (
@@ -502,8 +618,13 @@ export const buildUsageDashboards = (
                     let x = 0;
                     let tileY = nextY;
                     if (isRow) {
-                        w = 36 / sectionCharts.length;
-                        x = index * w;
+                        const widths =
+                            section.widths ??
+                            sectionCharts.map(() => 36 / sectionCharts.length);
+                        w = widths[index];
+                        x = widths
+                            .slice(0, index)
+                            .reduce((total, width) => total + width, 0);
                         tileY = sectionY;
                     } else if (isKpiRow) {
                         w = 36 / sectionCharts.length;
@@ -538,7 +659,7 @@ export const buildUsageDashboards = (
                         nextY += h;
                 });
                 if (isRow) y = sectionY + (section.rowHeight ?? 7);
-                else if (isKpiRow) y = sectionY + 3;
+                else if (isKpiRow) y = sectionY + 4;
                 else if (isVisualPair) y = sectionY + 7;
                 else y = nextY;
             }

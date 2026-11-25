@@ -10,7 +10,7 @@ const personDimensions = [
     'people_adoption_activity_status',
 ];
 const personLabels = {
-    people_adoption_activity_status: 'Observed activity',
+    people_adoption_activity_status: 'Activity status',
     people_adoption_activity_through_day: 'Activity through (UTC)',
     people_adoption_organization_role: 'Organization role',
 };
@@ -18,9 +18,9 @@ const personLabels = {
 export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
     {
         key: 'people-without-observed-activity',
-        name: 'People with no observed activity',
+        name: 'People who have not used Lightdash',
         description:
-            'Current active, setup-complete members with no confirmed human activity in retained capture. Missing capture does not prove someone has never used the app. A zero also requires checking that the membership snapshot is available.',
+            'Members with an active account and finished setup who have no confirmed human activity in recorded history. If this shows zero, check that the membership snapshot is available.',
         explore: 'people_adoption',
         dimensions: [],
         metrics: ['people_adoption_people_without_observed_activity'],
@@ -30,9 +30,9 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'people-without-observed-activity-detail',
-        name: 'Who has no observed activity?',
+        name: 'Who has not used Lightdash?',
         description:
-            'Current active, setup-complete members with no confirmed human activity in retained capture. This includes people with only automated, inferred or unclassified activity. Missing capture does not prove someone has never used the app. Missing names fall back to primary email, then user UUIDs; up to 1,000 people are shown.',
+            'Members with an active account and finished setup who have no confirmed human activity in recorded history. This includes people with only automated, inferred or unclassified activity. People without a name show their primary email, or their user UUID if there is no email. Shows up to 1,000 people. Activity through shows the cut-off date. The Date filter does not apply.',
         explore: 'people_adoption',
         dimensions: [
             ...personDimensions,
@@ -52,9 +52,9 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
     },
     {
         key: 'people-without-activity-30d-detail',
-        name: 'Who had no observed activity in the last 30 closed days?',
+        name: 'Who has not used Lightdash in the last 30 complete days?',
         description:
-            'Current active, setup-complete members without confirmed human activity in the 30 closed UTC days before the membership snapshot. Includes both people with no observed activity and previously observed people who have lapsed; activity status distinguishes them. Missing names fall back to primary email, then user UUIDs; up to 1,000 people are shown.',
+            'Members with an active account and finished setup who have no confirmed human activity in the 30 complete UTC days before the membership snapshot. Includes people who have never used Lightdash and people who used it earlier but have lapsed. Activity status tells them apart. People without a name show their primary email, or their user UUID if there is no email. Shows up to 1,000 people. Activity through shows the cut-off date. The Date filter does not apply.',
         explore: 'people_adoption',
         dimensions: [
             ...personDimensions,
@@ -75,24 +75,23 @@ export const peopleNoActivityChartSpecs: UsageChartSpec[] = [
         fieldLabels: {
             ...personLabels,
             people_adoption_last_observed_activity_at:
-                'Last observed human activity (UTC)',
-            people_adoption_days_since_last_activity:
-                'Days since observed human activity',
+                'Last used Lightdash (UTC)',
+            people_adoption_days_since_last_activity: 'Days since last use',
         },
     },
 ];
 
 export const peopleNoActivitySections = [
     {
-        title: 'People with no observed activity',
+        title: 'People who have not used Lightdash',
         description:
-            'Current active, setup-complete members, including people with no recorded events. Only confirmed human activity counts here; automated, inferred and unclassified activity are excluded. Missing capture does not prove inactivity.',
+            'Members with an active account and finished setup, with no views, queries or agent requests made by hand. Scheduled and automated runs do not count.',
         charts: ['people-without-observed-activity'],
     },
     {
-        title: 'Who has no observed activity?',
+        title: 'Who has not used Lightdash?',
         description:
-            'The first list covers all retained capture; the second covers the 30 closed UTC days before the latest membership snapshot and includes previously active people. Activity through shows the cutoff. These charts ignore event date, app and surface filters.',
+            'The first list covers all recorded history. The second covers the 30 complete UTC days before the latest membership snapshot.',
         charts: [
             'people-without-observed-activity-detail',
             'people-without-activity-30d-detail',

@@ -7,10 +7,15 @@ import {
     type ChartAsCode,
     type ConditionalFormattingConfig,
 } from '@lightdash/common';
+import { analyticsColorPalette } from './analyticsColorPalette';
 
 // A shared visual vocabulary for managed content. Queries and identity fields
 // stay intact: a table row can represent several people, projects or surfaces.
-const colors = ['#4263EB', '#0CA678', '#7950F2', '#E67700', '#D6336C'];
+// Series take the Analytics palette, so built-in charts match library charts.
+const colors = analyticsColorPalette.colors.slice(0, 5);
+// Meaning-bearing colours stay fixed whatever the palette.
+const positive = '#0CA678';
+const caution = '#E67700';
 const warning = '#C92A2A';
 
 const numberRule = (
@@ -98,8 +103,8 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
         columns.monthly_change = {
             name: 'Change',
             displayStyle: 'bar',
-            color: colors[1],
-            negativeColor: '#E67700',
+            color: positive,
+            negativeColor: caution,
             width: 180,
         };
         columns.monthly_change_percent = { name: 'Change (%)', width: 150 };
@@ -203,8 +208,8 @@ export const withAnalyticsChartPresentation = (
                         Unassigned: 'No owner',
                     },
                     groupColorOverrides: {
-                        'Active organization member': colors[1],
-                        Deactivated: colors[3],
+                        'Active organization member': positive,
+                        Deactivated: caution,
                         Unassigned: colors[0],
                         'Not an organization member': colors[2],
                         'Unknown user': '#868E96',
@@ -223,7 +228,7 @@ export const withAnalyticsChartPresentation = (
         else if (style === Compact.AUTO) style = undefined;
         let { name } = chart;
         if (chart.slug.endsWith('-avg-execution-time'))
-            name = 'Avg. warehouse time (ms)';
+            name = 'Average warehouse time (ms)';
         if (chart.slug.endsWith('-p90-execution-time'))
             name = 'P90 warehouse time (ms)';
         return {
@@ -252,12 +257,12 @@ export const withAnalyticsChartPresentation = (
                     legendMaxItemLength: 28,
                     groupColorOverrides: {
                         ...chart.chartConfig.config?.groupColorOverrides,
-                        completed: colors[1],
-                        complete: colors[1],
-                        success: colors[1],
+                        completed: positive,
+                        complete: positive,
+                        success: positive,
                         failed: warning,
                         error: warning,
-                        pending: colors[3],
+                        pending: caution,
                         unknown: '#868E96',
                     },
                 },
@@ -283,14 +288,6 @@ export const withAnalyticsChartPresentation = (
                 },
                 eChartsConfig: {
                     ...config.eChartsConfig,
-                    ...(chart.slug.endsWith('-apps-loads-and-observed-viewers')
-                        ? {
-                              xAxis: (config.eChartsConfig?.xAxis ?? [{}]).map(
-                                  // Empty strings fall back to the field label.
-                                  (axis) => ({ ...axis, name: ' ' }),
-                              ),
-                          }
-                        : {}),
                     showAxisTicks: false,
                     axisLabelFontSize: 11,
                     axisTitleFontSize: 12,

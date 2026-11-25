@@ -13,26 +13,25 @@ const adjacentMonth = `date_diff('month', ${previousMonth}, ${month}) = 1`;
 export const monthlyQueryComparisonCharts: UsageChartSpec[] = [
     {
         key: 'querying-users-month-over-month',
-        name: 'Querying users · month over month',
+        name: 'Users running queries by month',
         metric: 'unique_users',
         label: 'Querying users',
         description:
-            'Distinct recorded user IDs across each whole month, including service accounts. Missing user IDs are excluded. A person querying on several days counts once per month.',
+            'Distinct user IDs that ran a query in each month, including service accounts. Queries with no user ID are left out. A user who queried on several days counts once for the month. ∅ means there is no data for the month before, or it was zero. Months with no data are left out.',
     },
     {
         key: 'queries-run-month-over-month',
-        name: 'Queries run · month over month',
+        name: 'Queries run by month',
         metric: 'total_queries',
         label: 'Queries run',
         description:
-            'Recorded completed query attempts, including cache hits and execution errors. Excludes preview projects and failures before execution.',
+            'Completed query attempts, including cache hits and queries that failed during execution. Preview projects and queries that failed before execution are left out. ∅ means there is no data for the month before, or it was zero. Months with no data are left out.',
     },
 ].map(({ metric, label, ...spec }) => {
     const value = `\${query_events.${metric}}`;
     const previous = `LAG(${value}) OVER (ORDER BY ${month})`;
     return {
         ...spec,
-        description: `${spec.description} Last 12 completed UTC calendar months. Changes compare adjacent months only; missing history is not zero activity. Percentage change is unavailable when the previous value is zero. Capture and retention can leave months incomplete.`,
         explore: 'query_events',
         dimensions: ['query_events_event_ts_month'],
         metrics: [`query_events_${metric}`],

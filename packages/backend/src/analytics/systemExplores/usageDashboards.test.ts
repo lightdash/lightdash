@@ -196,7 +196,7 @@ describe('built-in usage dashboards', () => {
                 uuid: tab.slug!,
             })),
         };
-        expect(installed.tabs).toHaveLength(6);
+        expect(installed.tabs).toHaveLength(7);
         for (const tab of installed.tabs) {
             expect(getDashboardTabSlug(installed, tab.uuid)).toBe(tab.uuid);
         }
@@ -364,7 +364,7 @@ describe('built-in usage dashboards', () => {
                 ('org','project','','2026-01-05',19,NULL),
                 ('org','project','   ','2026-01-05',23,'data_app_events')`);
             const chart = charts.find(({ slug }) =>
-                slug.endsWith('-observed-activity-by-person-and-week'),
+                slug.endsWith('-power-users-queries-ai-and-exports'),
             )!;
             const rows = (
                 await db.runAndReadAll(compile(chart).query)
@@ -628,8 +628,28 @@ describe('built-in usage dashboards', () => {
         const heatmap = tile('agent-requests-by-agent-and-day');
         expect([heatmap.x, heatmap.w, heatmap.h]).toEqual([0, 36, 7]);
         const trellis = tile('agent-daily-requests-per-agent');
-        expect([trellis.x, trellis.w, trellis.h]).toEqual([0, 36, 9]);
+        expect([trellis.x, trellis.w, trellis.h]).toEqual([0, 36, 14]);
         expect(tile('agent-adoption-by-week').w).toBe(36);
+    });
+
+    it('draws Daily requests per agent as one smooth filled row per agent', () => {
+        expect(
+            analyticsLibraryChartBindings.get(
+                'lightdash-analytics-overview-agent-daily-requests-per-agent',
+            ),
+        ).toMatchObject({
+            slug: 'vega-trellis',
+            optionValues: {
+                arrangement: 'rows',
+                minPanelHeight: 70,
+                sharedY: false,
+                markType: 'area',
+                curve: 'smooth',
+                fillOpacity: 25,
+                showLine: true,
+                showPoints: false,
+            },
+        });
     });
 
     it('lists the Outcomes and Retries & consumption charts in order with their fallback types', () => {
@@ -659,10 +679,10 @@ describe('built-in usage dashboards', () => {
         );
         expect(slugsFor('consumption')).toEqual(
             [
-                'agent-retries-latency-and-consumption',
                 'ai-consumption-by-person-feature-and-model',
                 'ai-tokens-by-feature-and-model',
                 'request-consumption-by-outcome-and-feedback',
+                'agent-retries-latency-and-consumption',
             ].map((key) => `${prefix}${key}`),
         );
         const find = (key: string) =>
@@ -691,19 +711,28 @@ describe('built-in usage dashboards', () => {
                 `${prefix}ai-tokens-by-feature-and-model`,
             )?.slug,
         ).toBe('heatmap');
-        for (const key of [
-            'agent-feedback-rating-and-sample-coverage',
-            'ai-consumption-by-person-feature-and-model',
-        ]) {
-            expect(
-                analyticsLibraryChartBindings.get(`${prefix}${key}`)?.slug,
-            ).toBe('customizable-cartesian-chart');
-        }
+        expect(
+            analyticsLibraryChartBindings.get(
+                `${prefix}ai-consumption-by-person-feature-and-model`,
+            )?.slug,
+        ).toBe('customizable-cartesian-chart');
+        expect(
+            find('agent-feedback-rating-and-sample-coverage').chartConfig.type,
+        ).toBe(ChartType.TABLE);
+        expect(
+            analyticsLibraryChartBindings.get(
+                `${prefix}agent-feedback-rating-and-sample-coverage`,
+            )?.slug,
+        ).toBe('sortable-pivot-table');
+        expect(
+            find('request-consumption-by-outcome-and-feedback').chartConfig
+                .type,
+        ).toBe(ChartType.BIG_NUMBER);
         expect(
             analyticsLibraryChartBindings.get(
                 `${prefix}request-consumption-by-outcome-and-feedback`,
             )?.slug,
-        ).toBe('customizable-cartesian-chart');
+        ).toBe('big-number-with-sparkline-trend');
     });
 
     it('lays out the Outcomes and Retries sections as explicit rows', () => {
@@ -725,11 +754,11 @@ describe('built-in usage dashboards', () => {
         ].map((key) => tile('outcomes', key));
         expect([a.x, b.x, a.w, b.w, a.h, b.h]).toEqual([0, 18, 18, 18, 8, 8]);
         expect(a.y).toBe(b.y);
-        const retries = tile(
-            'consumption',
-            'agent-retries-latency-and-consumption',
+        const feedback = tile(
+            'outcomes',
+            'agent-feedback-rating-and-sample-coverage',
         );
-        expect([retries.x, retries.w, retries.h]).toEqual([0, 36, 7]);
+        expect([feedback.x, feedback.w, feedback.h]).toEqual([0, 36, 7]);
         const [person, tokens] = [
             'ai-consumption-by-person-feature-and-model',
             'ai-tokens-by-feature-and-model',
@@ -739,6 +768,17 @@ describe('built-in usage dashboards', () => {
         ]);
         expect([person.h, tokens.h]).toEqual([8, 8]);
         expect(person.y).toBe(tokens.y);
+        // The card shares the last row with the retries chart, so it never sits alone on a full-width row
+        const [failed, retries] = [
+            'request-consumption-by-outcome-and-feedback',
+            'agent-retries-latency-and-consumption',
+        ].map((key) => tile('consumption', key));
+        expect([failed.x, retries.x, failed.w, retries.w]).toEqual([
+            0, 12, 12, 24,
+        ]);
+        expect([failed.h, retries.h]).toEqual([6, 6]);
+        expect(failed.y).toBe(retries.y);
+        expect(failed.y).toBeGreaterThan(person.y);
     });
 
     it('renders Agents & AI sections as one-line captions and leaves other dashboards headed', () => {
@@ -915,7 +955,7 @@ describe('built-in usage dashboards', () => {
                     expect(h).toBe(1);
                     expect(properties.content).toBe(section.description);
                 } else {
-                    expect(h).toBe(section.noteHeight ?? 2);
+                    expect(h).toBe(2);
                     expect(properties.content).toBe(
                         `### ${section.title}\n\n${section.description}`,
                     );
@@ -1254,7 +1294,10 @@ describe('built-in usage dashboards', () => {
                     .get('active-people-week')
                     ?.map((row) => Number(row.user_activity_unique_users)),
             ).toEqual([2]);
-            expect(rows.get('people-history')).toHaveLength(3);
+            // The newest day has one person: the card never adds the two days together
+            expect(rows.get('active-people-latest-day')).toEqual([
+                expect.objectContaining({ user_activity_unique_users: 1n }),
+            ]);
             expect(rows.get('app-outcome-trend')).toEqual([
                 expect.objectContaining({
                     data_app_outcomes_html_error: 1n,
@@ -1557,6 +1600,76 @@ describe('built-in usage dashboards', () => {
 });
 
 describe('display fixes', () => {
+    it('names columns, legends and axes in plain words on Agents & AI and Queries', () => {
+        const bySlug = (slug: string) =>
+            charts.find((item) => item.slug === slug)!;
+        const retries = bySlug(
+            'lightdash-analytics-overview-agent-retries-latency-and-consumption',
+        );
+        if (retries.chartConfig.type !== ChartType.TABLE)
+            throw new Error('Expected table');
+        expect(retries.chartConfig.config?.columns).toMatchObject({
+            agent_requests_retry_count: { name: 'Retries' },
+            agent_requests_total_requests: { name: 'Agent requests' },
+            agent_requests_total_retry_overhead_ms: {
+                name: 'Time on failed attempts (ms)',
+            },
+            agent_requests_average_request_latency_ms: {
+                name: 'Average latency (ms)',
+            },
+            agent_requests_total_request_tokens: { name: 'Tokens' },
+        });
+        const completion = bySlug(
+            'lightdash-analytics-overview-agent-requests-and-completion-by-day',
+        );
+        if (completion.chartConfig.type !== ChartType.CARTESIAN)
+            throw new Error('Expected cartesian');
+        const completionConfig = completion.chartConfig.config?.eChartsConfig;
+        expect(completionConfig?.xAxis?.[0].name).toBe('Day');
+        expect(completionConfig?.yAxis?.[0].name).toBe('Agent requests');
+        expect(completionConfig?.series?.[0].name).toBe('Agent requests');
+        const slow = bySlug(
+            'lightdash-analytics-query-activity-slow-dashboards-tail-latency-and-demand',
+        );
+        if (slow.chartConfig.type !== ChartType.TABLE)
+            throw new Error('Expected table');
+        expect(slow.chartConfig.config?.columns).toMatchObject({
+            query_events_dashboard_name: { name: 'Dashboard' },
+            query_events_total_queries: { name: 'Queries' },
+            query_events_p95_response_time_ms: {
+                name: 'P95 response time (ms)',
+            },
+        });
+        // A blank axis name would fall back to the raw field label.
+        const daily = bySlug(
+            'lightdash-analytics-query-activity-queries-by-day',
+        );
+        if (daily.chartConfig.type !== ChartType.CARTESIAN)
+            throw new Error('Expected cartesian');
+        expect(daily.chartConfig.config?.eChartsConfig?.xAxis?.[0].name).toBe(
+            'Day',
+        );
+        expect(
+            analyticsLibraryChartBindings.get(daily.slug)?.optionValues,
+        ).toMatchObject({ xName: 'Day', yName: 'Queries' });
+    });
+
+    it('queries one row for the newest day on the latest-day cards', () => {
+        [
+            'lightdash-analytics-overview-ai-users',
+            'lightdash-analytics-overview-agent-requesters-trend',
+            'lightdash-analytics-query-activity-query-users',
+            'lightdash-analytics-query-activity-avg-execution-time',
+            'lightdash-analytics-query-activity-p90-execution-time',
+        ].forEach((slug) => {
+            const chart = charts.find((item) => item.slug === slug)!;
+            const [day] = chart.metricQuery.dimensions;
+            expect(compile(chart).query).toMatch(
+                new RegExp(`ORDER BY "${day}" DESC\\s+LIMIT 1\\s*$`),
+            );
+        });
+    });
+
     const prefix = 'lightdash-analytics-overview-';
     const byKey = (key: string) =>
         charts.find(({ slug }) => slug === `${prefix}${key}`)!;
@@ -1597,7 +1710,7 @@ describe('display fixes', () => {
             )?.optionValues,
         ).toMatchObject({
             xName: 'Retries',
-            yName: 'Requests',
+            yName: 'Agent requests',
             yRightName: 'Average latency (ms)',
         });
     });
@@ -1619,7 +1732,7 @@ describe('display fixes', () => {
             analyticsLibraryChartBindings.get(slow.slug)?.optionValues,
         ).toMatchObject({
             yName: 'Queries',
-            yRightName: 'p95 response time (ms)',
+            yRightName: 'P95 response time (ms)',
         });
         ['avg-execution-time', 'p90-execution-time'].forEach((key) => {
             const [metric] = bySuffix(key).metricQuery.metrics;
@@ -1629,15 +1742,173 @@ describe('display fixes', () => {
         });
     });
 
-    it('splits request consumption by outcome only, without a feedback legend', () => {
-        const binding = analyticsLibraryChartBindings.get(
-            `${prefix}request-consumption-by-outcome-and-feedback`,
-        )!;
-        expect(binding.fieldMapping).toEqual({
-            x: 'agent_requests_status',
-            m1: 'agent_requests_total_request_tokens',
+    it('shows feedback as one row per agent with the counts behind each share', () => {
+        const feedback = byKey('agent-feedback-rating-and-sample-coverage');
+        expect(feedback.name).toBe('Feedback by agent');
+        if (feedback.chartConfig.type !== ChartType.TABLE)
+            throw new Error('Expected table');
+        expect(feedback.chartConfig.config?.columns).toMatchObject({
+            agent_requests_agent_name: { name: 'Agent' },
+            agent_requests_agent_id: { visible: false },
+            agent_requests_total_requests: { name: 'Requests' },
+            agent_requests_feedback_coverage: { name: 'Share rated' },
+            agent_requests_negative_feedback_rate: { name: 'Negative share' },
+            // The plain table shows the share as a percentage already
+            share_rated_percent: { visible: false },
         });
-        expect(binding.query?.dimensions).toEqual(['agent_requests_status']);
-        expect(binding.query?.limit).toBe(30);
+        expect(
+            feedback.metricQuery.tableCalculations.map(
+                ({ name, displayName }) => [name, displayName],
+            ),
+        ).toEqual([
+            ['rated_requests', 'Rated'],
+            ['share_rated_percent', 'Share rated (%)'],
+            ['negative_ratings', 'Negative'],
+        ]);
+        expect(feedback.metricQuery.sorts).toEqual([
+            { fieldId: 'agent_requests_total_requests', descending: true },
+        ]);
+        const binding = analyticsLibraryChartBindings.get(feedback.slug)!;
+        expect(binding).toMatchObject({
+            slug: 'sortable-pivot-table',
+            minVersion: '0.14.0',
+            fieldMapping: {
+                rowDimension: 'agent_requests_agent_name',
+                metric: [
+                    'agent_requests_total_requests',
+                    'rated_requests',
+                    'share_rated_percent',
+                    'negative_ratings',
+                ],
+            },
+            optionValues: {
+                initialSort: 'firstValue',
+                rowHeaderName: 'Agent',
+                valueNames: 'Requests,Rated,Share rated (%),Negative',
+                density: 'compact',
+                decimalPlaces: 0,
+                showTotalsRow: false,
+                showMiniBars: false,
+            },
+            // The counts are table calculations, which only the shared query keeps
+            query: null,
+        });
+    });
+
+    it('counts rated and negative requests exactly from the two shares', async () => {
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            for (const stream of [
+                'agent_request_events',
+                'ai_usage',
+            ] as const) {
+                await db.run(
+                    `CREATE TABLE ${stream} (${compactedStreamSchemas[stream].map(({ name, type }) => `"${name}" ${type}`).join(',')})`,
+                );
+            }
+            for (const dimension of ['users', 'agents'] as const) {
+                await db.run(
+                    `CREATE TABLE ${usageDimensionTable(dimension)} (${usageDimensionSchemas[dimension].map(({ name, type }) => `"${name}" ${type}`).join(',')})`,
+                );
+            }
+            await db.run(`INSERT INTO lightdash_agents VALUES
+                ('org','busy','Busy agent'), ('org','quiet','Quiet agent')`);
+            // Busy agent: seven requests, three rated, one of them negative. Sevenths do not divide evenly.
+            // Quiet agent: one request with no rating.
+            const scores: (number | null)[] = [
+                1,
+                1,
+                -1,
+                null,
+                null,
+                null,
+                null,
+            ];
+            for (const [index, score] of scores.entries()) {
+                await db.run(`INSERT INTO agent_request_events
+                    (org_id, project_id, user_id, agent_id, thread_id, prompt_id, event_id, event_ts, stage, outcome, human_score, surface) VALUES
+                    ('org','project','user','busy','thread','p${index}','created:p${index}','2026-09-29 10:00:00','created',NULL,NULL,'web_app')
+                    ${score === null ? '' : `, ('org','project','user','busy','thread','p${index}','rating:p${index}','2026-09-29 10:01:00','feedback_updated',NULL,${score},NULL)`}`);
+            }
+            await db.run(`INSERT INTO agent_request_events
+                (org_id, project_id, user_id, agent_id, thread_id, prompt_id, event_id, event_ts, stage, outcome, human_score, surface) VALUES
+                ('org','project','user','quiet','thread','q0','created:q0','2026-09-29 10:00:00','created',NULL,NULL,'web_app')`);
+            const rows = (
+                await db.runAndReadAll(
+                    compile(byKey('agent-feedback-rating-and-sample-coverage'))
+                        .query,
+                )
+            ).getRowObjectsJS();
+            expect(
+                rows.map((row) => [
+                    row.agent_requests_agent_name,
+                    Number(row.agent_requests_total_requests),
+                    row.rated_requests === null
+                        ? null
+                        : Number(row.rated_requests),
+                    Number(row.share_rated_percent),
+                    Number(row.negative_ratings),
+                ]),
+            ).toEqual([
+                ['Busy agent', 7, 3, 43, 1],
+                ['Quiet agent', 1, 0, 0, 0],
+            ]);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+
+    it('totals the tokens of failed or cancelled requests on a card', () => {
+        const failed = byKey('request-consumption-by-outcome-and-feedback');
+        expect(failed.name).toBe(
+            'Tokens spent on failed or cancelled requests',
+        );
+        expect(failed.chartConfig).toMatchObject({
+            type: ChartType.BIG_NUMBER,
+            config: {
+                selectedField: 'agent_requests_total_request_tokens',
+            },
+        });
+        expect(failed.metricQuery.dimensions).toEqual([]);
+        expect(failed.metricQuery.metrics).toEqual([
+            'agent_requests_total_request_tokens',
+        ]);
+        // Clarification and pending are not failures
+        expect(failed.metricQuery.filters.dimensions).toMatchObject({
+            and: [
+                {
+                    target: { fieldId: 'agent_requests_status' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['error', 'cancelled'],
+                },
+            ],
+        });
+        expect(compile(failed).query).toContain("IN ('error','cancelled')");
+        const binding = analyticsLibraryChartBindings.get(failed.slug)!;
+        expect(binding).toMatchObject({
+            slug: 'big-number-with-sparkline-trend',
+            fieldMapping: {
+                value: 'agent_requests_total_request_tokens',
+                sparklineMetric: 'agent_requests_total_request_tokens',
+                time: 'agent_requests_requested_at_day',
+            },
+            optionValues: {
+                valueAggregation: 'sum',
+                label: 'Selected period',
+                showSparklineArea: true,
+            },
+            query: {
+                dimensions: ['agent_requests_requested_at_day'],
+                metrics: ['agent_requests_total_request_tokens'],
+            },
+        });
+        // A share of all linked tokens cannot come from a query that keeps only the failed requests
+        expect(binding.fieldMapping).not.toHaveProperty('secondary');
+        expect(binding.optionValues).not.toHaveProperty('secondaryLabel');
     });
 });

@@ -6,13 +6,19 @@ import {
     type ChartAsCode,
     type DashboardAsCode,
 } from '@lightdash/common';
-import { buildAiTokenDashboard } from './aiTokenDashboard';
+import {
+    aiTokenLibraryChartBindings,
+    buildAiTokenDashboard,
+} from './aiTokenDashboard';
 import { withAnalyticsChartPresentation } from './analyticsChartPresentation';
+import { analyticsColorPalette } from './analyticsColorPalette';
 import { withEmbedRankingPresentation } from './embedDashboard';
 import type { LibraryChartBinding } from './libraryCharts';
+import { noteRows } from './noteLayout';
 import { buildQueryCalendarChart } from './queryCalendarChart';
 import {
     buildUsageDashboards,
+    note,
     usageLibraryChartBindings,
     wholeMillisecondOverrides,
 } from './usageDashboards';
@@ -24,9 +30,6 @@ type SampleChart = Omit<
     key: string;
     libraryChart?: LibraryChartBinding;
 };
-
-const defaultChartDescription =
-    'Based on all available usage events for this organization.';
 
 const chart = (
     key: string,
@@ -41,6 +44,8 @@ const chart = (
         seriesNames?: string[];
         colors?: string[];
         axisLabel?: string;
+        // Big number only: show the latest day in the period, not the whole period.
+        latestDay?: boolean;
         libraryChart?: LibraryChartBinding;
     } = {},
 ): SampleChart => {
@@ -55,7 +60,7 @@ const chart = (
         key,
         libraryChart: options.libraryChart,
         name,
-        description: options.description ?? defaultChartDescription,
+        description: options.description ?? '',
         tableName,
         metricQuery: {
             exploreName: tableName,
@@ -88,14 +93,26 @@ const chart = (
                       eChartsConfig: {
                           showAxisTicks: false,
                           legend: { show: metrics.length > 1 },
-                          xAxis: [{ name: '', inverse: isBar }],
+                          // A blank name falls back to the raw field label.
+                          xAxis: [
+                              {
+                                  name:
+                                      dimension === 'event_ts_day' ? 'Day' : '',
+                                  inverse: isBar,
+                              },
+                          ],
                           yAxis: [{ name: options.axisLabel ?? '', min: '0' }],
                           series: metrics.map((field, index) => ({
                               type: isBar
                                   ? CartesianSeriesType.BAR
                                   : CartesianSeriesType.LINE,
-                              name: options.seriesNames?.[index] ?? name,
-                              color: options.colors?.[index] ?? '#5C7CFA',
+                              name:
+                                  options.seriesNames?.[index] ??
+                                  options.axisLabel ??
+                                  name,
+                              color:
+                                  options.colors?.[index] ??
+                                  analyticsColorPalette.colors[0],
                               showSymbol: false,
                               smooth: false,
                               encode: {
@@ -116,6 +133,17 @@ const chart = (
                   },
               },
     };
+    if (!dimensionId && options.latestDay) {
+        // A big number reads the first row, so one row for the newest day is all it needs.
+        const dayId = `${tableName}_event_ts_day`;
+        result.metricQuery = {
+            ...result.metricQuery,
+            dimensions: [dayId],
+            sorts: [{ fieldId: dayId, descending: true }],
+            limit: 1,
+        };
+        result.tableConfig = { columnOrder: [dayId, ...metrics] };
+    }
     if (dimensionId && options.visualization === 'donut') {
         result.chartConfig = {
             type: ChartType.PIE,
@@ -134,10 +162,10 @@ const chart = (
                     False: 'Cache miss',
                 },
                 groupColorOverrides: {
-                    true: '#12B886',
-                    false: '#5C7CFA',
-                    True: '#12B886',
-                    False: '#5C7CFA',
+                    true: '#34D399',
+                    false: '#FB923C',
+                    True: '#34D399',
+                    False: '#FB923C',
                 },
             },
         };
@@ -154,6 +182,8 @@ const aiUsageContent = {
         'AI calls, token consumption, adoption and model usage. Duplicate this dashboard to keep a customized copy separate from future built-in updates.',
     charts: [
         chart('ai-calls', 'AI calls', 'ai_usage', 'total_ai_calls', undefined, {
+            description:
+                'AI calls in the selected period. One agent request can make several AI calls.',
             libraryChart: {
                 slug: 'big-number-with-sparkline-trend',
                 minVersion: '0.7.1',
@@ -164,6 +194,7 @@ const aiUsageContent = {
                 },
                 optionValues: {
                     valueAggregation: 'sum',
+                    showComparison: false,
                     style: 'compact',
                     colorSparklineByTrend: false,
                     showLabel: true,
@@ -178,7 +209,8 @@ const aiUsageContent = {
                         { fieldId: 'ai_usage_event_ts_day', descending: false },
                     ],
                     limit: 500,
-                    description: defaultChartDescription,
+                    description:
+                        'AI calls in the selected period. One agent request can make several AI calls.',
                 },
             },
         }),
@@ -189,6 +221,7 @@ const aiUsageContent = {
             'total_tokens_used',
             undefined,
             {
+                description: 'Tokens used in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
                     minVersion: '0.7.1',
@@ -199,6 +232,7 @@ const aiUsageContent = {
                     },
                     optionValues: {
                         valueAggregation: 'sum',
+                        showComparison: false,
                         style: 'compact',
                         colorSparklineByTrend: false,
                         showLabel: true,
@@ -216,18 +250,21 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 500,
-                        description: defaultChartDescription,
+                        description: 'Tokens used in the selected period.',
                     },
                 },
             },
         ),
         chart(
             'ai-users',
-            'Users using AI',
+            'People using AI',
             'ai_usage',
             'unique_users',
             undefined,
             {
+                latestDay: true,
+                description:
+                    'People who used AI on the latest day in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
                     minVersion: '0.7.1',
@@ -268,6 +305,7 @@ const aiUsageContent = {
             'total_output_tokens',
             undefined,
             {
+                description: 'Output tokens in the selected period.',
                 libraryChart: {
                     slug: 'big-number-with-sparkline-trend',
                     minVersion: '0.7.1',
@@ -278,6 +316,7 @@ const aiUsageContent = {
                     },
                     optionValues: {
                         valueAggregation: 'sum',
+                        showComparison: false,
                         style: 'compact',
                         colorSparklineByTrend: false,
                         showLabel: true,
@@ -295,7 +334,7 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 500,
-                        description: defaultChartDescription,
+                        description: 'Output tokens in the selected period.',
                     },
                 },
             },
@@ -308,7 +347,8 @@ const aiUsageContent = {
             'event_ts_day',
             {
                 colors: ['#7950F2'],
-                axisLabel: 'Calls',
+                axisLabel: 'AI calls',
+                description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
                     minVersion: '0.17.1',
@@ -322,6 +362,8 @@ const aiUsageContent = {
                         stack: 'normal',
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
+                        xName: 'Day',
+                        yName: 'AI calls',
                     },
                     query: {
                         dimensions: ['ai_usage_event_ts_day', 'ai_usage_model'],
@@ -334,7 +376,7 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 5000,
-                        description: defaultChartDescription,
+                        description: '',
                     },
                 },
             },
@@ -348,6 +390,7 @@ const aiUsageContent = {
             {
                 colors: ['#339AF0'],
                 axisLabel: 'Tokens',
+                description: '',
                 libraryChart: {
                     slug: 'customizable-cartesian-chart',
                     minVersion: '0.17.1',
@@ -361,6 +404,8 @@ const aiUsageContent = {
                         stack: 'normal',
                         xAxisType: 'time',
                         xTimeFormat: '{MMM} {d}',
+                        xName: 'Day',
+                        yName: 'Tokens',
                     },
                     query: {
                         dimensions: ['ai_usage_event_ts_day', 'ai_usage_model'],
@@ -373,14 +418,14 @@ const aiUsageContent = {
                             },
                         ],
                         limit: 5000,
-                        description: defaultChartDescription,
+                        description: '',
                     },
                 },
             },
         ),
         chart(
             'tokens-by-model',
-            'Which models consume the most tokens?',
+            'Tokens by model (top 10)',
             'ai_usage',
             'total_tokens_used',
             'model',
@@ -389,26 +434,26 @@ const aiUsageContent = {
                 colors: ['#7950F2'],
                 axisLabel: 'Tokens',
                 description:
-                    'Top 10 models by total tokens, across all available events. Token volume is not monetary cost.',
+                    'Top 10 models by total tokens in the selected period.',
             },
         ),
         chart(
             'calls-by-model',
-            'Which models are called most often?',
+            'AI calls by model (top 10)',
             'ai_usage',
             'total_ai_calls',
             'model',
             {
                 visualization: 'bar',
                 colors: ['#339AF0'],
-                axisLabel: 'Calls',
+                axisLabel: 'AI calls',
                 description:
-                    'Top 10 models by AI calls across all available events. Compare with token volume to distinguish frequent calls from token-heavy calls.',
+                    'Top 10 models by AI calls in the selected period. Compare with tokens by model to tell frequent calls from token-heavy calls.',
             },
         ),
         chart(
             'tokens-by-feature',
-            'Token use by feature',
+            'Tokens by feature',
             'ai_usage',
             'total_tokens_used',
             'feature',
@@ -416,17 +461,21 @@ const aiUsageContent = {
                 visualization: 'bar',
                 colors: ['#7950F2'],
                 axisLabel: 'Tokens',
-                description:
-                    'Tokens by feature over the selected period. Token volume is not monetary cost.',
+                description: 'Tokens by feature in the selected period.',
                 libraryChart: {
                     slug: 'heatmap',
-                    minVersion: '0.4.2',
+                    minVersion: '0.5.0',
                     fieldMapping: {
                         x: 'ai_usage_event_ts_day',
                         y: 'ai_usage_feature',
                         value: 'ai_usage_total_tokens_used',
                     },
-                    optionValues: {},
+                    optionValues: {
+                        xTitle: 'Day',
+                        yTitle: 'Feature',
+                        legendTitle: 'Tokens',
+                        legendFormat: 'compact',
+                    },
                     query: {
                         dimensions: [
                             'ai_usage_feature',
@@ -445,7 +494,7 @@ const aiUsageContent = {
                         ],
                         limit: 5000,
                         description:
-                            'Tokens per feature per day over the selected period. Token volume is not monetary cost.',
+                            'Tokens per feature per day in the selected period.',
                     },
                 },
             },
@@ -458,16 +507,18 @@ const aiUsageTilePositions: Record<
     string,
     { x: number; y: number; w: number; h: number }
 > = {
-    'ai-calls': { x: 0, y: 0, w: 9, h: 3 },
-    tokens: { x: 9, y: 0, w: 9, h: 3 },
-    'ai-users': { x: 18, y: 0, w: 9, h: 3 },
-    'output-tokens': { x: 27, y: 0, w: 9, h: 3 },
-    'tokens-by-feature': { x: 0, y: 3, w: 36, h: 7 },
-    'ai-calls-by-day': { x: 0, y: 10, w: 18, h: 7 },
-    'tokens-by-day': { x: 18, y: 10, w: 18, h: 7 },
-    'tokens-by-model': { x: 0, y: 17, w: 18, h: 8 },
-    'calls-by-model': { x: 18, y: 17, w: 18, h: 8 },
+    'ai-calls': { x: 0, y: 1, w: 9, h: 4 },
+    tokens: { x: 9, y: 1, w: 9, h: 4 },
+    'ai-users': { x: 18, y: 1, w: 9, h: 4 },
+    'output-tokens': { x: 27, y: 1, w: 9, h: 4 },
+    'tokens-by-feature': { x: 0, y: 5, w: 36, h: 7 },
+    'ai-calls-by-day': { x: 0, y: 12, w: 18, h: 7 },
+    'tokens-by-day': { x: 18, y: 12, w: 18, h: 7 },
+    'tokens-by-model': { x: 0, y: 19, w: 18, h: 8 },
+    'calls-by-model': { x: 18, y: 19, w: 18, h: 8 },
 };
+// One caption row above the Overview tiles, which start at y = 1.
+const aiUsageOverviewCaption = 'Tokens measure usage, not cost.';
 
 export const analyticsSampleDashboards = [
     aiUsageContent,
@@ -480,11 +531,12 @@ export const analyticsSampleDashboards = [
         charts: [
             chart(
                 'queries',
-                'Queries executed',
+                'Queries run',
                 'query_events',
                 'total_queries',
                 undefined,
                 {
+                    description: 'Queries run in the selected period.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.1',
@@ -495,6 +547,7 @@ export const analyticsSampleDashboards = [
                         },
                         optionValues: {
                             valueAggregation: 'sum',
+                            showComparison: false,
                             style: 'compact',
                             colorSparklineByTrend: false,
                             showLabel: true,
@@ -512,7 +565,7 @@ export const analyticsSampleDashboards = [
                                 },
                             ],
                             limit: 500,
-                            description: defaultChartDescription,
+                            description: 'Queries run in the selected period.',
                         },
                     },
                 },
@@ -524,6 +577,9 @@ export const analyticsSampleDashboards = [
                 'unique_users',
                 undefined,
                 {
+                    latestDay: true,
+                    description:
+                        'Users who ran queries on the latest day in the selected period. Service accounts count as users.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.1',
@@ -552,7 +608,7 @@ export const analyticsSampleDashboards = [
                             ],
                             limit: 500,
                             description:
-                                'People who ran queries on the latest day in the selected period, with the daily trend. A person active on several days is counted on each of those days.',
+                                'Users who ran queries on the latest day in the selected period, with the daily trend. A user active on several days is counted on each of those days.',
                         },
                     },
                 },
@@ -564,6 +620,9 @@ export const analyticsSampleDashboards = [
                 'avg_warehouse_execution_time_ms',
                 undefined,
                 {
+                    latestDay: true,
+                    description:
+                        'Average warehouse execution time on the latest day in the selected period.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.1',
@@ -607,6 +666,9 @@ export const analyticsSampleDashboards = [
                 'p90_warehouse_execution_time_ms',
                 undefined,
                 {
+                    latestDay: true,
+                    description:
+                        'P90 warehouse execution time on the latest day in the selected period.',
                     libraryChart: {
                         slug: 'big-number-with-sparkline-trend',
                         minVersion: '0.7.1',
@@ -652,6 +714,7 @@ export const analyticsSampleDashboards = [
                 {
                     colors: ['#12B886'],
                     axisLabel: 'Queries',
+                    description: '',
                     libraryChart: {
                         slug: 'customizable-cartesian-chart',
                         minVersion: '0.17.1',
@@ -665,6 +728,8 @@ export const analyticsSampleDashboards = [
                             stack: 'normal',
                             xAxisType: 'time',
                             xTimeFormat: '{MMM} {d}',
+                            xName: 'Day',
+                            yName: 'Queries',
                             splitTopN: 6,
                         },
                         query: {
@@ -684,7 +749,8 @@ export const analyticsSampleDashboards = [
                                 },
                             ],
                             limit: 5000,
-                            description: `Queries per day, split by the six contexts that ran the most, with the rest grouped as Other. ${defaultChartDescription}`,
+                            description:
+                                'Queries per day, split by the six contexts that ran the most queries, with the rest grouped as Other.',
                         },
                     },
                 },
@@ -699,24 +765,24 @@ export const analyticsSampleDashboards = [
                     colors: ['#339AF0'],
                     axisLabel: 'Users',
                     description:
-                        'Distinct users with query events each day. Daily distinct counts should not be summed to calculate period-wide unique users.',
+                        'Distinct users who ran queries each day. Daily counts cannot be added up to get users for the whole period.',
                 },
             ),
             chart(
                 'query-cache',
-                'How often are queries served from cache?',
+                'Queries by cache hit',
                 'query_events',
                 'total_queries',
                 'cache_hit',
                 {
                     visualization: 'donut',
                     description:
-                        'Share of query events by cache-hit flag. Missing flags remain a separate group rather than being treated as misses.',
+                        'Share of queries by whether they hit the cache. Queries with no cache information are a separate group, not counted as misses.',
                 },
             ),
             chart(
                 'queries-by-context',
-                'Where are queries coming from?',
+                'Queries by context (top 10)',
                 'query_events',
                 'total_queries',
                 'context',
@@ -725,12 +791,12 @@ export const analyticsSampleDashboards = [
                     colors: ['#339AF0'],
                     axisLabel: 'Queries',
                     description:
-                        'Top 10 query contexts by volume across all available events.',
+                        'Top 10 query contexts by number of queries in the selected period.',
                 },
             ),
             chart(
                 'query-latency-by-day',
-                'Is warehouse execution getting slower?',
+                'Warehouse time by day (average and P90)',
                 'query_events',
                 'avg_warehouse_execution_time_ms',
                 'event_ts_day',
@@ -738,9 +804,9 @@ export const analyticsSampleDashboards = [
                     extraMetrics: ['p90_warehouse_execution_time_ms'],
                     seriesNames: ['Average', 'P90'],
                     colors: ['#12B886', '#F59F00'],
-                    axisLabel: 'Milliseconds',
+                    axisLabel: 'Warehouse time (ms)',
                     description:
-                        'Daily average and 90th percentile warehouse execution time, in milliseconds. Missing timings are excluded; this is not end-to-end request latency.',
+                        'Average and P90 warehouse execution time per day, in milliseconds. Queries with no timing are left out. This is warehouse time only, not end-to-end response time.',
                 },
             ),
         ],
@@ -792,65 +858,83 @@ const legacyContentAsCode: {
             version: 1,
             tabs: [],
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
-            tiles: charts.map(({ slug }, index) => {
-                if (bundle.key === aiUsageContent.key) {
-                    const key = slug.slice(bundle.key.length + 1);
-                    const position = aiUsageTilePositions[key];
-                    if (!position) {
-                        throw new Error(
-                            `No Overview position for chart ${key}`,
-                        );
-                    }
-                    return {
-                        uuid: undefined,
-                        tileSlug: slug,
-                        type: DashboardTileTypes.SAVED_CHART,
-                        ...position,
-                        tabSlug: null,
-                        properties: { chartSlug: slug },
-                    };
-                }
-                if (
-                    bundle.key === 'lightdash-analytics-query-activity' &&
-                    index >= 4
-                ) {
-                    const positions = [
-                        { x: 0, y: 9, w: 18, h: 8 },
-                        { x: 18, y: 9, w: 18, h: 8 },
-                        { x: 0, y: 17, w: 18, h: 8 },
-                        { x: 18, y: 17, w: 18, h: 8 },
-                        { x: 0, y: 25, w: 36, h: 8 },
-                        { x: 0, y: 3, w: 36, h: 6 },
-                    ];
-                    return {
-                        uuid: undefined,
-                        tileSlug: slug,
-                        type: DashboardTileTypes.SAVED_CHART,
-                        ...positions[index - 4],
-                        tabSlug: null,
-                        properties: { chartSlug: slug },
-                    };
-                }
-                let width = index < 4 ? 9 : 18;
-                if (
-                    index >= 4 &&
-                    index === charts.length - 1 &&
-                    index % 2 === 0
-                ) {
-                    width = 36;
-                }
-                return {
-                    uuid: undefined,
-                    tileSlug: slug,
-                    type: DashboardTileTypes.SAVED_CHART,
-                    x: index < 4 ? index * 9 : ((index - 4) % 2) * 18,
-                    y: index < 4 ? 0 : 3 + Math.floor((index - 4) / 2) * 8,
-                    w: width,
-                    h: index < 4 ? 3 : 8,
-                    tabSlug: null,
-                    properties: { chartSlug: slug },
-                };
-            }),
+            tiles: [
+                ...(bundle.key === aiUsageContent.key
+                    ? [
+                          note(
+                              'overview',
+                              0,
+                              noteRows(aiUsageOverviewCaption),
+                              aiUsageOverviewCaption,
+                          ),
+                      ]
+                    : []),
+                ...charts.map(
+                    ({ slug }, index): DashboardAsCode['tiles'][number] => {
+                        if (bundle.key === aiUsageContent.key) {
+                            const key = slug.slice(bundle.key.length + 1);
+                            const position = aiUsageTilePositions[key];
+                            if (!position) {
+                                throw new Error(
+                                    `No Overview position for chart ${key}`,
+                                );
+                            }
+                            return {
+                                uuid: undefined,
+                                tileSlug: slug,
+                                type: DashboardTileTypes.SAVED_CHART,
+                                ...position,
+                                tabSlug: null,
+                                properties: { chartSlug: slug },
+                            };
+                        }
+                        if (
+                            bundle.key ===
+                                'lightdash-analytics-query-activity' &&
+                            index >= 4
+                        ) {
+                            const positions = [
+                                { x: 0, y: 10, w: 18, h: 8 },
+                                { x: 18, y: 10, w: 18, h: 8 },
+                                { x: 0, y: 18, w: 18, h: 8 },
+                                { x: 18, y: 18, w: 18, h: 8 },
+                                { x: 0, y: 26, w: 36, h: 8 },
+                                { x: 0, y: 4, w: 36, h: 6 },
+                            ];
+                            return {
+                                uuid: undefined,
+                                tileSlug: slug,
+                                type: DashboardTileTypes.SAVED_CHART,
+                                ...positions[index - 4],
+                                tabSlug: null,
+                                properties: { chartSlug: slug },
+                            };
+                        }
+                        let width = index < 4 ? 9 : 18;
+                        if (
+                            index >= 4 &&
+                            index === charts.length - 1 &&
+                            index % 2 === 0
+                        ) {
+                            width = 36;
+                        }
+                        return {
+                            uuid: undefined,
+                            tileSlug: slug,
+                            type: DashboardTileTypes.SAVED_CHART,
+                            x: index < 4 ? index * 9 : ((index - 4) % 2) * 18,
+                            y:
+                                index < 4
+                                    ? 0
+                                    : 4 + Math.floor((index - 4) / 2) * 8,
+                            w: width,
+                            h: index < 4 ? 4 : 8,
+                            tabSlug: null,
+                            properties: { chartSlug: slug },
+                        };
+                    },
+                ),
+            ],
         },
     };
 });
@@ -860,9 +944,11 @@ export const analyticsDefaultSpace = {
     name: 'Default dashboards',
 };
 
+const aiTokenDashboard = buildAiTokenDashboard();
+
 export const analyticsContentAsCode = [
     ...buildUsageDashboards(legacyContentAsCode),
-    buildAiTokenDashboard(),
+    aiTokenDashboard,
 ].map(({ dashboard, charts }) => ({
     dashboard: {
         ...dashboard,
@@ -883,4 +969,5 @@ export const analyticsLibraryChartBindings: ReadonlyMap<
 > = new Map([
     ...usageLibraryChartBindings,
     ...legacyLibraryChartBindings(analyticsSampleDashboards),
+    ...aiTokenLibraryChartBindings(aiTokenDashboard.charts),
 ]);

@@ -1,6 +1,7 @@
 import { ChartType } from '@lightdash/common';
 import { buildAiTokenDashboard } from './aiTokenDashboard';
 import { withAnalyticsChartPresentation } from './analyticsChartPresentation';
+import { analyticsColorPalette } from './analyticsColorPalette';
 import {
     analyticsContentAsCode,
     analyticsSampleDashboards,
@@ -189,5 +190,63 @@ describe('analytics chart presentation', () => {
                 }
             }
         }
+    });
+});
+
+describe('built-in chart colours', () => {
+    const managed = analyticsColorPalette.colors.slice(0, 5);
+    // Fixed colours that carry meaning: outcomes, change direction and greys.
+    const semantic = [
+        '#0CA678',
+        '#E67700',
+        '#C92A2A',
+        '#34D399',
+        '#FB923C',
+        '#868E96',
+        '#ADB5BD',
+    ];
+
+    it('draws every cartesian series in the Analytics palette, in order', () => {
+        const series = analyticsContentAsCode.flatMap(({ charts }) =>
+            charts.flatMap((chart) =>
+                chart.chartConfig.type === ChartType.CARTESIAN
+                    ? [chart.chartConfig.config?.eChartsConfig?.series ?? []]
+                    : [],
+            ),
+        );
+        expect(series.length).toBeGreaterThan(0);
+        for (const items of series) {
+            expect(items.map(({ color }) => color)).toEqual(
+                items.map((_, index) => managed[index % managed.length]),
+            );
+        }
+    });
+
+    it('colours pie slices from the palette or a fixed semantic colour', () => {
+        const overrides = analyticsContentAsCode.flatMap(({ charts }) =>
+            charts.flatMap((chart) =>
+                chart.chartConfig.type === ChartType.PIE
+                    ? Object.values(
+                          chart.chartConfig.config?.groupColorOverrides ?? {},
+                      )
+                    : [],
+            ),
+        );
+        expect(overrides.length).toBeGreaterThan(0);
+        expect(overrides).toContain(managed[0]);
+        expect(
+            overrides.filter(
+                (color) => ![...managed, ...semantic].includes(color),
+            ),
+        ).toEqual([]);
+    });
+
+    it('colours the top five AI token groups from the palette and Other grey', () => {
+        const chart = buildAiTokenDashboard().charts.find(
+            ({ chartConfig }) => chartConfig.type === ChartType.CUSTOM,
+        )!;
+        expect(JSON.stringify(chart.chartConfig)).toContain(
+            JSON.stringify([...managed, '#868e96']),
+        );
     });
 });

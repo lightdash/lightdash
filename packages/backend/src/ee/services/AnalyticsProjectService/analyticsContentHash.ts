@@ -4,6 +4,7 @@ import {
     type Explore,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
+import { analyticsColorPalette } from '../../../analytics/systemExplores/analyticsColorPalette';
 import type { LibraryChartBinding } from '../../../analytics/systemExplores/libraryCharts';
 import { analyticsDefaultSpace } from '../../../analytics/systemExplores/sampleContent';
 import { buildContentAsCodeSnapshot } from '../../../services/CoderService/contentAsCodeSnapshot';
@@ -20,6 +21,7 @@ export const getAnalyticsContentHash = (
                 explores,
                 space: analyticsDefaultSpace,
                 homepage: analyticsHomepage,
+                palette: analyticsColorPalette,
                 bindings: [...bindings.entries()].sort(([a], [b]) =>
                     a.localeCompare(b),
                 ),

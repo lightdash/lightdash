@@ -121,7 +121,7 @@ describe('Analytics settings overview', () => {
             'ai_usage',
         );
         await userEvent.click(
-            screen.getByRole('button', { name: 'View ai agent requests' }),
+            screen.getByRole('button', { name: 'View agent requests' }),
         );
         expect(
             screen.getByRole('tab', { name: 'Agents & AI' }),
@@ -130,7 +130,9 @@ describe('Analytics settings overview', () => {
             screen.getByRole('region', { name: 'AI calls by day' }),
         ).toBeVisible();
         expect(
-            screen.queryByRole('region', { name: 'Most active users' }),
+            screen.queryByRole('region', {
+                name: 'Most active people (top 10)',
+            }),
         ).not.toBeInTheDocument();
     });
 
@@ -195,7 +197,7 @@ describe('Analytics settings overview', () => {
 
         expect(
             await within(
-                screen.getByRole('button', { name: 'View ai agent requests' }),
+                screen.getByRole('button', { name: 'View agent requests' }),
             ).findByText('900'),
         ).toBeVisible();
         const ninetyDayQueries = () =>
@@ -309,8 +311,82 @@ describe('Analytics settings overview', () => {
             }),
         ).not.toBeInTheDocument();
         // A tab with no dashboard still draws its own charts
-        await userEvent.click(screen.getByRole('tab', { name: 'Users' }));
+        await userEvent.click(screen.getByRole('tab', { name: 'People' }));
         expect(screen.getByText('Last 30 days')).toBeVisible();
+    });
+
+    it('opens on the Overview dashboard once it has synced, with no charts or queries of its own', async () => {
+        const launched = mockQueries();
+        renderOverview([
+            {
+                slug: 'lightdash-analytics-home',
+                name: 'Overview',
+                verification: {},
+            } as DashboardBasicDetails,
+        ]);
+        expect(await screen.findByTitle('Overview dashboard')).toHaveAttribute(
+            'src',
+            '/minimal/projects/analytics-slug/dashboards/lightdash-analytics-home?hideTabs=true',
+        );
+        expect(
+            screen.getByRole('link', { name: 'Open full dashboard' }),
+        ).toHaveAttribute(
+            'href',
+            '/projects/analytics-slug/dashboards/lightdash-analytics-home/view',
+        );
+        expect(
+            screen.queryByRole('button', { name: 'View agent requests' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('region', { name: 'Queries by day' }),
+        ).not.toBeInTheDocument();
+        expect(launched).toEqual([]);
+    });
+
+    it('draws its own Overview where the dashboard is missing or not verified', async () => {
+        mockQueries();
+        renderOverview([
+            {
+                slug: 'lightdash-analytics-home',
+                name: 'Overview',
+                verification: null,
+            } as DashboardBasicDetails,
+        ]);
+        expect(
+            screen.getByRole('button', { name: 'View active people' }),
+        ).toBeVisible();
+        expect(
+            screen.getByRole('region', { name: 'Queries by day' }),
+        ).toBeVisible();
+        expect(
+            screen.queryByTitle('Overview dashboard'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Open full dashboard' }),
+        ).toBeDisabled();
+    });
+
+    it('waits for the list of dashboards before choosing what Overview shows', () => {
+        const launched = mockQueries();
+        renderWithProviders(
+            <MemoryRouter>
+                <AnalyticsOverview
+                    projectUuid="analytics"
+                    projectUrlIdentifier="analytics-slug"
+                    dashboards={[]}
+                    areDashboardsLoading
+                    heading={null}
+                    actions={null}
+                />
+            </MemoryRouter>,
+        );
+        expect(
+            screen.getByRole('status', { name: 'Loading dashboard' }),
+        ).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: 'View active people' }),
+        ).not.toBeInTheDocument();
+        expect(launched).toEqual([]);
     });
 
     it('hands the chosen date range and project to a dashboard that has those filters', async () => {

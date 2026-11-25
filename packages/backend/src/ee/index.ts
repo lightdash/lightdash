@@ -220,6 +220,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getContentAsCodeSnapshotModel(),
                     organizationMemberProfileModel:
                         models.getOrganizationMemberProfileModel(),
+                    organizationModel: models.getOrganizationModel(),
                     usageDimensionsModel: models.getUsageDimensionsModel(),
                     coderService: repository.getCoderService(),
                     contentVerificationModel:
