@@ -102,20 +102,13 @@ const DUCKDB_ALIAS_GUIDANCE =
 const getComposerNodeKindsDescription = ({
     enablePythonNodes,
     sqlNote,
-    listMergeKind,
 }: ComposerQueriesDescriptionOptions & {
     sqlNote: string;
-    // The MCP description has no room for it under the client text limit
-    listMergeKind: boolean;
 }) => `Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
 - "sql": raw SQL against the project warehouse; ${sqlNote}.
-- "external": DuckDB SQL over uploaded or connected tables declared in "tables".${
-    listMergeKind
-        ? `
-- "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice. Prefer it to a duckdb join of semanticLayer nodes.`
-        : ''
-}
+- "external": DuckDB SQL over uploaded or connected tables declared in "tables".
+- "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice. Prefer it to a duckdb join of semanticLayer nodes.
 - "duckdb": DuckDB SQL over other results declared in "references".${
     enablePythonNodes
         ? `
@@ -136,24 +129,22 @@ export const getToolComposerQueriesDescription = ({
 ${getComposerNodeKindsDescription({
     enablePythonNodes,
     sqlNote: 'may need user approval',
-    listMergeKind: true,
 })}
 
 Earlier nodes: a node id names one node for the whole thread. A node reads a node from an earlier call by its node id in "references", or "sources" for a merge, without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
 
-export const MCP_TOOL_QUERY_DESCRIPTION = `Run a pipeline: up to ${MAX_SOURCE_QUERIES_PER_SUBMISSION} nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
+export const MCP_TOOL_QUERY_DESCRIPTION = `Run one query, or a pipeline of up to ${MAX_SOURCE_QUERIES_PER_SUBMISSION} nodes submitted together, where duckdb and python nodes join or transform other nodes' results.
 
 ${getComposerNodeKindsDescription({
     enablePythonNodes: true,
-    sqlNote: 'available only when run_sql is',
-    listMergeKind: false,
+    sqlNote: 'needs SQL Runner permission',
 })}
 
-A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "filters" are flat expression strings; each field documents its contract.
+A python node's "code" defines \`def run(inputs, params)\`; semanticLayer "filters" are flat expression strings.
 
-Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes bring everything they read and are served from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
+Reuse earlier nodes: a result returns a sessionId that saves its finished nodes. On a follow-up, pass it and read saved nodes by node id in "references" or merge "sources", submitting only the new nodes; they bring what they read and come from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; resubmit a failed or unfinished node under the same id.
 
-Returns every row of the terminal node, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on each queryUuid it names; it also fetches every row of any node's result by its queryUuid. query computes data only; it saves and charts nothing.`;
+A result holds every row of the terminal node. While it is running, call get_query_result on each queryUuid it names, which also fetches every row of any node by its queryUuid. query computes data only; it saves and charts nothing.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({
@@ -446,7 +437,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             )
             .min(2)
             .describe(
-                "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused.",
+                "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused. Fix a refused merge by narrowing a source with a filter, raising its limit or adding the missing join key, rather than joining the same nodes in a duckdb node, which can count a metric twice.",
             ),
         joinKey: z
             .array(
@@ -476,7 +467,9 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
                 }),
             )
             .min(1)
-            .describe('The dimensions the sources share, one entry per key.'),
+            .describe(
+                'The dimensions the sources share, one entry per key. Sources that share them at the same grain belong in a merge; a key that has to be computed or truncated to a shared grain needs a duckdb join instead.',
+            ),
         joinType: z
             .enum(MergeJoinType)
             .describe(
