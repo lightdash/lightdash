@@ -6,16 +6,17 @@
     overflow: hidden;
 }
 
+/* The tile is full width so the footer line reaches its edges; the rest keeps the tile padding. */
 .content {
     flex: 1;
     min-height: 0;
     overflow: auto;
+    padding: 0 var(--mantine-spacing-md) var(--mantine-spacing-xs);
 }
 
 .footer {
     flex-shrink: 0;
-    margin-top: calc(var(--mantine-spacing-xs) / 2);
-    padding-top: calc(var(--mantine-spacing-xs) / 2);
+    padding: calc(var(--mantine-spacing-xs) / 2) var(--mantine-spacing-sm);
     border-top: 1px solid var(--mantine-color-default-border);
     color: var(--mantine-color-ldGray-5);
 }

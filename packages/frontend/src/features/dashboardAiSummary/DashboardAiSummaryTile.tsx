@@ -13,13 +13,7 @@ import {
 } from '@mantine/core';
 import { IconChartBar, IconClock, IconRefresh } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import {
-    useEffect,
-    useRef,
-    useState,
-    type ComponentProps,
-    type FC,
-} from 'react';
+import { useEffect, useRef, type ComponentProps, type FC } from 'react';
 import {
     highlightDashboardTiles,
     scrollToDashboardTile,
@@ -44,7 +38,7 @@ const chartCountLabel = (count: number) =>
     `${count} ${count === 1 ? 'chart' : 'charts'}`;
 
 const Message: FC<{ children: string }> = ({ children }) => (
-    <Text fz="sm" c="dimmed">
+    <Text fz="sm" c="dimmed" className={styles.content}>
         {children}
     </Text>
 );
@@ -69,7 +63,6 @@ const SourceCharts: FC<{ charts: AiSummaryChart[]; disabled: boolean }> = ({
     charts,
     disabled,
 }) => {
-    const [opened, setOpened] = useState(false);
     const stopHighlight = useRef<(() => void) | null>(null);
     const clearHighlight = () => {
         stopHighlight.current?.();
@@ -83,32 +76,21 @@ const SourceCharts: FC<{ charts: AiSummaryChart[]; disabled: boolean }> = ({
     const allTileUuids = charts.map((chart) => chart.tileUuid);
 
     return (
-        <Menu
-            position="top-start"
-            opened={opened}
-            onChange={setOpened}
-            onClose={clearHighlight}
-        >
+        <Menu position="top-start" onClose={clearHighlight}>
             <Menu.Target>
-                <Tooltip
-                    label={`Written from ${chartCountLabel(charts.length)}`}
-                    disabled={opened}
+                <Button
+                    variant="subtle"
+                    color="gray"
+                    size="compact-xs"
+                    className={styles.footerControl}
+                    aria-label={`Written from ${chartCountLabel(charts.length)}`}
+                    disabled={disabled}
+                    leftSection={<MantineIcon icon={IconChartBar} size={14} />}
+                    onMouseEnter={() => highlight(allTileUuids)}
+                    onMouseLeave={clearHighlight}
                 >
-                    <Button
-                        variant="subtle"
-                        color="gray"
-                        size="compact-xs"
-                        className={styles.footerControl}
-                        disabled={disabled}
-                        leftSection={
-                            <MantineIcon icon={IconChartBar} size={14} />
-                        }
-                        onMouseEnter={() => highlight(allTileUuids)}
-                        onMouseLeave={clearHighlight}
-                    >
-                        {charts.length}
-                    </Button>
-                </Tooltip>
+                    {charts.length}
+                </Button>
             </Menu.Target>
             <Menu.Dropdown>
                 <Menu.Label>Charts in this summary</Menu.Label>
@@ -151,18 +133,16 @@ const SummaryFooter: FC<{
                     </Box>
                 </Tooltip>
             </Group>
-            <Tooltip label="Regenerate">
-                <ActionIcon
-                    color="gray"
-                    size="xs"
-                    className={styles.footerControl}
-                    aria-label="Regenerate"
-                    disabled={!canRegenerate || isUpdating}
-                    onClick={onRegenerate}
-                >
-                    <MantineIcon icon={IconRefresh} size={14} />
-                </ActionIcon>
-            </Tooltip>
+            <ActionIcon
+                color="gray"
+                size="xs"
+                className={styles.footerControl}
+                aria-label="Regenerate"
+                disabled={!canRegenerate || isUpdating}
+                onClick={onRegenerate}
+            >
+                <MantineIcon icon={IconRefresh} size={14} />
+            </ActionIcon>
         </Group>
     );
 };
@@ -192,7 +172,7 @@ const SummaryBody: FC<{ tile: AiSummaryTile; isEditMode: boolean }> = ({
 
     if (isEditMode) {
         return (
-            <Stack gap="xs">
+            <Stack gap="xs" className={styles.content}>
                 <Text fz="xs" c="dimmed">
                     {tile.properties.instructions
                         ? 'Instructions'
@@ -211,7 +191,11 @@ const SummaryBody: FC<{ tile: AiSummaryTile; isEditMode: boolean }> = ({
         );
     }
     if (availability.status === 'loading') {
-        return <SummarySkeleton label="Loading summary" />;
+        return (
+            <Box className={styles.content}>
+                <SummarySkeleton label="Loading summary" />
+            </Box>
+        );
     }
     if (availability.status === 'unavailable') {
         return <Message>{UNAVAILABLE_COPY[availability.reason]}</Message>;
@@ -261,18 +245,20 @@ const SummaryBody: FC<{ tile: AiSummaryTile; isEditMode: boolean }> = ({
         return <Message>The charts in this summary have no results.</Message>;
     }
     return (
-        <SummarySkeleton
-            label={
-                isWaitingForCharts
-                    ? 'Waiting for charts to load'
-                    : 'Writing summary'
-            }
-        />
+        <Box className={styles.content}>
+            <SummarySkeleton
+                label={
+                    isWaitingForCharts
+                        ? 'Waiting for charts to load'
+                        : 'Writing summary'
+                }
+            />
+        </Box>
     );
 };
 
 const DashboardAiSummaryTile: FC<Props> = (props) => (
-    <TileBase title={props.tile.properties.title} {...props}>
+    <TileBase title={props.tile.properties.title} fullWidth {...props}>
         <Box className={clsx('non-draggable', styles.body)}>
             <SummaryBody tile={props.tile} isEditMode={props.isEditMode} />
         </Box>
