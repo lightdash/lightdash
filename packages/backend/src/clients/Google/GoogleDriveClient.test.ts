@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { google } from 'googleapis';
 import { GoogleDriveClient } from './GoogleDriveClient';
+import { googleInternalError, GoogleSheetsFake } from './GoogleSheetsFake.mock';
 
 vi.mock('googleapis', () => ({
     google: {
@@ -579,6 +580,86 @@ describe('GoogleDriveClient', () => {
                     'file-id',
                 ),
             ).rejects.toMatchObject({ name: 'UnexpectedGoogleSheetsError' });
+        });
+    });
+
+    describe('large writes', () => {
+        const makeClient = () =>
+            new GoogleDriveClient({
+                lightdashConfig: {
+                    auth: {
+                        google: {
+                            oauth2ClientId: 'client-id',
+                            oauth2ClientSecret: 'client-secret',
+                        },
+                    },
+                },
+            } as never);
+
+        const useFake = (fake: GoogleSheetsFake) => {
+            vi.mocked(google.auth.fromJSON).mockReturnValue({} as never);
+            vi.mocked(google.auth.GoogleAuth).mockImplementation(
+                function MockGoogleAuth(this: object) {
+                    return this;
+                } as never,
+            );
+            vi.mocked(google.sheets).mockReturnValue(fake.api() as never);
+        };
+
+        const makeRows = (count: number, prefix = 'row') => [
+            ['id', 'hash'],
+            ...Array.from({ length: count }, (_, i) => [
+                i + 1,
+                `${prefix}-${i + 1}-${'x'.repeat(64)}`,
+            ]),
+        ];
+
+        beforeEach(() => {
+            vi.useFakeTimers();
+        });
+
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        // Google fails a single values.update with "Internal error
+        // encountered" once it holds more than ~187k rows with a long text
+        // column, so no request may come near that row count.
+        test('splits a large result into requests of at most 50,000 rows', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+            const rows = makeRows(120_000);
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                rows,
+            );
+
+            expect(
+                Math.max(...fake.updateCalls.map((call) => call.rows.length)),
+            ).toBeLessThanOrEqual(50_000);
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+        });
+
+        test('keeps the old rows in the tab when Google fails the write', async () => {
+            const oldRows = makeRows(1_000, 'old');
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: oldRows },
+            ]);
+            useFake(fake);
+            fake.beforeUpdate = () => {
+                throw googleInternalError();
+            };
+
+            const result = makeClient()
+                .appendCsvToSheet('refresh-token', 'file-id', makeRows(5_000))
+                .catch((e) => e);
+            await vi.runAllTimersAsync();
+
+            expect(await result).toBeInstanceOf(Error);
+            expect(fake.tabValues('Sheet1').length).toBe(oldRows.length);
+            expect(fake.tabValues('Sheet1')).toEqual(oldRows);
         });
     });
 
