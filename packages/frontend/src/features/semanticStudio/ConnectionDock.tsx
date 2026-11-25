@@ -55,12 +55,13 @@ export const ConnectWarehouseDock: FC<{ path: string }> = ({ path }) => (
     </Box>
 );
 
-/** Once the warehouse is in but nothing is modelled: a dashed slot for the first model. */
-export const ModelFirstTableDock: FC<{
-    tableCount: number;
+/** While warehouse tables are left to model: a dashed slot for the next one. */
+export const ModelTableDock: FC<{
+    title: string;
+    subtitle: string;
     warehouseType: string | null;
     onStart: () => void;
-}> = ({ tableCount, warehouseType, onStart }) => {
+}> = ({ title, subtitle, warehouseType, onStart }) => {
     const logo = WAREHOUSE_LOGOS.find(({ key }) => key === warehouseType);
     return (
         <Box
@@ -77,10 +78,10 @@ export const ModelFirstTableDock: FC<{
                 ) : null}
                 <Box miw={0} flex={1}>
                     <Text fz={13} fw={500} truncate>
-                        Model your first table
+                        {title}
                     </Text>
                     <Text fz={11} c="dimmed" truncate>
-                        {`${tableCount} ${tableCount === 1 ? 'table' : 'tables'}`}
+                        {subtitle}
                     </Text>
                 </Box>
                 <MantineIcon

@@ -182,6 +182,8 @@ const EDIT_PARAM = 'edit';
 
 const BUILD_MODEL_PROMPT =
     'Look through my warehouse and suggest the first model and metrics to add.';
+const NEXT_MODEL_PROMPT =
+    'Look through my warehouse and suggest the next table to model, given what is already modelled.';
 
 export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const view = useSemanticStudio(props);
@@ -1367,10 +1369,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 onToggle={toggle}
                                                 onOpen={open}
                                                 onBuildModel={
-                                                    canNudge
+                                                    canBuildModels
                                                         ? () =>
                                                               askAgent(
-                                                                  BUILD_MODEL_PROMPT,
+                                                                  modelled.length ===
+                                                                      0
+                                                                      ? BUILD_MODEL_PROMPT
+                                                                      : NEXT_MODEL_PROMPT,
                                                               )
                                                         : null
                                                 }

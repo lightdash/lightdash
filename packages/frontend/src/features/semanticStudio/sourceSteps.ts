@@ -2,6 +2,7 @@
 export type SourceStep =
     | 'connectWarehouse'
     | 'modelFirstTable'
+    | 'modelAnotherTable'
     | 'addVirtualView'
     | 'addLiveSource';
 
@@ -13,8 +14,9 @@ type SourceKinds = {
 };
 
 /**
- * Connect the warehouse first, then model one of its tables; a virtual view
- * only once there is a warehouse to run on; then a live data source. Each step needs the permission to take it.
+ * Connect the warehouse first, then model its tables while any are left; a
+ * virtual view only once there is a warehouse to run on; then a live data
+ * source. `can.models` means tables are left to model and the person may.
  */
 export const getNextSourceStep = ({
     has,
@@ -24,7 +26,8 @@ export const getNextSourceStep = ({
     can: SourceKinds;
 }): SourceStep | null => {
     if (!has.warehouse && can.warehouse) return 'connectWarehouse';
-    if (has.warehouse && !has.models && can.models) return 'modelFirstTable';
+    if (has.warehouse && can.models)
+        return has.models ? 'modelAnotherTable' : 'modelFirstTable';
     if (has.warehouse && !has.views && can.views) return 'addVirtualView';
     if (!has.live && can.live) return 'addLiveSource';
     return null;

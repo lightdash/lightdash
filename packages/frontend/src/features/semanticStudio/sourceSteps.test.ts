@@ -3,6 +3,8 @@ import { getNextSourceStep, type SourceStep } from './sourceSteps';
 
 const ALL = { warehouse: true, models: true, views: true, live: true };
 const NONE = { warehouse: false, models: false, views: false, live: false };
+// Every warehouse table already modelled
+const MODELLED = { ...ALL, models: false };
 
 describe('getNextSourceStep', () => {
     it.each<[string, typeof ALL, typeof ALL, SourceStep | null]>([
@@ -38,30 +40,36 @@ describe('getNextSourceStep', () => {
             'addLiveSource',
         ],
         [
-            'warehouse, no views',
+            'some modelled, tables left',
             { ...NONE, warehouse: true, models: true },
             ALL,
+            'modelAnotherTable',
+        ],
+        [
+            'every table modelled, no views',
+            { ...NONE, warehouse: true, models: true },
+            MODELLED,
             'addVirtualView',
         ],
         [
-            'warehouse, no views, cannot add them',
+            'every table modelled, no views, cannot add them',
             { ...NONE, warehouse: true, models: true },
-            { ...ALL, views: false },
+            { ...MODELLED, views: false },
             'addLiveSource',
         ],
         [
-            'warehouse and views, no live',
+            'everything but live',
             { ...ALL, live: false },
-            ALL,
+            MODELLED,
             'addLiveSource',
         ],
         [
-            'warehouse and views, cannot add live',
+            'everything but live, cannot add it',
             { ...ALL, live: false },
-            { ...ALL, live: false },
+            { ...MODELLED, live: false },
             null,
         ],
-        ['everything', ALL, ALL, null],
+        ['everything', ALL, MODELLED, null],
         ['no permissions', NONE, NONE, null],
     ])('%s', (_, has, can, step) => {
         expect(getNextSourceStep({ has, can })).toBe(step);

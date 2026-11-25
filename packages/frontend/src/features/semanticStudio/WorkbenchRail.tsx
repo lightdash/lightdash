@@ -31,7 +31,7 @@ import { AddSourceButton } from './AddSourceButton';
 import {
     ConnectWarehouseDock,
     LiveSourceSuggestion,
-    ModelFirstTableDock,
+    ModelTableDock,
     VirtualViewSuggestion,
 } from './ConnectionDock';
 import { DraftMarksContext } from './draftMarks';
@@ -70,22 +70,24 @@ const RailFooter: FC<{
     const hasKind = (kind: string) =>
         view.project.sources.some((source) => source.kind === kind);
     if (hasWarehouse === null) return null;
-    const hasModels = view.project.explores.some(
+    // Counts explores against tables rather than matching them, close enough for a nudge
+    const modelledCount = view.project.explores.filter(
         ({ sourceId }) => getSource(view.project, sourceId).kind === 'modelled',
-    );
+    ).length;
+    const tableCount = summary?.tables.length ?? 0;
     const connect = option(WAREHOUSE_OPTION);
     const sql = option('sql');
     const live = option('live');
     const step = getNextSourceStep({
         has: {
             warehouse: hasWarehouse,
-            models: hasModels,
+            models: modelledCount > 0,
             views: hasKind('sqlViews'),
             live: hasKind('live'),
         },
         can: {
             warehouse: !!connect,
-            models: !!onBuildModel && !!summary?.tables.length,
+            models: !!onBuildModel && modelledCount < tableCount,
             views: !!sql,
             live: !!live,
         },
@@ -96,12 +98,27 @@ const RailFooter: FC<{
                 <ConnectWarehouseDock path={pathOf(connect) ?? ''} />
             ) : null;
         case 'modelFirstTable':
-            return onBuildModel && summary ? (
-                <ModelFirstTableDock
-                    tableCount={summary.tables.length}
+            return onBuildModel ? (
+                <ModelTableDock
+                    title="Model your first table"
+                    subtitle={`${tableCount} ${tableCount === 1 ? 'table' : 'tables'}`}
                     warehouseType={view.project.warehouse?.type ?? null}
                     onStart={onBuildModel}
                 />
+            ) : null;
+        case 'modelAnotherTable':
+            return onBuildModel ? (
+                <>
+                    <ModelTableDock
+                        title="Model another table"
+                        subtitle={`${modelledCount} of ${tableCount} modelled`}
+                        warehouseType={view.project.warehouse?.type ?? null}
+                        onStart={onBuildModel}
+                    />
+                    {sql && !hasKind('sqlViews') ? (
+                        <VirtualViewSuggestion path={pathOf(sql) ?? ''} />
+                    ) : null}
+                </>
             ) : null;
         case 'addVirtualView':
             return sql ? (
@@ -304,7 +321,7 @@ export const Rail: FC<{
     expanded: Set<string>;
     onToggle: (key: string) => void;
     onOpen: (ref: NodeRef) => void;
-    /** Starts the chat on a first model; null where models can't be built here. */
+    /** Starts the chat on the next model to build; null where models can't be built here. */
     onBuildModel: (() => void) | null;
 }> = ({ view, expanded, onToggle, onOpen, onBuildModel }) => {
     const search = useProjectSearch(view.project, view.tree);
