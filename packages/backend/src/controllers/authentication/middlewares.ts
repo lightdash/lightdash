@@ -29,10 +29,6 @@ import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists'
 import { getGrantOperationContract } from '../../auth/agentConnectionGrants/operationContracts';
 import { MobileOrgDisabledOAuthError } from '../../auth/mobileAppAccess';
 import {
-    isReadOnlyOAuthGrant,
-    resolveOAuthScopeMode,
-} from '../../auth/oauthScopes/mode';
-import {
     oauthApiResource,
     oauthMcpResource,
 } from '../../auth/oauthScopes/oauthResources';
@@ -103,36 +99,19 @@ const hasWrongOAuthAudience = (
     );
 };
 
-const getOAuthScopePolicy = async (
-    req: Request,
-    user: SessionUser,
-    scopes: readonly string[],
-    enforceGrant = false,
-): Promise<OAuthScopePolicy | null> => {
-    // Read-only grants are always enforced; wider grants follow the rollout flags.
-    const mode =
-        enforceGrant || isReadOnlyOAuthGrant(scopes)
-            ? 'enforce'
-            : await resolveOAuthScopeMode(
-                  req.services.getFeatureFlagService(),
-                  user,
-              );
-    if (mode === null) return null;
-    return {
-        mode,
-        getRequest: () => {
-            const route = req.route as { path: unknown } | undefined;
-            return {
-                method: req.method,
-                routeTemplate:
-                    !req.baseUrl.endsWith('/mcp') &&
-                    typeof route?.path === 'string'
-                        ? route.path
-                        : null,
-            };
-        },
-    };
-};
+const getOAuthScopePolicy = (req: Request): OAuthScopePolicy => ({
+    mode: 'enforce',
+    getRequest: () => {
+        const route = req.route as { path: unknown } | undefined;
+        return {
+            method: req.method,
+            routeTemplate:
+                !req.baseUrl.endsWith('/mcp') && typeof route?.path === 'string'
+                    ? route.path
+                    : null,
+        };
+    },
+});
 
 const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
     const { account } = req;
@@ -355,7 +334,7 @@ const refuseFailedBoundBearer = async (
 
 /*
 This middleware allows ONLY OAuth bearer token authentication (no PAT, no service account).
-Used for endpoints that intentionally exclude PAT auth, e.g. creating a PAT from an OAuth token.
+Used for endpoints that intentionally exclude PAT auth, e.g. creating a PAT.
 For most endpoints, use allowApiKeyAuthentication which includes OAuth + all other auth methods.
 */
 export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
@@ -411,12 +390,7 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                                 : await req.services
                                       .getAgentConnectionGrantService()
                                       .authenticate(token, user);
-                        const scopePolicy = await getOAuthScopePolicy(
-                            req,
-                            user,
-                            token.scope ?? [],
-                            grant !== null,
-                        );
+                        const scopePolicy = getOAuthScopePolicy(req);
                         req.account = fromOauth(
                             user,
                             token,
@@ -571,12 +545,7 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                                 : await req.services
                                       .getAgentConnectionGrantService()
                                       .authenticate(token, user);
-                        const scopePolicy = await getOAuthScopePolicy(
-                            req,
-                            user,
-                            token.scope ?? [],
-                            grant !== null,
-                        );
+                        const scopePolicy = getOAuthScopePolicy(req);
                         req.account = fromOauth(
                             user,
                             token,

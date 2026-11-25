@@ -87,39 +87,26 @@ afterEach(() => {
     getTracker().reset();
 });
 
-it.each([null, 'log', 'enforce'] as const)(
-    'checks the current registered scopes before refresh rotation in %s mode',
-    async (mode) => {
-        flags.get.mockImplementation(async ({ featureFlagId }) => ({
-            enabled:
-                featureFlagId === FeatureFlags.AgentIdentity
-                    ? mode !== null
-                    : mode === 'enforce',
-        }));
-        if (mode === 'enforce') {
-            await expect(refresh()).rejects.toMatchObject({
-                name: 'invalid_scope',
-            });
-            expect(model.revokeToken).not.toHaveBeenCalled();
-            expect(model.saveToken).not.toHaveBeenCalled();
-        } else {
-            await expect(refresh()).resolves.toMatchObject({
-                scope: ['write'],
-            });
-            if (mode === null) expect(model.revokeToken).toHaveBeenCalledOnce();
-            else {
-                expect(model.revokeToken).not.toHaveBeenCalled();
-                expect(model.saveToken).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        parentRefreshToken: 'refresh',
-                        familyUuid: expect.any(String),
-                    }),
-                    expect.anything(),
-                    expect.anything(),
-                );
-            }
-        }
-        expect(Logger.warn).toHaveBeenCalledTimes(mode === null ? 0 : 1);
+const setStrict = (strict: boolean) =>
+    flags.get.mockImplementation(async ({ featureFlagId }) => ({
+        enabled: featureFlagId === FeatureFlags.AgentIdentity && strict,
+    }));
+
+it.each([false, true])(
+    'refuses a refresh outside the current registered scopes before rotation, strict %s',
+    async (strict) => {
+        setStrict(strict);
+        await expect(refresh()).rejects.toMatchObject({
+            name: 'invalid_scope',
+        });
+        expect(model.revokeToken).not.toHaveBeenCalled();
+        expect(model.saveToken).not.toHaveBeenCalled();
+        expect(Logger.warn).toHaveBeenCalledOnce();
+        expect(
+            flags.get.mock.calls.every(
+                ([args]) => args.featureFlagId === FeatureFlags.AgentIdentity,
+            ),
+        ).toBe(true);
     },
 );
 it('allows a refresh narrowed to the current client scope', async () => {
@@ -167,14 +154,10 @@ it.each(['unknown-client', 'bad-token', 'other-client', 'expired'] as const)(
     },
 );
 
-it.each(['log', 'enforce'] as const)(
-    'redacts legacy refresh scopes in %s records',
-    async (mode) => {
-        flags.get.mockImplementation(async ({ featureFlagId }) => ({
-            enabled:
-                featureFlagId === FeatureFlags.AgentIdentity ||
-                mode === 'enforce',
-        }));
+it.each([false, true])(
+    'redacts legacy refresh scopes in refusal records, strict %s',
+    async (strict) => {
+        setStrict(strict);
         vi.mocked(model.getRefreshToken).mockResolvedValue({
             accessToken: '',
             refreshToken: 'refresh',
@@ -182,11 +165,9 @@ it.each(['log', 'enforce'] as const)(
             client,
             user,
         });
-        if (mode === 'enforce')
-            await expect(refresh()).rejects.toMatchObject({
-                name: 'invalid_scope',
-            });
-        else await expect(refresh()).resolves.toBeDefined();
+        await expect(refresh()).rejects.toMatchObject({
+            name: 'invalid_scope',
+        });
         expect(Logger.warn).toHaveBeenCalledWith(
             'oauth_scope_refusal',
             expect.objectContaining({ scopes: ['unknown'] }),
@@ -208,15 +189,10 @@ const tokenRequest = (body: Record<string, string>) =>
         body: { client_id: client.id, client_secret: 'client-secret', ...body },
     });
 
-it.each([null, 'log', 'enforce'] as const)(
-    'validates authorization-code scopes in %s mode',
-    async (mode) => {
-        flags.get.mockImplementation(async ({ featureFlagId }) => ({
-            enabled:
-                featureFlagId === FeatureFlags.AgentIdentity
-                    ? mode !== null
-                    : mode === 'enforce',
-        }));
+it.each([false, true])(
+    'refuses authorization-code scopes outside the registered scopes, strict %s',
+    async (strict) => {
+        setStrict(strict);
         const codeClient = { ...client, grants: ['authorization_code'] };
         vi.mocked(model.getClient).mockResolvedValue(codeClient);
         vi.spyOn(model, 'getAuthorizationCode').mockResolvedValue({
@@ -242,14 +218,11 @@ it.each([null, 'log', 'enforce'] as const)(
             }),
             new OAuth2Server.Response({}),
         );
-        if (mode === 'enforce') {
-            await expect(result).rejects.toMatchObject({
-                name: 'invalid_scope',
-            });
-            expect(model.saveToken).not.toHaveBeenCalled();
-        } else
-            await expect(result).resolves.toMatchObject({ scope: ['write'] });
-        expect(Logger.warn).toHaveBeenCalledTimes(mode === null ? 0 : 1);
+        await expect(result).rejects.toMatchObject({
+            name: 'invalid_scope',
+        });
+        expect(model.saveToken).not.toHaveBeenCalled();
+        expect(Logger.warn).toHaveBeenCalledOnce();
     },
 );
 
@@ -292,15 +265,13 @@ it.each(['log', 'enforce'] as const)(
     },
 );
 
-it.each([null, 'log', 'enforce'] as const)(
-    'validates token-exchange scopes in %s mode',
-    async (mode) => {
-        flags.get.mockImplementation(async ({ featureFlagId }) => ({
-            enabled:
-                featureFlagId === FeatureFlags.AgentIdentity
-                    ? mode !== null
-                    : mode === 'enforce',
-        }));
+it.each([
+    ['write', false],
+    [undefined, ['read']],
+] as const)(
+    'resolves token-exchange scope %j against the registered scopes',
+    async (scope, expected) => {
+        setStrict(false);
         const exchangeClient = {
             ...client,
             grants: [TOKEN_EXCHANGE_GRANT_TYPE],
@@ -323,23 +294,25 @@ it.each([null, 'log', 'enforce'] as const)(
                 grant_type: TOKEN_EXCHANGE_GRANT_TYPE,
                 subject_token: 'verified-by-managed-sign-in',
                 subject_token_type: ID_TOKEN_TYPE,
-                scope: 'write',
+                ...(scope === undefined ? {} : { scope }),
             }),
             new OAuth2Server.Response({}),
         );
-        if (mode === 'enforce') {
+        if (expected === false) {
             await expect(result).rejects.toMatchObject({
                 name: 'invalid_scope',
             });
             expect(model.saveToken).not.toHaveBeenCalled();
-        } else
-            await expect(result).resolves.toMatchObject({ scope: ['write'] });
-        expect(Logger.warn).toHaveBeenCalledTimes(mode === null ? 0 : 1);
+            expect(Logger.warn).toHaveBeenCalledOnce();
+        } else {
+            await expect(result).resolves.toMatchObject({ scope: expected });
+            expect(Logger.warn).not.toHaveBeenCalled();
+        }
     },
 );
 
-it('matches upstream revocation and call order for a widened scope with the flag off', async () => {
-    flags.get.mockResolvedValue({ enabled: false });
+it('refuses a widened refresh scope before revoking the parent token', async () => {
+    setStrict(false);
     vi.mocked(model.getRefreshToken).mockResolvedValue({
         accessToken: '',
         refreshToken: 'refresh',
@@ -347,63 +320,30 @@ it('matches upstream revocation and call order for a widened scope with the flag
         client,
         user,
     });
-    const upstream = new OAuth2Server({
-        model,
-        requireClientAuthentication: { refresh_token: false },
+    await expect(refresh('write')).rejects.toMatchObject({
+        name: 'invalid_scope',
     });
-    const request = () =>
-        tokenRequest({
-            grant_type: 'refresh_token',
-            refresh_token: 'refresh',
-            scope: 'write',
-        });
-    const calls: string[] = [];
-    vi.mocked(model.getRefreshToken).mockImplementation(async () => {
-        calls.push('getRefreshToken');
-        return {
-            accessToken: '',
-            refreshToken: 'refresh',
-            scope: ['read'],
-            client,
-            user,
-        };
-    });
-    vi.mocked(model.revokeToken).mockImplementation(async () => {
-        calls.push('revokeToken');
-        return true;
-    });
-    await expect(
-        upstream.token(request(), new OAuth2Server.Response({})),
-    ).rejects.toMatchObject({ name: 'invalid_scope' });
-    const upstreamCalls = [...calls];
-    const revocations = vi.mocked(model.revokeToken).mock.calls.length;
-    calls.length = 0;
-    vi.mocked(model.revokeToken).mockClear();
-    await expect(
-        service.token(request(), new OAuth2Server.Response({})),
-    ).rejects.toMatchObject({ name: 'invalid_scope' });
-    expect(calls).toEqual(upstreamCalls);
-    expect(model.revokeToken).toHaveBeenCalledTimes(revocations);
-    expect(revocations).toBe(1);
+    expect(model.revokeToken).not.toHaveBeenCalled();
+    expect(model.saveToken).not.toHaveBeenCalled();
 });
 
-it.each([null, 'log', 'enforce'] as const)(
-    'preserves an undefined refresh scope in %s mode',
-    async (mode) => {
-        flags.get.mockImplementation(async ({ featureFlagId }) => ({
-            enabled:
-                featureFlagId === FeatureFlags.AgentIdentity
-                    ? mode !== null
-                    : mode === 'enforce',
-        }));
+it.each([false, true])(
+    'gives a refresh token without scopes the registered scopes, strict %s',
+    async (strict) => {
+        setStrict(strict);
         vi.mocked(model.getRefreshToken).mockResolvedValue({
             accessToken: '',
             refreshToken: 'refresh',
             client,
             user,
         });
-        await expect(refresh()).resolves.toMatchObject({ scope: undefined });
-        if (mode === null) expect(model.revokeToken).toHaveBeenCalledOnce();
+        await expect(refresh()).resolves.toMatchObject({ scope: ['read'] });
+        expect(model.saveToken).toHaveBeenCalledWith(
+            expect.objectContaining({ scope: ['read'] }),
+            expect.anything(),
+            expect.anything(),
+        );
+        if (!strict) expect(model.revokeToken).toHaveBeenCalledOnce();
         else {
             expect(model.revokeToken).not.toHaveBeenCalled();
             expect(model.saveToken).toHaveBeenCalledWith(
@@ -416,6 +356,27 @@ it.each([null, 'log', 'enforce'] as const)(
             );
         }
         expect(Logger.warn).not.toHaveBeenCalled();
+    },
+);
+
+it.each([[], undefined])(
+    'refuses a refresh token without scopes when the client registered %j',
+    async (registeredScopes) => {
+        setStrict(false);
+        const unregistered = { ...client, scopes: registeredScopes };
+        vi.mocked(model.getClient).mockResolvedValue(unregistered);
+        vi.mocked(model.getRefreshToken).mockResolvedValue({
+            accessToken: '',
+            refreshToken: 'refresh',
+            scope: [],
+            client: unregistered,
+            user,
+        });
+        await expect(refresh()).rejects.toMatchObject({
+            name: 'invalid_scope',
+        });
+        expect(model.revokeToken).not.toHaveBeenCalled();
+        expect(model.saveToken).not.toHaveBeenCalled();
     },
 );
 

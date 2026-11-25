@@ -534,6 +534,7 @@ describe('McpService AI writeback MCP tasks', () => {
                 await createServerWithWriteback({ cancelRun });
                 vi.mocked(getOAuthScopeContext).mockReturnValue({
                     mode,
+                    clientId: 'client',
                     scopes: ['mcp:read'],
                     record,
                 });

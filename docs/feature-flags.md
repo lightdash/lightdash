@@ -440,34 +440,22 @@ its stored deadline has passed. Non-agent Snowflake authentication is unchanged.
 
 ### OAuth scope enforcement
 
-OAuth tokens granted only read scopes (`read` and/or `mcp:read`, without
-`write` or `mcp:write`) are always enforced, independent of any flag: they
-cannot call write REST operations, write MCP tools or credential-management
-endpoints. Tokens with no scopes or with a write scope follow the flags below.
-
-`agent-identity` also enables OAuth scope checks for those other tokens. With
-that flag off, their permissions and scope validation keep their existing
-behaviour. With it on, checks log refusals but preserve existing decisions by
-default.
-
-`oauth-scope-enforcement` changes those checks from log mode to enforcement.
-It is off by default, has no custom handler and is only resolved when
-`agent-identity` is enabled. Enforcement limits OAuth tokens to their scopes,
-filters MCP tools and rejects invalid requested scopes at grant issuance.
+OAuth scope enforcement has no feature flag. Every OAuth bearer token is
+limited to its granted scopes on every request: `read` and `mcp:read` allow
+read operations, `write` and `mcp:write` also allow writes, and MCP tools
+need `mcp:read` or `mcp:write`. A token with no scopes has no access.
 Personal access tokens, sessions and service accounts keep their permissions.
 
-When `agent-identity` is on, OAuth callers cannot create or rotate personal
-access tokens or service accounts, manage OAuth clients, or rotate SCIM tokens.
-This separate credential guard refuses requests in both log and enforce mode.
-Authentication failures also keep their existing refusal behaviour in both modes.
+At grant issuance, an authorize request without a scope receives the scopes
+registered for the client. The request fails with `invalid_scope` when the
+client has no registered scopes, or when it asks for an unknown scope or a
+scope the client did not register. The consent page lists the resolved scopes.
+Refreshing a token that has no scopes gives it the client's registered scopes.
 
-Both checks use the authenticated user's organisation and user UUID. Console
-organisation and user overrides apply through the standard resolver. Generic
-ENV enable/disable lists keep the precedence described above. There is no
-separate OAuth-scope ENV setting. Console changes apply to the next request or
-grant validation; ENV changes require a process restart. Disabling enforcement
-restores log mode. Disabling agent identity restores the previous behaviour
-without scope-refusal records. Neither change revokes issued tokens.
+OAuth tokens cannot create or rotate personal access tokens, service accounts
+or SCIM tokens, manage OAuth clients, or run Learn sandbox commands. Each
+refusal logs `oauth_credential_mint_refused` with the operation, client id,
+scopes and the CLI version from the user agent when present.
 
 ### Personal credential overlay
 

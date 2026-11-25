@@ -117,10 +117,6 @@ export class OAuthService extends BaseService {
                 ) as unknown as typeof OAuth2Server.AbstractGrantType,
                 refresh_token: createScopeCheckedRefreshTokenGrant(
                     (user) =>
-                        this.oauthModel.getScopeMode(
-                            user as UserWithOrganizationUuid,
-                        ),
-                    (user) =>
                         this.oauthModel.isSecurityStrictForOAuthUser(
                             user as UserWithOrganizationUuid,
                         ),
@@ -396,6 +392,15 @@ export class OAuthService extends BaseService {
             return deleted;
         }
         return this.oauthModel.deleteAccessToken(token);
+    }
+
+    public async resolveAuthorizationScope(
+        clientId: string,
+        scope: string[],
+    ): Promise<string[] | false> {
+        const client = await this.oauthModel.getClient(clientId);
+        if (client === false) return false;
+        return OAuth2Model.resolveScope(client, scope);
     }
 
     public async getClientDisplayName(clientId: string): Promise<string> {

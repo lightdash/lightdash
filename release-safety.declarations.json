@@ -377,6 +377,10 @@
                     "mcp": []
                 }
             }
+        },
+        "oauth-scopes-always-enforced-cli-browser-login-needs-personal-oauth": {
+            "reason": "OAuth bearer tokens are now limited to their granted scopes on every request, with no feature flag. OAuth tokens can no longer create or rotate personal access tokens, service accounts or SCIM tokens, or manage OAuth clients. Browser login with lightdash login in CLI releases before 3.88.0 created a personal access token from the OAuth token and now fails with \"Failed to create PAT: 403 Forbidden\". Upgrade the CLI to 3.88.0 or later, or log in with lightdash login --token and a personal access token. An authorize request without a scope now receives the scopes registered for the client; if the client has none, the request fails with invalid_scope. Unknown scopes fail with invalid_scope. Existing access tokens without scopes are refused until they are refreshed or the user signs in again. Personal access tokens, service accounts, sessions, token login and email login are unchanged. There is no database change and no required stop.",
+            "requiredStop": false
         }
     }
 }

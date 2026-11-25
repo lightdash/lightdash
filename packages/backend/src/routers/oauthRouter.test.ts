@@ -35,6 +35,7 @@ type OAuthServiceStub = Pick<
     | 'authorize'
     | 'validateRedirectUri'
     | 'getClientDisplayName'
+    | 'resolveAuthorizationScope'
     | 'getSiteUrl'
     | 'token'
     | 'isSecurityStrict'
@@ -74,6 +75,11 @@ const createOAuthService = () => ({
     getClientDisplayName: vi
         .fn<OAuthServiceStub['getClientDisplayName']>()
         .mockResolvedValue('Lightdash Mobile'),
+    resolveAuthorizationScope: vi
+        .fn<OAuthServiceStub['resolveAuthorizationScope']>()
+        .mockImplementation(async (_clientId, scope) =>
+            scope.length > 0 ? scope : ['read', 'write'],
+        ),
     getSiteUrl: vi
         .fn<OAuthServiceStub['getSiteUrl']>()
         .mockReturnValue('https://eu1.lightdash.cloud'),
@@ -896,12 +902,48 @@ describe('OAuth authorize redirects', () => {
         expect(response.body).toContain('Lightdash Mobile');
         expect(response.body).toContain('action="/api/v1/oauth/authorize"');
         expect(response.body).not.toContain('warehouse agent');
+        expect(response.body).toContain('Read access');
+        expect(response.body).toContain('Write access');
+        expect(response.body).toContain('name="scope" value="read write"');
         expect(createHash('sha256').update(response.body).digest('hex')).toBe(
-            '65958e01412262970916671ca04c8d1b9bd2dc48517145d78891a38323394536',
+            '4024bbd204a967c2d904f5bc906bc24bfc452ce18e459292fe89dce7e3c318cf',
         );
         expect(oauthService.getClientDisplayName).toHaveBeenCalledWith(
             'client-id',
         );
+        expect(oauthService.resolveAuthorizationScope).toHaveBeenCalledWith(
+            'client-id',
+            [],
+        );
+    });
+
+    it.each([
+        ['an unknown scope', 'read foo'],
+        ['no scope for a client without registered scopes', undefined],
+    ])('redirects with invalid_scope for %s', async (_name, scope) => {
+        const oauthService = createOAuthService();
+        oauthService.resolveAuthorizationScope.mockResolvedValue(false);
+        oauthService.validateRedirectUri.mockResolvedValue(true);
+
+        const response = await requestAuthorizePage({
+            query: {
+                client_id: 'client-id',
+                redirect_uri: 'https://registered.example/callback',
+                state: 'request-state',
+                ...(scope === undefined ? {} : { scope }),
+            },
+            oauthService,
+        });
+
+        expect(response.status).toBe(200);
+        const redirect = new URL(getRedirectUrl(response.body));
+        expect(redirect.origin + redirect.pathname).toBe(
+            'https://registered.example/callback',
+        );
+        expect(redirect.searchParams.get('error')).toBe('invalid_scope');
+        expect(redirect.searchParams.get('state')).toBe('request-state');
+        expect(response.body).not.toContain('action="/api/v1/oauth/authorize"');
+        expect(oauthService.getClientDisplayName).not.toHaveBeenCalled();
     });
 
     it.each([

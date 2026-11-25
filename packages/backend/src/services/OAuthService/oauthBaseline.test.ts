@@ -55,7 +55,6 @@ const setScopeMode = async (mode: OAuthScopeMode | null) => {
                 ? mode !== null
                 : mode === 'enforce',
     }));
-    await expect(model.getScopeMode(user)).resolves.toBe(mode);
 };
 
 const authorize = (overrides: Record<string, unknown> = {}) =>
@@ -805,4 +804,48 @@ it('keeps concurrent strict and legacy redirect checks isolated by user', async 
         value: { redirectUri },
     });
     expect(model.saveAuthorizationCode).toHaveBeenCalledOnce();
+});
+
+describe.each(modes)('scope issuance in %s flag state', (mode) => {
+    it('gives an authorize request without a scope the registered scopes', async () => {
+        await setScopeMode(mode);
+        const code = await authorize({ scope: undefined });
+        expect(code.scope).toEqual(['read']);
+        await expect(exchange(code)).resolves.toMatchObject({
+            scope: ['read'],
+        });
+    });
+
+    it.each(['foo', 'read foo', 'write'])(
+        'refuses scope %j at authorize',
+        async (scope) => {
+            await setScopeMode(mode);
+            await expect(authorize({ scope })).rejects.toBeInstanceOf(
+                OAuth2Server.InvalidScopeError,
+            );
+            expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
+        },
+    );
+
+    it('refuses an authorize request without a scope when the client registered none', async () => {
+        await setScopeMode(mode);
+        vi.mocked(model.getClient).mockResolvedValue({ ...client, scopes: [] });
+        await expect(authorize({ scope: undefined })).rejects.toBeInstanceOf(
+            OAuth2Server.InvalidScopeError,
+        );
+        expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
+    });
+
+    it('resolves the consent page scopes from the client registration', async () => {
+        await setScopeMode(mode);
+        await expect(
+            service.resolveAuthorizationScope(client.id, []),
+        ).resolves.toEqual(['read']);
+        await expect(
+            service.resolveAuthorizationScope(client.id, ['foo']),
+        ).resolves.toBe(false);
+        await expect(
+            service.resolveAuthorizationScope('unknown-client', ['read']),
+        ).resolves.toBe(false);
+    });
 });

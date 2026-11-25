@@ -750,7 +750,14 @@ describe('MCP call-time OAuth scope enforcement', () => {
         async ({ mode, name, status, records }) => {
             const record = vi.fn();
             vi.mocked(getOAuthScopeContext).mockReturnValue(
-                mode === null ? null : { mode, scopes: ['mcp:read'], record },
+                mode === null
+                    ? null
+                    : {
+                          mode,
+                          clientId: 'client',
+                          scopes: ['mcp:read'],
+                          record,
+                      },
             );
             transport.handleRequest.mockImplementation(
                 async (_request, response) => {

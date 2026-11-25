@@ -12,7 +12,6 @@ import { AddressInfo } from 'net';
 import passport from 'passport';
 import { fromServiceAccount, fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
-import { isReadOnlyOAuthGrant } from '../../auth/oauthScopes/mode';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
@@ -239,13 +238,12 @@ const start = async (
 };
 
 describe.each([
-    { agentIdentity: false, enforcement: false, mode: null },
-    { agentIdentity: false, enforcement: true, mode: null },
-    { agentIdentity: true, enforcement: false, mode: 'log' },
-    { agentIdentity: true, enforcement: true, mode: 'enforce' },
+    { agentIdentity: false, enforcement: false, oauthOnly: false },
+    { agentIdentity: true, enforcement: true, oauthOnly: false },
+    { agentIdentity: false, enforcement: false, oauthOnly: true },
 ])(
-    'OAuth REST permissions $mode (flags $agentIdentity/$enforcement)',
-    ({ agentIdentity, enforcement, mode }) => {
+    'OAuth REST permissions (flags $agentIdentity/$enforcement, OAuth only $oauthOnly)',
+    ({ agentIdentity, enforcement, oauthOnly }) => {
         it.each(
             [
                 { scopes: [] as string[] },
@@ -265,11 +263,9 @@ describe.each([
                     agentIdentity,
                     enforcement,
                     scopes,
+                    oauthOnly,
                 );
                 vi.mocked(Logger.warn).mockClear();
-                const effectiveMode = isReadOnlyOAuthGrant(scopes)
-                    ? 'enforce'
-                    : mode;
                 const scopedAllowed =
                     scopes.includes('write') ||
                     scopes.includes('mcp:write') ||
@@ -281,17 +277,15 @@ describe.each([
                         headers: { authorization: 'Bearer secret-token' },
                     },
                 );
-                expect(response.status).toBe(
-                    effectiveMode === 'enforce' && !scopedAllowed ? 403 : 200,
-                );
+                expect(response.status).toBe(scopedAllowed ? 200 : 403);
                 expect(Logger.warn).toHaveBeenCalledTimes(
-                    effectiveMode !== null && !scopedAllowed ? 1 : 0,
+                    scopedAllowed ? 0 : 1,
                 );
-                if (effectiveMode !== null && !scopedAllowed) {
+                if (!scopedAllowed) {
                     expect(Logger.warn).toHaveBeenCalledWith(
                         'oauth_scope_refusal',
                         {
-                            mode: effectiveMode,
+                            mode: 'enforce',
                             clientId: 'client',
                             scopes,
                             method: operation.method,
@@ -303,23 +297,14 @@ describe.each([
                     );
                 }
                 expect(user.ability.can('manage', 'Organization')).toBe(true);
-                if (isReadOnlyOAuthGrant(scopes))
-                    expect(getFlag).not.toHaveBeenCalled();
-                if (!agentIdentity)
-                    expect(
-                        getFlag.mock.calls.every(
-                            ([args]) =>
-                                args.featureFlagId ===
-                                FeatureFlags.AgentIdentity,
-                        ),
-                    ).toBe(true);
+                expect(getFlag).not.toHaveBeenCalled();
             },
         );
     },
 );
 
 it.each([['read'], ['mcp:read'], ['read', 'mcp:read']])(
-    'refuses writes for read-only scopes %j with rollout flags off',
+    'refuses writes and allows reads for read-only scopes %j',
     async (...scopes) => {
         const { url, getFlag } = await start(false, false, scopes, true);
         const write = await sendRequest(`${url}/org/invite`, {
@@ -332,6 +317,24 @@ it.each([['read'], ['mcp:read'], ['read', 'mcp:read']])(
         });
         expect(write.status).toBe(403);
         expect(read.status).toBe(200);
+        expect(getFlag).not.toHaveBeenCalled();
+    },
+);
+
+it.each([false, true])(
+    'refuses reads and writes for a token without scopes (OAuth only %s)',
+    async (oauthOnly) => {
+        const { url, getFlag } = await start(false, false, [], oauthOnly);
+        const write = await sendRequest(`${url}/org/invite`, {
+            method: 'POST',
+            headers: { authorization: 'Bearer secret-token' },
+        });
+        const read = await sendRequest(`${url}/org/projects`, {
+            method: 'GET',
+            headers: { authorization: 'Bearer secret-token' },
+        });
+        expect(write.status).toBe(403);
+        expect(read.status).toBe(403);
         expect(getFlag).not.toHaveBeenCalled();
     },
 );

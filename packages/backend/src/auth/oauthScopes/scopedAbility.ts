@@ -15,6 +15,7 @@ export type OAuthScopePolicy = {
 
 export type OAuthScopeContext = {
     mode: OAuthScopeMode;
+    clientId: string;
     scopes: string[];
     record: (
         action: string,
@@ -108,6 +109,7 @@ export const createOAuthScopedAbility = (
     const recorded = new Set<string>();
     const context: OAuthScopeContext = {
         mode,
+        clientId,
         scopes: [...scopes],
         record: (action, subjectType, toolName) => {
             const key = JSON.stringify([action, subjectType, toolName]);
