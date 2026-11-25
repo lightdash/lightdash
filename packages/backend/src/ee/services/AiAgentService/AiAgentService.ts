@@ -12572,6 +12572,9 @@ export class AiAgentService extends BaseService {
         const inlinedFiles: { path: string; content: string }[] = [];
         const images: { fileName: string; part: FilePart }[] = [];
 
+        const dashboardViewFiltersLabel =
+            'Filters in effect on the dashboard (its saved filters plus any the user changed; each applies only to the tiles it targets):';
+
         const describeItem = (item: AiPromptContextItem): string => {
             switch (item.type) {
                 case 'chart': {
@@ -12583,7 +12586,7 @@ export class AiAgentService extends BaseService {
                     const overrideLines: string[] = [];
                     if (overrides.dashboardFilters) {
                         overrideLines.push(
-                            `    Dashboard filters: ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,
+                            `    ${dashboardViewFiltersLabel}\n      ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,
                         );
                     }
                     if (overrides.dashboardParameters) {
@@ -12629,7 +12632,7 @@ export class AiAgentService extends BaseService {
                     }
                     if (overrides.dashboardFilters) {
                         overrideLines.push(
-                            `  Filters applied:\n    ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,
+                            `  ${dashboardViewFiltersLabel}\n    ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,
                         );
                     }
                     if (overrides.dashboardParameters) {
@@ -12850,7 +12853,7 @@ export class AiAgentService extends BaseService {
                     (item.type === 'chart' || item.type === 'dashboard') &&
                     item.runtimeOverrides !== null,
             )
-                ? "When runtime overrides are listed, apply them on top of the chart's saved state when querying."
+                ? 'These overrides are what the user currently sees. Use them when the question is about what the dashboard or chart shows. Leave them out when editing a saved chart or answering a new question, unless the user asks for them.'
                 : null,
         ].filter((sentence): sentence is string => sentence !== null);
         const guidanceSection =
