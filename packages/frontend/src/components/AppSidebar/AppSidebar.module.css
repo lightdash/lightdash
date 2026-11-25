@@ -13,7 +13,8 @@
     flex-direction: column;
     gap: var(--mantine-spacing-md);
     height: 100%;
-    padding: rem(6px) var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    /* The header row shares a centre line with the gutter beside it. */
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-xs);
     overflow: hidden;
 }
 
@@ -40,6 +41,8 @@
     display: flex;
     flex-direction: column;
     gap: rem(4px);
+    /* The first rows belong to the header more than to the sections below. */
+    margin-bottom: rem(-6px);
 }
 
 .header {
@@ -72,10 +75,23 @@
     height: rem(28px);
 
     & :is(svg, img) {
-        width: rem(20px);
-        height: rem(20px);
-        border-radius: rem(5px);
+        width: rem(22px);
+        height: rem(22px);
+        border-radius: rem(6px);
         object-fit: contain;
+    }
+
+    & svg {
+        & rect {
+            fill: var(--mantine-color-black);
+        }
+
+        /* A black tile has no edge on a dark sidebar, so it gets a lit one. */
+        @mixin dark {
+            box-shadow:
+                0 0 0 1px rgb(255 255 255 / 10%),
+                0 0 rem(6px) rgb(255 255 255 / 4%);
+        }
     }
 }
 
@@ -143,6 +159,12 @@
 
 .item:is(:hover, :focus-visible) .shortcut {
     opacity: 1;
+}
+
+.itemStatus {
+    font-size: rem(11px);
+    color: var(--mantine-color-dimmed);
+    white-space: nowrap;
 }
 
 /* A row with nothing on the right would still reserve that slot's margin. */

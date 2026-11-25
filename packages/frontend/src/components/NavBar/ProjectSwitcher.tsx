@@ -236,7 +236,7 @@ const SidebarTarget = forwardRef<HTMLButtonElement, SidebarTargetProps>(
                             ref={truncatedRef}
                             truncate
                             fw={600}
-                            fz="xs"
+                            fz="sm"
                             miw={0}
                         >
                             {projectName}
