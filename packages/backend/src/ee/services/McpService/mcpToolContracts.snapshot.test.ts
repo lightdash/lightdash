@@ -562,7 +562,6 @@ describe('MCP tool contracts', () => {
         const { description } = mockRegisteredMcpTools.find(
             ({ name }) => name === McpToolName.GET_QUERY_RESULT,
         )!.config;
-        expect(description).toMatch(/query node/);
         expect(description).not.toMatch(
             /render_chart|run_metric_query|run_sql/,
         );
@@ -952,10 +951,10 @@ describe('MCP tool contracts', () => {
     it('matches the current MCP tool and prompt contract snapshot', async () => {
         const mcpService = makeMcpService();
 
-        mockRegisteredMcpTools.length = 0;
-        mockRegisteredMcpPrompts.length = 0;
-        const createServer = (queryPath: McpQueryPath) =>
-            mcpService.createServer(
+        const registerTools = async (queryPath: McpQueryPath) => {
+            mockRegisteredMcpTools.length = 0;
+            mockRegisteredMcpPrompts.length = 0;
+            await mcpService.createServer(
                 makeMcpServerOptions({
                     queryPath,
                     dataAppBuildsEnabled: true,
@@ -963,23 +962,30 @@ describe('MCP tool contracts', () => {
                     customChartTypesEnabled: true,
                 }),
             );
-        // Classic lists every tool but query, which goes where composer lists it.
-        await createServer({ type: 'composer', sqlRunnerEnabled: true });
-        const queryTool = mockRegisteredMcpTools.find(
-            ({ name }) => name === McpToolName.QUERY,
-        );
-        mockRegisteredMcpTools.length = 0;
-        mockRegisteredMcpPrompts.length = 0;
-        await createServer(classicQueryPath(true, false));
-        expect(queryTool).toBeDefined();
-        mockRegisteredMcpTools.splice(
-            mockRegisteredMcpTools.findIndex(
-                ({ name }) => name === McpToolName.GET_QUERY_RESULT,
-            ),
-            0,
-            queryTool!,
-        );
+            return mockRegisteredMcpTools.map(({ name, config }) => ({
+                name,
+                agentName:
+                    name === McpToolName.RUN_METRIC_QUERY ? 'runQuery' : null,
+                title: config.title,
+                description: config.description,
+                annotations: config.annotations,
+                inputSchema: schemaToJson(config.inputSchema, 'input'),
+                ...(config.outputSchema
+                    ? {
+                          outputSchema: schemaToJson(
+                              config.outputSchema,
+                              'output',
+                          ),
+                      }
+                    : {}),
+            }));
+        };
 
+        const composerTools = await registerTools({
+            type: 'composer',
+            sqlRunnerEnabled: true,
+        });
+        const tools = await registerTools(classicQueryPath(true, false));
         const prompts = await Promise.all(
             mockRegisteredMcpPrompts.map(
                 async ({ name, config, callback }) => ({
@@ -994,21 +1000,15 @@ describe('MCP tool contracts', () => {
                 }),
             ),
         );
-        const tools = mockRegisteredMcpTools.map(({ name, config }) => ({
-            name,
-            agentName:
-                name === McpToolName.RUN_METRIC_QUERY ? 'runQuery' : null,
-            title: config.title,
-            description: config.description,
-            annotations: config.annotations,
-            inputSchema: schemaToJson(config.inputSchema, 'input'),
-            ...(config.outputSchema
-                ? { outputSchema: schemaToJson(config.outputSchema, 'output') }
-                : {}),
-        }));
+        const classicContracts = new Map(
+            tools.map((tool) => [tool.name, JSON.stringify(tool)]),
+        );
+        const composerOnlyTools = composerTools.filter(
+            (tool) => classicContracts.get(tool.name) !== JSON.stringify(tool),
+        );
 
         expect(
-            tools
+            [...tools, ...composerOnlyTools]
                 .filter(({ inputSchema }) =>
                     JSON.stringify(inputSchema).includes('"$ref"'),
                 )
@@ -1016,6 +1016,9 @@ describe('MCP tool contracts', () => {
         ).toEqual([]);
 
         expect({ prompts, tools }).toMatchSnapshot();
+        expect(composerOnlyTools).toMatchSnapshot(
+            'composer query path tools that differ from classic',
+        );
     });
 
     it('registers the chart type frame tool for the chart view only', async () => {

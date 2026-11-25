@@ -47,13 +47,13 @@ export const getMcpQueryTools = (queryPath: McpQueryPath): McpQueryTools => {
                 query: false,
                 filterExpressionsEnabled: queryPath.filterExpressionsEnabled,
             };
-        // semanticLayer node filters are always expressions
         case 'composer':
             return {
                 discovery: true,
                 runMetricQuery: false,
                 runSql: false,
                 query: true,
+                // semanticLayer node filters are always expressions
                 filterExpressionsEnabled: true,
             };
         default:

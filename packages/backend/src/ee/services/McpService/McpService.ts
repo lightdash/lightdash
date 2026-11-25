@@ -5196,9 +5196,10 @@ export class McpService extends BaseService {
             queryTools.runMetricQuery ||
             queryTools.query
         ) {
-            const getQueryResultTool = queryTools.query
-                ? mcpComposerGetQueryResultTool
-                : mcpGetQueryResultTool;
+            const getQueryResultTool =
+                options.queryPath.type === 'composer'
+                    ? mcpComposerGetQueryResultTool
+                    : mcpGetQueryResultTool;
             this.registerTrackedTool(
                 getQueryResultTool.name,
                 {

@@ -18,7 +18,7 @@ Returns the original query's data on completion. ${buildMcpVisualizationFollowUp
 ${MCP_ARTIFACT_INTEGRATION_NOTE}`;
 
 // The composer query path lists neither render_chart nor the classic query tools.
-export const TOOL_GET_QUERY_RESULT_COMPOSER_DESCRIPTION = `Poll a query node's query until done, error, cancelled, or expired. Use the exact queryUuid a query result names; never invent it. This tool retrieves results without rerunning the query.
+export const TOOL_GET_QUERY_RESULT_COMPOSER_DESCRIPTION = `Poll a node's result until done, error, cancelled, or expired. Use the exact queryUuid a query result names; never invent it. This tool retrieves results without rerunning the node.
 
 ${MCP_QUERY_RESULT_USAGE_NOTE}
 ${MCP_QUERY_ERROR_NOTE}
