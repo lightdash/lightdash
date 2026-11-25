@@ -9,7 +9,6 @@ import {
     Stack,
     Text,
     Tooltip,
-    VisuallyHidden,
 } from '@mantine/core';
 import { IconChartBar, IconClock, IconRefresh } from '@tabler/icons-react';
 import { clsx } from 'clsx';
@@ -43,19 +42,29 @@ const Message: FC<{ children: string }> = ({ children }) => (
     </Text>
 );
 
-const SKELETON_LINE_WIDTHS = ['45%', '100%', '96%', '100%', '88%', '62%'];
+// Word-sized shapes, so the placeholder reads as a paragraph being written
+const SKELETON_WORD_WIDTHS = [
+    52, 18, 34, 71, 26, 44, 60, 22, 38, 84, 30, 48, 20, 66, 40, 28, 56, 74, 24,
+    46, 36, 62, 18, 50, 32, 78, 42, 26, 58, 34, 68, 22, 44, 54, 30, 72, 38, 20,
+    64, 46, 28, 52, 36, 80, 24, 48, 60, 32, 42, 70, 26, 56, 34, 44, 62, 20, 50,
+    38, 66, 28,
+];
 
 const SummarySkeleton: FC<{ label: string }> = ({ label }) => (
-    <Stack gap="xs" role="status">
-        <VisuallyHidden>{label}</VisuallyHidden>
-        {SKELETON_LINE_WIDTHS.map((width, index) => (
-            <Box
-                key={index}
-                className={styles.skeletonLine}
-                w={width}
-                mb={index === 0 ? 'xs' : 0}
-            />
-        ))}
+    <Stack gap="xs" className={styles.skeleton}>
+        <Text fz="sm" role="status" className={styles.skeletonLabel}>
+            {label}
+        </Text>
+        <Box className={styles.skeletonWords} aria-hidden>
+            {SKELETON_WORD_WIDTHS.map((width, index) => (
+                <Box
+                    key={index}
+                    className={styles.skeletonWord}
+                    w={width}
+                    __vars={{ '--word-index': `${index}` }}
+                />
+            ))}
+        </Box>
     </Stack>
 );
 
@@ -191,11 +200,7 @@ const SummaryBody: FC<{ tile: AiSummaryTile; isEditMode: boolean }> = ({
         );
     }
     if (availability.status === 'loading') {
-        return (
-            <Box className={styles.content}>
-                <SummarySkeleton label="Loading summary" />
-            </Box>
-        );
+        return <SummarySkeleton label="Loading summary…" />;
     }
     if (availability.status === 'unavailable') {
         return <Message>{UNAVAILABLE_COPY[availability.reason]}</Message>;
@@ -206,11 +211,11 @@ const SummaryBody: FC<{ tile: AiSummaryTile; isEditMode: boolean }> = ({
     if (summary) {
         return (
             <>
-                <Box className={styles.content}>
-                    {isUpdating ? (
-                        <SummarySkeleton label="Updating summary" />
-                    ) : (
-                        <Stack gap="xs">
+                {isUpdating ? (
+                    <SummarySkeleton label="Updating summary…" />
+                ) : (
+                    <Box className={styles.content}>
+                        <Stack gap="xs" className={styles.summaryText}>
                             <Text fw={600}>{summary.headline}</Text>
                             <Text fz="sm">{summary.summary}</Text>
                             {summary.anomalies.length > 0 && (
@@ -228,8 +233,8 @@ const SummaryBody: FC<{ tile: AiSummaryTile; isEditMode: boolean }> = ({
                                 </Text>
                             )}
                         </Stack>
-                    )}
-                </Box>
+                    </Box>
+                )}
                 <SummaryFooter
                     charts={charts}
                     generatedAt={summary.generatedAt}
@@ -245,15 +250,11 @@ const SummaryBody: FC<{ tile: AiSummaryTile; isEditMode: boolean }> = ({
         return <Message>The charts in this summary have no results.</Message>;
     }
     return (
-        <Box className={styles.content}>
-            <SummarySkeleton
-                label={
-                    isWaitingForCharts
-                        ? 'Waiting for charts to load'
-                        : 'Writing summary'
-                }
-            />
-        </Box>
+        <SummarySkeleton
+            label={
+                isWaitingForCharts ? 'Waiting for charts…' : 'Writing summary…'
+            }
+        />
     );
 };
 
