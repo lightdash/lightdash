@@ -13,7 +13,7 @@ let ownerScopeId: string | null = null;
 type Props = {
     /** The panel's `data-composer-tour-scope` value. */
     scopeId: string;
-    /** The chart is drawn and the pipeline has more than one step. */
+    /** The chart is drawn in Chart view and the pipeline has more than one step; read only until the tour opens. */
     ready: boolean;
     queries: SourceQuery[];
     terminalNodeId: string;
@@ -32,9 +32,11 @@ export const ComposerLineageTour: FC<Props> = ({
     canAddToChat,
     onShowLineage,
 }) => {
+    // The tour itself switches the panel to Lineage, so once open it stays eligible.
+    const [isLaunched, setIsLaunched] = useState(false);
     const { shouldShow, closeTour, tracking } = useOnboardingTour({
         tour: 'composerLineageTour',
-        enabled: ready,
+        enabled: ready || isLaunched,
     });
     const [isOwner, setIsOwner] = useState(false);
     useEffect(() => {
@@ -47,6 +49,10 @@ export const ComposerLineageTour: FC<Props> = ({
             setIsOwner(false);
         };
     }, [shouldShow, scopeId]);
+    const opened = shouldShow && isOwner;
+    useEffect(() => {
+        if (opened) setIsLaunched(true);
+    }, [opened]);
     const steps = useMemo(
         () =>
             getComposerLineageTourSteps({
@@ -62,7 +68,7 @@ export const ComposerLineageTour: FC<Props> = ({
     return (
         <GuidedTour
             steps={steps}
-            opened={shouldShow && isOwner}
+            opened={opened}
             tracking={tracking}
             onClose={closeTour}
             onStepChange={(stepIndex) =>

@@ -293,6 +293,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const isTourReady =
         !isEmbed &&
         initialView === 'chart' &&
+        view === 'chart' &&
         config.queries.length > 1 &&
         isResultReady &&
         !!queryUuid &&
