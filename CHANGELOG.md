@@ -1,3 +1,10 @@
+# [3.399.0](https://github.com/lightdash/lightdash/compare/3.398.0...3.399.0) (2026-11-25)
+
+
+### Features
+
+* **composer:** hide query sources whose infrastructure is not configured ([#33419](https://github.com/lightdash/lightdash/issues/33419)) ([3efee75](https://github.com/lightdash/lightdash/commit/3efee756090f134680931df66790d51f509b217c))
+
 # [3.398.0](https://github.com/lightdash/lightdash/compare/3.397.1...3.398.0) (2026-11-25)
 
 
