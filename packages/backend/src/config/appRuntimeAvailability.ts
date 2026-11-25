@@ -32,15 +32,15 @@ export const AppRuntimeConfigErrors = {
     gcpCloudRun:
         'GCP Cloud Run sandboxes are not configured (GCP_CLOUD_RUN_SANDBOX_URL / GCP_CLOUD_RUN_SANDBOX_SECRET)',
     pythonLambdaMicroVm:
-        'Python queries are not supported on the lambda-microvm sandbox provider yet',
+        'The lambda-microvm sandbox provider does not support Python queries yet',
     pythonDockerInProduction:
         'Python queries cannot run on the docker sandbox provider in production',
     azureSandboxesPythonGroup:
         'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_PYTHON_GROUP)',
     azureSandboxesPythonDiskImage:
-        'Azure python sandbox disk image is not configured (AZURE_SANDBOXES_PYTHON_DISK_IMAGE)',
+        'Azure Python sandbox disk image is not configured (AZURE_SANDBOXES_PYTHON_DISK_IMAGE)',
     gcpCloudRunPython:
-        'GCP Cloud Run python sandboxes are not configured (GCP_CLOUD_RUN_PYTHON_SANDBOX_URL / GCP_CLOUD_RUN_PYTHON_SANDBOX_SECRET)',
+        'GCP Cloud Run Python sandboxes are not configured (GCP_CLOUD_RUN_PYTHON_SANDBOX_URL / GCP_CLOUD_RUN_PYTHON_SANDBOX_SECRET)',
 } as const;
 
 /** The data-app Azure sandbox group settings, or null when any is missing. */
