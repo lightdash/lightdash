@@ -110,7 +110,7 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
             },
         ]);
         expect(content).toContain(
-            '  Filters in effect on the dashboard (its saved filters plus any the user changed; the dashboard applies them to its tiles):\n    ',
+            '  Filters in effect on the dashboard (its saved filters plus any the user changed; each applies only to the tiles it targets):\n    ',
         );
         expect(content).toContain('"values":["US"]');
         expect(content).not.toContain('country-filter-uuid');
@@ -120,7 +120,7 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         expect(content).not.toContain('requiredGroupId');
     });
 
-    it('renders chart dashboard view state with consistent filter wording', () => {
+    it('renders chart dashboard filters with the dashboard filter wording', () => {
         const dashboardFilters: DashboardFilters = {
             dimensions: [
                 {
@@ -161,15 +161,15 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         expect(content).toContain(
             [
                 '- Chart "Revenue" (chartSlug: revenue)',
-                '  Dashboard view state when the chart was pinned:',
-                '    Filters in effect on the dashboard (its saved filters plus any the user changed; the dashboard applies them to its tiles):',
+                '  Runtime overrides applied when the chart was pinned:',
+                '    Filters in effect on the dashboard (its saved filters plus any the user changed; each applies only to the tiles it targets):',
                 '      {"dimensions":[{"label":"Country","operator":"equals","target":{"fieldId":"orders.country","tableName":"orders"},"values":["US"]}],"metrics":[],"tableCalculations":[]}',
                 '    Parameter values: {"region":"EU"}',
                 '    Date zoom: {"granularity":"Week"}',
             ].join('\n'),
         );
         expect(content).toContain(
-            "Listed dashboard view state reflects what the user sees on the dashboard: apply it when answering about what the dashboard shows; build saved-chart edits from the chart's saved definition and new queries from only what the user asks for.",
+            "Listed overrides are what the user sees: apply them when the question is about the dashboard or a chart as shown there; start a saved-chart edit from the chart's saved definition, and give a standalone question only the filters the user asks for.",
         );
     });
 
@@ -197,7 +197,7 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
                 '  Parameter values: {"region":"EU"}',
                 '  Date zoom: {"granularity":"Week"}',
                 '',
-                "Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). Listed dashboard view state reflects what the user sees on the dashboard: apply it when answering about what the dashboard shows; build saved-chart edits from the chart's saved definition and new queries from only what the user asks for.",
+                "Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). Listed overrides are what the user sees: apply them when the question is about the dashboard or a chart as shown there; start a saved-chart edit from the chart's saved definition, and give a standalone question only the filters the user asks for.",
             ].join('\n'),
         );
     });
@@ -522,7 +522,7 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         );
         expect(content).not.toContain('artifact-1');
         expect(content).not.toContain('readContent');
-        expect(content).not.toContain('dashboard view state');
+        expect(content).not.toContain('Listed overrides');
     });
 
     it('renders a data app restore as one line naming both versions', () => {

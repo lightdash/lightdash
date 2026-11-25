@@ -12573,7 +12573,7 @@ export class AiAgentService extends BaseService {
         const images: { fileName: string; part: FilePart }[] = [];
 
         const dashboardViewFiltersLabel =
-            'Filters in effect on the dashboard (its saved filters plus any the user changed; the dashboard applies them to its tiles):';
+            'Filters in effect on the dashboard (its saved filters plus any the user changed; each applies only to the tiles it targets):';
 
         const describeItem = (item: AiPromptContextItem): string => {
             switch (item.type) {
@@ -12600,7 +12600,7 @@ export class AiAgentService extends BaseService {
                         );
                     }
                     if (overrideLines.length === 0) return headline;
-                    return `${headline}\n  Dashboard view state when the chart was pinned:\n${overrideLines.join('\n')}`;
+                    return `${headline}\n  Runtime overrides applied when the chart was pinned:\n${overrideLines.join('\n')}`;
                 }
                 case 'dashboard': {
                     const name = item.displayName ?? '(name unavailable)';
@@ -12853,7 +12853,7 @@ export class AiAgentService extends BaseService {
                     (item.type === 'chart' || item.type === 'dashboard') &&
                     item.runtimeOverrides !== null,
             )
-                ? "Listed dashboard view state reflects what the user sees on the dashboard: apply it when answering about what the dashboard shows; build saved-chart edits from the chart's saved definition and new queries from only what the user asks for."
+                ? "Listed overrides are what the user sees: apply them when the question is about the dashboard or a chart as shown there; start a saved-chart edit from the chart's saved definition, and give a standalone question only the filters the user asks for."
                 : null,
         ].filter((sentence): sentence is string => sentence !== null);
         const guidanceSection =
