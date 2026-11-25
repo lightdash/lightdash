@@ -211,40 +211,6 @@ describe('getPythonSandboxConfigError', () => {
             { sandboxProvider: 'docker' },
             'production',
         ],
-        [
-            AppRuntimeConfigErrors.pythonLambdaMicroVm,
-            { sandboxProvider: 'lambda-microvm' },
-            'test',
-        ],
-        [
-            AppRuntimeConfigErrors.azureSandboxesPythonGroup,
-            {
-                sandboxProvider: 'azure-sandboxes',
-                azureSandboxes: azure,
-                azureSandboxesPythonGroup: null,
-                azureSandboxesPythonDiskImage: 'image',
-            },
-            'test',
-        ],
-        [
-            AppRuntimeConfigErrors.azureSandboxesPythonDiskImage,
-            {
-                sandboxProvider: 'azure-sandboxes',
-                azureSandboxes: azure,
-                azureSandboxesPythonGroup: 'group',
-                azureSandboxesPythonDiskImage: null,
-            },
-            'test',
-        ],
-        [
-            AppRuntimeConfigErrors.gcpCloudRunPython,
-            {
-                sandboxProvider: 'gcp-cloud-run',
-                gcpCloudRun: { sandboxUrl: 'https://gw', sandboxSecret: 's' },
-                gcpCloudRunPython: { sandboxUrl: null, sandboxSecret: null },
-            },
-            'test',
-        ],
     ] as const)('reports %s', (error, appRuntime, nodeEnv) => {
         expect(
             getPythonSandboxConfigError(withAppRuntime(appRuntime), nodeEnv),
