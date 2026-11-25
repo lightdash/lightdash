@@ -55,6 +55,7 @@ const dateGrain = (
     label: string,
     grain: TimeFrames,
     description: string,
+    aiHint?: string,
 ): LiveDimensionDefinition => ({
     name,
     apiName,
@@ -63,6 +64,7 @@ const dateGrain = (
     filterOperators: [],
     timeInterval: { base: 'date', grain },
     description,
+    ...(aiHint ? { aiHint } : {}),
 });
 
 const exactDimension = (
@@ -71,11 +73,13 @@ const exactDimension = (
     label: string,
     group: string | undefined,
     description: string,
+    aiHint?: string,
 ): LiveDimensionDefinition => ({
     name,
     apiName,
     label,
     description,
+    ...(aiHint ? { aiHint } : {}),
     type: DimensionType.STRING,
     filterOperators: GOOGLE_ADS_EXACT_FILTERS,
     ...(group ? { groups: [group] } : {}),
@@ -87,8 +91,9 @@ const textDimension = (
     label: string,
     group: string,
     description: string,
+    aiHint?: string,
 ): LiveDimensionDefinition => ({
-    ...exactDimension(name, apiName, label, group, description),
+    ...exactDimension(name, apiName, label, group, description, aiHint),
     filterOperators: GOOGLE_ADS_STRING_FILTERS,
 });
 
@@ -100,11 +105,13 @@ const metric = (
     aggregation: ApiSourceMetricAggregation,
     description: string,
     format?: string,
+    aiHint?: string,
 ): LiveMetricDefinition => ({
     name,
     apiName,
     label,
     description,
+    ...(aiHint ? { aiHint } : {}),
     type,
     filterOperators: GOOGLE_ADS_METRIC_FILTERS,
     aggregation,
@@ -128,8 +135,8 @@ const CURRENCY_FORMAT = '#,##0.00';
 const COUNT_FORMAT = '#,##0.##';
 const PERCENT_FORMAT = '0.00%';
 
-const IMPRESSION_SHARE_NOTE =
-    'Search campaigns only. Google rounds values under 10% to 9.99% and over 90% to 90.01%, and shares can never be summed.';
+const IMPRESSION_SHARE_HINT =
+    'Search campaigns only. Google reports values under 10% as 0.0999 and over 90% as 0.9001. A share: never sum or average rows.';
 
 // Additivity per the metric definitions in
 // https://developers.google.com/google-ads/api/fields/v26/metrics: counts and
@@ -146,7 +153,8 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
     name: 'performance',
     label: 'Ad performance',
     description:
-        'Cost, clicks, impressions and conversions for one Google Ads account, by day and by campaign or ad group. Dates are in the account time zone, money is in the account currency, text filters are case-sensitive, and the most recent hours can still change.',
+        'Cost, clicks, impressions and conversions for one Google Ads account, by day and by campaign or ad group. Dates are in the account time zone and money is in the account currency.',
+    aiHint: 'Without a Date filter the query reads the last 30 days; day and week breakdowns only reach back 37 months. Text filters are case-sensitive. The most recent hours can still change, and conversions keep changing for as long as the conversion window lasts. To filter by Day of week, Device or Network, also add it to the results. Campaign status, type and bidding strategy need Campaign name or Campaign ID in the results; Ad group name needs the campaign too; Ad group status and type need Ad group ID. Rates, averages and impression shares are not additive.',
     dimensions: [
         {
             name: 'date',
@@ -155,57 +163,64 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             type: DimensionType.DATE,
             filterOperators: GOOGLE_ADS_DATE_FILTERS,
             timeInterval: { base: 'date', grain: TimeFrames.DAY },
-            description:
-                'Day of the activity, in the account time zone. Queries without a date filter read the last 30 days. Day and week breakdowns only reach back 37 months.',
+            description: 'Day of the activity, in the account time zone.',
+            aiHint: 'Without a date filter the query reads the last 30 days. Day and week breakdowns only reach back 37 months.',
         },
         dateGrain(
             'date_week',
             'segments.week',
             'Date week',
             TimeFrames.WEEK,
-            'Monday of the week. Filter the date to choose the weeks.',
+            'Week of the activity, shown as its Monday.',
+            'Filter Date, not this field, to choose the weeks.',
         ),
         dateGrain(
             'date_month',
             'segments.month',
             'Date month',
             TimeFrames.MONTH,
-            'First day of the month. Filter the date to choose the months.',
+            'Month of the activity, shown as its first day.',
+            'Filter Date, not this field, to choose the months.',
         ),
         dateGrain(
             'date_quarter',
             'segments.quarter',
             'Date quarter',
             TimeFrames.QUARTER,
-            'First day of the quarter. Filter the date to choose the quarters.',
+            'Quarter of the activity, shown as its first day.',
+            'Filter Date, not this field, to choose the quarters.',
         ),
         dateGrain(
             'date_year',
             'segments.year',
             'Date year',
             TimeFrames.YEAR,
-            'First day of the year. Filter the date to choose the years.',
+            'Year of the activity, shown as its first day.',
+            'Filter Date, not this field, to choose the years.',
         ),
         exactDimension(
             'day_of_week',
             'segments.day_of_week',
             'Day of week',
             undefined,
-            'MONDAY to SUNDAY. To filter by it, also add it to the results.',
+            'Day of the week, MONDAY to SUNDAY.',
+            'To filter by it, also add it to the results.',
         ),
         exactDimension(
             'device',
             'segments.device',
             'Device',
             undefined,
-            'MOBILE, TABLET, DESKTOP, CONNECTED_TV or OTHER. To filter by it, also add it to the results.',
+            'Device the ad was shown on: MOBILE, TABLET, DESKTOP, CONNECTED_TV or OTHER.',
+            'To filter by it, also add it to the results.',
         ),
         exactDimension(
             'network',
             'segments.ad_network_type',
             'Network',
             undefined,
-            'SEARCH, SEARCH_PARTNERS, CONTENT (Display), YOUTUBE, GOOGLE_TV or MIXED. To filter by it, also add it to the results.',
+            'Network the ad ran on: SEARCH, SEARCH_PARTNERS, CONTENT (Display), YOUTUBE, GOOGLE_TV or MIXED.',
+            'To filter by it, also add it to the results.',
         ),
         exactDimension(
             'account_id',
@@ -226,70 +241,77 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'customer.currency_code',
             'Account currency',
             'Account',
-            'Currency of every money metric, as an ISO 4217 code.',
+            'Currency of all money metrics, as an ISO 4217 code such as USD.',
         ),
         exactDimension(
             'campaign_id',
             'campaign.id',
             'Campaign ID',
             'Campaign',
-            'Numeric campaign ID.',
+            'Google Ads campaign ID.',
         ),
         textDimension(
             'campaign_name',
             'campaign.name',
             'Campaign name',
             'Campaign',
-            'A removed campaign can share its name with a live one; add the campaign ID to tell them apart.',
+            'Name of the campaign.',
+            'A removed campaign can share its name with a live one; add Campaign ID to tell them apart.',
         ),
         exactDimension(
             'campaign_status',
             'campaign.status',
             'Campaign status',
             'Campaign',
-            'ENABLED, PAUSED or REMOVED. Needs the campaign name or ID in the results.',
+            'Campaign status: ENABLED, PAUSED or REMOVED.',
+            'Needs Campaign name or Campaign ID in the results.',
         ),
         exactDimension(
             'campaign_type',
             'campaign.advertising_channel_type',
             'Campaign type',
             'Campaign',
-            'SEARCH, DISPLAY, SHOPPING, VIDEO, PERFORMANCE_MAX, DEMAND_GEN and others. Needs the campaign name or ID in the results.',
+            'Campaign type, such as SEARCH, DISPLAY, SHOPPING, VIDEO, PERFORMANCE_MAX or DEMAND_GEN.',
+            'Needs Campaign name or Campaign ID in the results.',
         ),
         exactDimension(
             'campaign_bidding_strategy_type',
             'campaign.bidding_strategy_type',
             'Campaign bidding strategy type',
             'Campaign',
-            'For example TARGET_CPA, MAXIMIZE_CONVERSIONS or MANUAL_CPC. Needs the campaign name or ID in the results.',
+            'How the campaign bids, such as TARGET_CPA, MAXIMIZE_CONVERSIONS or MANUAL_CPC.',
+            'Needs Campaign name or Campaign ID in the results.',
         ),
         exactDimension(
             'ad_group_id',
             'ad_group.id',
             'Ad group ID',
             'Ad group',
-            'Numeric ad group ID.',
+            'Google Ads ad group ID.',
         ),
         textDimension(
             'ad_group_name',
             'ad_group.name',
             'Ad group name',
             'Ad group',
-            'Unique only within a campaign, so it needs the campaign name or ID in the results.',
+            'Name of the ad group.',
+            'Unique only within a campaign: needs Campaign name or Campaign ID in the results.',
         ),
         exactDimension(
             'ad_group_status',
             'ad_group.status',
             'Ad group status',
             'Ad group',
-            'ENABLED, PAUSED or REMOVED. Needs the ad group ID in the results.',
+            'Ad group status: ENABLED, PAUSED or REMOVED.',
+            'Needs Ad group ID in the results.',
         ),
         exactDimension(
             'ad_group_type',
             'ad_group.type',
             'Ad group type',
             'Ad group',
-            'For example SEARCH_STANDARD or DISPLAY_STANDARD. Needs the ad group ID in the results.',
+            'Ad group type, such as SEARCH_STANDARD or DISPLAY_STANDARD.',
+            'Needs Ad group ID in the results.',
         ),
     ],
     metrics: [
@@ -308,7 +330,7 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Clicks',
             MetricType.SUM,
             ADDITIVE,
-            'Clicks on the ads.',
+            'Number of clicks on the ads.',
             COUNT_FORMAT,
         ),
         metric(
@@ -317,7 +339,7 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Impressions',
             MetricType.SUM,
             ADDITIVE,
-            'Times the ads were shown.',
+            'Number of times the ads were shown.',
             COUNT_FORMAT,
         ),
         metric(
@@ -326,8 +348,9 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Click-through rate',
             MetricType.NUMBER,
             ratio('clicks', 'impressions'),
-            'Clicks divided by impressions.',
+            'Clicks as a share of impressions.',
             PERCENT_FORMAT,
+            'A ratio: never sum or average rows.',
         ),
         metric(
             'average_cpc',
@@ -335,8 +358,9 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Average CPC',
             MetricType.NUMBER,
             ratio('cost', 'clicks'),
-            'Cost divided by clicks, in the account currency.',
+            'Average cost per click, in the account currency.',
             CURRENCY_FORMAT,
+            'A ratio: never sum or average rows.',
         ),
         metric(
             'average_cpm',
@@ -344,8 +368,9 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Average CPM',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            'Cost per thousand impressions, in the account currency.',
+            'Average cost per 1,000 impressions, in the account currency.',
             CURRENCY_FORMAT,
+            'A ratio: never sum or average rows.',
         ),
         metric(
             'interactions',
@@ -353,7 +378,7 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Interactions',
             MetricType.SUM,
             ADDITIVE,
-            'Clicks, video views and other main interactions, by ad format.',
+            'Number of main interactions with the ads, such as clicks on text ads or video views, depending on ad format.',
             COUNT_FORMAT,
         ),
         metric(
@@ -362,8 +387,9 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Interaction rate',
             MetricType.NUMBER,
             ratio('interactions', 'impressions'),
-            'Interactions divided by impressions.',
+            'Interactions as a share of impressions.',
             PERCENT_FORMAT,
+            'A ratio: never sum or average rows.',
         ),
         metric(
             'conversions',
@@ -371,8 +397,9 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Conversions',
             MetricType.SUM,
             ADDITIVE,
-            'Conversions counted by the account’s bidding goals. Attribution can make them fractional, and they keep changing for as long as the conversion window lasts.',
+            "Conversions counted toward the account's bidding goals. Attribution can make them fractional.",
             COUNT_FORMAT,
+            'Keep changing for as long as the conversion window lasts.',
         ),
         metric(
             'conversions_value',
@@ -389,8 +416,9 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Conversion rate',
             MetricType.NUMBER,
             ratio('conversions', 'interactions'),
-            'Conversions divided by interactions.',
+            'Conversions as a share of interactions.',
             PERCENT_FORMAT,
+            'A ratio: never sum or average rows.',
         ),
         metric(
             'cost_per_conversion',
@@ -398,8 +426,9 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Cost per conversion',
             MetricType.NUMBER,
             ratio('cost', 'conversions'),
-            'Cost divided by conversions, in the account currency.',
+            'Average cost per conversion, in the account currency.',
             CURRENCY_FORMAT,
+            'A ratio: never sum or average rows.',
         ),
         metric(
             'value_per_conversion',
@@ -407,8 +436,9 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Value per conversion',
             MetricType.NUMBER,
             ratio('conversions_value', 'conversions'),
-            'Conversion value divided by conversions, in the account currency.',
+            'Average conversion value per conversion, in the account currency.',
             CURRENCY_FORMAT,
+            'A ratio: never sum or average rows.',
         ),
         metric(
             'all_conversions',
@@ -416,7 +446,7 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'All conversions',
             MetricType.SUM,
             ADDITIVE,
-            'Every conversion, including those not used for bidding.',
+            'All conversions, including those not used for bidding.',
             COUNT_FORMAT,
         ),
         metric(
@@ -434,7 +464,7 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'View-through conversions',
             MetricType.SUM,
             ADDITIVE,
-            'Conversions after an impression with no interaction.',
+            'Conversions after someone saw an ad but did not interact with it.',
             COUNT_FORMAT,
         ),
         metric(
@@ -443,8 +473,9 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Search impression share',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            `Impressions received divided by those the ads were eligible for. ${IMPRESSION_SHARE_NOTE}`,
+            'Impressions the ads received as a share of the impressions they were eligible for.',
             PERCENT_FORMAT,
+            IMPRESSION_SHARE_HINT,
         ),
         metric(
             'search_top_impression_share',
@@ -452,8 +483,9 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Search top impression share',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            `Share of eligible impressions above the organic results. ${IMPRESSION_SHARE_NOTE}`,
+            'Share of eligible impressions shown above the organic search results.',
             PERCENT_FORMAT,
+            IMPRESSION_SHARE_HINT,
         ),
         metric(
             'search_absolute_top_impression_share',
@@ -461,8 +493,9 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Search absolute top impression share',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            `Share of eligible impressions in the very first position. ${IMPRESSION_SHARE_NOTE}`,
+            'Share of eligible impressions shown as the very first ad above the organic search results.',
             PERCENT_FORMAT,
+            IMPRESSION_SHARE_HINT,
         ),
         metric(
             'search_budget_lost_impression_share',
@@ -470,8 +503,9 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Search lost impression share (budget)',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            `Share of eligible impressions missed because of budget. ${IMPRESSION_SHARE_NOTE}`,
+            'Share of eligible impressions missed because the budget was too low.',
             PERCENT_FORMAT,
+            IMPRESSION_SHARE_HINT,
         ),
         metric(
             'search_rank_lost_impression_share',
@@ -479,8 +513,9 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             'Search lost impression share (rank)',
             MetricType.NUMBER,
             NON_ADDITIVE,
-            `Share of eligible impressions missed because of ad rank. ${IMPRESSION_SHARE_NOTE}`,
+            'Share of eligible impressions missed because of low ad rank.',
             PERCENT_FORMAT,
+            IMPRESSION_SHARE_HINT,
         ),
     ],
     maxDimensions: null,

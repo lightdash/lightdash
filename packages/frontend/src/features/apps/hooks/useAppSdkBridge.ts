@@ -54,6 +54,7 @@ import {
     getGdriveAccessToken,
     triggerGdriveLogin,
 } from '../../../hooks/gdrive/useGdrive';
+import { reportWarehouseCredentialsError } from '../../../hooks/userWarehouseCredentials/warehouseCredentialsError';
 import useApp from '../../../providers/App/useApp';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import type { DeliveryCaptureAccumulator } from '../deliveryCapture/deliveryCaptureAccumulator';
@@ -1867,6 +1868,12 @@ export function useAppSdkBridge({
                         json.error?.message ?? `API error (${res.status})`;
                     if (json.error?.data?.code === DATA_APP_NEWER_VERSION_CODE)
                         onNewerVersion?.();
+                    // The navbar prompts for personal warehouse credentials
+                    if (!embedToken)
+                        reportWarehouseCredentialsError(
+                            projectUuid,
+                            json.error,
+                        );
                     emitPostFailure(errorMessage);
                     respond({ error: errorMessage });
                 }

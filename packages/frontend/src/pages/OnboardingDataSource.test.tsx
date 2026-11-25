@@ -1,15 +1,10 @@
-import { FeatureFlags, type HealthState } from '@lightdash/common';
+import { type HealthState } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../testing/testUtils';
 import OnboardingDataSource from './OnboardingDataSource';
-
-vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: vi.fn(),
-}));
 
 const healthWithGoogleAuth = (enabled: boolean): Partial<HealthState> => ({
     auth: {
@@ -55,13 +50,6 @@ const renderChooser = ({ canCreateProject }: { canCreateProject: boolean }) =>
     );
 
 describe('OnboardingDataSource', () => {
-    beforeEach(() => {
-        vi.mocked(useServerFeatureFlag).mockReturnValue({
-            data: { id: FeatureFlags.NewOnboarding, enabled: true },
-            isLoading: false,
-        } as ReturnType<typeof useServerFeatureFlag>);
-    });
-
     it('opens the warehouse form straight from its tile', async () => {
         renderChooser({ canCreateProject: true });
 

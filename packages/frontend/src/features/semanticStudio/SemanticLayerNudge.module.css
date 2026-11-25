@@ -1,0 +1,21 @@
+.nudge {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-sm);
+}
+
+.nudgeIcon {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-indigo-light);
+    color: var(--mantine-color-indigo-light-color);
+}

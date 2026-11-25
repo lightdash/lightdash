@@ -5,10 +5,7 @@ import {
     structuredToolOutputSchema,
 } from '../outputMetadata';
 import { toolNameFor } from './discoveryToolNames';
-import {
-    findExploresRelevantVerifiedAnswerSchema,
-    findExploresRequiredFilterSchema,
-} from './toolFindExploresArgs';
+import { findExploresRequiredFilterSchema } from './toolFindExploresArgs';
 
 export const GREP_FIELDS_DESCRIPTION = ({
     runtime,
@@ -40,7 +37,7 @@ export const grepFieldsInputSchema = z.object({
         .min(1)
         .max(5)
         .describe(
-            'Up to 5 case-insensitive keyword patterns, not full regexes, matched against field names, labels, descriptions, hints and tags. Use `|` to OR synonyms ("revenue|sales") and a space or `.*` between words to require all of them ("order.*status"). Use short keywords: long natural-language phrases do not match. The patterns run together, so cover every angle of the question in one call (e.g. ["revenue|sales", "country|region", "segment|tier"]).',
+            'Up to 5 case-insensitive keyword patterns, not full regexes, matched against field names, labels, descriptions, hints and tags. Use `|` to OR synonyms ("<term>|<synonym>") and a space or `.*` between words to require all of them ("<word>.*<word>"). Use short keywords: long natural-language phrases do not match. The patterns run together, so cover every angle of the question in one call (e.g. ["<measure>|<synonym>", "<dimension>|<synonym>", "<filter>|<synonym>"]).',
         ),
     exploreName: z
         .string()
@@ -161,9 +158,6 @@ export const toolGrepFieldsStructuredContentSchema = z.object({
         .describe(
             'Catalog-search near matches not already surfaced by the grep.',
         ),
-    relevantVerifiedAnswers: z
-        .array(findExploresRelevantVerifiedAnswerSchema)
-        .optional(),
 });
 
 export const grepFieldsResultSchema = toolGrepFieldsStructuredContentSchema;

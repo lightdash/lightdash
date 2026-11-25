@@ -16,7 +16,7 @@ import type {
     LiveExploreDefinition,
     LivePeriodFormat,
 } from './explores/definition';
-import type { LiveIntegrationSpec } from './spec/types';
+import type { LiveIntegrationSpec, LiveRateLimits } from './spec/types';
 
 /**
  * One external API Lightdash queries live: a source's settings, what it may
@@ -47,6 +47,8 @@ export type LiveIntegration<
         headers?: Record<string, string> | null;
     };
     limits: LiveLimits;
+    /** A source's own rate limits, when its settings set them; omitted, every source gets `rateLimits`. */
+    rateLimitsFor?: (settings: ApiSourceOf<C>) => LiveRateLimits;
     capabilities: LiveCapabilities;
     /** The first is the wide model; scans and field edits apply to it and to `scan.models`. */
     explores: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
@@ -110,11 +112,8 @@ export type LiveIntegration<
     warehouseSqlBuilder?: WarehouseSqlBuilder;
 };
 
-/** How hard Lightdash may call the API through one connection, and how much one query may read. */
+/** How much one query may read, and how long one call may run. Rate limits are in the spec's `rateLimits`. */
 export type LiveLimits = {
-    concurrentCalls: number;
-    callsPerMinute: number;
-    callsPerHour: number;
     /** Calls one query may make; APIs that page need several. */
     callsPerQuery: number;
     /** How long the API lets one call run before failing it. */

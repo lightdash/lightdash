@@ -12,7 +12,7 @@ import {
 import { IconCode, IconWindowMaximize } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';
-import { type FC, type MouseEvent } from 'react';
+import { useContext, type FC, type MouseEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { splitStudioChatCode } from '../../../../../features/semanticStudio/studioChatRefs';
@@ -35,6 +35,7 @@ import {
 } from './contentReferenceUtils';
 import { ThreadImageTileRow } from './ThreadImageCard';
 import { ThreadImageReference } from './ThreadImageReference';
+import { InStudioChatContext } from './ToolCalls/studioChatContext';
 import { isPlainLeftClick } from './useDataAppPreviewLink';
 
 type Props = {
@@ -63,6 +64,7 @@ export const UserBubble: FC<Props> = ({
     agentUuid: agentUuidProp,
 }) => {
     const isEmbed = useIsEmbedded();
+    const isStudio = useContext(InStudioChatContext);
     const { agentUuid: paramsAgentUuid } = useParams();
     const paramsProjectUuid = useProjectUuid();
     const projectUuid = projectUuidProp ?? paramsProjectUuid;
@@ -115,9 +117,8 @@ export const UserBubble: FC<Props> = ({
                     </Text>
                 ) : null}
                 <Tooltip label={format(parseISO(message.createdAt), 'PPpp')}>
-                    {isEmbed ? (
-                        // The message permalink lives in the full app, which an
-                        // embed cannot open.
+                    {isEmbed || isStudio ? (
+                        // The permalink opens the Ask AI thread view, which embeds and Studio do not use.
                         <Text
                             c="dimmed"
                             fz="xs"

@@ -2,7 +2,6 @@ import {
     DbtProjectType,
     DefaultSupportedDbtVersion,
     DuckdbConnectionType,
-    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     ProjectType,
@@ -17,14 +16,12 @@ import * as Sentry from '@sentry/node';
 import path from 'path';
 import {
     type LightdashAnalytics,
-    type OnboardingFlow,
     type PlaygroundProjectSkippedReason,
 } from '../../../analytics/LightdashAnalytics';
 import Logger from '../../../logging/logger';
 import { type OnboardingModel } from '../../../models/OnboardingModel/OnboardingModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type CatalogService } from '../../../services/CatalogService/CatalogService';
-import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import {
     getCurrentPlaygroundBundleVersion,
     getServablePlaygroundBundleVersions,
@@ -40,7 +37,6 @@ import { type PlaygroundContent } from './playgroundContentTypes';
 
 export type ProvisionPlaygroundProjectArguments = {
     user: SessionUser;
-    featureFlagService: Pick<FeatureFlagService, 'get'>;
     projectModel: Pick<
         ProjectModel,
         | 'getAllByOrganizationUuid'
@@ -79,7 +75,6 @@ const getErrorType = (error: unknown): string =>
 
 export const provisionPlaygroundProject = async ({
     user,
-    featureFlagService,
     projectModel,
     onboardingModel,
     projectService,
@@ -97,13 +92,6 @@ export const provisionPlaygroundProject = async ({
         throw new ForbiddenError('User is not part of an organization');
     }
 
-    const featureFlag = await featureFlagService.get({
-        user,
-        featureFlagId: FeatureFlags.NewOnboarding,
-    });
-    const onboardingFlow: OnboardingFlow = featureFlag.enabled
-        ? 'new'
-        : 'legacy';
     let outcomeTracked = false;
     const trackSkipped = (
         reason: PlaygroundProjectSkippedReason,
@@ -117,16 +105,11 @@ export const provisionPlaygroundProject = async ({
                 organizationId: organizationUuid,
                 projectId,
                 trigger,
-                onboardingFlow,
+                onboardingFlow: 'new',
                 reason,
             },
         });
     };
-    if (!featureFlag.enabled) {
-        trackSkipped('new_onboarding_flag_disabled', null);
-        throw new NotFoundError('Playground projects are not available');
-    }
-
     let lastKnownProjectUuid: string | null = null;
     try {
         return await onboardingModel.runInPlaygroundProvisioningLock(
@@ -359,7 +342,7 @@ export const provisionPlaygroundProject = async ({
                         organizationId: organizationUuid,
                         projectId: projectUuid,
                         trigger,
-                        onboardingFlow,
+                        onboardingFlow: 'new',
                         contentSeedErrorType,
                         catalogIndexErrorType,
                     },
@@ -376,7 +359,7 @@ export const provisionPlaygroundProject = async ({
                     organizationId: organizationUuid,
                     projectId: lastKnownProjectUuid,
                     trigger,
-                    onboardingFlow,
+                    onboardingFlow: 'new',
                     errorType: getErrorType(error),
                 },
             });

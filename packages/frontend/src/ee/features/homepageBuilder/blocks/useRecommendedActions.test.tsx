@@ -2,7 +2,6 @@ import {
     DbtProjectType,
     DbtProjectTypeLabels,
     ExploreType,
-    FeatureFlags,
     ProjectType,
     type ApiExploresResults,
     type HomepageRecommendedActionKey,
@@ -16,7 +15,6 @@ import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useExplores } from '../../../../hooks/useExplores';
 import { useProject } from '../../../../hooks/useProject';
 import { useProjects } from '../../../../hooks/useProjects';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
 import { useHomepageRecommendedActionSkips } from '../hooks/useHomepageRecommendedActionSkips';
 import { useRecommendedActions } from './useRecommendedActions';
@@ -33,7 +31,7 @@ vi.mock('../../../../hooks/useExplores');
 vi.mock('../../../../hooks/useProject');
 vi.mock('../../../../hooks/useProjects');
 vi.mock('../../../../providers/App/useApp');
-vi.mock('../../../../hooks/useServerOrClientFeatureFlag');
+
 vi.mock('../hooks/useHomepageRecommendedActionSkips');
 
 // The hook reads settledness, not just "is a request in flight", so every
@@ -122,9 +120,6 @@ describe('useRecommendedActions', () => {
             ...settled(undefined),
             isSuccess: false,
         } as unknown as ReturnType<typeof useGetSlack>);
-        vi.mocked(useServerFeatureFlag).mockReturnValue(
-            settled(undefined) as ReturnType<typeof useServerFeatureFlag>,
-        );
         vi.mocked(useHomepageRecommendedActionSkips).mockReturnValue(
             recommendedActionSkipsResult(),
         );
@@ -160,12 +155,6 @@ describe('useRecommendedActions', () => {
     });
 
     it('does not report pending actions while skipped actions are loading', () => {
-        vi.mocked(useServerFeatureFlag).mockImplementation(
-            (flag) =>
-                settled({
-                    enabled: flag === FeatureFlags.NewOnboarding,
-                }) as ReturnType<typeof useServerFeatureFlag>,
-        );
         vi.mocked(useHomepageRecommendedActionSkips).mockReturnValue(
             recommendedActionSkipsResult({ isLoading: true }),
         );
@@ -269,26 +258,8 @@ describe('useRecommendedActions', () => {
         ).toBe(false);
     });
 
-    describe('new-onboarding gate', () => {
-        it('has no pending actions while new-onboarding is disabled', () => {
-            const { result } = renderHook(() =>
-                useRecommendedActions('project-uuid'),
-            );
-
-            expect(result.current.visibleActions).toContain(
-                'connect-warehouse',
-            );
-            expect(result.current.hasPendingActions).toBe(false);
-        });
-
-        it('has pending actions once new-onboarding is enabled', () => {
-            vi.mocked(useServerFeatureFlag).mockImplementation(
-                (flag) =>
-                    settled({
-                        enabled: flag === FeatureFlags.NewOnboarding,
-                    }) as ReturnType<typeof useServerFeatureFlag>,
-            );
-
+    describe('pending actions', () => {
+        it('has pending actions for an incomplete setup', () => {
             const { result } = renderHook(() =>
                 useRecommendedActions('project-uuid'),
             );
@@ -361,12 +332,6 @@ describe('useRecommendedActions', () => {
 
     describe('on a project started from live sources', () => {
         beforeEach(() => {
-            vi.mocked(useServerFeatureFlag).mockImplementation(
-                (flag) =>
-                    settled({
-                        enabled: flag === FeatureFlags.NewOnboarding,
-                    }) as ReturnType<typeof useServerFeatureFlag>,
-            );
             vi.mocked(useOrganization).mockReturnValue(
                 settled({ needsProject: false }) as ReturnType<
                     typeof useOrganization
@@ -415,15 +380,6 @@ describe('useRecommendedActions', () => {
     });
 
     describe('add-semantic-layer completion', () => {
-        beforeEach(() => {
-            vi.mocked(useServerFeatureFlag).mockImplementation(
-                (flag) =>
-                    settled({
-                        enabled: flag === FeatureFlags.NewOnboarding,
-                    }) as ReturnType<typeof useServerFeatureFlag>,
-            );
-        });
-
         const mockExplores = (explores: ApiExploresResults) =>
             vi
                 .mocked(useExplores)
@@ -526,9 +482,6 @@ describe('useRecommendedActions', () => {
             vi.mocked(useGetSlack).mockReturnValue(
                 loading as unknown as ReturnType<typeof useGetSlack>,
             );
-            vi.mocked(useServerFeatureFlag).mockReturnValue(
-                loading as ReturnType<typeof useServerFeatureFlag>,
-            );
             // Gated on health, so not started: idle, not loading
             vi.mocked(useGitlabRepositories).mockReturnValue(
                 unfetched as unknown as ReturnType<
@@ -559,14 +512,6 @@ describe('useRecommendedActions', () => {
             );
         };
 
-        const flagsResolved = () => {
-            vi.mocked(useServerFeatureFlag).mockReturnValue(
-                settled({ enabled: true }) as ReturnType<
-                    typeof useServerFeatureFlag
-                >,
-            );
-        };
-
         const integrationsResolved = () => {
             vi.mocked(useGithubConfig).mockReturnValue(
                 settled(undefined) as ReturnType<typeof useGithubConfig>,
@@ -579,11 +524,6 @@ describe('useRecommendedActions', () => {
                 ...settled(undefined),
                 isSuccess: false,
             } as unknown as ReturnType<typeof useGetSlack>);
-        };
-
-        const flagsAndIntegrationsResolved = () => {
-            flagsResolved();
-            integrationsResolved();
         };
 
         const recordCascade = (stages: (() => void)[]) => {
@@ -605,7 +545,7 @@ describe('useRecommendedActions', () => {
                 recordCascade([
                     healthInFlight,
                     healthResolvedDependentsUnstarted,
-                    flagsAndIntegrationsResolved,
+                    integrationsResolved,
                 ]),
             ).toEqual([true, true, false]);
         });
@@ -614,7 +554,7 @@ describe('useRecommendedActions', () => {
             const seen = recordCascade([
                 healthInFlight,
                 healthResolvedDependentsUnstarted,
-                flagsAndIntegrationsResolved,
+                integrationsResolved,
             ]);
 
             const regressions = seen.filter(
@@ -634,12 +574,11 @@ describe('useRecommendedActions', () => {
                         user: { data: { ability: { can: () => true } } },
                     } as unknown as ReturnType<typeof useApp>);
                 },
-                flagsResolved,
             ]);
 
             // GitHub, GitLab and Slack are off on this instance, so their
             // queries stay unresolved for the whole run and still hold nothing up
-            expect(seen).toEqual([true, true, false]);
+            expect(seen).toEqual([true, false]);
         });
     });
 });

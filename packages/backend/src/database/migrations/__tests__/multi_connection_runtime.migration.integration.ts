@@ -1154,7 +1154,6 @@ describe('Multi runtime identity wiring on the real schema', () => {
 
     type PreviewInternals = {
         validateProjectCreationPermissions: () => Promise<void>;
-        getOnboardingFlow: () => Promise<undefined>;
         runPostProjectCreationProvisioning: () => Promise<void>;
         copyUserAccessOnPreview: () => Promise<void>;
         copyContentOnPreview: (
@@ -1198,7 +1197,6 @@ describe('Multi runtime identity wiring on the real schema', () => {
             internals,
             'validateProjectCreationPermissions',
         ).mockResolvedValue(undefined);
-        vi.spyOn(internals, 'getOnboardingFlow').mockResolvedValue(undefined);
         vi.spyOn(
             internals,
             'runPostProjectCreationProvisioning',
@@ -1444,7 +1442,6 @@ describe('Multi runtime identity wiring on the real schema', () => {
             } as never);
             const internals = service as unknown as {
                 testProjectAdapter: () => Promise<unknown>;
-                getOnboardingFlow: () => Promise<undefined>;
                 runPostProjectCreationProvisioning: () => Promise<void>;
             };
             const lightdashProjectConfig = { spotlight: {}, parameters: {} };
@@ -1464,9 +1461,6 @@ describe('Multi runtime identity wiring on the real schema', () => {
                         warehouseClientFromCredentials(credentials),
                 },
             });
-            vi.spyOn(internals, 'getOnboardingFlow').mockResolvedValue(
-                undefined,
-            );
             vi.spyOn(
                 internals,
                 'runPostProjectCreationProvisioning',
@@ -1593,9 +1587,6 @@ describe('Multi runtime identity wiring on the real schema', () => {
                 internals,
                 'validateProjectCreationPermissions',
             ).mockResolvedValue(undefined);
-            vi.spyOn(internals, 'getOnboardingFlow').mockResolvedValue(
-                undefined,
-            );
             vi.spyOn(
                 internals,
                 'runPostProjectCreationProvisioning',

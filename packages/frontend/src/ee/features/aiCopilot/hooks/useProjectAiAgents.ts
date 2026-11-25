@@ -26,7 +26,6 @@ import type {
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadWorkstreamsResponse,
-    ApiAiAgentVerifiedQuestionsResponse,
     ApiAiMcpServerListResponse,
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateAiAgent,
@@ -1205,7 +1204,6 @@ const createOptimisticMessages = (
             reasoning: [],
             savedQueryUuid: null,
             artifacts: null,
-            referencedArtifacts: null,
             modelConfig,
             tokenUsage: null,
             responseTiming: null,
@@ -1248,7 +1246,7 @@ const generateAgentThreadTitle = async (
         body: JSON.stringify({}),
     });
 
-const useGenerateAgentThreadTitleMutation = (projectUuid: string) => {
+export const useGenerateAgentThreadTitleMutation = (projectUuid: string) => {
     const lightdashApi = useLightdashApi();
 
     const queryClient = useQueryClient();
@@ -1402,6 +1400,7 @@ export const useCreateAgentThreadMutation = (
                         liveStatus: null,
                         binding: thread.binding,
                         threadContext: thread.threadContext,
+                        metadata: thread.metadata,
                         compactions: [],
                         messages: createOptimisticMessages(
                             thread.uuid,
@@ -2475,31 +2474,5 @@ export const useAiAgentDashboardChartVizQuery = (
         enabled:
             (isEmbed || (!!health.data && !!org.data)) &&
             useQueryOptions?.enabled !== false,
-    });
-};
-
-const getVerifiedQuestions = async (
-    lightdashApi: LightdashApi,
-    projectUuid: string,
-    agentUuid: string,
-): Promise<ApiAiAgentVerifiedQuestionsResponse['results']> =>
-    lightdashApi<ApiAiAgentVerifiedQuestionsResponse['results']>({
-        version: 'v1',
-        url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/verified-questions`,
-        method: 'GET',
-        body: undefined,
-    });
-
-export const useVerifiedQuestions = (
-    projectUuid: string | undefined,
-    agentUuid: string | undefined,
-) => {
-    const lightdashApi = useLightdashApi();
-
-    return useQuery<ApiAiAgentVerifiedQuestionsResponse['results'], ApiError>({
-        queryKey: [AI_AGENTS_KEY, projectUuid, agentUuid, 'verified-questions'],
-        queryFn: () =>
-            getVerifiedQuestions(lightdashApi, projectUuid!, agentUuid!),
-        enabled: !!projectUuid && !!agentUuid,
     });
 };

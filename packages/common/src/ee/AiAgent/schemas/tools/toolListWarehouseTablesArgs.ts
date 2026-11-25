@@ -15,13 +15,13 @@ export const toolListWarehouseTablesArgsSchema = createToolSchema()
             .string()
             .nullish()
             .describe(
-                'Schema to list, e.g. "jaffle", "public" or "raw". Omit to list every schema.',
+                'Schema to list, e.g. "public" or "raw". Omit to list every schema.',
             ),
         search: z
             .string()
             .nullish()
             .describe(
-                'Case-insensitive substring of the table name, e.g. "work_order".',
+                'Case-insensitive substring of the table name, e.g. "<name part>".',
             ),
         limit: z.coerce
             .number()

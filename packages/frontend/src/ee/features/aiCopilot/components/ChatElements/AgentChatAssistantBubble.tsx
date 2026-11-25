@@ -6,13 +6,17 @@ import {
     DBT_SAVE_CARD_REPLY,
     describeSemanticLayerProposals,
     getEditDbtProjectCardExtras,
+    DBT_WRITE_TOOL_NAMES,
+    isDbtWriteToolName,
     isToolEditDbtProjectResult,
-    isToolProposeSemanticLayerChangeResult,
+    getRunProposals,
+    getSavedProposals,
+    getStudioCardReply,
     isToolEditRepoResult,
     isToolDataAppBuildResult,
     type SemanticLayerProposal,
+    showsProposalSummary,
     type ToolEditDbtProjectOutput,
-    type ToolProposeSemanticLayerChangeOutput,
     type ToolEditRepoOutput,
     type ToolGenerateDataAppOutput,
     hasNodeCitations,
@@ -65,9 +69,6 @@ import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { AiMarkdownErrorBoundary } from '../../../../../components/common/AiMarkdown/AiMarkdownErrorBoundary';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { SemanticLayerProposalCard } from '../../../../../features/semanticStudio/SemanticLayerProposalCard';
-import { TurnCardSkeleton } from '../../../../../features/semanticStudio/TurnCard';
-import { TurnSummaryCard } from '../../../../../features/semanticStudio/TurnSummaryCard';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useApp from '../../../../../providers/App/useApp';
@@ -96,6 +97,9 @@ import {
 } from '../../streaming/useAiAgentThreadStreamQuery';
 import { useBattleMessage } from '../Battle/BattleMessageContext';
 import { JevDecisionIndicator } from '../Battle/JevDecisionIndicator';
+import { SemanticLayerProposalCard } from '../SemanticStudioAgent/cards/SemanticLayerProposalCard';
+import { TurnCardSkeleton } from '../SemanticStudioAgent/cards/TurnCard';
+import { TurnSummaryCard } from '../SemanticStudioAgent/cards/TurnSummaryCard';
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiAccessCallout } from './AiAccessCallout';
@@ -138,8 +142,11 @@ import {
     LiveActivityCard,
     type LiveActivityToolGroup,
 } from './ToolCalls/LiveActivityCard';
-import { QuietCardsContext, StudioAskContext } from './ToolCalls/quietCards';
 import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
+import {
+    InStudioChatContext,
+    StudioAskContext,
+} from './ToolCalls/studioChatContext';
 import { getRunSqlLinkStateFromArgs } from './ToolCalls/utils/runSqlLinkState';
 import {
     getPendingApprovalIds,
@@ -576,25 +583,10 @@ const AssistantBubbleContent: FC<{
         ? `The agent finished without a response.${canRetry ? ' You can try again.' : ''}`
         : displayErrorMessage;
 
-    const baseMessageContent =
+    const messageContent =
         isStreaming && streamingState
             ? streamingState.content
             : message.message || streamedContent;
-
-    const referencedArtifactsMarkdown =
-        !isStreaming &&
-        !isPending &&
-        message.referencedArtifacts &&
-        message.referencedArtifacts.length > 0
-            ? `\n\nReferenced answers: ${message.referencedArtifacts
-                  .map(
-                      (artifact) =>
-                          `[${artifact.title}](#artifact-link#artifact-uuid-${artifact.artifactUuid}#version-uuid-${artifact.versionUuid}#artifact-type-${artifact.artifactType})`,
-                  )
-                  .join(', ')}`
-            : '';
-
-    const messageContent = baseMessageContent + referencedArtifactsMarkdown;
     const resolvedNodes = useAiAgentThreadComposerNodes({
         projectUuid,
         agentUuid,
@@ -634,7 +626,7 @@ const AssistantBubbleContent: FC<{
         if (writebackResult) return { metadata: writebackResult.metadata };
 
         const livePart = findLiveToolPart(streamingState?.parts, [
-            'editDbtProject',
+            ...DBT_WRITE_TOOL_NAMES,
         ]);
         const liveOutput = livePart?.toolResult as
             | ToolEditDbtProjectOutput
@@ -643,39 +635,29 @@ const AssistantBubbleContent: FC<{
         return { metadata: liveOutput.metadata };
     })();
 
-    const quietCards = useContext(QuietCardsContext);
+    const inStudioChat = useContext(InStudioChatContext);
     const askStudio = useContext(StudioAskContext);
     // Persisted once the turn is saved; until then the stream carries them.
-    const persistedProposals: SemanticLayerProposal[] = message.toolResults
-        .filter(isToolProposeSemanticLayerChangeResult)
-        .map(({ metadata }) => metadata);
+    const persistedProposals = getSavedProposals(message.toolResults);
     const semanticLayerProposals: SemanticLayerProposal[] =
         persistedProposals.length > 0
             ? persistedProposals
-            : (streamingState?.parts ?? []).flatMap((part) => {
-                  if (
-                      part.type !== 'toolCall' ||
-                      part.toolName !== 'proposeSemanticLayerChange' ||
-                      part.isPreliminary === true
-                  ) {
-                      return [];
-                  }
-                  const output =
-                      part.toolResult as ToolProposeSemanticLayerChangeOutput | null;
-                  return output?.metadata?.status === 'success'
-                      ? [output.metadata]
-                      : [];
-              });
-
-    // A turn still working says nothing of an attempt that failed: it may yet land the change.
-    const showsTurnSummary =
-        semanticLayerProposals.length > 0 &&
-        !(
-            isStreaming &&
-            semanticLayerProposals.every(
-                ({ draftChangeUuid }) => !draftChangeUuid,
-            )
-        );
+            : getRunProposals(
+                  (streamingState?.parts ?? []).flatMap((part) =>
+                      part.type === 'toolCall' && part.isPreliminary !== true
+                          ? [
+                                {
+                                    toolName: part.toolName,
+                                    output: part.toolResult,
+                                },
+                            ]
+                          : [],
+                  ),
+              );
+    const showsTurnSummary = showsProposalSummary(
+        semanticLayerProposals,
+        isStreaming,
+    );
 
     // Once a turn proposes, its card's place is held until the card lands; a later proposal updates the card in place.
     const isProposing =
@@ -830,7 +812,7 @@ const AssistantBubbleContent: FC<{
                         }));
                     // Studio runs SQL unasked, so it never shows the prompt.
                     const pendingApprovalIds =
-                        streamingState && !quietCards
+                        streamingState && !inStudioChat
                             ? getPendingApprovalIds(streamingState)
                             : [];
                     const textSegments = segments.filter(
@@ -903,8 +885,9 @@ const AssistantBubbleContent: FC<{
                                         streamingState?.decidedToolCallIds ??
                                         [],
                                 }}
+                                extra={inStudioChat ? artifactSlot : null}
                             />
-                            {artifactSlot}
+                            {inStudioChat ? null : artifactSlot}
                             {latestTextSeg ? (
                                 <Box
                                     className={styles.streamPart}
@@ -937,7 +920,7 @@ const AssistantBubbleContent: FC<{
                     projectUuid,
                     agentUuid,
                     threadUuid: message.threadUuid,
-                    pendingToolCallIds: quietCards
+                    pendingToolCallIds: inStudioChat
                         ? []
                         : getPendingPersistedApprovalIds(message),
                     decidedToolCallIds: [],
@@ -945,13 +928,13 @@ const AssistantBubbleContent: FC<{
                 // In Studio a turn that only changed the draft ends on its card; the line kept for history is not shown twice.
                 const cardReply =
                     semanticLayerProposals.length > 0
-                        ? describeSemanticLayerProposals(semanticLayerProposals)
+                        ? getStudioCardReply(semanticLayerProposals)
                         : editDbtProjectResult
                           ? DBT_SAVE_CARD_REPLY
                           : null;
                 const hasAnswerText =
                     messageContent.length > 0 &&
-                    !(quietCards && messageContent.trim() === cardReply);
+                    !(inStudioChat && messageContent.trim() === cardReply);
                 return (
                     <>
                         <LiveActivityCard
@@ -972,8 +955,9 @@ const AssistantBubbleContent: FC<{
                                 ),
                                 isLive: isStreaming,
                             }}
+                            extra={inStudioChat ? artifactSlot : null}
                         />
-                        {artifactSlot}
+                        {inStudioChat ? null : artifactSlot}
                         {hasAnswerText ? (
                             <Box
                                 // Walkthrough: the answer in words (persisted).
@@ -1031,8 +1015,8 @@ const AssistantBubbleContent: FC<{
                 message={message}
                 streamParts={streamingState?.parts}
             />
-            {quietCards && isProposing ? <TurnCardSkeleton /> : null}
-            {quietCards
+            {inStudioChat && isProposing ? <TurnCardSkeleton /> : null}
+            {inStudioChat
                 ? showsTurnSummary && (
                       <AiMarkdownErrorBoundary
                           fallback={
@@ -1068,8 +1052,8 @@ const AssistantBubbleContent: FC<{
                     isLatest={isLastMessage}
                     note={
                         getEditDbtProjectCardExtras(
-                            message.toolCalls.findLast(
-                                ({ toolName }) => toolName === 'editDbtProject',
+                            message.toolCalls.findLast(({ toolName }) =>
+                                isDbtWriteToolName(toolName),
                             )?.toolArgs,
                         ).note
                     }
@@ -1126,7 +1110,7 @@ export const AssistantBubble: FC<Props> = memo(
         mcpServers,
         onDashboardLinkClick,
     }) => {
-        const quietCards = useContext(QuietCardsContext);
+        const inStudioChat = useContext(InStudioChatContext);
         const artifact = useAiAgentStoreSelector(selectArtifactPreview);
         const dispatch = useAiAgentStoreDispatch();
         const writingSummaryLabel = useUiString(
@@ -1431,7 +1415,7 @@ export const AssistantBubble: FC<Props> = memo(
                         className={styles.messageActions}
                         // Earlier answers reveal their actions on hover or focus; in a narrow side chat every answer does.
                         data-persistent={
-                            !quietCards && (isLastMessage || hasRating)
+                            !inStudioChat && (isLastMessage || hasRating)
                         }
                         // Walkthrough: rating the answer feeds the Issues loop.
                         // See scripts/scope-tours.
@@ -1453,7 +1437,7 @@ export const AssistantBubble: FC<Props> = memo(
                         />
 
                         {/* A narrow side chat keeps only copy; rating and timing belong to the full thread. */}
-                        {!quietCards && (!hasRating || upVoted) && (
+                        {!inStudioChat && (!hasRating || upVoted) && (
                             <ActionIcon
                                 color="ldGray.9"
                                 aria-label="upvote"
@@ -1476,7 +1460,7 @@ export const AssistantBubble: FC<Props> = memo(
                             </ActionIcon>
                         )}
 
-                        {!quietCards && (!hasRating || downVoted) && (
+                        {!inStudioChat && (!hasRating || downVoted) && (
                             <Popover
                                 width={500}
                                 position="top-start"
@@ -1598,7 +1582,7 @@ export const AssistantBubble: FC<Props> = memo(
                                 decision={message.jevDecision}
                             />
                         )}
-                        {canViewDebugInfo && !quietCards && (
+                        {canViewDebugInfo && !inStudioChat && (
                             <MessageTimingIndicator
                                 responseTiming={message.responseTiming}
                                 isWinner={battle.isWinner}

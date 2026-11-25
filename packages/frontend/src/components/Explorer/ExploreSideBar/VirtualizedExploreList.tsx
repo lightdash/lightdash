@@ -202,8 +202,9 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                 isExpanded: isLiveSourcesExpanded,
             });
             if (isLiveSourcesExpanded) {
-                // A source with several explores is a folder, before the
-                // sources with one, like groups in the main list
+                // Each source is a folder of its explores; an explore with no
+                // source is one built before every explore had one, until
+                // its source is rebuilt
                 const bySource = groupBy(
                     liveSourceExplores,
                     (explore) => explore.groupLabel ?? '',

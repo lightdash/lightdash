@@ -1,0 +1,142 @@
+/* Details modal: one list, each line a name and its value. Editable values
+   come first; a hairline separates them from the read-only ones. */
+.modalTitleSlot {
+    min-width: 0;
+    flex: 1;
+}
+
+.modalTitle {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 22px;
+    letter-spacing: -0.01em;
+}
+
+.detailList {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    column-gap: 16px;
+    row-gap: 6px;
+    align-items: start;
+}
+
+/* Every line is as tall as an input, so names and values share a centre. */
+.detailList .inlineStatic {
+    padding-top: 5px;
+    padding-bottom: 5px;
+    line-height: 20px;
+}
+
+.detailDivider {
+    grid-column: 1 / -1;
+    margin: 10px 0;
+    border-top: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+}
+
+.inlineStatic[data-code='true'] {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 12px;
+    word-break: break-all;
+}
+
+.modalContent {
+    outline: none;
+}
+
+.modalFooter {
+    margin-top: 20px;
+}
+
+/* Names sit on the first line of their value. */
+.detailList .propertyTerm {
+    padding-top: 5px;
+}
+
+/* A control in a value cell, centred on the first line. */
+.detailControl {
+    min-height: 30px;
+}
+
+/* Inline editing: reads as text at rest, an input on hover and focus. */
+.inlineInput,
+.inlineStatic {
+    /* Text lines up with the plain text around it; the border sits outside. */
+    margin: 0 -7px;
+    padding: 3px 6px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--mantine-color-text);
+}
+
+.inlineStatic[data-empty='true'],
+.inlineInput::placeholder {
+    color: var(--mantine-color-dimmed);
+}
+
+.propertyTerm {
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--mantine-color-dimmed);
+}
+
+.propertyValue {
+    font-size: 12px;
+    line-height: 20px;
+}
+
+/* Read-only markdown in the details, on the same line as other values. */
+.inlineMarkdown {
+    padding: 5px 0;
+    font-size: var(--mantine-font-size-sm);
+    line-height: 20px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+/*
+ * A description in a form row reads as plain text: headings flatten to body
+ * text, rules give way to space (a hairline here looks like the modal's own
+ * divider) and every block takes the value colour.
+ */
+.inlineMarkdown,
+.inlineMarkdown :is(p, li, h1, h2, h3, h4, h5, h6) {
+    color: var(--mantine-color-text);
+}
+
+.inlineMarkdown :is(p, ul, ol, h1, h2, h3, h4, h5, h6) {
+    margin: 0 0 6px;
+    padding: 0;
+    border: 0;
+    font-size: inherit;
+    line-height: inherit;
+    font-weight: inherit;
+}
+
+.inlineMarkdown :is(p, ul, ol, h1, h2, h3, h4, h5, h6):last-child {
+    margin-bottom: 0;
+}
+
+.inlineMarkdown hr {
+    display: none;
+}
+
+/* The field's summary: a quiet line under its properties. */
+.detailSummary {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--mantine-color-dimmed);
+    overflow-wrap: anywhere;
+}
+
+.detailSummaryCode {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 11px;
+    color: var(--mantine-color-text);
+}

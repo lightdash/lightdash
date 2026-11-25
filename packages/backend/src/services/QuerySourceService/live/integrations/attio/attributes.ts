@@ -159,6 +159,8 @@ type AttioDerivedField = {
     suffix: string;
     label: (title: string) => string;
     description: (title: string) => string;
+    /** Guidance only the AI agent reads. */
+    aiHint?: string;
     type: DimensionType;
     property: AttioValueProperty;
 };
@@ -169,7 +171,7 @@ export const ATTIO_DERIVED_FIELDS: Record<string, AttioDerivedField[]> = {
             suffix: 'entered_at',
             label: (title) => `${title} entered at`,
             description: (title) =>
-                `When the record entered its current ${title}, in UTC.`,
+                `When the record moved into its current ${title} value, in UTC.`,
             type: DimensionType.TIMESTAMP,
             property: 'active_from',
         },
@@ -178,8 +180,8 @@ export const ATTIO_DERIVED_FIELDS: Record<string, AttioDerivedField[]> = {
         {
             suffix: 'name',
             label: (title) => `${title} name`,
-            description: (title) =>
-                `The name of the workspace member in ${title}. Empty when the access token lacks the user_management:read scope, or when it isn't a member.`,
+            description: (title) => `Name of the workspace member in ${title}.`,
+            aiHint: 'Empty when the access token lacks the user_management:read scope, or when the actor is not a workspace member.',
             type: DimensionType.STRING,
             property: 'member_name',
         },

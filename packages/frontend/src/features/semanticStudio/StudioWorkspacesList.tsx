@@ -1,22 +1,23 @@
-import { type SemanticStudioWorkspace } from '@lightdash/common';
+import {
+    isOpenWorkspace,
+    type SemanticStudioWorkspace,
+} from '@lightdash/common';
 import { Avatar, Box, Button, Text, UnstyledButton } from '@mantine/core';
 import { IconCheck, IconChevronRight } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import { type StudioPendingChange } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
+import { type StudioPendingChange } from './studioChange';
 import { RunMeta, RunRing } from './StudioRunRing';
 import { needsYou, toStudioRun, type StudioRun } from './studioRuns';
+import { STUDIO_STEPS } from './studioStage';
 import classes from './StudioWorkspacesList.module.css';
 import { pullRequestNumberOf } from './urls';
-import { isOpenWorkspace } from './useStudioCheckout';
 import { useStudioRuns, type StudioRunRow } from './useStudioRuns';
 import { useStudioWorkspaces } from './useStudioWorkspaces';
 
 dayjs.extend(relativeTime);
-
-const STAGES = ['Proposed', 'Saved', 'In review', 'Published'] as const;
 
 /** How many stages are behind the run, and the one it is on. */
 const stageOf = (run: StudioRun): number => {
@@ -35,9 +36,9 @@ const StageTrack: FC<{ run: StudioRun }> = ({ run }) => {
     return (
         <span
             className={classes.track}
-            aria-label={`Stage: ${STAGES[current]}`}
+            aria-label={`Stage: ${STUDIO_STEPS[current]}`}
         >
-            {STAGES.map((stage, index) => (
+            {STUDIO_STEPS.map((stage, index) => (
                 <span
                     key={stage}
                     className={classes.segment}

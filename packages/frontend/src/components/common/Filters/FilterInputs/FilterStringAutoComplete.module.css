@@ -45,11 +45,12 @@
     overflow-y: auto;
 }
 
+/* Centre icons on the first pill row, even when pills wrap */
 .rightSectionGroup {
     margin-right: var(--mantine-spacing-xs);
-    margin-top: calc(var(--mantine-spacing-xs) / 2);
+    height: var(--input-height);
     justify-content: flex-end;
-    align-items: flex-start;
+    align-items: center;
 }
 
 .defaultCursor {
