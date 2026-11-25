@@ -19,6 +19,7 @@ import {
     useState,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { registerAppFrame } from './appFrameRegistry';
 import classes from './AppIframePreview.module.css';
 import { type DeliveryCaptureAccumulator } from './deliveryCapture/deliveryCaptureAccumulator';
 import {
@@ -447,6 +448,16 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             ref,
             () => ({ captureScreenshot, exportPdf, inspectAt }),
             [captureScreenshot, exportPdf, inspectAt],
+        );
+
+        // A picture of the page cannot see inside this frame: it asks here.
+        useEffect(
+            () =>
+                registerAppFrame({
+                    getElement: () => iframeRef.current,
+                    capture: captureScreenshot,
+                }),
+            [captureScreenshot],
         );
 
         // Reset availability to false when the served bundle changes (new app or
