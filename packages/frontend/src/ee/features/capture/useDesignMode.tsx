@@ -43,7 +43,12 @@ import { sameScreen, shiftMarks, type ScreenView } from './frameGeometry';
 import { CAPTURE_IGNORE_ATTRIBUTE } from './frameSource';
 import { cancelsHold, escapeIsForDesignMode, startsHold } from './holdKeys';
 import { coveredTargets } from './markCoverage';
-import { ATTACHED_PX, besideMarks, intoView } from './placeBubble';
+import {
+    ATTACHED_PX,
+    besideMarks,
+    intoView,
+    keepInRegion,
+} from './placeBubble';
 import { type TabFrame } from './tabFrame';
 import {
     type Box as MarkBox,
@@ -172,7 +177,7 @@ const grabFrame = (
     if (!surface.grabAppImage) {
         return Promise.reject(new Error('The app cannot take a picture'));
     }
-    return grabAppFrame(surface.grabAppImage, region);
+    return grabAppFrame(surface.grabAppImage, region, surface.getScroll());
 };
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
@@ -380,14 +385,39 @@ export const useDesignMode = (
 
     // Straight onto the layers: a render per scroll event would trail it.
     const refreshScroll = useCallback(() => {
-        const next = surfaceRef.current?.getScroll();
-        if (!next) return;
+        const current = surfaceRef.current;
+        const next = current?.getScroll();
+        if (!current || !next) return;
         const shift = `translate(${-next.x}px, ${-next.y}px)`;
         [marksShiftRef.current, bubblesShiftRef.current].forEach((layer) => {
             if (layer && layer.style.transform !== shift) {
                 layer.style.transform = shift;
             }
         });
+        // A bubble whose marks scrolled out of the surface waits at its edge.
+        const region = current.getRegion();
+        bubblesShiftRef.current
+            ?.querySelectorAll<HTMLElement>('[data-bubble-id]')
+            .forEach((bubble) => {
+                const left = parseFloat(
+                    bubble.style.getPropertyValue('--bubble-left'),
+                );
+                const top = parseFloat(
+                    bubble.style.getPropertyValue('--bubble-top'),
+                );
+                if (!Number.isFinite(left) || !Number.isFinite(top)) return;
+                const kept = keepInRegion(
+                    { x: left - next.x, y: top - next.y },
+                    region,
+                );
+                const nudge =
+                    kept.x === 0 && kept.y === 0
+                        ? ''
+                        : `${kept.x}px ${kept.y}px`;
+                if (bubble.style.translate !== nudge) {
+                    bubble.style.translate = nudge;
+                }
+            });
     }, []);
     // A layer drawn for the first time starts where the scroll is.
     useLayoutEffect(refreshScroll);
@@ -1649,10 +1679,15 @@ export const useDesignMode = (
         };
         // A sealed iframe swallows keys once clicked, so take focus back.
         const onBlur = () => {
+            const marking = holdRef.current !== null;
             endHold();
             downKeys.clear();
             window.setTimeout(() => {
-                if (document.activeElement?.tagName !== 'IFRAME') return;
+                const frame = document.activeElement;
+                if (frame?.tagName !== 'IFRAME') return;
+                // A click in the app is a click on the page: it hands the
+                // page back from a selected bubble, unless it made a mark.
+                if (!marking && !frame.closest('[data-bubble-id]')) deselect();
                 window.focus();
                 toolbarRef.current?.focus({ preventScroll: true });
             }, 0);

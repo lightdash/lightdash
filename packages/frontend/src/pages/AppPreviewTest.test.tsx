@@ -7,6 +7,7 @@ import { renderWithProviders } from '../testing/testUtils';
 type IframePreviewProps = {
     onQueryEvent?: (event: QueryEvent) => void;
     onScreenshotAvailabilityChange?: (available: boolean) => void;
+    onInspectAtAvailabilityChange?: (available: boolean) => void;
     inspectorEnabled?: boolean;
     onCaptureHotkey?: () => void;
 };
@@ -245,16 +246,18 @@ describe('AppPreviewTest', () => {
         });
     });
 
-    it('Design Mode gets the app’s screenshot only once the app can take one', () => {
+    it('Design Mode gets the app’s screenshot only once the app can be pictured and picked from', () => {
         renderWithProviders(<AppPreviewTest />);
-        expect(
-            mocks.designMode.mock.calls.at(-1)?.[0].captureScreenshot,
-        ).toBeNull();
+        const screenshot = () =>
+            mocks.designMode.mock.calls.at(-1)?.[0].captureScreenshot;
+        expect(screenshot()).toBeNull();
 
+        // An app that pictures itself but cannot say what is at a point.
         act(() => latestIframeProps().onScreenshotAvailabilityChange?.(true));
-        expect(
-            mocks.designMode.mock.calls.at(-1)?.[0].captureScreenshot,
-        ).not.toBeNull();
+        expect(screenshot()).toBeNull();
+
+        act(() => latestIframeProps().onInspectAtAvailabilityChange?.(true));
+        expect(screenshot()).not.toBeNull();
     });
 
     it('Design Mode asks the app what is at a point and never turns its element picker on', async () => {

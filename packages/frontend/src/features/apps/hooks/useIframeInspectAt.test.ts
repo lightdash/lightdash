@@ -35,7 +35,9 @@ describe('useIframeInspectAt', () => {
     });
 
     it('a bundle that never announced it gets null without being asked', async () => {
-        const { result } = renderHook(() => useIframeInspectAt(iframeRef, 'a'));
+        const { result } = renderHook(() =>
+            useIframeInspectAt(iframeRef, 'a', null),
+        );
         await expect(result.current.inspectAt({ x: 1, y: 2 })).resolves.toBe(
             null,
         );
@@ -43,7 +45,9 @@ describe('useIframeInspectAt', () => {
     });
 
     it('asks the app and resolves with its answer', async () => {
-        const { result } = renderHook(() => useIframeInspectAt(iframeRef, 'a'));
+        const { result } = renderHook(() =>
+            useIframeInspectAt(iframeRef, 'a', null),
+        );
         await fromApp({ type: 'lightdash:sdk:inspect-at-available' });
         const answer = result.current.inspectAt({ x: 15, y: 25 });
         expect(lastAsk()).toEqual({
@@ -61,7 +65,9 @@ describe('useIframeInspectAt', () => {
     });
 
     it('takes answers only from the app, and drops a malformed one', async () => {
-        const { result } = renderHook(() => useIframeInspectAt(iframeRef, 'a'));
+        const { result } = renderHook(() =>
+            useIframeInspectAt(iframeRef, 'a', null),
+        );
         // An announce from another window does not count.
         await fromApp({ type: 'lightdash:sdk:inspect-at-available' }, {});
         await expect(result.current.inspectAt({ x: 1, y: 1 })).resolves.toBe(
@@ -85,7 +91,7 @@ describe('useIframeInspectAt', () => {
 
     it('a new bundle has to announce again', async () => {
         const { result, rerender } = renderHook(
-            ({ key }) => useIframeInspectAt(iframeRef, key),
+            ({ key }) => useIframeInspectAt(iframeRef, key, null),
             { initialProps: { key: 'a' } },
         );
         await fromApp({ type: 'lightdash:sdk:inspect-at-available' });
@@ -96,9 +102,25 @@ describe('useIframeInspectAt', () => {
         expect(app.postMessage).not.toHaveBeenCalled();
     });
 
+    it('tells when the bundle announces, and again when a new bundle loads', async () => {
+        const onAvailabilityChange = vi.fn();
+        const { rerender } = renderHook(
+            ({ key }) =>
+                useIframeInspectAt(iframeRef, key, onAvailabilityChange),
+            { initialProps: { key: 'a' } },
+        );
+        expect(onAvailabilityChange).toHaveBeenLastCalledWith(false);
+        await fromApp({ type: 'lightdash:sdk:inspect-at-available' });
+        expect(onAvailabilityChange).toHaveBeenLastCalledWith(true);
+        rerender({ key: 'b' });
+        expect(onAvailabilityChange).toHaveBeenLastCalledWith(false);
+    });
+
     it('a slow answer resolves to null', async () => {
         vi.useFakeTimers();
-        const { result } = renderHook(() => useIframeInspectAt(iframeRef, 'a'));
+        const { result } = renderHook(() =>
+            useIframeInspectAt(iframeRef, 'a', null),
+        );
         await fromApp({ type: 'lightdash:sdk:inspect-at-available' });
         const answer = result.current.inspectAt({ x: 1, y: 1 });
         vi.advanceTimersByTime(2_000);

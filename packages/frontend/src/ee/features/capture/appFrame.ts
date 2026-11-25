@@ -54,14 +54,24 @@ export const appImageScale = (
         : measured;
 };
 
+/** Where the part of the app's picture that is on screen starts, in image pixels. */
+export const appImageOffset = (
+    scroll: { x: number; y: number },
+    scale: number,
+): { x: number; y: number } => ({
+    x: Math.round(Math.max(0, scroll.x) * scale),
+    y: Math.round(Math.max(0, scroll.y) * scale),
+});
+
 /**
  * Asks the surface for its picture (the whole page, from the top) and keeps
- * the part the size of the region. The picture always starts at the top of
- * the page, so a scrolled app is still pictured from its top.
+ * the part that is on screen: the size of the region, from where the app has
+ * scrolled to. Marks are made on what is on screen, so they line up with it.
  */
 export const grabAppFrame = async (
     grabImage: () => Promise<unknown>,
     region: Size,
+    scroll: { x: number; y: number },
     timeoutMs: number = APP_FRAME_TIMEOUT_MS,
 ): Promise<TabFrame> => {
     const image = await withTimeout(grabImage(), timeoutMs);
@@ -84,7 +94,8 @@ export const grabAppFrame = async (
         // A page shorter than the region leaves the rest blank.
         context.fillStyle = '#ffffff';
         context.fillRect(0, 0, canvas.width, canvas.height);
-        context.drawImage(page, 0, 0);
+        const from = appImageOffset(scroll, scale);
+        context.drawImage(page, -from.x, -from.y);
         const bitmap = await createImageBitmap(canvas);
         return { bitmap };
     } finally {

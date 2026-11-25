@@ -32,12 +32,17 @@ export function useIframeInspectAt(
     iframeRef: RefObject<HTMLIFrameElement | null>,
     /** A new bundle has to announce again. */
     identityKey: string | undefined,
+    /** Told when the bundle announces it can answer, and when a new bundle loads. */
+    onAvailabilityChange: ((available: boolean) => void) | null,
 ) {
     const pending = useRef<Map<string, Pending>>(new Map());
     const availableRef = useRef(false);
+    const onAvailabilityChangeRef = useRef(onAvailabilityChange);
+    onAvailabilityChangeRef.current = onAvailabilityChange;
 
     useEffect(() => {
         availableRef.current = false;
+        onAvailabilityChangeRef.current?.(false);
     }, [identityKey]);
 
     useEffect(() => {
@@ -49,6 +54,7 @@ export function useIframeInspectAt(
             const { data } = event;
             if (data?.type === APP_SDK_INSPECT_AT_AVAILABLE_MESSAGE) {
                 availableRef.current = true;
+                onAvailabilityChangeRef.current?.(true);
                 return;
             }
             if (data?.type !== APP_SDK_INSPECT_AT_RESPONSE_MESSAGE) return;

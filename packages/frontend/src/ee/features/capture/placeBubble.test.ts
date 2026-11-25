@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ATTACHED_PX, besideMarks, intoView } from './placeBubble';
+import {
+    ATTACHED_PX,
+    besideMarks,
+    intoView,
+    keepInRegion,
+} from './placeBubble';
 
 const viewport = new DOMRect(0, 0, 800, 600);
 const size = { width: 200, height: 100 };
@@ -166,6 +171,32 @@ describe('intoView', () => {
         expect(intoView(new DOMRect(100, 100, 200, 100), viewport)).toEqual({
             x: 100,
             y: 100,
+        });
+    });
+});
+
+describe('keepInRegion', () => {
+    const region = new DOMRect(100, 200, 800, 600);
+
+    it('leaves a bubble that is inside the surface where it is', () => {
+        expect(keepInRegion({ x: 300, y: 400 }, region)).toEqual({
+            x: 0,
+            y: 0,
+        });
+    });
+
+    it('holds a bubble scrolled above the surface at its top edge', () => {
+        // The surface starts at 200: the bubble waits 16px inside it.
+        expect(keepInRegion({ x: 300, y: -500 }, region)).toEqual({
+            x: 0,
+            y: 716,
+        });
+    });
+
+    it('holds a bubble scrolled below the surface near its bottom edge', () => {
+        expect(keepInRegion({ x: 300, y: 2000 }, region)).toEqual({
+            x: 0,
+            y: 752 - 2000,
         });
     });
 });

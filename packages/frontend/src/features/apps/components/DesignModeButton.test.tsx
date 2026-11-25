@@ -15,7 +15,7 @@ describe('DesignModeButton', () => {
         renderWithProviders(
             <DesignModeButton
                 active
-                screenshotAvailable
+                support="ready"
                 onClick={onClick}
                 surface="app"
             />,
@@ -26,12 +26,12 @@ describe('DesignModeButton', () => {
         expect(onClick).toHaveBeenCalledTimes(1);
     });
 
-    it('not offered when the app cannot take its own screenshot', async () => {
+    it('not offered when the app cannot be pictured or picked from', async () => {
         const onClick = vi.fn();
         renderWithProviders(
             <DesignModeButton
                 active={false}
-                screenshotAvailable={false}
+                support="needs-update"
                 onClick={onClick}
                 surface="app"
             />,
@@ -47,5 +47,28 @@ describe('DesignModeButton', () => {
                 'This app needs updating to use Design Mode',
             ),
         ).toBeInTheDocument();
+    });
+
+    it('while the app is still loading, waits without saying it needs updating', async () => {
+        const onClick = vi.fn();
+        renderWithProviders(
+            <DesignModeButton
+                active={false}
+                support="checking"
+                onClick={onClick}
+                surface="app"
+            />,
+        );
+        const button = screen.getByRole('button', { name: 'Design Mode' });
+        expect(button).toHaveAttribute('aria-disabled', 'true');
+        fireEvent.click(button);
+        expect(onClick).not.toHaveBeenCalled();
+        await userEvent.hover(button);
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'Design Mode',
+        );
+        expect(
+            screen.queryByText('This app needs updating to use Design Mode'),
+        ).toBeNull();
     });
 });

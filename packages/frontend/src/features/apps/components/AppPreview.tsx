@@ -38,6 +38,7 @@ export type AppPreviewProps = {
     onElementSelected?: (event: ElementSelectedEvent) => void;
     onInspectorAvailabilityChange?: (available: boolean) => void;
     onScreenshotAvailabilityChange?: (available: boolean) => void;
+    onInspectAtAvailabilityChange?: (available: boolean) => void;
     onInspectorCancelled?: () => void;
     lineageEnabled?: boolean;
     onLineageAvailabilityChange?: (available: boolean) => void;
@@ -79,6 +80,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             onElementSelected,
             onInspectorAvailabilityChange,
             onScreenshotAvailabilityChange,
+            onInspectAtAvailabilityChange,
             onInspectorCancelled,
             lineageEnabled,
             onLineageAvailabilityChange,
@@ -159,6 +161,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 onElementSelected={onElementSelected}
                 onInspectorAvailabilityChange={onInspectorAvailabilityChange}
                 onScreenshotAvailabilityChange={onScreenshotAvailabilityChange}
+                onInspectAtAvailabilityChange={onInspectAtAvailabilityChange}
                 onInspectorCancelled={onInspectorCancelled}
                 lineageEnabled={lineageEnabled}
                 onLineageAvailabilityChange={onLineageAvailabilityChange}

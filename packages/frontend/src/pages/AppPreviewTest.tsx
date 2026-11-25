@@ -51,6 +51,7 @@ import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppInspector } from '../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditDataApp';
+import { useDesignModeSupport } from '../features/apps/hooks/useDesignModeSupport';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useNewerAppVersion } from '../features/apps/hooks/useNewerAppVersion';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
@@ -234,6 +235,7 @@ export default function AppPreviewTest() {
     // the modal falls back to a default-state render for them.
     const previewRef = useRef<AppIframePreviewHandle>(null);
     const [screenshotAvailable, setScreenshotAvailable] = useState(false);
+    const [inspectAtAvailable, setInspectAtAvailable] = useState(false);
     const capturePreviewScreenshot = useCallback(async () => {
         const capture = previewRef.current?.captureScreenshot;
         if (!capture) {
@@ -258,6 +260,12 @@ export default function AppPreviewTest() {
         canUseAgents &&
         hasCaptureAgent &&
         Boolean(token && version !== undefined && !isFullscreen);
+    // An app that cannot be pictured or picked from is not offered as working.
+    const designSupport = useDesignModeSupport({
+        screenshotAvailable,
+        inspectAtAvailable,
+        bundleKey: identityKey ?? null,
+    });
     // Stable: the preview re-attaches its message listener when these change.
     const toggleDesignMode = useCallback(() => designRef.current?.toggle(), []);
     const handleCaptureHold = useCallback(
@@ -398,6 +406,7 @@ export default function AppPreviewTest() {
                     appUuid={appUuid}
                     identityKey={identityKey}
                     onScreenshotAvailabilityChange={setScreenshotAvailable}
+                    onInspectAtAvailabilityChange={setInspectAtAvailable}
                     invalidateCache={invalidateCache}
                     onNewerVersion={onNewerVersion}
                     urlStateSync
@@ -479,9 +488,7 @@ export default function AppPreviewTest() {
                                 designModeOffered && (
                                     <DesignModeButton
                                         active={designOn}
-                                        screenshotAvailable={
-                                            screenshotAvailable
-                                        }
+                                        support={designSupport}
                                         onClick={toggleDesignMode}
                                         surface="app"
                                     />
@@ -595,7 +602,7 @@ export default function AppPreviewTest() {
                         appName={appName}
                         getFrame={getAppFrame}
                         captureScreenshot={
-                            screenshotAvailable
+                            designSupport === 'ready'
                                 ? capturePreviewScreenshot
                                 : null
                         }

@@ -80,13 +80,48 @@ function isOurOwnElement(el: Element | null): boolean {
  * shadcn/Tailwind are utility-heavy and not grep-useful, so we don't
  * bother emitting them.
  */
+// Where an element says in words what it is, when it shows no text itself.
+const NAME_ATTRIBUTES = ['aria-label', 'alt', 'title', 'placeholder', 'name'];
+
+const squash = (value: string | null | undefined): string =>
+    (value ?? '').replace(/\s+/g, ' ').trim();
+
+/**
+ * The name an element gives itself: an icon button's `aria-label`, an
+ * image's `alt`, a chart bar's `name` or `<title>`. Empty when it has none.
+ */
+function ownName(el: Element): string {
+    for (const attribute of NAME_ATTRIBUTES) {
+        const value = squash(el.getAttribute(attribute));
+        if (value) return value;
+    }
+    const labelledBy = squash(el.getAttribute('aria-labelledby'));
+    if (labelledBy) {
+        const named = squash(
+            labelledBy
+                .split(' ')
+                .map((id) => document.getElementById(id)?.textContent ?? '')
+                .join(' '),
+        );
+        if (named) return named;
+    }
+    // An SVG shape is named by a <title> child, which its text would repeat.
+    for (const child of Array.from(el.children)) {
+        if (child.tagName.toLowerCase() === 'title') {
+            return squash(child.textContent);
+        }
+    }
+    return '';
+}
+
 function buildLabel(el: Element): string {
-    const tag = el.tagName.toLowerCase();
+    // A role says what the element is for; without one, its tag does.
+    const tag = squash(el.getAttribute('role')) || el.tagName.toLowerCase();
 
     let text = '';
     let cur: Element | null = el;
     for (let i = 0; i < ANCESTOR_TEXT_LOOKBACK && cur; i += 1) {
-        const raw = (cur.textContent ?? '').replace(/\s+/g, ' ').trim();
+        const raw = ownName(cur) || squash(cur.textContent);
         if (raw) {
             text =
                 raw.length > MAX_TEXT_LEN

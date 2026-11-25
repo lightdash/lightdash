@@ -139,6 +139,7 @@ import { useClarificationRound } from '../features/apps/hooks/useClarificationRo
 import { useDataAppCapturesEnabled } from '../features/apps/hooks/useDataAppCapturesEnabled';
 import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
 import { useDataAppProjectContext } from '../features/apps/hooks/useDataAppProjectContext';
+import { useDesignModeSupport } from '../features/apps/hooks/useDesignModeSupport';
 import { useElementPicker } from '../features/apps/hooks/useElementPicker';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
@@ -365,6 +366,7 @@ const AppGenerate: FC = () => {
     // sandboxes built before this feature shipped) never announce, so the
     // Screenshot button stays hidden — they keep working as before.
     const [screenshotAvailable, setScreenshotAvailable] = useState(false);
+    const [inspectAtAvailable, setInspectAtAvailable] = useState(false);
     const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
     const [lineageEnabled, setLineageEnabled] = useState(false);
     const [lineageAvailable, setLineageAvailable] = useState(false);
@@ -522,6 +524,7 @@ const AppGenerate: FC = () => {
         clearExternalRequests();
         clearAppStateEvents();
         setScreenshotAvailable(false);
+        setInspectAtAvailable(false);
         setIsCapturingScreenshot(false);
         setLineageEnabled(false);
         setLineageAvailable(false);
@@ -1258,11 +1261,17 @@ const AppGenerate: FC = () => {
             title: `${dropped} Design Mode images did not fit`,
             subtitle: `You can attach up to ${MAX_APP_FILES_PER_VERSION} files per message.`,
         });
+    // A preview that cannot be pictured or picked from is not offered as working.
+    const designSupport = useDesignModeSupport({
+        screenshotAvailable,
+        inspectAtAvailable,
+        bundleKey: previewScope,
+    });
     const design = useAppBuilderDesignMode({
         projectUuid: projectUuid ?? null,
         getFrame: getPreviewFrame,
         captureScreenshot:
-            designOffered && screenshotAvailable
+            designOffered && designSupport === 'ready'
                 ? capturePreviewScreenshot
                 : null,
         inspectAt: inspectPreviewAt,
@@ -3554,8 +3563,8 @@ const AppGenerate: FC = () => {
                                                                 active={
                                                                     design.on
                                                                 }
-                                                                screenshotAvailable={
-                                                                    design.available
+                                                                support={
+                                                                    designSupport
                                                                 }
                                                                 onClick={
                                                                     design.toggle
@@ -3755,6 +3764,9 @@ const AppGenerate: FC = () => {
                                         }}
                                         onScreenshotAvailabilityChange={
                                             setScreenshotAvailable
+                                        }
+                                        onInspectAtAvailabilityChange={
+                                            setInspectAtAvailable
                                         }
                                         lineageEnabled={lineageEnabled}
                                         onLineageAvailabilityChange={

@@ -60,6 +60,52 @@ describe('mountInspector', () => {
         ]);
     });
 
+    const labelOf = (html: string, selector: string): string => {
+        document.body.innerHTML = html;
+        mouse(document.querySelector(selector)!, 'click');
+        return selected().at(-1).label;
+    };
+
+    it('names an element with no text by what it calls itself', () => {
+        // A chart bar: a shape with a name and no text.
+        expect(
+            labelOf(
+                '<svg><g><path name="bank_transfer" data-loc="src/Chart.jsx:45"></path></g></svg>',
+                'path',
+            ),
+        ).toBe('[path "bank_transfer" @src/Chart.jsx:45]');
+        expect(
+            labelOf('<svg><rect><title>Total revenue</title></rect></svg>', 'rect'),
+        ).toBe('[rect "Total revenue"]');
+        expect(labelOf('<img alt="Company logo" />', 'img')).toBe(
+            '[img "Company logo"]',
+        );
+    });
+
+    it('says what a control is for, from its label and role', () => {
+        expect(
+            labelOf('<button aria-label="Close panel">×</button>', 'button'),
+        ).toBe('[button "Close panel"]');
+        expect(
+            labelOf('<div role="tab" data-loc="src/Tabs.jsx:9">Orders</div>', 'div'),
+        ).toBe('[tab "Orders" @src/Tabs.jsx:9]');
+        expect(
+            labelOf(
+                '<span id="n">Net revenue</span><div aria-labelledby="n"></div>',
+                'div',
+            ),
+        ).toBe('[div "Net revenue"]');
+    });
+
+    it('takes the name of what holds a shape that has none of its own', () => {
+        expect(
+            labelOf(
+                '<svg aria-label="Revenue by method"><g><path></path></g></svg>',
+                'path',
+            ),
+        ).toBe('[path "Revenue by method"]');
+    });
+
     it('leaves the context menu alone, even with Control held', () => {
         const el = button();
         expect(mouse(el, 'contextmenu').defaultPrevented).toBe(false);

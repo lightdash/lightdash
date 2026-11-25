@@ -95,6 +95,8 @@ type Props = {
      *  resumed sandboxes never announce, so the Screenshot button stays
      *  hidden for them. */
     onScreenshotAvailabilityChange?: (available: boolean) => void;
+    /** The bundle can say which element is at a point, which Design Mode picks need. */
+    onInspectAtAvailabilityChange?: (available: boolean) => void;
     /** Fires when the app registers a PDF export via `registerPdfExport`. */
     onPdfExportAvailabilityChange?: (available: boolean) => void;
     /** Called when the user presses Esc to leave inspect mode. The handler
@@ -235,6 +237,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             inspectorEnabled,
             onInspectorAvailabilityChange,
             onScreenshotAvailabilityChange,
+            onInspectAtAvailabilityChange,
             onPdfExportAvailabilityChange,
             onInspectorCancelled,
             lineageEnabled,
@@ -434,7 +437,11 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
         const { exportPdf } = useIframePdfExport(iframeRef);
-        const { inspectAt } = useIframeInspectAt(iframeRef, identityKey);
+        const { inspectAt } = useIframeInspectAt(
+            iframeRef,
+            identityKey,
+            onInspectAtAvailabilityChange ?? null,
+        );
 
         useImperativeHandle(
             ref,
