@@ -17,11 +17,8 @@ const OPEN_LAYER_SELECTOR = [
     '[data-dates-dropdown]',
 ].join(',');
 
-// The query devtools of a dev build always report an open panel
 export const hasOpenLayer = () =>
-    [...document.querySelectorAll(OPEN_LAYER_SELECTOR)].some(
-        (element) => !element.closest('.ReactQueryDevtools'),
-    );
+    document.querySelector(OPEN_LAYER_SELECTOR) !== null;
 
 // A pill's own click opens, switches or asks (`open`)
 const PILL_SELECTOR = '[data-controls-pill]';
