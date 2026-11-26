@@ -18,6 +18,11 @@ type FakeSheet = {
     basicFilter?: AnyType;
     // Rows that the basic filter hides while it is set.
     filteredRows: Set<number>;
+    developerMetadata: Array<{
+        metadataId: number;
+        metadataKey: string;
+        metadataValue: string;
+    }>;
 };
 
 type GridRange = {
@@ -63,6 +68,8 @@ export class GoogleSheetsFake {
     cellLimit = 20_000_000;
 
     nextSheetId = 1;
+
+    nextMetadataId = 1000;
 
     updateCalls: UpdateCall[] = [];
 
@@ -114,6 +121,12 @@ export class GoogleSheetsFake {
                         sheets: this.sheets.map((sheet, index) => ({
                             ...(sheet.basicFilter
                                 ? { basicFilter: sheet.basicFilter }
+                                : {}),
+                            ...(sheet.developerMetadata.length > 0
+                                ? {
+                                      developerMetadata:
+                                          sheet.developerMetadata,
+                                  }
                                 : {}),
                             properties: {
                                 sheetId: sheet.sheetId,
@@ -279,6 +292,7 @@ export class GoogleSheetsFake {
             values: [],
             numberFormats: [],
             filteredRows: new Set(),
+            developerMetadata: [],
         };
         this.nextSheetId += 1;
         this.sheets.push(sheet);
@@ -353,12 +367,18 @@ export class GoogleSheetsFake {
         };
     }
 
+    // Apply requests at once, as another client would, from inside a hook.
+    applyNow(requests: unknown[]) {
+        return this.applyAtomically(requests);
+    }
+
     private applyAtomically(requests: unknown[]) {
         const snapshot = this.sheets.map((s) => ({
             ...s,
             values: s.values.map((row) => (row ? [...row] : row)),
             numberFormats: [...s.numberFormats],
             filteredRows: new Set(s.filteredRows),
+            developerMetadata: [...s.developerMetadata],
         }));
         const { nextSheetId } = this;
         try {
@@ -462,6 +482,43 @@ export class GoogleSheetsFake {
                         }
                     }
                 }
+                return {};
+            }
+            case 'createDeveloperMetadata': {
+                const { developerMetadata } = body;
+                const sheet = this.sheetById(
+                    developerMetadata.location.sheetId,
+                );
+                this.nextMetadataId += 1;
+                const entry = {
+                    metadataId: this.nextMetadataId,
+                    metadataKey: developerMetadata.metadataKey,
+                    metadataValue: developerMetadata.metadataValue,
+                };
+                sheet.developerMetadata.push(entry);
+                return {
+                    createDeveloperMetadata: { developerMetadata: entry },
+                };
+            }
+            case 'deleteDeveloperMetadata': {
+                // Like Google, a filter that matches nothing is not an error.
+                const lookup = body.dataFilter.developerMetadataLookup;
+                this.sheets.forEach((sheet) => {
+                    // eslint-disable-next-line no-param-reassign
+                    sheet.developerMetadata = sheet.developerMetadata.filter(
+                        (m) =>
+                            !(
+                                (lookup.metadataId === undefined ||
+                                    lookup.metadataId === m.metadataId) &&
+                                (lookup.metadataKey === undefined ||
+                                    lookup.metadataKey === m.metadataKey) &&
+                                (lookup.metadataLocation?.sheetId ===
+                                    undefined ||
+                                    lookup.metadataLocation.sheetId ===
+                                        sheet.sheetId)
+                            ),
+                    );
+                });
                 return {};
             }
             case 'clearBasicFilter': {

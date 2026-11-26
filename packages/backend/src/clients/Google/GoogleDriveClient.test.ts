@@ -8,6 +8,7 @@ import {
     UnexpectedGoogleSheetsError,
     type Dimension,
 } from '@lightdash/common';
+import { createHash } from 'crypto';
 import { google } from 'googleapis';
 import {
     GoogleDriveClient,
@@ -788,7 +789,7 @@ describe('GoogleDriveClient', () => {
             expect(fake.updateCalls).toHaveLength(5);
             expect(error).toBeInstanceOf(UnexpectedGoogleSheetsError);
             expect((error as Error).message).toBe(
-                'Google Sheets could not write 60,001 rows (including the header, about 4.8 MB) to the tab "Sheet1". The data in the tab was not changed. Google error: Google Drive internal error encountered. Please try again later.',
+                'Google Sheets could not write 60,001 rows (including header rows, about 4.8 MB) to the tab "Sheet1". The data in the tab was not changed. Google error: Google Drive internal error encountered. Please try again later.',
             );
             expect(fake.tabValues('Sheet1')).toEqual(oldRows);
             expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
@@ -814,7 +815,7 @@ describe('GoogleDriveClient', () => {
 
             expect(error).toBeInstanceOf(GoogleSheetsTransientError);
             expect((error as Error).message).toMatch(
-                /^Google Sheets could not write 11 rows .* to the tab "Sheet1"\. The data in the tab was not changed\./,
+                /^Google Sheets could not write 11 rows \(including header rows, less than 0\.1 MB\) to the tab "Sheet1"\. The data in the tab was not changed\./,
             );
         });
 
@@ -957,7 +958,7 @@ describe('GoogleDriveClient', () => {
             );
 
             expect((error as Error).message).toContain(
-                'The sync stopped part-way. Rows 1-25,000 of the tab are new, and the rest may be from the previous sync. The next successful sync replaces them.',
+                'The sync stopped part-way. Rows 1-25,000 of the tab are new. The rows after them can be from the previous sync until a later run completes. If the sync was turned off, turn it on again to replace them.',
             );
         });
 
@@ -1122,7 +1123,7 @@ describe('GoogleDriveClient', () => {
             );
 
             expect((error as Error).message).toBe(
-                'Google Sheets could not write 150,001 rows (including the header, about 6.4 MB) to the tab "Sheet1". The sync stopped part-way. Rows 1-71,428 of the tab are new, and the rest may be from the previous sync. The next successful sync replaces them. Google error: Google Drive internal error encountered. Please try again later.',
+                'Google Sheets could not write 150,001 rows (including header rows, about 6.4 MB) to the tab "Sheet1". The sync stopped part-way. Rows 1-71,428 of the tab are new. The rows after them can be from the previous sync until a later run completes. If the sync was turned off, turn it on again to replace them. Google error: Google Drive internal error encountered. Please try again later.',
             );
             expect(fake.tabValues('Sheet1')[71_427][1]).toBe('new-71426');
             expect(fake.tabValues('Sheet1')[71_428][1]).toBe('old-71427');
@@ -1190,6 +1191,283 @@ describe('GoogleDriveClient', () => {
 
             expect(error).toBeInstanceOf(UnexpectedGoogleSheetsError);
             expect(fake.sheet('Sheet1').basicFilter).toEqual(filter);
+        });
+
+        test('restores a basic filter without its sort, so rows stay in query order', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeWideRows(20, 'old') },
+            ]);
+            useFake(fake);
+            const filter = addBasicFilter(fake, []);
+            filter.sortSpecs = [{ dimensionIndex: 0, sortOrder: 'DESCENDING' }];
+            const rows = makeWideRows(30, 'new');
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                rows,
+            );
+
+            const { sortSpecs, ...withoutSort } = filter;
+            expect(fake.sheet('Sheet1').basicFilter).toEqual(withoutSort);
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+        });
+
+        // Two runs can write one tab: "Sync now" during a scheduled run, or
+        // two schedulers on one tab. Staging tab names carry the start time
+        // of their run, and the tab records the run that last claimed it.
+        const syncRunId = (ms: number) =>
+            `${ms.toString(36).padStart(9, '0')}-ffff`;
+        const stagingTitleFor = (tab: string, runId: string) =>
+            `Lightdash sync in progress ${createHash('sha256')
+                .update(tab)
+                .digest('hex')
+                .slice(0, 8)}-${runId}`;
+        const addHiddenTab = (fake: GoogleSheetsFake, title: string) => {
+            fake.applyNow([
+                {
+                    addSheet: {
+                        properties: {
+                            title,
+                            hidden: true,
+                            gridProperties: { rowCount: 10, columnCount: 2 },
+                        },
+                    },
+                },
+            ]);
+        };
+        const ownStagingTab = (fake: GoogleSheetsFake) =>
+            fake.sheets.find(
+                (s) =>
+                    s.hidden &&
+                    s.title.startsWith('Lightdash sync in progress'),
+            );
+        // What a newer run's claim does to this run.
+        const supersede = (fake: GoogleSheetsFake) => {
+            const own = ownStagingTab(fake);
+            if (!own) throw new Error('No staging tab to supersede');
+            fake.applyNow([
+                { deleteSheet: { sheetId: own.sheetId } },
+                {
+                    deleteDeveloperMetadata: {
+                        dataFilter: {
+                            developerMetadataLookup: {
+                                metadataKey: 'lightdash.sync.claim',
+                            },
+                        },
+                    },
+                },
+                {
+                    createDeveloperMetadata: {
+                        developerMetadata: {
+                            metadataKey: 'lightdash.sync.claim',
+                            metadataValue: syncRunId(Date.now() + 60_000),
+                            location: { sheetId: fake.sheet('Sheet1').sheetId },
+                            visibility: 'DOCUMENT',
+                        },
+                    },
+                },
+            ]);
+        };
+
+        test('keeps the staging tab of a live run and deletes only stale ones', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeRows(10, 'old') },
+            ]);
+            useFake(fake);
+            const live = stagingTitleFor(
+                'Sheet1',
+                syncRunId(Date.now() - 60_000),
+            );
+            const stale = stagingTitleFor(
+                'Sheet1',
+                syncRunId(Date.now() - 30 * 60_000),
+            );
+            const legacy = stagingTitleFor('Sheet1', 'abcdef');
+            [live, stale, legacy].forEach((title) => addHiddenTab(fake, title));
+            const tabsDuringUpload: string[] = [];
+            fake.beforeUpdate = (_call, index) => {
+                if (index === 0) {
+                    tabsDuringUpload.push(...fake.sheets.map((s) => s.title));
+                }
+            };
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                makeRows(10),
+            );
+
+            expect(tabsDuringUpload).toContain(live);
+            expect(tabsDuringUpload).not.toContain(stale);
+            expect(tabsDuringUpload).not.toContain(legacy);
+        });
+
+        test('claims the tab: deletes staging tabs of older runs and keeps newer ones', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeRows(10, 'old') },
+            ]);
+            useFake(fake);
+            const older = stagingTitleFor(
+                'Sheet1',
+                syncRunId(Date.now() - 60_000),
+            );
+            const newer = stagingTitleFor(
+                'Sheet1',
+                syncRunId(Date.now() + 60_000),
+            );
+            [older, newer].forEach((title) => addHiddenTab(fake, title));
+            const rows = makeRows(10);
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                rows,
+            );
+
+            expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1', newer]);
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+            expect(fake.sheet('Sheet1').developerMetadata).toEqual([
+                expect.objectContaining({
+                    metadataKey: 'lightdash.sync.claim',
+                    metadataValue: expect.stringMatching(
+                        /^[0-9a-z]{9}-[0-9a-f]{4}$/,
+                    ),
+                }),
+            ]);
+        });
+
+        test('a run that a newer run supersedes during the upload ends without an error', async () => {
+            const oldRows = makeRows(10, 'old');
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: oldRows },
+            ]);
+            useFake(fake);
+            fake.beforeUpdate = (_call, index) => {
+                if (index === 1) supersede(fake);
+            };
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeRows(60_000),
+                ),
+            );
+
+            expect(error).toBeUndefined();
+            expect(fake.tabValues('Sheet1')).toEqual(oldRows);
+            expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
+        });
+
+        test('a run that a newer run supersedes between swap batches ends without an error', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeWideRows(150_000, 'old') },
+            ]);
+            useFake(fake);
+            let copyBatch = 0;
+            fake.beforeBatchUpdate = (requests) => {
+                if (requests.some((r) => 'copyPaste' in (r as object))) {
+                    copyBatch += 1;
+                    if (copyBatch === 2) supersede(fake);
+                }
+            };
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeWideRows(150_000, 'new'),
+                ),
+            );
+
+            expect(error).toBeUndefined();
+            expect(copyBatch).toBe(2);
+        });
+
+        test('reports mixed rows when Google rejects the last swap batch because the staging tab is gone', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeWideRows(150_000, 'old') },
+            ]);
+            useFake(fake);
+            let copyBatch = 0;
+            fake.beforeBatchUpdate = (requests) => {
+                if (requests.some((r) => 'copyPaste' in (r as object))) {
+                    copyBatch += 1;
+                    if (copyBatch === 3) {
+                        const own = ownStagingTab(fake);
+                        fake.applyNow([
+                            { deleteSheet: { sheetId: own!.sheetId } },
+                        ]);
+                    }
+                }
+            };
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeWideRows(150_000, 'new'),
+                ),
+            );
+
+            expect(error).toBeInstanceOf(UnexpectedGoogleSheetsError);
+            expect((error as Error).message).toContain(
+                'The sync stopped part-way. Rows 1-142,856 of the tab are new.',
+            );
+        });
+
+        test('an in-place run that a newer run supersedes stops writing without an error', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeRows(40_000, 'old') },
+                // Room for the new data once, not twice.
+                { title: 'Filler', rowCount: 18_400_000, columnCount: 1 },
+            ]);
+            useFake(fake);
+            fake.beforeUpdate = (_call, index) => {
+                if (index === 1) supersede(fake);
+            };
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeRows(60_000),
+                ),
+            );
+
+            expect(error).toBeUndefined();
+            expect(fake.updateCalls).toHaveLength(2);
+            expect(fake.updateCalls[0].range).toBe("'Sheet1'!A1");
+        });
+
+        test('says a retried run replaces mixed rows, without asking to turn the sync on', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeRows(40_000, 'old') },
+                { title: 'Filler', rowCount: 18_930_000, columnCount: 1 },
+            ]);
+            useFake(fake);
+            fake.beforeUpdate = (_call, index) => {
+                if (index >= 1) {
+                    throw googleApiError(
+                        503,
+                        'The service is currently unavailable.',
+                    );
+                }
+            };
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeRows(30_000),
+                ),
+            );
+
+            expect(error).toBeInstanceOf(GoogleSheetsTransientError);
+            expect((error as Error).message).toContain(
+                'The sync stopped part-way. Rows 1-25,000 of the tab are new. The rows after them can be from the previous sync until a later run completes. Google error:',
+            );
         });
 
         test('writes to the first visible tab when no tab name is set', async () => {
