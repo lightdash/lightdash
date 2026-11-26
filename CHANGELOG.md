@@ -1,3 +1,10 @@
+## [3.411.1](https://github.com/lightdash/lightdash/compare/3.411.0...3.411.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **agent-identity:** stop deriving agent capabilities from roles ([#33404](https://github.com/lightdash/lightdash/issues/33404)) ([bec3e9f](https://github.com/lightdash/lightdash/commit/bec3e9fa69ccba70a0383a505ddc59837980d61e))
+
 # [3.411.0](https://github.com/lightdash/lightdash/compare/3.410.0...3.411.0) (2026-11-26)
 
 
