@@ -31,7 +31,6 @@ test('adds a nullable text array without a default to existing policies and reve
             .returning('organization_uuid');
         await trx('organization_agent_capability_policies').insert({
             organization_uuid: org.organization_uuid,
-            mode: 'managed',
             allowed_user_uuids: ['00000000-0000-0000-0000-000000000001'],
             allowed_project_uuids: ['00000000-0000-0000-0000-000000000002'],
         } as never);

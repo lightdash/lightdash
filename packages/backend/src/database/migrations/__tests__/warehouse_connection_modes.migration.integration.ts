@@ -26,6 +26,12 @@ const LATER_MIGRATIONS_REFERENCING_CONNECTIONS = [
     '20261105120000_create_ai_agent_warehouse_table_lists',
 ] as const;
 
+// Irreversible, so the reversal skips its down. Recreating the tables above
+// brings back what it removed, so its up runs again afterwards.
+const LATER_IRREVERSIBLE_MIGRATIONS = [
+    '20261126150000_drop_agent_policy_mode',
+] as const;
+
 const LATER_TABLES = [
     'ai_service_account_credentials',
     'credentials',
@@ -1169,6 +1175,14 @@ describe('warehouse connection mode schema on every migration', () => {
             await runInOrder(migrations, (migration) => migration.up(database));
             await runInOrder(laterMigrations, (migration) =>
                 migration.up(database),
+            );
+            await runInOrder(
+                await Promise.all(
+                    LATER_IRREVERSIBLE_MIGRATIONS.map((name) =>
+                        loadMigration(name),
+                    ),
+                ),
+                (migration) => migration.up(database),
             );
             const reappliedColumns = await columnNames();
             const sortColumns = (columns: ColumnName[]) =>
