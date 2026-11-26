@@ -78,6 +78,7 @@ describe('agent result read access', () => {
             expect(f.aiAgentModel.getAgent).toHaveBeenCalledExactlyOnceWith({
                 organizationUuid: 'org',
                 agentUuid: 'agent',
+                agentKind: 'any',
             });
         },
     );
