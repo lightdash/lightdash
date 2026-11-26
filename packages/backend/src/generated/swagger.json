@@ -81505,10 +81505,6 @@
             },
             "AgentCapabilityPolicyOverview": {
                 "properties": {
-                    "mode": {
-                        "type": "string",
-                        "enum": ["legacy", "managed"]
-                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -81518,7 +81514,8 @@
                             "$ref": "#/components/schemas/AgentCapability"
                         },
                         "type": "array",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Null means agents have no restrictions."
                     },
                     "allowedGroupUuids": {
                         "items": {
@@ -81532,7 +81529,6 @@
                     }
                 },
                 "required": [
-                    "mode",
                     "version",
                     "allowedCapabilities",
                     "allowedGroupUuids",
@@ -81570,10 +81566,6 @@
             },
             "AgentCapabilityPolicy": {
                 "properties": {
-                    "mode": {
-                        "type": "string",
-                        "enum": ["legacy", "managed"]
-                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -81583,7 +81575,8 @@
                             "$ref": "#/components/schemas/AgentCapability"
                         },
                         "type": "array",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Null means agents have no restrictions."
                     },
                     "allowedGroupUuids": {
                         "items": {
@@ -81594,7 +81587,6 @@
                     }
                 },
                 "required": [
-                    "mode",
                     "version",
                     "allowedCapabilities",
                     "allowedGroupUuids"
@@ -81623,16 +81615,13 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "mode": {
-                        "type": "string",
-                        "enum": ["legacy", "managed"]
-                    },
                     "allowedCapabilities": {
                         "items": {
                             "$ref": "#/components/schemas/AgentCapability"
                         },
                         "type": "array",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Null removes the restrictions. Leave it out to keep the saved list."
                     },
                     "allowedGroupUuids": {
                         "items": {
@@ -81739,7 +81728,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.415.0",
+        "version": "3.416.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -97652,6 +97641,390 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/SemanticLayerUndoRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/chat/threads": {
+            "post": {
+                "operationId": "createSemanticStudioChatThread",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadCreateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Starts a conversation with the Semantic Studio builder.",
+                "summary": "Create a Semantic Studio chat thread",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiAiAgentThreadCreateRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/chat/threads/{threadUuid}": {
+            "get": {
+                "operationId": "getSemanticStudioChatThread",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "A conversation with the Semantic Studio builder and its messages.",
+                "summary": "Get a Semantic Studio chat thread",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/chat/threads/{threadUuid}/messages": {
+            "post": {
+                "operationId": "createSemanticStudioChatMessage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadMessageCreateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Adds a message to a conversation with the Semantic Studio builder.",
+                "summary": "Create a Semantic Studio chat message",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiAiAgentThreadMessageCreateRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/chat/threads/{threadUuid}/stream": {
+            "post": {
+                "operationId": "streamSemanticStudioChatResponse",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Streams the builder's answer to the latest message of a conversation.",
+                "summary": "Stream a Semantic Studio chat response",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiAiAgentThreadStreamRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/chat/threads/{threadUuid}/generate-title": {
+            "post": {
+                "operationId": "generateSemanticStudioChatTitle",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadGenerateTitleResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Names a conversation with the Semantic Studio builder from its messages.",
+                "summary": "Generate a Semantic Studio chat title",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/chat/threads/{threadUuid}/messages/{messageUuid}/interrupt": {
+            "post": {
+                "operationId": "interruptSemanticStudioChatMessage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadMessageInterruptResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Stops the builder's answer to a message.",
+                "summary": "Interrupt a Semantic Studio chat message",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "messageUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/chat/threads/{threadUuid}/messages/{messageUuid}/steers": {
+            "post": {
+                "operationId": "steerSemanticStudioChatMessage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadMessageSteerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Sends the builder a note while it is answering a message.",
+                "summary": "Steer a Semantic Studio chat message",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "messageUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiCreateAiAgentThreadMessageSteer"
                             }
                         }
                     }
