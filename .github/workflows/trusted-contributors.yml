@@ -25,7 +25,7 @@ jobs:
                   egress-policy: audit
             # Default checkout under pull_request_target is the PR's base
             # branch in this repository, never the PR's own code.
-            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+            - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
             - name: Close untrusted external pull requests
               uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
               with:
