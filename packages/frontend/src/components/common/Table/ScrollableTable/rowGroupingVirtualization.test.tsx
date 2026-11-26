@@ -50,11 +50,13 @@ const column = (id: string, item?: Dimension): TableColumn => ({
 const renderGroupedTable = ({
     getRegion = regionOf,
     cellContextMenu,
+    rowCount = ROW_COUNT,
 }: {
     getRegion?: (rowIndex: number) => string;
     cellContextMenu?: FC<CellContextMenuProps>;
+    rowCount?: number;
 } = {}) => {
-    const rows: ResultRow[] = Array.from({ length: ROW_COUNT }, (_, index) => ({
+    const rows: ResultRow[] = Array.from({ length: rowCount }, (_, index) => ({
         region: {
             value: { raw: getRegion(index), formatted: getRegion(index) },
         },
@@ -71,7 +73,7 @@ const renderGroupedTable = ({
             data={rows}
             columns={columns}
             columnOrder={['region', 'city', 'sales']}
-            totalRowsCount={ROW_COUNT}
+            totalRowsCount={rowCount}
             isFetchingRows={false}
             fetchMoreRows={vi.fn()}
             cellContextMenu={cellContextMenu}
@@ -213,6 +215,8 @@ it('shows the lines of a merged value that fit in the rows its cell covers', asy
     expect(twoRowCells.length).toBeGreaterThan(0);
     twoRowCells.forEach((cell) => {
         expect(getValueLineLimit(cell)).toBe(3);
+        // The full value is in the title of a clamped cell.
+        expect(getValueSpan(cell)).toHaveAttribute('title', cell.textContent);
         // The line count assumes this line height.
         expect(getValueSpan(cell)!.style.lineHeight).toBe(
             `${TABLE_LINE_HEIGHT_PX}px`,
@@ -273,4 +277,20 @@ it('closes the menu of a merged cell when its group leaves the rendered rows', a
     await scrollViewportTo(table, 150);
     expect(await screen.findByText('Region 1')).toBeInTheDocument();
     expect(screen.queryByText('Menu for Region 1')).toBeNull();
+});
+
+it('shows the full merged value when the rendered rows cannot clip the table', async () => {
+    const fiveLinesOf = (rowIndex: number) =>
+        `Pair ${Math.floor(rowIndex / 2)}\nline 2\nline 3\nline 4\nline 5`;
+    const table = renderGroupedTable({ getRegion: fiveLinesOf, rowCount: 20 });
+    expect(await screen.findByText('City 19')).toBeInTheDocument();
+
+    const pairCells = Array.from(table.querySelectorAll('td')).filter((td) =>
+        td.textContent?.startsWith('Pair '),
+    );
+    expect(pairCells).toHaveLength(10);
+    pairCells.forEach((cell) => {
+        expect(cell).toHaveAttribute('rowspan', '2');
+        expect(getValueLineLimit(cell)).toBeUndefined();
+    });
 });

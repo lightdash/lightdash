@@ -38,14 +38,16 @@ const regionOf = (rowIndex: number) =>
 function buildGroupedPivot({
     columnTotals = false,
     getRegion = regionOf,
+    rowCount = ROW_COUNT,
 }: {
     columnTotals?: boolean;
     getRegion?: (rowIndex: number) => string;
+    rowCount?: number;
 } = {}) {
     const getField = () => undefined;
     const getFieldLabel = (id: string) => id;
     const data = convertSqlPivotedRowsToPivotData({
-        rows: Array.from({ length: ROW_COUNT }, (_, index) => ({
+        rows: Array.from({ length: rowCount }, (_, index) => ({
             region: {
                 value: { raw: getRegion(index), formatted: getRegion(index) },
             },
@@ -88,14 +90,17 @@ const renderGroupedPivot = ({
     columnTotals = false,
     enableContextMenu = false,
     getRegion = regionOf,
+    rowCount = ROW_COUNT,
 }: {
     columnTotals?: boolean;
     enableContextMenu?: boolean;
     getRegion?: (rowIndex: number) => string;
+    rowCount?: number;
 } = {}) => {
     const { data, getField, getFieldLabel } = buildGroupedPivot({
         columnTotals,
         getRegion,
+        rowCount,
     });
     renderWithProviders(
         <PivotTable
@@ -234,6 +239,8 @@ it('shows the lines of a merged value that fit in the rows its cell covers', asy
     expect(twoRowCells.length).toBeGreaterThan(0);
     twoRowCells.forEach((cell) => {
         expect(getValueLineLimit(cell)).toBe(3);
+        // The full value is in the title of a clamped cell.
+        expect(getValueSpan(cell)).toHaveAttribute('title', cell.textContent);
         // The line count assumes this line height.
         expect(getValueSpan(cell)!.style.lineHeight).toBe(
             `${TABLE_LINE_HEIGHT_PX}px`,
@@ -326,4 +333,20 @@ it('shows the footer shadow on first render when the rows are taller than the vi
 
     expect(table.parentElement!.scrollTop).toBe(0);
     expect(footer).toHaveAttribute('data-shadow', 'true');
+});
+
+it('shows the full merged value when the rendered rows cannot clip the table', async () => {
+    const fiveLinesOf = (rowIndex: number) =>
+        `Pair ${Math.floor(rowIndex / 2)}\nline 2\nline 3\nline 4\nline 5`;
+    const table = renderGroupedPivot({ getRegion: fiveLinesOf, rowCount: 20 });
+    expect(await screen.findByText('City 19')).toBeInTheDocument();
+
+    const pairCells = Array.from(table.querySelectorAll('td')).filter((td) =>
+        td.textContent?.startsWith('Pair '),
+    );
+    expect(pairCells).toHaveLength(10);
+    pairCells.forEach((cell) => {
+        expect(cell).toHaveAttribute('rowspan', '2');
+        expect(getValueLineLimit(cell)).toBeUndefined();
+    });
 });
