@@ -194,7 +194,7 @@ describe('getMergedValueLineClamp', () => {
     const LINE_HEIGHT_PX = 13 * 1.4286;
     const tables = [
         { name: 'results table', rowHeight: 34, paddingY: 8.5 },
-        { name: 'pivot table', rowHeight: 32, paddingY: 9 },
+        { name: 'pivot table', rowHeight: 32, paddingY: 8 },
     ];
 
     it('shows one line in a cell of one row', () => {
@@ -205,6 +205,10 @@ describe('getMergedValueLineClamp', () => {
 
     it('shows three lines in two rows of the results table', () => {
         expect(getMergedValueLineClamp(2, 34, 8.5)).toBe(3);
+    });
+
+    it('shows three lines in two rows of the pivot table', () => {
+        expect(getMergedValueLineClamp(2, 32, 8)).toBe(3);
     });
 
     it('never shows more lines than fit in the rows the cell covers', () => {

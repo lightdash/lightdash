@@ -203,7 +203,7 @@ const getValueLineLimit = (cell: HTMLTableCellElement) => {
 
 it('shows the lines of a merged value that fit in the rows its cell covers', async () => {
     const pairOf = (rowIndex: number) =>
-        `Pair ${Math.floor(rowIndex / 2)}\nsecond line`;
+        `Pair ${Math.floor(rowIndex / 2)}\nsecond line\nthird line`;
     const table = renderGroupedPivot({ getRegion: pairOf });
     expect(await screen.findByText('City 0')).toBeInTheDocument();
 
@@ -221,14 +221,14 @@ it('shows the lines of a merged value that fit in the rows its cell covers', asy
     );
     expect(pairCells[0].textContent).toBe(pairOf(rows[0].rowIndex));
     expect(pairCells[0]).not.toHaveAttribute('rowspan');
-    // One row fits one line. Two rows fit both lines.
+    // One row fits one line. Two rows fit all three lines.
     expect(getValueLineLimit(pairCells[0])).toBe(1);
     const twoRowCells = pairCells.filter(
         (cell) => cell.getAttribute('rowspan') === '2',
     );
     expect(twoRowCells.length).toBeGreaterThan(0);
     twoRowCells.forEach((cell) => {
-        expect(getValueLineLimit(cell)).toBe(2);
+        expect(getValueLineLimit(cell)).toBe(3);
     });
 
     const cityCell = Array.from(rows[0].tr.querySelectorAll('td')).find(
