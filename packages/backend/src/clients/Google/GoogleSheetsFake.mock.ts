@@ -18,6 +18,9 @@ type FakeSheet = {
     basicFilter?: AnyType;
     // Rows that the basic filter hides while it is set.
     filteredRows: Set<number>;
+    // Sheets tables (the "Tables" feature). A filter on a table is the tab's
+    // basic filter, and Google reads it back with both tableId and range.
+    tables: Array<{ tableId: string; name: string; range: GridRange }>;
     developerMetadata: Array<{
         metadataId: number;
         metadataKey: string;
@@ -51,6 +54,15 @@ export const googleApiError = (status: number, message: string) =>
 
 export const googleInternalError = () =>
     googleApiError(500, 'Internal error encountered.');
+
+// What google-auth-library throws when the token endpoint answers with an
+// OAuth error body: the message is the `error` string, not `error.message`.
+export const googleOAuthError = (status: number, error: string) =>
+    Object.assign(new Error(error), {
+        code: String(status),
+        config: { url: 'https://oauth2.googleapis.com/token', method: 'POST' },
+        response: { status, data: { error } },
+    });
 
 export const googleQuotaError = () =>
     googleApiError(
@@ -126,6 +138,9 @@ export class GoogleSheetsFake {
                         sheets: this.sheets.map((sheet, index) => ({
                             ...(sheet.basicFilter
                                 ? { basicFilter: sheet.basicFilter }
+                                : {}),
+                            ...(sheet.tables.length > 0
+                                ? { tables: sheet.tables }
                                 : {}),
                             ...(sheet.developerMetadata.length > 0
                                 ? {
@@ -301,6 +316,7 @@ export class GoogleSheetsFake {
             values: [],
             numberFormats: [],
             filteredRows: new Set(),
+            tables: [],
             developerMetadata: [],
         };
         this.nextSheetId += 1;
@@ -403,12 +419,13 @@ export class GoogleSheetsFake {
             values: s.values.map((row) => (row ? [...row] : row)),
             numberFormats: [...s.numberFormats],
             filteredRows: new Set(s.filteredRows),
+            tables: [...s.tables],
             developerMetadata: [...s.developerMetadata],
         }));
         const { nextSheetId } = this;
         try {
-            const replies = requests.map((request) =>
-                this.applyRequest(request as Record<string, AnyType>),
+            const replies = requests.map((request, index) =>
+                this.applyRequest(request as Record<string, AnyType>, index),
             );
             return { replies };
         } catch (e) {
@@ -418,7 +435,7 @@ export class GoogleSheetsFake {
         }
     }
 
-    private applyRequest(request: Record<string, AnyType>) {
+    private applyRequest(request: Record<string, AnyType>, index: number) {
         const [kind] = Object.keys(request);
         const body = request[kind];
         switch (kind) {
@@ -559,8 +576,35 @@ export class GoogleSheetsFake {
                 return {};
             }
             case 'setBasicFilter': {
-                this.sheetById(body.filter.range.sheetId).basicFilter =
-                    body.filter;
+                const { filter } = body;
+                // Measured in production: Google rejects a filter that names
+                // both a table and a range, which is the form it reads back.
+                if (
+                    filter.tableId !== undefined &&
+                    filter.range !== undefined
+                ) {
+                    throw googleApiError(
+                        400,
+                        `Invalid requests[${index}].setBasicFilter: Filter can either be applied to a table or a range, not both.`,
+                    );
+                }
+                if (filter.tableId !== undefined) {
+                    const sheet = this.sheets.find((s) =>
+                        s.tables.some((t) => t.tableId === filter.tableId),
+                    );
+                    if (!sheet) {
+                        throw googleApiError(
+                            400,
+                            `Invalid requests[${index}].setBasicFilter: No table with id: ${filter.tableId}`,
+                        );
+                    }
+                    const table = sheet.tables.find(
+                        (t) => t.tableId === filter.tableId,
+                    );
+                    sheet.basicFilter = { ...filter, range: table?.range };
+                    return {};
+                }
+                this.sheetById(filter.range.sheetId).basicFilter = filter;
                 return {};
             }
             case 'repeatCell': {
