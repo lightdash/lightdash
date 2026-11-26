@@ -5,6 +5,7 @@ import {
     getItemLabelWithoutTableName,
     ItemsMap,
 } from '@lightdash/common';
+import { createTimeBudgetYield } from '@lightdash/warehouses';
 import moment from 'moment/moment';
 import { validateHeaderValue } from 'node:http';
 import { Readable } from 'stream';
@@ -166,8 +167,15 @@ export async function streamJsonlData<T>({
     let lineCount = 0;
     let truncated = false;
     const results: T[] = [];
+    // Buffered lines are delivered in microtasks, so the loop must yield itself
+    const yieldIfNeeded = createTimeBudgetYield();
 
     for await (const line of splitJsonlStream(readStream)) {
+        const yielding = yieldIfNeeded();
+        if (yielding) {
+            await yielding;
+        }
+
         if (!line.trim()) {
             // eslint-disable-next-line no-continue
             continue;

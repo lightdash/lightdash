@@ -1,4 +1,5 @@
-import { PassThrough } from 'stream';
+import { performance } from 'node:perf_hooks';
+import { PassThrough, Readable } from 'stream';
 import { ChecksumStreamStandIn } from '../../clients/Aws/s3Streams.testUtils';
 import {
     createContentDispositionHeader,
@@ -25,6 +26,33 @@ describe('FileDownloadUtils', () => {
             expect(results).toEqual([{ n: 1 }]);
             expect(truncated).toBe(true);
             expect(response.destroyed).toBe(true);
+        });
+
+        it('yields to the event loop between rows once the time budget is spent', async () => {
+            let now = 0;
+            vi.spyOn(performance, 'now').mockImplementation(() => now);
+            // Both rows arrive in one chunk, so nothing else forces a yield
+            const readStream = Readable.from([
+                Buffer.from('{"n":1}\n{"n":2}\n'),
+            ]);
+            let ranBeforeSecondRow = false;
+            let ran = false;
+
+            await streamJsonlData({
+                readStream,
+                onRow: (_row, lineCount) => {
+                    if (lineCount === 1) {
+                        setImmediate(() => {
+                            ran = true;
+                        });
+                        now = 21;
+                    } else {
+                        ranBeforeSecondRow = ran;
+                    }
+                },
+            });
+
+            expect(ranBeforeSecondRow).toBe(true);
         });
     });
 
