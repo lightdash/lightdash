@@ -1,6 +1,5 @@
 import {
     type AgentCapability,
-    type AgentCapabilityPolicy,
     type OrganizationMemberRole,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -12,7 +11,8 @@ export const AgentSystemRoleCapabilitiesTableName =
 
 export interface DbAgentCapabilityPolicy {
     organization_uuid: string;
-    mode: AgentCapabilityPolicy['mode'];
+    /** Not read. Written so the previous release keeps working. */
+    mode: 'legacy' | 'managed';
     version: number;
     allowed_capabilities: AgentCapability[] | null;
     allowed_project_uuids: string[] | null;

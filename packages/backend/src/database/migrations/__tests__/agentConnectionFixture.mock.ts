@@ -198,7 +198,6 @@ export const connectionFixture = async (
     });
     const policy = await policies.save({
         organizationUuid,
-        mode: 'managed',
         allowedCapabilities: [capability],
         allowedGroupUuids: null,
         updatedByUserUuid: userUuid,

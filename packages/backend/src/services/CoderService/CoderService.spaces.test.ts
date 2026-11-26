@@ -2,6 +2,7 @@ import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     Account,
     AgentActorSurface,
+    AgentCapability,
     AnyType,
     ContentAsCodeType,
     ForbiddenError,
@@ -905,9 +906,8 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                 'get',
             ).mockResolvedValue({
                 allowedGroupUuids: null,
-                mode: 'managed',
                 version: 1,
-                allowedCapabilities: null,
+                allowedCapabilities: Object.values(AgentCapability),
             });
             const user = makeSessionUser([
                 { subject: 'ContentAsCode', action: 'create' },
@@ -967,9 +967,11 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                     'get',
                 ).mockResolvedValue({
                     allowedGroupUuids: null,
-                    mode: mode === 'legacy' ? 'legacy' : 'managed',
                     version: 1,
-                    allowedCapabilities: null,
+                    allowedCapabilities:
+                        mode === 'legacy'
+                            ? null
+                            : Object.values(AgentCapability),
                 });
                 const user = makeSessionUser();
                 let account: Account = fromSession(user);
@@ -1055,9 +1057,11 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                     'get',
                 ).mockResolvedValue({
                     allowedGroupUuids: null,
-                    mode: mode === 'legacy' ? 'legacy' : 'managed',
                     version: 1,
-                    allowedCapabilities: null,
+                    allowedCapabilities:
+                        mode === 'legacy'
+                            ? null
+                            : Object.values(AgentCapability),
                 });
                 const user = makeSessionUser();
                 let account: Account = fromSession(user);

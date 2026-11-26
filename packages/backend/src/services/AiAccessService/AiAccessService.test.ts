@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     AGENT_CLIENT_IDS,
     AgentActorSurface,
+    AgentCapability,
     AgentIdentityConnectEntryPoint,
     AgentIdentityConnectFailureReason,
     AiAccessRefusalReason,
@@ -1077,9 +1078,11 @@ describe('AiAccessService', () => {
                     .mockResolvedValue({
                         allowedGroupUuids:
                             mode === 'admission' ? ['allowed-group'] : null,
-                        mode: mode === 'managed' ? 'managed' : 'legacy',
                         version: 1,
-                        allowedCapabilities: null,
+                        allowedCapabilities:
+                            mode !== 'managed'
+                                ? null
+                                : Object.values(AgentCapability),
                     });
                 const oauth = fromOauth(toSessionUser(admin), {
                     accessToken: 'token',

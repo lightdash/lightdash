@@ -420,8 +420,8 @@ sources. Slack requires a verified sender when the restriction is active.
 A valid deployment licence allows new group restrictions. Saved restrictions still apply when groups later
 become unavailable. Clearing a restriction is always allowed. Personal-access-token
 and service-account calls keep their existing exemptions. With `agent-identity`
-off, group admission adds no checks or reads. A PUT can set
-`mode: 'legacy'` to save group admission.
+off, group admission adds no checks or reads. A PUT can save group admission
+with `allowedCapabilities: null`, which leaves capabilities unrestricted.
 Reset keeps groups and clears the capability list. Old people and project lists
 are ignored and omitted from GET, PUT and reset. An old browser save succeeds
 and drops those choices. The page uses the final policy API for Same as the

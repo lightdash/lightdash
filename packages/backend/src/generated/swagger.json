@@ -81505,10 +81505,6 @@
             },
             "AgentCapabilityPolicyOverview": {
                 "properties": {
-                    "mode": {
-                        "type": "string",
-                        "enum": ["legacy", "managed"]
-                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -81518,7 +81514,8 @@
                             "$ref": "#/components/schemas/AgentCapability"
                         },
                         "type": "array",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Null means agents have no restrictions."
                     },
                     "allowedGroupUuids": {
                         "items": {
@@ -81532,7 +81529,6 @@
                     }
                 },
                 "required": [
-                    "mode",
                     "version",
                     "allowedCapabilities",
                     "allowedGroupUuids",
@@ -81570,10 +81566,6 @@
             },
             "AgentCapabilityPolicy": {
                 "properties": {
-                    "mode": {
-                        "type": "string",
-                        "enum": ["legacy", "managed"]
-                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -81583,7 +81575,8 @@
                             "$ref": "#/components/schemas/AgentCapability"
                         },
                         "type": "array",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Null means agents have no restrictions."
                     },
                     "allowedGroupUuids": {
                         "items": {
@@ -81594,7 +81587,6 @@
                     }
                 },
                 "required": [
-                    "mode",
                     "version",
                     "allowedCapabilities",
                     "allowedGroupUuids"
@@ -81623,16 +81615,13 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "mode": {
-                        "type": "string",
-                        "enum": ["legacy", "managed"]
-                    },
                     "allowedCapabilities": {
                         "items": {
                             "$ref": "#/components/schemas/AgentCapability"
                         },
                         "type": "array",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Null removes the restrictions. Leave it out to keep the saved list."
                     },
                     "allowedGroupUuids": {
                         "items": {

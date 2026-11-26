@@ -94,7 +94,6 @@ describe.each([true, false])('audit level enabled: %s', (auditEnabled) => {
                 insert: vi.fn().mockResolvedValue(undefined),
             };
             const policy = {
-                mode: 'managed' as const,
                 version: 1,
                 allowedCapabilities: capabilities.filter(
                     (capability) =>

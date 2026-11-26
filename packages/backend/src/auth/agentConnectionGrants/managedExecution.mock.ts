@@ -33,9 +33,8 @@ export const managedExecutionFixture = () => {
         operation: { kind: 'rest', key: 'ProjectController.refresh' },
     };
     const policy: AgentCapabilityPolicy = {
-        mode: 'managed',
         version: 1,
-        allowedCapabilities: null,
+        allowedCapabilities: Object.values(AgentCapability),
         allowedGroupUuids: null,
     };
     const userModel = {

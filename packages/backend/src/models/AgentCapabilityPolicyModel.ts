@@ -21,15 +21,14 @@ type StoredPolicy = Pick<
     'version' | 'allowed_capabilities' | 'allowed_group_uuids'
 >;
 
-// The mode follows the saved capability list: a list restricts agents, no
-// list leaves them unrestricted. The stored mode column is not read.
-const modeFor = (
+// The mode column is still written so the previous release keeps working, but
+// nothing reads it: a saved capability list is what restricts agents.
+const storedModeFor = (
     allowedCapabilities: AgentCapability[] | null,
-): AgentCapabilityPolicy['mode'] =>
+): DbAgentCapabilityPolicy['mode'] =>
     allowedCapabilities === null ? 'legacy' : 'managed';
 
 export interface AgentEnforcementPolicy {
-    mode: 'legacy' | 'managed';
     version: number;
     allowedCapabilities: AgentCapability[] | null;
     storedAllowedGroupUuids: string[] | null;
@@ -85,7 +84,6 @@ export class AgentCapabilityPolicyModel {
         return {
             allowedGroupUuids:
                 storedGroups?.filter((uuid) => groupUuids.has(uuid)) ?? null,
-            mode: modeFor(policy?.allowed_capabilities ?? null),
             version: policy?.version ?? 0,
             allowedCapabilities: policy?.allowed_capabilities ?? null,
         };
@@ -127,7 +125,6 @@ export class AgentCapabilityPolicyModel {
                 ),
             );
         return {
-            mode: modeFor(policy?.allowed_capabilities ?? null),
             version: policy?.version ?? 0,
             allowedCapabilities: policy?.allowed_capabilities ?? null,
             storedAllowedGroupUuids: policy?.allowed_group_uuids ?? null,
@@ -137,7 +134,6 @@ export class AgentCapabilityPolicyModel {
 
     async save({
         organizationUuid,
-        mode,
         version,
         allowedCapabilities,
         allowedGroupUuids,
@@ -162,18 +158,16 @@ export class AgentCapabilityPolicyModel {
                         'All allowed groups must belong to this organization',
                     );
             }
-            const normalizedCapabilities =
-                mode === 'legacy'
-                    ? null
-                    : AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
-                          (capability) =>
-                              allowedCapabilities === undefined ||
-                              allowedCapabilities?.includes(capability),
-                      );
+            // Undefined keeps the saved list; a new policy starts unrestricted.
+            const normalizedCapabilities = allowedCapabilities
+                ? AGENT_CAPABILITY_LIMIT_DEFAULTS.filter((capability) =>
+                      allowedCapabilities.includes(capability),
+                  )
+                : null;
             const query = transaction(AgentCapabilityPoliciesTableName)
                 .insert({
                     organization_uuid: organizationUuid,
-                    mode,
+                    mode: storedModeFor(normalizedCapabilities),
                     version: 1,
                     allowed_capabilities: normalizedCapabilities,
                     allowed_project_uuids: null,
@@ -183,15 +177,10 @@ export class AgentCapabilityPolicyModel {
                 })
                 .onConflict('organization_uuid')
                 .merge({
-                    mode,
-                    allowed_capabilities:
-                        mode === 'managed' && allowedCapabilities === undefined
-                            ? transaction.raw('COALESCE(??.??, ?::text[])', [
-                                  AgentCapabilityPoliciesTableName,
-                                  'allowed_capabilities',
-                                  [...AGENT_CAPABILITY_LIMIT_DEFAULTS],
-                              ])
-                            : normalizedCapabilities,
+                    ...(allowedCapabilities !== undefined && {
+                        mode: storedModeFor(normalizedCapabilities),
+                        allowed_capabilities: normalizedCapabilities,
+                    }),
                     allowed_project_uuids: null,
                     allowed_user_uuids: null,
                     ...(allowedGroupUuids !== undefined && {
@@ -220,14 +209,7 @@ export class AgentCapabilityPolicyModel {
                     'Agent permissions changed. Reload the latest permissions before saving.',
                 );
             }
-            if (mode === 'legacy')
-                return this.get(organizationUuid, transaction);
-            return {
-                mode: modeFor(policy.allowed_capabilities),
-                version: policy.version,
-                allowedCapabilities: policy.allowed_capabilities,
-                allowedGroupUuids: policy.allowed_group_uuids,
-            };
+            return this.get(organizationUuid, transaction);
         });
     }
 

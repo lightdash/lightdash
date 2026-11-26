@@ -2,6 +2,7 @@ import { SSOClient } from '@aws-sdk/client-sso';
 import { SSOOIDCClient } from '@aws-sdk/client-sso-oidc';
 import { Ability } from '@casl/ability';
 import {
+    AgentCapability,
     AnyType,
     AuthorizationError,
     CommercialFeatureFlags,
@@ -5154,9 +5155,11 @@ describe('UserService', () => {
                     .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
                     .mockResolvedValue({
                         allowedGroupUuids: null,
-                        mode: mode === 'legacy' ? 'legacy' : 'managed',
                         version: 1,
-                        allowedCapabilities: null,
+                        allowedCapabilities:
+                            mode === 'legacy'
+                                ? null
+                                : Object.values(AgentCapability),
                     });
                 const actor = { ...sessionUser };
                 if (mode !== 'pat' && mode !== 'session')
@@ -5216,9 +5219,8 @@ describe('UserService', () => {
                     .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
                     .mockResolvedValue({
                         allowedGroupUuids: null,
-                        mode: 'managed',
                         version: 1,
-                        allowedCapabilities: null,
+                        allowedCapabilities: Object.values(AgentCapability),
                     });
                 const originalFind =
                     userModel.findUserByEmail.getMockImplementation();
