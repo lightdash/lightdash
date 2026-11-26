@@ -84,6 +84,10 @@ export const usePrefetchStudioAgent = (projectUuid: string | undefined) => {
     useKnownStudioAgents(projectUuid ?? '');
 };
 
+// Studio's routes answer not found for a missing thread; an agent's routes have their own error for it.
+const isThreadGone = (errorName: string) =>
+    errorName === 'NotFoundError' || errorName === 'AiAgentNotFoundError';
+
 /** A Studio chat's thread; one that no longer exists is forgotten instead of failing on every load. */
 export const useStudioThread = (
     projectUuid: string,
@@ -94,7 +98,7 @@ export const useStudioThread = (
     const { showToastApiError } = useToaster();
     return useAiAgentThread(projectUuid, agentUuid, threadUuid, {
         onError: ({ error }) => {
-            if (error.name === 'AiAgentNotFoundError') {
+            if (isThreadGone(error.name)) {
                 setStored((current) =>
                     current?.threadUuid === threadUuid ? null : current,
                 );
