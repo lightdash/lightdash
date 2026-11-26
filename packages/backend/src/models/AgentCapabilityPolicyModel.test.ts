@@ -25,18 +25,26 @@ test('defaults a missing policy to legacy without granting capabilities', async 
     expect(tracker.history.select[0].bindings).toContain('org');
 });
 
-test.each([null, [], [AgentCapability.Query]])(
-    'preserves capability limit %j without reading role rows',
-    async (allowedCapabilities) => {
+test.each([
+    { allowedCapabilities: null, stored: 'managed', mode: 'legacy' },
+    { allowedCapabilities: [], stored: 'legacy', mode: 'managed' },
+    {
+        allowedCapabilities: [AgentCapability.Query],
+        stored: 'managed',
+        mode: 'managed',
+    },
+])(
+    'derives the mode from capability limit $allowedCapabilities, not the stored mode',
+    async ({ allowedCapabilities, stored, mode }) => {
         tracker.on.select('organization_agent_capability_policies').response([
             {
-                mode: 'managed',
+                mode: stored,
                 version: 3,
                 allowed_capabilities: allowedCapabilities,
             },
         ]);
         expect(await model.get('org')).toEqual({
-            mode: 'managed',
+            mode,
             version: 3,
             allowedGroupUuids: null,
             allowedCapabilities,

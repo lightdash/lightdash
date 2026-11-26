@@ -1,5 +1,6 @@
 import {
     AgentActorSurface,
+    AgentCapability,
     assertIsAccountWithOrg,
     type AgentCapabilityPolicy,
     type RegisteredAccount,
@@ -41,7 +42,13 @@ export const setupPermissionSql = (
                 : [
                       {
                           mode: policy.mode,
-                          allowed_capabilities: policy.allowedCapabilities,
+                          // Stored policies always pair a managed mode with a
+                          // capability list.
+                          allowed_capabilities:
+                              policy.mode === 'managed'
+                                  ? (policy.allowedCapabilities ??
+                                    Object.values(AgentCapability))
+                                  : policy.allowedCapabilities,
                           version: policy.version,
                           allowed_project_uuids: state.allowedProjectUuids,
                           allowed_user_uuids: state.allowedUserUuids,

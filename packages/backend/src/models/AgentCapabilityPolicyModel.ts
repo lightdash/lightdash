@@ -18,8 +18,15 @@ import { ProjectTableName } from '../database/entities/projects';
 
 type StoredPolicy = Pick<
     DbAgentCapabilityPolicy,
-    'mode' | 'version' | 'allowed_capabilities' | 'allowed_group_uuids'
+    'version' | 'allowed_capabilities' | 'allowed_group_uuids'
 >;
+
+// The mode follows the saved capability list: a list restricts agents, no
+// list leaves them unrestricted. The stored mode column is not read.
+const modeFor = (
+    allowedCapabilities: AgentCapability[] | null,
+): AgentCapabilityPolicy['mode'] =>
+    allowedCapabilities === null ? 'legacy' : 'managed';
 
 export interface AgentEnforcementPolicy {
     mode: 'legacy' | 'managed';
@@ -62,7 +69,6 @@ export class AgentCapabilityPolicyModel {
                 organizationUuid,
             )
             .select<StoredPolicy[]>(
-                `${AgentCapabilityPoliciesTableName}.mode`,
                 `${AgentCapabilityPoliciesTableName}.version`,
                 `${AgentCapabilityPoliciesTableName}.allowed_capabilities`,
                 `${AgentCapabilityPoliciesTableName}.allowed_group_uuids`,
@@ -79,7 +85,7 @@ export class AgentCapabilityPolicyModel {
         return {
             allowedGroupUuids:
                 storedGroups?.filter((uuid) => groupUuids.has(uuid)) ?? null,
-            mode: policy?.mode ?? 'legacy',
+            mode: modeFor(policy?.allowed_capabilities ?? null),
             version: policy?.version ?? 0,
             allowedCapabilities: policy?.allowed_capabilities ?? null,
         };
@@ -98,7 +104,6 @@ export class AgentCapabilityPolicyModel {
                     has_existing_allowed_group: boolean | null;
                 })[]
             >(
-                `${AgentCapabilityPoliciesTableName}.mode`,
                 `${AgentCapabilityPoliciesTableName}.version`,
                 `${AgentCapabilityPoliciesTableName}.allowed_capabilities`,
                 `${AgentCapabilityPoliciesTableName}.allowed_group_uuids`,
@@ -122,7 +127,7 @@ export class AgentCapabilityPolicyModel {
                 ),
             );
         return {
-            mode: policy?.mode ?? 'legacy',
+            mode: modeFor(policy?.allowed_capabilities ?? null),
             version: policy?.version ?? 0,
             allowedCapabilities: policy?.allowed_capabilities ?? null,
             storedAllowedGroupUuids: policy?.allowed_group_uuids ?? null,
@@ -218,7 +223,7 @@ export class AgentCapabilityPolicyModel {
             if (mode === 'legacy')
                 return this.get(organizationUuid, transaction);
             return {
-                mode: policy.mode,
+                mode: modeFor(policy.allowed_capabilities),
                 version: policy.version,
                 allowedCapabilities: policy.allowed_capabilities,
                 allowedGroupUuids: policy.allowed_group_uuids,
