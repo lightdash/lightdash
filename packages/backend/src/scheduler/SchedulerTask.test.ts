@@ -2813,7 +2813,7 @@ describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
                     savedChartUuid: null,
                     dashboardUuid: 'dashboard-1',
                     appUuid: null,
-                    options: { xlsxContent },
+                    options: { formatted: true, limit: 'table', xlsxContent },
                     filters: [{ ...statusFilter, values: ['shipped'] }],
                     parameters: { region: 'EU' },
                 },
