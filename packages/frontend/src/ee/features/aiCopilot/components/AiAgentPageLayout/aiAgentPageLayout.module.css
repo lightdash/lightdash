@@ -82,8 +82,8 @@
     position: sticky;
     top: 0;
     z-index: 1;
-    min-height: rem(52px);
-    padding: rem(6px) var(--mantine-spacing-md);
+    min-height: var(--dashboard-header-height);
+    padding: rem(5px) var(--mantine-spacing-md);
     background-color: var(--mantine-color-body);
 }
 
