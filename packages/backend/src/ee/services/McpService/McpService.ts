@@ -139,6 +139,7 @@ import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import {
     McpServer,
     ResourceTemplate,
+    type RegisteredTool,
 } from '@modelcontextprotocol/sdk/server/mcp.js';
 // eslint-disable-next-line import/extensions
 import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
@@ -5847,6 +5848,15 @@ export class McpService extends BaseService {
         return this.mcpServer;
     }
 
+    public static getServedToolNames(server: McpServer): string[] {
+        const { _registeredTools: registeredTools } = server as unknown as {
+            _registeredTools?: Record<string, RegisteredTool>;
+        };
+        return Object.entries(registeredTools ?? {})
+            .filter(([, tool]) => tool.enabled)
+            .map(([name]) => name);
+    }
+
     /**
      * Creates a new McpServer instance with all handlers registered.
      * Required for SDK 1.26.0+ stateful mode where each session needs its own server.
@@ -6748,13 +6758,14 @@ export class McpService extends BaseService {
         );
 
     /**
-     * Records the flags that decided the catalogue served by a tools/list
-     * request as an mcp_tool_call row, so a session's claimed tool set can be
+     * Records the tool names a tools/list request served, and the flags that
+     * decided them, as an mcp_tool_call row, so a session's claimed tool set can be
      * checked against what it was actually given. Kept out of analytics: it
      * is not tool usage.
      */
     public recordToolList(params: {
         catalogue: McpServerToolOptions;
+        servedTools: string[];
         authInfo: AuthInfo;
         durationMs: number;
     }): void {
@@ -6787,6 +6798,7 @@ export class McpService extends BaseService {
                             filterExpressionsEnabled:
                                 queryTools.filterExpressionsEnabled,
                         },
+                        servedTools: params.servedTools,
                     },
                     trackAnalytics: false,
                 }),

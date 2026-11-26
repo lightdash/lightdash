@@ -972,6 +972,7 @@ describe('MCP catalogue audit', () => {
                     },
                     pinnedProjectUuid,
                 ),
+                servedTools: ['get_context', 'run_metric_query'],
                 authInfo: {
                     token: 'test-token',
                     clientId: 'test-client',
@@ -1006,6 +1007,7 @@ describe('MCP catalogue audit', () => {
                                 customChartTypesEnabled: false,
                                 agentIdentityEnabled: false,
                             },
+                            servedTools: ['get_context', 'run_metric_query'],
                         },
                     }),
                 );
