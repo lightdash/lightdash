@@ -135,9 +135,11 @@ const JobTimingInfo: FC<{
     startedAt: Date | null;
     completedAt: Date | null;
     status: SchedulerJobStatus;
-}> = ({ startedAt, completedAt, status }) => {
+    endLabel?: string;
+}> = ({ startedAt, completedAt, status, endLabel: endLabelOverride }) => {
     const endLabel =
-        status === SchedulerJobStatus.ERROR ? 'failed' : 'completed';
+        endLabelOverride ??
+        (status === SchedulerJobStatus.ERROR ? 'failed' : 'completed');
 
     return (
         <Group gap="md" wrap="nowrap" w={240}>
@@ -283,6 +285,7 @@ const SupersededJobRow: FC<{
                 startedAt={job.startedAt}
                 completedAt={job.completedAt}
                 status={job.finalStatus}
+                endLabel="stopped"
             />
         </Group>
     </Box>
