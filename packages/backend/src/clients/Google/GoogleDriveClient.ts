@@ -135,8 +135,10 @@ export const planGoogleSheetsWriteChunks = (
 
 const formatCount = (value: number) => value.toLocaleString('en-US');
 
-const formatMegabytes = (bytes: number) =>
-    `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+const formatSize = (bytes: number) =>
+    bytes < 0.1 * 1024 * 1024
+        ? 'less than 0.1 MB'
+        : `about ${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
 const quoteTabName = (title: string) => `'${title.replaceAll("'", "''")}'`;
 
@@ -882,7 +884,7 @@ export class GoogleDriveClient {
             rowsInTab: 0,
         };
         Logger.info(
-            `Writing ${rowCount} rows and ${columnCount} columns (about ${formatMegabytes(totalBytes)}) to Google sheets in ${chunks.length} requests (${inPlace ? 'in place' : 'staged in a hidden tab'})`,
+            `Writing ${rowCount} rows and ${columnCount} columns (${formatSize(totalBytes)}) to Google sheets in ${chunks.length} requests (${inPlace ? 'in place' : 'staged in a hidden tab'})`,
         );
         const startedAt = Date.now();
 
@@ -1005,7 +1007,7 @@ export class GoogleDriveClient {
                 );
                 if (inPlace) context.rowsInTab = chunk.end;
                 Logger.info(
-                    `Wrote Google Sheets request ${index + 1} of ${chunks.length} (${chunk.end - chunk.start} rows, about ${formatMegabytes(chunk.bytes)})`,
+                    `Wrote Google Sheets request ${index + 1} of ${chunks.length} (${chunk.end - chunk.start} rows, ${formatSize(chunk.bytes)})`,
                 );
             }, Promise.resolve());
 
@@ -1226,8 +1228,17 @@ export class GoogleDriveClient {
         const clearFilterRequests: sheets_v4.Schema$Request[] = basicFilter
             ? [{ clearBasicFilter: { sheetId: args.sheetId } }]
             : [];
+        // Restored without its sort: a sort would re-sort the synced rows on
+        // every sync, and only part of them when the data grows past a fixed
+        // filter range. The old write left the rows in query order.
         const restoreFilterRequests: sheets_v4.Schema$Request[] = basicFilter
-            ? [{ setBasicFilter: { filter: basicFilter } }]
+            ? [
+                  {
+                      setBasicFilter: {
+                          filter: { ...basicFilter, sortSpecs: undefined },
+                      },
+                  },
+              ]
             : [];
         let filterCleared = false;
 
@@ -1298,9 +1309,12 @@ export class GoogleDriveClient {
                             { retry: false },
                         );
                     } catch (e) {
-                        // A lost response can hide a last batch that Google
-                        // applied: then the staging tab is gone.
-                        if (!isLast) throw e;
+                        // With no HTTP response, Google can have applied the
+                        // last batch: then the staging tab is gone. A 4xx or
+                        // 5xx response means the batch was not applied.
+                        if (!isLast || !GoogleDriveClient.isNetworkError(e)) {
+                            throw e;
+                        }
                         const stagingTabExists =
                             await GoogleDriveClient.listSheetProperties(
                                 sheets,
@@ -1464,11 +1478,15 @@ export class GoogleDriveClient {
         ) {
             return error;
         }
+        // True whatever happens next: a scheduled sync is retried for a
+        // quota or transient error and turned off for other errors, and an
+        // export to a new sheet is not run again.
+        const turnedOff = error instanceof UnexpectedGoogleSheetsError;
         const outcome =
             context.rowsInTab > 0
-                ? `The sync stopped part-way. Rows 1-${formatCount(context.rowsInTab)} of the tab are new, and the rest may be from the previous sync. The next successful sync replaces them.`
+                ? `The sync stopped part-way. Rows 1-${formatCount(context.rowsInTab)} of the tab are new. The rows after them can be from the previous sync until a later run completes.${turnedOff ? ' If the sync was turned off, turn it on again to replace them.' : ''}`
                 : 'The data in the tab was not changed.';
-        const message = `Google Sheets could not write ${formatCount(context.rowCount)} rows (including the header, about ${formatMegabytes(context.totalBytes)}) to the tab "${context.tabTitle}". ${outcome} Google error: ${getErrorMessage(error)}`;
+        const message = `Google Sheets could not write ${formatCount(context.rowCount)} rows (including header rows, ${formatSize(context.totalBytes)}) to the tab "${context.tabTitle}". ${outcome} Google error: ${getErrorMessage(error)}`;
         if (error instanceof GoogleSheetsQuotaError) {
             return new GoogleSheetsQuotaError(message, error.data);
         }
