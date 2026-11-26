@@ -46,6 +46,7 @@ const buildService = ({
     );
     const service = new AiAgentService({
         aiAgentModel: {
+            isSemanticStudioAgent: vi.fn(async () => false),
             getAgent: vi.fn(async () => ({
                 uuid: agentUuid,
                 projectUuid,

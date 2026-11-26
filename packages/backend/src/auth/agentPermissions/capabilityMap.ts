@@ -1144,6 +1144,7 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'SemanticStudioController.finishWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getBuilderStatus': [AgentCapability.ReadDiscover],
+    'SemanticStudioController.getStudioAgent': [AgentCapability.DbtWriteback],
     'SemanticStudioController.undo': [AgentCapability.DbtWriteback],
     'InviteLinksController.createInviteLink': [AgentCapability.Administration],
     'InviteLinksController.revokeAllInviteLinks': [

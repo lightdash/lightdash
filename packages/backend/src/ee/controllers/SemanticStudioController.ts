@@ -1,5 +1,6 @@
 import {
     assertRegisteredAccount,
+    type ApiAiAgentResponse,
     type ApiErrorPayload,
     type ApiSemanticLayerDraftApplyResponse,
     type ApiSemanticLayerDraftedModelsResponse,
@@ -58,6 +59,7 @@ import {
     isAuthenticated,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import { type AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { type SemanticStudioCheckoutService } from '../services/SemanticStudioService/SemanticStudioCheckoutService';
 import { type SemanticStudioService } from '../services/SemanticStudioService/SemanticStudioService';
 
@@ -92,6 +94,30 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
             ),
+        };
+    }
+
+    /**
+     * The built-in agent behind this project's Semantic Studio chat, created on first use.
+     * @summary Get the Semantic Studio agent
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/agent')
+    @OperationId('getSemanticStudioAgent')
+    async getStudioAgent(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiAiAgentResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiAgentService<AiAgentService>()
+                .getSemanticStudioAgent(
+                    toSessionUser(req.account),
+                    projectUuid,
+                ),
         };
     }
 

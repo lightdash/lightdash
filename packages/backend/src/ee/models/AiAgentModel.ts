@@ -774,10 +774,13 @@ export class AiAgentModel {
         organizationUuid,
         agentUuid,
         projectUuid,
+        agentKind,
     }: {
         organizationUuid: string;
         agentUuid: string;
         projectUuid?: string;
+        /** Finds the agent only if it is of this kind; any kind when left out. */
+        agentKind?: DbAiAgent['agent_kind'];
     }): Promise<AiAgentSummary> {
         const integrations = this.database
             .from(AiAgentIntegrationTableName)
@@ -919,6 +922,9 @@ export class AiAgentModel {
 
         if (projectUuid) {
             void query.where(`${AiAgentTableName}.project_uuid`, projectUuid);
+        }
+        if (agentKind) {
+            void query.where(`${AiAgentTableName}.agent_kind`, agentKind);
         }
 
         const agent = await query;
@@ -1080,6 +1086,7 @@ export class AiAgentModel {
             // TODO: drop with the is_system column once no release that writes
             // system agents (<= 3.60) can still be running during an upgrade.
             .where(`${AiAgentTableName}.is_system`, false)
+            .where(`${AiAgentTableName}.agent_kind`, 'user')
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`);
 
         if (filter?.projectType) {
@@ -1181,6 +1188,7 @@ export class AiAgentModel {
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
             .where(`${AiAgentTableName}.project_uuid`, projectUuid)
             .where(`${AiAgentTableName}.is_system`, false)
+            .where(`${AiAgentTableName}.agent_kind`, 'user')
             .orderBy(`${AiAgentTableName}.slug`, 'asc');
 
         if ((slugs?.length ?? 0) > 0 || (agentUuids?.length ?? 0) > 0) {
@@ -2489,6 +2497,7 @@ export class AiAgentModel {
             organizationUuid: string;
             slug?: string;
             imageUrl?: string | null;
+            agentKind?: DbAiAgent['agent_kind'];
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
@@ -2529,6 +2538,7 @@ export class AiAgentModel {
                         args.providerCredentialUuid ?? null,
                     version: args.version,
                     thread_retention_hours: args.threadRetentionHours ?? null,
+                    agent_kind: args.agentKind ?? 'user',
                 })
                 .returning('*');
 
@@ -2650,6 +2660,69 @@ export class AiAgentModel {
                 threadRetentionHours: agent.thread_retention_hours,
             };
         });
+    }
+
+    /** The project's built-in Semantic Studio agent, created on first use; a partial unique index keeps it to one. */
+    async getOrCreateSemanticStudioAgent({
+        organizationUuid,
+        projectUuid,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<AiAgentSummary> {
+        const findUuid = async (): Promise<string | null> =>
+            (
+                await this.database(AiAgentTableName)
+                    .select('ai_agent_uuid')
+                    .where('organization_uuid', organizationUuid)
+                    .where('project_uuid', projectUuid)
+                    .where('agent_kind', 'semantic_studio')
+                    .first()
+            )?.ai_agent_uuid ?? null;
+        const create = async (): Promise<string> => {
+            try {
+                const { uuid } = await this.createAgent({
+                    name: 'Semantic Studio',
+                    description: null,
+                    projectUuid,
+                    organizationUuid,
+                    tags: null,
+                    integrations: [],
+                    instruction: null,
+                    groupAccess: [],
+                    userAccess: [],
+                    spaceAccess: [],
+                    enableDataAccess: true,
+                    enableSelfImprovement: false,
+                    enableContentTools: false,
+                    enableUserContext: true,
+                    enableSqlMode: true,
+                    modelConfig: null,
+                    version: 2,
+                    mcpServerUuids: [],
+                    agentKind: 'semantic_studio',
+                });
+                return uuid;
+            } catch (error) {
+                // A concurrent first request won the race, on this agent's index or its slug; use its agent.
+                const winner = isUniqueConstraintViolation(error)
+                    ? await findUuid()
+                    : null;
+                if (winner) return winner;
+                throw error;
+            }
+        };
+
+        const agentUuid = (await findUuid()) ?? (await create());
+        return this.getAgent({ organizationUuid, agentUuid });
+    }
+
+    async isSemanticStudioAgent(agentUuid: string): Promise<boolean> {
+        const row = await this.database(AiAgentTableName)
+            .select('agent_kind')
+            .where('ai_agent_uuid', agentUuid)
+            .first();
+        return row?.agent_kind === 'semantic_studio';
     }
 
     /**

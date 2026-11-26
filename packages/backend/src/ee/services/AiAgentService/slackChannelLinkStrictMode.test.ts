@@ -57,6 +57,7 @@ const buildService = ({
 }) => {
     const aiAgentModel = {
         getAgent: vi.fn().mockResolvedValue(agent),
+        isSemanticStudioAgent: vi.fn().mockResolvedValue(false),
         findAllAgents: vi.fn().mockResolvedValue(agents),
         addSlackChannelIntegration: vi.fn().mockResolvedValue(undefined),
         findLastUsedProjectUuid: vi.fn().mockResolvedValue(null),
