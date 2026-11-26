@@ -37,6 +37,7 @@ import {
     type DeepResearchRunRegistration,
     type StartDeepResearchArgs,
 } from '../deepResearch/types';
+import { useChatReadsItsAgent } from './chatEndpoints';
 
 const DEEP_RESEARCH_QUERY_KEY = 'deepResearch';
 const DEEP_RESEARCH_POLL_INTERVAL_MS = 2_000;
@@ -274,13 +275,15 @@ const useDeepResearchThreadRuns = (
     threadUuid: string,
 ) => {
     const lightdashApi = useLightdashApi();
+    // A chat with its own endpoints has no deep research, and the listing reads the thread's agent.
+    const readsItsAgent = useChatReadsItsAgent();
 
     const isEmbed = useIsEmbedded();
     return useQuery<AiDeepResearchRun[], ApiError>({
         queryKey: [DEEP_RESEARCH_QUERY_KEY, projectUuid, 'thread', threadUuid],
         queryFn: () =>
             listDeepResearchRuns(lightdashApi, projectUuid ?? '', threadUuid),
-        enabled: !isEmbed && !!projectUuid && !!threadUuid,
+        enabled: !isEmbed && readsItsAgent && !!projectUuid && !!threadUuid,
         refetchInterval: (runs) =>
             runs?.some((run) => !isAiDeepResearchRunTerminal(run.status))
                 ? DEEP_RESEARCH_POLL_INTERVAL_MS
