@@ -1024,6 +1024,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getSemanticStudioService<SemanticStudioService>(),
                     semanticStudioCheckoutService:
                         repository.getSemanticStudioCheckoutService<SemanticStudioCheckoutService>(),
+                    // The API and the scheduler worker both build the service here, so both know Studio's saves.
+                    findWritebackSetup: (save) =>
+                        repository
+                            .getSemanticStudioCheckoutService<SemanticStudioCheckoutService>()
+                            .findAgentWritebackSetup(save),
                     incrementalDbtCompileService:
                         repository.getIncrementalDbtCompileService<IncrementalDbtCompileService>(),
                     writebackPreviewService:

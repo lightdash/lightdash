@@ -415,6 +415,27 @@ describe('SemanticStudioCheckoutService', () => {
             expect(writeback.onSaved).not.toBeNull();
         });
 
+        it('sets up the saves of a Studio thread and has no say in any other', async () => {
+            const { service } = setup({ dbtConnection: DBT_IN_GITHUB });
+            const save = { user: repoWriter, projectUuid: PROJECT_UUID };
+
+            await expect(
+                service.findAgentWritebackSetup({
+                    ...save,
+                    threadCreatedFrom: 'semantic_studio',
+                }),
+            ).resolves.toMatchObject({
+                continuesThreadPullRequest: true,
+                showsPullRequestBeforePreview: true,
+            });
+            await expect(
+                service.findAgentWritebackSetup({
+                    ...save,
+                    threadCreatedFrom: 'web_app',
+                }),
+            ).resolves.toBeNull();
+        });
+
         it('says so when the person cannot change the semantic layer', async () => {
             const turn = await setup({
                 dbtConnection: DBT_IN_GITHUB,

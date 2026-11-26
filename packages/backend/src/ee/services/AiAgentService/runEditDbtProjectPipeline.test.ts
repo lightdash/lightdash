@@ -181,6 +181,27 @@ const buildService = (overrides: {
     const writebackPreviewService = { createPreviewForPullRequest };
     const queueBranchCompile = vi.fn().mockResolvedValue(undefined);
 
+    // Mirrors the Studio service: one pull request, shown at once, compiled after a save; no say in other threads.
+    const findWritebackSetup = vi.fn(
+        async ({
+            user,
+            projectUuid,
+            threadCreatedFrom,
+        }: {
+            user: unknown;
+            projectUuid: string;
+            threadCreatedFrom: string | undefined;
+        }) =>
+            threadCreatedFrom === 'semantic_studio'
+                ? {
+                      continuesThreadPullRequest: true,
+                      showsPullRequestBeforePreview: true,
+                      onSaved: (prUrl: string) =>
+                          queueBranchCompile(user, projectUuid, prUrl, 'agent'),
+                  }
+                : null,
+    );
+
     const loadRequest = vi.fn().mockResolvedValue({});
     const assertOperationWithRequest = vi.fn().mockResolvedValue(undefined);
     const service = new AiAgentService({
@@ -192,15 +213,7 @@ const buildService = (overrides: {
         aiAgentReviewClassifierModel,
         slackClient,
         writebackPreviewService,
-        semanticStudioCheckoutService: {
-            // Mirrors the Studio service: one pull request, shown at once, compiled after a save.
-            getAgentWritebackSetup: (user: unknown, projectUuid: string) => ({
-                continuesThreadPullRequest: true,
-                showsPullRequestBeforePreview: true,
-                onSaved: (prUrl: string) =>
-                    queueBranchCompile(user, projectUuid, prUrl, 'agent'),
-            }),
-        },
+        findWritebackSetup,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
 
@@ -209,6 +222,7 @@ const buildService = (overrides: {
         userModel,
         aiWritebackService,
         queueBranchCompile,
+        findWritebackSetup,
         loadRequest,
         assertOperationWithRequest,
         updateToolResult,
@@ -511,6 +525,37 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
 
         await service.runEditDbtProjectPipeline(PAYLOAD);
 
+        expect(queueBranchCompile).not.toHaveBeenCalled();
+    });
+
+    it('saves a thread no other kind claims as an ordinary one', async () => {
+        const {
+            service,
+            aiWritebackService,
+            findWritebackSetup,
+            updateToolResult,
+            createPreviewForPullRequest,
+            queueBranchCompile,
+        } = buildService({ previewUrl: 'https://preview.example.com' });
+        // No card before the preview is built.
+        createPreviewForPullRequest.mockImplementation(async () => {
+            expect(updateToolResult).not.toHaveBeenCalled();
+            return { previewUrl: 'https://preview.example.com' };
+        });
+
+        await service.runEditDbtProjectPipeline(PAYLOAD);
+
+        expect(findWritebackSetup).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: PAYLOAD.projectUuid,
+                threadCreatedFrom: undefined,
+            }),
+        );
+        // Not tied to the thread's pull request, and nothing runs after the save.
+        expect(aiWritebackService.run.mock.calls[0][0]).not.toHaveProperty(
+            'continuesThreadPullRequest',
+        );
+        expect(updateToolResult).toHaveBeenCalledTimes(1);
         expect(queueBranchCompile).not.toHaveBeenCalled();
     });
 

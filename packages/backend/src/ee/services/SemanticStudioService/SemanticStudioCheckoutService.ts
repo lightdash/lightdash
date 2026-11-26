@@ -4,12 +4,14 @@ import {
     getErrorMessage,
     isExploreError,
     isPullRequestOpen,
+    isSemanticStudioThread,
     isUserManagedExplore,
     JobStatusType,
     NotFoundError,
     ParameterError,
     ProjectType,
     type AiAgentSummary,
+    type AiThreadCreatedFrom,
     type CompileSemanticStudioBranchPayload,
     type Explore,
     type ExploreError,
@@ -485,6 +487,21 @@ export class SemanticStudioCheckoutService extends BaseService {
             onSaved: (prUrl) =>
                 this.queueBranchCompile(user, projectUuid, prUrl, 'agent'),
         };
+    }
+
+    /** The save setup of a Studio thread; null for any other thread, which Studio has no say in. */
+    async findAgentWritebackSetup({
+        user,
+        projectUuid,
+        threadCreatedFrom,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        threadCreatedFrom: AiThreadCreatedFrom | undefined;
+    }): Promise<AgentWritebackSetup | null> {
+        return isSemanticStudioThread(threadCreatedFrom)
+            ? this.getAgentWritebackSetup(user, projectUuid)
+            : null;
     }
 
     /** What a Studio thread brings to each of its turns on this project. */
