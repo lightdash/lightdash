@@ -686,6 +686,79 @@ describe('PostgresWarehouseClient statement timeout', () => {
         ]);
     });
 
+    describe('when the warehouse cancels the query', () => {
+        const cancelAfter = (ms: number, message: string, code?: string) =>
+            vi.fn((arg: unknown) => {
+                if (typeof arg === 'string') {
+                    return Promise.resolve({ rows: [], fields: [] });
+                }
+                const stream = new PassThrough();
+                setTimeout(
+                    () =>
+                        stream.destroy(
+                            Object.assign(new Error(message), { code }),
+                        ),
+                    ms,
+                );
+                return stream;
+            });
+        const runWithTimeout = async (queryMock: Mock, elapsedMs: number) => {
+            vi.useFakeTimers();
+            mockPoolWithQuery(queryMock);
+            const warehouse = new RedshiftWarehouseClient({
+                ...credentials,
+                type: WarehouseTypes.REDSHIFT,
+                timeoutSeconds: 300,
+            });
+            const [error] = await Promise.all([
+                warehouse.runQuery('select 1').catch((e: unknown) => e),
+                vi.advanceTimersByTimeAsync(elapsedMs + 1000),
+            ]);
+            return error as WarehouseQueryError;
+        };
+        const timeoutMessage =
+            "Query timed out after 300s. This limit is the timeout in the project's warehouse connection settings";
+
+        it.each([
+            ["Query cancelled on user's request", '57014'],
+            // Matched on the wording alone when the driver gives no code
+            ["Query (1234) cancelled on user's request", undefined],
+            ['canceling statement due to statement timeout', '57014'],
+        ])(
+            'reports "%s" at the statement timeout as a timeout',
+            async (message, code) => {
+                const error = await runWithTimeout(
+                    cancelAfter(300 * 1000, message, code),
+                    300 * 1000,
+                );
+
+                expect(error).toBeInstanceOf(WarehouseQueryError);
+                expect(error.message).toBe(timeoutMessage);
+                expect((error.cause as Error).message).toBe(message);
+            },
+        );
+
+        it('keeps the warehouse message for a cancellation before the timeout', async () => {
+            const message = "Query cancelled on user's request";
+            const error = await runWithTimeout(
+                cancelAfter(60 * 1000, message, '57014'),
+                60 * 1000,
+            );
+
+            expect(error.message).toBe(message);
+        });
+
+        it('keeps the warehouse message for other errors after the timeout', async () => {
+            const message = 'relation "orders" does not exist';
+            const error = await runWithTimeout(
+                cancelAfter(300 * 1000, message, '42P01'),
+                300 * 1000,
+            );
+
+            expect(error.message).toBe(message);
+        });
+    });
+
     describe('when the warehouse never reports back', () => {
         const silentSession = () => new Promise<never>(() => {});
         const respondingSession = () =>

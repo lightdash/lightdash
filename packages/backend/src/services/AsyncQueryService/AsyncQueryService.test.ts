@@ -33391,7 +33391,8 @@ describe('external source explore queries on the worker', () => {
 describe('query polling timeout', () => {
     const queryUuid = 'timed-out-query';
     const fiveMinutes = 5 * 60 * 1000;
-    const timeoutMessage = 'Query polling timed out after 300000ms';
+    const timeoutMessage =
+        'Timed out after 300s waiting for the query to finish';
     const fastPolling = { initialBackoffMs: 1, maxBackoffMs: 1 };
     const savedChartArgs = {
         account: sessionAccount,

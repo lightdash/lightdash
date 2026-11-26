@@ -159,6 +159,11 @@ export const getPostgresTimestampDomain = (
 
 const { builtins } = pg.types;
 const POSTGRES_NAME_TOO_LONG_SQLSTATE = '42622';
+// Raised for any cancelled statement, including a `statement_timeout`
+const POSTGRES_QUERY_CANCELED_SQLSTATE = '57014';
+// Redshift reports a statement timeout in the same words as a manual cancel
+const CANCELLED_QUERY_MESSAGE =
+    /cancell?ed on user'?s request|due to statement timeout/i;
 
 // Server-side ceiling for a single streamed query, bounded just under the
 // 10-min scheduler job timeout so a stalled cursor fails clearly instead of
@@ -435,6 +440,7 @@ export class PostgresClient<
         let currentStep: WarehouseQueryPhase = 'connect';
         let currentStepStartedAt = performance.now();
         let rowsFetched = 0;
+        let queryStartedAt: number | undefined;
 
         const startStep = (step: WarehouseQueryPhase) => {
             currentStep = step;
@@ -552,6 +558,7 @@ export class PostgresClient<
 
                 const runQuery = () => {
                     const queryStart = performance.now();
+                    queryStartedAt = queryStart;
                     let fetchStart: number | undefined;
                     sentQuery = true;
                     // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
@@ -666,7 +673,20 @@ export class PostgresClient<
                     throw e;
                 }
                 const error = e as pg.DatabaseError;
-                const translatedError = this.parseError(error, sql);
+                // A cancellation that lands once the statement timeout has
+                // elapsed is the timeout itself, not someone cancelling
+                const cancelledByStatementTimeout =
+                    queryStartedAt !== undefined &&
+                    performance.now() - queryStartedAt >= statementTimeoutMs &&
+                    (error?.code === POSTGRES_QUERY_CANCELED_SQLSTATE ||
+                        CANCELLED_QUERY_MESSAGE.test(error?.message ?? ''));
+                const translatedError = cancelledByStatementTimeout
+                    ? new WarehouseQueryError(
+                          `Query timed out after ${Math.round(
+                              statementTimeoutMs / 1000,
+                          )}s. This limit is the timeout in the project's warehouse connection settings`,
+                      )
+                    : this.parseError(error, sql);
                 translatedError.cause = error;
                 throw translatedError;
             })

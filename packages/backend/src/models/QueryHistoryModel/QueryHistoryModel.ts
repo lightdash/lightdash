@@ -172,7 +172,9 @@ export class QueryPollingTimeoutError extends Error {
     readonly timeoutMs: number;
 
     constructor(timeoutMs: number) {
-        super(`Query polling timed out after ${timeoutMs}ms`);
+        super(
+            `Timed out after ${Math.round(timeoutMs / 1000)}s waiting for the query to finish`,
+        );
         this.timeoutMs = timeoutMs;
     }
 }

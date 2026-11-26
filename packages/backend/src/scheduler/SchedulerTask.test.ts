@@ -2958,7 +2958,7 @@ describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
             expect.objectContaining({
                 type: PartialFailureType.DASHBOARD_COMPOSER_CHART,
                 tileUuid: 'composer-tile',
-                error: 'Query polling timed out after 180000ms',
+                error: 'Timed out after 180s waiting for the query to finish',
             }),
         ]);
     });
