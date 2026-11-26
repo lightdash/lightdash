@@ -22,6 +22,8 @@ const ORG_OVERRIDE_CONFLICT_TARGET =
 
 const ORGANIZATION_ONLY_FLAGS: ReadonlySet<string> = new Set([
     FeatureFlags.MobileAppAccess,
+    FeatureFlags.ResultsPageWorkers,
+    FeatureFlags.StoredResultsPages,
 ]);
 
 export type FeatureFlagLogicArgs = {

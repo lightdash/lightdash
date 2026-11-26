@@ -51,6 +51,129 @@ describe('query polling timeout metrics', () => {
     });
 });
 
+describe('results page metrics', () => {
+    beforeEach(() => {
+        prometheus.register.clear();
+        vi.spyOn(http.Server.prototype, 'listen').mockImplementation(
+            function mockListen(this: http.Server) {
+                return this;
+            },
+        );
+    });
+
+    afterEach(() => {
+        prometheus.register.clear();
+        vi.restoreAllMocks();
+    });
+
+    it('counts results pages by source from a zero baseline and records their time', async () => {
+        const metrics = new PrometheusMetrics({
+            ...lightdashConfigMock.prometheus,
+            enabled: true,
+        });
+        metrics.start();
+        const pages = prometheus.register.getSingleMetric(
+            'lightdash_query_results_pages_total',
+        );
+        expect((await pages!.get()).values).toEqual([
+            { labels: { source: 'inline' }, value: 0 },
+            { labels: { source: 'built' }, value: 0 },
+            { labels: { source: 'shared' }, value: 0 },
+            { labels: { source: 'stored' }, value: 0 },
+            { labels: { source: 'busy' }, value: 0 },
+        ]);
+
+        metrics.observeResultsPage('stored', 120);
+        metrics.observeResultsPage('stored', 80);
+        metrics.observeResultsPage('busy', 3000);
+
+        expect((await pages!.get()).values).toEqual([
+            { labels: { source: 'inline' }, value: 0 },
+            { labels: { source: 'built' }, value: 0 },
+            { labels: { source: 'shared' }, value: 0 },
+            { labels: { source: 'stored' }, value: 2 },
+            { labels: { source: 'busy' }, value: 1 },
+        ]);
+        const durations = await prometheus.register
+            .getSingleMetric('lightdash_query_results_page_duration_seconds')!
+            .get();
+        expect(durations.values).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    metricName:
+                        'lightdash_query_results_page_duration_seconds_sum',
+                    labels: { source: 'stored' },
+                    value: 0.2,
+                }),
+                expect.objectContaining({
+                    metricName:
+                        'lightdash_query_results_page_duration_seconds_count',
+                    labels: { source: 'busy' },
+                    value: 1,
+                }),
+            ]),
+        );
+        await metrics.stop();
+    });
+
+    it('counts builds apart from served pages and reports queue and memory gauges', async () => {
+        const metrics = new PrometheusMetrics({
+            ...lightdashConfigMock.prometheus,
+            enabled: true,
+        });
+        metrics.start();
+        metrics.setResultsPageStatsProvider(() => ({
+            queuedBuilds: 3,
+            uploadBytes: 1000,
+            decompressBytes: 250,
+        }));
+
+        metrics.observeResultsPageBuild('ok');
+        metrics.observeResultsPageBuild('ok');
+        metrics.observeResultsPageBuild('error');
+        metrics.observeResultsPageQueueWait(1500);
+
+        const builds = await prometheus.register
+            .getSingleMetric('lightdash_query_results_page_builds_total')!
+            .get();
+        expect(builds.values).toEqual([
+            { labels: { outcome: 'ok' }, value: 2 },
+            { labels: { outcome: 'error' }, value: 1 },
+            { labels: { outcome: 'dropped' }, value: 0 },
+        ]);
+        const queued = await prometheus.register
+            .getSingleMetric('lightdash_query_results_page_queued_builds')!
+            .get();
+        expect(queued.values).toEqual([expect.objectContaining({ value: 3 })]);
+        const bytes = await prometheus.register
+            .getSingleMetric('lightdash_query_results_page_inflight_bytes')!
+            .get();
+        expect(bytes.values).toEqual([
+            expect.objectContaining({
+                labels: { kind: 'upload' },
+                value: 1000,
+            }),
+            expect.objectContaining({
+                labels: { kind: 'decompress' },
+                value: 250,
+            }),
+        ]);
+        const wait = await prometheus.register
+            .getSingleMetric('lightdash_query_results_page_queue_wait_seconds')!
+            .get();
+        expect(wait.values).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    metricName:
+                        'lightdash_query_results_page_queue_wait_seconds_sum',
+                    value: 1.5,
+                }),
+            ]),
+        );
+        await metrics.stop();
+    });
+});
+
 describe('daily job generation metrics', () => {
     beforeEach(() => {
         prometheus.register.clear();

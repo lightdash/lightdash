@@ -831,6 +831,17 @@ export class TooManyRequestsError extends LightdashError {
     }
 }
 
+export class ResultsPageBusyError extends LightdashError {
+    constructor(retryAfterSeconds: number) {
+        super({
+            message: `Results pages are busy. Try again in ${retryAfterSeconds} seconds.`,
+            name: 'ResultsPageBusyError',
+            statusCode: 503,
+            data: { retryAfterSeconds },
+        });
+    }
+}
+
 export class PasswordLoginBlockedError extends LightdashError {
     constructor(blockedUntil: Date) {
         super({

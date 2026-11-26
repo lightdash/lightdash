@@ -1,5 +1,6 @@
 import {
     Account,
+    ApiGetAsyncQueryResults,
     DownloadFileType,
     MergeQuery,
     MergeQueryChart,
@@ -119,7 +120,12 @@ export type GetAsyncQueryResultsArgs = Omit<
         reader?: QueryResultReader;
         // Defaults to query.maxPageSize
         maxPageSize?: number;
+        signal?: AbortSignal;
     };
+
+export type AsyncQueryResultsResponse =
+    | { kind: 'results'; results: ApiGetAsyncQueryResults }
+    | { kind: 'body'; body: Buffer };
 
 export type DownloadAsyncQueryResultsArgs = Omit<
     CommonAsyncQueryArgs,

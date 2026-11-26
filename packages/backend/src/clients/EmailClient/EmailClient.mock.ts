@@ -18,6 +18,9 @@ export const lightdashConfigWithNoSMTP: Pick<
     query: {
         underlyingDataMaxDimensions: 50,
         maxPageSize: 500,
+        resultsPageWorkers: 2,
+        resultsPageWorkerMinCells: 5000,
+        resultsPageWorkerMaxHeapMb: 1024,
         maxLimit: 100,
         defaultLimit: 500,
         csvCellsLimit: 100,
@@ -59,6 +62,9 @@ export const lightdashConfigWithBasicSMTP: Pick<
     query: {
         underlyingDataMaxDimensions: 50,
         maxPageSize: 500,
+        resultsPageWorkers: 2,
+        resultsPageWorkerMinCells: 5000,
+        resultsPageWorkerMaxHeapMb: 1024,
         maxLimit: 100,
         defaultLimit: 500,
         csvCellsLimit: 100,
@@ -87,6 +93,9 @@ export const lightdashConfigWithOauth2SMTP: Pick<
     query: {
         underlyingDataMaxDimensions: 50,
         maxPageSize: 500,
+        resultsPageWorkers: 2,
+        resultsPageWorkerMinCells: 5000,
+        resultsPageWorkerMaxHeapMb: 1024,
         maxLimit: 100,
         defaultLimit: 500,
         csvCellsLimit: 100,
@@ -111,6 +120,9 @@ export const lightdashConfigWithSecurePortSMTP: Pick<
     query: {
         underlyingDataMaxDimensions: 50,
         maxPageSize: 500,
+        resultsPageWorkers: 2,
+        resultsPageWorkerMinCells: 5000,
+        resultsPageWorkerMaxHeapMb: 1024,
         maxLimit: 100,
         defaultLimit: 500,
         csvCellsLimit: 100,

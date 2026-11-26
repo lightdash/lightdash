@@ -594,6 +594,35 @@ describe('FeatureFlagModel', () => {
             expect(result).toEqual({ id: DB_FLAG, enabled: true });
         });
 
+        it.each([
+            [FeatureFlags.StoredResultsPages, true, false],
+            [FeatureFlags.StoredResultsPages, false, true],
+            [FeatureFlags.ResultsPageWorkers, true, false],
+            [FeatureFlags.ResultsPageWorkers, false, true],
+        ])(
+            '%s ignores a user override of %s and follows the org override of %s',
+            async (flagId, userEnabled, orgEnabled) => {
+                const model = buildModel(
+                    {},
+                    buildFakeDatabase({
+                        flag: { default_enabled: false },
+                        userOverride: { enabled: userEnabled },
+                        orgOverride: { enabled: orgEnabled },
+                    }),
+                );
+
+                const result = await model.get({
+                    featureFlagId: flagId,
+                    user: dbUser,
+                });
+
+                expect(result).toEqual({
+                    id: flagId,
+                    enabled: orgEnabled,
+                });
+            },
+        );
+
         it('uses the org override when the user has none', async () => {
             const model = buildModel(
                 {},

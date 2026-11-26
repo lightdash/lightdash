@@ -27,6 +27,7 @@ import {
     QueryHistoryWindow,
     QueryLanguage,
     QueryTrigger,
+    ResultsPageBusyError,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
@@ -69,10 +70,12 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { finished } from 'stream/promises';
 import { getContextFromHeader } from '../../analytics/LightdashAnalytics';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import { pipeS3BodyToResponse } from '../../clients/Aws/s3Streams';
 import { compressResultsPage } from '../../middlewares/responseCompression/responseCompression';
+import type { AsyncQueryResultsResponse } from '../../services/AsyncQueryService/types';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -83,6 +86,25 @@ import { BaseController } from '../baseController';
 export type ApiGetAsyncQueryResultsResponse = {
     status: 'ok';
     results: ApiGetAsyncQueryResults;
+};
+
+const sendSerialisedJson = async (res: express.Response, body: Buffer) => {
+    const headersWritten = new Promise<void>((resolve) => {
+        const { writeHead } = res;
+        res.writeHead = function writeHeadThenResolve(
+            this: express.Response,
+            ...args: Parameters<express.Response['writeHead']>
+        ) {
+            res.writeHead = writeHead;
+            resolve();
+            return writeHead.apply(this, args);
+        } as express.Response['writeHead'];
+    });
+    res.status(200);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.send(body);
+    await headersWritten;
+    await finished(res).catch(() => undefined);
 };
 
 @Route('/api/v2/projects/{projectUuid}/query')
@@ -186,19 +208,50 @@ export class QueryController extends BaseController {
     ): Promise<ApiGetAsyncQueryResultsResponse> {
         this.setStatus(200);
 
-        const results = await this.services
-            .getAsyncQueryService()
-            .getAsyncQueryResults({
-                account: req.account!,
-                projectUuid,
-                queryUuid,
-                page,
-                pageSize,
-            });
+        const res = req.res!;
+        const clientGone = new AbortController();
+        const onClose = () => {
+            if (!res.writableFinished) {
+                clientGone.abort(
+                    new Error('The client closed the results page request'),
+                );
+            }
+        };
+        res.once('close', onClose);
+        let response: AsyncQueryResultsResponse;
+        try {
+            response = await this.services
+                .getAsyncQueryService()
+                .getAsyncQueryResultsResponse({
+                    account: req.account!,
+                    projectUuid,
+                    queryUuid,
+                    page,
+                    pageSize,
+                    signal: clientGone.signal,
+                });
+        } catch (error) {
+            if (clientGone.signal.aborted) {
+                return undefined as unknown as ApiGetAsyncQueryResultsResponse;
+            }
+            if (error instanceof ResultsPageBusyError) {
+                res.setHeader(
+                    'Retry-After',
+                    String(error.data.retryAfterSeconds),
+                );
+            }
+            throw error;
+        } finally {
+            res.off('close', onClose);
+        }
 
+        if (response.kind === 'body') {
+            await sendSerialisedJson(res, response.body);
+            return undefined as unknown as ApiGetAsyncQueryResultsResponse;
+        }
         return {
             status: 'ok',
-            results,
+            results: response.results,
         };
     }
 

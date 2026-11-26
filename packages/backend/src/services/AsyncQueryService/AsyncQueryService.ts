@@ -132,6 +132,7 @@ import {
     ResultsCacheMissReason,
     ResultsCacheStatsContextGroup,
     ResultsExpiredError,
+    ResultsPageBusyError,
     S3Error,
     SchedulerFormat,
     SqlChart,
@@ -355,6 +356,7 @@ import { splitJsonlStream } from '../../utils/streamUtils';
 import { type SubtotalExportLevel } from '../../utils/subtotalExport';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
+import { VERSION } from '../../version';
 import {
     agentExecutionContext,
     buildQueryAgentIdentity,
@@ -548,6 +550,17 @@ import {
     type StoredLiveResult,
 } from './queryResultReuse';
 import { queryUsageProperties, queryWorkloadOrigin } from './queryUsage';
+import type { ResultsPageFormatInputs } from './resultsPages/buildResultsPageRows';
+import {
+    composeResultsPageBody,
+    type ReadyResultsPageEnvelope,
+} from './resultsPages/composeResultsPageBody';
+import type { ResultsPageSource } from './resultsPages/resultsPageSource';
+import {
+    ResultsPageWorkerError,
+    ResultsPageWorkerPool,
+} from './resultsPages/ResultsPageWorkerPool';
+import { StoredResultsPages } from './resultsPages/StoredResultsPages';
 import {
     EstimateAsyncMetricQueryArgs,
     EstimateAsyncSqlQueryArgs,
@@ -557,6 +570,7 @@ import {
     isExecuteAsyncDashboardSqlChartByUuid,
     isExecuteAsyncSqlChartByUuid,
     REQUEST_AUTHORITY,
+    type AsyncQueryResultsResponse,
     type BoundDuckdbQueryReferences,
     type CommonAsyncQueryArgs,
     type ComposerAuthority,
@@ -599,6 +613,21 @@ import {
 } from './types';
 
 const COMPOSE_MERGE_JOIN_NODE_ID = 'merge';
+
+const STORED_RESULTS_PAGE_BROTLI_QUALITY = 5;
+
+const RESULTS_PAGE_BUSY_RETRY_AFTER_SECONDS = 2;
+
+type ResultsPageMode = 'off' | 'inline' | 'worker' | 'stored';
+
+type ResultsPageRows =
+    | { kind: 'objects'; rows: ResultRow[]; source?: 'inline' }
+    | {
+          kind: 'bytes';
+          rows: Buffer;
+          rowCount: number;
+          source: Exclude<ResultsPageSource, 'inline' | 'busy'>;
+      };
 
 /** A compiled merge that can run: no errors, the join core and full metadata. */
 export type RunnableCompiledMergeQuery = ApiCompiledMergeQueryResults & {
@@ -976,8 +1005,32 @@ export class AsyncQueryService extends ProjectService {
 
     private readonly getLiveSourceForExplore: AsyncQueryServiceArguments['getLiveSourceForExplore'];
 
+    private readonly storedResultsPages: StoredResultsPages;
+
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
+        const resultsPagePool = new ResultsPageWorkerPool({
+            size: args.lightdashConfig.query?.resultsPageWorkers ?? 2,
+            brotliQuality: STORED_RESULTS_PAGE_BROTLI_QUALITY,
+            resourceLimits: {
+                maxOldGenerationSizeMb:
+                    args.lightdashConfig.query?.resultsPageWorkerMaxHeapMb ??
+                    1024,
+            },
+            onQueueWait: (waitMs) =>
+                args.prometheusMetrics?.observeResultsPageQueueWait(waitMs),
+        });
+        this.storedResultsPages = new StoredResultsPages({
+            pool: resultsPagePool,
+            appVersion: VERSION,
+            onBuild: (outcome) =>
+                args.prometheusMetrics?.observeResultsPageBuild(outcome),
+        });
+        args.prometheusMetrics?.setResultsPageStatsProvider(() => ({
+            queuedBuilds: resultsPagePool.queuedBuilds,
+            uploadBytes: this.storedResultsPages.pendingUploadBytes,
+            decompressBytes: this.storedResultsPages.decompressingBytes,
+        }));
         this.contentDraftModel = args.contentDraftModel;
         this.queryHistoryModel = args.queryHistoryModel;
         this.downloadAuditModel = args.downloadAuditModel;
@@ -1728,13 +1781,10 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    private async getResultsPageFromS3(
+    private getResultsPageStorage(
         queryUuid: string,
         fileName: string | null,
         queryContext: QueryExecutionContext | null | undefined,
-        page: number,
-        pageSize: number,
-        formatter: (row: ResultRow) => ResultRow,
     ) {
         const resultsStorageClient =
             this.getResultsStorageClientForContext(queryContext);
@@ -1749,34 +1799,179 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const cacheStream =
-            await resultsStorageClient.getDownloadStream(fileName);
+        return { resultsStorageClient, fileName };
+    }
 
-        const rows: ResultRow[] = [];
+    private static async readResultsPageLines(
+        resultsStorageClient: S3ResultsFileStorageClient,
+        fileName: string,
+        page: number,
+        pageSize: number,
+        onLine: (line: string) => void,
+        signal?: AbortSignal,
+    ) {
+        const cacheStream = await resultsStorageClient.getDownloadStream(
+            fileName,
+            'jsonl',
+            { abortSignal: signal },
+        );
+        const stopRead = () => {
+            destroyS3Body(cacheStream);
+        };
+        if (signal?.aborted) {
+            stopRead();
+            signal.throwIfAborted();
+        }
+        signal?.addEventListener('abort', stopRead, { once: true });
 
         const startLine = (page - 1) * pageSize;
         const endLine = startLine + pageSize;
         let nonEmptyLineCount = 0;
 
-        for await (const line of splitJsonlStream(cacheStream)) {
-            if (line.trim()) {
-                if (nonEmptyLineCount >= endLine) {
-                    destroyS3Body(cacheStream);
-                    break;
+        try {
+            for await (const line of splitJsonlStream(cacheStream)) {
+                if (line.trim()) {
+                    if (nonEmptyLineCount >= endLine) {
+                        destroyS3Body(cacheStream);
+                        break;
+                    }
+                    if (
+                        nonEmptyLineCount >= startLine &&
+                        nonEmptyLineCount < endLine
+                    ) {
+                        onLine(line);
+                    }
+                    nonEmptyLineCount += 1;
                 }
-                if (
-                    nonEmptyLineCount >= startLine &&
-                    nonEmptyLineCount < endLine
-                ) {
-                    rows.push(formatter(JSON.parse(line)));
-                }
-                nonEmptyLineCount += 1;
             }
+        } catch (error) {
+            signal?.throwIfAborted();
+            throw error;
+        } finally {
+            signal?.removeEventListener('abort', stopRead);
         }
+        signal?.throwIfAborted();
+    }
+
+    private async getResultsPageFromS3(
+        queryUuid: string,
+        fileName: string | null,
+        queryContext: QueryExecutionContext | null | undefined,
+        page: number,
+        pageSize: number,
+        formatter: (row: ResultRow) => ResultRow,
+    ) {
+        const { resultsStorageClient, fileName: resultsFileName } =
+            this.getResultsPageStorage(queryUuid, fileName, queryContext);
+
+        const rows: ResultRow[] = [];
+        await AsyncQueryService.readResultsPageLines(
+            resultsStorageClient,
+            resultsFileName,
+            page,
+            pageSize,
+            (line) => {
+                rows.push(formatter(JSON.parse(line)));
+            },
+        );
 
         return {
             rows,
         };
+    }
+
+    private async getStoredResultsPageRows({
+        queryUuid,
+        fileName,
+        queryContext,
+        page,
+        pageSize,
+        format,
+        signal,
+        store,
+    }: {
+        queryUuid: string;
+        fileName: string | null;
+        queryContext: QueryExecutionContext | null | undefined;
+        page: number;
+        pageSize: number;
+        format: ResultsPageFormatInputs;
+        signal: AbortSignal | undefined;
+        store: boolean;
+    }): Promise<ResultsPageRows> {
+        const { resultsStorageClient, fileName: resultsFileName } =
+            this.getResultsPageStorage(queryUuid, fileName, queryContext);
+        try {
+            const built = await this.storedResultsPages.getRows({
+                storage: resultsStorageClient,
+                resultsFileName,
+                page,
+                pageSize,
+                format,
+                signal,
+                store,
+                readPageLines: async (buildSignal) => {
+                    const lines: string[] = [];
+                    await AsyncQueryService.readResultsPageLines(
+                        resultsStorageClient,
+                        resultsFileName,
+                        page,
+                        pageSize,
+                        (line) => {
+                            lines.push(line);
+                        },
+                        buildSignal,
+                    );
+                    return lines;
+                },
+            });
+            return {
+                kind: 'bytes',
+                rows: built.rows,
+                rowCount: built.rowCount,
+                source: built.source,
+            };
+        } catch (error) {
+            if (signal?.aborted || !(error instanceof ResultsPageWorkerError))
+                throw error;
+            this.logger.warn(
+                `Results page build did not finish for query ${queryUuid}, asking the client to retry: ${error.message}`,
+            );
+            throw new ResultsPageBusyError(
+                RESULTS_PAGE_BUSY_RETRY_AFTER_SECONDS,
+            );
+        }
+    }
+
+    private async getResultsPageMode({
+        account,
+        projectUuid,
+        cells,
+    }: {
+        account: Account;
+        projectUuid: string;
+        cells: number;
+    }): Promise<ResultsPageMode> {
+        assertIsAccountWithOrg(account);
+        const user = {
+            organizationUuid: account.organization.organizationUuid,
+        };
+        const workers = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.ResultsPageWorkers,
+        });
+        if (!workers.enabled) return 'off';
+        if (cells < this.lightdashConfig.query.resultsPageWorkerMinCells) {
+            return 'inline';
+        }
+        const stored = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.StoredResultsPages,
+        });
+        if (!stored.enabled) return 'worker';
+        const resultsCache =
+            await this.projectModel.getResultsCacheState(projectUuid);
+        return resultsCache.enabled ? 'stored' : 'worker';
     }
 
     async cancelAsyncQuery({
@@ -2812,16 +3007,44 @@ export class AsyncQueryService extends ProjectService {
         return this.getAsyncQueryResults(args);
     }
 
-    async getAsyncQueryResults({
-        account,
-        projectUuid,
-        queryUuid,
-        page = 1,
-        pageSize,
-        aiAccessOnly = false,
-        reader,
-        maxPageSize = this.lightdashConfig.query.maxPageSize,
-    }: GetAsyncQueryResultsArgs): Promise<ApiGetAsyncQueryResults> {
+    async getAsyncQueryResults(
+        args: GetAsyncQueryResultsArgs,
+    ): Promise<ApiGetAsyncQueryResults> {
+        const response = await this.loadAsyncQueryResultsPage(args, false);
+        if (response.kind === 'body') {
+            throw new UnexpectedServerError(
+                'Results page was serialised without a stored-pages request',
+            );
+        }
+        return response.results;
+    }
+
+    /**
+     * Same as getAsyncQueryResults, for the paginated results route. With
+     * the stored-results-pages flag on, a READY page comes back as the
+     * serialised response body, built once off the main thread and stored
+     * next to the results file.
+     */
+    async getAsyncQueryResultsResponse(
+        args: GetAsyncQueryResultsArgs,
+    ): Promise<AsyncQueryResultsResponse> {
+        return this.loadAsyncQueryResultsPage(args, true);
+    }
+
+    private async loadAsyncQueryResultsPage(
+        {
+            account,
+            projectUuid,
+            queryUuid,
+            page = 1,
+            pageSize,
+            aiAccessOnly = false,
+            reader,
+            maxPageSize = this.lightdashConfig.query.maxPageSize,
+            signal,
+        }: GetAsyncQueryResultsArgs,
+        allowStoredPages: boolean,
+    ): Promise<AsyncQueryResultsResponse> {
         assertIsAccountWithOrg(account);
 
         const [project, queryHistory] = await Promise.all([
@@ -2875,25 +3098,34 @@ export class AsyncQueryService extends ProjectService {
                     reader,
                 );
             return {
-                status,
-                queryUuid,
-                error,
-                erroredAt: queryHistory.erroredAt,
+                kind: 'results',
+                results: {
+                    status,
+                    queryUuid,
+                    error,
+                    erroredAt: queryHistory.erroredAt,
+                },
             };
         }
 
         switch (status) {
             case QueryHistoryStatus.CANCELLED:
                 return {
-                    status,
-                    queryUuid,
+                    kind: 'results',
+                    results: {
+                        status,
+                        queryUuid,
+                    },
                 };
             case QueryHistoryStatus.PENDING:
             case QueryHistoryStatus.QUEUED:
             case QueryHistoryStatus.EXECUTING:
                 return {
-                    status,
-                    queryUuid,
+                    kind: 'results',
+                    results: {
+                        status,
+                        queryUuid,
+                    },
                 };
             case QueryHistoryStatus.READY:
                 break;
@@ -2931,23 +3163,85 @@ export class AsyncQueryService extends ProjectService {
                 displayTimezone ?? undefined,
             );
 
-        const {
-            result: { rows },
-            durationMs,
-        } = await measureTime(
-            () =>
-                this.getResultsPageFromS3(
-                    queryUuid,
-                    resultsFileName,
-                    queryHistory.context,
-                    page,
-                    defaultedPageSize,
-                    formatter,
-                ),
-            'getCachedResultsPage',
-            this.logger,
-            context,
+        const rowsOnPage = Math.max(
+            0,
+            Math.min(
+                defaultedPageSize,
+                (totalRowCount ?? defaultedPageSize) -
+                    (page - 1) * defaultedPageSize,
+            ),
         );
+        const columnCount =
+            Object.keys(columns ?? {}).length ||
+            Object.keys(queryHistory.fields).length;
+        const mode: ResultsPageMode = allowStoredPages
+            ? await this.getResultsPageMode({
+                  account,
+                  projectUuid,
+                  cells: rowsOnPage * columnCount,
+              })
+            : 'off';
+
+        const readInline = (): Promise<ResultsPageRows> =>
+            this.getResultsPageFromS3(
+                queryUuid,
+                resultsFileName,
+                queryHistory.context,
+                page,
+                defaultedPageSize,
+                formatter,
+            ).then(({ rows }) => ({
+                kind: 'objects',
+                rows,
+                ...(mode === 'inline' ? { source: 'inline' as const } : {}),
+            }));
+
+        const pageStartedAt = Date.now();
+        let pageRows: ResultsPageRows;
+        let durationMs: number;
+        try {
+            ({ result: pageRows, durationMs } = await measureTime(
+                (): Promise<ResultsPageRows> =>
+                    mode === 'worker' || mode === 'stored'
+                        ? this.getStoredResultsPageRows({
+                              queryUuid,
+                              fileName: resultsFileName,
+                              queryContext: queryHistory.context,
+                              page,
+                              pageSize: defaultedPageSize,
+                              format: {
+                                  fields: queryHistory.fields,
+                                  pivotValuesColumns:
+                                      queryHistory.pivotValuesColumns,
+                                  timezone: displayTimezone,
+                              },
+                              signal,
+                              store: mode === 'stored',
+                          })
+                        : readInline(),
+                'getCachedResultsPage',
+                this.logger,
+                context,
+            ));
+        } catch (error) {
+            if (error instanceof ResultsPageBusyError) {
+                this.prometheusMetrics?.observeResultsPage(
+                    'busy',
+                    Date.now() - pageStartedAt,
+                );
+            }
+            throw error;
+        }
+        if (pageRows.source) {
+            this.prometheusMetrics?.observeResultsPage(
+                pageRows.source,
+                durationMs,
+            );
+        }
+        const rowCount =
+            pageRows.kind === 'objects'
+                ? pageRows.rows.length
+                : pageRows.rowCount;
 
         const pageCount = Math.ceil((totalRowCount ?? 0) / defaultedPageSize);
 
@@ -2966,7 +3260,7 @@ export class AsyncQueryService extends ProjectService {
                 cacheKey,
                 page,
                 requestedPageSize: defaultedPageSize,
-                rowCount: rows.length,
+                rowCount,
                 resultsPageExecutionMs: roundedDurationMs,
             },
         });
@@ -2982,7 +3276,7 @@ export class AsyncQueryService extends ProjectService {
                 columnsCount: Object.keys(queryHistory.fields).length,
                 totalRowCount: totalRowCount ?? 0,
                 totalPageCount: pageCount,
-                resultsPageSize: rows.length,
+                resultsPageSize: rowCount,
                 resultsPageExecutionMs: roundedDurationMs,
                 status,
                 cacheMetadata: {
@@ -3022,8 +3316,7 @@ export class AsyncQueryService extends ProjectService {
                 reader,
             );
 
-        return {
-            rows,
+        const envelope: ReadyResultsPageEnvelope = {
             columns,
             // Display timezone the SQL was built with; mirrors the
             // execute response's resolvedTimezone.
@@ -3031,7 +3324,7 @@ export class AsyncQueryService extends ProjectService {
             totalPageCount: pageCount,
             totalResults: totalRowCount ?? 0,
             queryUuid: queryHistory.queryUuid,
-            pageSize: rows.length,
+            pageSize: rowCount,
             page,
             nextPage,
             previousPage,
@@ -3060,6 +3353,17 @@ export class AsyncQueryService extends ProjectService {
             status,
             pivotDetails:
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
+        };
+
+        if (pageRows.kind === 'objects') {
+            return {
+                kind: 'results',
+                results: { rows: pageRows.rows, ...envelope },
+            };
+        }
+        return {
+            kind: 'body',
+            body: composeResultsPageBody(pageRows.rows, envelope),
         };
     }
 

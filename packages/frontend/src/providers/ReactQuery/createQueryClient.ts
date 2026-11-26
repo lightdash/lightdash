@@ -9,6 +9,11 @@ import {
 import { hashQueryKeyByView } from '../../features/semanticStudio/developmentView';
 
 const MAX_QUERY_RETRIES = 5;
+const MAX_BUSY_RESULTS_PAGE_RETRIES = 10;
+const MAX_RETRY_DELAY_MS = 8000;
+
+const isBusyResultsPage = (error: unknown): boolean =>
+    (error as Partial<ApiError>)?.error?.name === 'ResultsPageBusyError';
 
 // Retry transient transport failures (dropped/misrouted requests during
 // rollouts, brief gateway timeouts) so a single blip doesn't surface an error.
@@ -16,12 +21,31 @@ const MAX_QUERY_RETRIES = 5;
 export const shouldRetryQuery = (
     failureCount: number,
     error: unknown,
-): boolean =>
-    (error as Partial<ApiError>)?.error?.name === 'NetworkError' &&
-    failureCount < MAX_QUERY_RETRIES;
+): boolean => {
+    if (isBusyResultsPage(error)) {
+        return failureCount < MAX_BUSY_RESULTS_PAGE_RETRIES;
+    }
+    return (
+        (error as Partial<ApiError>)?.error?.name === 'NetworkError' &&
+        failureCount < MAX_QUERY_RETRIES
+    );
+};
 
-export const getQueryRetryDelay = (attemptIndex: number): number =>
-    Math.min(1000 * 2 ** attemptIndex, 8000);
+export const getQueryRetryDelay = (
+    attemptIndex: number,
+    error?: unknown,
+): number => {
+    const backoffMs = 1000 * 2 ** attemptIndex;
+    const retryAfterSeconds: unknown = isBusyResultsPage(error)
+        ? (error as ApiError).error.data?.retryAfterSeconds
+        : undefined;
+    const retryAfterMs =
+        typeof retryAfterSeconds === 'number' &&
+        Number.isFinite(retryAfterSeconds)
+            ? retryAfterSeconds * 1000
+            : 0;
+    return Math.min(Math.max(backoffMs, retryAfterMs), MAX_RETRY_DELAY_MS);
+};
 
 // Fires once per failed query or mutation, after retries are exhausted
 export type QueryClientErrorHandler = (

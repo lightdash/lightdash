@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { vi, type Mock } from 'vitest';
+import { createQueryClient } from '../providers/ReactQuery/createQueryClient';
 import { useInfiniteQueryResults } from './useQueryResults';
 
 let mockGetResultsPage: Mock<
@@ -100,6 +101,44 @@ describe('useInfiniteQueryResults', () => {
         rerender();
 
         expect(result.current.rows.length).toBe(5);
+    });
+
+    it('retries a busy results page and shows the page instead of an error', async () => {
+        const busy = {
+            status: 'error',
+            error: {
+                name: 'ResultsPageBusyError',
+                statusCode: 503,
+                message: 'Results pages are busy',
+                data: { retryAfterSeconds: 1 },
+            },
+        };
+        let calls = 0;
+        mockGetResultsPage.mockImplementation(async () => {
+            calls += 1;
+            if (calls <= 2) throw busy;
+            return makeReadyPage(1);
+        });
+        const queryClient = createQueryClient({
+            queries: { retryDelay: () => 1 },
+        });
+
+        const { result } = renderHook(
+            () => useInfiniteQueryResults('p1', 'q1'),
+            {
+                wrapper: ({ children }: PropsWithChildren) => (
+                    <QueryClientProvider client={queryClient}>
+                        {children}
+                    </QueryClientProvider>
+                ),
+            },
+        );
+
+        await waitFor(() => {
+            expect(result.current.rows.length).toBe(5);
+        });
+        expect(result.current.error).toBeNull();
+        expect(mockGetResultsPage).toHaveBeenCalledTimes(3);
     });
 
     it('accumulates multiple distinct pages correctly', async () => {

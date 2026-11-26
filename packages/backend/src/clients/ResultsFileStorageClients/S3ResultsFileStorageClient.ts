@@ -1,4 +1,11 @@
-import { DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import {
+    DeleteObjectCommand,
+    GetObjectCommand,
+    HeadObjectCommand,
+    NoSuchKey,
+    NotFound,
+    PutObjectCommand,
+} from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import {
     getErrorMessage,
@@ -15,7 +22,7 @@ import {
     S3CacheClient,
     type S3CacheClientArguments,
 } from '../Aws/S3CacheClient';
-import { destroyS3Body } from '../Aws/s3Streams';
+import { destroyS3Body, readWholeBody, untilAborted } from '../Aws/s3Streams';
 
 export class S3ResultsFileStorageClient extends S3CacheClient {
     private readonly s3ExpiresIn: number | undefined;
@@ -169,11 +176,98 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         );
     }
 
+    async getObjectBytesIfExists(
+        key: string,
+        { abortSignal }: { abortSignal?: AbortSignal } = {},
+    ): Promise<{ body: Buffer; metadata: Record<string, string> } | undefined> {
+        if (!this.configuration || !this.s3) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+        try {
+            const response = await untilAborted(
+                this.s3.send(
+                    new GetObjectCommand({
+                        Bucket: this.configuration.bucket,
+                        Key: key,
+                    }),
+                    { abortSignal },
+                ),
+                abortSignal,
+            );
+            if (!response.Body) return undefined;
+            const body = await readWholeBody(
+                response.Body as Readable,
+                abortSignal,
+            );
+            return { body, metadata: response.Metadata ?? {} };
+        } catch (error) {
+            if (error instanceof NoSuchKey || error instanceof NotFound) {
+                return undefined;
+            }
+            throw error;
+        }
+    }
+
+    async putObjectBytes(
+        key: string,
+        body: Buffer,
+        metadata: Record<string, string>,
+        { abortSignal }: { abortSignal?: AbortSignal } = {},
+    ): Promise<void> {
+        if (!this.configuration || !this.s3) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+        await untilAborted(
+            this.s3.send(
+                new PutObjectCommand({
+                    Bucket: this.configuration.bucket,
+                    Key: key,
+                    Body: body,
+                    ContentType: 'application/octet-stream',
+                    Metadata: metadata,
+                }),
+                { abortSignal },
+            ),
+            abortSignal,
+        );
+    }
+
+    async resultsFileExists(
+        resultsFileName: string,
+        { abortSignal }: { abortSignal?: AbortSignal } = {},
+    ): Promise<boolean> {
+        if (!this.configuration || !this.s3) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+        try {
+            await untilAborted(
+                this.s3.send(
+                    new HeadObjectCommand({
+                        Bucket: this.configuration.bucket,
+                        Key: S3ResultsFileStorageClient.sanitizeFileExtension(
+                            resultsFileName,
+                            'jsonl',
+                        ),
+                    }),
+                    { abortSignal },
+                ),
+                abortSignal,
+            );
+            return true;
+        } catch (error) {
+            if (error instanceof NoSuchKey || error instanceof NotFound) {
+                return false;
+            }
+            throw error;
+        }
+    }
+
     async getDownloadStream(
         cacheKey: string,
         fileExtension = 'jsonl',
+        options: { abortSignal?: AbortSignal } = {},
     ): Promise<Readable> {
-        const results = await this.getResults(cacheKey, fileExtension);
+        const results = await this.getResults(cacheKey, fileExtension, options);
         if (!results.Body) {
             throw new ResultsExpiredError();
         }

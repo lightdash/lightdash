@@ -58,6 +58,8 @@ const downloadUrl = await resultsClient.uploadFile(
 - File extension auto-appended via `sanitizeFileExtension` if missing
 - Pre-signed URLs expire based on `lightdashConfig.s3.expirationTime`
 - Throws `MissingConfigError` if methods called when S3 not configured
+- `getObjectBytesIfExists(key, { abortSignal })` and `putObjectBytes(key, body, metadata, { abortSignal })` read and write one whole object by its exact key, with no extension added. The signal stops the SDK request and destroys a body that stalls mid-read. `resultsFileExists(resultsFileName, { abortSignal })` is a HEAD of `<resultsFileName>.jsonl`. `getDownloadStream` takes `{ abortSignal }` as its third argument. A missing key (`NoSuchKey` or `NotFound`) returns `undefined` and reports nothing to Sentry. `getResults` and `getDownloadStream` throw `ResultsExpiredError` instead. AsyncQueryService stores built results pages this way under `<resultsFileName>.pages/`.
+- No app code deletes results files. The bucket lifecycle removes them, and the `.pages/` objects start with the same name, so a prefix rule that covers a results file covers its pages too.
 - S3-compatible storage is required at boot, so `isEnabled` is always true in a running instance
 </importantToKnow>
 
