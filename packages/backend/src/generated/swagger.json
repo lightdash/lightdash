@@ -16591,6 +16591,7 @@
                     "salesforce",
                     "amplitude",
                     "mixpanel",
+                    "supabase",
                     "hydra"
                 ],
                 "type": "string"
@@ -16870,6 +16871,24 @@
                 "type": "object",
                 "description": "A Mixpanel project, read with a service account; the connection's origin\nsays whether its data lives in the US, the EU or India."
             },
+            "ApiConnectorType.SUPABASE": {
+                "enum": ["supabase"],
+                "type": "string"
+            },
+            "SupabaseApiSource": {
+                "properties": {
+                    "table": {
+                        "type": "string",
+                        "description": "The table or view in the exposed schema, as PostgREST names it."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.SUPABASE"
+                    }
+                },
+                "required": ["table", "connector"],
+                "type": "object",
+                "description": "One table or view of a Supabase project, read through its Data API\n(PostgREST). The project URL is the connection's origin."
+            },
             "ApiConnectorType.HYDRA": {
                 "enum": ["hydra"],
                 "type": "string"
@@ -17079,6 +17098,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/MixpanelApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SupabaseApiSource"
                     },
                     {
                         "$ref": "#/components/schemas/HydraApiSource"
@@ -81728,7 +81750,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.418.1",
+        "version": "3.419.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,10 @@
+# [3.419.0](https://github.com/lightdash/lightdash/compare/3.418.1...3.419.0) (2026-11-26)
+
+
+### Features
+
+* **live-sources:** add a Supabase integration that reads one table ([#33511](https://github.com/lightdash/lightdash/issues/33511)) ([d571010](https://github.com/lightdash/lightdash/commit/d5710107994b6ba0f66c55d1d7c22b249ebb5290)), closes [#33510](https://github.com/lightdash/lightdash/issues/33510)
+
 ## [3.418.1](https://github.com/lightdash/lightdash/compare/3.418.0...3.418.1) (2026-11-26)
 
 

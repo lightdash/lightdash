@@ -16153,6 +16153,7 @@ const models: TsoaRoute.Models = {
             'salesforce',
             'amplitude',
             'mixpanel',
+            'supabase',
             'hydra',
         ],
     },
@@ -16469,6 +16470,23 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.SUPABASE': {
+        dataType: 'refEnum',
+        enums: ['supabase'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SupabaseApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                table: { dataType: 'string', required: true },
+                connector: { ref: 'ApiConnectorType.SUPABASE', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ApiConnectorType.HYDRA': {
         dataType: 'refEnum',
         enums: ['hydra'],
@@ -16605,6 +16623,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'SalesforceApiSource' },
                 { ref: 'AmplitudeApiSource' },
                 { ref: 'MixpanelApiSource' },
+                { ref: 'SupabaseApiSource' },
                 { ref: 'HydraApiSource' },
             ],
             validators: {},
