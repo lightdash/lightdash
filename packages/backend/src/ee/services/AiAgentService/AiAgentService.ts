@@ -3480,6 +3480,10 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         agent: AiAgent,
     ): Promise<boolean> {
+        // The Studio builder follows Studio's permission, not Ask AI's.
+        if (agent.kind === 'semantic_studio') {
+            return this.canUseStudio(user, agent.projectUuid);
+        }
         return canAccessAiAgent(user, agent, {
             auditedAbility: this.createAuditedAbility(user),
             groupsModel: this.groupsModel,
@@ -3695,6 +3699,20 @@ export class AiAgentService extends BaseService {
         agent: AiAgent,
         threadUserUuid: string,
     ): Promise<boolean> {
+        // A Studio chat is its owner's, or anyone's who manages agents, as other chats are.
+        if (agent.kind === 'semantic_studio') {
+            return (
+                (await this.canUseStudio(user, agent.projectUuid)) &&
+                (threadUserUuid === user.userUuid ||
+                    this.createAuditedAbility(user).can(
+                        'manage',
+                        subject('AiAgent', {
+                            organizationUuid: agent.organizationUuid,
+                            projectUuid: agent.projectUuid,
+                        }),
+                    ))
+            );
+        }
         return canAccessAiAgentThread(user, agent, threadUserUuid, {
             auditedAbility: this.createAuditedAbility(user),
             groupsModel: this.groupsModel,
@@ -5952,7 +5970,7 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        await this.assertAgentServesThread(agentUuid, body.createdFrom);
+        AiAgentService.assertAgentServesThread(agent, body.createdFrom);
 
         if (isSemanticStudioThread(body.createdFrom)) {
             await this.semanticStudioService.assertCanStartThread(
@@ -8440,19 +8458,57 @@ export class AiAgentService extends BaseService {
         return `🔒 No agent is configured for this channel, and this organization requires channels to be added from the agent settings page. Ask an admin to add one at ${this.lightdashConfig.siteUrl}/ai-agents`;
     }
 
-    // The built-in Studio agent has no access lists, so it answers Studio threads only.
-    private async assertAgentServesThread(
-        agentUuid: string,
+    // The built-in Studio agent answers Studio threads only.
+    private static assertAgentServesThread(
+        agent: Pick<AiAgent, 'kind'>,
         createdFrom: AiThreadCreatedFrom | undefined,
-    ): Promise<void> {
+    ): void {
         if (
-            !isSemanticStudioThread(createdFrom) &&
-            (await this.aiAgentModel.isSemanticStudioAgent(agentUuid))
+            agent.kind === 'semantic_studio' &&
+            !isSemanticStudioThread(createdFrom)
         ) {
             throw new ForbiddenError(
                 'This agent only works in Semantic Studio',
             );
         }
+    }
+
+    /** AI is on for the organization, an admin has not hidden it, and there is a model to run on. */
+    private async assertAiIsLive(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+    ): Promise<void> {
+        const ai =
+            await this.aiOrganizationSettingsService.getRuntimeSettings(user);
+        if (!ai.isCopilotEnabled && !ai.isTrial) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+        if (!ai.aiAgentsVisible) {
+            throw new ForbiddenError('AI is turned off for this organization');
+        }
+        const { catalogue, copilotConfig } =
+            await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
+                organizationUuid,
+                projectUuid,
+                credentialUuid: null,
+            });
+        if (
+            !getDefaultModel(copilotConfig) &&
+            !findSemanticStudioPreset(catalogue, null)
+        ) {
+            throw new ForbiddenError(
+                'No AI model is configured for this organization',
+            );
+        }
+    }
+
+    private async canUseStudio(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        return (await this.semanticStudioService.getStatus(user, projectUuid))
+            .enabled;
     }
 
     /** The built-in agent behind a project's Semantic Studio chat, created the first time someone who can use Studio opens it. */
@@ -8464,21 +8520,8 @@ export class AiAgentService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        if (!(await this.getIsCopilotEnabled(user))) {
-            throw new ForbiddenError('Copilot is not enabled');
-        }
+        await this.assertAiIsLive(user, organizationUuid, projectUuid);
         await this.semanticStudioService.assertCanUseStudio(user, projectUuid);
-        // Starting its thread needs agent access too, so say no here and not on the first message.
-        if (
-            this.createAuditedAbility(user).cannot(
-                'view',
-                subject('AiAgent', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'Insufficient permissions to use AI in this project',
-            );
-        }
         return this.aiAgentModel.getOrCreateSemanticStudioAgent({
             organizationUuid,
             projectUuid,
@@ -10587,10 +10630,7 @@ export class AiAgentService extends BaseService {
         if (
             agent === null ||
             agent.projectUuid !== projectUuid ||
-            !(await canAccessAiAgent(user, agent, {
-                auditedAbility: this.createAuditedAbility(user),
-                groupsModel: this.groupsModel,
-            }))
+            !(await this.checkAgentAccess(user, agent))
         )
             return 'agent_unavailable';
         // Results an agent produced while Data Access was on stop being
@@ -12191,10 +12231,7 @@ export class AiAgentService extends BaseService {
             user.organizationUuid,
             prompt,
         );
-        await this.assertAgentServesThread(
-            agent.uuid,
-            prompt.threadCreatedFrom,
-        );
+        AiAgentService.assertAgentServesThread(agent, prompt.threadCreatedFrom);
         return agent;
     }
 
@@ -24639,7 +24676,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
         // A copy is an ordinary chat, which the built-in Studio agent does not serve.
-        await this.assertAgentServesThread(agentUuid, undefined);
+        AiAgentService.assertAgentServesThread(agent, undefined);
 
         const sourceThread = await this.aiAgentModel.getThread({
             organizationUuid,
@@ -24780,7 +24817,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         if (!agent || agent.projectUuid !== projectUuid) {
             throw new NotFoundError(`Agent not found: ${share.agentUuid}`);
         }
-        await this.assertAgentServesThread(share.agentUuid, undefined);
+        AiAgentService.assertAgentServesThread(agent, undefined);
 
         const hasAgentAccess = await this.checkAgentAccess(user, agent);
         if (!hasAgentAccess) {

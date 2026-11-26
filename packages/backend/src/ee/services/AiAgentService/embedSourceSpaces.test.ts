@@ -82,7 +82,6 @@ const buildEmbedAccount = (
 const buildService = (agent: AiAgent) => {
     const aiAgentModel = {
         getAgent: vi.fn(async () => agent),
-        isSemanticStudioAgent: vi.fn(async () => false),
         getThread: vi.fn(async () => ({
             uuid: THREAD_UUID,
             createdFrom: 'web_app',

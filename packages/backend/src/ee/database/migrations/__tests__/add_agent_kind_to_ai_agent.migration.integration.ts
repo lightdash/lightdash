@@ -159,9 +159,8 @@ describe('built-in Semantic Studio agent', () => {
         expect(unused.rows.map((row) => row.agent_uuid)).toEqual([
             configured.uuid,
         ]);
-        expect(await aiAgentModel.isSemanticStudioAgent(studio.uuid)).toBe(
-            true,
-        );
+        expect(studio.kind).toBe('semantic_studio');
+        expect(configured.kind).toBe('user');
         // Looked up as an ordinary agent, it is not there.
         await expect(
             aiAgentModel.getAgent({
@@ -170,8 +169,5 @@ describe('built-in Semantic Studio agent', () => {
                 agentKind: 'user',
             }),
         ).rejects.toThrow('AI agent not found');
-        expect(await aiAgentModel.isSemanticStudioAgent(configured.uuid)).toBe(
-            false,
-        );
     });
 });
