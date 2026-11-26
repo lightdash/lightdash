@@ -1,3 +1,10 @@
+## [3.415.2](https://github.com/lightdash/lightdash/compare/3.415.1...3.415.2) (2026-11-26)
+
+
+### Bug Fixes
+
+* **release:** move npm latest only after packages download ([#33352](https://github.com/lightdash/lightdash/issues/33352)) ([88420ed](https://github.com/lightdash/lightdash/commit/88420edbff30acfeeeef821fc69aaa471ebf34c6))
+
 ## [3.415.1](https://github.com/lightdash/lightdash/compare/3.415.0...3.415.1) (2026-11-26)
 
 
