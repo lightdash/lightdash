@@ -68,7 +68,6 @@ const setup = (
     };
     const account = accounts[authentication]();
     const policy: AgentCapabilityPolicy = {
-        mode: 'managed',
         version: 1,
         allowedCapabilities: [...restrictedCapabilities],
         allowedGroupUuids: null,
@@ -270,7 +269,7 @@ describe.each(['oauth', 'session'] as const)(
                     deps.featureFlagModel.get.mockResolvedValue({
                         enabled: false,
                     });
-                else policy.mode = 'legacy';
+                else policy.allowedCapabilities = null;
                 await call('run_sql');
                 await call('create_content');
                 expect(handler).toHaveBeenCalledTimes(2);
@@ -370,7 +369,7 @@ test.each(['off', 'legacy'] as const)(
         const { call, getContext, extra, deps, policy, handler } = setup();
         if (mode === 'off')
             deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
-        else policy.mode = 'legacy';
+        else policy.allowedCapabilities = null;
         getContext.mockRejectedValue(new Error('context unavailable'));
         await call('get_lightdash_version');
         extra.authInfo.extra.headerProjectUuid = 'pinned-project';
@@ -652,10 +651,10 @@ describe('MCP resource protocol permissions', () => {
         async (mode) => {
             const { client, deps, policy, assertOperationWithRequest } =
                 await setupResourceProtocol();
-            if (mode === 'off')
+            if (mode === 'off') {
                 deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
-            else policy.mode = 'legacy';
-            policy.allowedCapabilities = [];
+                policy.allowedCapabilities = [];
+            } else policy.allowedCapabilities = null;
             try {
                 await Promise.all(
                     resourceUris.map(async (uri) => {
@@ -817,7 +816,7 @@ test('keeps the existing connect URL instructions unchanged', async () => {
 describe('bound MCP grant in legacy mode', () => {
     const bound = () => {
         const fixture = setup();
-        fixture.policy.mode = 'legacy';
+        fixture.policy.allowedCapabilities = null;
         const grant = grantFixture();
         const auth = fixture.extra.authInfo.extra.account.authentication;
         if (auth.type !== 'oauth') throw new Error('Expected OAuth');
@@ -859,7 +858,7 @@ test.each([true, false])(
     'legacy group restriction checks MCP tools (member %s)',
     async (member) => {
         const { policy, deps, call, handler, getContext } = setup();
-        policy.mode = 'legacy';
+        policy.allowedCapabilities = null;
         policy.allowedGroupUuids = ['group'];
         deps.groupsModel.findUserInGroups.mockResolvedValue(
             member ? [{ groupUuid: 'group' }] : [],
@@ -886,7 +885,7 @@ test.each([true, false])(
     'legacy group restriction checks MCP resources (member %s)',
     async (member) => {
         const { client, policy, deps } = await setupResourceProtocol();
-        policy.mode = 'legacy';
+        policy.allowedCapabilities = null;
         policy.allowedGroupUuids = ['group'];
         deps.groupsModel.findUserInGroups.mockResolvedValue(
             member ? [{ groupUuid: 'group' }] : [],
@@ -920,7 +919,7 @@ test.each(['pat', 'service-account'] as const)(
     'legacy restriction keeps the %s MCP exemption',
     async (authentication) => {
         const { call, handler, policy, deps } = setup(authentication);
-        policy.mode = 'legacy';
+        policy.allowedCapabilities = null;
         policy.allowedGroupUuids = [];
         await call('run_sql');
         expect(handler).toHaveBeenCalledOnce();
@@ -1027,7 +1026,11 @@ test.each([
         admissionTracker,
         fromSession(defaultSessionUser),
     );
-    sql.state.policy.mode = profile.mode;
+    sql.state.policy.allowedCapabilities =
+        profile.mode === 'legacy'
+            ? null
+            : (sql.state.policy.allowedCapabilities ??
+              Object.values(AgentCapability));
     sql.state.policy.allowedGroupUuids =
         profile.groups === null ? null : [...profile.groups];
     sql.state.existingGroups = profile.live ? ['live'] : [];

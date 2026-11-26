@@ -30,7 +30,7 @@ const choiceLabels: Record<Choice, string> = {
 
 const describeOrganization = (policy: AgentCapabilityPolicy | undefined) => {
     if (!policy) return 'Follows the organization.';
-    return policy.mode === 'legacy' || policy.allowedCapabilities === null
+    return policy.allowedCapabilities === null
         ? 'Currently: No restrictions.'
         : 'Currently: Restrict.';
 };
@@ -41,11 +41,7 @@ const toRestrictions = (
 ): Restrictions => {
     // Switches start from what applies today, so choosing "Restrict" never
     // loosens the project by accident.
-    const inherited =
-        organization?.mode === 'managed' &&
-        organization.allowedCapabilities !== null
-            ? organization.allowedCapabilities
-            : allCapabilities;
+    const inherited = organization?.allowedCapabilities ?? allCapabilities;
     if (!saved) return { choice: 'organization', allowed: inherited };
     return saved.allowedCapabilities === null
         ? { choice: 'none', allowed: inherited }
@@ -73,7 +69,7 @@ const RestrictionsForm = ({
     const saving = save.isLoading || remove.isLoading;
     const changed = !sameRestrictions(draft, saved);
     const switchDraft: AgentPermissionDraft = {
-        mode: 'managed',
+        restricted: true,
         version: 0,
         allowedGroupUuids: null,
         allowedCapabilities: draft.allowed,

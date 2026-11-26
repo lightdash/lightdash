@@ -1,8 +1,8 @@
 import { type AgentCapability } from './agentPermissions';
 
 export interface AgentCapabilityPolicy {
-    mode: 'legacy' | 'managed';
     version: number;
+    /** Null means agents have no restrictions. */
     allowedCapabilities: AgentCapability[] | null;
     allowedGroupUuids: string[] | null;
 }
@@ -11,14 +11,11 @@ export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
 }
 export interface AgentCapabilityCeiling {
     version?: number;
-    mode?: 'legacy' | 'managed';
+    /** Null removes the restrictions. Leave it out to keep the saved list. */
     allowedCapabilities?: AgentCapability[] | null;
     allowedGroupUuids?: string[] | null;
 }
-export interface AgentCapabilityPolicySave extends Omit<
-    AgentCapabilityPolicy,
-    'version' | 'allowedCapabilities' | 'allowedGroupUuids'
-> {
+export interface AgentCapabilityPolicySave {
     version?: number;
     allowedCapabilities?: AgentCapability[] | null;
     allowedGroupUuids?: string[] | null;

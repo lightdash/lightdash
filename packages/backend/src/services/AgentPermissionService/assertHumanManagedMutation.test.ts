@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     AgentActorSurface,
+    AgentCapability,
     AiAccessRefusedError,
     FeatureFlags,
     type PossibleAbilities,
@@ -27,14 +28,11 @@ describe.each(['managed', 'admission', 'people-only'] as const)(
                 { action: 'manage', subject: 'all' },
             ]);
             const policy = {
-                mode:
-                    mode === 'managed'
-                        ? ('managed' as const)
-                        : ('legacy' as const),
                 allowedGroupUuids:
                     mode === 'admission' ? ['allowed-group'] : null,
                 version: 7,
-                allowedCapabilities: null,
+                allowedCapabilities:
+                    mode === 'managed' ? Object.values(AgentCapability) : null,
             };
             const getPolicy = vi
                 .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
@@ -130,7 +128,7 @@ describe.each(['managed', 'admission', 'people-only'] as const)(
             expect(f.getPolicy).not.toHaveBeenCalled();
         });
 
-        test('preserves managed-only policy lookup for content operations', async () => {
+        test('returns the policy for content operations only when it restricts agents', async () => {
             const f = setup();
             f.context.oauth = true;
             await expect(getManagedAgentPolicy(f.context)).resolves.toEqual(

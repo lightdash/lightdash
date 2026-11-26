@@ -46,7 +46,7 @@ export const getManagedAgentPolicy = async (
     context: HumanManagedMutationContext,
 ): Promise<AgentCapabilityPolicy | null> => {
     const policy = await getAgentPolicyForMutation(context);
-    return policy?.mode === 'managed' ? policy : null;
+    return policy && policy.allowedCapabilities !== null ? policy : null;
 };
 
 const assertHumanPolicyMutation = (

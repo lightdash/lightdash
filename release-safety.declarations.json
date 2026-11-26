@@ -381,6 +381,22 @@
         "oauth-scopes-always-enforced-cli-browser-login-needs-personal-oauth": {
             "reason": "OAuth bearer tokens are now limited to their granted scopes on every request, with no feature flag. OAuth tokens can no longer create or rotate personal access tokens, service accounts or SCIM tokens, or manage OAuth clients. One temporary exception keeps browser login with lightdash login in CLI releases before 3.88.0 working until 15 March 2027: those releases create a personal access token from their OAuth token. That token expires after 8 hours at most, cannot be rotated, and cannot create or rotate credentials. This exception does not apply in organizations with the agent-identity feature on. After 15 March 2027, old CLI browser login fails with \"Failed to create PAT: 403 Forbidden\". Upgrade the CLI to 3.88.0 or later, or log in with lightdash login --token and a personal access token. An authorize request without a scope now receives the scopes registered for the client; if the client has none, the request fails with invalid_scope. Unknown scope names are ignored and the token gets only the known scopes; a request with only unknown names fails with invalid_scope. Existing access tokens without scopes are refused until they are refreshed or the user signs in again. A data migration registers read, write, mcp:read and mcp:write on admin-created OAuth clients that have no registered scopes, and new admin-created clients get the same scopes, so their integrations keep working when they send no scope. Older releases treat these four scopes the same as an empty list. Other personal access tokens, service accounts, sessions, token login and email login are unchanged. A new personal_access_tokens column records which tokens the old CLI created. The column defaults to false, so older releases keep creating and reading personal access tokens during a rolling deploy. There is no required stop.",
             "requiredStop": false
+        },
+        "prod-13447-agent-policy-mode-removed-from-api": {
+            "reason": "The organization agent policy no longer has a mode. GET, PUT and POST reset on /api/v2/org/agent-permissions stop returning mode, PUT stops reading it, and @lightdash/common drops it from AgentCapabilityPolicy, AgentCapabilityCeiling and AgentCapabilityPolicySave. A saved capability list now means agents are restricted and null means they are not. The agent-identity flag is off by default on Cloud and on self-hosted, the endpoints refuse callers when it is off, and only the organization and project Agent identity settings pages call them. During a rolling update an old settings tab shows an unrestricted organization as Restrict with every capability on until refresh, and saving from it stores that full list; a new tab cannot save No restrictions through an old pod until the rollout finishes. A PUT without allowedCapabilities now keeps the saved list instead of turning restrictions on.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "agent-identity",
+                "covers": {
+                    "rest": [
+                        "GET /api/v2/org/agent-permissions",
+                        "PUT /api/v2/org/agent-permissions",
+                        "POST /api/v2/org/agent-permissions/reset"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }

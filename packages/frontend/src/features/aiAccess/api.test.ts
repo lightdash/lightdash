@@ -425,7 +425,6 @@ describe('AI service account save', () => {
 
 describe('final policy contract', () => {
     const wire = {
-        mode: 'managed',
         version: 2,
         allowedCapabilities: [AgentCapability.Query],
         allowedGroupUuids: null,
@@ -471,7 +470,6 @@ describe('final policy contract', () => {
         await act(async () => {
             await result.current.mutateAsync({
                 version: 1,
-                mode: 'managed',
                 allowedCapabilities: [AgentCapability.Query],
             });
         });

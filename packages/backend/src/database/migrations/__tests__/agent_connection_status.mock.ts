@@ -160,7 +160,6 @@ export const statusFixture = async (
     ) =>
         policies.save({
             organizationUuid: org.organization_uuid,
-            mode: 'managed',
             allowedCapabilities: [...AGENT_CAPABILITY_LIMIT_DEFAULTS],
             allowedGroupUuids: null,
             updatedByUserUuid: people[0].user_uuid,

@@ -86657,14 +86657,6 @@ const models: TsoaRoute.Models = {
     AgentCapabilityPolicyOverview: {
         dataType: 'refObject',
         properties: {
-            mode: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'enum', enums: ['legacy'] },
-                    { dataType: 'enum', enums: ['managed'] },
-                ],
-                required: true,
-            },
             version: { dataType: 'double', required: true },
             allowedCapabilities: {
                 dataType: 'union',
@@ -86713,14 +86705,6 @@ const models: TsoaRoute.Models = {
     AgentCapabilityPolicy: {
         dataType: 'refObject',
         properties: {
-            mode: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'enum', enums: ['legacy'] },
-                    { dataType: 'enum', enums: ['managed'] },
-                ],
-                required: true,
-            },
             version: { dataType: 'double', required: true },
             allowedCapabilities: {
                 dataType: 'union',
@@ -86758,13 +86742,6 @@ const models: TsoaRoute.Models = {
         dataType: 'refObject',
         properties: {
             version: { dataType: 'double' },
-            mode: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'enum', enums: ['legacy'] },
-                    { dataType: 'enum', enums: ['managed'] },
-                ],
-            },
             allowedCapabilities: {
                 dataType: 'union',
                 subSchemas: [
