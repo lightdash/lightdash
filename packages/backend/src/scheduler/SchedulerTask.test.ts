@@ -1849,6 +1849,7 @@ describe('uploadGsheets — pivot routing', () => {
     }) => {
         const appendToSheet = vi.fn().mockResolvedValue(undefined);
         const appendCsvToSheet = vi.fn().mockResolvedValue(undefined);
+        const uploadMetadata = vi.fn().mockResolvedValue(undefined);
         const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
         const executeSavedChartQueryAndGetResults = vi.fn().mockResolvedValue({
             rows: pivotDetails ? pivotedRows : flatRows,
@@ -1884,7 +1885,7 @@ describe('uploadGsheets — pivot routing', () => {
         const task = makeTaskWithDeps({
             googleDriveClient: asDep<'googleDriveClient'>({
                 isEnabled: true,
-                uploadMetadata: vi.fn().mockResolvedValue(undefined),
+                uploadMetadata,
                 createNewTab: vi.fn().mockResolvedValue('Chart'),
                 appendToSheet,
                 appendCsvToSheet,
@@ -1987,12 +1988,41 @@ describe('uploadGsheets — pivot routing', () => {
         return {
             appendToSheet,
             appendCsvToSheet,
+            uploadMetadata,
             logSchedulerJob,
             executeSavedChartQueryAndGetResults,
             executeDashboardChartQueryAndGetResults,
             run,
         };
     };
+
+    it.each(['saved-chart', 'dashboard'] as const)(
+        'writes the %s metadata tab only after the data write succeeds',
+        async (source) => {
+            const ok = setup({
+                source,
+                hasPivotConfig: false,
+                pivotDetails: null,
+            });
+            await ok.run();
+            expect(ok.uploadMetadata).toHaveBeenCalledOnce();
+            expect(
+                ok.uploadMetadata.mock.invocationCallOrder[0],
+            ).toBeGreaterThan(ok.appendToSheet.mock.invocationCallOrder[0]);
+
+            const failed = setup({
+                source,
+                hasPivotConfig: false,
+                pivotDetails: null,
+            });
+            failed.appendToSheet.mockRejectedValue(
+                new Error('Internal error encountered.'),
+            );
+            await failed.run().catch(() => undefined);
+            expect(failed.appendToSheet).toHaveBeenCalled();
+            expect(failed.uploadMetadata).not.toHaveBeenCalled();
+        },
+    );
 
     it.each(['saved-chart', 'dashboard'] as const)(
         'exports flat %s results when stale pivot config has no SQL pivot details',
@@ -2894,10 +2924,11 @@ describe('uploadGsheets — SQL chart values', () => {
             date: new Date('2026-09-30T12:00:00Z'),
         };
         const appendCsvToSheet = vi.fn().mockResolvedValue(undefined);
+        const uploadMetadata = vi.fn().mockResolvedValue(undefined);
         const task = makeTaskWithDeps({
             googleDriveClient: asDep<'googleDriveClient'>({
                 isEnabled: true,
-                uploadMetadata: vi.fn().mockResolvedValue(undefined),
+                uploadMetadata,
                 appendCsvToSheet,
             }),
             schedulerService: asDep<'schedulerService'>({
@@ -2979,6 +3010,10 @@ describe('uploadGsheets — SQL chart values', () => {
                 ],
             ],
             'Results',
+        );
+        // The metadata tab is written only after the data is in.
+        expect(uploadMetadata.mock.invocationCallOrder[0]).toBeGreaterThan(
+            appendCsvToSheet.mock.invocationCallOrder[0],
         );
     });
 });

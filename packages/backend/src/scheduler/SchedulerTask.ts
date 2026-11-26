@@ -4873,16 +4873,6 @@ export default class SchedulerTask {
                     'scheduler_uuid',
                     schedulerUuid,
                 );
-                await this.googleDriveClient.uploadMetadata(
-                    refreshToken,
-                    gdriveId,
-                    getHumanReadableCronExpression(
-                        scheduler.cron,
-                        scheduler.timezone || defaultSchedulerTimezone,
-                    ),
-                    undefined,
-                    reportUrl,
-                );
                 const pivotConfig = getPivotConfig(chart);
                 const filterSummaryRows = showFilters
                     ? buildGoogleSheetsFilterSummaryRows(
@@ -4939,6 +4929,18 @@ export default class SchedulerTask {
                         filterSummaryRows,
                     );
                 }
+                // Only after the data is in: a failed run must not show a
+                // new "Time of last sync".
+                await this.googleDriveClient.uploadMetadata(
+                    refreshToken,
+                    gdriveId,
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone || defaultSchedulerTimezone,
+                    ),
+                    undefined,
+                    reportUrl,
+                );
             } else if (dashboardUuid) {
                 const dashboard = await this.dashboardService.getByIdOrSlug(
                     sessionUser,
@@ -4975,16 +4977,6 @@ export default class SchedulerTask {
                         };
                     },
                     {},
-                );
-
-                await this.googleDriveClient.uploadMetadata(
-                    refreshToken,
-                    gdriveId,
-                    getHumanReadableCronExpression(
-                        scheduler.cron,
-                        scheduler.timezone ?? defaultSchedulerTimezone,
-                    ),
-                    Object.values(chartNames),
                 );
 
                 Logger.debug(
@@ -5141,6 +5133,15 @@ export default class SchedulerTask {
                         Logger.debug('Error processing charts:', error);
                         throw error;
                     });
+                await this.googleDriveClient.uploadMetadata(
+                    refreshToken,
+                    gdriveId,
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone ?? defaultSchedulerTimezone,
+                    ),
+                    Object.values(chartNames),
+                );
             } else if (scheduler.savedSqlUuid) {
                 const sqlChart =
                     await this.asyncQueryService.savedSqlModel.getByUuid(
@@ -5177,17 +5178,6 @@ export default class SchedulerTask {
                         this.schedulerPollingOptions,
                     );
 
-                await this.googleDriveClient.uploadMetadata(
-                    refreshToken,
-                    gdriveId,
-                    getHumanReadableCronExpression(
-                        scheduler.cron,
-                        scheduler.timezone || defaultSchedulerTimezone,
-                    ),
-                    undefined,
-                    deliveryUrl,
-                );
-
                 // Preserve numeric and boolean cell types for Sheets' RAW writes.
                 const columnNames = rows.length > 0 ? Object.keys(rows[0]) : [];
                 const headerRow = columnNames;
@@ -5212,6 +5202,16 @@ export default class SchedulerTask {
                     gdriveId,
                     csvData,
                     tabName,
+                );
+                await this.googleDriveClient.uploadMetadata(
+                    refreshToken,
+                    gdriveId,
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone || defaultSchedulerTimezone,
+                    ),
+                    undefined,
+                    deliveryUrl,
                 );
             } else if (appUuid) {
                 const { url: appUrl, projectUuid: appProjectUuid } =
@@ -5361,19 +5361,6 @@ export default class SchedulerTask {
                     scheduler.cron,
                     scheduler.timezone ?? defaultSchedulerTimezone,
                 );
-                await retryTransientGoogleSheetsWrite(
-                    () =>
-                        this.googleDriveClient.uploadMetadata(
-                            refreshToken,
-                            gdriveId,
-                            humanReadableCron,
-                            readyItemTabNames,
-                            deliveryUrl,
-                        ),
-                    undefined,
-                    GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
-                );
-
                 Logger.debug(
                     `Uploading app with ${readyItems.length} queries to Google Sheets`,
                 );
@@ -5438,6 +5425,18 @@ export default class SchedulerTask {
                     Logger.debug('Error processing app queries:', error);
                     throw error;
                 });
+                await retryTransientGoogleSheetsWrite(
+                    () =>
+                        this.googleDriveClient.uploadMetadata(
+                            refreshToken,
+                            gdriveId,
+                            humanReadableCron,
+                            readyItemTabNames,
+                            deliveryUrl,
+                        ),
+                    undefined,
+                    GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
+                );
             } else {
                 throw new UnexpectedServerError('Not implemented');
             }
