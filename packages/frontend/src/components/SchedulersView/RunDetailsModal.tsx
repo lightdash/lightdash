@@ -20,9 +20,15 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { IconAlertTriangleFilled, IconChevronLeft, IconPlayerSkipForwardFilled, IconX } from '@tabler/icons-react';
+import {
+    IconAlertTriangleFilled,
+    IconChevronLeft,
+    IconPlayerSkipForwardFilled,
+    IconX,
+} from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type ComponentProps, type FC } from 'react';
+import { BarChartIcon, DashboardIcon } from '../common/ContentIcons';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import classes from './RunDetailsModal.module.css';
@@ -32,7 +38,6 @@ import {
     getLogStatusIconWithoutTooltip,
     getSchedulerIconRaw,
 } from './SchedulersViewUtils';
-import { BarChartIcon, DashboardIcon } from '../common/ContentIcons';
 
 type JobSummary = {
     jobId: string;

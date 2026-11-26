@@ -13,6 +13,7 @@ import {
 import { IconCheck } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
+import { TableIcon } from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import Page from '../../components/common/Page/Page';
@@ -39,7 +40,6 @@ import {
     withOneGrainPerDate,
 } from './useModelFieldChanges';
 import { useSemanticLayerFieldUsage } from './useSemanticLayerModel';
-import { TableIcon } from '../../components/common/ContentIcons';
 
 /** How many field chips show before the rest go in a menu. */
 const SHOWN = 6;

@@ -22,6 +22,7 @@ import {
 } from '@mantine/core';
 import { IconCheck, IconPencil } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { TableIcon } from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import {
@@ -34,7 +35,6 @@ import {
 } from '../externalConnections/liveSources/LiveSourceSettingsRows';
 import { LiveSourceSwitchOffModal } from '../externalConnections/liveSources/LiveSourceSwitchOffModal';
 import { summaryOf } from './model';
-import { TableIcon } from '../../components/common/ContentIcons';
 
 type LiveSourceParams = { projectUuid: string; connectionUuid: string };
 

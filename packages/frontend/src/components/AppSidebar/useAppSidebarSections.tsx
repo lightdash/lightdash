@@ -1,6 +1,17 @@
 import { ManagedAgentRunStatus } from '@lightdash/common';
 import { Text } from '@mantine/core';
-import { IconChartAreaLine, IconCheckbox, IconFileText, IconFolders, IconHash, IconHome, IconPuzzle, IconStack2, IconTerminal2, IconWand } from '@tabler/icons-react';
+import {
+    IconChartAreaLine,
+    IconCheckbox,
+    IconFileText,
+    IconFolders,
+    IconHash,
+    IconHome,
+    IconPuzzle,
+    IconStack2,
+    IconTerminal2,
+    IconWand,
+} from '@tabler/icons-react';
 import { type ReactNode } from 'react';
 import { AiAgentIcon } from '../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useProjectAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
@@ -10,6 +21,7 @@ import {
     formatAutopilotActionCount,
     useAutopilotNavState,
 } from '../../ee/features/managedAgent/hooks/useAutopilotNavState';
+import { DashboardIcon, DataAppIcon, TableIcon } from '../common/ContentIcons';
 import MantineIcon from '../common/MantineIcon';
 import {
     useCanExplore,
@@ -28,7 +40,6 @@ import {
     getAppSidebarItemUrl,
     type AppSidebarItemKey,
 } from './appSidebarNavigation';
-import { DashboardIcon, DataAppIcon, TableIcon } from '../common/ContentIcons';
 
 export type AppSidebarItem = {
     key: AppSidebarItemKey;

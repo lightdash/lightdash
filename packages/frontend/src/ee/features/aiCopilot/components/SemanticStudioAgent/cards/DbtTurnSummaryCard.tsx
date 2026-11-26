@@ -12,9 +12,19 @@ import {
     Text,
     UnstyledButton,
 } from '@mantine/core';
-import { IconChevronDown, IconChevronRight, IconCircleCheck, IconCircleMinus, IconExternalLink, IconFileCode, IconGitBranch, IconInfoCircle } from '@tabler/icons-react';
+import {
+    IconChevronDown,
+    IconChevronRight,
+    IconCircleCheck,
+    IconCircleMinus,
+    IconExternalLink,
+    IconFileCode,
+    IconGitBranch,
+    IconInfoCircle,
+} from '@tabler/icons-react';
 import { useContext, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { TableIcon } from '../../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import {
     type ChangeKind,
@@ -46,7 +56,6 @@ import classes from './DbtTurnSummaryCard.module.css';
 import { draftActions } from './turnActions';
 import { TurnCard, type Safety, type TurnGroup } from './TurnCard';
 import turnClasses from './TurnCard.module.css';
-import { TableIcon } from '../../../../../../components/common/ContentIcons';
 
 const FILE_ACTIONS: Record<ChangeKind, string> = {
     new: 'Added the file',

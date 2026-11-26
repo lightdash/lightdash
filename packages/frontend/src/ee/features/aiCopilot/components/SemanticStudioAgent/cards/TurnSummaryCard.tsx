@@ -7,9 +7,17 @@ import {
     type SemanticLayerProposal,
 } from '@lightdash/common';
 import { Button, Loader, Tooltip } from '@mantine/core';
-import { IconAlertTriangle, IconArrowsJoin, IconCircleCheck, IconCircleMinus, IconGitBranch, IconGitPullRequest } from '@tabler/icons-react';
+import {
+    IconAlertTriangle,
+    IconArrowsJoin,
+    IconCircleCheck,
+    IconCircleMinus,
+    IconGitBranch,
+    IconGitPullRequest,
+} from '@tabler/icons-react';
 import { lazy, Suspense, useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { TableIcon } from '../../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { cannotApply } from '../../../../../../features/semanticStudio/draftState';
 import { FieldChangeIcon } from '../../../../../../features/semanticStudio/KindTypeIcon';
@@ -41,7 +49,6 @@ import { getDiscardedLabel, listTurnIssues } from './proposalIssues';
 import { draftActions, fixFailureAction } from './turnActions';
 import { TurnCard, type Safety } from './TurnCard';
 import { useRefreshUnknownDraftChanges } from './useRefreshUnknownDraftChanges';
-import { TableIcon } from '../../../../../../components/common/ContentIcons';
 
 // The review and its diff viewer stay out of the chat's bundle until someone publishes from a card.
 const ApplyModal = lazy(() =>

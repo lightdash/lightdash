@@ -8,10 +8,15 @@ import {
     Text,
     UnstyledButton,
 } from '@mantine/core';
-import { IconCheck, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import {
+    IconCheck,
+    IconChevronDown,
+    IconChevronRight,
+} from '@tabler/icons-react';
 import { upperFirst } from 'es-toolkit/compat';
 import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { TableIcon } from '../../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import {
     CHANGE_KIND_STYLE,
@@ -26,7 +31,6 @@ import {
 import { ISSUE_KINDS, type Issue } from './proposalIssues';
 import { RejectionDetails } from './RejectionDetails';
 import classes from './TurnCard.module.css';
-import { TableIcon } from '../../../../../../components/common/ContentIcons';
 
 /** One changed part of a model, linking to where it can be looked at. */
 export type TurnRow = {

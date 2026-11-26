@@ -4,7 +4,11 @@ import {
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { IconChartAreaLine, IconFileText, IconFolder } from '@tabler/icons-react';
+import {
+    IconChartAreaLine,
+    IconFileText,
+    IconFolder,
+} from '@tabler/icons-react';
 import { DashboardIcon, DataAppIcon } from '../common/ContentIcons';
 
 const FAVORITE_ROUTE_SEGMENT: Record<ResourceViewItemType, string> = {

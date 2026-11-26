@@ -30,7 +30,20 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconArrowLeft, IconCamera, IconCheck, IconDatabase, IconDatabasePlus, IconFileDescription, IconLink, IconPhoto, IconPlugConnected, IconPlus, IconSearch, IconX } from '@tabler/icons-react';
+import {
+    IconArrowLeft,
+    IconCamera,
+    IconCheck,
+    IconDatabase,
+    IconDatabasePlus,
+    IconFileDescription,
+    IconLink,
+    IconPhoto,
+    IconPlugConnected,
+    IconPlus,
+    IconSearch,
+    IconX,
+} from '@tabler/icons-react';
 import { uniqBy } from 'es-toolkit/compat';
 import {
     useCallback,
@@ -39,6 +52,10 @@ import {
     type ClipboardEvent,
     type FC,
 } from 'react';
+import {
+    BarChartIcon,
+    DashboardIcon,
+} from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
@@ -59,7 +76,6 @@ import {
     type AttachableResourceType,
     type AttachLinkOutcome,
 } from './hooks/useAttachResourceLink';
-import { BarChartIcon, DashboardIcon } from '../../components/common/ContentIcons';
 
 type AttachFromLink = (
     input: string,

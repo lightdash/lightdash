@@ -17,10 +17,17 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconArrowsDiagonal, IconArrowsDiagonalMinimize2, IconArrowUpRight, IconGitPullRequest, IconTrash } from '@tabler/icons-react';
+import {
+    IconArrowsDiagonal,
+    IconArrowsDiagonalMinimize2,
+    IconArrowUpRight,
+    IconGitPullRequest,
+    IconTrash,
+} from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../../../../../components/common/ConfirmDeleteButton';
+import { TableIcon } from '../../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { ChangeDiff } from '../../../../../../features/semanticStudio/ChangeDiff';
 import {
@@ -44,7 +51,6 @@ import {
 import { RejectionDetails } from './RejectionDetails';
 import classes from './SemanticLayerProposalCard.module.css';
 import { useRefreshUnknownDraftChanges } from './useRefreshUnknownDraftChanges';
-import { TableIcon } from '../../../../../../components/common/ContentIcons';
 
 type Diff = SemanticLayerProposal['diffs'][number];
 

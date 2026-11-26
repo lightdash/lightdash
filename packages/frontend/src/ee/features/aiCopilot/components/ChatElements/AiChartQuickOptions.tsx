@@ -9,10 +9,23 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Menu } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconDeviceFloppy, IconDots, IconExternalLink, IconEye, IconSend, IconTableExport, IconTableShortcut, IconTerminal2 } from '@tabler/icons-react';
+import {
+    IconDeviceFloppy,
+    IconDots,
+    IconExternalLink,
+    IconEye,
+    IconSend,
+    IconTableExport,
+    IconTableShortcut,
+    IconTerminal2,
+} from '@tabler/icons-react';
 import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../../../components/common/ChartDownload/chartDownloadUtils';
+import {
+    BarChartIcon,
+    DashboardIcon,
+} from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
@@ -70,7 +83,6 @@ import {
 } from './AiChartImageExport';
 import { AiScheduleDeliveryModal } from './AiScheduleDeliveryModal';
 import { AiSqlModal } from './AiSqlModal';
-import { BarChartIcon, DashboardIcon } from '../../../../../components/common/ContentIcons';
 
 type Props = {
     projectUuid: string;
@@ -588,9 +600,7 @@ export const AiChartQuickOptions = ({
                                             isSavingToDashboard
                                         }
                                         leftSection={
-                                            <MantineIcon
-                                                icon={DashboardIcon}
-                                            />
+                                            <MantineIcon icon={DashboardIcon} />
                                         }
                                     >
                                         Save to current dashboard

@@ -10,7 +10,13 @@ import {
     ScrollArea,
     Text,
 } from '@mantine/core';
-import { IconCategory, IconChevronDown, IconChevronRight, IconFolders, IconStack2 } from '@tabler/icons-react';
+import {
+    IconCategory,
+    IconChevronDown,
+    IconChevronRight,
+    IconFolders,
+    IconStack2,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { ReviewRequestsMenuItem } from '../../ee/features/contentReview';
@@ -19,6 +25,14 @@ import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import scrollAreaClasses from '../../styles/ScrollArea.module.css';
+import {
+    BarChartIcon,
+    CustomChartTypeIcon,
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    SpaceIcon,
+} from '../common/ContentIcons';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import TruncatedText from '../common/TruncatedText';
@@ -30,7 +44,6 @@ import {
     useCanViewChartStudio,
     useCanViewDataApps,
 } from './useDestinationAccess';
-import { BarChartIcon, CustomChartTypeIcon, DashboardIcon, DataAppIcon, DocumentIcon, SpaceIcon } from '../common/ContentIcons';
 
 interface Props {
     projectUuid: string;

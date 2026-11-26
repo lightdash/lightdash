@@ -1,8 +1,8 @@
 import { Box, Button, Group, Paper, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { TableIcon } from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import classes from './SemanticLayerNudge.module.css';
-import { TableIcon } from '../../components/common/ContentIcons';
 
 /** For projects with views or live sources but no models: what a model adds. */
 export const SemanticLayerNudge: FC<{ onBuild: () => void }> = ({

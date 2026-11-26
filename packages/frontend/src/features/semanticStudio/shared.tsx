@@ -1,9 +1,18 @@
 /** Icons for sources and fields. */
 import { type WarehouseTypes } from '@lightdash/common';
 import { Image } from '@mantine/core';
-import { IconBroadcast, IconDatabase, IconFileSpreadsheet, IconFileTypeCsv, IconFolder, IconSql, type Icon } from '@tabler/icons-react';
+import {
+    IconBroadcast,
+    IconDatabase,
+    IconFileSpreadsheet,
+    IconFileTypeCsv,
+    IconFolder,
+    IconSql,
+    type Icon,
+} from '@tabler/icons-react';
 import clsx from 'clsx';
 import { type FC } from 'react';
+import { TableIcon } from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import dbtLogo from '../../components/ProjectConnection/ProjectConnectFlow/Assets/dbt.svg';
 import { WarehouseTypeLabels } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
@@ -25,7 +34,6 @@ import {
     type Source,
 } from './model';
 import classes from './shared.module.css';
-import { TableIcon } from '../../components/common/ContentIcons';
 
 // ---------------------------------------------------------------------------
 // Icons
