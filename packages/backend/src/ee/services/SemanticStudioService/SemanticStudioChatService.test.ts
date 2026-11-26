@@ -1,5 +1,11 @@
-import { NotFoundError } from '@lightdash/common';
-import { defaultSessionUser as user } from '../../../auth/account/account.mock';
+import { Ability } from '@casl/ability';
+import {
+    ForbiddenError,
+    NotFoundError,
+    type PossibleAbilities,
+    type SessionUser,
+} from '@lightdash/common';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
 import {
     SemanticStudioChatService,
     type SemanticStudioChatServiceArguments,
@@ -8,153 +14,312 @@ import {
 const PROJECT_UUID = 'project-uuid';
 const THREAD_UUID = 'thread-uuid';
 const MESSAGE_UUID = 'message-uuid';
-const thread = { projectUuid: PROJECT_UUID, threadUuid: THREAD_UUID };
-const message = { ...thread, messageUuid: MESSAGE_UUID };
+const ref = { projectUuid: PROJECT_UUID, threadUuid: THREAD_UUID };
+const messageRef = { ...ref, messageUuid: MESSAGE_UUID };
 
-const setup = (threadAgentUuid: string | null) => {
+const withAbility = (
+    rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0],
+): SessionUser => ({
+    ...defaultSessionUser,
+    ability: new Ability<PossibleAbilities>(rules),
+});
+const owner = withAbility([]);
+const someoneElse: SessionUser = { ...owner, userUuid: 'someone-else' };
+const agentManager: SessionUser = {
+    ...withAbility([{ subject: 'AiAgent', action: 'manage' }]),
+    userUuid: 'agent-manager',
+};
+
+const setup = ({
+    threadAgentUuid = 'agent-uuid',
+    canUseStudio = true,
+    copilotEnabled = true,
+}: {
+    threadAgentUuid?: string | null;
+    canUseStudio?: boolean;
+    copilotEnabled?: boolean;
+} = {}) => {
+    const agent = { uuid: threadAgentUuid, projectUuid: PROJECT_UUID };
+    const thread = { uuid: THREAD_UUID, user: { uuid: owner.userUuid } };
     const ai = {
-        getAgentThread: vi.fn(),
-        createAgentThread: vi.fn(),
-        createAgentThreadMessage: vi.fn(),
-        streamAgentThreadResponse: vi.fn(),
-        interruptAgentThreadMessage: vi.fn(),
-        createAgentThreadMessageSteer: vi.fn(),
-        generateThreadTitle: vi.fn(),
+        getIsCopilotEnabled: vi.fn(async () => copilotEnabled),
+        getThreadForAuthorized: vi.fn(),
+        createThreadForAgent: vi.fn(),
+        createMessageForAuthorized: vi.fn(),
+        streamResponseForAuthorized: vi.fn(),
+        interruptMessageForAuthorized: vi.fn(),
+        steerMessageForAuthorized: vi.fn(),
+        generateTitleForAuthorized: vi.fn(),
     } satisfies SemanticStudioChatServiceArguments['ai'];
     const getBuilderAgent = vi.fn(async () => ({ uuid: 'built-in-agent' }));
+    const getAgent = vi.fn();
+    getAgent.mockResolvedValue(agent);
+    const getThread = vi.fn();
+    getThread.mockResolvedValue(thread);
+    const getStatus = vi.fn();
+    getStatus.mockResolvedValue({ enabled: canUseStudio });
     const findStudioThreadAgentUuid = vi.fn(async () => threadAgentUuid);
     const service = new SemanticStudioChatService({
         ai,
         checkout: { getBuilderAgent },
+        studio: { getStatus },
+        aiAgentModel: { getAgent, getThread },
         workspaceModel: { findStudioThreadAgentUuid },
     });
-    return { service, ai, getBuilderAgent, findStudioThreadAgentUuid };
+    return {
+        service,
+        ai,
+        authorized: { agent, thread },
+        getBuilderAgent,
+        getAgent,
+        getThread,
+        findStudioThreadAgentUuid,
+    };
 };
 
 describe('SemanticStudioChatService', () => {
-    it('starts a conversation on the built-in agent as a Studio thread', async () => {
-        const { service, ai, getBuilderAgent } = setup(null);
+    describe('starting a conversation', () => {
+        it('starts on the built-in agent as a Studio thread', async () => {
+            const { service, ai, getBuilderAgent, getAgent } = setup();
 
-        await service.createThread(
-            user,
-            PROJECT_UUID,
-            { prompt: 'Add a revenue metric' },
-            'web_app',
-        );
-
-        expect(getBuilderAgent).toHaveBeenCalledWith(user, PROJECT_UUID);
-        expect(ai.createAgentThread).toHaveBeenCalledWith(
-            user,
-            'built-in-agent',
-            { prompt: 'Add a revenue metric', createdFrom: 'semantic_studio' },
-            'web_app',
-        );
-    });
-
-    it('does not start a conversation when the built-in agent is refused', async () => {
-        const { service, ai, getBuilderAgent } = setup(null);
-        getBuilderAgent.mockRejectedValueOnce(new Error('refused'));
-
-        await expect(
-            service.createThread(
-                user,
+            await service.createThread(
+                owner,
                 PROJECT_UUID,
-                { prompt: 'Hi' },
+                { prompt: 'Add a revenue metric' },
                 'web_app',
-            ),
-        ).rejects.toThrow('refused');
-        expect(ai.createAgentThread).not.toHaveBeenCalled();
-    });
+            );
 
-    it('reads a conversation through the agent it runs on, built-in or not', async () => {
-        const { service, ai, findStudioThreadAgentUuid } =
-            setup('older-user-agent');
-
-        await service.getThread(user, thread);
-
-        expect(findStudioThreadAgentUuid).toHaveBeenCalledWith(
-            PROJECT_UUID,
-            THREAD_UUID,
-        );
-        expect(ai.getAgentThread).toHaveBeenCalledWith(
-            user,
-            'older-user-agent',
-            THREAD_UUID,
-        );
-    });
-
-    it('passes a message, a title request and the stream options to that agent', async () => {
-        const { service, ai } = setup('agent-uuid');
-
-        await service.createMessage(user, thread, { prompt: 'And a margin' });
-        await service.generateTitle(user, thread);
-        await service.streamResponse(user, thread, { autoApproveSql: true });
-        await service.streamResponse(user, thread, undefined);
-
-        expect(ai.createAgentThreadMessage).toHaveBeenCalledWith(
-            user,
-            'agent-uuid',
-            THREAD_UUID,
-            { prompt: 'And a margin' },
-        );
-        expect(ai.generateThreadTitle).toHaveBeenCalledWith(user, {
-            agentUuid: 'agent-uuid',
-            threadUuid: THREAD_UUID,
+            expect(getBuilderAgent).toHaveBeenCalledWith(owner, PROJECT_UUID);
+            expect(getAgent).toHaveBeenCalledWith({
+                organizationUuid: owner.organizationUuid,
+                agentUuid: 'built-in-agent',
+            });
+            expect(ai.createThreadForAgent).toHaveBeenCalledWith(
+                owner,
+                expect.objectContaining({ projectUuid: PROJECT_UUID }),
+                {
+                    prompt: 'Add a revenue metric',
+                    createdFrom: 'semantic_studio',
+                },
+                'web_app',
+            );
         });
-        expect(ai.streamAgentThreadResponse).toHaveBeenNthCalledWith(1, user, {
-            agentUuid: 'agent-uuid',
-            threadUuid: THREAD_UUID,
-            enableSqlMode: undefined,
-            enableFastDecisions: true,
-            autoApproveSql: true,
-            toolHints: [],
+
+        it('starts nothing when the built-in agent is refused', async () => {
+            const { service, ai, getBuilderAgent } = setup();
+            getBuilderAgent.mockRejectedValueOnce(new ForbiddenError());
+
+            await expect(
+                service.createThread(
+                    owner,
+                    PROJECT_UUID,
+                    { prompt: 'Hi' },
+                    'web_app',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(ai.createThreadForAgent).not.toHaveBeenCalled();
         });
-        expect(ai.streamAgentThreadResponse).toHaveBeenNthCalledWith(2, user, {
-            agentUuid: 'agent-uuid',
-            threadUuid: THREAD_UUID,
-            enableSqlMode: undefined,
-            enableFastDecisions: true,
-            autoApproveSql: false,
-            toolHints: [],
+
+        it('starts nothing when AI is off', async () => {
+            const { service, ai } = setup({ copilotEnabled: false });
+
+            await expect(
+                service.createThread(
+                    owner,
+                    PROJECT_UUID,
+                    { prompt: 'Hi' },
+                    'web_app',
+                ),
+            ).rejects.toThrow('Copilot is not enabled');
+            expect(ai.createThreadForAgent).not.toHaveBeenCalled();
         });
     });
 
-    it('interrupts and steers a message on that agent', async () => {
-        const { service, ai } = setup('agent-uuid');
+    describe('who may use a conversation', () => {
+        it('lets its owner in when they can use Studio', async () => {
+            const { service, ai, authorized } = setup();
 
-        await service.interruptMessage(user, message);
-        await service.steerMessage(user, message, 'Use net revenue');
+            await service.getThread(owner, ref);
 
-        expect(ai.interruptAgentThreadMessage).toHaveBeenCalledWith(
-            expect.objectContaining({
-                user: expect.objectContaining({ id: user.userUuid }),
-            }),
-            { ...message, agentUuid: 'agent-uuid' },
-        );
-        expect(ai.createAgentThreadMessageSteer).toHaveBeenCalledWith(
-            expect.anything(),
-            { ...message, agentUuid: 'agent-uuid', message: 'Use net revenue' },
-        );
+            expect(ai.getThreadForAuthorized).toHaveBeenCalledWith(
+                owner,
+                authorized,
+            );
+        });
+
+        it("follows Studio's permission, not Ask AI's", async () => {
+            // The owner has no AI agent permission at all.
+            const allowed = setup({ canUseStudio: true });
+            await expect(
+                allowed.service.getThread(owner, ref),
+            ).resolves.toBeUndefined();
+
+            const refused = setup({ canUseStudio: false });
+            await expect(refused.service.getThread(owner, ref)).rejects.toThrow(
+                ForbiddenError,
+            );
+            expect(refused.ai.getThreadForAuthorized).not.toHaveBeenCalled();
+        });
+
+        it("refuses someone else's conversation", async () => {
+            const { service, ai } = setup();
+
+            await expect(service.getThread(someoneElse, ref)).rejects.toThrow(
+                'Insufficient permissions to view this thread',
+            );
+            await expect(
+                service.createMessage(someoneElse, ref, { prompt: 'Hi' }),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                service.streamResponse(someoneElse, ref, undefined),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                service.generateTitle(someoneElse, ref),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                service.interruptMessage(someoneElse, messageRef),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                service.steerMessage(someoneElse, messageRef, 'Stop'),
+            ).rejects.toThrow(ForbiddenError);
+            expect(ai.getThreadForAuthorized).not.toHaveBeenCalled();
+            expect(ai.createMessageForAuthorized).not.toHaveBeenCalled();
+            expect(ai.streamResponseForAuthorized).not.toHaveBeenCalled();
+            expect(ai.generateTitleForAuthorized).not.toHaveBeenCalled();
+            expect(ai.interruptMessageForAuthorized).not.toHaveBeenCalled();
+            expect(ai.steerMessageForAuthorized).not.toHaveBeenCalled();
+        });
+
+        it("lets someone who manages agents into another person's conversation", async () => {
+            const { service, ai } = setup();
+
+            await service.getThread(agentManager, ref);
+
+            expect(ai.getThreadForAuthorized).toHaveBeenCalled();
+        });
+
+        it('refuses someone who manages agents but cannot use Studio', async () => {
+            const { service } = setup({ canUseStudio: false });
+
+            await expect(service.getThread(agentManager, ref)).rejects.toThrow(
+                ForbiddenError,
+            );
+        });
+
+        it('answers not found for a thread that is not a Studio one in this project', async () => {
+            const { service, ai, getAgent } = setup({ threadAgentUuid: null });
+
+            await expect(service.getThread(owner, ref)).rejects.toThrow(
+                NotFoundError,
+            );
+            await expect(
+                service.streamResponse(owner, ref, undefined),
+            ).rejects.toThrow(NotFoundError);
+            expect(getAgent).not.toHaveBeenCalled();
+            expect(ai.getThreadForAuthorized).not.toHaveBeenCalled();
+            expect(ai.streamResponseForAuthorized).not.toHaveBeenCalled();
+        });
+
+        it('checks AI is on where the agent routes do', async () => {
+            const { service, ai } = setup({ copilotEnabled: false });
+
+            await expect(service.getThread(owner, ref)).rejects.toThrow(
+                'Copilot is not enabled',
+            );
+            await expect(
+                service.createMessage(owner, ref, { prompt: 'Hi' }),
+            ).rejects.toThrow('Copilot is not enabled');
+            await expect(service.generateTitle(owner, ref)).rejects.toThrow(
+                'Copilot is not enabled',
+            );
+            // The turn checks for itself, and stopping one never asked.
+            await service.streamResponse(owner, ref, undefined);
+            await service.interruptMessage(owner, messageRef);
+            expect(ai.streamResponseForAuthorized).toHaveBeenCalled();
+            expect(ai.interruptMessageForAuthorized).toHaveBeenCalled();
+        });
     });
 
-    it('answers not found for a thread that is not a Studio one in this project', async () => {
-        const { service, ai } = setup(null);
+    describe('what it passes on', () => {
+        it('reads the thread through the agent it runs on, built-in or not', async () => {
+            const { service, getAgent, getThread, findStudioThreadAgentUuid } =
+                setup({ threadAgentUuid: 'older-user-agent' });
 
-        await expect(service.getThread(user, thread)).rejects.toThrow(
-            NotFoundError,
-        );
-        await expect(
-            service.createMessage(user, thread, { prompt: 'Hi' }),
-        ).rejects.toThrow(NotFoundError);
-        await expect(
-            service.streamResponse(user, thread, undefined),
-        ).rejects.toThrow(NotFoundError);
-        await expect(service.interruptMessage(user, message)).rejects.toThrow(
-            NotFoundError,
-        );
-        expect(ai.getAgentThread).not.toHaveBeenCalled();
-        expect(ai.createAgentThreadMessage).not.toHaveBeenCalled();
-        expect(ai.streamAgentThreadResponse).not.toHaveBeenCalled();
-        expect(ai.interruptAgentThreadMessage).not.toHaveBeenCalled();
+            await service.getThread(owner, ref);
+
+            expect(findStudioThreadAgentUuid).toHaveBeenCalledWith(
+                PROJECT_UUID,
+                THREAD_UUID,
+            );
+            expect(getAgent).toHaveBeenCalledWith({
+                organizationUuid: owner.organizationUuid,
+                agentUuid: 'older-user-agent',
+            });
+            expect(getThread).toHaveBeenCalledWith({
+                organizationUuid: owner.organizationUuid,
+                agentUuid: 'older-user-agent',
+                threadUuid: THREAD_UUID,
+            });
+        });
+
+        it('passes a message, a title request and the stream options', async () => {
+            const { service, ai, authorized } = setup();
+
+            await service.createMessage(owner, ref, { prompt: 'And a margin' });
+            await service.generateTitle(owner, ref);
+            await service.streamResponse(owner, ref, { autoApproveSql: true });
+            await service.streamResponse(owner, ref, undefined);
+
+            expect(ai.createMessageForAuthorized).toHaveBeenCalledWith(
+                owner,
+                authorized,
+                { prompt: 'And a margin' },
+            );
+            expect(ai.generateTitleForAuthorized).toHaveBeenCalledWith(
+                owner,
+                authorized,
+            );
+            expect(ai.streamResponseForAuthorized).toHaveBeenNthCalledWith(
+                1,
+                owner,
+                authorized,
+                {
+                    enableSqlMode: undefined,
+                    enableFastDecisions: true,
+                    autoApproveSql: true,
+                    toolHints: [],
+                },
+            );
+            expect(ai.streamResponseForAuthorized).toHaveBeenNthCalledWith(
+                2,
+                owner,
+                authorized,
+                {
+                    enableSqlMode: undefined,
+                    enableFastDecisions: true,
+                    autoApproveSql: false,
+                    toolHints: [],
+                },
+            );
+        });
+
+        it('interrupts and steers a message of the thread', async () => {
+            const { service, ai, authorized } = setup();
+
+            await service.interruptMessage(owner, messageRef);
+            await service.steerMessage(owner, messageRef, 'Use net revenue');
+
+            expect(ai.interruptMessageForAuthorized).toHaveBeenCalledWith(
+                owner,
+                authorized,
+                MESSAGE_UUID,
+            );
+            expect(ai.steerMessageForAuthorized).toHaveBeenCalledWith(
+                owner,
+                authorized,
+                MESSAGE_UUID,
+                'Use net revenue',
+            );
+        });
     });
 });

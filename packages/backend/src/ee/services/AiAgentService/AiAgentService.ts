@@ -882,6 +882,50 @@ type ChartIntentApplication =
       }
     | { type: 'fallback'; reason: string };
 
+/** An agent and one of its threads, which the caller has checked this person may use. */
+export type AuthorizedAgentThread = {
+    agent: AiAgent;
+    thread: Awaited<ReturnType<AiAgentModel['getThread']>>;
+};
+
+type ThreadPrompt = NonNullable<
+    Awaited<ReturnType<AiAgentModel['findWebAppPrompt']>>
+>;
+
+type PrepareThreadResponseOptions = {
+    promptUuid?: string;
+    aiCreditCheck: AiCreditCheck | null;
+    /** Off for embeds, whose space limits come from the token, not the agent. */
+    flagPinnedOutsideAgentSpaces?: boolean;
+    /** 'omit' names the attached images without reading them from storage. */
+    threadImages?: 'load' | 'omit';
+    enableFastDecisions?: boolean;
+    onPromptResolved?: (
+        promptUuid: string,
+        responseState: AiPromptResponseState,
+    ) => void;
+    resetErrorForStreamRetry?: boolean;
+    expectedDeepResearchRunUuid?: string | null;
+};
+
+type PreparedThreadResponse = Awaited<
+    ReturnType<AiAgentService['prepareThreadResponse']>
+>;
+
+// How a response gets its thread ready; the caller decides whether access is still to be checked.
+type PrepareThreadResponse = (
+    options: PrepareThreadResponseOptions,
+) => Promise<PreparedThreadResponse>;
+
+type StreamThreadResponseOptions = {
+    enableSqlMode?: boolean;
+    enableFastDecisions?: boolean;
+    autoApproveSql?: boolean;
+    toolHints: string[];
+    runtimeOptions?: EmbedAiAgentRuntimeOptions;
+    redactToolOutputs?: boolean;
+};
+
 type AgentResponseStream = {
     pipeUIMessageStreamToResponse: (
         response: Parameters<
@@ -3482,7 +3526,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         agent: AiAgent,
     ): Promise<boolean> {
-        // The Studio builder follows Studio's permission, not Ask AI's.
+        // The Studio builder follows Studio's permission, not Ask AI's, on the reads Studio still makes here.
         if (agent.kind === 'semantic_studio') {
             return this.canUseStudio(user, agent.projectUuid);
         }
@@ -5466,6 +5510,16 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        return this.getThreadForAuthorized(user, { agent, thread });
+    }
+
+    /** A thread and its messages, for a caller that has already checked access. */
+    async getThreadForAuthorized(
+        user: SessionUser,
+        { agent, thread }: AuthorizedAgentThread,
+    ): Promise<AiAgentThread> {
+        const { organizationUuid } = agent;
+        const threadUuid = thread.uuid;
         const messages = await this.aiAgentModel.findThreadMessages({
             organizationUuid,
             threadUuid,
@@ -5965,6 +6019,7 @@ export class AiAgentService extends BaseService {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
 
+        AiAgentService.assertNotStudioOnAgentRoute(agent, body.createdFrom);
         const hasAccess = await this.checkAgentAccess(user, agent);
         if (!hasAccess) {
             throw new ForbiddenError(
@@ -5972,6 +6027,24 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        return this.createThreadForAgent(
+            user,
+            agent,
+            body,
+            createdFrom,
+            runtimeOptions,
+        );
+    }
+
+    /** Starts a thread on an agent, for a caller that has already checked access to it. */
+    async createThreadForAgent(
+        user: SessionUser,
+        agent: AiAgent,
+        body: ApiAiAgentThreadCreateRequest,
+        createdFrom: AiWebAppThreadCreatedFrom,
+        runtimeOptions?: EmbedAiAgentRuntimeOptions,
+    ) {
+        const { organizationUuid, uuid: agentUuid } = agent;
         AiAgentService.assertAgentServesThread(agent, body.createdFrom);
 
         if (isSemanticStudioThread(body.createdFrom)) {
@@ -6252,6 +6325,7 @@ export class AiAgentService extends BaseService {
         await this.assertDataAppThreadContinuable(thread, organizationUuid);
 
         // Check if user has access to create messages for this agent's thread
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -6263,6 +6337,23 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        return this.createMessageForAuthorized(
+            user,
+            { agent, thread },
+            body,
+            runtimeOptions,
+        );
+    }
+
+    /** Adds a message to a thread, for a caller that has already checked access. */
+    async createMessageForAuthorized(
+        user: SessionUser,
+        { agent, thread }: AuthorizedAgentThread,
+        body: ApiAiAgentThreadMessageCreateRequest,
+        runtimeOptions?: EmbedAiAgentRuntimeOptions,
+    ): Promise<ApiAiAgentThreadMessageCreateResponse['results']> {
+        const { organizationUuid, uuid: agentUuid } = agent;
+        const threadUuid = thread.uuid;
         const context = await this.validatePromptContextAccess(
             user,
             agent,
@@ -8483,6 +8574,21 @@ export class AiAgentService extends BaseService {
             .enabled;
     }
 
+    // Studio's conversations run through Studio's own routes; to an agent's thread routes they do not exist.
+    private static assertNotStudioOnAgentRoute(
+        agent: Pick<AiAgent, 'uuid' | 'kind'>,
+        createdFrom: AiThreadCreatedFrom | undefined,
+    ): void {
+        if (
+            agent.kind === 'semantic_studio' ||
+            isSemanticStudioThread(createdFrom)
+        ) {
+            throw new AiAgentNotFoundError(
+                `AI agent not found for uuid: ${agent.uuid}`,
+            );
+        }
+    }
+
     private async getManageableAgentOrThrow(
         user: SessionUser,
         agentUuid: string,
@@ -8872,37 +8978,12 @@ export class AiAgentService extends BaseService {
         return createdCompaction;
     }
 
-    private async prepareAgentThreadResponse(
+    // The thread a response is asked for, once this person is known to have access to it.
+    private async authorizeThreadResponse(
         user: SessionUser,
-        {
-            agentUuid,
-            threadUuid,
-            promptUuid,
-            onPromptResolved,
-            resetErrorForStreamRetry = false,
-            expectedDeepResearchRunUuid,
-            enableFastDecisions = true,
-            aiCreditCheck,
-            flagPinnedOutsideAgentSpaces = true,
-            threadImages = 'load',
-        }: {
-            agentUuid: string;
-            threadUuid: string;
-            promptUuid?: string;
-            aiCreditCheck: AiCreditCheck | null;
-            /** Off for embeds, whose space limits come from the token, not the agent. */
-            flagPinnedOutsideAgentSpaces?: boolean;
-            /** 'omit' names the attached images without reading them from storage. */
-            threadImages?: 'load' | 'omit';
-            enableFastDecisions?: boolean;
-            onPromptResolved?: (
-                promptUuid: string,
-                responseState: AiPromptResponseState,
-            ) => void;
-            resetErrorForStreamRetry?: boolean;
-            expectedDeepResearchRunUuid?: string | null;
-        },
-    ) {
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<AuthorizedAgentThread> {
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }
@@ -8926,6 +9007,7 @@ export class AiAgentService extends BaseService {
             throw new NotFoundError(`Agent not found`);
         }
 
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -8935,6 +9017,46 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError(
                 'Insufficient permissions to access this agent thread',
             );
+        }
+        return { agent, thread };
+    }
+
+    private async prepareAgentThreadResponse(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            ...options
+        }: PrepareThreadResponseOptions & {
+            agentUuid: string;
+            threadUuid: string;
+        },
+    ) {
+        return this.prepareThreadResponse(
+            user,
+            await this.authorizeThreadResponse(user, agentUuid, threadUuid),
+            { agentUuid, threadUuid },
+            options,
+        );
+    }
+
+    private async prepareThreadResponse(
+        user: SessionUser,
+        { agent, thread }: AuthorizedAgentThread,
+        { agentUuid, threadUuid }: { agentUuid: string; threadUuid: string },
+        {
+            promptUuid,
+            onPromptResolved,
+            resetErrorForStreamRetry = false,
+            expectedDeepResearchRunUuid,
+            enableFastDecisions = true,
+            aiCreditCheck,
+            flagPinnedOutsideAgentSpaces = true,
+            threadImages = 'load',
+        }: PrepareThreadResponseOptions,
+    ) {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
         }
 
         // A reply generated here would never reach the Slack conversation.
@@ -9293,22 +9415,63 @@ export class AiAgentService extends BaseService {
         {
             agentUuid,
             threadUuid,
+            ...options
+        }: StreamThreadResponseOptions & {
+            agentUuid: string;
+            threadUuid: string;
+        },
+    ): Promise<AgentResponseStream> {
+        return this.streamThreadResponse(
+            user,
+            { agentUuid, threadUuid },
+            (prepareOptions) =>
+                this.prepareAgentThreadResponse(user, {
+                    agentUuid,
+                    threadUuid,
+                    ...prepareOptions,
+                }),
+            options,
+        );
+    }
+
+    /** Streams the answer to a thread's latest message, for a caller that has already checked access. */
+    async streamResponseForAuthorized(
+        user: SessionUser,
+        authorized: AuthorizedAgentThread,
+        options: StreamThreadResponseOptions,
+    ): Promise<AgentResponseStream> {
+        return this.streamThreadResponse(
+            user,
+            {
+                agentUuid: authorized.agent.uuid,
+                threadUuid: authorized.thread.uuid,
+            },
+            (prepareOptions) =>
+                this.prepareThreadResponse(
+                    user,
+                    authorized,
+                    {
+                        agentUuid: authorized.agent.uuid,
+                        threadUuid: authorized.thread.uuid,
+                    },
+                    prepareOptions,
+                ),
+            options,
+        );
+    }
+
+    private async streamThreadResponse(
+        user: SessionUser,
+        { agentUuid, threadUuid }: { agentUuid: string; threadUuid: string },
+        prepare: PrepareThreadResponse,
+        {
             enableSqlMode,
             enableFastDecisions = true,
             autoApproveSql,
             toolHints,
             runtimeOptions,
             redactToolOutputs = false,
-        }: {
-            agentUuid: string;
-            threadUuid: string;
-            enableSqlMode?: boolean;
-            enableFastDecisions?: boolean;
-            autoApproveSql?: boolean;
-            toolHints: string[];
-            runtimeOptions?: EmbedAiAgentRuntimeOptions;
-            redactToolOutputs?: boolean;
-        },
+        }: StreamThreadResponseOptions,
     ): Promise<AgentResponseStream> {
         let isPreparing = false;
         let trackedPromptUuid: string | undefined;
@@ -9327,9 +9490,7 @@ export class AiAgentService extends BaseService {
                 chatHistoryMessages,
                 prompt,
                 compaction,
-            } = await this.prepareAgentThreadResponse(user, {
-                agentUuid,
-                threadUuid,
+            } = await prepare({
                 resetErrorForStreamRetry: true,
                 expectedDeepResearchRunUuid: null,
                 enableFastDecisions,
@@ -9562,6 +9723,30 @@ export class AiAgentService extends BaseService {
         return user;
     }
 
+    // The prompt a control request names, which must be the given thread's.
+    private async getThreadPromptOrThrow({
+        organizationUuid,
+        agentUuid,
+        threadUuid,
+        messageUuid,
+    }: {
+        organizationUuid: string;
+        agentUuid: string;
+        threadUuid: string;
+        messageUuid: string;
+    }): Promise<ThreadPrompt> {
+        const prompt = await this.aiAgentModel.findWebAppPrompt(messageUuid);
+        if (
+            !prompt ||
+            prompt.organizationUuid !== organizationUuid ||
+            prompt.agentUuid !== agentUuid ||
+            prompt.threadUuid !== threadUuid
+        ) {
+            throw new NotFoundError(`Prompt not found: ${messageUuid}`);
+        }
+        return prompt;
+    }
+
     async interruptAgentThreadMessage(
         account: Account,
         {
@@ -9585,18 +9770,12 @@ export class AiAgentService extends BaseService {
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }
-
-        const prompt = await this.aiAgentModel.findWebAppPrompt(messageUuid);
-
-        if (
-            !prompt ||
-            prompt.organizationUuid !== user.organizationUuid ||
-            prompt.agentUuid !== agentUuid ||
-            prompt.threadUuid !== threadUuid
-        ) {
-            throw new NotFoundError(`Prompt not found: ${messageUuid}`);
-        }
-
+        const prompt = await this.getThreadPromptOrThrow({
+            organizationUuid: user.organizationUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid,
+        });
         const agent = await this.aiAgentModel.getAgent({
             organizationUuid: user.organizationUuid,
             agentUuid,
@@ -9604,7 +9783,6 @@ export class AiAgentService extends BaseService {
         if (!agent) {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
-
         const thread = await this.aiAgentModel.getThread({
             organizationUuid: user.organizationUuid,
             agentUuid,
@@ -9613,7 +9791,7 @@ export class AiAgentService extends BaseService {
         if (!thread) {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
-
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -9625,20 +9803,51 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        await this.interruptPrompt(user, { agent, thread }, prompt);
+    }
+
+    /** Stops the answer to a message, for a caller that has already checked access to its thread. */
+    async interruptMessageForAuthorized(
+        user: SessionUser,
+        authorized: AuthorizedAgentThread,
+        messageUuid: string,
+    ): Promise<void> {
+        const prompt = await this.getThreadPromptOrThrow({
+            organizationUuid: authorized.agent.organizationUuid,
+            agentUuid: authorized.agent.uuid,
+            threadUuid: authorized.thread.uuid,
+            messageUuid,
+        });
+        await this.interruptPrompt(user, authorized, prompt);
+    }
+
+    private async interruptPrompt(
+        user: SessionUser,
+        { agent, thread }: AuthorizedAgentThread,
+        prompt: ThreadPrompt,
+    ): Promise<void> {
         await this.aiAgentModel.createAiPromptInterrupt({
-            promptUuid: messageUuid,
+            promptUuid: prompt.promptUuid,
             createdByUserUuid: user.userUuid,
         });
         if (!prompt.respondedAt) {
             this.trackAgentRequestLifecycle('ai_agent_request.interrupted', {
-                organizationUuid: user.organizationUuid,
+                organizationUuid: agent.organizationUuid,
                 projectUuid: prompt.projectUuid,
-                agentUuid,
-                threadUuid,
-                promptUuid: messageUuid,
+                agentUuid: agent.uuid,
+                threadUuid: thread.uuid,
+                promptUuid: prompt.promptUuid,
             });
         }
-        this.enqueueMobilePushThreadReconciliation(threadUuid);
+        this.enqueueMobilePushThreadReconciliation(thread.uuid);
+    }
+
+    private static trimSteerMessage(message: string): string {
+        const trimmedMessage = message.trim();
+        if (trimmedMessage.length === 0) {
+            throw new ParameterError('Steer message is required');
+        }
+        return trimmedMessage;
     }
 
     async createAgentThreadMessageSteer(
@@ -9666,23 +9875,13 @@ export class AiAgentService extends BaseService {
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }
-
-        const trimmedMessage = message.trim();
-        if (trimmedMessage.length === 0) {
-            throw new ParameterError('Steer message is required');
-        }
-
-        const prompt = await this.aiAgentModel.findWebAppPrompt(messageUuid);
-
-        if (
-            !prompt ||
-            prompt.organizationUuid !== user.organizationUuid ||
-            prompt.agentUuid !== agentUuid ||
-            prompt.threadUuid !== threadUuid
-        ) {
-            throw new NotFoundError(`Prompt not found: ${messageUuid}`);
-        }
-
+        const trimmedMessage = AiAgentService.trimSteerMessage(message);
+        const prompt = await this.getThreadPromptOrThrow({
+            organizationUuid: user.organizationUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid,
+        });
         const agent = await this.aiAgentModel.getAgent({
             organizationUuid: user.organizationUuid,
             agentUuid,
@@ -9690,7 +9889,6 @@ export class AiAgentService extends BaseService {
         if (!agent) {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
-
         const thread = await this.aiAgentModel.getThread({
             organizationUuid: user.organizationUuid,
             agentUuid,
@@ -9703,7 +9901,7 @@ export class AiAgentService extends BaseService {
             thread,
             user.organizationUuid,
         );
-
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -9714,17 +9912,41 @@ export class AiAgentService extends BaseService {
                 'Insufficient permissions to steer this agent thread',
             );
         }
+        return this.steerPrompt(user, prompt, trimmedMessage);
+    }
 
-        const isInterrupted =
-            await this.aiAgentModel.hasAiPromptInterrupt(messageUuid);
+    /** Sends a note to the answer in progress, for a caller that has already checked access to its thread. */
+    async steerMessageForAuthorized(
+        user: SessionUser,
+        { agent, thread }: AuthorizedAgentThread,
+        messageUuid: string,
+        message: string,
+    ): Promise<AiPromptSteer> {
+        const trimmedMessage = AiAgentService.trimSteerMessage(message);
+        const prompt = await this.getThreadPromptOrThrow({
+            organizationUuid: agent.organizationUuid,
+            agentUuid: agent.uuid,
+            threadUuid: thread.uuid,
+            messageUuid,
+        });
+        return this.steerPrompt(user, prompt, trimmedMessage);
+    }
+
+    private async steerPrompt(
+        user: SessionUser,
+        prompt: ThreadPrompt,
+        message: string,
+    ): Promise<AiPromptSteer> {
+        const isInterrupted = await this.aiAgentModel.hasAiPromptInterrupt(
+            prompt.promptUuid,
+        );
         if (isInterrupted) {
             throw new ParameterError('Cannot steer an interrupted prompt');
         }
-
         return this.aiAgentModel.createAiPromptSteer({
-            promptUuid: messageUuid,
+            promptUuid: prompt.promptUuid,
             createdByUserUuid: user.userUuid,
-            message: trimmedMessage,
+            message,
         });
     }
 
@@ -10358,22 +10580,66 @@ export class AiAgentService extends BaseService {
             threadUuid: string;
         },
     ): Promise<string> {
-        try {
-            // Reuse existing validation and data fetching logic
-            const { chatHistoryMessages, compaction } =
-                await this.prepareAgentThreadResponse(user, {
+        return this.titleThread(
+            user,
+            { agentUuid, threadUuid },
+            (prepareOptions) =>
+                this.prepareAgentThreadResponse(user, {
                     agentUuid,
                     threadUuid,
-                    aiCreditCheck: null,
-                    // A title never needs the pixels.
-                    threadImages: 'omit',
-                });
+                    ...prepareOptions,
+                }),
+            () =>
+                this.getAgent(user, agentUuid, undefined, {
+                    includeBuiltIn: true,
+                }),
+        );
+    }
+
+    /** Names a thread from its messages, for a caller that has already checked access. */
+    async generateTitleForAuthorized(
+        user: SessionUser,
+        authorized: AuthorizedAgentThread,
+    ): Promise<string> {
+        return this.titleThread(
+            user,
+            {
+                agentUuid: authorized.agent.uuid,
+                threadUuid: authorized.thread.uuid,
+            },
+            (prepareOptions) =>
+                this.prepareThreadResponse(
+                    user,
+                    authorized,
+                    {
+                        agentUuid: authorized.agent.uuid,
+                        threadUuid: authorized.thread.uuid,
+                    },
+                    prepareOptions,
+                ),
+            async () => authorized.agent,
+        );
+    }
+
+    private async titleThread(
+        user: SessionUser,
+        { agentUuid, threadUuid }: { agentUuid: string; threadUuid: string },
+        prepare: PrepareThreadResponse,
+        getModelAgent: () => Promise<
+            Pick<AiAgent, 'projectUuid' | 'providerCredentialUuid'>
+        >,
+    ): Promise<string> {
+        try {
+            // Reuse existing validation and data fetching logic
+            const { chatHistoryMessages, compaction } = await prepare({
+                aiCreditCheck: null,
+                // A title never needs the pixels.
+                threadImages: 'omit',
+            });
 
             // The title is generated from the thread's own messages, so it must
             // run on that project's credential rather than the org default.
-            const agent = await this.getAgent(user, agentUuid, undefined, {
-                includeBuiltIn: true,
-            });
+            const agent = await getModelAgent();
             // Use fast model for title generation (lightweight task)
             const copilotConfig =
                 await this.orgAiCopilotConfigResolver.getCopilotConfig({
