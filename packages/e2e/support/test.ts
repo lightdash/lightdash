@@ -99,6 +99,8 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
                 );
                 // The Design Mode first-run tour dims the page and swallows clicks
                 window.localStorage.setItem('ld.design-mode.tour.v1', '1');
+                // So does the homepage tour
+                window.localStorage.setItem('ld.homepage.tour.v1', '1');
             });
             // The dashboard edit tour dims the page and swallows clicks
             await context.route('**/api/v1/user/onboarding', async (route) => {

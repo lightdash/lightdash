@@ -8,6 +8,8 @@
     box-shadow: unset;
 
     border: 1px solid var(--mantine-color-ldGray-2) !important;
+    /* Editing fades an outline in; without this it fades from the text color */
+    outline-color: transparent;
 
     &[data-with-transparent-border='true'] {
         border: 1px solid transparent !important;
