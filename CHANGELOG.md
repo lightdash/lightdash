@@ -1,3 +1,10 @@
+## [3.411.3](https://github.com/lightdash/lightdash/compare/3.411.2...3.411.3) (2026-11-26)
+
+
+### Bug Fixes
+
+* **dashboard:** keep tiles on screen when saving a dashboard ([#33414](https://github.com/lightdash/lightdash/issues/33414)) ([cbc4c3d](https://github.com/lightdash/lightdash/commit/cbc4c3d9a9c9dd2e28ec4c58fe202d634d049dd2))
+
 ## [3.411.2](https://github.com/lightdash/lightdash/compare/3.411.1...3.411.2) (2026-11-26)
 
 
