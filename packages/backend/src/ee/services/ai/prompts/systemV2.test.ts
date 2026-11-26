@@ -296,7 +296,7 @@ describe('getSystemPromptV2 custom chart types', () => {
         expect(enabled).not.toContain('or custom chart');
 
         const disabled = promptText(documentArgs);
-        expect(disabled).toContain('merge, composer or custom chart');
+        expect(disabled).toContain('composer or custom chart');
         expect(disabled).not.toContain('draw it with that chart type');
     });
 

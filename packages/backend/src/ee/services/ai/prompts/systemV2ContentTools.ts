@@ -75,9 +75,10 @@ export const getDocumentToolsSection = ({
 ${getChartPlacement(viaComposerQueries, customCharts)}
 - Keep an existing ${
     customCharts && !viaComposerQueries
-        ? 'merge or composer chart'
-        : 'merge, composer or custom chart'
-} in a Document by its tag. A Document cannot hold a new or changed one, so when the user asks for one in a Document, explain that instead of silently changing the chart.`;
+        ? 'composer chart'
+        : 'composer or custom chart'
+} in a Document by its tag. A Document cannot hold a new or changed one, so when the user asks for one in a Document, explain that instead of silently changing the chart.
+- These Document rules do not cover dashboards: charts on a dashboard, composer charts included, follow the developing-in-lightdash skill.`;
 
 export const DOCUMENT_OFFER_LINE =
     'Want me to turn this analysis into a Document, a shareable report with these charts and a written summary?';
