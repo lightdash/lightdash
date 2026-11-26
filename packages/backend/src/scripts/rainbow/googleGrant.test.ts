@@ -1,6 +1,12 @@
 import { OpenIdIdentityIssuerType, SEED_ORG_1_ADMIN } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
-import { readConnectedGoogleGrant, seedGoogleGrant } from './googleGrant';
+import {
+    getGoogleGrantErrorFields,
+    readConnectedGoogleGrant,
+    runGoogleGrant,
+    seedGoogleGrant,
+    validateGoogleGrant,
+} from './googleGrant';
 
 const scopes = [
     'https://www.googleapis.com/auth/drive.file',
@@ -63,6 +69,22 @@ describe('seedGoogleGrant', () => {
         await seedGoogleGrant('test-token', store);
         expect(store.upsert).not.toHaveBeenCalled();
     });
+
+    it('replaces a seeded grant if it cannot be decrypted', async () => {
+        const store = createStore();
+        store.find.mockResolvedValue({
+            provider_subject: 'rainbow-sheets-test',
+            encrypted_refresh_token: Buffer.from('ciphertext'),
+            scopes,
+        });
+        store.decrypt.mockImplementation(() => {
+            throw new Error('Cannot decrypt');
+        });
+        await seedGoogleGrant('new-token', store);
+        expect(store.upsert).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ refreshToken: 'new-token' }),
+        );
+    });
 });
 
 describe('readConnectedGoogleGrant', () => {
@@ -96,9 +118,109 @@ describe('readConnectedGoogleGrant', () => {
                 scopes: grantScopes,
             });
             await expect(readConnectedGoogleGrant(store)).rejects.toThrow(
-                'No manually connected Google Sheets grant',
+                'GOOGLE_GRANT_NOT_CONNECTED',
             );
             expect(store.decrypt).not.toHaveBeenCalled();
         },
     );
+});
+
+describe('runGoogleGrant', () => {
+    const args = {
+        action: 'seed',
+        refreshToken: 'test-token',
+        mode: 'pr',
+        interactive: false,
+    };
+
+    it('returns without configuration when the seed has no secret', async () => {
+        await expect(
+            runGoogleGrant({
+                ...args,
+                refreshToken: undefined,
+                mode: undefined,
+            }),
+        ).resolves.toBeUndefined();
+    });
+
+    it.each([
+        [{ mode: 'production' }, 'GOOGLE_GRANT_PREVIEW_ONLY'],
+        [{ action: 'other' }, 'GOOGLE_GRANT_INVALID_ACTION'],
+        [
+            { action: 'export', interactive: true },
+            'GOOGLE_GRANT_INTERACTIVE_EXPORT',
+        ],
+    ])('rejects an unsupported invocation', async (overrides, code) => {
+        await expect(runGoogleGrant({ ...args, ...overrides })).rejects.toThrow(
+            code,
+        );
+    });
+});
+
+describe('validateGoogleGrant', () => {
+    const client = {
+        oauth2ClientId: 'test-client',
+        oauth2ClientSecret: 'test-secret',
+    };
+
+    it('mints an access token for the guest client', async () => {
+        const request = vi
+            .fn<typeof fetch>()
+            .mockResolvedValue(Response.json({ access_token: 'test-access' }));
+        await expect(
+            validateGoogleGrant('test-refresh', client, request),
+        ).resolves.toBeUndefined();
+        expect(request).toHaveBeenCalledExactlyOnceWith(
+            'https://oauth2.googleapis.com/token',
+            expect.objectContaining({ method: 'POST', redirect: 'error' }),
+        );
+        const body = request.mock.calls[0][1]?.body as URLSearchParams;
+        expect(Object.fromEntries(body)).toEqual({
+            client_id: 'test-client',
+            client_secret: 'test-secret',
+            grant_type: 'refresh_token',
+            refresh_token: 'test-refresh',
+        });
+    });
+
+    it('fails closed when Google refuses the grant without reading its body', async () => {
+        const response = Response.json(
+            { error: 'invalid_grant' },
+            { status: 400 },
+        );
+        const request = vi.fn<typeof fetch>().mockResolvedValue(response);
+        await expect(
+            validateGoogleGrant('test-refresh', client, request),
+        ).rejects.toThrow('GOOGLE_GRANT_REFRESH_REJECTED');
+        expect(response.bodyUsed).toBe(false);
+    });
+
+    it('rejects a success response with no access token', async () => {
+        const request = vi
+            .fn<typeof fetch>()
+            .mockResolvedValue(Response.json({}));
+        await expect(
+            validateGoogleGrant('test-refresh', client, request),
+        ).rejects.toThrow('GOOGLE_GRANT_ACCESS_TOKEN_MISSING');
+    });
+});
+
+describe('getGoogleGrantErrorFields', () => {
+    it('logs an error name and code without accepting an arbitrary message', () => {
+        expect(
+            getGoogleGrantErrorFields(
+                Object.assign(new TypeError('test-refresh'), {
+                    code: 'ECONNREFUSED',
+                }),
+            ),
+        ).toEqual({ name: 'TypeError', code: 'ECONNREFUSED' });
+        expect(
+            getGoogleGrantErrorFields(
+                Object.assign(new TypeError('test-refresh'), {
+                    name: 'test-refresh',
+                    code: 'test-refresh',
+                }),
+            ),
+        ).toEqual({ name: 'UnknownError', code: 'unknown' });
+    });
 });

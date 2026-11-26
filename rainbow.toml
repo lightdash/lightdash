@@ -238,8 +238,7 @@ run = """
 dbt1.12 deps --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles &&
 dbt1.12 seed --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles --full-refresh &&
 dbt1.12 run --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles --full-refresh --exclude fanouts_sales_targets &&
-pnpm -F backend seed &&
-cd packages/backend && node --import tsx src/scripts/rainbow/googleGrant.ts seed"""
+pnpm -F backend seed"""
 env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }  # loaded by the config; enables nothing
 
 # Readiness, in the app's own frame. http polls during boot; paints drives
@@ -545,15 +544,14 @@ S3_HOST = "host"
 UPLOADS_S3_BUCKET = "config"
 # Google Sheets sync: the OAuth client a user connects Google with, and the
 # key for the sheet picker. The client belongs to the shared Google test
-# account (team password manager, Shared vault), and its consent screen is
-# in testing with that account as the only test user, so Google refuses
-# every other account. Envs are public: treat the token as
-# public and never connect your own account. Google needs an exact redirect
-# URI to connect, but not to use the seeded grant. Without AUTH_GOOGLE_ENABLED
-# the login page keeps no Google button.
+# account (team password manager). Google accepts only this account for the
+# client. Envs are public: treat the token as public and never connect your
+# own account. Google needs an exact redirect URI to connect, but not to use
+# the seeded grant. Without AUTH_GOOGLE_ENABLED the login page keeps no
+# Google button.
 AUTH_GOOGLE_OAUTH2_CLIENT_ID = "oauth-client"
 AUTH_GOOGLE_OAUTH2_CLIENT_SECRET = "oauth-client"
 GOOGLE_DRIVE_API_KEY = "api-key"
-# The shared test account's grant for the seeded admin. Rotate it every
-# 7 days while the consent screen is in Testing (see the rainbow-env skill).
+# The shared test account's grant for the seeded admin. Replace it when a sync
+# fails with invalid_grant, or to rotate it on purpose (see the rainbow-env skill).
 GOOGLE_SHEETS_TEST_REFRESH_TOKEN = "oauth-refresh-token"

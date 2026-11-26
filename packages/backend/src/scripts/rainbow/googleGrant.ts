@@ -32,6 +32,13 @@ type GrantStore = {
     decrypt: EncryptionUtil['decrypt'];
 };
 
+class GoogleGrantError extends Error {
+    constructor(readonly code: string) {
+        super(code);
+        this.name = 'GoogleGrantError';
+    }
+}
+
 function hasSeededToken(
     store: GrantStore,
     encryptedToken: Buffer,
@@ -83,21 +90,68 @@ export async function readConnectedGoogleGrant(
         grant.scopes.length !== googleSheetsScopes.length ||
         !googleSheetsScopes.every((scope) => grant.scopes.includes(scope))
     ) {
-        throw new Error('No manually connected Google Sheets grant');
+        throw new GoogleGrantError('GOOGLE_GRANT_NOT_CONNECTED');
     }
     return store.decrypt(grant.encrypted_refresh_token);
 }
 
-async function main(): Promise<string | undefined> {
-    const action = process.argv[2];
-    const refreshToken = process.env.GOOGLE_SHEETS_TEST_REFRESH_TOKEN;
-    if (action === 'seed' && !refreshToken) return undefined;
+export async function validateGoogleGrant(
+    refreshToken: string,
+    google: {
+        oauth2ClientId: string | undefined;
+        oauth2ClientSecret: string | undefined;
+    },
+    request: typeof fetch = fetch,
+): Promise<void> {
+    if (!google.oauth2ClientId || !google.oauth2ClientSecret) {
+        throw new GoogleGrantError('GOOGLE_GRANT_CLIENT_MISSING');
+    }
+    const response = await request('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        body: new URLSearchParams({
+            client_id: google.oauth2ClientId,
+            client_secret: google.oauth2ClientSecret,
+            grant_type: 'refresh_token',
+            refresh_token: refreshToken,
+        }),
+        redirect: 'error',
+        signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) {
+        throw new GoogleGrantError('GOOGLE_GRANT_REFRESH_REJECTED');
+    }
+    const result: unknown = await response.json().catch(() => null);
     if (
-        process.env.LIGHTDASH_MODE !== 'pr' ||
-        (action !== 'seed' && action !== 'export') ||
-        (action === 'export' && process.stdout.isTTY)
+        !result ||
+        typeof result !== 'object' ||
+        !('access_token' in result) ||
+        typeof result.access_token !== 'string' ||
+        result.access_token.length === 0
     ) {
-        throw new Error('This command runs only in a preview');
+        throw new GoogleGrantError('GOOGLE_GRANT_ACCESS_TOKEN_MISSING');
+    }
+}
+
+export async function runGoogleGrant({
+    action,
+    refreshToken,
+    mode,
+    interactive,
+}: {
+    action: string | undefined;
+    refreshToken: string | undefined;
+    mode: string | undefined;
+    interactive: boolean;
+}): Promise<string | undefined> {
+    if (action === 'seed' && !refreshToken) return undefined;
+    if (action !== 'seed' && action !== 'export') {
+        throw new GoogleGrantError('GOOGLE_GRANT_INVALID_ACTION');
+    }
+    if (mode !== 'pr') {
+        throw new GoogleGrantError('GOOGLE_GRANT_PREVIEW_ONLY');
+    }
+    if (action === 'export' && interactive) {
+        throw new GoogleGrantError('GOOGLE_GRANT_INTERACTIVE_EXPORT');
     }
 
     const { lightdashConfig } = await import('../../config/lightdashConfig');
@@ -111,7 +165,7 @@ async function main(): Promise<string | undefined> {
         encryptionUtil,
         userModel: {
             getRefreshToken: async () => {
-                throw new Error('No Google Sheets grant');
+                throw new GoogleGrantError('GOOGLE_GRANT_NOT_CONNECTED');
             },
         },
     });
@@ -125,21 +179,53 @@ async function main(): Promise<string | undefined> {
             await seedGoogleGrant(refreshToken, store);
             return undefined;
         }
-        return await readConnectedGoogleGrant(store);
+        const connectedToken = await readConnectedGoogleGrant(store);
+        await validateGoogleGrant(connectedToken, lightdashConfig.auth.google);
+        return connectedToken;
     } finally {
         await database.destroy();
     }
 }
 
+export function getGoogleGrantErrorFields(error: unknown) {
+    const name = error instanceof Error ? error.name : '';
+    const code =
+        error instanceof Error && 'code' in error ? error.code : undefined;
+
+    return {
+        name: /^[A-Za-z]{0,30}Error$/.test(name) ? name : 'UnknownError',
+        code:
+            typeof code === 'string' &&
+            /^(?:GOOGLE_GRANT_[A-Z_]{1,32}|E[A-Z_0-9]{1,24}|[0-9A-Z]{5})$/.test(
+                code,
+            )
+                ? code
+                : 'unknown',
+    };
+}
+
 if (require.main === module) {
-    void main()
+    const action = process.argv[2];
+    void runGoogleGrant({
+        action,
+        refreshToken: process.env.GOOGLE_SHEETS_TEST_REFRESH_TOKEN,
+        mode: process.env.LIGHTDASH_MODE,
+        interactive: process.stdout.isTTY === true,
+    })
         .then((token) => {
             if (token !== undefined) process.stdout.write(token);
         })
-        .catch(() => {
+        .catch((error) => {
+            const { name, code } = getGoogleGrantErrorFields(error);
+            const step = action === 'seed' ? ' seed' : '';
             console.error(
-                'Rainbow Google Sheets grant command failed. For export, reconnect the shared test account with only the Google Sheets permissions.',
+                `Rainbow Google Sheets grant${step} failed (${name}, ${code}).`,
             );
+            if (action === 'export') {
+                console.error(
+                    'Reconnect the shared test account on gsheets before retrying.',
+                );
+            }
             process.exitCode = 1;
         });
 }

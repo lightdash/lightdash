@@ -27,14 +27,22 @@ if ! rainbow ls | awk -F '\t' -v id="$1" '
     exit 2
 fi
 
-refresh_token="$(
-    rainbow exec "$1" 'systemd-run --quiet --pipe --wait --collect -p EnvironmentFile=/etc/lightdash.env -p EnvironmentFile=-/run/rainbow/secrets.env --working-directory=/usr/app/packages/backend /usr/local/bin/node --import tsx src/scripts/rainbow/googleGrant.ts export'
-)"
-
-if [[ -z "$refresh_token" || "$refresh_token" =~ [[:space:]] || "$refresh_token" == '[redacted:'* ]]; then
-    echo 'The guest did not return a usable grant. No Rainbow secret was changed.' >&2
+if ! refresh_token="$(
+    rainbow exec "$1" 'systemd-run --quiet --pipe --wait --collect -p EnvironmentFile=/etc/lightdash.env -p EnvironmentFile=-/run/rainbow/secrets.env --working-directory=/usr/app/packages/backend /usr/local/bin/node --import tsx src/scripts/rainbow/googleGrant.ts export' 2>/dev/null
+)"; then
+    echo 'fail' >&2
     exit 1
 fi
 
-printf '%s' "$refresh_token" |
-    rainbow secrets set -repo lightdash/lightdash -kind oauth-refresh-token GOOGLE_SHEETS_TEST_REFRESH_TOKEN
+if [[ -z "$refresh_token" || "$refresh_token" =~ [[:space:]] || "$refresh_token" == '[redacted:'* ]]; then
+    echo 'fail' >&2
+    exit 1
+fi
+
+if ! printf '%s' "$refresh_token" |
+    rainbow secrets set -repo lightdash/lightdash -kind oauth-refresh-token GOOGLE_SHEETS_TEST_REFRESH_TOKEN >/dev/null 2>&1; then
+    echo 'fail' >&2
+    exit 1
+fi
+
+echo 'ok'
