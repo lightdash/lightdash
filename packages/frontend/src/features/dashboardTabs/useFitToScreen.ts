@@ -30,9 +30,14 @@ const useGridViewport = (
 
         const measure = () => {
             const rect = gridElement.getBoundingClientRect();
+            // The wrapper's top padding (grip room) sits above the grid too
+            const paddingTop =
+                parseFloat(getComputedStyle(gridElement).paddingTop) || 0;
             // Document-relative, so page scroll doesn't change the result
             const top =
-                rect.top - document.documentElement.getBoundingClientRect().top;
+                rect.top -
+                document.documentElement.getBoundingClientRect().top +
+                paddingTop;
             const next = {
                 width: Math.round(rect.width),
                 availableHeight: Math.floor(

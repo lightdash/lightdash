@@ -361,8 +361,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         FeatureFlags.DashboardEditErgonomics,
     );
     // Editing gets a grid twice as fine; stored positions stay in base units
-    const isEditErgonomicsEnabled =
-        isEditMode && editErgonomicsFlag?.enabled === true;
+    const isEditErgonomicsFlagOn = editErgonomicsFlag?.enabled === true;
+    const isEditErgonomicsEnabled = isEditMode && isEditErgonomicsFlagOn;
     const gridScale = isEditErgonomicsEnabled ? FINE_GRID_SCALE : 1;
     const FiltersBar = isDashboardControlsEnabled
         ? ControlsBar
@@ -1625,6 +1625,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                             data-edit-canvas={
                                 isEditErgonomicsEnabled ? true : undefined
                             }
+                            // In view too, so entering edit moves no tile
+                            data-grip-room={isEditErgonomicsFlagOn || undefined}
                             data-canvas-background={
                                 isEditErgonomicsEnabled
                                     ? canvasBackground
