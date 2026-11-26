@@ -1,3 +1,10 @@
+## [3.418.1](https://github.com/lightdash/lightdash/compare/3.418.0...3.418.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **warehouse:** report a statement timeout as a timeout, not a cancellation ([#33507](https://github.com/lightdash/lightdash/issues/33507)) ([b638c75](https://github.com/lightdash/lightdash/commit/b638c7500602c995fcbf699a41d5b971a6dc914c))
+
 # [3.418.0](https://github.com/lightdash/lightdash/compare/3.417.0...3.418.0) (2026-11-26)
 
 
