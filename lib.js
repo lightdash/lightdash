@@ -43,13 +43,20 @@ const token = async () => {
     tokenCache = { value: await ld('GET', '/api/v1/gdrive/get-access-token'), at: Date.now() };
     return tokenCache.value;
 };
-const gs = async (method, url, body) => {
+// The test scripts' own calls back off on a 429, so a read-back never reads as empty.
+const gs = async (method, url, body, attempt = 0) => {
     const res = await fetch(url.startsWith('http') ? url : SHEETS + url, {
         method,
         headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
     });
+    if (res.status === 429 && attempt < 6) {
+        fs.appendFileSync(`${OUT}/script-429.log`, `${new Date().toISOString()} ${method} 429, retry ${attempt + 1}\n`);
+        await new Promise((r) => setTimeout(r, 10000 * (attempt + 1)));
+        return gs(method, url, body, attempt + 1);
+    }
     const json = await res.json();
+    if (json.error && method === 'GET') throw new Error(`GET failed: ${res.status} ${json.error.message}`);
     return json;
 };
 const batch = async (sid, requests) => gs('POST', `/${sid}:batchUpdate`, { requests });
@@ -60,6 +67,11 @@ const gsx = async (method, url, body) => {
         headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
     });
+    if (res.status === 429) {
+        fs.appendFileSync(`${OUT}/script-429.log`, `${new Date().toISOString()} ${method} 429 (gsx)\n`);
+        await new Promise((r) => setTimeout(r, 15000));
+        return gsx(method, url, body);
+    }
     const text = await res.text();
     let json;
     try { json = JSON.parse(text); } catch (e) { json = { raw: text.slice(0, 500) }; }
