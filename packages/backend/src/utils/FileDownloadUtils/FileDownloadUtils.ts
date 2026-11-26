@@ -160,7 +160,11 @@ export async function streamJsonlData<T>({
     maxLines,
 }: {
     readStream: Readable;
-    onRow?: (parsedRow: Record<string, unknown>, lineCount: number) => T | void;
+    // A returned promise is awaited before the next row is read
+    onRow?: (
+        parsedRow: Record<string, unknown>,
+        lineCount: number,
+    ) => T | void | Promise<T | void>;
     onComplete?: (results: T[], truncated: boolean) => void;
     maxLines?: number; // undefined = no limit (for CSV), number = limit (for Excel)
 }): Promise<{ results: T[]; truncated: boolean }> {
@@ -193,7 +197,9 @@ export async function streamJsonlData<T>({
         try {
             const parsedRow = JSON.parse(line);
             if (onRow) {
-                const result = onRow(parsedRow, lineCount);
+                const pending = onRow(parsedRow, lineCount);
+                const result =
+                    pending instanceof Promise ? await pending : pending;
                 if (result !== undefined) {
                     results.push(result);
                 }

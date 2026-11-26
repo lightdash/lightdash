@@ -68,6 +68,7 @@ import {
     type SubtotalExportLevel,
 } from '../../utils/subtotalExport';
 import { WorkbookExportHelper } from './WorkbookExportHelper';
+import { waitForWorksheetDrain } from './worksheetBackpressure';
 
 const PNG_SIGNATURE = '89504e470d0a1a0a';
 
@@ -1337,9 +1338,10 @@ export class ExcelService {
             onRow: (parsedRow: Record<string, unknown>, lineCount: number) => {
                 if (subtotalLevels?.length) {
                     bufferedRows.push(parsedRow);
-                } else {
-                    writeRow(parsedRow, lineCount, false, 0);
+                    return undefined;
                 }
+                writeRow(parsedRow, lineCount, false, 0);
+                return waitForWorksheetDrain(worksheet);
             },
             maxLines: ExcelService.EXCEL_ROW_LIMIT,
         });
