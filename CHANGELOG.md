@@ -1,3 +1,10 @@
+## [3.415.1](https://github.com/lightdash/lightdash/compare/3.415.0...3.415.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **auth:** refuse credential routes while impersonating a user ([#33485](https://github.com/lightdash/lightdash/issues/33485)) ([84845d0](https://github.com/lightdash/lightdash/commit/84845d057019cd05375f2419e0a92061a93d2659))
+
 # [3.415.0](https://github.com/lightdash/lightdash/compare/3.414.2...3.415.0) (2026-11-26)
 
 
