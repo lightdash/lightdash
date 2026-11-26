@@ -6798,7 +6798,7 @@ export default class SchedulerTask {
             {
                 filename: args.workbookNameBase,
                 path: workbookResult.url,
-                localPath: workbookResult.url,
+                localPath: workbookResult.s3FileUrl,
                 truncated: false,
             },
         ];
@@ -6834,6 +6834,7 @@ export default class SchedulerTask {
 
         const workbookPath = `/tmp/${nanoid()}.xlsx`;
         let workbookFileName: string;
+        let s3FileUrl: string;
         let workbookResult: Awaited<
             ReturnType<typeof WorkbookExportHelper.createWorkbookFile>
         >;
@@ -6862,7 +6863,7 @@ export default class SchedulerTask {
                 workbookNameBase,
             )}-${new Date().toISOString().replace(/[:.]/g, '-')}.xlsx`;
 
-            await this.fileStorageClient.uploadExcel(
+            s3FileUrl = await this.fileStorageClient.uploadExcel(
                 fsSync.createReadStream(workbookPath),
                 workbookFileName,
                 `${workbookNameBase}.xlsx`,
@@ -6882,6 +6883,7 @@ export default class SchedulerTask {
                 expirationSeconds: expirationSecondsOverride,
                 source: 'scheduler',
             }),
+            s3FileUrl,
             numFileFailures: workbookResult.failedFileCount,
         };
     }

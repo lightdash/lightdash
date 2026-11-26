@@ -67,6 +67,8 @@ import {
     SnowflakePrivateKeyError,
 } from '@lightdash/warehouses';
 import ExecutionContext from 'node-execution-context';
+import { writeFile } from 'node:fs/promises';
+import { text } from 'node:stream/consumers';
 import type { Mock } from 'vitest';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
 import { fromJwt, fromSession } from '../auth/account';
@@ -3510,7 +3512,8 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
     it('merges the files into a single workbook when the layout is workbook', async () => {
         const { task } = setup({ fileStorageEnabled: true });
         const createWorkbookDownloadUrl = vi.fn().mockResolvedValue({
-            url: 'https://files.example.com/workbook.xlsx',
+            url: 'https://lightdash.example.com/api/v1/file/abc',
+            s3FileUrl: 'https://files.example.com/workbook.xlsx',
             numFileFailures: 0,
         });
         (task as unknown as Record<string, unknown>).createWorkbookDownloadUrl =
@@ -3549,7 +3552,7 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
         expect(page.csvUrls).toEqual([
             {
                 filename: 'Sales App',
-                path: 'https://files.example.com/workbook.xlsx',
+                path: 'https://lightdash.example.com/api/v1/file/abc',
                 localPath: 'https://files.example.com/workbook.xlsx',
                 truncated: false,
             },
@@ -6335,13 +6338,18 @@ describe('dashboard export download filenames', () => {
     });
 
     it('uploads the workbook with the dashboard name as the download filename', async () => {
-        vi.spyOn(WorkbookExportHelper, 'createWorkbookFile').mockResolvedValue({
-            worksheetCount: 2,
-            failedFileCount: 0,
-        });
-        const uploadExcel = vi
-            .fn()
-            .mockResolvedValue('https://files.example.com/workbook.xlsx');
+        vi.spyOn(WorkbookExportHelper, 'createWorkbookFile').mockImplementation(
+            async ({ outputPath }) => {
+                await writeFile(outputPath, 'workbook');
+                return { worksheetCount: 2, failedFileCount: 0 };
+            },
+        );
+        const uploadExcel = vi.fn<TaskDeps['fileStorageClient']['uploadExcel']>(
+            async (stream) => {
+                expect(await text(stream)).toBe('workbook');
+                return 'https://files.example.com/workbook.xlsx';
+            },
+        );
         const task = makeTaskWithDeps({
             fileStorageClient: asDep<'fileStorageClient'>({
                 isEnabled: () => true,
@@ -6357,7 +6365,7 @@ describe('dashboard export download filenames', () => {
                 }),
         });
 
-        await (
+        const workbook = await (
             task as unknown as {
                 createWorkbookDownloadUrl: (args: {
                     files: {
@@ -6371,7 +6379,7 @@ describe('dashboard export download filenames', () => {
                     projectUuid: string;
                     createdByUserUuid: string;
                     accessMode: PersistentDownloadFileAccessMode;
-                }) => Promise<{ url: string; numFileFailures: number }>;
+                }) => Promise<{ url: string; s3FileUrl: string }>;
             }
         ).createWorkbookDownloadUrl({
             files: [
@@ -6389,6 +6397,10 @@ describe('dashboard export download filenames', () => {
             accessMode: PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
         });
 
+        expect(workbook).toMatchObject({
+            url: 'https://lightdash.example.com/api/v1/file/abc',
+            s3FileUrl: 'https://files.example.com/workbook.xlsx',
+        });
         expect(uploadExcel).toHaveBeenCalledTimes(1);
         const [, storageKey, attachmentDownloadName] =
             uploadExcel.mock.calls[0];
