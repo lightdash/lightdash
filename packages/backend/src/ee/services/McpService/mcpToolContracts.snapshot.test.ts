@@ -1237,7 +1237,6 @@ describe('MCP tool contracts', () => {
                 queryPath: {
                     type: 'composer',
                     sqlRunnerEnabled: true,
-                    filterExpressionsEnabled: false,
                 },
             }),
         );
