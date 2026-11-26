@@ -1802,11 +1802,12 @@ describe('GoogleDriveClient', () => {
         test('bounds swap batches by bytes for rows of long text', async () => {
             const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
             useFake(fake);
-            // Four 64-character text columns, about 280 bytes per row.
+            // Four 63-character text columns, about 270 bytes per row. The
+            // cells are one character short of the long-cell bound.
             const rows = [
                 ['a', 'b', 'c', 'd'],
                 ...Array.from({ length: 60_000 }, (_, i) =>
-                    ['a', 'b', 'c', 'd'].map((c) => `${c}${i}`.padEnd(64, c)),
+                    ['a', 'b', 'c', 'd'].map((c) => `${c}${i}`.padEnd(63, c)),
                 ),
             ];
 
@@ -1824,6 +1825,159 @@ describe('GoogleDriveClient', () => {
             // 25,000 rows are about 7 MB, so two of them do not fit in 12 MB;
             // the last 10,001 rows (about 2.8 MB) join the second batch.
             expect(sizes).toEqual([25_000, 35_001]);
+        });
+
+        const makeLongRows = (count: number, columns: number, prefix = 'v') => [
+            Array.from({ length: columns }, (_, c) => `col${c}`),
+            ...Array.from({ length: count }, (_row, i) =>
+                Array.from({ length: columns }, (_cell, c) =>
+                    `${prefix}${i}-${c}-`.padEnd(64, 'x'),
+                ),
+            ),
+        ];
+        // Applies the long-cell limit to pastes only.
+        const limitPastes = (fake: GoogleSheetsFake, limit: number) => {
+            /* eslint-disable no-param-reassign */
+            fake.beforeUpdate = () => {
+                fake.longCellLimit = Infinity;
+            };
+            fake.beforeBatchUpdate = (requests) => {
+                if (hasRequest(requests, 'copyPaste')) {
+                    fake.longCellLimit = limit;
+                }
+            };
+            /* eslint-enable no-param-reassign */
+        };
+        const copySizes = (fake: GoogleSheetsFake) =>
+            copyBatches(fake).map(
+                ([copy]) =>
+                    copy.copyPaste.source.endRowIndex -
+                    copy.copyPaste.source.startRowIndex,
+            );
+
+        test('bounds swap batches at 100,000 long cells, under the bytes bound', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            // Two 64-character columns: 75,000 rows fit in 12 MB but hold
+            // 150,000 long cells, more than Google takes in one request.
+            fake.longCellLimit = 120_000;
+            useFake(fake);
+            const rows = makeLongRows(120_000, 2);
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                rows,
+            );
+
+            expect(copySizes(fake)).toEqual([50_000, 50_000, 20_001]);
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+        });
+
+        test('bounds write requests at 100,000 long cells', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            fake.longCellLimit = 110_000;
+            useFake(fake);
+            // Eight 64-character columns: 8 MB holds about 125,000 of them.
+            const rows = makeLongRows(30_000, 8);
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                rows,
+            );
+
+            fake.updateCalls.forEach((call) =>
+                expect(call.rows.length * 8).toBeLessThanOrEqual(100_008),
+            );
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+        });
+
+        test('splits a swap batch that Google rejects with "Internal error encountered", without waiting to retry', async () => {
+            const oldRows = makeLongRows(1_000, 2, 'old');
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: oldRows },
+            ]);
+            fake.longCellLimit = 60_000;
+            useFake(fake);
+            const rows = makeLongRows(60_000, 2);
+
+            const write = makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                rows,
+            );
+            // No retry delay is needed: the split halves go at once.
+            await vi.advanceTimersByTimeAsync(100);
+            await write;
+
+            // 50,000 rows (100,000 long cells) fail; each half passes.
+            expect(copySizes(fake)).toEqual([50_000, 25_000, 25_000, 10_001]);
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+            expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
+        });
+
+        test('retries a swap batch that fails with a 500 Backend Error, without splitting it', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+            let failed = false;
+            fake.beforeBatchUpdate = (requests) => {
+                if (!failed && hasRequest(requests, 'copyPaste')) {
+                    failed = true;
+                    throw googleApiError(500, 'Backend Error');
+                }
+            };
+            const rows = makeLongRows(20_000, 2);
+
+            const error = await settle(
+                makeClient().appendCsvToSheet('refresh-token', 'file-id', rows),
+            );
+
+            expect(error).toBeUndefined();
+            expect(copySizes(fake)).toEqual([20_001, 20_001]);
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+        });
+
+        test('splits a one-batch swap that Google rejects and still finishes', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeLongRows(1_000, 2, 'old') },
+            ]);
+            limitPastes(fake, 30_000);
+            useFake(fake);
+            const rows = makeLongRows(20_000, 2);
+
+            const error = await settle(
+                makeClient().appendCsvToSheet('refresh-token', 'file-id', rows),
+            );
+
+            expect(error).toBeUndefined();
+            expect(copySizes(fake)).toEqual([20_001, 10_000, 10_001]);
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+            expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
+        });
+
+        test('does not split below 1,000 rows: it retries, then fails and keeps the old rows', async () => {
+            const oldRows = makeLongRows(3_000, 2, 'old');
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: oldRows },
+            ]);
+            limitPastes(fake, 1_000);
+            useFake(fake);
+            const rows = makeLongRows(3_000, 2);
+
+            const error = await settle(
+                makeClient().appendCsvToSheet('refresh-token', 'file-id', rows),
+            );
+
+            expect(error).toBeInstanceOf(UnexpectedGoogleSheetsError);
+            expect((error as Error).message).toContain(
+                'The data in the tab was not changed.',
+            );
+            // 3,001 rows split once into 1,500 and 1,501; the first half
+            // is too small to split and is tried 4 times.
+            expect(copySizes(fake)).toEqual([
+                3_001, 1_500, 1_500, 1_500, 1_500,
+            ]);
+            expect(fake.tabValues('Sheet1')).toEqual(oldRows);
         });
 
         test('takes a 5xx on the last batch as done when the batch landed', async () => {

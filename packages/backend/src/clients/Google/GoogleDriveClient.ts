@@ -73,6 +73,11 @@ const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 // Google is known to accept, while keeping the request count low for the 60
 // writes/min/user quota.
 export const GSHEETS_WRITE_CHUNK_MAX_ROWS = 25_000;
+// Measured on Rainbow: a request fails when it holds more than about
+// 190k-240k cells of 64 or more characters, whatever its bytes or cells.
+// So every write and paste holds at most this many such cells.
+export const GSHEETS_MAX_LONG_CELLS_PER_REQUEST = 100_000;
+export const GSHEETS_LONG_CELL_CHARS = 64;
 export const GSHEETS_WRITE_CHUNK_MAX_CELLS = 250_000;
 export const GSHEETS_WRITE_CHUNK_MAX_BYTES = 8 * 1024 * 1024;
 // A batchUpdate that pastes more than ~187k such rows fails the same way,
@@ -80,9 +85,12 @@ export const GSHEETS_WRITE_CHUNK_MAX_BYTES = 8 * 1024 * 1024;
 // copies at most this much per batchUpdate. Clearing cells does not count.
 export const GSHEETS_SWAP_BATCH_MAX_ROWS = 100_000;
 export const GSHEETS_SWAP_BATCH_MAX_CELLS = 500_000;
-// A paste is limited by bytes too: a single write with four 64-character
-// text columns passed at 15.5 MB and failed at 23.3 MB.
+// Also bound by bytes, well under the 23 MB of the smallest failing request
+// that was measured.
 export const GSHEETS_SWAP_BATCH_MAX_BYTES = 12 * 1024 * 1024;
+// When Google rejects a paste with "Internal error encountered", the batch
+// is split in two and tried again, down to this size.
+export const GSHEETS_SWAP_MIN_SPLIT_ROWS = 1_000;
 // Cells per spreadsheet, counted over every tab, empty cells included.
 // Google raised it from 10M to 20M in September 2026.
 export const GOOGLE_SHEETS_CELL_LIMIT = 20_000_000;
@@ -125,76 +133,89 @@ export type GoogleSheetsWriteChunk = {
     start: number;
     end: number;
     bytes: number;
+    longCells: number;
 };
+
+const countLongCells = (row: unknown[]) =>
+    row.reduce<number>(
+        (acc, value) =>
+            typeof value === 'string' && value.length >= GSHEETS_LONG_CELL_CHARS
+                ? acc + 1
+                : acc,
+        0,
+    );
 
 export const planGoogleSheetsWriteChunks = (
     rows: unknown[][],
     maxRows: number = GSHEETS_WRITE_CHUNK_MAX_ROWS,
     maxBytes: number = GSHEETS_WRITE_CHUNK_MAX_BYTES,
     maxCells: number = GSHEETS_WRITE_CHUNK_MAX_CELLS,
+    maxLongCells: number = GSHEETS_MAX_LONG_CELLS_PER_REQUEST,
 ): { chunks: GoogleSheetsWriteChunk[]; totalBytes: number } => {
     const chunks: GoogleSheetsWriteChunk[] = [];
     let start = 0;
     let bytes = 0;
     let cells = 0;
+    let longCells = 0;
     let totalBytes = 0;
     rows.forEach((row, index) => {
         const rowBytes = Buffer.byteLength(JSON.stringify(row)) + 1;
+        const rowLongCells = countLongCells(row);
         if (
             index > start &&
             (index - start >= maxRows ||
                 bytes + rowBytes > maxBytes ||
-                cells + row.length > maxCells)
+                cells + row.length > maxCells ||
+                longCells + rowLongCells > maxLongCells)
         ) {
-            chunks.push({ start, end: index, bytes });
+            chunks.push({ start, end: index, bytes, longCells });
             start = index;
             bytes = 0;
             cells = 0;
+            longCells = 0;
         }
         bytes += rowBytes;
         cells += row.length;
+        longCells += rowLongCells;
         totalBytes += rowBytes;
     });
     if (rows.length > start) {
-        chunks.push({ start, end: rows.length, bytes });
+        chunks.push({ start, end: rows.length, bytes, longCells });
     }
     return { chunks, totalBytes };
 };
 
-// Groups whole write chunks into swap batches bounded by rows, cells and
-// bytes. Each chunk is already far under all three bounds.
+// Groups whole write chunks into swap batches bounded by rows, cells,
+// bytes and long cells. Each chunk is already within all four bounds.
 export const planGoogleSheetsSwapBatches = (
     chunks: GoogleSheetsWriteChunk[],
     columnCount: number,
     maxRows: number = GSHEETS_SWAP_BATCH_MAX_ROWS,
     maxCells: number = GSHEETS_SWAP_BATCH_MAX_CELLS,
     maxBytes: number = GSHEETS_SWAP_BATCH_MAX_BYTES,
-): Array<{ start: number; end: number; bytes: number }> =>
-    chunks.reduce<Array<{ start: number; end: number; bytes: number }>>(
-        (batches, chunk) => {
-            const last = batches.at(-1);
-            if (
-                last &&
-                chunk.end - last.start <= maxRows &&
-                (chunk.end - last.start) * columnCount <= maxCells &&
-                last.bytes + chunk.bytes <= maxBytes
-            ) {
-                return [
-                    ...batches.slice(0, -1),
-                    {
-                        start: last.start,
-                        end: chunk.end,
-                        bytes: last.bytes + chunk.bytes,
-                    },
-                ];
-            }
+    maxLongCells: number = GSHEETS_MAX_LONG_CELLS_PER_REQUEST,
+): GoogleSheetsWriteChunk[] =>
+    chunks.reduce<GoogleSheetsWriteChunk[]>((batches, chunk) => {
+        const last = batches.at(-1);
+        if (
+            last &&
+            chunk.end - last.start <= maxRows &&
+            (chunk.end - last.start) * columnCount <= maxCells &&
+            last.bytes + chunk.bytes <= maxBytes &&
+            last.longCells + chunk.longCells <= maxLongCells
+        ) {
             return [
-                ...batches,
-                { start: chunk.start, end: chunk.end, bytes: chunk.bytes },
+                ...batches.slice(0, -1),
+                {
+                    start: last.start,
+                    end: chunk.end,
+                    bytes: last.bytes + chunk.bytes,
+                    longCells: last.longCells + chunk.longCells,
+                },
             ];
-        },
-        [],
-    );
+        }
+        return [...batches, { ...chunk }];
+    }, []);
 
 const formatCount = (value: number) => value.toLocaleString('en-US');
 
@@ -1595,42 +1616,81 @@ export class GoogleDriveClient {
                   ]
                 : requests;
 
-        await pieces.reduce(async (previous, piece, index) => {
-            await previous;
-            const isLast = index === pieces.length - 1;
+        let batchCount = 0;
+        // Google rejects a paste that holds too much with "Internal error
+        // encountered". Then send the two halves of the batch, and so on,
+        // down to GSHEETS_SWAP_MIN_SPLIT_ROWS rows. The tab keeps old rows
+        // where a rejected paste would have gone, because a batch is atomic.
+        const runPiece = async (
+            piece: { start: number; end: number },
+            isFirst: boolean,
+            isLast: boolean,
+        ): Promise<void> => {
             const requests = withFilterOff([
-                ...(index === 0 ? growRequests : []),
+                ...(isFirst ? growRequests : []),
                 copy(piece),
                 ...(isLast ? finishRequests : []),
             ]);
+            const rows = piece.end - piece.start;
+            const stopOn =
+                rows >= 2 * GSHEETS_SWAP_MIN_SPLIT_ROWS
+                    ? GoogleDriveClient.isRejectedPaste
+                    : undefined;
             const batchStartedAt = Date.now();
             const label = `tab swap of rows ${piece.start + 1}-${piece.end}`;
-            if (isLast) {
-                await GoogleDriveClient.runFinalBatch(sheets, fileId, {
-                    requests,
-                    sheetId: args.sheetId,
-                    runId: args.runId,
-                    budget: args.budget,
-                    label,
-                });
-            } else {
-                await GoogleDriveClient.withWriteRetry(
-                    () =>
-                        sheets.spreadsheets.batchUpdate(
-                            {
-                                spreadsheetId: fileId,
-                                requestBody: { requests },
-                            },
-                            { retry: false },
-                        ),
-                    label,
-                    args.budget,
+            try {
+                if (isLast) {
+                    await GoogleDriveClient.runFinalBatch(sheets, fileId, {
+                        requests,
+                        sheetId: args.sheetId,
+                        runId: args.runId,
+                        budget: args.budget,
+                        label,
+                        stopOn,
+                    });
+                } else {
+                    await GoogleDriveClient.withWriteRetry(
+                        () =>
+                            sheets.spreadsheets.batchUpdate(
+                                {
+                                    spreadsheetId: fileId,
+                                    requestBody: { requests },
+                                },
+                                { retry: false },
+                            ),
+                        label,
+                        args.budget,
+                        stopOn,
+                    );
+                }
+            } catch (e) {
+                if (!stopOn?.(e)) throw e;
+                const middle = piece.start + Math.floor(rows / 2);
+                Logger.warn(
+                    `Google Sheets rejected the ${label} ("Internal error encountered"). Sending rows ${piece.start + 1}-${middle} and ${middle + 1}-${piece.end} in two batches`,
                 );
+                await runPiece(
+                    { start: piece.start, end: middle },
+                    isFirst,
+                    false,
+                );
+                await runPiece(
+                    { start: middle, end: piece.end },
+                    false,
+                    isLast,
+                );
+                return;
             }
+            batchCount += 1;
             args.onRowsInTab(piece.end);
             Logger.info(
-                `Copied rows ${piece.start + 1}-${piece.end} of ${args.rowCount} into the Google Sheets tab (batch ${index + 1} of ${pieces.length}) in ${Date.now() - batchStartedAt} ms`,
+                `Copied rows ${piece.start + 1}-${piece.end} of ${args.rowCount} into the Google Sheets tab (batch ${batchCount}, ${pieces.length} planned) in ${Date.now() - batchStartedAt} ms`,
             );
+        };
+
+        await pieces.reduce(async (previous, piece, index) => {
+            await previous;
+            await runPiece(piece, index === 0, index === pieces.length - 1);
         }, Promise.resolve());
     }
 
@@ -1687,6 +1747,7 @@ export class GoogleDriveClient {
             runId: string;
             budget: RetryBudget;
             label: string;
+            stopOn?: (raw: AnyType) => boolean;
         },
     ) {
         const requests = [
@@ -1723,6 +1784,7 @@ export class GoogleDriveClient {
             },
             args.label,
             args.budget,
+            args.stopOn,
         );
     }
 
@@ -1820,15 +1882,28 @@ export class GoogleDriveClient {
         );
     }
 
+    // A paste that holds too much fails with "Internal error encountered"
+    // within seconds, and fails again when it is sent again.
+    private static isRejectedPaste(raw: AnyType) {
+        return (
+            GoogleDriveClient.httpStatus(raw) === 500 &&
+            getErrorMessage(raw).includes('Internal error encountered')
+        );
+    }
+
+    // stopOn: errors that the caller handles itself. They are thrown as
+    // Google sent them, without a retry.
     private static async withWriteRetry<T>(
         write: () => Promise<T>,
         label: string,
         budget?: RetryBudget,
+        stopOn?: (raw: AnyType) => boolean,
         attempt = 0,
     ): Promise<T> {
         try {
             return await write();
         } catch (raw) {
+            if (stopOn?.(raw)) throw raw;
             const mapped = GoogleDriveClient.toGoogleSheetsError(raw);
             if (
                 !GoogleDriveClient.isRetryableWriteError(raw, mapped) ||
@@ -1871,6 +1946,7 @@ export class GoogleDriveClient {
                 write,
                 label,
                 budget,
+                stopOn,
                 attempt + 1,
             );
         }

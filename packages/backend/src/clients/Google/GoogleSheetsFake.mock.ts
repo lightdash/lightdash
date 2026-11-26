@@ -68,6 +68,10 @@ export class GoogleSheetsFake {
 
     cellLimit = 20_000_000;
 
+    // Like Google, a request that holds too many cells of 64 or more
+    // characters fails with "Internal error encountered".
+    longCellLimit = Infinity;
+
     nextSheetId = 1;
 
     nextMetadataId = 1000;
@@ -181,6 +185,7 @@ export class GoogleSheetsFake {
                         };
                         this.updateCalls.push(call);
                         this.beforeUpdate(call, this.updateCalls.length - 1);
+                        this.checkLongCells(requestBody.values);
                         const { sheet, startRow, startColumn } =
                             this.resolveRange(range);
                         // Google grows the grid only when the start cell
@@ -376,6 +381,17 @@ export class GoogleSheetsFake {
         };
     }
 
+    private checkLongCells(rows: unknown[][]) {
+        const count = rows.reduce<number>(
+            (acc, row) =>
+                acc +
+                row.filter((v) => typeof v === 'string' && v.length >= 64)
+                    .length,
+            0,
+        );
+        if (count > this.longCellLimit) throw googleInternalError();
+    }
+
     // Apply requests at once, as another client would, from inside a hook.
     applyNow(requests: unknown[]) {
         return this.applyAtomically(requests);
@@ -479,6 +495,11 @@ export class GoogleSheetsFake {
                 ) {
                     throw googleApiError(400, 'Range exceeds grid limits');
                 }
+                this.checkLongCells(
+                    source.values
+                        .slice(s.r0, s.r1)
+                        .map((row) => (row ?? []).slice(s.c0, s.c1)),
+                );
                 for (let r = s.r0; r < s.r1; r += 1) {
                     const target = d.r0 + r - s.r0;
                     // Like Google, a paste skips rows a basic filter hides.
