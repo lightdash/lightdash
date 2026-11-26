@@ -1161,8 +1161,7 @@ type AiAgentServiceDependencies = {
     projectContextService: ProjectContextService;
     semanticStudioService: SemanticStudioService;
     semanticStudioCheckoutService: SemanticStudioCheckoutService;
-    /** Absent where no other kind of thread sets up its own saves. */
-    findWritebackSetup?: FindAgentWritebackSetup;
+    findWritebackSetup: FindAgentWritebackSetup;
     incrementalDbtCompileService: IncrementalDbtCompileService;
     writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
@@ -2349,8 +2348,7 @@ export class AiAgentService extends BaseService {
         this.semanticStudioService = dependencies.semanticStudioService;
         this.semanticStudioCheckoutService =
             dependencies.semanticStudioCheckoutService;
-        this.findWritebackSetup =
-            dependencies.findWritebackSetup ?? (async () => null);
+        this.findWritebackSetup = dependencies.findWritebackSetup;
         this.incrementalDbtCompileService =
             dependencies.incrementalDbtCompileService;
         this.writebackPreviewService = dependencies.writebackPreviewService;
@@ -13938,7 +13936,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 (await this.findWritebackSetup({
                     user,
                     projectUuid,
-                    threadUuid: payload.aiThreadUuid,
+                    threadCreatedFrom: prompt.threadCreatedFrom,
                 })) ?? DEFAULT_AGENT_WRITEBACK_SETUP;
 
             // This job is enqueued mid-step, so it can outrun the onStepEnd

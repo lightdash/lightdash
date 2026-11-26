@@ -1,4 +1,4 @@
-import { type SessionUser } from '@lightdash/common';
+import { type AiThreadCreatedFrom, type SessionUser } from '@lightdash/common';
 import { type ModelCatalogue } from '../models';
 import {
     type AiAgentDependencies,
@@ -51,7 +51,8 @@ export const DEFAULT_AGENT_WRITEBACK_SETUP: AgentWritebackSetup = {
 export type FindAgentWritebackSetup = (save: {
     user: SessionUser;
     projectUuid: string;
-    threadUuid: string;
+    /** Where the thread was started, which the save job has already loaded. */
+    threadCreatedFrom: AiThreadCreatedFrom | undefined;
 }) => Promise<AgentWritebackSetup | null>;
 
 /** The tools only some kinds of thread have. */
