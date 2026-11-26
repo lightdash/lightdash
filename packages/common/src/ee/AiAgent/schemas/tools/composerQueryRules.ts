@@ -15,7 +15,7 @@ export const COMPOSER_RULES = {
     sqlNode:
         "Explores are governed and reusable, so use a `sql` node only when the user points you at a raw table or asks for SQL, or when the semantic layer cannot produce the result: a table outside every explore, a join key no explore exposes as a dimension, a computation whose row-level inputs would exceed a node's row limit, or warehouse-specific syntax.",
     noExplore:
-        'When no explore covers the request, say so and offer alternatives when there are any.',
+        'When no explore covers the request and the user names no warehouse table, say so and offer alternatives when there are any. When they ask for raw SQL without the table or column names it needs, ask for them.',
     duckdbCompute:
         "Compute what neither a metric query nor a merge calculation expresses in a duckdb node: over one semanticLayer node's results, arithmetic across metrics, % of total, the change between a metric and its period comparison, running totals, moving averages and ranking; over any node, aggregates of aggregated metrics, top N per group, cohort comparisons and reshaping.",
     pythonNode:

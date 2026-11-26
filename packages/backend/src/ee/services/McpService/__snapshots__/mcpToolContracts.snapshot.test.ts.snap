@@ -10903,7 +10903,7 @@ Plan the pipeline:
 - Combine results any other way with a duckdb node: a join key that has to be computed or truncated to a shared grain, a union, or filtering and aggregating after the join.
 - Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.
 - Explores are governed and reusable, so use a \`sql\` node only when the user points you at a raw table or asks for SQL, or when the semantic layer cannot produce the result: a table outside every explore, a join key no explore exposes as a dimension, a computation whose row-level inputs would exceed a node's row limit, or warehouse-specific syntax.
-- When no explore covers the request, say so and offer alternatives when there are any.
+- When no explore covers the request and the user names no warehouse table, say so and offer alternatives when there are any. When they ask for raw SQL without the table or column names it needs, ask for them.
 - When a follow-up needs a new query, plan its pipeline as for a first question: the fewest nodes from source to result, counting the earlier nodes it reads, and among such plans the one that reads earlier nodes unchanged.
 
 Reuse earlier nodes: if a node succeeds before query returns, the result has a sessionId that saves finished nodes. On a follow-up, pass it and read saved nodes by node id in "references" or merge "sources", submitting only the new nodes; they bring what they read, cached when possible. A saved node id names one node for the whole session, so give a changed node a new node id; resubmit a failed or unfinished node under the same id.
