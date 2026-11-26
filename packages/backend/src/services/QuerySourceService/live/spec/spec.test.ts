@@ -113,6 +113,10 @@ describe('live integration specs', () => {
               "rating": "medium",
               "score": 3,
             },
+            "supabase": {
+              "rating": "easy",
+              "score": 7,
+            },
             "youtube_analytics": {
               "rating": "medium",
               "score": 3,

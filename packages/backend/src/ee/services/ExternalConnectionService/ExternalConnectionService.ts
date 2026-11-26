@@ -1917,11 +1917,14 @@ export class ExternalConnectionService extends BaseService {
                 externalConnectionUuid,
                 getInitialLiveSourceFieldEdits({
                     scannedFields,
+                    // An explore made only of scanned fields starts with all of them
                     isExistingSource:
-                        await this.projectModel.hasApiSourceExplores(
+                        getLiveIntegration(apiSource.connector).scan
+                            ?.inUseByDefault === true ||
+                        (await this.projectModel.hasApiSourceExplores(
                             projectUuid,
                             externalConnectionUuid,
-                        ),
+                        )),
                 }),
             );
         }
