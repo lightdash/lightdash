@@ -1625,6 +1625,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                             data-edit-canvas={
                                 isEditErgonomicsEnabled ? true : undefined
                             }
+                            // In view too, so entering edit moves no tile
+                            data-grip-room={
+                                editErgonomicsFlag?.enabled === true
+                                    ? true
+                                    : undefined
+                            }
                             data-canvas-background={
                                 isEditErgonomicsEnabled
                                     ? canvasBackground
