@@ -805,7 +805,7 @@ the sync off or email the owner.
 */
 export class GoogleSheetsSupersededError extends LightdashError {
     constructor(
-        message = 'A newer run of this Google Sheets sync took over the tab, so this run stopped. The newer run writes the data.',
+        message = 'A newer run took over this tab, so this run stopped.',
         data: { [key: string]: AnyType } = {},
     ) {
         super({

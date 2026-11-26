@@ -129,6 +129,21 @@ const syncRunStartedAt = (runId: string): number | undefined =>
         ? parseInt(runId.slice(0, 9), 36)
         : undefined;
 
+// Run ids are wall-clock times. An id far in the future comes from a worker
+// with a wrong clock: treat it as stale, so it never blocks a later run.
+const SYNC_RUN_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
+const isFutureRunId = (runId: string) => {
+    const startedAt = syncRunStartedAt(runId);
+    return (
+        startedAt !== undefined &&
+        startedAt > Date.now() + SYNC_RUN_FUTURE_TOLERANCE_MS
+    );
+};
+
+// True when `other` is a newer run than `runId` that can still be live.
+const isNewerSyncRun = (other: string | undefined, runId: string) =>
+    other !== undefined && other > runId && !isFutureRunId(other);
+
 export type GoogleSheetsWriteChunk = {
     start: number;
     end: number;
@@ -962,7 +977,11 @@ export class GoogleDriveClient {
             const id = stagingRunId(sheet);
             if (id === undefined) return false;
             const startedAt = syncRunStartedAt(id);
-            return startedAt === undefined || startedAt < staleBefore;
+            return (
+                startedAt === undefined ||
+                startedAt < staleBefore ||
+                isFutureRunId(id)
+            );
         });
 
         const rowCount = results.length;
@@ -1103,7 +1122,7 @@ export class GoogleDriveClient {
                             const id = stagingRunId(sheet);
                             return id !== undefined &&
                                 sheet.sheetId !== ownTab &&
-                                id < runId
+                                (id < runId || isFutureRunId(id))
                                 ? [sheet.sheetId]
                                 : [];
                         }),
@@ -1251,7 +1270,7 @@ export class GoogleDriveClient {
                     `Stopped the Google Sheets write to the tab "${tabTitle}": a newer sync of the same tab took over (${getErrorMessage(e)})`,
                 );
                 throw new GoogleSheetsSupersededError(
-                    `A newer run of this Google Sheets sync took over the tab "${tabTitle}", so this run stopped. The newer run writes the data.`,
+                    `A newer run took over the tab "${tabTitle}", so this run stopped.`,
                 );
             }
             if (ownSheetId !== undefined) {
@@ -1401,7 +1420,7 @@ export class GoogleDriveClient {
         if (
             !target ||
             !list.some(({ sheetId }) => sheetId === args.ownSheetId) ||
-            (target.claim !== undefined && target.claim > args.runId)
+            isNewerSyncRun(target.claim, args.runId)
         ) {
             throw new UnexpectedGoogleSheetsError(
                 'A newer sync of this tab took over, or its staging tab was deleted',
@@ -1462,7 +1481,7 @@ export class GoogleDriveClient {
             const claim = list.find(
                 ({ sheetId }) => sheetId === args.sheetId,
             )?.claim;
-            return claim !== undefined && claim > args.runId;
+            return isNewerSyncRun(claim, args.runId);
         } catch {
             return false;
         }
