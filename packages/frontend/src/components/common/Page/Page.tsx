@@ -12,6 +12,7 @@ import { useImpersonation } from '../../../hooks/user/useImpersonation';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
+import { useIsLeftNavigationShown } from '../../AppSidebar/useIsLeftNavigationShown';
 import { DocumentTitle } from '../DocumentTitle';
 import sidebarDrawerClasses from '../SidebarDrawer.module.css';
 import { StableContent } from '../StableContent';
@@ -103,6 +104,9 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     fullPageScroll = false,
     children,
 }) => {
+    // The sidebar's Help menu carries the version and the docs link.
+    const isLeftNavigationShown = useIsLeftNavigationShown();
+    const showsFooter = withFooter && !isLeftNavigationShown;
     const getUiString = useUiStrings();
     const compact = useMatches(
         { base: true, sm: false },
@@ -224,7 +228,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                     data-two-sidebars={
                         (!!sidebar && !!rightSidebar) || undefined
                     }
-                    data-with-footer={withFooter}
+                    data-with-footer={showsFooter}
                     data-full-height={withFullHeight}
                     data-full-page-scroll={fullPageScroll}
                     data-fit-content={withFitContent}
@@ -316,7 +320,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                         </StableContent>
                     )}
 
-                {withFooter && !withSidebarFooter ? <AboutFooter /> : null}
+                {showsFooter && !withSidebarFooter ? <AboutFooter /> : null}
             </Box>
         </>
     );
