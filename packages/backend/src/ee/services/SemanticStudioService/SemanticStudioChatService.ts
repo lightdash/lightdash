@@ -1,4 +1,6 @@
+import { subject } from '@casl/ability';
 import {
+    ForbiddenError,
     NotFoundError,
     type AiWebAppThreadCreatedFrom,
     type ApiAiAgentThreadCreateRequest,
@@ -6,20 +8,26 @@ import {
     type ApiAiAgentThreadStreamRequest,
     type SessionUser,
 } from '@lightdash/common';
-import { fromSession } from '../../../auth/account';
+import { BaseService } from '../../../services/BaseService';
+import { type AiAgentModel } from '../../models/AiAgentModel';
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
-import { type AiAgentService } from '../AiAgentService/AiAgentService';
+import {
+    type AiAgentService,
+    type AuthorizedAgentThread,
+} from '../AiAgentService/AiAgentService';
+import { type SemanticStudioService } from './SemanticStudioService';
 
 export type SemanticStudioChatServiceArguments = {
     ai: Pick<
         AiAgentService,
-        | 'getAgentThread'
-        | 'createAgentThread'
-        | 'createAgentThreadMessage'
-        | 'streamAgentThreadResponse'
-        | 'interruptAgentThreadMessage'
-        | 'createAgentThreadMessageSteer'
-        | 'generateThreadTitle'
+        | 'getIsCopilotEnabled'
+        | 'getThreadForAuthorized'
+        | 'createThreadForAgent'
+        | 'createMessageForAuthorized'
+        | 'streamResponseForAuthorized'
+        | 'interruptMessageForAuthorized'
+        | 'steerMessageForAuthorized'
+        | 'generateTitleForAuthorized'
     >;
     checkout: {
         getBuilderAgent: (
@@ -27,6 +35,8 @@ export type SemanticStudioChatServiceArguments = {
             projectUuid: string,
         ) => Promise<{ uuid: string }>;
     };
+    studio: Pick<SemanticStudioService, 'getStatus'>;
+    aiAgentModel: Pick<AiAgentModel, 'getAgent' | 'getThread'>;
     workspaceModel: Pick<
         SemanticStudioWorkspaceModel,
         'findStudioThreadAgentUuid'
@@ -36,29 +46,46 @@ export type SemanticStudioChatServiceArguments = {
 type ThreadRef = { projectUuid: string; threadUuid: string };
 type MessageRef = ThreadRef & { messageUuid: string };
 
-/** The Studio chat's own way in: it finds the agent a conversation runs on, so callers never name one. */
-export class SemanticStudioChatService {
+/** The Studio chat's own way in: it finds the agent a conversation runs on and decides who may use it. */
+export class SemanticStudioChatService extends BaseService {
     private readonly ai: SemanticStudioChatServiceArguments['ai'];
 
     private readonly checkout: SemanticStudioChatServiceArguments['checkout'];
 
+    private readonly studio: SemanticStudioChatServiceArguments['studio'];
+
+    private readonly aiAgentModel: SemanticStudioChatServiceArguments['aiAgentModel'];
+
     private readonly workspaceModel: SemanticStudioChatServiceArguments['workspaceModel'];
 
-    constructor({
-        ai,
-        checkout,
-        workspaceModel,
-    }: SemanticStudioChatServiceArguments) {
-        this.ai = ai;
-        this.checkout = checkout;
-        this.workspaceModel = workspaceModel;
+    constructor(args: SemanticStudioChatServiceArguments) {
+        super();
+        this.ai = args.ai;
+        this.checkout = args.checkout;
+        this.studio = args.studio;
+        this.aiAgentModel = args.aiAgentModel;
+        this.workspaceModel = args.workspaceModel;
     }
 
-    // Older conversations run on an ordinary agent, newer ones on the built-in one.
-    private async getThreadAgentUuid({
-        projectUuid,
-        threadUuid,
-    }: ThreadRef): Promise<string> {
+    private async assertCopilotEnabled(user: SessionUser): Promise<void> {
+        if (!(await this.ai.getIsCopilotEnabled(user))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+    }
+
+    // A Studio chat is for someone who can use Studio here, and is its owner's or anyone's who manages agents.
+    private async authorizeThread(
+        user: SessionUser,
+        { projectUuid, threadUuid }: ThreadRef,
+        { checksCopilot, refusal }: { checksCopilot: boolean; refusal: string },
+    ): Promise<AuthorizedAgentThread> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        if (checksCopilot) await this.assertCopilotEnabled(user);
+
+        // Older conversations run on an ordinary agent, newer ones on the built-in one.
         const agentUuid = await this.workspaceModel.findStudioThreadAgentUuid(
             projectUuid,
             threadUuid,
@@ -66,7 +93,32 @@ export class SemanticStudioChatService {
         if (!agentUuid) {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
-        return agentUuid;
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+
+        const { enabled: canUseStudio } = await this.studio.getStatus(
+            user,
+            projectUuid,
+        );
+        const isTheirs = thread.user.uuid === user.userUuid;
+        if (
+            !canUseStudio ||
+            (!isTheirs &&
+                this.createAuditedAbility(user).cannot(
+                    'manage',
+                    subject('AiAgent', { organizationUuid, projectUuid }),
+                ))
+        ) {
+            throw new ForbiddenError(refusal);
+        }
+        return { agent, thread };
     }
 
     async createThread(
@@ -75,20 +127,31 @@ export class SemanticStudioChatService {
         body: ApiAiAgentThreadCreateRequest,
         surface: AiWebAppThreadCreatedFrom,
     ) {
-        const agent = await this.checkout.getBuilderAgent(user, projectUuid);
-        return this.ai.createAgentThread(
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        // The handout checks AI is live and that this person can use Studio here.
+        const { uuid: agentUuid } = await this.checkout.getBuilderAgent(
             user,
-            agent.uuid,
+            projectUuid,
+        );
+        await this.assertCopilotEnabled(user);
+        return this.ai.createThreadForAgent(
+            user,
+            await this.aiAgentModel.getAgent({ organizationUuid, agentUuid }),
             { ...body, createdFrom: 'semantic_studio' },
             surface,
         );
     }
 
     async getThread(user: SessionUser, ref: ThreadRef) {
-        return this.ai.getAgentThread(
+        return this.ai.getThreadForAuthorized(
             user,
-            await this.getThreadAgentUuid(ref),
-            ref.threadUuid,
+            await this.authorizeThread(user, ref, {
+                checksCopilot: true,
+                refusal: 'Insufficient permissions to view this thread',
+            }),
         );
     }
 
@@ -97,10 +160,13 @@ export class SemanticStudioChatService {
         ref: ThreadRef,
         body: ApiAiAgentThreadMessageCreateRequest,
     ) {
-        return this.ai.createAgentThreadMessage(
+        return this.ai.createMessageForAuthorized(
             user,
-            await this.getThreadAgentUuid(ref),
-            ref.threadUuid,
+            await this.authorizeThread(user, ref, {
+                checksCopilot: true,
+                refusal:
+                    'Insufficient permissions to create messages for this thread',
+            }),
             body,
         );
     }
@@ -110,35 +176,53 @@ export class SemanticStudioChatService {
         ref: ThreadRef,
         body: ApiAiAgentThreadStreamRequest | undefined,
     ) {
-        return this.ai.streamAgentThreadResponse(user, {
-            agentUuid: await this.getThreadAgentUuid(ref),
-            threadUuid: ref.threadUuid,
-            enableSqlMode: body?.enableSqlMode,
-            enableFastDecisions: body?.enableFastDecisions ?? true,
-            autoApproveSql: body?.autoApproveSql ?? false,
-            toolHints: body?.toolHints ?? [],
-        });
+        return this.ai.streamResponseForAuthorized(
+            user,
+            // The turn itself checks AI is on, and records why when it is not.
+            await this.authorizeThread(user, ref, {
+                checksCopilot: false,
+                refusal: 'Insufficient permissions to access this agent thread',
+            }),
+            {
+                enableSqlMode: body?.enableSqlMode,
+                enableFastDecisions: body?.enableFastDecisions ?? true,
+                autoApproveSql: body?.autoApproveSql ?? false,
+                toolHints: body?.toolHints ?? [],
+            },
+        );
     }
 
     async generateTitle(user: SessionUser, ref: ThreadRef) {
-        return this.ai.generateThreadTitle(user, {
-            agentUuid: await this.getThreadAgentUuid(ref),
-            threadUuid: ref.threadUuid,
-        });
+        return this.ai.generateTitleForAuthorized(
+            user,
+            await this.authorizeThread(user, ref, {
+                checksCopilot: true,
+                refusal: 'Insufficient permissions to access this agent thread',
+            }),
+        );
     }
 
     async interruptMessage(user: SessionUser, ref: MessageRef) {
-        return this.ai.interruptAgentThreadMessage(fromSession(user), {
-            ...ref,
-            agentUuid: await this.getThreadAgentUuid(ref),
-        });
+        return this.ai.interruptMessageForAuthorized(
+            user,
+            await this.authorizeThread(user, ref, {
+                checksCopilot: false,
+                refusal:
+                    'Insufficient permissions to interrupt this agent thread',
+            }),
+            ref.messageUuid,
+        );
     }
 
     async steerMessage(user: SessionUser, ref: MessageRef, message: string) {
-        return this.ai.createAgentThreadMessageSteer(fromSession(user), {
-            ...ref,
-            agentUuid: await this.getThreadAgentUuid(ref),
+        return this.ai.steerMessageForAuthorized(
+            user,
+            await this.authorizeThread(user, ref, {
+                checksCopilot: false,
+                refusal: 'Insufficient permissions to steer this agent thread',
+            }),
+            ref.messageUuid,
             message,
-        });
+        );
     }
 }

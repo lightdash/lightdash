@@ -479,6 +479,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     ai: repository.getAiAgentService<AiAgentService>(),
                     checkout:
                         repository.getSemanticStudioCheckoutService<SemanticStudioCheckoutService>(),
+                    studio: repository.getSemanticStudioService<SemanticStudioService>(),
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     workspaceModel:
                         models.getSemanticStudioWorkspaceModel<SemanticStudioWorkspaceModel>(),
                 }),

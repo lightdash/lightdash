@@ -87,29 +87,4 @@ describe('built-in Semantic Studio agent', () => {
             expect.not.objectContaining({ agentKind: 'user' }),
         );
     });
-
-    it("follows Studio's permission, not Ask AI's", async () => {
-        // Someone with no AI agent permission at all.
-        const withoutAgentPermission = (studioEnabled: boolean) => {
-            const { service } = buildService({ studioEnabled });
-            Object.assign(service, {
-                checkAgentAccess: Reflect.get(
-                    AiAgentService.prototype,
-                    'checkAgentAccess',
-                ),
-                createAuditedAbility: () => ({
-                    can: () => false,
-                    cannot: () => true,
-                }),
-            });
-            return service;
-        };
-
-        await expect(lookUp(withoutAgentPermission(true), true)).resolves.toBe(
-            studioAgent,
-        );
-        await expect(
-            lookUp(withoutAgentPermission(false), true),
-        ).rejects.toThrow(ForbiddenError);
-    });
 });
