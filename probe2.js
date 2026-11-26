@@ -37,6 +37,12 @@ const variants = {
     'tableId + criteria map': (t) => ({ tableId: t.tableId, criteria: { 1: spec[0].filterCriteria } }),
     'tableId + filterSpecs hiddenValues': (t) => ({ tableId: t.tableId, filterSpecs: [{ columnIndex: 1, filterCriteria: { hiddenValues: ['20', '30'] } }] }),
     'range (whole sheet), filterSpecs': (t) => ({ range: { sheetId: t.sheetId }, filterSpecs: spec }),
+    'tableId + filterSpecs TEXT_CONTAINS col 2': (t) => ({ tableId: t.tableId, filterSpecs: [{ columnIndex: 2, filterCriteria: { condition: { type: 'TEXT_CONTAINS', values: [{ userEnteredValue: '1' }] } } }] }),
+    'tableId + sortSpecs only': (t) => ({ tableId: t.tableId, sortSpecs: [{ dimensionIndex: 0, sortOrder: 'DESCENDING' }] }),
+};
+const twoStep = {
+    'tableId only, then range = table range + filterSpecs': (t) => [{ tableId: t.tableId }, { range: t.range, filterSpecs: spec }],
+    'tableId only, then tableId + filterSpecs': (t) => [{ tableId: t.tableId }, { tableId: t.tableId, filterSpecs: spec }],
 };
 
 (async () => {
@@ -47,6 +53,14 @@ const variants = {
             const r = await L.batchx(t.sid, [{ setBasicFilter: { filter: mk(t) } }]);
             const s = await bf(t.sid);
             log({ step: `create: ${name}`, sid: t.sid, status: r.status, error: r.error?.message, basicFilter: s.basicFilter, hiddenRows: (await hidden(t.sid)).length });
+        }
+        for (const [name, mk] of Object.entries(twoStep)) {
+            const t = await fresh(name.replace(/[^a-z]/gi, '').slice(0, 20));
+            const [a, b] = mk(t);
+            const r1 = await L.batchx(t.sid, [{ setBasicFilter: { filter: a } }]);
+            const r2 = await L.batchx(t.sid, [{ setBasicFilter: { filter: b } }]);
+            const s = await bf(t.sid);
+            log({ step: `create: ${name}`, sid: t.sid, status1: r1.status, status2: r2.status, error2: r2.error?.message, basicFilter: s.basicFilter, hiddenRows: (await hidden(t.sid)).length });
         }
         return;
     }
