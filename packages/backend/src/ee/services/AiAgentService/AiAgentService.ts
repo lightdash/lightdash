@@ -588,6 +588,10 @@ import {
     type StorableSqlApprovalDecisionRecord,
 } from '../ai/tools/sqlApprovals';
 import {
+    DEFAULT_AGENT_TURN_SETUP,
+    DEFAULT_AGENT_WRITEBACK_SETUP,
+} from '../ai/types/agentTurnSetup';
+import {
     AiAgentArgs,
     AiAgentDependencies,
     type AgentLiveSource,
@@ -751,8 +755,6 @@ import { type IncrementalDbtCompileService } from '../SemanticStudioService/Incr
 import { type SemanticStudioCheckoutService } from '../SemanticStudioService/SemanticStudioCheckoutService';
 import { type SemanticStudioService } from '../SemanticStudioService/SemanticStudioService';
 import { getStudioAgentTools } from '../SemanticStudioService/studioAgentTools';
-import { getStudioProjectMode } from '../SemanticStudioService/studioTurn';
-import { studioTurnCard } from '../SemanticStudioService/studioTurnCard';
 import {
     parseAgentSelectionValue,
     resolveAgentSelectionPrompt,
@@ -13668,6 +13670,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 );
                 return;
             }
+            // A Studio thread's saves are set up by Studio; every other thread's are ordinary ones.
+            const writebackSetup = isSemanticStudioThread(
+                prompt.threadCreatedFrom,
+            )
+                ? this.semanticStudioCheckoutService.getAgentWritebackSetup(
+                      user,
+                      projectUuid,
+                  )
+                : DEFAULT_AGENT_WRITEBACK_SETUP;
 
             // This job is enqueued mid-step, so it can outrun the onStepEnd
             // insert of its own tool-result row — wait for it before any
@@ -13679,7 +13690,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             let changedModels: string[] | null = null;
             try {
                 const runArgs = {
-                    ...(isSemanticStudioThread(prompt.threadCreatedFrom)
+                    ...(writebackSetup.continuesThreadPullRequest
                         ? { continuesThreadPullRequest: true }
                         : {}),
                     agentPermissionsApply: true,
@@ -13858,18 +13869,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     });
             }
 
-            if (
-                result.prUrl &&
-                result.commitSha &&
-                isSemanticStudioThread(prompt.threadCreatedFrom)
-            ) {
-                await this.semanticStudioCheckoutService
-                    .queueBranchCompile(
-                        user,
-                        projectUuid,
-                        result.prUrl,
-                        'agent',
-                    )
+            if (result.prUrl && result.commitSha && writebackSetup.onSaved) {
+                await writebackSetup
+                    .onSaved(result.prUrl)
                     .catch((error: unknown) => {
                         Logger.warn(
                             `AiAgent.runEditDbtProjectPipeline: failed to queue a compile of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
@@ -13924,7 +13926,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     !reviewRemediation
                 ) {
                     // Studio shows the pull request now; building its preview can take a minute.
-                    if (isSemanticStudioThread(prompt.threadCreatedFrom)) {
+                    if (writebackSetup.showsPullRequestBeforePreview) {
                         if (assertPublishAllowed) await assertPublishAllowed();
                         await storeResult(null, new Date().toISOString());
                         toolResultWritten = true;
@@ -17013,15 +17015,20 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 const decisionUsage = decisionClient
                     ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
                     : undefined;
-                const isStudioThread = isSemanticStudioThread(
+                // A Studio thread's turns are set up by Studio; every other thread is an ordinary one.
+                const turnSetup = isSemanticStudioThread(
                     prompt.threadCreatedFrom,
-                );
-                // Studio never asks, whichever request started the turn.
+                )
+                    ? await this.semanticStudioCheckoutService.getAgentTurnSetup(
+                          user,
+                          prompt.projectUuid,
+                      )
+                    : DEFAULT_AGENT_TURN_SETUP;
                 const autoApproveSqlForUser =
-                    (options.autoApproveSql ?? false) || isStudioThread;
-                // Fast decisions route analytics turns; this thread only edits models.
+                    (options.autoApproveSql ?? false) ||
+                    turnSetup.autoApproveSql;
                 const decisions =
-                    decisionUsage && !isStudioThread
+                    decisionUsage && turnSetup.usesFastDecisions
                         ? decisionClient?.withUsage(decisionUsage)
                         : undefined;
                 const { preModelDecisions, fastExperienceEnabled } =
@@ -17493,9 +17500,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                             user,
                             projectUuid: prompt.projectUuid,
                             agentUuid: agentSettings.uuid,
-                            // Studio's loadout takes no MCP tools, so its turns do not wait on those servers.
                             includeAttachedMcpServers:
-                                !isStudioThread &&
+                                turnSetup.waitsOnMcpServers &&
                                 shouldIncludeAttachedMcpServers(
                                     responseExecution.mode,
                                     responseExecution.mode === 'deep_research'
@@ -17560,29 +17566,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                         user,
                         featureFlagId: FeatureFlags.AiFilterExpressions,
                     });
-                // Studio's chat offers a change as a choice, so its threads ask without the flag.
                 const enableAskUser =
                     canOfferAskUser(prompt, responseExecution.mode) &&
-                    (isStudioThread ||
+                    (turnSetup.asksWithoutFlag ||
                         (
                             await this.featureFlagService.get({
                                 user,
                                 featureFlagId: FeatureFlags.AiAgentAskUser,
                             })
                         ).enabled);
-                // A dbt project keeps no draft in Semantic Studio; its thread edits the repository instead.
-                const studioMode = isStudioThread
-                    ? await getStudioProjectMode(
-                          await this.semanticStudioService.getStatus(
-                              user,
-                              promptProject.projectUuid,
-                          ),
-                          () =>
-                              this.incrementalDbtCompileService.getDbtProjectMap(
-                                  promptProject.projectUuid,
-                              ),
-                      )
-                    : null;
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -17612,7 +17604,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     aiWritebackEnabled = false;
                 }
 
-                if (studioMode !== null && !studioMode.enabled) {
+                if (turnSetup.studio !== null && !turnSetup.studio.enabled) {
                     aiWritebackEnabled = false;
                 }
 
@@ -18103,8 +18095,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     enableGenerateDataApp,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
-                    studio: studioMode,
-                    turnCard: isStudioThread ? studioTurnCard : null,
+                    studio: turnSetup.studio,
+                    turnCard: turnSetup.turnCard,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,

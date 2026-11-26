@@ -192,7 +192,15 @@ const buildService = (overrides: {
         aiAgentReviewClassifierModel,
         slackClient,
         writebackPreviewService,
-        semanticStudioCheckoutService: { queueBranchCompile },
+        semanticStudioCheckoutService: {
+            // Mirrors the Studio service: one pull request, shown at once, compiled after a save.
+            getAgentWritebackSetup: (user: unknown, projectUuid: string) => ({
+                continuesThreadPullRequest: true,
+                showsPullRequestBeforePreview: true,
+                onSaved: (prUrl: string) =>
+                    queueBranchCompile(user, projectUuid, prUrl, 'agent'),
+            }),
+        },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
 
