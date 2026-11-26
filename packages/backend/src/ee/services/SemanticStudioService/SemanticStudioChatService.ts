@@ -35,6 +35,7 @@ export type SemanticStudioChatServiceArguments = {
         | 'steerMessageForAuthorized'
         | 'generateTitleForAuthorized'
         | 'getArtifactVizQueryForAuthorized'
+        | 'getArtifactQueryResultsForAuthorized'
         | 'updateArtifactVersionForAuthorized'
     >;
     checkout: Pick<
@@ -201,6 +202,30 @@ export class SemanticStudioChatService extends BaseService {
             user,
             authorized,
             artifact,
+            account,
+        );
+    }
+
+    async getArtifactQueryResults(
+        user: SessionUser,
+        ref: ArtifactRef,
+        page: {
+            queryUuid: string;
+            page: number | null;
+            pageSize: number | null;
+        },
+        account: RegisteredAccount,
+    ) {
+        const { authorized, artifact } = await this.authorizeArtifact(
+            user,
+            ref,
+            'Insufficient permissions to access this artifact',
+        );
+        return this.ai.getArtifactQueryResultsForAuthorized(
+            user,
+            authorized,
+            artifact,
+            page,
             account,
         );
     }

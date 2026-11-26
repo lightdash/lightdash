@@ -60,6 +60,7 @@ const setup = ({
         steerMessageForAuthorized: vi.fn(),
         generateTitleForAuthorized: vi.fn(),
         getArtifactVizQueryForAuthorized: vi.fn(),
+        getArtifactQueryResultsForAuthorized: vi.fn(),
         updateArtifactVersionForAuthorized: vi.fn(),
     } satisfies SemanticStudioChatServiceArguments['ai'];
     const getBuilderAgent = vi.fn(async () => ({ uuid: 'built-in-agent' }));
@@ -448,6 +449,16 @@ describe('SemanticStudioChatService', () => {
             );
             await service.getArtifactVizQuery(owner, artifactRef, account);
             await service.linkArtifactSavedSql(owner, artifactRef, 'sql-uuid');
+            const page = { queryUuid: 'query-uuid', page: null, pageSize: 50 };
+            await service.getArtifactQueryResults(
+                owner,
+                artifactRef,
+                page,
+                account,
+            );
+            expect(
+                ai.getArtifactQueryResultsForAuthorized,
+            ).toHaveBeenCalledWith(owner, authorized, artifact, page, account);
 
             expect(getArtifact).toHaveBeenCalledWith(
                 ARTIFACT_UUID,
@@ -485,7 +496,18 @@ describe('SemanticStudioChatService', () => {
             ).rejects.toThrow(
                 'Insufficient permissions to update this artifact',
             );
+            await expect(
+                service.getArtifactQueryResults(
+                    someoneElse,
+                    artifactRef,
+                    { queryUuid: 'query-uuid', page: null, pageSize: null },
+                    fromSession(someoneElse),
+                ),
+            ).rejects.toThrow(ForbiddenError);
             expect(ai.getArtifactVizQueryForAuthorized).not.toHaveBeenCalled();
+            expect(
+                ai.getArtifactQueryResultsForAuthorized,
+            ).not.toHaveBeenCalled();
             expect(
                 ai.updateArtifactVersionForAuthorized,
             ).not.toHaveBeenCalled();

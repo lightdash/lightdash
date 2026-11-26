@@ -158,6 +158,7 @@ import {
     isGitProjectType,
     isJwtUser,
     isMetric,
+    isSemanticStudioThread,
     isSlackMessageTooLongError,
     isSlackPrompt,
     isSqlApprovalToolCall,
@@ -1160,8 +1161,7 @@ type AiAgentServiceDependencies = {
     aiAgentContentValidation: AiAgentContentValidation;
     aiWritebackService: AiWritebackService;
     projectContextService: ProjectContextService;
-    /** Absent where no other kind of thread sets up its own saves. */
-    findWritebackSetup?: FindAgentWritebackSetup;
+    findWritebackSetup: FindAgentWritebackSetup;
     incrementalDbtCompileService: IncrementalDbtCompileService;
     writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
@@ -2341,8 +2341,7 @@ export class AiAgentService extends BaseService {
         this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
         this.aiWritebackService = dependencies.aiWritebackService;
         this.projectContextService = dependencies.projectContextService;
-        this.findWritebackSetup =
-            dependencies.findWritebackSetup ?? (async () => null);
+        this.findWritebackSetup = dependencies.findWritebackSetup;
         this.incrementalDbtCompileService =
             dependencies.incrementalDbtCompileService;
         this.writebackPreviewService = dependencies.writebackPreviewService;
@@ -5997,6 +5996,7 @@ export class AiAgentService extends BaseService {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
 
+        AiAgentService.assertNotStudioOnAgentRoute(agent, body.createdFrom);
         const hasAccess = await this.checkAgentAccess(user, agent);
         if (!hasAccess) {
             throw new ForbiddenError(
@@ -6294,6 +6294,7 @@ export class AiAgentService extends BaseService {
         await this.assertDataAppThreadContinuable(thread, organizationUuid);
 
         // Check if user has access to create messages for this agent's thread
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -8518,6 +8519,18 @@ export class AiAgentService extends BaseService {
         return `🔒 No agent is configured for this channel, and this organization requires channels to be added from the agent settings page. Ask an admin to add one at ${this.lightdashConfig.siteUrl}/ai-agents`;
     }
 
+    // A Studio conversation runs through Studio's own routes; to an agent's thread routes it does not exist.
+    private static assertNotStudioOnAgentRoute(
+        agent: Pick<AiAgent, 'uuid'>,
+        createdFrom: AiThreadCreatedFrom | undefined,
+    ): void {
+        if (isSemanticStudioThread(createdFrom)) {
+            throw new AiAgentNotFoundError(
+                `AI agent not found for uuid: ${agent.uuid}`,
+            );
+        }
+    }
+
     private async getManageableAgentOrThrow(
         user: SessionUser,
         agentUuid: string,
@@ -8936,6 +8949,7 @@ export class AiAgentService extends BaseService {
             throw new NotFoundError(`Agent not found`);
         }
 
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -9723,6 +9737,7 @@ export class AiAgentService extends BaseService {
         if (!thread) {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -9832,6 +9847,7 @@ export class AiAgentService extends BaseService {
             thread,
             user.organizationUuid,
         );
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -11090,12 +11106,73 @@ export class AiAgentService extends BaseService {
     }
 
     /** Runs an artifact's query for a caller that has already checked access to its thread. */
+    // The access a caller checked was to one thread; the artifact has to be that thread's.
+    private static assertArtifactOfThread(
+        { thread }: AuthorizedAgentThread,
+        artifact: StoredArtifact,
+    ): void {
+        if (artifact.threadUuid !== thread.uuid) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access this artifact',
+            );
+        }
+    }
+
+    /** Reads the rows of an artifact's query for a caller that has already checked access to its thread. */
+    async getArtifactQueryResultsForAuthorized(
+        user: SessionUser,
+        authorized: AuthorizedAgentThread,
+        artifact: StoredArtifact,
+        {
+            queryUuid,
+            page,
+            pageSize,
+        }: { queryUuid: string; page: number | null; pageSize: number | null },
+        account: RegisteredAccount,
+    ): Promise<ApiGetAsyncQueryResults> {
+        AiAgentService.assertArtifactOfThread(authorized, artifact);
+        const { agent } = authorized;
+        const { projectUuid, uuid: agentUuid } = agent;
+        const { artifactUuid, versionUuid } = artifact;
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        const reader: QueryResultReader = enabled
+            ? await this.getArtifactOwnerResultReader(
+                  user,
+                  projectUuid,
+                  agentUuid,
+                  artifact,
+                  account.authentication.type,
+                  async () => agent,
+              )
+            : { kind: 'person', authMethod: account.authentication.type };
+        const args = {
+            account,
+            reader,
+            projectUuid,
+            queryUuid,
+            page: page ?? undefined,
+            pageSize: pageSize ?? undefined,
+        };
+        return enabled
+            ? this.asyncQueryService.getArtifactBoundQueryResults(args, {
+                  agentUuid,
+                  artifactUuid,
+                  versionUuid,
+              })
+            : this.asyncQueryService.getAsyncQueryResults(args);
+    }
+
     async getArtifactVizQueryForAuthorized(
         user: SessionUser,
-        { agent }: AuthorizedAgentThread,
+        authorized: AuthorizedAgentThread,
         artifact: StoredArtifact,
         callerAccount?: RegisteredAccount,
     ): Promise<ApiAiAgentArtifactVizQuery> {
+        AiAgentService.assertArtifactOfThread(authorized, artifact);
+        const { agent } = authorized;
         const account = getArtifactRunAccount(user, callerAccount);
         const { projectUuid, uuid: agentUuid } = agent;
         const { artifactUuid, versionUuid } = artifact;
@@ -13982,7 +14059,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 (await this.findWritebackSetup({
                     user,
                     projectUuid,
-                    threadUuid: payload.aiThreadUuid,
+                    threadCreatedFrom: prompt.threadCreatedFrom,
                 })) ?? DEFAULT_AGENT_WRITEBACK_SETUP;
 
             // This job is enqueued mid-step, so it can outrun the onStepEnd

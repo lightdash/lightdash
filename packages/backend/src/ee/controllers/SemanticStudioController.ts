@@ -71,6 +71,8 @@ import {
     isAuthenticated,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import { type ApiGetAsyncQueryResultsResponse } from '../../controllers/v2/QueryController';
+import { compressResultsPage } from '../../middlewares/responseCompression/responseCompression';
 import { getAppThreadCreatedFrom } from '../services/AiAgentService/threadOrigin';
 import { type SemanticStudioChatService } from '../services/SemanticStudioService/SemanticStudioChatService';
 import { type SemanticStudioCheckoutService } from '../services/SemanticStudioService/SemanticStudioCheckoutService';
@@ -1197,6 +1199,39 @@ export class SemanticStudioController extends BaseController {
             results: await this.getChatService().getArtifactVizQuery(
                 toSessionUser(req.account),
                 { projectUuid, artifactUuid, versionUuid },
+                req.account,
+            ),
+        };
+    }
+
+    /**
+     * The rows of the query behind an artifact of a Semantic Studio conversation.
+     * @summary Get Semantic Studio chat artifact query results
+     */
+    @Middlewares([
+        compressResultsPage,
+        allowApiKeyAuthentication,
+        isAuthenticated,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/chat/artifacts/{artifactUuid}/versions/{versionUuid}/query-results')
+    @OperationId('getSemanticStudioChatArtifactQueryResults')
+    async getChatArtifactQueryResults(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() artifactUuid: UUID,
+        @Path() versionUuid: UUID,
+        @Query() queryUuid: string,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiGetAsyncQueryResultsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getChatService().getArtifactQueryResults(
+                toSessionUser(req.account),
+                { projectUuid, artifactUuid, versionUuid },
+                { queryUuid, page: page ?? null, pageSize: pageSize ?? null },
                 req.account,
             ),
         };

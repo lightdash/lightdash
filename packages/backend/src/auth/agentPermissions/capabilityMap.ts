@@ -1166,6 +1166,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.getChatArtifactVizQuery': [
         AgentCapability.DbtWriteback,
     ],
+    'SemanticStudioController.getChatArtifactQueryResults': [
+        AgentCapability.DbtWriteback,
+    ],
     'SemanticStudioController.updateChatArtifactSavedSql': [
         AgentCapability.DbtWriteback,
     ],

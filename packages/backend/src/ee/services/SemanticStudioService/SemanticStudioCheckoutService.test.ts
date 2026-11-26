@@ -211,12 +211,6 @@ const setup = ({
             agentUuid: string | null;
             title: string | null;
         } | null> => null,
-        // Only this thread is a Studio one.
-        findStudioThreadAgentUuid: async (
-            _projectUuid: string,
-            threadUuid: string,
-        ): Promise<string | null> =>
-            threadUuid === 'studio-thread' ? 'agent-uuid' : null,
         findInProject: async () => {
             const workspace = await findActive();
             return workspace ? [workspace] : [];
@@ -428,7 +422,7 @@ describe('SemanticStudioCheckoutService', () => {
             await expect(
                 service.findAgentWritebackSetup({
                     ...save,
-                    threadUuid: 'studio-thread',
+                    threadCreatedFrom: 'semantic_studio',
                 }),
             ).resolves.toMatchObject({
                 continuesThreadPullRequest: true,
@@ -437,7 +431,7 @@ describe('SemanticStudioCheckoutService', () => {
             await expect(
                 service.findAgentWritebackSetup({
                     ...save,
-                    threadUuid: 'ask-ai-thread',
+                    threadCreatedFrom: 'web_app',
                 }),
             ).resolves.toBeNull();
         });

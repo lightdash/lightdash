@@ -186,12 +186,13 @@ const buildService = (overrides: {
         async ({
             user,
             projectUuid,
+            threadCreatedFrom,
         }: {
             user: unknown;
             projectUuid: string;
-            threadUuid: string;
+            threadCreatedFrom: string | undefined;
         }) =>
-            overrides.threadCreatedFrom === 'semantic_studio'
+            threadCreatedFrom === 'semantic_studio'
                 ? {
                       continuesThreadPullRequest: true,
                       showsPullRequestBeforePreview: true,
@@ -547,7 +548,7 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         expect(findWritebackSetup).toHaveBeenCalledWith(
             expect.objectContaining({
                 projectUuid: PAYLOAD.projectUuid,
-                threadUuid: PAYLOAD.aiThreadUuid,
+                threadCreatedFrom: undefined,
             }),
         );
         // Not tied to the thread's pull request, and nothing runs after the save.
