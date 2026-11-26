@@ -56,6 +56,32 @@ describe('FileDownloadUtils', () => {
 
             expect(ranBeforeSecondRow).toBe(true);
         });
+
+        it('rejects and stops reading when a row write rejects', async () => {
+            const response = new PassThrough();
+            const body = new ChecksumStreamStandIn(response);
+            response.write('{"n":1}\n{"n":2}\n{"n":3}\n');
+            const writeFailed = new Error('ENOSPC: no space left');
+            const onRow = vi.fn(() => Promise.reject(writeFailed));
+
+            await expect(
+                streamJsonlData({ readStream: body, onRow }),
+            ).rejects.toBe(writeFailed);
+
+            expect(onRow).toHaveBeenCalledTimes(1);
+            expect(response.destroyed).toBe(true);
+        });
+
+        it('skips malformed lines and keeps reading', async () => {
+            const { results } = await streamJsonlData({
+                readStream: Readable.from([
+                    Buffer.from('{"n":1}\nnot json\n{"n":3}\n'),
+                ]),
+                onRow: (row) => row,
+            });
+
+            expect(results).toEqual([{ n: 1 }, { n: 3 }]);
+        });
     });
 
     describe('sanitizeGenericFileName', () => {

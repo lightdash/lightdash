@@ -194,20 +194,28 @@ export async function streamJsonlData<T>({
             break;
         }
 
+        let pending: T | void | Promise<T | void>;
         try {
             const parsedRow = JSON.parse(line);
-            if (onRow) {
-                const pending = onRow(parsedRow, lineCount);
-                const result =
-                    pending instanceof Promise ? await pending : pending;
-                if (result !== undefined) {
-                    results.push(result);
-                }
-            }
+            pending = onRow?.(parsedRow, lineCount);
         } catch (error) {
             Logger.error(
                 `Error parsing line ${lineCount}: ${getErrorMessage(error)}`,
             );
+            // eslint-disable-next-line no-continue
+            continue;
+        }
+
+        let result: T | void;
+        try {
+            // A rejected row write (e.g. the export file failed) ends the export
+            result = pending instanceof Promise ? await pending : pending;
+        } catch (error) {
+            destroyS3Body(readStream);
+            throw error;
+        }
+        if (result !== undefined) {
+            results.push(result);
         }
     }
 
