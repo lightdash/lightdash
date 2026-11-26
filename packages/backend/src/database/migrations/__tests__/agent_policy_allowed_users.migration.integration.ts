@@ -55,7 +55,6 @@ test('current readers ignore historical people and project restrictions', async 
             .returning('organization_uuid');
         await trx('organization_agent_capability_policies').insert({
             organization_uuid: org.organization_uuid,
-            mode: 'managed',
             version: 1,
             allowed_capabilities: null,
             allowed_group_uuids: null,

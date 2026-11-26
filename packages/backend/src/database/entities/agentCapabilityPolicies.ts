@@ -11,8 +11,6 @@ export const AgentSystemRoleCapabilitiesTableName =
 
 export interface DbAgentCapabilityPolicy {
     organization_uuid: string;
-    /** Not read. Written so the previous release keeps working. */
-    mode: 'legacy' | 'managed';
     version: number;
     allowed_capabilities: AgentCapability[] | null;
     allowed_project_uuids: string[] | null;

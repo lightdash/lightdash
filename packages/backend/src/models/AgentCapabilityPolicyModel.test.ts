@@ -25,15 +25,14 @@ test('defaults a missing policy to no restrictions', async () => {
 });
 
 test.each([
-    { allowedCapabilities: null, stored: 'managed' },
-    { allowedCapabilities: [], stored: 'legacy' },
-    { allowedCapabilities: [AgentCapability.Query], stored: 'managed' },
+    { allowedCapabilities: null },
+    { allowedCapabilities: [] },
+    { allowedCapabilities: [AgentCapability.Query] },
 ])(
-    'reads capability limit $allowedCapabilities whatever the stored mode',
-    async ({ allowedCapabilities, stored }) => {
+    'reads capability limit $allowedCapabilities',
+    async ({ allowedCapabilities }) => {
         tracker.on.select('organization_agent_capability_policies').response([
             {
-                mode: stored,
                 version: 3,
                 allowed_capabilities: allowedCapabilities,
             },
@@ -51,7 +50,6 @@ test.each([
 test('increments the stored version without writing role rows', async () => {
     const stored = [
         {
-            mode: 'managed',
             version: 4,
             allowed_user_uuids: null,
             allowed_group_uuids: null,
@@ -82,7 +80,6 @@ test('increments the stored version without writing role rows', async () => {
     );
     expect(tracker.history.insert[0].sql).toContain('"version" + 1');
     expect(tracker.history.insert[0].bindings).toContain('user');
-    expect(tracker.history.insert[0].bindings).toContain('managed');
     expect(tracker.history.insert).toHaveLength(1);
     expect(tracker.history.delete).toHaveLength(0);
     expect(roleTableQueries()).toEqual([]);
@@ -115,7 +112,6 @@ test.each([{ rows: [] }, { rows: [{ version: 1 }] }])(
 test('omitted capabilities preserve the stored limit atomically', async () => {
     const stored = [
         {
-            mode: 'managed',
             version: 2,
             allowed_capabilities: [AgentCapability.Query],
             allowed_group_uuids: null,
@@ -135,14 +131,12 @@ test('omitted capabilities preserve the stored limit atomically', async () => {
     const { sql } = tracker.history.insert[0];
     const update = sql.slice(sql.indexOf('do update set'));
     expect(update).not.toContain('"allowed_capabilities"');
-    expect(update).not.toContain('"mode"');
     expect(update).toContain('allowed_user_uuids');
 });
 
 test('clearing the capability list stores an unrestricted policy', async () => {
     const stored = [
         {
-            mode: 'legacy',
             version: 2,
             allowed_capabilities: null,
             allowed_group_uuids: null,
@@ -160,10 +154,11 @@ test('clearing the capability list stores an unrestricted policy', async () => {
         updatedByUserUuid: null,
     });
     expect(saved.allowedCapabilities).toBeNull();
-    const { sql, bindings } = tracker.history.insert[0];
-    expect(sql.slice(sql.indexOf('do update set'))).toContain('"mode"');
-    expect(bindings).toContain('legacy');
-    expect(bindings).not.toContain('managed');
+    const { sql } = tracker.history.insert[0];
+    expect(sql.slice(sql.indexOf('do update set'))).toContain(
+        '"allowed_capabilities"',
+    );
+    expect(sql).not.toContain('"mode"');
 });
 
 const saveGroups = (allowedGroupUuids?: string[] | null) =>
@@ -178,7 +173,6 @@ test.each([null, ['group']])(
     async (allowedGroupUuids) => {
         const stored = [
             {
-                mode: 'legacy',
                 version: 1,
                 allowed_capabilities: null,
                 allowed_group_uuids: allowedGroupUuids,
@@ -214,7 +208,6 @@ test.each([null, [], ['group']])(
     async (allowedGroupUuids) => {
         tracker.on.select('organization_agent_capability_policies').response([
             {
-                mode: 'legacy',
                 version: 1,
                 allowed_group_uuids: allowedGroupUuids,
             },
@@ -229,7 +222,6 @@ test.each([{ groups: [] }, { groups: [{ group_uuid: 'group' }] }])(
     async ({ groups }) => {
         tracker.on.select('organization_agent_capability_policies').response([
             {
-                mode: 'legacy',
                 version: 1,
                 allowed_group_uuids: ['group', 'deleted'],
             },
@@ -261,7 +253,6 @@ test.each([{ stored: [] }, { stored: ['deleted'] }])(
     async ({ stored: allowedGroupUuids }) => {
         const stored = [
             {
-                mode: 'legacy',
                 version: 2,
                 allowed_capabilities: null,
                 allowed_group_uuids: allowedGroupUuids,
@@ -310,7 +301,6 @@ describe('getForEnforcement', () => {
                 .select('organization_agent_capability_policies')
                 .response([
                     {
-                        mode: 'managed',
                         version: 4,
                         allowed_capabilities: [AgentCapability.Query],
                         allowed_user_uuids: null,
@@ -348,7 +338,6 @@ describe('getForEnforcement', () => {
                 .select('organization_agent_capability_policies')
                 .response([
                     {
-                        mode: 'managed',
                         version: 1,
                         allowed_capabilities: null,
                         allowed_user_uuids: storedUsers,

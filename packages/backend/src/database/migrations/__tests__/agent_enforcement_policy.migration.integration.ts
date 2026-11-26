@@ -89,7 +89,6 @@ test.each([
         else if (scenario === 'empty list') storedGroups = [];
         await trx('organization_agent_capability_policies').insert({
             organization_uuid: organization.organization_uuid,
-            mode: 'legacy',
             allowed_capabilities: null,
             allowed_project_uuids: ['00000000-0000-0000-0000-000000000002'],
             allowed_user_uuids: [user.user_uuid, user.user_uuid],
