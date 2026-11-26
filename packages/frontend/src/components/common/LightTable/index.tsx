@@ -131,6 +131,15 @@ type TableContextType = {
 
 const TableContext = createContext<TableContextType | null>(null);
 
+const EXP_33461: string =
+    (typeof window !== 'undefined' &&
+        window.localStorage?.getItem('__exp33461')) ||
+    '';
+const exp33461 = (knob: string) => EXP_33461.split(',').includes(knob);
+if (typeof window !== 'undefined') {
+    (window as unknown as { __exp33461: string }).__exp33461 = EXP_33461;
+}
+
 const useTableContext = () => {
     const context = useContext(TableContext);
     if (context === null) {
@@ -179,9 +188,19 @@ const TableProvider: FC<
             scrollPositions,
         ],
     );
+    const contextValue = exp33461('oldCtx')
+        ? {
+              selectedCell,
+              toggleCell: handleDebouncedToggleCell,
+              registerCell,
+              scrollPositions,
+          }
+        : value;
 
     return (
-        <TableContext.Provider value={value}>{children}</TableContext.Provider>
+        <TableContext.Provider value={contextValue}>
+            {children}
+        </TableContext.Provider>
     );
 };
 
@@ -221,6 +240,7 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
                 );
             };
             updateContainerSize();
+            if (exp33461('noRO')) return;
             const observer = new ResizeObserver(updateContainerSize);
             observer.observe(container);
             if (container.firstElementChild) {
@@ -236,10 +256,13 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
                 containerSize.scrollHeight;
         // Memoized on the two flags, so the context does not change on every
         // scroll event.
-        const scrollPositions = useMemo(
+        const memoScrollPositions = useMemo(
             () => ({ isAtTop, isAtBottom }),
             [isAtTop, isAtBottom],
         );
+        const scrollPositions = exp33461('oldCtx')
+            ? { isAtTop, isAtBottom }
+            : memoScrollPositions;
 
         return (
             <Box
@@ -277,10 +300,13 @@ const SectionProvider: FC<React.PropsWithChildren<SectionContextType>> = ({
     sectionType,
     withSticky = false,
 }) => {
-    const value = useMemo(
+    const memoValue = useMemo(
         () => ({ sectionType, withSticky }),
         [sectionType, withSticky],
     );
+    const value = exp33461('oldProv')
+        ? { sectionType, withSticky }
+        : memoValue;
     return (
         <SectionContext.Provider value={value}>
             {children}
@@ -306,7 +332,8 @@ const RowProvider: FC<React.PropsWithChildren<RowContextType>> = ({
     children,
     index,
 }) => {
-    const value = useMemo(() => ({ index }), [index]);
+    const memoValue = useMemo(() => ({ index }), [index]);
+    const value = exp33461('oldProv') ? { index } : memoValue;
     return <RowContext.Provider value={value}>{children}</RowContext.Provider>;
 };
 
@@ -436,7 +463,10 @@ const BaseCell = (
 
             const { selectedCell, toggleCell, registerCell } =
                 useTableContext();
-            useRegisterMountedCell(registerCell, cellId);
+            useRegisterMountedCell(
+                exp33461('noReg') ? undefined : registerCell,
+                cellId,
+            );
             const { index } = useRowContext();
             const { sectionType, withSticky } = useSectionContext();
 
