@@ -1,3 +1,10 @@
+# [3.412.0](https://github.com/lightdash/lightdash/compare/3.411.7...3.412.0) (2026-11-26)
+
+
+### Features
+
+* run all AI agent evaluation suites ([#33470](https://github.com/lightdash/lightdash/issues/33470)) ([f0db4e3](https://github.com/lightdash/lightdash/commit/f0db4e33ff68e6f6dfb7591d84a373a64e2c630d))
+
 ## [3.411.7](https://github.com/lightdash/lightdash/compare/3.411.6...3.411.7) (2026-11-26)
 
 
