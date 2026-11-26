@@ -11,7 +11,7 @@
 ## Where composer rules live
 
 - A rule every `query` pipeline needs goes on the `query` tool description (`MCP_TOOL_QUERY_DESCRIPTION`), under "Plan the pipeline". Budget: 4,096 chars, guarded by "keeps registered MCP tool descriptions within their char budget" in `mcpToolContracts.snapshot.test.ts`.
-- Detail only some pipelines need goes in the `composer-querying` skill. Edit `../ai/skills/composerQueryingSkill.ts`, then run `pnpm -F backend generate:composer-querying-skill`.
+- Detail only some pipelines need goes in the `composer-querying` skill (`../ai/skills/composerQueryingSkill.ts`; its `SKILL.md` is generated).
 - Rule text lives once, in `COMPOSER_RULES` (`packages/common/src/ee/AiAgent/schemas/tools/composerQueryRules.ts`), which feeds the agent prompt (`../ai/prompts/systemV2QueryingComposer.ts`), the skill and the `query` description. Edit a shared rule there; write wording only one consumer needs in that consumer.
 - Composer server instructions (`buildMcpComposerPrompt` in `../ai/prompts/mcpAnalyst.ts`) carry the skill pointer, the workflow and rules about the server itself: explore choice, the connect link, other skills' pointers.
 - A skill a model must read gets a pointer in the first sentence of the description of the tool that needs it; a skill nobody points to goes unread. For `composer-querying` that sentence is `COMPOSER_QUERYING_SKILL_POINTER`, also the instructions' first line.

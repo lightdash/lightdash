@@ -14,6 +14,9 @@ export const COMPOSER_RULES = {
         'Compute a metric the explore lacks as a custom metric on its semanticLayer node, with a filter when it covers only some rows (completed orders among all orders), and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row.',
     sqlNode:
         "Explores are governed and reusable, so use a `sql` node only when the user points you at a raw table or asks for SQL, or when the semantic layer cannot produce the result: a table outside every explore, a join key no explore exposes as a dimension, a computation whose row-level inputs would exceed a node's row limit, or warehouse-specific syntax.",
+    sqlNodeCore:
+        'Explores are governed and reusable, so use a sql node only when the user points you at a raw table or asks for SQL, or when no explore can produce the result.',
+    noData: 'When neither an explore nor a warehouse table you can query holds the data, tell the user and offer alternatives when there are any.',
     duckdbCompute:
         "Compute what neither a metric query nor a merge calculation expresses in a duckdb node: over one semanticLayer node's results, arithmetic across metrics, % of total, the change between a metric and its period comparison, running totals, moving averages and ranking; over any node, aggregates of aggregated metrics, top N per group, cohort comparisons and reshaping.",
     pythonNode:
@@ -27,6 +30,9 @@ export const COMPOSER_RULES = {
     dateGranularity:
         'For date dimensions, pick the granularity the user asked for (`order_date_month` over `order_date` for "by month").',
 } as const;
+
+export const toComposerRuleBullets = (rules: string[]) =>
+    rules.map((rule) => `- ${rule}`).join('\n');
 
 export const getComposerFollowUpChangeRule = (keepsChartType: boolean) =>
     `For a follow-up that changes an earlier result, change only what the user asked for and keep the rest: metrics, filters, period, grouping, ${

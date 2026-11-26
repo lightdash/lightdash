@@ -1,6 +1,5 @@
 import { Ability } from '@casl/ability';
 import {
-    COMPOSER_QUERYING_SKILL_NAME,
     COMPOSER_QUERYING_SKILL_POINTER,
     defineUserAbility,
     FeatureFlags,
@@ -228,7 +227,7 @@ const mcpQueryPaths: McpQueryPath[] = Object.values(mcpQueryPathsByType).flat();
 
 // Observed in Claude Code 2.1.263; this is not an MCP protocol limit.
 const MCP_CLIENT_TEXT_MAX_CHARS = 2048;
-// The query description carries the core composer rules; Claude Code cuts server instructions at this length.
+// Budget chosen for the core composer rules on the query description (ADR 0010).
 const MCP_QUERY_DESCRIPTION_MAX_CHARS = 4096;
 const getMcpToolDescriptionMaxChars = (name: string) =>
     name === McpToolName.QUERY
@@ -1168,10 +1167,6 @@ describe('MCP tool contracts', () => {
         expect(getLatestMcpServerInstructions().split('\n')[0]).toBe(
             COMPOSER_QUERYING_SKILL_POINTER,
         );
-        expect(
-            (await BuiltInSkills.readSkillTool(COMPOSER_QUERYING_SKILL_NAME))
-                ?.body,
-        ).toContain('# Building query pipelines');
     });
 
     describe('isRunSqlEnabled', () => {

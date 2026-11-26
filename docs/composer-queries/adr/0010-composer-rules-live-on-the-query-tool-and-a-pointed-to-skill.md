@@ -14,15 +14,21 @@ Server instructions were rejected as the home for the rules: Claude chat,
 77.5% of production calls, shows them only from the turn after the first tool
 call, and Haiku, shown the rules there, passed the merge task 1 time in 5,
 against 0 in 5 with no rules at all. The same rule on the tool description or
-in a pointed-to skill passed 5 in 5. Putting every rule in the description was
-rejected because the long tail would crowd the 4,096-character budget the
-core rules need. A skill without a pointer was rejected because models did
-not read it: 1 in 6 Claude chat runs and 0 in 36 Claude Code runs read it
-before the first query, against 5 in 6 and 65 in 67 with the pointer.
-Appending the rules to the first discovery result passed as well (5 in 5) but
-couples the rules to whichever discovery tool runs first. The MCP skills
-extension (protocol 2026-07-28) was rejected for now: no production client
-speaks it, and Haiku loaded it 2 times in 5. Per-client detail is in
+in a pointed-to skill passed 5 in 5. Putting every rule in the description
+passed too (Opus 40 in 40, Haiku 5 in 5), as did the skill with a pointer; the
+skill was chosen for the long tail because `read_skill` serves it fresh on
+every read, while a changed description reaches Claude chat users only in a
+new chat, after a tool-list refresh or up to 28 minutes later, and the core rules keep the description
+within 4,096 characters. A skill without a pointer was rejected because
+models did not read it: 1 in 6 Claude chat runs and 0 in 36 Claude Code runs
+read it before the first query, against 5 in 6 and 65 in 67 with the pointer.
+Appending the rules to the first discovery result passed as well (Opus 39 in
+40, Haiku 5 in 5) but was rejected because it ties the rules to whichever
+discovery tool a client calls first, and a session that queries without
+discovering never sees them. The MCP skills extension (protocol 2026-07-28)
+was rejected for now: no production client speaks it, and in Claude Code it
+loads only interactively, where Haiku loaded it in 8 of 15 runs and passed
+the merge task 2 times in 5. Per-client detail is in
 `packages/backend/src/ee/services/McpService/client-limits.md`.
 
 Revisit when clients deliver server instructions before the first tool call,

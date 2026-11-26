@@ -1,6 +1,5 @@
-# What MCP clients show the model
-
 Measured 2026-11-26; client behaviour changes, re-measure before relying on a number.
+What each MCP client shows the model, per channel:
 
 | Channel | Claude chat | Claude Code | Codex CLI |
 |---|---|---|---|

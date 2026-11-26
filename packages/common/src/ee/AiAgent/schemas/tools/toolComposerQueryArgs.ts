@@ -43,6 +43,7 @@ import { createToolSchema } from '../toolSchemaBuilder';
 import {
     COMPOSER_QUERYING_SKILL_POINTER,
     COMPOSER_RULES,
+    toComposerRuleBullets,
 } from './composerQueryRules';
 import {
     appliedParametersSchema,
@@ -137,9 +138,6 @@ ${getComposerNodeKindsDescription({
 
 Earlier nodes: a node id names one node for the whole thread. A node reads a node from an earlier call by its node id in "references", or "sources" for a merge, without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
 
-const composerRuleBullets = (rules: string[]) =>
-    rules.map((rule) => `- ${rule}`).join('\n');
-
 export const MCP_TOOL_QUERY_DESCRIPTION = `${COMPOSER_QUERYING_SKILL_POINTER}
 
 Run one query, or a pipeline of up to ${MAX_SOURCE_QUERIES_PER_SUBMISSION} nodes submitted together, where duckdb and python nodes join or transform other nodes' results.
@@ -152,13 +150,13 @@ ${getComposerNodeKindsDescription({
 A python node's "code" defines \`def run(inputs, params)\`; semanticLayer "filters" are flat expression strings.
 
 Plan the pipeline:
-${composerRuleBullets([
+${toComposerRuleBullets([
     COMPOSER_RULES.oneNodePerExplore,
     COMPOSER_RULES.merge,
     COMPOSER_RULES.mergeRefused,
     COMPOSER_RULES.duckdbCombine,
     COMPOSER_RULES.onePipeline,
-    'Explores are governed and reusable, so use a sql node only when the user points you at a raw table or asks for SQL, or when no explore can produce the result; when no warehouse table holds the data either, tell the user and offer alternatives when there are any.',
+    `${COMPOSER_RULES.sqlNodeCore} ${COMPOSER_RULES.noData}`,
     COMPOSER_RULES.followUpPlan,
 ])}
 

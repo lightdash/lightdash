@@ -2,10 +2,8 @@ import {
     COMPOSER_QUERYING_SKILL_NAME,
     COMPOSER_RULES,
     getComposerFollowUpChangeRule,
+    toComposerRuleBullets,
 } from '@lightdash/common';
-
-const bullets = (rules: string[]) =>
-    rules.map((rule) => `- ${rule}`).join('\n');
 
 export const COMPOSER_QUERYING_SKILL = `---
 name: ${COMPOSER_QUERYING_SKILL_NAME}
@@ -17,15 +15,15 @@ availability: [mcp]
 
 # Building query pipelines
 
-${bullets([
+${toComposerRuleBullets([
     COMPOSER_RULES.oneNodePerExplore,
     `${COMPOSER_RULES.merge} ${COMPOSER_RULES.mergeDetail}`,
     COMPOSER_RULES.mergeTableCalculations,
     COMPOSER_RULES.mergeRefused,
     COMPOSER_RULES.duckdbCombine,
     COMPOSER_RULES.customMetric,
-    `${COMPOSER_RULES.sqlNode} A sql node needs SQL Runner access.`,
-    'When neither an explore nor a warehouse table you can query holds the data, tell the user and offer alternatives when there are any.',
+    COMPOSER_RULES.sqlNode,
+    COMPOSER_RULES.noData,
     COMPOSER_RULES.duckdbCompute,
     COMPOSER_RULES.pythonNode,
     COMPOSER_RULES.onePipeline,
@@ -35,11 +33,10 @@ ${bullets([
 
 # Field usage
 
-${bullets([
+${toComposerRuleBullets([
     'Use only field IDs returned by discovery, plus the IDs of your own custom metrics.',
     COMPOSER_RULES.fieldHints,
     COMPOSER_RULES.dateGranularity,
     "When base and joined tables have similar field names, use the one at the node's semantic level.",
-    'Before writing semanticLayer filters, read the `filter-expressions` skill.',
 ])}
 `;
