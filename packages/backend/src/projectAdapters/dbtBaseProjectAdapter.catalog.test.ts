@@ -273,6 +273,32 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
         },
     );
 
+    it('logs a failed catalog fetch and rethrows', async () => {
+        const errorSpy = vi
+            .spyOn(Logger, 'error')
+            .mockImplementation(() => Logger);
+        const harness = makeHarness({
+            models: [makeModel('orders')],
+            cachedCatalog: undefined,
+            warehouseTables: { orders: ['id'] },
+        });
+        harness.getCatalog.mockRejectedValueOnce(
+            new Error('Snowflake error: read ECONNRESET'),
+        );
+
+        await expect(harness.compile()).rejects.toThrow('read ECONNRESET');
+
+        expect(errorSpy).toHaveBeenCalledWith(
+            'dbt.compile.warehouseCatalogFetchFailed',
+            expect.objectContaining({
+                reason: 'no_cache',
+                requestedTables: 1,
+                error: 'Snowflake error: read ECONNRESET',
+            }),
+        );
+        expect(harness.onWarehouseCatalogChange).not.toHaveBeenCalled();
+    });
+
     it('records missing tables and columns on a full fetch', async () => {
         const harness = makeHarness({
             models: [
