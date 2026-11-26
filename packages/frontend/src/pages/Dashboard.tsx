@@ -181,12 +181,11 @@ const Dashboard: FC = () => {
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardUuid = dashboard?.uuid;
-    const dashboardSlug = dashboard?.slug ?? routeDashboardIdentifier;
     // The URL's uuid keys the cached dashboard: swapping it for the slug reloads every tile
     const dashboardIdentifier =
         routeDashboardIdentifier === dashboardUuid
-            ? dashboardUuid
-            : dashboardSlug;
+            ? routeDashboardIdentifier
+            : (dashboard?.slug ?? routeDashboardIdentifier);
     const { mutate: reopenDraft, isLoading: isReopeningDraft } =
         useReopenDraftMutation(projectUuid);
     const { mutate: rebaseDraft, isLoading: isRebasingDraft } =
@@ -971,7 +970,7 @@ const Dashboard: FC = () => {
                 projectUuid,
                 projectSlug: projectUrlIdentifier,
                 dashboardUuid,
-                dashboardSlug,
+                dashboardSlug: dashboard?.slug,
             }) &&
             // Allow user to add a new table
             (nextLocation.state?.saveDashboardBeforeChartEdit === true ||
