@@ -11172,12 +11172,73 @@ export class AiAgentService extends BaseService {
     }
 
     /** Runs an artifact's query for a caller that has already checked access to its thread. */
+    // The access a caller checked was to one thread; the artifact has to be that thread's.
+    private static assertArtifactOfThread(
+        { thread }: AuthorizedAgentThread,
+        artifact: StoredArtifact,
+    ): void {
+        if (artifact.threadUuid !== thread.uuid) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access this artifact',
+            );
+        }
+    }
+
+    /** Reads the rows of an artifact's query for a caller that has already checked access to its thread. */
+    async getArtifactQueryResultsForAuthorized(
+        user: SessionUser,
+        authorized: AuthorizedAgentThread,
+        artifact: StoredArtifact,
+        {
+            queryUuid,
+            page,
+            pageSize,
+        }: { queryUuid: string; page: number | null; pageSize: number | null },
+        account: RegisteredAccount,
+    ): Promise<ApiGetAsyncQueryResults> {
+        AiAgentService.assertArtifactOfThread(authorized, artifact);
+        const { agent } = authorized;
+        const { projectUuid, uuid: agentUuid } = agent;
+        const { artifactUuid, versionUuid } = artifact;
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        const reader: QueryResultReader = enabled
+            ? await this.getArtifactOwnerResultReader(
+                  user,
+                  projectUuid,
+                  agentUuid,
+                  artifact,
+                  account.authentication.type,
+                  async () => agent,
+              )
+            : { kind: 'person', authMethod: account.authentication.type };
+        const args = {
+            account,
+            reader,
+            projectUuid,
+            queryUuid,
+            page: page ?? undefined,
+            pageSize: pageSize ?? undefined,
+        };
+        return enabled
+            ? this.asyncQueryService.getArtifactBoundQueryResults(args, {
+                  agentUuid,
+                  artifactUuid,
+                  versionUuid,
+              })
+            : this.asyncQueryService.getAsyncQueryResults(args);
+    }
+
     async getArtifactVizQueryForAuthorized(
         user: SessionUser,
-        { agent }: AuthorizedAgentThread,
+        authorized: AuthorizedAgentThread,
         artifact: StoredArtifact,
         callerAccount?: RegisteredAccount,
     ): Promise<ApiAiAgentArtifactVizQuery> {
+        AiAgentService.assertArtifactOfThread(authorized, artifact);
+        const { agent } = authorized;
         const account = getArtifactRunAccount(user, callerAccount);
         const { projectUuid, uuid: agentUuid } = agent;
         const { artifactUuid, versionUuid } = artifact;
