@@ -293,10 +293,10 @@ describe('getSystemPromptV2 custom chart types', () => {
         expect(enabled).toContain(
             'draw it with that chart type and place it with <artifact-chart>',
         );
-        expect(enabled).not.toContain('or custom charts');
+        expect(enabled).not.toContain('or custom chart');
 
         const disabled = promptText(documentArgs);
-        expect(disabled).toContain('composer charts or custom charts');
+        expect(disabled).toContain('composer or custom chart');
         expect(disabled).not.toContain('draw it with that chart type');
     });
 
