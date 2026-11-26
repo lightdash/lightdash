@@ -41,6 +41,7 @@ import {
     IconSend,
     IconSettings,
     IconShieldCheck,
+    IconShieldLock,
     IconSparkles,
     IconTableOptions,
     IconTelescope,
@@ -91,6 +92,7 @@ export const useSettingsNavigation = (
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         isBillingPortalEnabled,
+        isSecurityContactsEnabled,
         canAccessAiCredits,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
@@ -832,6 +834,30 @@ export const useSettingsNavigation = (
             });
         }
 
+        if (
+            isSecurityContactsEnabled &&
+            ability?.can(
+                'manage',
+                subject('Organization', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            organizationItems.push({
+                label: 'Security',
+                to: '/generalSettings/security',
+                icon: IconShieldLock,
+                keywords: [
+                    'security advisories',
+                    'vulnerabilities',
+                    'security contacts',
+                    'cve',
+                ],
+                children: [],
+                exact: true,
+            });
+        }
+
         const sections: SettingsNavigationSection[] = [
             {
                 id: 'your-settings',
@@ -1412,6 +1438,7 @@ export const useSettingsNavigation = (
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         isBillingPortalEnabled,
+        isSecurityContactsEnabled,
         canAccessAiCredits,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,

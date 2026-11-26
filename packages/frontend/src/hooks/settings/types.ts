@@ -77,6 +77,8 @@ export type SettingsContext = {
     isOrganizationRoadmapEnabled: boolean;
     isBillingPortalEnabled: boolean;
     isBillingPortalFlagLoading: boolean;
+    // Self-hosted instance with a valid enterprise license.
+    isSecurityContactsEnabled: boolean;
     // Org admin and a contract in force.
     canAccessAiCredits: boolean;
     isAiCreditsLoading: boolean;
