@@ -1,6 +1,16 @@
 import {
     assertRegisteredAccount,
     type ApiAiAgentResponse,
+    type ApiAiAgentThreadCreateRequest,
+    type ApiAiAgentThreadCreateResponse,
+    type ApiAiAgentThreadGenerateTitleResponse,
+    type ApiAiAgentThreadMessageCreateRequest,
+    type ApiAiAgentThreadMessageCreateResponse,
+    type ApiAiAgentThreadMessageInterruptResponse,
+    type ApiAiAgentThreadMessageSteerResponse,
+    type ApiAiAgentThreadResponse,
+    type ApiAiAgentThreadStreamRequest,
+    type ApiCreateAiAgentThreadMessageSteer,
     type ApiErrorPayload,
     type ApiSemanticLayerDraftApplyResponse,
     type ApiSemanticLayerDraftedModelsResponse,
@@ -59,8 +69,11 @@ import {
     isAuthenticated,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import { getAppThreadCreatedFrom } from '../services/AiAgentService/threadOrigin';
+import { type SemanticStudioChatService } from '../services/SemanticStudioService/SemanticStudioChatService';
 import { type SemanticStudioCheckoutService } from '../services/SemanticStudioService/SemanticStudioCheckoutService';
 import { type SemanticStudioService } from '../services/SemanticStudioService/SemanticStudioService';
+import { pipeAgentResponseStream } from './pipeAgentResponseStream';
 
 @Route('/api/v1/projects/{projectUuid}/semantic-studio')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -72,6 +85,10 @@ export class SemanticStudioController extends BaseController {
 
     private getCheckoutService(): SemanticStudioCheckoutService {
         return this.services.getSemanticStudioCheckoutService<SemanticStudioCheckoutService>();
+    }
+
+    private getChatService(): SemanticStudioChatService {
+        return this.services.getSemanticStudioChatService<SemanticStudioChatService>();
     }
 
     /**
@@ -958,6 +975,179 @@ export class SemanticStudioController extends BaseController {
                 projectUuid,
                 body.changeSetUuids,
             ),
+        };
+    }
+
+    /**
+     * Starts a conversation with the Semantic Studio builder.
+     * @summary Create a Semantic Studio chat thread
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/chat/threads')
+    @OperationId('createSemanticStudioChatThread')
+    async createChatThread(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: ApiAiAgentThreadCreateRequest,
+    ): Promise<ApiAiAgentThreadCreateResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getChatService().createThread(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+                getAppThreadCreatedFrom(req.account.authentication.type),
+            ),
+        };
+    }
+
+    /**
+     * A conversation with the Semantic Studio builder and its messages.
+     * @summary Get a Semantic Studio chat thread
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/chat/threads/{threadUuid}')
+    @OperationId('getSemanticStudioChatThread')
+    async getChatThread(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() threadUuid: UUID,
+    ): Promise<ApiAiAgentThreadResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getChatService().getThread(
+                toSessionUser(req.account),
+                { projectUuid, threadUuid },
+            ),
+        };
+    }
+
+    /**
+     * Adds a message to a conversation with the Semantic Studio builder.
+     * @summary Create a Semantic Studio chat message
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/chat/threads/{threadUuid}/messages')
+    @OperationId('createSemanticStudioChatMessage')
+    async createChatMessage(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Body() body: ApiAiAgentThreadMessageCreateRequest,
+    ): Promise<ApiAiAgentThreadMessageCreateResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getChatService().createMessage(
+                toSessionUser(req.account),
+                { projectUuid, threadUuid },
+                body,
+            ),
+        };
+    }
+
+    /**
+     * Streams the builder's answer to the latest message of a conversation.
+     * @summary Stream a Semantic Studio chat response
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/chat/threads/{threadUuid}/stream')
+    @OperationId('streamSemanticStudioChatResponse')
+    async streamChatResponse(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Body() body?: ApiAiAgentThreadStreamRequest,
+    ): Promise<void> {
+        assertRegisteredAccount(req.account);
+        pipeAgentResponseStream(
+            req,
+            await this.getChatService().streamResponse(
+                toSessionUser(req.account),
+                { projectUuid, threadUuid },
+                body,
+            ),
+        );
+    }
+
+    /**
+     * Names a conversation with the Semantic Studio builder from its messages.
+     * @summary Generate a Semantic Studio chat title
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/chat/threads/{threadUuid}/generate-title')
+    @OperationId('generateSemanticStudioChatTitle')
+    async generateChatTitle(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() threadUuid: UUID,
+    ): Promise<ApiAiAgentThreadGenerateTitleResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: {
+                title: await this.getChatService().generateTitle(
+                    toSessionUser(req.account),
+                    { projectUuid, threadUuid },
+                ),
+            },
+        };
+    }
+
+    /**
+     * Stops the builder's answer to a message.
+     * @summary Interrupt a Semantic Studio chat message
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/chat/threads/{threadUuid}/messages/{messageUuid}/interrupt')
+    @OperationId('interruptSemanticStudioChatMessage')
+    async interruptChatMessage(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Path() messageUuid: UUID,
+    ): Promise<ApiAiAgentThreadMessageInterruptResponse> {
+        assertRegisteredAccount(req.account);
+        await this.getChatService().interruptMessage(
+            toSessionUser(req.account),
+            { projectUuid, threadUuid, messageUuid },
+        );
+        return { status: 'ok', results: { interrupted: true } };
+    }
+
+    /**
+     * Sends the builder a note while it is answering a message.
+     * @summary Steer a Semantic Studio chat message
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/chat/threads/{threadUuid}/messages/{messageUuid}/steers')
+    @OperationId('steerSemanticStudioChatMessage')
+    async steerChatMessage(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Path() messageUuid: UUID,
+        @Body() body: ApiCreateAiAgentThreadMessageSteer,
+    ): Promise<ApiAiAgentThreadMessageSteerResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: {
+                steer: await this.getChatService().steerMessage(
+                    toSessionUser(req.account),
+                    { projectUuid, threadUuid, messageUuid },
+                    body.message,
+                ),
+            },
         };
     }
 }

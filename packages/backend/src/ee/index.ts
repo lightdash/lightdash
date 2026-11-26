@@ -150,6 +150,7 @@ import { developmentViewMiddleware } from './services/SemanticStudioService/deve
 import { DraftChecker } from './services/SemanticStudioService/DraftChecker';
 import { IncrementalDbtCompileService } from './services/SemanticStudioService/IncrementalDbtCompileService';
 import { RepoModelSource } from './services/SemanticStudioService/repoModels';
+import { SemanticStudioChatService } from './services/SemanticStudioService/SemanticStudioChatService';
 import { SemanticStudioCheckoutService } from './services/SemanticStudioService/SemanticStudioCheckoutService';
 import { SemanticStudioService } from './services/SemanticStudioService/SemanticStudioService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
@@ -472,6 +473,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
                     fileStorageClient: clients.getFileStorageClient(),
+                }),
+            semanticStudioChatService: ({ models, repository }) =>
+                new SemanticStudioChatService({
+                    ai: repository.getAiAgentService<AiAgentService>(),
+                    checkout:
+                        repository.getSemanticStudioCheckoutService<SemanticStudioCheckoutService>(),
+                    workspaceModel:
+                        models.getSemanticStudioWorkspaceModel<SemanticStudioWorkspaceModel>(),
                 }),
             semanticStudioCheckoutService: ({
                 models,

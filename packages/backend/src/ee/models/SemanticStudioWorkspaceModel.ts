@@ -159,6 +159,19 @@ export class SemanticStudioWorkspaceModel {
             : null;
     }
 
+    /** The agent a Studio conversation in this project runs on, whoever owns it; null when it is not one. */
+    async findStudioThreadAgentUuid(
+        projectUuid: string,
+        threadUuid: string,
+    ): Promise<string | null> {
+        const row = await this.database(AiThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .andWhere('project_uuid', projectUuid)
+            .andWhere('created_from', 'semantic_studio')
+            .first('agent_uuid');
+        return row?.agent_uuid ?? null;
+    }
+
     /** Open drafts and their models, each with who edited it; `threadUuid` is the chat asking. */
     async listChanges(
         { projectUuid, userUuid }: Owner,

@@ -235,6 +235,7 @@ interface ServiceManifest {
     homepageRecommendedActionSkipsService: unknown;
     semanticStudioService: unknown;
     semanticStudioCheckoutService: unknown;
+    semanticStudioChatService: unknown;
     incrementalDbtCompileService: unknown;
     aiAgentReviewNotificationService: unknown;
     writebackPreviewService: unknown;
@@ -2268,6 +2269,12 @@ export class ServiceRepository
         SemanticStudioCheckoutServiceImplT,
     >(): SemanticStudioCheckoutServiceImplT {
         return this.getService('semanticStudioCheckoutService');
+    }
+
+    public getSemanticStudioChatService<
+        SemanticStudioChatServiceImplT,
+    >(): SemanticStudioChatServiceImplT {
+        return this.getService('semanticStudioChatService');
     }
 
     public getIncrementalDbtCompileService<
