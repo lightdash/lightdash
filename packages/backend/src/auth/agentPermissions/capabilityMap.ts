@@ -1145,6 +1145,21 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.finishWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getBuilderStatus': [AgentCapability.ReadDiscover],
     'SemanticStudioController.getStudioAgent': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.createChatThread': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getChatThread': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.createChatMessage': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.streamChatResponse': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.generateChatTitle': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.interruptChatMessage': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.steerChatMessage': [AgentCapability.DbtWriteback],
     'SemanticStudioController.undo': [AgentCapability.DbtWriteback],
     'InviteLinksController.createInviteLink': [AgentCapability.Administration],
     'InviteLinksController.revokeAllInviteLinks': [
