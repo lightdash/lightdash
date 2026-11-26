@@ -705,6 +705,7 @@ export class AiAgentController extends BaseController {
             toSessionUser(req.account),
             agentUuid,
             projectUuid,
+            { includeBuiltIn: true },
         );
         return {
             status: 'ok',

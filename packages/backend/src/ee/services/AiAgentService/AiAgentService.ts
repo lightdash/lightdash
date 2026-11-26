@@ -3478,6 +3478,10 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         agent: AiAgent,
     ): Promise<boolean> {
+        // The Studio builder follows Studio's permission, not Ask AI's.
+        if (agent.kind === 'semantic_studio') {
+            return this.canUseStudio(user, agent.projectUuid);
+        }
         return canAccessAiAgent(user, agent, {
             auditedAbility: this.createAuditedAbility(user),
             groupsModel: this.groupsModel,
@@ -3693,6 +3697,20 @@ export class AiAgentService extends BaseService {
         agent: AiAgent,
         threadUserUuid: string,
     ): Promise<boolean> {
+        // A Studio chat is its owner's, or anyone's who manages agents, as other chats are.
+        if (agent.kind === 'semantic_studio') {
+            return (
+                (await this.canUseStudio(user, agent.projectUuid)) &&
+                (threadUserUuid === user.userUuid ||
+                    this.createAuditedAbility(user).can(
+                        'manage',
+                        subject('AiAgent', {
+                            organizationUuid: agent.organizationUuid,
+                            projectUuid: agent.projectUuid,
+                        }),
+                    ))
+            );
+        }
         return canAccessAiAgentThread(user, agent, threadUserUuid, {
             auditedAbility: this.createAuditedAbility(user),
             groupsModel: this.groupsModel,
@@ -4963,21 +4981,31 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         agentUuid: string,
         projectUuid?: string,
-        options?: { includeSummaryContext: true },
+        options?: {
+            includeSummaryContext: true;
+            includeBuiltIn?: boolean;
+        },
     ): Promise<AiAgentWithContext>;
 
     public async getAgent(
         user: SessionUser,
         agentUuid: string,
         projectUuid?: string,
-        options?: { includeSummaryContext?: false },
+        options?: {
+            includeSummaryContext?: false;
+            includeBuiltIn?: boolean;
+        },
     ): Promise<AiAgent>;
 
     public async getAgent(
         user: SessionUser,
         agentUuid: string,
         projectUuid?: string,
-        options?: { includeSummaryContext?: boolean },
+        options?: {
+            includeSummaryContext?: boolean;
+            // Only the reads a chat screen makes ask for the built-in Studio agent; to everything else it does not exist.
+            includeBuiltIn?: boolean;
+        },
     ): Promise<AiAgent | AiAgentWithContext> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -4993,6 +5021,7 @@ export class AiAgentService extends BaseService {
             organizationUuid,
             agentUuid,
             projectUuid,
+            ...(options?.includeBuiltIn ? {} : { agentKind: 'user' }),
         });
 
         if (!agent) {
@@ -5938,6 +5967,8 @@ export class AiAgentService extends BaseService {
                 'Insufficient permissions to create threads for this agent',
             );
         }
+
+        AiAgentService.assertAgentServesThread(agent, body.createdFrom);
 
         if (isSemanticStudioThread(body.createdFrom)) {
             // Only the app starts these; an embed or scheduler keeps its own origin.
@@ -7032,7 +7063,9 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError('Organization not found');
         }
 
-        await this.getAgent(user, agentUuid, projectUuid);
+        await this.getAgent(user, agentUuid, projectUuid, {
+            includeBuiltIn: true,
+        });
 
         return this.aiAgentModel
             .getAgentMcpServersWithSensitiveData(agentUuid, user.userUuid)
@@ -8434,6 +8467,29 @@ export class AiAgentService extends BaseService {
 
     private getExplicitSlackChannelLinkingMessage(): string {
         return `🔒 No agent is configured for this channel, and this organization requires channels to be added from the agent settings page. Ask an admin to add one at ${this.lightdashConfig.siteUrl}/ai-agents`;
+    }
+
+    // The built-in Studio agent answers Studio threads only.
+    private static assertAgentServesThread(
+        agent: Pick<AiAgent, 'kind'>,
+        createdFrom: AiThreadCreatedFrom | undefined,
+    ): void {
+        if (
+            agent.kind === 'semantic_studio' &&
+            !isSemanticStudioThread(createdFrom)
+        ) {
+            throw new ForbiddenError(
+                'This agent only works in Semantic Studio',
+            );
+        }
+    }
+
+    private async canUseStudio(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        return (await this.semanticStudioService.getStatus(user, projectUuid))
+            .enabled;
     }
 
     private async getManageableAgentOrThrow(
@@ -10324,7 +10380,9 @@ export class AiAgentService extends BaseService {
 
             // The title is generated from the thread's own messages, so it must
             // run on that project's credential rather than the org default.
-            const agent = await this.getAgent(user, agentUuid);
+            const agent = await this.getAgent(user, agentUuid, undefined, {
+                includeBuiltIn: true,
+            });
             // Use fast model for title generation (lightweight task)
             const copilotConfig =
                 await this.orgAiCopilotConfigResolver.getCopilotConfig({
@@ -10536,10 +10594,7 @@ export class AiAgentService extends BaseService {
         if (
             agent === null ||
             agent.projectUuid !== projectUuid ||
-            !(await canAccessAiAgent(user, agent, {
-                auditedAbility: this.createAuditedAbility(user),
-                groupsModel: this.groupsModel,
-            }))
+            !(await this.checkAgentAccess(user, agent))
         )
             return 'agent_unavailable';
         // Results an agent produced while Data Access was on stop being
@@ -10565,7 +10620,9 @@ export class AiAgentService extends BaseService {
         const prompt =
             (await this.aiAgentModel.findSlackPrompt(artifact.promptUuid)) ??
             (await this.aiAgentModel.findWebAppPrompt(artifact.promptUuid));
-        const agent = await this.getAgent(user, agentUuid, projectUuid);
+        const agent = await this.getAgent(user, agentUuid, projectUuid, {
+            includeBuiltIn: true,
+        });
         if (
             prompt?.createdByUserUuid !== user.userUuid ||
             prompt.agentUuid !== agent.uuid ||
@@ -10912,7 +10969,9 @@ export class AiAgentService extends BaseService {
         }
 
         // Check if user has access to this agent
-        await this.getAgent(user, agentUuid, agent.projectUuid);
+        await this.getAgent(user, agentUuid, agent.projectUuid, {
+            includeBuiltIn: true,
+        });
 
         const artifact = await this.getArtifact(
             user,
@@ -11437,7 +11496,9 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        const agent = await this.getAgent(user, agentUuid, projectUuid);
+        const agent = await this.getAgent(user, agentUuid, projectUuid, {
+            includeBuiltIn: true,
+        });
         const message = await this.aiAgentModel.findPromptContext(messageUuid);
         if (
             !message ||
@@ -12130,7 +12191,12 @@ export class AiAgentService extends BaseService {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
         }
-        return this.getAgentForPrompt(user.organizationUuid, prompt);
+        const agent = await this.getAgentForPrompt(
+            user.organizationUuid,
+            prompt,
+        );
+        AiAgentService.assertAgentServesThread(agent, prompt.threadCreatedFrom);
+        return agent;
     }
 
     // Priority: agentUuid if available (set by multi-agent channel selection or
@@ -24653,6 +24719,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         if (!agent) {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
+        // A copy is an ordinary chat, which the built-in Studio agent does not serve.
+        AiAgentService.assertAgentServesThread(agent, undefined);
 
         const sourceThread = await this.aiAgentModel.getThread({
             organizationUuid,
@@ -24793,6 +24861,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         if (!agent || agent.projectUuid !== projectUuid) {
             throw new NotFoundError(`Agent not found: ${share.agentUuid}`);
         }
+        AiAgentService.assertAgentServesThread(agent, undefined);
 
         const hasAgentAccess = await this.checkAgentAccess(user, agent);
         if (!hasAgentAccess) {
@@ -25414,7 +25483,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             throw new ForbiddenError('Organization not found');
         }
 
-        const agent = await this.getAgent(user, agentUuid, projectUuid);
+        const agent = await this.getAgent(user, agentUuid, projectUuid, {
+            includeBuiltIn: true,
+        });
         const artifact = await this.aiAgentModel.getArtifact(
             artifactUuid,
             versionUuid,

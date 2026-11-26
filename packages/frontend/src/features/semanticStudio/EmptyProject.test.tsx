@@ -1,11 +1,9 @@
 import {
-    getDefaultAiAgent,
     DbtProjectType,
     WarehouseTypes,
     type SemanticLayerStatus,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { type FC } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -98,8 +96,9 @@ const mockApi = ({ status, warehouse, dbtType, tables }: Setup) =>
 const Harness: FC<{
     permissions: StudioPermissions;
     isLoadingAgents: boolean;
+    chatRefusal: string | null;
     onAsk: ((prompt: string) => void) | null;
-}> = ({ permissions, isLoadingAgents, onAsk }) => {
+}> = ({ permissions, isLoadingAgents, chatRefusal, onAsk }) => {
     const view = useSemanticStudio({
         project: {
             id: 'project',
@@ -116,18 +115,24 @@ const Harness: FC<{
     return onAsk ? (
         <BuildFirstModel view={view} onAsk={onAsk} firstRequest={null} />
     ) : (
-        <EmptyProject view={view} isLoadingAgents={isLoadingAgents} />
+        <EmptyProject
+            view={view}
+            isLoadingAgents={isLoadingAgents}
+            chatRefusal={chatRefusal}
+        />
     );
 };
 
 const renderEmpty = ({
     permissions = ADMIN,
     isLoadingAgents = false,
+    chatRefusal = null,
     onAsk = null,
     ...setup
 }: Partial<Setup> & {
     permissions?: StudioPermissions;
     isLoadingAgents?: boolean;
+    chatRefusal?: string | null;
     onAsk?: ((prompt: string) => void) | null;
 }) => {
     mockApi({
@@ -166,6 +171,7 @@ const renderEmpty = ({
                     <Harness
                         permissions={permissions}
                         isLoadingAgents={isLoadingAgents}
+                        chatRefusal={chatRefusal}
                         onAsk={onAsk}
                     />
                 </ExternalSourceActionsContext.Provider>
@@ -210,31 +216,21 @@ describe('EmptyProject', () => {
         expect(await screen.findByLabelText('Loading')).toBeInTheDocument();
     });
 
-    it('creates the default agent from Get started, with no form to fill in', async () => {
-        const user = userEvent.setup();
-        renderEmpty({});
-
-        await user.click(
-            await screen.findByRole('button', { name: 'Get started' }),
-        );
-
-        const created = api.mock.calls
-            .map(([call]) => call)
-            .find(({ method }) => method === 'POST');
-        expect(created).toMatchObject({
-            url: '/projects/project/aiAgents',
-            body: JSON.stringify(getDefaultAiAgent('project')),
-        });
+    it('says why the chat is missing when the built-in agent was refused', async () => {
+        renderEmpty({ chatRefusal: 'Copilot is not enabled' });
+        expect(
+            await screen.findByText('Copilot is not enabled'),
+        ).toBeInTheDocument();
     });
 
-    it('offers an agent, the warehouse and the CLI to someone who can edit without one', async () => {
+    it('offers the warehouse and the CLI, and no agent to create, to someone who can edit', async () => {
         renderEmpty({});
-        expect(
-            await screen.findByRole('button', { name: 'Get started' }),
-        ).toBeInTheDocument();
         expect(
             await screen.findByText('db.schema_a · 2 tables'),
         ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Get started' }),
+        ).not.toBeInTheDocument();
         expect(screen.getByText('table_a')).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: /Model table_a/ }),

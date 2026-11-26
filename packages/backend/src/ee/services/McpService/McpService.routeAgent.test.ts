@@ -109,6 +109,7 @@ const selectedAgent: AiAgentWithContext = {
     projectUuid,
     organizationUuid,
     name: 'Finance',
+    kind: 'user',
     description: 'Finance specialist',
     imageUrl: null,
     imageUrlSource: null,

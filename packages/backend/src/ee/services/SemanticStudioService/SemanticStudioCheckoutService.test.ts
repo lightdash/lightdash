@@ -7,6 +7,7 @@ import {
     NotFoundError,
     ParameterError,
     ProjectType,
+    type AiAgentSummary,
     type CompileSemanticStudioBranchPayload,
     type Explore,
     type ExploreError,
@@ -74,6 +75,45 @@ const BRANCH_EXPLORE: ExploreError = {
 
 type CompileRow = BranchCompile & { followUpClaimedAt: Date | null };
 
+const BUILDER_AGENT: AiAgentSummary = {
+    uuid: '00000000-0000-0000-0000-00000000000a',
+    name: 'Semantic Studio',
+    kind: 'semantic_studio',
+    description: null,
+    integrations: [],
+    tags: null,
+    projectUuid: PROJECT_UUID,
+    organizationUuid: ORGANIZATION_UUID,
+    createdAt: new Date('2026-01-01'),
+    updatedAt: new Date('2026-01-01'),
+    instruction: null,
+    imageUrl: null,
+    imageUrlSource: null,
+    groupAccess: [],
+    userAccess: [],
+    userAccessDetails: [],
+    spaceAccess: [],
+    enableDataAccess: true,
+    enableSelfImprovement: false,
+    enableContentTools: false,
+    enableUserContext: true,
+    enableSqlMode: true,
+    enableSqlAutoApproval: false,
+    enableComposerQueries: false,
+    adminOnly: false,
+    modelConfig: null,
+    providerCredentialUuid: null,
+    version: 2,
+    threadRetentionHours: null,
+};
+
+const AI_ON = {
+    isCopilotEnabled: true,
+    isTrial: false,
+    aiAgentsVisible: true,
+    hasModel: true,
+};
+
 const setup = ({
     dbtConnection = { type: DbtProjectType.NONE },
     previewOf = PROJECT_UUID,
@@ -81,6 +121,7 @@ const setup = ({
     previewCompile = null,
     exploreTypes = [],
     checkout = null,
+    ai = AI_ON,
 }: {
     dbtConnection?: Project['dbtConnection'];
     /** The project the preview project was built from. */
@@ -90,7 +131,9 @@ const setup = ({
     exploreTypes?: ExploreType[];
     /** The project branch as Studio reads it. */
     checkout?: ApiCheckout | null;
+    ai?: typeof AI_ON;
 } = {}) => {
+    const createBuilderAgent = vi.fn(async () => BUILDER_AGENT);
     const appliesAs = applyModeOf(dbtConnection);
     // Studio is on for whoever may write where a change lands: the repository of a dbt project, the models otherwise.
     const getStatus = async (
@@ -312,9 +355,15 @@ const setup = ({
         },
         aiWritebackService,
         incrementalDbtCompile: { checkDbtScriptChange: unused },
+        aiAgentModel: { getOrCreateSemanticStudioAgent: createBuilderAgent },
+        ai: {
+            getAvailability: async () => ai,
+            hasModel: async () => ai.hasModel,
+        },
     });
     return {
         service,
+        createBuilderAgent,
         studio,
         aiWritebackService,
         fileStorageClient,
@@ -332,6 +381,63 @@ const setup = ({
 };
 
 describe('SemanticStudioCheckoutService', () => {
+    describe('handing out the built-in agent', () => {
+        const inOrganization = (person: SessionUser): SessionUser => ({
+            ...person,
+            organizationUuid: ORGANIZATION_UUID,
+        });
+
+        it('goes to someone who can use Studio, and to nobody else', async () => {
+            const allowed = setup({ dbtConnection: DBT_IN_GITHUB });
+            await expect(
+                allowed.service.getBuilderAgent(
+                    inOrganization(repoWriter),
+                    PROJECT_UUID,
+                ),
+            ).resolves.toBe(BUILDER_AGENT);
+            expect(allowed.createBuilderAgent).toHaveBeenCalledWith({
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+            });
+
+            const refused = setup({ dbtConnection: DBT_IN_GITHUB });
+            await expect(
+                refused.service.getBuilderAgent(
+                    inOrganization(viewer),
+                    PROJECT_UUID,
+                ),
+            ).rejects.toThrow('Studio is off');
+            expect(refused.createBuilderAgent).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            [
+                'the organization has no AI',
+                { ...AI_ON, isCopilotEnabled: false },
+                'Copilot is not enabled',
+            ],
+            [
+                'an admin has hidden AI',
+                { ...AI_ON, aiAgentsVisible: false },
+                'AI is turned off for this organization',
+            ],
+            [
+                'no model is configured',
+                { ...AI_ON, hasModel: false },
+                'No AI model is configured for this organization',
+            ],
+        ])('is refused when %s', async (_, ai, message) => {
+            const context = setup({ dbtConnection: DBT_IN_GITHUB, ai });
+            await expect(
+                context.service.getBuilderAgent(
+                    inOrganization(repoWriter),
+                    PROJECT_UUID,
+                ),
+            ).rejects.toThrow(message);
+            expect(context.createBuilderAgent).not.toHaveBeenCalled();
+        });
+    });
+
     describe('the development view of a dbt project', () => {
         const branch: ExploreError = {
             name: 'payments',

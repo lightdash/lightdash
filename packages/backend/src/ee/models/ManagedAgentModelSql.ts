@@ -177,6 +177,7 @@ agents AS (
   FROM ai_agent a, params
   WHERE a.project_uuid = ?
     AND a.is_system = false
+    AND a.agent_kind = 'user'
     AND a.created_at <= params.window_start
 ),
 router_enabled AS (

@@ -84,6 +84,8 @@ import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
 import { sendAiCreditAllowanceAlerts } from './scheduler/tasks/sendAiCreditAllowanceAlerts';
 import { scimRequestLoggingMiddleware } from './scim/scimRequestLoggingMiddleware';
+import { getDefaultModel } from './services/ai/models';
+import { findSemanticStudioPreset } from './services/ai/models/modelPreference';
 import { OrgAiCopilotConfigResolver } from './services/ai/OrgAiCopilotConfigResolver';
 import { BuiltInSkills } from './services/ai/skills/builtInSkills';
 import { AiAgentContentValidation } from './services/ai/utils/AiAgentContentValidation';
@@ -494,6 +496,36 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiWritebackService<AiWritebackService>(),
                     incrementalDbtCompile:
                         repository.getIncrementalDbtCompileService<IncrementalDbtCompileService>(),
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
+                    ai: {
+                        getAvailability: (user) =>
+                            repository
+                                .getAiOrganizationSettingsService<AiOrganizationSettingsService>()
+                                .getRuntimeSettings(user),
+                        // A default model, or a Claude model the organization is offered.
+                        hasModel: async (organizationUuid, projectUuid) => {
+                            const { catalogue, copilotConfig } =
+                                await new OrgAiCopilotConfigResolver({
+                                    lightdashConfig: context.lightdashConfig,
+                                    featureFlagModel:
+                                        models.getFeatureFlagModel(),
+                                    aiOrganizationSettingsModel:
+                                        models.getAiOrganizationSettingsModel(),
+                                    aiOrganizationProviderCredentialModel:
+                                        models.getAiOrganizationProviderCredentialModel(),
+                                    aiModelCatalog,
+                                }).getOrgModelCatalogue({
+                                    organizationUuid,
+                                    projectUuid,
+                                    credentialUuid: null,
+                                });
+                            return (
+                                getDefaultModel(copilotConfig) !== null ||
+                                findSemanticStudioPreset(catalogue, null) !==
+                                    null
+                            );
+                        },
+                    },
                 }),
             incrementalDbtCompileService: ({ models, repository, clients }) =>
                 new IncrementalDbtCompileService({

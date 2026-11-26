@@ -18,6 +18,7 @@ vi.mock('../../hooks/useAiAgentRouterFlow', () => ({
 const agent: AiAgentSummary = {
     uuid: 'agent-1',
     name: 'Data agent',
+    kind: 'user',
     description: null,
     integrations: [],
     tags: null,
