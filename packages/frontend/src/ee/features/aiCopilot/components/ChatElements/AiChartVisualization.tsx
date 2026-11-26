@@ -26,6 +26,7 @@ import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
+import { useChatArtifactsUrl } from '../../hooks/chatEndpoints';
 import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import {
     getAiArtifactChartSource,
@@ -65,6 +66,7 @@ export const AiChartVisualization: FC<Props> = ({
     const dispatch = useAiAgentStoreDispatch();
     const isMobile = useAgentMaxWidth(768);
     const isEmbed = useIsEmbedded();
+    const getArtifactsUrl = useChatArtifactsUrl();
     const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const identityEnabled = identityFlag.data?.enabled === true;
 
@@ -115,6 +117,7 @@ export const AiChartVisualization: FC<Props> = ({
                   versionUuid,
                   queryUuid,
                   cached: false,
+                  artifactsUrl: getArtifactsUrl(projectUuid, agentUuid),
               })
             : null,
     );
