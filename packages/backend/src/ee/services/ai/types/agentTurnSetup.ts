@@ -1,3 +1,4 @@
+import { type SessionUser } from '@lightdash/common';
 import { type ModelCatalogue } from '../models';
 import {
     type AiAgentDependencies,
@@ -45,6 +46,13 @@ export const DEFAULT_AGENT_WRITEBACK_SETUP: AgentWritebackSetup = {
     showsPullRequestBeforePreview: false,
     onSaved: null,
 };
+
+/** What a thread's own kind asks of its saves; null for a thread it has no say in. */
+export type FindAgentWritebackSetup = (save: {
+    user: SessionUser;
+    projectUuid: string;
+    threadUuid: string;
+}) => Promise<AgentWritebackSetup | null>;
 
 /** The tools only some kinds of thread have. */
 export type AgentExtraTools = Pick<

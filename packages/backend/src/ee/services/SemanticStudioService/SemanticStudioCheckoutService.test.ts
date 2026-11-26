@@ -211,6 +211,12 @@ const setup = ({
             agentUuid: string | null;
             title: string | null;
         } | null> => null,
+        // Only this thread is a Studio one.
+        findStudioThreadAgentUuid: async (
+            _projectUuid: string,
+            threadUuid: string,
+        ): Promise<string | null> =>
+            threadUuid === 'studio-thread' ? 'agent-uuid' : null,
         findInProject: async () => {
             const workspace = await findActive();
             return workspace ? [workspace] : [];
@@ -413,6 +419,27 @@ describe('SemanticStudioCheckoutService', () => {
                 showsPullRequestBeforePreview: true,
             });
             expect(writeback.onSaved).not.toBeNull();
+        });
+
+        it('sets up the saves of a Studio thread and has no say in any other', async () => {
+            const { service } = setup({ dbtConnection: DBT_IN_GITHUB });
+            const save = { user: repoWriter, projectUuid: PROJECT_UUID };
+
+            await expect(
+                service.findAgentWritebackSetup({
+                    ...save,
+                    threadUuid: 'studio-thread',
+                }),
+            ).resolves.toMatchObject({
+                continuesThreadPullRequest: true,
+                showsPullRequestBeforePreview: true,
+            });
+            await expect(
+                service.findAgentWritebackSetup({
+                    ...save,
+                    threadUuid: 'ask-ai-thread',
+                }),
+            ).resolves.toBeNull();
         });
 
         it('says so when the person cannot change the semantic layer', async () => {

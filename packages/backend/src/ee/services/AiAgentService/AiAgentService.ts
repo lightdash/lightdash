@@ -593,6 +593,7 @@ import {
     type AgentModelPreference,
     type AgentTurnInputs,
     type BuildAgentExtraTools,
+    type FindAgentWritebackSetup,
 } from '../ai/types/agentTurnSetup';
 import {
     AiAgentArgs,
@@ -1160,6 +1161,8 @@ type AiAgentServiceDependencies = {
     projectContextService: ProjectContextService;
     semanticStudioService: SemanticStudioService;
     semanticStudioCheckoutService: SemanticStudioCheckoutService;
+    /** Absent where no other kind of thread sets up its own saves. */
+    findWritebackSetup?: FindAgentWritebackSetup;
     incrementalDbtCompileService: IncrementalDbtCompileService;
     writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
@@ -1549,6 +1552,8 @@ export class AiAgentService extends BaseService {
     private readonly semanticStudioService: SemanticStudioService;
 
     private readonly semanticStudioCheckoutService: SemanticStudioCheckoutService;
+
+    private readonly findWritebackSetup: FindAgentWritebackSetup;
 
     private readonly incrementalDbtCompileService: IncrementalDbtCompileService;
 
@@ -2344,6 +2349,8 @@ export class AiAgentService extends BaseService {
         this.semanticStudioService = dependencies.semanticStudioService;
         this.semanticStudioCheckoutService =
             dependencies.semanticStudioCheckoutService;
+        this.findWritebackSetup =
+            dependencies.findWritebackSetup ?? (async () => null);
         this.incrementalDbtCompileService =
             dependencies.incrementalDbtCompileService;
         this.writebackPreviewService = dependencies.writebackPreviewService;
@@ -13926,15 +13933,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 );
                 return;
             }
-            // A Studio thread's saves are set up by Studio; every other thread's are ordinary ones.
-            const writebackSetup = isSemanticStudioThread(
-                prompt.threadCreatedFrom,
-            )
-                ? this.semanticStudioCheckoutService.getAgentWritebackSetup(
-                      user,
-                      projectUuid,
-                  )
-                : DEFAULT_AGENT_WRITEBACK_SETUP;
+            // A thread of another kind sets up its own saves; every other thread's are ordinary ones.
+            const writebackSetup =
+                (await this.findWritebackSetup({
+                    user,
+                    projectUuid,
+                    threadUuid: payload.aiThreadUuid,
+                })) ?? DEFAULT_AGENT_WRITEBACK_SETUP;
 
             // This job is enqueued mid-step, so it can outrun the onStepEnd
             // insert of its own tool-result row — wait for it before any

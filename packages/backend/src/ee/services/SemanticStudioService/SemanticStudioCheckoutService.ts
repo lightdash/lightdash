@@ -87,6 +87,7 @@ export type SemanticStudioCheckoutServiceArguments = {
     workspaceModel: Pick<
         SemanticStudioWorkspaceModel,
         | 'findStudioThread'
+        | 'findStudioThreadAgentUuid'
         | 'findInProject'
         | 'find'
         | 'findActive'
@@ -485,6 +486,26 @@ export class SemanticStudioCheckoutService extends BaseService {
             onSaved: (prUrl) =>
                 this.queueBranchCompile(user, projectUuid, prUrl, 'agent'),
         };
+    }
+
+    /** The save setup of a Studio thread; null for any other thread, which Studio has no say in. */
+    async findAgentWritebackSetup({
+        user,
+        projectUuid,
+        threadUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        threadUuid: string;
+    }): Promise<AgentWritebackSetup | null> {
+        const isStudioThread =
+            (await this.workspaceModel.findStudioThreadAgentUuid(
+                projectUuid,
+                threadUuid,
+            )) !== null;
+        return isStudioThread
+            ? this.getAgentWritebackSetup(user, projectUuid)
+            : null;
     }
 
     /** What a Studio thread brings to each of its turns on this project. */
