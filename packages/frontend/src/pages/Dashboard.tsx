@@ -773,7 +773,7 @@ const Dashboard: FC = () => {
         setHasParameterOrderChanged(false);
         resetControlDrafts(dashboard.config);
 
-        // Slug, not uuid: from a uuid URL this remounts the provider, dropping unsaved toggles and filter overrides
+        // On a uuid URL the remount this causes discards every unsaved draft
         if (dashboardTabs.length > 0) {
             void navigate(
                 `/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/view/tabs/${activeTab?.uuid}`,
