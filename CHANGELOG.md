@@ -1,3 +1,10 @@
+# [3.414.0](https://github.com/lightdash/lightdash/compare/3.413.0...3.414.0) (2026-11-26)
+
+
+### Features
+
+* **navigation:** left sidebar behind the left-navigation flag ([#33445](https://github.com/lightdash/lightdash/issues/33445)) ([75eea8a](https://github.com/lightdash/lightdash/commit/75eea8a96bbe690657175e4679c57675c57ab369))
+
 # [3.413.0](https://github.com/lightdash/lightdash/compare/3.412.0...3.413.0) (2026-11-26)
 
 
