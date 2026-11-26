@@ -1,3 +1,11 @@
+## [3.414.1](https://github.com/lightdash/lightdash/compare/3.414.0...3.414.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **oauth:** show the redirect destination on the consent page ([#32954](https://github.com/lightdash/lightdash/issues/32954)) ([e2d0373](https://github.com/lightdash/lightdash/commit/e2d037366d2948686d3a6939fbc7a6fa69a6e6ad))
+* **service-accounts:** keep the table on screen and scroll its rows ([#33478](https://github.com/lightdash/lightdash/issues/33478)) ([196cf56](https://github.com/lightdash/lightdash/commit/196cf565435f43b307b875196b1bebfe3ffaf99a))
+
 # [3.414.0](https://github.com/lightdash/lightdash/compare/3.413.0...3.414.0) (2026-11-26)
 
 
