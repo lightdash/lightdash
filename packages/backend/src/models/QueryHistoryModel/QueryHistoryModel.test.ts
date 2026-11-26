@@ -573,7 +573,7 @@ describe('QueryHistoryModel polling timeout', () => {
 
         expect(error).toBeInstanceOf(QueryPollingTimeoutError);
         expect((error as Error).message).toBe(
-            'Query polling timed out after 300000ms',
+            'Timed out after 300s waiting for the query to finish',
         );
         expect(get).toHaveBeenCalledTimes(6);
     });
