@@ -1,3 +1,10 @@
+## [3.414.2](https://github.com/lightdash/lightdash/compare/3.414.1...3.414.2) (2026-11-26)
+
+
+### Bug Fixes
+
+* **ai-agent:** scope the composer-chart limit to Documents ([#33482](https://github.com/lightdash/lightdash/issues/33482)) ([ab31360](https://github.com/lightdash/lightdash/commit/ab3136067826a136ea8d4996904fe2a933fb29e0))
+
 ## [3.414.1](https://github.com/lightdash/lightdash/compare/3.414.0...3.414.1) (2026-11-26)
 
 
