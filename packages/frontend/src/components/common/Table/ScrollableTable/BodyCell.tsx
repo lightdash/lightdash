@@ -167,6 +167,20 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         }
     }, [hasData, cell]);
 
+    // The full value of a clamped merged value. A cell with a tooltip would
+    // show two tooltips, and an image or rich-text cell does not show the raw
+    // value.
+    const showsOtherContent =
+        !!item &&
+        (('image' in item && !!item.image) ||
+            ('richText' in item && !!item.richText));
+    const mergedValueTitle =
+        !canHaveTooltip &&
+        !showsOtherContent &&
+        typeof displayValue === 'string'
+            ? displayValue
+            : undefined;
+
     const hasUrls = useMemo(() => {
         if (!canHaveMenu) return false;
         const cellValue = cell.getValue();
@@ -260,11 +274,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                                 ? `${TABLE_LINE_HEIGHT_PX}px`
                                 : undefined
                         }
-                        title={
-                            typeof displayValue === 'string'
-                                ? displayValue
-                                : undefined
-                        }
+                        title={mergedValueTitle}
                         __vars={{
                             '--merged-line-clamp': String(mergedLineClamp),
                         }}
