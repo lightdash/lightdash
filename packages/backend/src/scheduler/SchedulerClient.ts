@@ -20,6 +20,7 @@ import {
     isEmailTarget,
     isGoogleChatTarget,
     isMsTeamsTarget,
+    isSchedulerGsheetsOptions,
     isSlackTarget,
     JobPriority,
     ManagedAgentHeartbeatPayload,
@@ -95,6 +96,15 @@ const SCHEDULED_JOB_MAX_ATTEMPTS = 1;
 // render runs at a time for that org, so it can't starve the worker pool.
 export const getOrgDeliveryQueueName = (organizationUuid: string): string =>
     `delivery:${organizationUuid}`;
+
+// Name of the graphile named queue that runs the Google Sheets syncs of one
+// spreadsheet one at a time, so two runs never write the same tabs at once.
+export const getGsheetsUploadQueueName = (
+    scheduler: Pick<Scheduler, 'options'>,
+): string | undefined =>
+    isSchedulerGsheetsOptions(scheduler.options)
+        ? `gsheets:${scheduler.options.gdriveId}`
+        : undefined;
 
 type SchedulablePreAggregate = Omit<
     PreAggregateSchedulerDetails,
@@ -548,6 +558,9 @@ export class SchedulerClient {
             scheduledTime: date,
             ...traceProperties,
         };
+        // One writer per spreadsheet: jobs in a named queue run one at a time,
+        // so "Sync now" during a scheduled run, or two syncs that write one
+        // spreadsheet, wait for each other instead of writing at once.
         const id = await SchedulerClient.addJob(
             graphileClient,
             SCHEDULER_TASKS.UPLOAD_GSHEETS,
@@ -555,6 +568,8 @@ export class SchedulerClient {
             date,
             JobPriority.LOW,
             6, // Max attempts, 6 retries with natural backoff means it can be retried during the next ~10mins, useful when triggering max quota errors
+            undefined,
+            getGsheetsUploadQueueName(scheduler),
         );
 
         this.analytics.track({

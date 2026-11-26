@@ -123,6 +123,8 @@ export type SchedulerDetails = {
     partialFailures?: PartialFailure[];
     /** Set when a threshold-alert scheduler completed without sending a notification because the threshold was not met. */
     thresholdStatus?: ThresholdStatus;
+    /** Set on a Google Sheets sync run that stopped because a newer run of the same sync took over the tab. Not a failure. */
+    superseded?: boolean;
     [key: string]: AnyType;
 };
 

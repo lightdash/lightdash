@@ -8,6 +8,7 @@ import {
     getErrorMessage,
     GoogleSheetsQuotaError,
     GoogleSheetsScopeError,
+    GoogleSheetsSupersededError,
     GoogleSheetsTransientError,
     isDimension,
     isField,
@@ -92,6 +93,21 @@ const GOOGLE_INTERNAL_ERROR_MESSAGE =
 const STAGING_TAB_PREFIX = 'Lightdash sync in progress ';
 const NEW_TAB_ROW_COUNT = 1000;
 const NEW_TAB_COLUMN_COUNT = 26;
+// A staging tab is stale when its run started longer ago than the job
+// timeout plus this margin: no live run can still write to it.
+const STAGING_STALE_MARGIN_MS = 10 * 60 * 1000;
+const DEFAULT_JOB_TIMEOUT_MS = 10 * 60 * 1000;
+// Developer metadata on the tab: the id of the last run that claimed it.
+export const GSHEETS_SYNC_CLAIM_KEY = 'lightdash.sync.claim';
+
+// Sorts by start time: base-36 milliseconds, padded, then a random suffix.
+const newSyncRunId = () =>
+    `${Date.now().toString(36).padStart(9, '0')}-${randomBytes(2).toString('hex')}`;
+
+const syncRunStartedAt = (runId: string): number | undefined =>
+    /^[0-9a-z]{9}-[0-9a-f]{4}$/.test(runId)
+        ? parseInt(runId.slice(0, 9), 36)
+        : undefined;
 
 export type GoogleSheetsWriteChunk = {
     start: number;
@@ -149,6 +165,8 @@ type SheetProperties = {
     rowCount: number;
     columnCount: number;
     basicFilter?: sheets_v4.Schema$BasicFilter;
+    // The id of the last run that claimed this tab.
+    claim?: string;
 };
 
 type WriteContext = {
@@ -834,12 +852,25 @@ export class GoogleDriveClient {
             .update(tabTitle)
             .digest('hex')
             .slice(0, 8)}-`;
-        // Left by a run that crashed or timed out. Deleting one that an
-        // orphaned run still writes to makes that run fail without changes.
-        const staleStagingSheets = existingSheets.filter(
-            (sheet) =>
-                sheet !== target && sheet.title.startsWith(stagingPrefix),
-        );
+        const stagingRunId = (sheet: SheetProperties) =>
+            sheet !== target && sheet.title.startsWith(stagingPrefix)
+                ? sheet.title.slice(stagingPrefix.length)
+                : undefined;
+        // Another sync of this tab can be running ("Sync now" during a
+        // scheduled run, or two schedulers on one tab). So only delete a
+        // staging tab that no live run can own: one from a run that started
+        // before the job timeout plus a margin, or with an older name.
+        const staleBefore =
+            Date.now() -
+            ((this.lightdashConfig.scheduler?.jobTimeout ??
+                DEFAULT_JOB_TIMEOUT_MS) +
+                STAGING_STALE_MARGIN_MS);
+        const staleStagingSheets = existingSheets.filter((sheet) => {
+            const id = stagingRunId(sheet);
+            if (id === undefined) return false;
+            const startedAt = syncRunStartedAt(id);
+            return startedAt === undefined || startedAt < staleBefore;
+        });
 
         const rowCount = results.length;
         const columnCount = Math.max(
@@ -888,7 +919,10 @@ export class GoogleDriveClient {
         );
         const startedAt = Date.now();
 
-        const stagingTitle = `${stagingPrefix}${randomBytes(3).toString('hex')}`;
+        // An in-place write also gets a 1x1 hidden tab with the run id, so
+        // a newer run can supersede it the same way as a staged write.
+        const runId = newSyncRunId();
+        const ownTitle = `${stagingPrefix}${runId}`;
         const targetGrid = {
             rowCount: targetRowCount,
             columnCount: targetColumnCount,
@@ -901,9 +935,6 @@ export class GoogleDriveClient {
         // it, so an in-place write needs the full grid before the first
         // request. A staged write grows the tab in the swap.
         const setupRequests: sheets_v4.Schema$Request[] = [
-            ...staleStagingSheets.map(({ sheetId }) => ({
-                deleteSheet: { sheetId },
-            })),
             ...(target
                 ? []
                 : [
@@ -929,59 +960,91 @@ export class GoogleDriveClient {
                       },
                   ]
                 : []),
-            ...(inPlace
-                ? []
-                : [
-                      {
-                          addSheet: {
-                              properties: {
-                                  title: stagingTitle,
-                                  hidden: true,
-                                  gridProperties: { rowCount, columnCount },
-                              },
-                          },
-                      },
-                  ]),
+            {
+                addSheet: {
+                    properties: {
+                        title: ownTitle,
+                        hidden: true,
+                        gridProperties: inPlace
+                            ? { rowCount: 1, columnCount: 1 }
+                            : { rowCount, columnCount },
+                    },
+                },
+            },
         ];
 
+        if (staleStagingSheets.length > 0) {
+            await GoogleDriveClient.deleteTabsIfPresent(
+                sheets,
+                fileId,
+                staleStagingSheets.map(({ sheetId }) => sheetId),
+            );
+        }
+
         let targetSheetId = target?.sheetId;
-        let stagingSheetId: number | undefined;
+        let ownSheetId: number | undefined;
+        let filterCleared = false;
+        let filterToRestore = target?.basicFilter;
         try {
-            if (setupRequests.length > 0) {
-                const response = await GoogleDriveClient.withWriteRetry(
-                    () =>
-                        sheets.spreadsheets.batchUpdate(
-                            {
-                                spreadsheetId: fileId,
-                                requestBody: { requests: setupRequests },
-                            },
-                            { retry: false },
-                        ),
-                    'tab setup',
-                );
-                const added = (response.data.replies ?? []).flatMap(
-                    (reply) => reply.addSheet?.properties ?? [],
-                );
-                targetSheetId =
-                    targetSheetId ??
-                    added.find(({ title }) => title === tabTitle)?.sheetId ??
-                    undefined;
-                stagingSheetId =
-                    added.find(({ title }) => title === stagingTitle)
-                        ?.sheetId ?? undefined;
-            }
-            if (
-                targetSheetId === undefined ||
-                (!inPlace && stagingSheetId === undefined)
-            ) {
+            const response = await GoogleDriveClient.withWriteRetry(
+                () =>
+                    sheets.spreadsheets.batchUpdate(
+                        {
+                            spreadsheetId: fileId,
+                            requestBody: { requests: setupRequests },
+                        },
+                        { retry: false },
+                    ),
+                'tab setup',
+            );
+            const added = (response.data.replies ?? []).flatMap(
+                (reply) => reply.addSheet?.properties ?? [],
+            );
+            targetSheetId =
+                targetSheetId ??
+                added.find(({ title }) => title === tabTitle)?.sheetId ??
+                undefined;
+            ownSheetId =
+                added.find(({ title }) => title === ownTitle)?.sheetId ??
+                undefined;
+            if (targetSheetId === undefined || ownSheetId === undefined) {
                 throw new UnexpectedGoogleSheetsError(
                     'Unable to create the Google Sheets tabs for the sync',
                 );
             }
+            const sheetId = targetSheetId;
+            const ownTab = ownSheetId;
+            const claimTab = () =>
+                GoogleDriveClient.claimTab(sheets, fileId, {
+                    runId,
+                    sheetId,
+                    ownSheetId: ownTab,
+                    olderStagingIds: (list) =>
+                        list.flatMap((sheet) => {
+                            const id = stagingRunId(sheet);
+                            return id !== undefined &&
+                                sheet.sheetId !== ownTab &&
+                                id < runId
+                                ? [sheet.sheetId]
+                                : [];
+                        }),
+                });
 
-            const writeTitle = quoteTabName(inPlace ? tabTitle : stagingTitle);
+            // An in-place write claims the tab before it changes it.
+            if (inPlace) await claimTab();
+
+            const writeTitle = quoteTabName(inPlace ? tabTitle : ownTitle);
             await chunks.reduce(async (previous, chunk, index) => {
                 await previous;
+                // A staged write fails by itself when a newer run deletes its
+                // staging tab. An in-place write checks its tab first.
+                if (inPlace && index > 0) {
+                    await GoogleDriveClient.assertTabExists(
+                        sheets,
+                        fileId,
+                        ownTab,
+                    );
+                }
                 const rows = results.slice(chunk.start, chunk.end);
                 await GoogleDriveClient.withWriteRetry(
                     () =>
@@ -1011,7 +1074,6 @@ export class GoogleDriveClient {
                 );
             }, Promise.resolve());
 
-            const sheetId = targetSheetId;
             // The RAW writes already contain explicit date serials. Apply one
             // compact format per date column so behavior is independent of
             // Sheet locale without repeating format data per cell.
@@ -1038,42 +1100,95 @@ export class GoogleDriveClient {
                 );
 
             if (inPlace) {
+                await GoogleDriveClient.assertTabExists(sheets, fileId, ownTab);
                 await GoogleDriveClient.finishInPlaceWrite(sheets, fileId, {
                     sheetId,
+                    ownSheetId: ownTab,
                     rowCount,
                     columnCount,
                     gridRowCount: targetRowCount,
                     gridColumnCount: targetColumnCount,
                     formatRequests,
                 });
+                ownSheetId = undefined;
             } else {
+                // The claim deletes the staging tabs of older runs, so they
+                // can no longer paste into this tab. This run pastes every
+                // row afterwards, so their earlier pastes do not stay.
+                const freshTarget = await claimTab();
+                filterToRestore = freshTarget.basicFilter ?? filterToRestore;
                 const swapStartedAt = Date.now();
                 await GoogleDriveClient.swapStagingTab(sheets, fileId, {
                     sheetId,
-                    stagingSheetId: stagingSheetId!,
+                    stagingSheetId: ownTab,
                     rowCount,
                     columnCount,
-                    growGrid: growTarget,
-                    gridRowCount: targetRowCount,
-                    gridColumnCount: targetColumnCount,
+                    growGrid:
+                        targetRowCount !== freshTarget.rowCount ||
+                        targetColumnCount !== freshTarget.columnCount,
+                    gridRowCount: Math.max(
+                        targetRowCount,
+                        freshTarget.rowCount,
+                    ),
+                    gridColumnCount: Math.max(
+                        targetColumnCount,
+                        freshTarget.columnCount,
+                    ),
                     formatRequests,
-                    basicFilter: target?.basicFilter,
+                    clearFilter: freshTarget.basicFilter !== undefined,
+                    basicFilter: filterToRestore,
+                    onFilterCleared: (cleared) => {
+                        filterCleared = cleared;
+                    },
                     onRowsInTab: (rows) => {
                         context.rowsInTab = rows;
                     },
                 });
-                stagingSheetId = undefined;
+                ownSheetId = undefined;
                 Logger.info(
                     `Swapped ${rowCount} rows from the staging tab into the Google Sheets tab in ${Date.now() - swapStartedAt} ms`,
                 );
             }
         } catch (e) {
-            if (stagingSheetId !== undefined) {
-                await GoogleDriveClient.deleteStagingTab(
+            if (
+                targetSheetId !== undefined &&
+                (await GoogleDriveClient.isSuperseded(sheets, fileId, {
+                    runId,
+                    sheetId: targetSheetId,
+                }))
+            ) {
+                // A newer run claimed the tab and writes every row of it. This
+                // run is not a failure: the caller logs it, and does not retry,
+                // turn the sync off or email the owner.
+                if (ownSheetId !== undefined) {
+                    await GoogleDriveClient.deleteTabsIfPresent(
+                        sheets,
+                        fileId,
+                        [ownSheetId],
+                    );
+                }
+                Logger.info(
+                    `Stopped the Google Sheets write to the tab "${tabTitle}": a newer sync of the same tab took over (${getErrorMessage(e)})`,
+                );
+                throw new GoogleSheetsSupersededError(
+                    `A newer run of this Google Sheets sync took over the tab "${tabTitle}", so this run stopped. The newer run writes the data.`,
+                );
+            }
+            if (
+                filterCleared &&
+                filterToRestore &&
+                targetSheetId !== undefined
+            ) {
+                await GoogleDriveClient.restoreBasicFilter(
                     sheets,
                     fileId,
-                    stagingSheetId,
+                    filterToRestore,
                 );
+            }
+            if (ownSheetId !== undefined) {
+                await GoogleDriveClient.deleteTabsIfPresent(sheets, fileId, [
+                    ownSheetId,
+                ]);
             }
             throw GoogleDriveClient.describeWriteFailure(e, context);
         }
@@ -1083,6 +1198,176 @@ export class GoogleDriveClient {
         );
     }
 
+    private static latestClaim(
+        developerMetadata: sheets_v4.Schema$DeveloperMetadata[] | undefined,
+    ): { claim?: string } {
+        const claims = (developerMetadata ?? []).flatMap(
+            ({ metadataKey, metadataValue }) =>
+                metadataKey === GSHEETS_SYNC_CLAIM_KEY && metadataValue
+                    ? [metadataValue]
+                    : [],
+        );
+        return claims.length > 0 ? { claim: claims.sort().at(-1) } : {};
+    }
+
+    // Records this run as the one that writes the tab and deletes the
+    // staging tabs of older runs, in one batch. If another run changed the
+    // tabs at the same moment, the batch fails; read the tabs and try again.
+    private static async claimTab(
+        sheets: sheets_v4.Sheets,
+        fileId: string,
+        args: {
+            runId: string;
+            sheetId: number;
+            ownSheetId: number;
+            olderStagingIds: (list: SheetProperties[]) => number[];
+        },
+        attempt = 0,
+    ): Promise<SheetProperties> {
+        const list = await GoogleDriveClient.listSheetProperties(
+            sheets,
+            fileId,
+        );
+        const target = list.find(({ sheetId }) => sheetId === args.sheetId);
+        if (
+            !target ||
+            !list.some(({ sheetId }) => sheetId === args.ownSheetId) ||
+            (target.claim !== undefined && target.claim > args.runId)
+        ) {
+            throw new UnexpectedGoogleSheetsError(
+                'A newer sync of this tab took over, or its staging tab was deleted',
+            );
+        }
+        const requests: sheets_v4.Schema$Request[] = [
+            // Fails the batch if a newer run deleted this run's tab after the
+            // read above, so an older run never overwrites a newer claim.
+            {
+                updateSheetProperties: {
+                    properties: { sheetId: args.ownSheetId, hidden: true },
+                    fields: 'hidden',
+                },
+            },
+            {
+                deleteDeveloperMetadata: {
+                    dataFilter: {
+                        developerMetadataLookup: {
+                            metadataKey: GSHEETS_SYNC_CLAIM_KEY,
+                            metadataLocation: { sheetId: args.sheetId },
+                        },
+                    },
+                },
+            },
+            {
+                createDeveloperMetadata: {
+                    developerMetadata: {
+                        metadataKey: GSHEETS_SYNC_CLAIM_KEY,
+                        metadataValue: args.runId,
+                        location: { sheetId: args.sheetId },
+                        visibility: 'DOCUMENT',
+                    },
+                },
+            },
+            ...args.olderStagingIds(list).map((sheetId) => ({
+                deleteSheet: { sheetId },
+            })),
+        ];
+        try {
+            await GoogleDriveClient.withWriteRetry(
+                () =>
+                    sheets.spreadsheets.batchUpdate(
+                        { spreadsheetId: fileId, requestBody: { requests } },
+                        { retry: false },
+                    ),
+                'tab claim',
+            );
+        } catch (e) {
+            if (attempt < 2 && e instanceof UnexpectedGoogleSheetsError) {
+                return GoogleDriveClient.claimTab(
+                    sheets,
+                    fileId,
+                    args,
+                    attempt + 1,
+                );
+            }
+            throw e;
+        }
+        return target;
+    }
+
+    private static async isSuperseded(
+        sheets: sheets_v4.Sheets,
+        fileId: string,
+        args: { runId: string; sheetId: number },
+    ): Promise<boolean> {
+        try {
+            const list = await GoogleDriveClient.listSheetProperties(
+                sheets,
+                fileId,
+            );
+            const claim = list.find(
+                ({ sheetId }) => sheetId === args.sheetId,
+            )?.claim;
+            return claim !== undefined && claim > args.runId;
+        } catch {
+            return false;
+        }
+    }
+
+    private static async assertTabExists(
+        sheets: sheets_v4.Sheets,
+        fileId: string,
+        sheetId: number,
+    ) {
+        const list = await GoogleDriveClient.listSheetProperties(
+            sheets,
+            fileId,
+        );
+        if (!list.some((sheet) => sheet.sheetId === sheetId)) {
+            throw new UnexpectedGoogleSheetsError(
+                'The Lightdash tab of this sync was deleted',
+            );
+        }
+    }
+
+    private static async restoreBasicFilter(
+        sheets: sheets_v4.Sheets,
+        fileId: string,
+        basicFilter: sheets_v4.Schema$BasicFilter,
+    ) {
+        await GoogleDriveClient.catchApiError(
+            sheets.spreadsheets.batchUpdate(
+                {
+                    spreadsheetId: fileId,
+                    requestBody: {
+                        requests: [
+                            GoogleDriveClient.setBasicFilterRequest(
+                                basicFilter,
+                            ),
+                        ],
+                    },
+                },
+                { retry: false },
+            ),
+        ).catch((error) =>
+            Logger.warn(
+                `Unable to restore the Google Sheets filter: ${getErrorMessage(error)}`,
+            ),
+        );
+    }
+
+    // Set back without its sort: a sort would re-sort the synced rows on
+    // every sync, and only part of them when the data grows past a fixed
+    // filter range. The old write left the rows in query order.
+    private static setBasicFilterRequest(
+        basicFilter: sheets_v4.Schema$BasicFilter,
+    ): sheets_v4.Schema$Request {
+        return {
+            setBasicFilter: {
+                filter: { ...basicFilter, sortSpecs: undefined },
+            },
+        };
+    }
+
     private static async listSheetProperties(
         sheets: sheets_v4.Sheets,
         fileId: string,
@@ -1090,11 +1375,11 @@ export class GoogleDriveClient {
         const response = await GoogleDriveClient.catchApiError(
             sheets.spreadsheets.get({
                 spreadsheetId: fileId,
-                fields: 'sheets(properties(sheetId,title,hidden,gridProperties(rowCount,columnCount)),basicFilter)',
+                fields: 'sheets(properties(sheetId,title,hidden,gridProperties(rowCount,columnCount)),basicFilter,developerMetadata(metadataKey,metadataValue))',
             }),
         );
         return (response.data.sheets ?? []).flatMap(
-            ({ properties, basicFilter }) =>
+            ({ properties, basicFilter, developerMetadata }) =>
                 properties?.title &&
                 properties.sheetId !== null &&
                 properties.sheetId !== undefined
@@ -1108,6 +1393,9 @@ export class GoogleDriveClient {
                               columnCount:
                                   properties.gridProperties?.columnCount ?? 0,
                               ...(basicFilter ? { basicFilter } : {}),
+                              ...GoogleDriveClient.latestClaim(
+                                  developerMetadata,
+                              ),
                           },
                       ]
                     : [],
@@ -1133,7 +1421,9 @@ export class GoogleDriveClient {
             gridRowCount: number;
             gridColumnCount: number;
             formatRequests: sheets_v4.Schema$Request[];
+            clearFilter: boolean;
             basicFilter?: sheets_v4.Schema$BasicFilter;
+            onFilterCleared: (cleared: boolean) => void;
             onRowsInTab: (rows: number) => void;
         },
     ) {
@@ -1223,61 +1513,34 @@ export class GoogleDriveClient {
         ];
 
         // A paste skips the rows that a basic filter hides, so the filter
-        // is off during the swap and the last batch sets it back.
+        // is off during the swap and the last batch sets it back. If a later
+        // batch fails, the caller sets it back.
         const { basicFilter } = args;
-        const clearFilterRequests: sheets_v4.Schema$Request[] = basicFilter
+        const clearFilterRequests: sheets_v4.Schema$Request[] = args.clearFilter
             ? [{ clearBasicFilter: { sheetId: args.sheetId } }]
             : [];
-        // Restored without its sort: a sort would re-sort the synced rows on
-        // every sync, and only part of them when the data grows past a fixed
-        // filter range. The old write left the rows in query order.
         const restoreFilterRequests: sheets_v4.Schema$Request[] = basicFilter
-            ? [
-                  {
-                      setBasicFilter: {
-                          filter: { ...basicFilter, sortSpecs: undefined },
-                      },
-                  },
-              ]
+            ? [GoogleDriveClient.setBasicFilterRequest(basicFilter)]
             : [];
-        let filterCleared = false;
 
-        try {
-            await GoogleDriveClient.runSwapBatches(sheets, fileId, {
-                ...args,
-                pieces,
-                requestsFor: (index) => [
-                    ...(index === 0
-                        ? [...clearFilterRequests, ...growRequests]
-                        : []),
-                    copy(pieces[index]),
-                    ...(index === pieces.length - 1
-                        ? [...finishRequests, ...restoreFilterRequests]
-                        : []),
-                ],
-                onBatchDone: (index) => {
-                    filterCleared =
-                        basicFilter !== undefined && index < pieces.length - 1;
-                },
-            });
-        } catch (e) {
-            if (filterCleared && basicFilter) {
-                await GoogleDriveClient.catchApiError(
-                    sheets.spreadsheets.batchUpdate(
-                        {
-                            spreadsheetId: fileId,
-                            requestBody: { requests: restoreFilterRequests },
-                        },
-                        { retry: false },
-                    ),
-                ).catch((error) =>
-                    Logger.warn(
-                        `Unable to restore the Google Sheets filter: ${getErrorMessage(error)}`,
-                    ),
+        await GoogleDriveClient.runSwapBatches(sheets, fileId, {
+            ...args,
+            pieces,
+            requestsFor: (index) => [
+                ...(index === 0
+                    ? [...clearFilterRequests, ...growRequests]
+                    : []),
+                copy(pieces[index]),
+                ...(index === pieces.length - 1
+                    ? [...finishRequests, ...restoreFilterRequests]
+                    : []),
+            ],
+            onBatchDone: (index) => {
+                args.onFilterCleared(
+                    basicFilter !== undefined && index < pieces.length - 1,
                 );
-            }
-            throw e;
-        }
+            },
+        });
     }
 
     private static async runSwapBatches(
@@ -1346,6 +1609,7 @@ export class GoogleDriveClient {
         fileId: string,
         args: {
             sheetId: number;
+            ownSheetId: number;
             rowCount: number;
             columnCount: number;
             gridRowCount: number;
@@ -1383,8 +1647,8 @@ export class GoogleDriveClient {
                   ]
                 : []),
             ...args.formatRequests,
+            { deleteSheet: { sheetId: args.ownSheetId } },
         ];
-        if (requests.length === 0) return;
         await GoogleDriveClient.withWriteRetry(
             () =>
                 sheets.spreadsheets.batchUpdate(
@@ -1395,28 +1659,32 @@ export class GoogleDriveClient {
         );
     }
 
-    private static async deleteStagingTab(
+    // Best effort: a tab that another run already deleted is not an error.
+    private static async deleteTabsIfPresent(
         sheets: sheets_v4.Sheets,
         fileId: string,
-        sheetId: number,
+        sheetIds: number[],
     ) {
-        try {
-            await GoogleDriveClient.catchApiError(
-                sheets.spreadsheets.batchUpdate(
-                    {
-                        spreadsheetId: fileId,
-                        requestBody: {
-                            requests: [{ deleteSheet: { sheetId } }],
+        await sheetIds.reduce(async (previous, sheetId) => {
+            await previous;
+            try {
+                await GoogleDriveClient.catchApiError(
+                    sheets.spreadsheets.batchUpdate(
+                        {
+                            spreadsheetId: fileId,
+                            requestBody: {
+                                requests: [{ deleteSheet: { sheetId } }],
+                            },
                         },
-                    },
-                    { retry: false },
-                ),
-            );
-        } catch (error) {
-            Logger.warn(
-                `Unable to delete the Google Sheets staging tab: ${getErrorMessage(error)}`,
-            );
-        }
+                        { retry: false },
+                    ),
+                );
+            } catch (error) {
+                Logger.warn(
+                    `Unable to delete a Google Sheets staging tab: ${getErrorMessage(error)}`,
+                );
+            }
+        }, Promise.resolve());
     }
 
     // An in-place write must replace every cell of the old rows: the Sheets

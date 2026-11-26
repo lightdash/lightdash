@@ -58,6 +58,7 @@ import {
     getShowSubtotalsFromChartConfig,
     getSourceSchedulerUuid,
     GoogleSheetsQuotaError,
+    GoogleSheetsSupersededError,
     GoogleSheetsTransientError,
     GsheetsNotificationPayload,
     isAppCreateScheduler,
@@ -5474,6 +5475,31 @@ export default class SchedulerTask {
                 },
             });
         } catch (e) {
+            if (e instanceof GoogleSheetsSupersededError) {
+                // A newer run of this sync writes the tab. This run did not
+                // complete, but it is not a failure: no retry, no email, and
+                // the sync stays on.
+                Logger.info(
+                    `Google Sheets sync ${schedulerUuid} job ${jobId} superseded: ${e.message}`,
+                );
+                await this.schedulerService.logSchedulerJob({
+                    task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
+                    schedulerUuid,
+                    jobId,
+                    jobGroup: notification.jobGroup,
+                    scheduledTime,
+                    targetType: 'gsheets',
+                    status: SchedulerJobStatus.ERROR,
+                    details: {
+                        error: e.message,
+                        superseded: true,
+                        projectUuid: notification.projectUuid,
+                        organizationUuid: notification.organizationUuid,
+                        createdByUserUuid: notification.userUuid,
+                    },
+                });
+                return;
+            }
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,

@@ -421,6 +421,9 @@ export class GoogleSheetsFake {
                 if (grid.columnCount !== undefined) {
                     sheet.columnCount = grid.columnCount;
                 }
+                if (body.properties.hidden !== undefined) {
+                    sheet.hidden = body.properties.hidden;
+                }
                 this.assertCellLimit(this.totalCells());
                 return {};
             }

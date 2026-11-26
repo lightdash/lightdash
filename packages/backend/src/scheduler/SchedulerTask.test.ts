@@ -15,6 +15,7 @@ import {
     FilterOperator,
     ForbiddenError,
     GoogleSheetsQuotaError,
+    GoogleSheetsSupersededError,
     GoogleSheetsTransientError,
     InvalidUser,
     LightdashPage,
@@ -4145,6 +4146,30 @@ describe('uploadGsheets — app branch', () => {
             name: 'SchedulerDeliveryError',
             isNonRetryable: true,
         } satisfies Partial<SchedulerDeliveryError>);
+    });
+
+    // A newer run of the same sync took over the tab: not a failure, so no
+    // retry, no email and the sync stays on, but the run does not claim to
+    // have completed either.
+    it('logs a superseded Google Sheets run without failing the delivery', async () => {
+        const { run, appendCsvToSheet, logSchedulerJob } = setup();
+        appendCsvToSheet.mockRejectedValue(
+            new GoogleSheetsSupersededError('A newer run took over the tab'),
+        );
+
+        await expect(run()).resolves.toBeUndefined();
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                status: SchedulerJobStatus.ERROR,
+                details: expect.objectContaining({
+                    superseded: true,
+                    error: 'A newer run took over the tab',
+                }),
+            }),
+        );
+        expect(logSchedulerJob).not.toHaveBeenCalledWith(
+            expect.objectContaining({ status: SchedulerJobStatus.COMPLETED }),
+        );
     });
 
     // The metadata tab must list what was actually written, not the raw

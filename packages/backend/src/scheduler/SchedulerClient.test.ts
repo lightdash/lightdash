@@ -808,6 +808,44 @@ describe('scheduled notification payload parity', () => {
         );
     });
 
+    test('runs the Google Sheets syncs of one spreadsheet in one named queue', async () => {
+        const client = makeClient(false);
+        const gsheetsScheduler = (gdriveId: string) => ({
+            ...scheduler,
+            format: SchedulerFormat.GSHEETS,
+            options: {
+                gdriveId,
+                gdriveName: 'Sheet',
+                gdriveOrganizationName: '',
+                url: `https://docs.google.com/spreadsheets/d/${gdriveId}`,
+            },
+        });
+        await client.generateJobsForSchedulerTargets(
+            startingDateTime,
+            gsheetsScheduler('spreadsheet-1'),
+            undefined,
+            'parent',
+            traceProperties,
+        );
+        await client.generateJobsForSchedulerTargets(
+            startingDateTime,
+            gsheetsScheduler('spreadsheet-2'),
+            undefined,
+            'parent',
+            traceProperties,
+        );
+
+        expect(
+            graphileAddJob.mock.calls.map(([kind, , options]) => [
+                kind,
+                options.queueName,
+            ]),
+        ).toEqual([
+            ['uploadGsheets', 'gsheets:spreadsheet-1'],
+            ['uploadGsheets', 'gsheets:spreadsheet-2'],
+        ]);
+    });
+
     test('keeps query exports to Google Sheets unmarked', async () => {
         const client = makeClient(false);
         const payload = {

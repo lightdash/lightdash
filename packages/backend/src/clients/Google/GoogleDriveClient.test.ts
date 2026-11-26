@@ -3,6 +3,7 @@ import {
     DimensionType,
     FieldType,
     GoogleSheetsQuotaError,
+    GoogleSheetsSupersededError,
     GoogleSheetsTransientError,
     TimeFrames,
     UnexpectedGoogleSheetsError,
@@ -680,7 +681,7 @@ describe('GoogleDriveClient', () => {
                 { title: 'Summary', hidden: false },
                 {
                     title: expect.stringMatching(
-                        /^Lightdash sync in progress [0-9a-f]{8}-[0-9a-f]{6}$/,
+                        /^Lightdash sync in progress [0-9a-f]{8}-[0-9a-z]{9}-[0-9a-f]{4}$/,
                     ),
                     hidden: true,
                 },
@@ -1022,6 +1023,8 @@ describe('GoogleDriveClient', () => {
             });
             const rows = makeRows(5);
 
+            // The next run starts later than the crashed one.
+            vi.setSystemTime(Date.now() + 1000);
             await makeClient().appendCsvToSheet(
                 'refresh-token',
                 'file-id',
@@ -1337,7 +1340,7 @@ describe('GoogleDriveClient', () => {
             ]);
         });
 
-        test('a run that a newer run supersedes during the upload ends without an error', async () => {
+        test('a run that a newer run supersedes during the upload stops with the superseded outcome', async () => {
             const oldRows = makeRows(10, 'old');
             const fake = new GoogleSheetsFake([
                 { title: 'Sheet1', rows: oldRows },
@@ -1355,12 +1358,12 @@ describe('GoogleDriveClient', () => {
                 ),
             );
 
-            expect(error).toBeUndefined();
+            expect(error).toBeInstanceOf(GoogleSheetsSupersededError);
             expect(fake.tabValues('Sheet1')).toEqual(oldRows);
             expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
         });
 
-        test('a run that a newer run supersedes between swap batches ends without an error', async () => {
+        test('a run that a newer run supersedes between swap batches stops with the superseded outcome', async () => {
             const fake = new GoogleSheetsFake([
                 { title: 'Sheet1', rows: makeWideRows(150_000, 'old') },
             ]);
@@ -1381,7 +1384,7 @@ describe('GoogleDriveClient', () => {
                 ),
             );
 
-            expect(error).toBeUndefined();
+            expect(error).toBeInstanceOf(GoogleSheetsSupersededError);
             expect(copyBatch).toBe(2);
         });
 
@@ -1417,7 +1420,7 @@ describe('GoogleDriveClient', () => {
             );
         });
 
-        test('an in-place run that a newer run supersedes stops writing without an error', async () => {
+        test('an in-place run that a newer run supersedes stops writing with the superseded outcome', async () => {
             const fake = new GoogleSheetsFake([
                 { title: 'Sheet1', rows: makeRows(40_000, 'old') },
                 // Room for the new data once, not twice.
@@ -1436,10 +1439,71 @@ describe('GoogleDriveClient', () => {
                 ),
             );
 
-            expect(error).toBeUndefined();
+            expect(error).toBeInstanceOf(GoogleSheetsSupersededError);
             expect(fake.updateCalls).toHaveLength(2);
             expect(fake.updateCalls[0].range).toBe("'Sheet1'!A1");
         });
+
+        test.each([
+            ['two staged runs with several swap batches', 150_000, 150_000, 0],
+            ['a large and a small staged run', 150_000, 50, 0],
+            ['a small and a large staged run', 50, 150_000, 0],
+            ['two in-place runs', 150_000, 150_000, 15_500_000],
+        ])(
+            'two runs that write one tab at the same time leave the complete data of one run, with no failure (%s)',
+            async (_name, sizeA, sizeB, filler) => {
+                const fake = new GoogleSheetsFake([
+                    { title: 'Sheet1', rows: makeWideRows(150_000, 'old') },
+                    ...(filler
+                        ? [
+                              {
+                                  title: 'Filler',
+                                  rowCount: filler,
+                                  columnCount: 1,
+                              },
+                          ]
+                        : []),
+                ]);
+                useFake(fake);
+                const rowsA = makeWideRows(sizeA, 'a');
+                const rowsB = makeWideRows(sizeB, 'b');
+
+                const run = (rows: unknown[][]) =>
+                    makeClient()
+                        .appendCsvToSheet('refresh-token', 'file-id', rows)
+                        .then(
+                            () => undefined,
+                            (e: unknown) => e,
+                        );
+                const runA = run(rowsA);
+                const runB = run(rowsB);
+                await vi.runAllTimersAsync();
+
+                // One run completes; the other completes too or stops as
+                // superseded, never with an error.
+                const outcomes = [await runA, await runB].map((e) =>
+                    e === undefined ? 'completed' : (e as Error).name,
+                );
+                outcomes.forEach((outcome) =>
+                    expect([
+                        'completed',
+                        'GoogleSheetsSupersededError',
+                    ]).toContain(outcome),
+                );
+                expect(outcomes).toContain('completed');
+                const values = fake.tabValues('Sheet1');
+                const winner =
+                    values.length === rowsA.length &&
+                    String(values[1][1]).startsWith('a-')
+                        ? rowsA
+                        : rowsB;
+                expect(values.length).toBe(winner.length);
+                expect(values).toEqual(winner);
+                expect(fake.sheets.map((s) => s.title)).toEqual(
+                    filler ? ['Sheet1', 'Filler'] : ['Sheet1'],
+                );
+            },
+        );
 
         test('says a retried run replaces mixed rows, without asking to turn the sync on', async () => {
             const fake = new GoogleSheetsFake([
