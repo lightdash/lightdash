@@ -264,6 +264,38 @@ export type CustomSqlPermissions = {
     canAuthorSqlTableCalculations: boolean;
 };
 
+/** How the builder works on a project: into a draft, or on the repository of a dbt project. */
+export type StudioProjectMode = {
+    /** Whether the person can change this project's semantic layer at all. */
+    enabled: boolean;
+    /** Whether changes go into a draft; false on a dbt project, where the agent edits the repository. */
+    drafts: boolean;
+    /** Whether the project keeps its context on the server, drafted like a model. */
+    keepsContext: boolean;
+    /** A dbt project's layout, which spares the agent surveying the repository. */
+    projectMap: string | null;
+};
+
+/** One step's tool calls and results, which decide how a turn ends. */
+export type AgentTurnStep = {
+    toolCalls: ReadonlyArray<{
+        toolCallId: string;
+        toolName: string;
+        input: unknown;
+    }>;
+    toolResults: ReadonlyArray<{
+        toolCallId: string;
+        toolName: string;
+        output: unknown;
+    }>;
+};
+
+/** How a kind of thread ends its turn on a card: the reply once the card is up, and the line kept when nothing was written. */
+export type TurnCard = {
+    getResponse: (steps: ReadonlyArray<AgentTurnStep>) => string | null;
+    withReply: (reply: string, steps: ReadonlyArray<AgentTurnStep>) => string;
+};
+
 export type AiAgentArgs = AnyAiModel & {
     decisions?: AiDecisionClient;
     decisionUsage?: AiDecisionUsage;
@@ -322,12 +354,8 @@ export type AiAgentArgs = AnyAiModel & {
     // Only on inside review-remediation work threads: lets the agent open/update
     // the project_context.yml PR via the deterministic editProjectContext tool.
     enableEditProjectContext: boolean;
-    // A thread started in Semantic Studio: it drafts model changes and builds no content.
-    isSemanticStudioThread: boolean;
-    // Whether that thread proposes into a draft; false on a dbt project, where it edits the repository.
-    semanticStudioDrafts: boolean;
-    // Whether the project keeps its context on the server, drafted like a model; false when a repository holds it.
-    semanticStudioKeepsContext: boolean;
+    // Set on a thread started in Semantic Studio, which drafts model changes and builds no content; null otherwise.
+    studio: StudioProjectMode | null;
     // Which GitHub identity a writeback PR would be attributed to (advisory,
     // resolved at prompt-assembly time). null when not applicable/unresolved.
     writebackAttribution: AiWritebackAttribution | null;
@@ -346,8 +374,8 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the repo host has server-side code search (GitHub yes, GitLab no).
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
-    // A Studio dbt project's layout from its last compile; null otherwise.
-    semanticStudioProjectMap: string | null;
+    // Ends this thread's turns on a card instead of prose; null for a thread that has none.
+    turnCard: TurnCard | null;
     canRunSql: boolean;
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.

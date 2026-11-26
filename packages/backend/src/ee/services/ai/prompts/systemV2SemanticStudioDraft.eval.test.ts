@@ -20,7 +20,7 @@ import {
     foldProposal,
     withWrites,
 } from '../../SemanticStudioService/draftFold';
-import { getStudioCardResponse } from '../agents/agentV2';
+import { getStudioCardResponse } from '../../SemanticStudioService/studioTurnCard';
 import { getModel } from '../models';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import {

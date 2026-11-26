@@ -298,11 +298,21 @@ it('covers common agent definitions and all runtime variants without stale entri
         { enableAskUser: true },
         { enableContentTools: false },
         {
-            isSemanticStudioThread: true,
-            semanticStudioDrafts: true,
-            semanticStudioKeepsContext: true,
+            studio: {
+                enabled: true,
+                drafts: true,
+                keepsContext: true,
+                projectMap: null,
+            },
         },
-        { isSemanticStudioThread: true, semanticStudioDrafts: false },
+        {
+            studio: {
+                enabled: true,
+                drafts: false,
+                keepsContext: false,
+                projectMap: null,
+            },
+        },
         { enableContentReads: false, enableContentTools: false },
         { decisions: undefined, canRunSql: false, enableDataAccess: false },
         ...(['coordinator', 'worker'] as const).flatMap((role) =>

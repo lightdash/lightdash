@@ -30,6 +30,7 @@ import {
     type LoadoutInput,
 } from '../loadout';
 import { getModel } from '../models';
+import { type StudioProjectMode } from '../types/aiAgent';
 import { getSystemPromptV2 } from './systemV2';
 import { getSemanticStudioTurn } from './systemV2SemanticStudio';
 
@@ -109,6 +110,13 @@ const runSeededSql = async (sql: string, limit: number): Promise<string> => {
 };
 
 // A dbt project's Studio thread without writeback, which proposes a diff.
+const studioMode: StudioProjectMode = {
+    enabled: true,
+    drafts: false,
+    keepsContext: false,
+    projectMap: null,
+};
+
 const studioInput = (canRunSql: boolean): LoadoutInput => ({
     execution: { mode: 'standard', maxSteps: 15 },
     decisions: undefined,
@@ -124,9 +132,7 @@ const studioInput = (canRunSql: boolean): LoadoutInput => ({
     enableAiWriteback: false,
     enableRepoDiscovery: true,
     enableEditProjectContext: false,
-    isSemanticStudioThread: true,
-    semanticStudioDrafts: false,
-    semanticStudioKeepsContext: false,
+    studio: studioMode,
     enableReadAttachments: false,
     enableReadPinnedThread: false,
     enableAskUser: false,
