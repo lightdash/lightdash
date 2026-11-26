@@ -104,8 +104,12 @@ describe('createMcpQueryInputSchema', () => {
         );
     });
 
-    it('ends every rejection with a valid example call', () => {
-        const lastLine = rejection({ projectUuid, queries: [{}] })
+    it.each([
+        ['a valid project', projectUuid],
+        ['a malformed project', 'demo'],
+        ['no project', undefined],
+    ])('ends every rejection with a valid example call: %s', (_, uuid) => {
+        const lastLine = rejection({ projectUuid: uuid, queries: [{}] })
             .split('\n')
             .at(-1);
         expect(lastLine).toMatch(/^Minimal valid call: /);

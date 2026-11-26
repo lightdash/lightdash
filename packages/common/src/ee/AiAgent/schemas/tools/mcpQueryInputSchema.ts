@@ -1,4 +1,4 @@
-import type { z } from 'zod';
+import { z } from 'zod';
 import { toJsonSchema, type JsonSchema } from '../../../../utils/zodJsonSchema';
 
 type QueryNodeSchema = z.ZodObject<
@@ -158,19 +158,23 @@ export const createMcpQueryInputSchema = <TArgs extends McpQueryArgsSchema>(
     // eslint-disable-next-line no-underscore-dangle
     describedQueries._zod.toJSONSchema = () =>
         structuredClone(advertisedQueries);
-    const takesProjectUuid = 'projectUuid' in argsSchema.shape;
+    const projectUuidSchema: z.core.$ZodType | undefined = (
+        argsSchema.shape as z.ZodRawShape
+    ).projectUuid;
     return argsSchema.extend({ queries: describedQueries }).superRefine(
         (args, ctx) => {
             const { projectUuid } = args as { projectUuid?: unknown };
             ctx.addIssue({
                 code: 'custom',
                 message: `Minimal valid call: ${JSON.stringify({
-                    ...(takesProjectUuid
+                    ...(projectUuidSchema
                         ? {
-                              projectUuid:
-                                  typeof projectUuid === 'string'
-                                      ? projectUuid
-                                      : '<projectUuid>',
+                              projectUuid: z.safeParse(
+                                  projectUuidSchema,
+                                  projectUuid,
+                              ).success
+                                  ? projectUuid
+                                  : '00000000-0000-0000-0000-000000000000',
                           }
                         : {}),
                     queries: [EXAMPLE_NODE],
