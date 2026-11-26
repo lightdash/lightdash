@@ -82,6 +82,7 @@ const BUILDER_AGENT: AiAgentSummary = {
     description: null,
     integrations: [],
     tags: null,
+    excludedTags: null,
     projectUuid: PROJECT_UUID,
     organizationUuid: ORGANIZATION_UUID,
     createdAt: new Date('2026-01-01'),
