@@ -1,3 +1,10 @@
+## [3.411.5](https://github.com/lightdash/lightdash/compare/3.411.4...3.411.5) (2026-11-26)
+
+
+### Bug Fixes
+
+* fetch scheduled workbook attachments from export storage ([#33468](https://github.com/lightdash/lightdash/issues/33468)) ([31b1591](https://github.com/lightdash/lightdash/commit/31b15911befb4eb96f698b35aba5559739a55835))
+
 ## [3.411.4](https://github.com/lightdash/lightdash/compare/3.411.3...3.411.4) (2026-11-26)
 
 
