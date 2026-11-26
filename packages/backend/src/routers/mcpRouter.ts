@@ -612,6 +612,7 @@ mcpRouter.all(
                 if (authReq.auth && isToolsListRequest(req)) {
                     mcpService.recordToolList({
                         catalogue: toolOptions,
+                        servedTools: McpService.getServedToolNames(mcpServer),
                         authInfo: authReq.auth,
                         durationMs: Date.now() - startedAt,
                     });

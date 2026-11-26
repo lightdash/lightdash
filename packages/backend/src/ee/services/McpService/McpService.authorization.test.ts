@@ -368,6 +368,75 @@ describe('MCP scoped tool catalogue', () => {
         },
     );
 
+    const listServedCatalogue = async (
+        featureAvailability: Parameters<typeof makeMcpServerOptions>[0],
+    ) => {
+        const service = new McpService({
+            lightdashConfig: {
+                mcp: { runSqlMaxLimit: 500 },
+                siteUrl: 'https://example.com',
+            },
+            aiAgentToolsService: {
+                createRuntime: vi.fn(),
+                listMcpSkillResources: () => [],
+            },
+        } as unknown as ConstructorParameters<typeof McpService>[0]);
+        const options = makeMcpServerOptions(featureAvailability);
+        options.req.user = {
+            ...defaultSessionUser,
+            ability: new Ability<PossibleAbilities>([]),
+        };
+        const server = await service.createServer(options);
+        const client = new Client({ name: 'catalogue-test', version: '1' });
+        const [clientTransport, serverTransport] =
+            InMemoryTransport.createLinkedPair();
+        await server.connect(serverTransport);
+        await client.connect(clientTransport);
+        try {
+            return {
+                tools: (await client.listTools()).tools,
+                servedToolNames: McpService.getServedToolNames(server),
+            };
+        } finally {
+            await client.close();
+            await server.close();
+        }
+    };
+
+    const fullCatalogue = {
+        queryPath: {
+            type: 'composer',
+            sqlRunnerEnabled: true,
+            filterExpressionsEnabled: true,
+        },
+        dataAppBuildsEnabled: true,
+        chartTypeBuildsEnabled: true,
+        customChartTypesEnabled: true,
+        agentIdentityEnabled: true,
+        documentsEnabled: true,
+    } as const;
+
+    it.each([
+        { mode: null, scopes: ['mcp:read', 'mcp:write'] },
+        { mode: 'enforce' as const, scopes: ['mcp:read'] },
+    ])(
+        'reports the tools tools/list served with mode=$mode scopes=$scopes',
+        async ({ mode, scopes }) => {
+            vi.mocked(getOAuthScopeContext).mockReturnValue(
+                mode === null
+                    ? null
+                    : { mode, clientId: 'client', scopes, record: vi.fn() },
+            );
+            const { tools, servedToolNames } =
+                await listServedCatalogue(fullCatalogue);
+
+            expect(servedToolNames).toEqual(tools.map(({ name }) => name));
+            expect(servedToolNames.includes('create_content')).toBe(
+                mode === null,
+            );
+        },
+    );
+
     it.each([
         { scopes: ['mcp:read'], name: 'route_agent', allowed: true },
         { scopes: ['mcp:read'], name: 'run_sql', allowed: true },
