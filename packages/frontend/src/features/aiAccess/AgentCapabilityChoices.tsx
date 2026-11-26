@@ -1,19 +1,14 @@
 import { Badge, Box, Group, Radio, Stack, Text } from '@mantine/core';
 import { type ReactNode } from 'react';
-import { agentPageCapabilityLabels } from './agentCapabilityLabels';
-import {
-    readAndQueryCapabilities,
-    type AgentPermissionChoice,
-} from './agentPermissionDraft';
+import { type AgentPermissionChoice } from './agentPermissionDraft';
 import { agentPermissionChoiceLabels } from './agentPermissionLabels';
 import classes from './AgentPermissionsSection.module.css';
 
 const descriptions: Record<AgentPermissionChoice, string> = {
-    person: 'Agents can do everything the person can do in Lightdash. This level adds no limits.',
-    read: 'Agents can find content, query data and export results. They cannot create, change, share or delete Lightdash content.',
-    custom: 'Pick each capability. Agents still never do more than the person can in Lightdash.',
+    person: 'Agents can do everything the person can.',
+    custom: 'Choose what agents can do. Agents still never do more than the person can.',
 };
-const choices: AgentPermissionChoice[] = ['person', 'read', 'custom'];
+const choices: AgentPermissionChoice[] = ['person', 'custom'];
 export const AgentCapabilityChoices = ({
     choice,
     current,
@@ -27,7 +22,10 @@ export const AgentCapabilityChoices = ({
     disabled: boolean;
     children: ReactNode;
 }) => (
-    <Radio.Group value={choice} aria-label="Agent scope permissions">
+    <Radio.Group
+        value={choice}
+        aria-label="Restrict agent actions across organization"
+    >
         <Stack gap="sm">
             {choices.map((value) => (
                 <Box
@@ -60,23 +58,11 @@ export const AgentCapabilityChoices = ({
                         </Group>
                     </Radio.Card>
                     {choice === value && value === 'custom' && (
-                        <Box className={classes.choiceBody}>{children}</Box>
-                    )}
-                    {choice === value && value === 'read' && (
-                        <Stack gap="sm" className={classes.choiceBody}>
-                            <Group gap="xs">
-                                {readAndQueryCapabilities.map((cap) => (
-                                    <Badge key={cap}>
-                                        ✓ {agentPageCapabilityLabels[cap].label}
-                                    </Badge>
-                                ))}
-                                <Badge>× Create and edit content</Badge>
-                                <Badge>× 6 more</Badge>
-                            </Group>
-                            <Text fz="xs" c="dimmed">
-                                Raw SQL runs with the person's warehouse
-                                permissions.
+                        <Stack gap="xs" className={classes.choiceBody}>
+                            <Text fz="sm" fw={500}>
+                                Agents can:
                             </Text>
+                            {children}
                         </Stack>
                     )}
                 </Box>

@@ -143,7 +143,7 @@ describe('MCP settings navigation', () => {
 });
 
 describe('Agents settings navigation', () => {
-    it('indexes the Identity and Permissions sections on the Agents page', () => {
+    it('indexes the Identity and Permissions sections on the Agent Identity page', () => {
         const agents = organizationNavigation({
             isAgentIdentityEnabled: true,
             user: {
@@ -151,12 +151,12 @@ describe('Agents settings navigation', () => {
                     { action: 'manage', subject: 'Organization' },
                 ]),
             } as SettingsContext['user'],
-        })?.find((item) => item.label === 'Agents');
+        })?.find((item) => item.label === 'Agent Identity');
 
         expect(agents?.to).toBe('/generalSettings/agentIdentity');
         expect(agents?.pageSections?.map(({ title }) => title)).toEqual([
             'Identity',
-            'Permissions',
+            'Restrictions',
         ]);
     });
 });

@@ -8,6 +8,7 @@ import { Stack, Text } from '@mantine/core';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import { AiServiceAccountCard } from './AiServiceAccountCard';
+import { ProjectAgentRestrictions } from './ProjectAgentRestrictions';
 
 export const ProjectAgentIdentityPage = ({ project }: { project: Project }) => {
     const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
@@ -36,6 +37,12 @@ export const ProjectAgentIdentityPage = ({ project }: { project: Project }) => {
                     Agent identity is not available for this warehouse.
                 </Text>
             )}
+            {ability.can(
+                'manage',
+                subject('Organization', {
+                    organizationUuid: project.organizationUuid,
+                }),
+            ) && <ProjectAgentRestrictions projectUuid={project.projectUuid} />}
         </Stack>
     );
 };

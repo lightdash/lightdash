@@ -80,6 +80,10 @@ mockedLightdashApi.response.mockImplementation((props) =>
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: mocks.enabled } }),
 }));
+// The project restrictions section has its own tests and requests.
+vi.mock('./ProjectAgentRestrictions', () => ({
+    ProjectAgentRestrictions: () => null,
+}));
 vi.mock('../../providers/Ability/useAbilityContext', () => ({
     useAbilityContext: () => ({
         can: () => mocks.canManage,

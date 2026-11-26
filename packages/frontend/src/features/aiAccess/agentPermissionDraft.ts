@@ -5,7 +5,7 @@ import {
     type AgentCapabilityCeiling,
 } from '@lightdash/common';
 
-export type AgentPermissionChoice = 'person' | 'read' | 'custom';
+export type AgentPermissionChoice = 'person' | 'custom';
 export interface AgentPermissionDraft extends Omit<
     AgentCapabilityPolicy,
     'allowedCapabilities'
@@ -52,10 +52,7 @@ export const sameAgentPermissionDraft = (
 export const getAgentPermissionChoice = (
     draft: AgentPermissionDraft,
 ): AgentPermissionChoice => {
-    if (draft.mode === 'legacy') return 'person';
-    return sameSet(draft.allowedCapabilities, readAndQueryCapabilities)
-        ? 'read'
-        : 'custom';
+    return draft.mode === 'legacy' ? 'person' : 'custom';
 };
 export const chooseAgentPermission = (
     draft: AgentPermissionDraft,
@@ -68,12 +65,6 @@ export const chooseAgentPermission = (
                 ...draft,
                 mode: 'legacy',
                 allowedCapabilities: [...allCapabilities],
-            };
-        case 'read':
-            return {
-                ...draft,
-                mode: 'managed',
-                allowedCapabilities: [...readAndQueryCapabilities],
             };
         case 'custom':
             return getAgentPermissionChoice(draft) === 'custom'
