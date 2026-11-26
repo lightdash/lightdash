@@ -79,10 +79,10 @@ const useKnownStudioAgents = (projectUuid: string) => {
     };
 };
 
-/** Asks for the Studio agent with the page, so the chat loads alongside the explores and not after them. */
-export const usePrefetchStudioAgent = (projectUuid: string | undefined) => {
-    useKnownStudioAgents(projectUuid ?? '');
-};
+/** Asks for the Studio agent with the page, so the chat loads alongside the explores and not after them; its uuid once known. */
+export const usePrefetchStudioAgent = (
+    projectUuid: string | undefined,
+): string | null => useKnownStudioAgents(projectUuid ?? '').agent?.uuid ?? null;
 
 // Studio's routes answer not found for a missing thread; an agent's routes have their own error for it.
 const isThreadGone = (errorName: string) =>
