@@ -1,3 +1,10 @@
+# [3.417.0](https://github.com/lightdash/lightdash/compare/3.416.0...3.417.0) (2026-11-26)
+
+
+### Features
+
+* **semantic-studio:** the builder chat reads its result tables through its own routes ([#33500](https://github.com/lightdash/lightdash/issues/33500)) ([69b9718](https://github.com/lightdash/lightdash/commit/69b9718a58bade83e082912b9834d601cefbef7e))
+
 # [3.416.0](https://github.com/lightdash/lightdash/compare/3.415.5...3.416.0) (2026-11-26)
 
 
