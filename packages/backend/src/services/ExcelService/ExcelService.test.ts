@@ -2157,6 +2157,43 @@ describe('ExcelService conditional formatting in xlsx export (PROD-8199)', () =>
         return worksheet;
     };
 
+    const unwritablePath = path.join(
+        os.tmpdir(),
+        `missing-dir-${process.pid}`,
+        'export.xlsx',
+    );
+
+    it('rejects when the export file cannot be written', async () => {
+        await expect(
+            streamJsonlToExcelFile(
+                Readable.from([JSON.stringify({ [fieldId]: 1 })]),
+                unwritablePath,
+                ['Orders count'],
+                fields,
+                false,
+                [fieldId],
+            ),
+        ).rejects.toThrow('ENOENT');
+    });
+
+    it('rejects when the export file failed before the final commit', async () => {
+        // No rows, and the file has already failed to open by the time the
+        // results end, so only the commit can report it
+        const emptyAfterDelay = new Readable({ read() {} });
+        setTimeout(() => emptyAfterDelay.push(null), 50);
+
+        await expect(
+            streamJsonlToExcelFile(
+                emptyAfterDelay,
+                unwritablePath,
+                ['Orders count'],
+                fields,
+                false,
+                [fieldId],
+            ),
+        ).rejects.toThrow('ENOENT');
+    });
+
     it('applies a solid background fill to cells matching a single-color rule', async () => {
         const redConfig = createConditionalFormattingConfigWithSingleColor(
             '#ff0000',

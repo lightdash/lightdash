@@ -61,9 +61,8 @@ const setup = (
 ) => {
     const organizationUuid = account.organization.organizationUuid!;
     const policy: AgentCapabilityPolicy = {
-        mode: mode === 'off' ? 'managed' : mode,
         version: 1,
-        allowedCapabilities: [AgentCapability.Query],
+        allowedCapabilities: mode === 'legacy' ? null : [AgentCapability.Query],
         allowedGroupUuids: null,
     };
     const featureFlagModel = {

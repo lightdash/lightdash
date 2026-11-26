@@ -124,8 +124,8 @@ test('a historical null list preserves custom grants until a save narrows them',
         ).toBeNull();
         const first = await model.save({
             organizationUuid: org.organization_uuid,
-            mode: 'managed',
             version: 1,
+            allowedCapabilities: Object.values(AgentCapability),
             updatedByUserUuid: null,
         });
         expect(first.allowedCapabilities).toEqual(
@@ -136,7 +136,6 @@ test('a historical null list preserves custom grants until a save narrows them',
         ).resolves.toBeUndefined();
         const saved = await model.save({
             organizationUuid: org.organization_uuid,
-            mode: 'managed',
             version: first.version,
             allowedCapabilities: [AgentCapability.Query, AgentCapability.Query],
             updatedByUserUuid: null,
@@ -153,7 +152,6 @@ test('a historical null list preserves custom grants until a save narrows them',
         });
         const oldTab = await model.save({
             organizationUuid: org.organization_uuid,
-            mode: 'managed',
             version: saved.version,
             updatedByUserUuid: null,
         });
@@ -176,7 +174,6 @@ test('obsolete saved people and project lists do not restrict role capabilities 
         const model = new AgentCapabilityPolicyModel({ database: trx });
         await model.save({
             organizationUuid: org.organization_uuid,
-            mode: 'managed',
             version: 0,
             allowedCapabilities: [AgentCapability.Query],
             updatedByUserUuid: null,

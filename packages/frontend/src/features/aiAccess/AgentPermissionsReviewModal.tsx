@@ -108,11 +108,11 @@ export const AgentPermissionsReviewModal = ({
                     )}
                 </Stack>
             )}
-            {changes.mode !== null && (
+            {changes.restricted !== null && (
                 <Text size="sm">
-                    {changes.mode === 'legacy'
-                        ? 'Agents follow each person’s permissions again.'
-                        : 'Agent limits are turned on.'}
+                    {changes.restricted
+                        ? 'Agent limits are turned on.'
+                        : 'Agents follow each person’s permissions again.'}
                 </Text>
             )}
             <Callout variant="info">

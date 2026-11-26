@@ -24,7 +24,6 @@ const read = [
 const policy = (
     overrides: Partial<AgentCapabilityPolicyOverview> = {},
 ): AgentCapabilityPolicyOverview => ({
-    mode: 'legacy',
     version: 4,
     allowedCapabilities: null,
     allowedGroupUuids: null,
@@ -40,14 +39,12 @@ describe('agent permission draft', () => {
     it('compares drafts by content, not by order or version', () => {
         const saved = policyToDraft(
             policy({
-                mode: 'managed',
                 allowedCapabilities: read,
                 allowedGroupUuids: ['a', 'b'],
             }),
         );
         const reordered = policyToDraft(
             policy({
-                mode: 'managed',
                 version: 9,
                 allowedCapabilities: [...read].reverse(),
                 allowedGroupUuids: ['b', 'a'],
@@ -73,20 +70,21 @@ describe('agent permission draft', () => {
             }),
         ).toBe(false);
         expect(
-            sameAgentPermissionDraft(saved, { ...reordered, mode: 'legacy' }),
+            sameAgentPermissionDraft(saved, {
+                ...reordered,
+                restricted: false,
+            }),
         ).toBe(false);
     });
-    it('starts Custom with every capability, counting the mode once', () => {
+    it('starts Custom with every capability, counting the switch once', () => {
         const baseline = policyToDraft(policy());
         const draft = chooseAgentPermission(baseline, 'custom', baseline);
         expect(draft.allowedCapabilities).toEqual(all);
         expect(draft).not.toHaveProperty('systemRoleMatrix');
         expect(count(baseline, draft)).toBe(1);
     });
-    it('chooses Restrict for every managed list and No restrictions for legacy', () => {
-        const draft = policyToDraft(
-            policy({ mode: 'managed', allowedCapabilities: read }),
-        );
+    it('chooses Restrict for every saved list and No restrictions without one', () => {
+        const draft = policyToDraft(policy({ allowedCapabilities: read }));
         expect(draft.allowedCapabilities).toEqual(read);
         expect(getAgentPermissionChoice(draft)).toBe('custom');
         expect(
@@ -104,7 +102,7 @@ describe('agent permission draft', () => {
         expect(
             getAgentPermissionChoice({ ...draft, allowedCapabilities: all }),
         ).toBe('custom');
-        expect(getAgentPermissionChoice({ ...draft, mode: 'legacy' })).toBe(
+        expect(getAgentPermissionChoice({ ...draft, restricted: false })).toBe(
             'person',
         );
     });
@@ -123,9 +121,7 @@ describe('agent permission draft', () => {
                 ),
             ),
         ).toBe(3);
-        const readDraft = policyToDraft(
-            policy({ mode: 'managed', allowedCapabilities: read }),
-        );
+        const readDraft = policyToDraft(policy({ allowedCapabilities: read }));
         expect(
             count(readDraft, { ...readDraft, allowedCapabilities: all }),
         ).toBe(7);
@@ -136,9 +132,7 @@ describe('agent permission draft', () => {
                 cap !== AgentCapability.Delete &&
                 cap !== AgentCapability.Publish,
         );
-        const base = policyToDraft(
-            policy({ mode: 'managed', allowedCapabilities: nine }),
-        );
+        const base = policyToDraft(policy({ allowedCapabilities: nine }));
         const person = chooseAgentPermission(base, 'person', base);
         expect(person.allowedCapabilities).toEqual(all);
         const restored = chooseAgentPermission(person, 'custom', base);
@@ -155,25 +149,7 @@ describe('agent permission draft', () => {
             }),
         ).toEqual({
             version: 4,
-            mode: 'legacy',
             allowedCapabilities: null,
-            allowedGroupUuids: ['a'],
-        });
-    });
-    it('starts a managed policy without a saved list clean, then writes the visible list on a group-only save', () => {
-        const baseline = policyToDraft(policy({ mode: 'managed' }));
-        expect(getAgentPermissionChoice(baseline)).toBe('custom');
-        expect(baseline.allowedCapabilities).toEqual(all);
-        expect(count(baseline, baseline)).toBe(0);
-        const draft = { ...baseline, allowedGroupUuids: ['a'] };
-        const changes = getAgentPermissionChanges(baseline, draft);
-        expect(changes.stops).toEqual([]);
-        expect(changes.allows).toEqual([]);
-        expect(count(baseline, draft)).toBe(1);
-        expect(draftToPolicyRequest(baseline, draft)).toEqual({
-            version: 4,
-            mode: 'managed',
-            allowedCapabilities: all,
             allowedGroupUuids: ['a'],
         });
     });
@@ -239,7 +215,6 @@ describe('agent permission draft', () => {
     it('sends only known fields and preserves groups when removing limits', () => {
         const base = policyToDraft(
             policy({
-                mode: 'managed',
                 allowedCapabilities: read,
                 allowedGroupUuids: ['a'],
             }),
@@ -252,10 +227,9 @@ describe('agent permission draft', () => {
             } as typeof draft),
         ).toEqual({
             version: 4,
-            mode: 'legacy',
             allowedCapabilities: null,
         });
-        expect(getAgentPermissionChanges(base, draft).mode).toBe('legacy');
+        expect(getAgentPermissionChanges(base, draft).restricted).toBe(false);
         expect(count(base, draft)).toBe(1);
     });
     it('marks all-off and restoration without invented activity', () => {

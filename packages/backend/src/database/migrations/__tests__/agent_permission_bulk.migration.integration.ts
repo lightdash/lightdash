@@ -188,7 +188,6 @@ const fixture = async (customRolesEnabled = false) => {
     ) =>
         policies.save({
             organizationUuid: org.organization_uuid,
-            mode: 'managed',
             allowedCapabilities: [...AGENT_CAPABILITY_LIMIT_DEFAULTS],
             allowedGroupUuids: null,
             updatedByUserUuid: people[0].user_uuid,
@@ -311,15 +310,14 @@ it('matches both operation paths cell by cell with real roles and policies', asy
             enabled: scenario !== 'off',
         }));
         await f.savePolicy({
-            mode: scenario.startsWith('legacy') ? 'legacy' : 'managed',
-            allowedCapabilities:
-                scenario === 'disabled'
-                    ? []
-                    : AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
-                          (capability) =>
-                              scenario !== 'capability-limited' ||
-                              capability !== AgentCapability.Query,
-                      ),
+            allowedCapabilities: scenario.startsWith('legacy')
+                ? null
+                : AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
+                      (capability) =>
+                          scenario !== 'disabled' &&
+                          (scenario !== 'capability-limited' ||
+                              capability !== AgentCapability.Query),
+                  ),
             allowedGroupUuids:
                 scenario === 'group-limited' ||
                 scenario === 'legacy-group-limited'
@@ -813,14 +811,14 @@ it.each([
         const mode = scenario.startsWith('legacy') ? 'legacy' : 'managed';
         const f = await fixture(true);
         await f.savePolicy({
-            mode,
             allowedCapabilities:
-                scenario === 'managed-disabled'
-                    ? []
+                mode === 'legacy'
+                    ? null
                     : AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
                           (capability) =>
-                              scenario !== 'managed-limited' ||
-                              capability !== AgentCapability.RawSql,
+                              scenario !== 'managed-disabled' &&
+                              (scenario !== 'managed-limited' ||
+                                  capability !== AgentCapability.RawSql),
                       ),
             allowedGroupUuids: scenario.endsWith('group-limited')
                 ? [f.group.group_uuid]

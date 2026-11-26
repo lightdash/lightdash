@@ -10,6 +10,8 @@ export interface AgentPermissionDraft extends Omit<
     AgentCapabilityPolicy,
     'allowedCapabilities'
 > {
+    /** False means agents have no restrictions and the switches are unused. */
+    restricted: boolean;
     allowedCapabilities: AgentCapability[];
 }
 const allCapabilities = Object.values(AgentCapability);
@@ -30,13 +32,9 @@ const sameSet = <T>(a: T[] | null, b: T[] | null) => {
 export const policyToDraft = (
     policy: AgentCapabilityPolicy,
 ): AgentPermissionDraft => ({
-    mode: policy.mode,
+    restricted: policy.allowedCapabilities !== null,
     version: policy.version,
-    allowedCapabilities: [
-        ...(policy.mode === 'legacy'
-            ? allCapabilities
-            : (policy.allowedCapabilities ?? allCapabilities)),
-    ],
+    allowedCapabilities: [...(policy.allowedCapabilities ?? allCapabilities)],
     allowedGroupUuids:
         policy.allowedGroupUuids === null
             ? null
@@ -46,13 +44,13 @@ export const sameAgentPermissionDraft = (
     a: AgentPermissionDraft,
     b: AgentPermissionDraft,
 ): boolean =>
-    a.mode === b.mode &&
+    a.restricted === b.restricted &&
     sameSet(a.allowedCapabilities, b.allowedCapabilities) &&
     sameSet(a.allowedGroupUuids, b.allowedGroupUuids);
 export const getAgentPermissionChoice = (
     draft: AgentPermissionDraft,
 ): AgentPermissionChoice => {
-    return draft.mode === 'legacy' ? 'person' : 'custom';
+    return draft.restricted ? 'custom' : 'person';
 };
 export const chooseAgentPermission = (
     draft: AgentPermissionDraft,
@@ -63,7 +61,7 @@ export const chooseAgentPermission = (
         case 'person':
             return {
                 ...draft,
-                mode: 'legacy',
+                restricted: false,
                 allowedCapabilities: [...allCapabilities],
             };
         case 'custom':
@@ -71,7 +69,7 @@ export const chooseAgentPermission = (
                 ? draft
                 : {
                       ...draft,
-                      mode: 'managed',
+                      restricted: true,
                       allowedCapabilities: [
                           ...(getAgentPermissionChoice(baseline) === 'custom'
                               ? baseline.allowedCapabilities
@@ -100,9 +98,7 @@ export const draftToPolicyRequest = (
     draft: AgentPermissionDraft,
 ): AgentCapabilityCeiling => ({
     version: baseline.version,
-    mode: draft.mode,
-    allowedCapabilities:
-        draft.mode === 'legacy' ? null : draft.allowedCapabilities,
+    allowedCapabilities: draft.restricted ? draft.allowedCapabilities : null,
     ...(!sameSet(baseline.allowedGroupUuids, draft.allowedGroupUuids)
         ? { allowedGroupUuids: draft.allowedGroupUuids }
         : {}),
@@ -111,7 +107,8 @@ export interface AgentPermissionChanges {
     stops: AgentCapability[];
     allows: AgentCapability[];
     groups: { allowedGroupUuids: string[] | null } | null;
-    mode: AgentCapabilityPolicy['mode'] | null;
+    /** Whether restrictions were turned on or off; null when unchanged. */
+    restricted: boolean | null;
     turnedOff: boolean;
 }
 export const getAgentPermissionChanges = (
@@ -119,12 +116,10 @@ export const getAgentPermissionChanges = (
     draft: AgentPermissionDraft,
 ): AgentPermissionChanges => {
     const before = new Set(
-        baseline.mode === 'legacy'
-            ? allCapabilities
-            : baseline.allowedCapabilities,
+        baseline.restricted ? baseline.allowedCapabilities : allCapabilities,
     );
     const after = new Set(
-        draft.mode === 'legacy' ? allCapabilities : draft.allowedCapabilities,
+        draft.restricted ? draft.allowedCapabilities : allCapabilities,
     );
     const stops = allCapabilities.filter(
         (cap) => before.has(cap) && !after.has(cap),
@@ -138,8 +133,9 @@ export const getAgentPermissionChanges = (
         groups: sameSet(baseline.allowedGroupUuids, draft.allowedGroupUuids)
             ? null
             : { allowedGroupUuids: draft.allowedGroupUuids },
-        mode: baseline.mode === draft.mode ? null : draft.mode,
-        turnedOff: draft.mode === 'managed' && after.size === 0,
+        restricted:
+            baseline.restricted === draft.restricted ? null : draft.restricted,
+        turnedOff: draft.restricted && after.size === 0,
     };
 };
 export const countAgentPermissionChanges = (
@@ -153,7 +149,7 @@ export const countAgentPermissionChanges = (
     return (
         changes.stops.length +
         changes.allows.length +
-        Number(changes.mode !== null) +
+        Number(changes.restricted !== null) +
         Number(changes.groups !== null)
     );
 };

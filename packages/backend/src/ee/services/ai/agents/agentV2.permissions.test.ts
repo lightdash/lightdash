@@ -19,7 +19,6 @@ import {
 const setup = () => {
     const account = buildAccount();
     const policy: AgentCapabilityPolicy = {
-        mode: 'managed',
         version: 1,
         allowedCapabilities: [AgentCapability.ReadDiscover],
         allowedGroupUuids: null,
@@ -217,7 +216,7 @@ test.each(['off', 'legacy'] as const)(
         const h = setup();
         if (mode === 'off')
             h.featureFlagModel.get.mockResolvedValue({ enabled: false });
-        else h.policy.mode = 'legacy';
+        else h.policy.allowedCapabilities = null;
         await executeTool(h.buildTools().connected_search);
         expect(h.connectedExecute).toHaveBeenCalledOnce();
     },
@@ -314,7 +313,7 @@ test('agent tool execution refuses unlisted users before running SQL', async () 
 
 test('legacy group admission is rechecked by the tool wrapper', async () => {
     const h = setup();
-    h.policy.mode = 'legacy';
+    h.policy.allowedCapabilities = null;
     h.policy.allowedGroupUuids = ['group'];
     const tools = h.buildTools();
     await expect(

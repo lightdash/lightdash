@@ -24,7 +24,6 @@ it.each([
             projectUuid: 'project',
         };
         const policy = {
-            mode: 'managed' as const,
             version: 1,
             allowedCapabilities: [AgentCapability.ReadDiscover],
             allowedGroupUuids: null,

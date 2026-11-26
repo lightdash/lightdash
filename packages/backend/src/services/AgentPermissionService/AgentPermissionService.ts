@@ -163,7 +163,6 @@ interface Dependencies {
 }
 
 type ImmutableAgentEnforcementPolicy = {
-    readonly mode: 'legacy' | 'managed';
     readonly version: number;
     readonly allowedCapabilities: readonly AgentCapability[] | null;
     readonly storedAllowedGroupUuids: readonly string[] | null;
@@ -184,7 +183,6 @@ const applyProjectPolicy = (
         ? { ...policy, projectScoped: false }
         : {
               ...policy,
-              mode: projectLimit === null ? 'legacy' : 'managed',
               allowedCapabilities:
                   projectLimit === null ? null : [...projectLimit],
               projectScoped: true,
@@ -219,7 +217,7 @@ class AgentPermissionRequestHandle {
 
     get enforcementMode(): 'off' | 'admission' | 'managed' {
         if (this.policy === null) return 'off';
-        if (this.policy.mode === 'managed') return 'managed';
+        if (this.policy.allowedCapabilities !== null) return 'managed';
         // A project that restricts agents needs the full check even when the
         // organization itself has no restrictions.
         if ([...this.projectLimits.values()].some((limit) => limit !== null))
@@ -279,7 +277,6 @@ const projectEnforcementPolicy = (
         ? [...(policy.storedAllowedGroupUuids ?? [])]
         : [];
     return {
-        mode: policy.mode,
         version: policy.version,
         allowedCapabilities:
             policy.allowedCapabilities === null
@@ -396,9 +393,10 @@ export class AgentPermissionService extends BaseService {
                 ? undefined
                 : request.projectLimits.get(operation.projectUuid),
         );
-        if (policy.mode === 'legacy')
+        if (policy.allowedCapabilities === null)
             return {
                 ...policy,
+                mode: 'legacy',
                 capabilities: null,
             };
         return this.resolveManagedPolicy({ ...operation, policy });
@@ -431,9 +429,10 @@ export class AgentPermissionService extends BaseService {
                 ? undefined
                 : toProjectLimits(projectPolicies).get(projectUuid),
         );
-        if (policy.mode === 'legacy')
+        if (policy.allowedCapabilities === null)
             return {
                 ...policy,
+                mode: 'legacy',
                 capabilities: null,
             };
         return this.resolveManagedPolicy({
@@ -807,22 +806,18 @@ export class AgentPermissionService extends BaseService {
         ceiling: AgentCapabilityCeiling,
     ): Promise<AgentCapabilityPolicy> {
         const organizationUuid = await this.assertPolicyAdmin(account);
-        const mode = ceiling.mode ?? 'managed';
-        if (mode !== 'legacy' && mode !== 'managed')
-            throw new ParameterError('Invalid agent permissions mode');
         AgentPermissionService.validateVersion(ceiling.version);
         if (
             ceiling.allowedCapabilities !== undefined &&
-            (mode === 'legacy'
-                ? ceiling.allowedCapabilities !== null
-                : !Array.isArray(ceiling.allowedCapabilities) ||
-                  ceiling.allowedCapabilities.some(
-                      (capability) =>
-                          !Object.values(AgentCapability).includes(capability),
-                  ))
+            ceiling.allowedCapabilities !== null &&
+            (!Array.isArray(ceiling.allowedCapabilities) ||
+                ceiling.allowedCapabilities.some(
+                    (capability) =>
+                        !Object.values(AgentCapability).includes(capability),
+                ))
         )
             throw new ParameterError(
-                'Provide a valid capability list for this mode',
+                'Provide a valid capability list, or null for no restrictions',
             );
         if (
             ceiling.allowedGroupUuids !== undefined &&
@@ -837,7 +832,6 @@ export class AgentPermissionService extends BaseService {
             allowedCapabilities: ceiling.allowedCapabilities,
             allowedGroupUuids: ceiling.allowedGroupUuids,
             organizationUuid,
-            mode,
             updatedByUserUuid: account.user.id,
         });
     }
@@ -925,7 +919,6 @@ export class AgentPermissionService extends BaseService {
             allowedGroupUuids: undefined,
             version,
             organizationUuid,
-            mode: 'legacy',
             updatedByUserUuid: account.user.id,
         });
     }

@@ -124,7 +124,14 @@ const createMcpService = () =>
             name: 'Finance',
             instruction: 'Use finance metrics.',
         }),
-        createServer: vi.fn().mockResolvedValue({ connect: vi.fn() }),
+        createServer: vi.fn().mockResolvedValue({
+            connect: vi.fn(),
+            _registeredTools: {
+                get_context: { enabled: true },
+                create_content: { enabled: false },
+                run_metric_query: { enabled: true },
+            },
+        }),
         getLegacyToolScope: vi.fn().mockResolvedValue({
             projectUuid: PROJECT_UUID,
             agentUuid: 'agent-uuid',
@@ -496,6 +503,7 @@ describe('MCP tool catalogue activity', () => {
                     documentsEnabled: true,
                 }),
             },
+            servedTools: ['get_context', 'run_metric_query'],
             authInfo: expect.objectContaining({ clientId: 'API key' }),
             durationMs: expect.any(Number),
         });

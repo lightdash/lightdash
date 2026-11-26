@@ -188,9 +188,9 @@ describe.each(['off', 'legacy', 'managed'] as const)(
         let permissions: AgentPermissionService;
         beforeEach(() => {
             const policy = {
-                mode: mode === 'off' ? ('managed' as const) : mode,
                 version: 1,
-                allowedCapabilities: Object.values(AgentCapability),
+                allowedCapabilities:
+                    mode === 'legacy' ? null : Object.values(AgentCapability),
                 storedAllowedGroupUuids: null,
                 hasExistingAllowedGroup: null,
             };

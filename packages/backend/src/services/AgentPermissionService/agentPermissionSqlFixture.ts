@@ -18,7 +18,6 @@ export const setupPermissionSql = (
 ) => {
     assertIsAccountWithOrg(account);
     const policy: AgentCapabilityPolicy = {
-        mode: 'legacy',
         version: 7,
         allowedCapabilities: null,
         allowedGroupUuids: ['live'],
@@ -40,7 +39,6 @@ export const setupPermissionSql = (
                 ? []
                 : [
                       {
-                          mode: policy.mode,
                           allowed_capabilities: policy.allowedCapabilities,
                           version: policy.version,
                           allowed_project_uuids: state.allowedProjectUuids,

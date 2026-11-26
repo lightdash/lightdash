@@ -68,6 +68,7 @@ import {
     type SubtotalExportLevel,
 } from '../../utils/subtotalExport';
 import { WorkbookExportHelper } from './WorkbookExportHelper';
+import { createExcelWriteGuard } from './worksheetBackpressure';
 
 const PNG_SIGNATURE = '89504e470d0a1a0a';
 
@@ -1265,6 +1266,7 @@ export class ExcelService {
             return column;
         });
 
+        const writeGuard = createExcelWriteGuard(workbook, worksheet);
         const hyperlinkState = ExcelService.createHyperlinkSheetState();
         const writeRow = (
             parsedRow: Record<string, unknown>,
@@ -1337,9 +1339,10 @@ export class ExcelService {
             onRow: (parsedRow: Record<string, unknown>, lineCount: number) => {
                 if (subtotalLevels?.length) {
                     bufferedRows.push(parsedRow);
-                } else {
-                    writeRow(parsedRow, lineCount, false, 0);
+                    return undefined;
                 }
+                writeRow(parsedRow, lineCount, false, 0);
+                return writeGuard.waitForDrain();
             },
             maxLines: ExcelService.EXCEL_ROW_LIMIT,
         });
@@ -1367,9 +1370,9 @@ export class ExcelService {
             worksheet.addRow(totalsRow).commit();
         }
 
-        // Commit Excel to temp file
+        // Commit Excel to temp file; a failed output would never finish it
         worksheet.commit();
-        await workbook.commit();
+        await Promise.race([workbook.commit(), writeGuard.failed]);
 
         return { truncated };
     }

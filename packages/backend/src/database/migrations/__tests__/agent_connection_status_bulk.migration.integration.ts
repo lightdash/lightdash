@@ -102,15 +102,14 @@ it.each([
     async (scenario) => {
         const f = await setup();
         await f.savePolicy({
-            mode: scenario.startsWith('legacy') ? 'legacy' : 'managed',
-            allowedCapabilities:
-                scenario === 'managed-disabled'
-                    ? []
-                    : AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
-                          (capability) =>
-                              scenario !== 'managed-limited' ||
-                              capability !== AgentCapability.RawSql,
-                      ),
+            allowedCapabilities: scenario.startsWith('legacy')
+                ? null
+                : AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
+                      (capability) =>
+                          scenario !== 'managed-disabled' &&
+                          (scenario !== 'managed-limited' ||
+                              capability !== AgentCapability.RawSql),
+                  ),
             allowedGroupUuids: scenario.endsWith('group-limited')
                 ? [f.group.group_uuid]
                 : null,

@@ -1,3 +1,39 @@
+## [3.415.5](https://github.com/lightdash/lightdash/compare/3.415.4...3.415.5) (2026-11-26)
+
+
+### Bug Fixes
+
+* **export:** wait for the Excel writer so large exports stop buffering in memory ([#33501](https://github.com/lightdash/lightdash/issues/33501)) ([bdaffda](https://github.com/lightdash/lightdash/commit/bdaffdaf67634cd75d4f2c41be345a4e81f0bcac))
+* **export:** yield to the event loop while reading results for exports ([#33499](https://github.com/lightdash/lightdash/issues/33499)) ([9fd38ea](https://github.com/lightdash/lightdash/commit/9fd38eacfc730f68ff0db115c7a11e52d0229771))
+
+## [3.415.4](https://github.com/lightdash/lightdash/compare/3.415.3...3.415.4) (2026-11-26)
+
+
+### Bug Fixes
+
+* **duckdb:** look up the shared S3 scope with a set ([#33498](https://github.com/lightdash/lightdash/issues/33498)) ([3c929b2](https://github.com/lightdash/lightdash/commit/3c929b213b2821429155643c33ff215a64da3030))
+
+## [3.415.3](https://github.com/lightdash/lightdash/compare/3.415.2...3.415.3) (2026-11-26)
+
+
+### Bug Fixes
+
+* **mcp:** record the tool names that tools/list serves ([#33480](https://github.com/lightdash/lightdash/issues/33480)) ([1c8e121](https://github.com/lightdash/lightdash/commit/1c8e1219d3d9394998b78d058b98753e673f3f48))
+
+## [3.415.2](https://github.com/lightdash/lightdash/compare/3.415.1...3.415.2) (2026-11-26)
+
+
+### Bug Fixes
+
+* **release:** move npm latest only after packages download ([#33352](https://github.com/lightdash/lightdash/issues/33352)) ([88420ed](https://github.com/lightdash/lightdash/commit/88420edbff30acfeeeef821fc69aaa471ebf34c6))
+
+## [3.415.1](https://github.com/lightdash/lightdash/compare/3.415.0...3.415.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **auth:** refuse credential routes while impersonating a user ([#33485](https://github.com/lightdash/lightdash/issues/33485)) ([84845d0](https://github.com/lightdash/lightdash/commit/84845d057019cd05375f2419e0a92061a93d2659))
+
 # [3.415.0](https://github.com/lightdash/lightdash/compare/3.414.2...3.415.0) (2026-11-26)
 
 

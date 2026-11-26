@@ -28,8 +28,8 @@ least one chosen group. A list whose groups are all deleted reads as `[]` and
 admits nobody. An update that omits the field keeps the stored restriction.
 An explicit empty list is rejected; use `null` to allow everyone.
 
-Group admission applies with capability limits off (`legacy`) and on
-(`managed`) when `agent-identity` is on. It covers MCP tools and resource reads,
+Group admission applies with capability limits off and on when
+`agent-identity` is on. It covers MCP tools and resource reads,
 in-app and Slack agents, OAuth REST, and query sources. Slack uses the verified
 sender when a group restriction is active. Saved people and project lists no
 longer restrict agents.
@@ -39,8 +39,10 @@ flag is on for the organization. The API reports this as `groupsAvailable`.
 New restrictions need groups to be available. A saved restriction still applies
 if groups later become unavailable. An admin can always clear it with `null`.
 Personal-access-token and service-account calls keep their existing exemptions.
-The policy API accepts group admission in either mode. A PUT with
-`mode: 'legacy'` clears the capability list. Omitting `mode` means managed.
+The policy has no mode: a saved capability list restricts agents and `null`
+means no restrictions. The policy API accepts group admission either way. A PUT
+with `allowedCapabilities: null` clears the capability list. Omitting
+`allowedCapabilities` keeps the saved list.
 Reset keeps the group restriction. The API returns no per-role matrix. A PUT
 that still sends `systemRoleMatrix` gets no error; the server ignores it.
 GET, PUT and reset omit the old people and project choices. Old browser tabs

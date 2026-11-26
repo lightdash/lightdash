@@ -1,4 +1,5 @@
-import { PassThrough } from 'stream';
+import { performance } from 'node:perf_hooks';
+import { PassThrough, Readable } from 'stream';
 import { ChecksumStreamStandIn } from '../../clients/Aws/s3Streams.testUtils';
 import {
     createContentDispositionHeader,
@@ -9,6 +10,8 @@ import {
 
 describe('FileDownloadUtils', () => {
     describe('streamJsonlData', () => {
+        afterEach(() => vi.restoreAllMocks());
+
         it('closes the HTTP response behind a checksum-wrapped body when it stops at maxLines', async () => {
             // The response is still mid-flight: more rows than the cap and
             // no end, like a large results file on AWS S3
@@ -25,6 +28,59 @@ describe('FileDownloadUtils', () => {
             expect(results).toEqual([{ n: 1 }]);
             expect(truncated).toBe(true);
             expect(response.destroyed).toBe(true);
+        });
+
+        it('yields to the event loop between rows once the time budget is spent', async () => {
+            let now = 0;
+            vi.spyOn(performance, 'now').mockImplementation(() => now);
+            // Both rows arrive in one chunk, so nothing else forces a yield
+            const readStream = Readable.from([
+                Buffer.from('{"n":1}\n{"n":2}\n'),
+            ]);
+            let ranBeforeSecondRow = false;
+            let ran = false;
+
+            await streamJsonlData({
+                readStream,
+                onRow: (_row, lineCount) => {
+                    if (lineCount === 1) {
+                        setImmediate(() => {
+                            ran = true;
+                        });
+                        now = 21;
+                    } else {
+                        ranBeforeSecondRow = ran;
+                    }
+                },
+            });
+
+            expect(ranBeforeSecondRow).toBe(true);
+        });
+
+        it('rejects and stops reading when a row write rejects', async () => {
+            const response = new PassThrough();
+            const body = new ChecksumStreamStandIn(response);
+            response.write('{"n":1}\n{"n":2}\n{"n":3}\n');
+            const writeFailed = new Error('ENOSPC: no space left');
+            const onRow = vi.fn(() => Promise.reject(writeFailed));
+
+            await expect(
+                streamJsonlData({ readStream: body, onRow }),
+            ).rejects.toBe(writeFailed);
+
+            expect(onRow).toHaveBeenCalledTimes(1);
+            expect(response.destroyed).toBe(true);
+        });
+
+        it('skips malformed lines and keeps reading', async () => {
+            const { results } = await streamJsonlData({
+                readStream: Readable.from([
+                    Buffer.from('{"n":1}\nnot json\n{"n":3}\n'),
+                ]),
+                onRow: (row) => row,
+            });
+
+            expect(results).toEqual([{ n: 1 }, { n: 3 }]);
         });
     });
 

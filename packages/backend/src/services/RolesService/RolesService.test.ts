@@ -136,9 +136,8 @@ describe('RolesService', () => {
                 'get',
             ).mockResolvedValue({
                 allowedGroupUuids: null,
-                mode: 'managed',
                 version: 1,
-                allowedCapabilities: null,
+                allowedCapabilities: Object.values(AgentCapability),
             });
             await expect(
                 service.addScopesToRole(oauthAccount(), 'role', {
@@ -160,9 +159,8 @@ describe('RolesService', () => {
                 'get',
             ).mockResolvedValue({
                 allowedGroupUuids: null,
-                mode: 'managed',
                 version: 1,
-                allowedCapabilities: null,
+                allowedCapabilities: Object.values(AgentCapability),
             });
             await expect(
                 agentExecutionContext.run(
@@ -192,7 +190,6 @@ describe('RolesService', () => {
                     .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
                     .mockResolvedValue({
                         allowedGroupUuids: null,
-                        mode: 'legacy',
                         version: 0,
                         allowedCapabilities: null,
                     });
@@ -239,9 +236,8 @@ describe('RolesService', () => {
                     'get',
                 ).mockResolvedValue({
                     allowedGroupUuids: null,
-                    mode: 'managed',
                     version: 1,
-                    allowedCapabilities: null,
+                    allowedCapabilities: Object.values(AgentCapability),
                 });
                 const mutation = service[method] as (
                     account: typeof mockAccount,

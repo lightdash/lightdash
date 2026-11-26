@@ -1,41 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.415.0",
-  "previousVersion": "3.414.2",
-  "releaseDate": "2026-11-26T13:29:38.123Z",
+  "version": "3.415.5",
+  "previousVersion": "3.415.4",
+  "releaseDate": "2026-11-26T16:52:54.615Z",
   "migrations": {
-    "present": true,
-    "count": 2,
-    "coreCount": 1,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261125140000_remove_agent_capability_role_scopes.ts",
-        "edition": "core",
-        "tables": [
-          "scoped_roles"
-        ],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": true,
-          "scansTable": true
-        }
-      },
-      {
-        "name": "20261126120000_add_agent_kind_to_ai_agent.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_agent",
-          "pg_class",
-          "pg_index"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

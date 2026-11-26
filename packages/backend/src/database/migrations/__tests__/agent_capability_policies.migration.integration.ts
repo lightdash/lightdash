@@ -106,7 +106,6 @@ test('serializes concurrent policy saves and leaves stored system role rows unto
         [AgentCapability.Query, AgentCapability.Export].map((capability) =>
             model.save({
                 organizationUuid: org.organization_uuid,
-                mode: 'managed',
                 allowedCapabilities: [capability],
                 updatedByUserUuid: null,
             }),
@@ -148,14 +147,12 @@ test('rolls the policy version and capability limit back when the policy write f
     });
     const original = await model.save({
         organizationUuid: org.organization_uuid,
-        mode: 'managed',
         allowedCapabilities: [AgentCapability.Query],
         updatedByUserUuid: null,
     });
     await expect(
         model.save({
             organizationUuid: org.organization_uuid,
-            mode: 'managed',
             allowedCapabilities: [AgentCapability.Export],
             updatedByUserUuid: '00000000-0000-0000-0000-000000000001',
         }),
@@ -221,7 +218,6 @@ test('departed allowed members do not block a policy edit or reset to legacy', a
     });
     await model.save({
         organizationUuid: org.organization_uuid,
-        mode: 'managed',
         allowedCapabilities: [AgentCapability.Query],
         updatedByUserUuid: null,
     });
@@ -249,7 +245,7 @@ test('departed allowed members do not block a policy edit or reset to legacy', a
     });
     expect(await service.resetToLegacy(account, current.version)).toMatchObject(
         {
-            mode: 'legacy',
+            allowedCapabilities: null,
         },
     );
     const latest = await model.get(org.organization_uuid);
@@ -257,10 +253,8 @@ test('departed allowed members do not block a policy edit or reset to legacy', a
         await service.saveCeiling(account, {
             ...latest,
             allowedCapabilities: [AgentCapability.Export],
-            mode: 'managed',
         }),
     ).toMatchObject({
-        mode: 'managed',
         allowedCapabilities: [AgentCapability.Export],
     });
     const beforeStaleReset = await model.get(org.organization_uuid);

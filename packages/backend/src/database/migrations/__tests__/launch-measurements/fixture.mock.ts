@@ -190,7 +190,6 @@ export const fixture = async (database: Knex) => {
         .merge();
     const policy = await models.getAgentCapabilityPolicyModel().save({
         organizationUuid: org.organization_uuid,
-        mode: 'managed',
         allowedCapabilities: Object.values(AgentCapability),
         allowedGroupUuids: groupUuids,
         updatedByUserUuid: user.user_uuid,

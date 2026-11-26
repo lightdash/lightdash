@@ -40,7 +40,6 @@ vi.mock('../../hooks/toaster/useToaster', () => ({
 }));
 const all = Object.values(AgentCapability);
 const legacy = (): AgentCapabilityPolicyOverview => ({
-    mode: 'legacy',
     version: 1,
     allowedCapabilities: null,
     allowedGroupUuids: null,
@@ -174,7 +173,6 @@ describe('reviewed agent permissions', () => {
         ({ choice, capabilities, selection }) => {
             policy = {
                 ...policy,
-                mode: capabilities === null ? 'legacy' : 'managed',
                 allowedCapabilities: capabilities,
                 allowedGroupUuids: selection,
             };
@@ -289,7 +287,6 @@ describe('reviewed agent permissions', () => {
     it('counts the No restrictions choice once, plus one for a group change', async () => {
         policy = {
             ...policy,
-            mode: 'managed',
             allowedCapabilities: [
                 AgentCapability.ReadDiscover,
                 AgentCapability.Query,
@@ -316,7 +313,6 @@ describe('reviewed agent permissions', () => {
         ];
         policy = {
             ...policy,
-            mode: 'managed',
             allowedCapabilities: read,
         };
         renderSection();
@@ -347,7 +343,6 @@ describe('reviewed agent permissions', () => {
         await waitFor(() => expect(api).toHaveBeenCalled());
         const body = JSON.parse(String(api.mock.calls[0][0].body));
         expect(body).toMatchObject({
-            mode: 'managed',
             allowedCapabilities: all,
         });
         expect(body).not.toHaveProperty('systemRoleMatrix');
@@ -360,7 +355,6 @@ describe('reviewed agent permissions', () => {
         );
         policy = {
             ...policy,
-            mode: 'managed',
             allowedCapabilities: nine,
         };
         renderSection();
@@ -435,7 +429,6 @@ describe('reviewed agent permissions', () => {
         expect(screen.getByText('No changes')).toBeInTheDocument();
         expect(JSON.parse(String(api.mock.calls[0][0].body))).toMatchObject({
             version: 1,
-            mode: 'managed',
             allowedCapabilities: all.filter(
                 (cap) =>
                     cap !== AgentCapability.Delete &&
@@ -446,7 +439,6 @@ describe('reviewed agent permissions', () => {
     it('returns to no changes after a switch goes off and on, then saves without a role matrix', async () => {
         policy = {
             ...policy,
-            mode: 'managed',
             allowedCapabilities: all,
         };
         renderSection();
@@ -461,30 +453,8 @@ describe('reviewed agent permissions', () => {
         expect(body).not.toHaveProperty('systemRoleMatrix');
         expect(body).toMatchObject({
             version: 1,
-            mode: 'managed',
             allowedCapabilities: all.filter(
                 (cap) => cap !== AgentCapability.Publish,
-            ),
-        });
-    });
-    it('shows a managed policy without a saved list as Custom with every switch on', async () => {
-        policy = { ...policy, mode: 'managed' };
-        renderSection();
-        expect(screen.getByRole('radio', { name: 'Restrict' })).toBeChecked();
-        expect(screen.getByText('No changes')).toBeInTheDocument();
-        expect(
-            screen.getByRole('switch', { name: 'Delete content' }),
-        ).toBeChecked();
-        toggle('Delete content');
-        review();
-        save();
-        await waitFor(() => expect(api).toHaveBeenCalled());
-        const body = JSON.parse(String(api.mock.calls[0][0].body));
-        expect(body).not.toHaveProperty('systemRoleMatrix');
-        expect(body).toMatchObject({
-            mode: 'managed',
-            allowedCapabilities: all.filter(
-                (cap) => cap !== AgentCapability.Delete,
             ),
         });
     });
@@ -635,7 +605,6 @@ describe('reviewed agent permissions', () => {
     it('reviews restored capabilities and removal of limits', () => {
         policy = {
             ...policy,
-            mode: 'managed',
             allowedCapabilities: [],
         };
         renderSection();
@@ -751,7 +720,6 @@ describe('reviewed agent permissions', () => {
         policy = {
             ...policy,
             version: 2,
-            mode: 'managed',
             allowedCapabilities: all,
         };
         view.rerender();
@@ -805,7 +773,6 @@ describe('reviewed agent permissions', () => {
         ];
         policy = {
             ...policy,
-            mode: 'managed',
             allowedCapabilities: read,
         };
         const view = renderSection();

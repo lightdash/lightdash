@@ -70,10 +70,16 @@ const setup = () => {
             const version = query.bindings.at(-1);
             if (query.sql.includes('where') && version !== row.version)
                 return [];
-            row.mode = values.mode;
-            row.allowed_capabilities = query.sql.includes('COALESCE')
-                ? (row.allowed_capabilities ?? Object.values(AgentCapability))
-                : values.allowed_capabilities;
+            // A save that omits the capability list leaves it out of the
+            // update, so the stored list and mode stay as they were.
+            if (
+                query.sql
+                    .slice(query.sql.indexOf('do update set'))
+                    .includes('"allowed_capabilities"')
+            ) {
+                row.mode = values.mode;
+                row.allowed_capabilities = values.allowed_capabilities;
+            }
             row.allowed_user_uuids = values.allowed_user_uuids;
             row.allowed_project_uuids = values.allowed_project_uuids;
             row.version += 1;
@@ -178,27 +184,59 @@ test('generated GET, new PUT and reset return the final shape', async () => {
     expect(get.body.results).not.toHaveProperty('allowedProjectUuids');
     expect(get.body.results).not.toHaveProperty('systemRoleMatrix');
     expect(get.body.results).not.toHaveProperty('defaults');
+    expect(get.body.results).not.toHaveProperty('mode');
     const saved = await h.call('PUT', path, {
-        mode: 'managed',
         version: 2,
         allowedCapabilities: [],
     });
     expect(saved.status).toBe(200);
+    expect(saved.body.results).not.toHaveProperty('mode');
     expect(h.row.allowed_capabilities).toEqual([]);
+    expect(h.row.mode).toBe('managed');
     const reset = await h.call('POST', `${path}/reset`, { version: 3 });
     expect(reset.status).toBe(200);
-    expect(reset.body.results).toMatchObject({
-        mode: 'legacy',
+    expect(reset.body.results).toEqual({
+        version: 4,
         allowedCapabilities: null,
         allowedGroupUuids: ['saved-group'],
     });
+    expect(h.row.mode).toBe('legacy');
     expect((await h.call('POST', `${path}/reset`)).status).toBe(200);
 });
 
+test('generated PUT removes the restrictions when the capability list is null', async () => {
+    const h = setup();
+    const result = await h.call('PUT', path, {
+        version: 2,
+        allowedCapabilities: null,
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.results).toMatchObject({ allowedCapabilities: null });
+    expect(h.row).toMatchObject({ mode: 'legacy', allowed_capabilities: null });
+});
+
+test.each(['legacy', 'managed', 'invalid'])(
+    'generated PUT ignores the mode %j sent by an old client',
+    async (mode) => {
+        const h = setup();
+        const result = await h.call('PUT', path, {
+            mode,
+            version: 2,
+            allowedCapabilities: [AgentCapability.Export],
+        });
+        expect(result.status).toBe(200);
+        expect(result.body.results).toMatchObject({
+            allowedCapabilities: [AgentCapability.Export],
+        });
+        expect(h.row).toMatchObject({
+            mode: 'managed',
+            allowed_capabilities: [AgentCapability.Export],
+        });
+    },
+);
+
 test.each([
-    { allowedCapabilities: null },
     { allowedCapabilities: ['unknown'] },
-    { mode: 'invalid' },
     { version: -1 },
     { version: 1.5 },
 ])(
@@ -206,7 +244,6 @@ test.each([
     async (invalid) => {
         const h = setup();
         const result = await h.call('PUT', path, {
-            mode: 'managed',
             version: 2,
             ...invalid,
         });
@@ -219,7 +256,6 @@ test.each([
 test('a stale HTTP save is refused and keeps the stored policy', async () => {
     const h = setup();
     const result = await h.call('PUT', path, {
-        mode: 'managed',
         version: 1,
         allowedCapabilities: [],
     });

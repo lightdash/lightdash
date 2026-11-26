@@ -74,7 +74,6 @@ vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastSuccess: vi.fn(), showToastApiError: vi.fn() }),
 }));
 const policy: AgentCapabilityPolicyOverview = {
-    mode: 'legacy',
     version: 1,
     allowedCapabilities: null,
     allowedGroupUuids: null,
