@@ -17,6 +17,7 @@ import {
     getDbtManifestVersion,
     getDbtModelTextError,
     getDeferredExploreName,
+    getErrorMessage,
     getMissingCatalogEntries,
     getModelInventoryFromManifest,
     getModelsFromManifest,
@@ -607,8 +608,21 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     ): Promise<DbtModelNode[]> {
         const requestedTables = getSchemaStructureFromDbtModels(models);
         const catalogFetchStartedAt = Date.now();
-        const warehouseCatalog =
-            await this.warehouseClient.getCatalog(requestedTables);
+        const warehouseCatalog = await this.warehouseClient
+            .getCatalog(requestedTables)
+            .catch((e: unknown) => {
+                Logger.error('dbt.compile.warehouseCatalogFetchFailed', {
+                    event: 'dbt.compile.warehouseCatalogFetchFailed',
+                    projectUuid: trackingParams?.projectUuid ?? null,
+                    jobUuid: trackingParams?.jobUuid ?? null,
+                    warehouseType: this.warehouseClient.credentials.type,
+                    reason,
+                    requestedTables: requestedTables.length,
+                    error: getErrorMessage(e),
+                    durationMs: Date.now() - catalogFetchStartedAt,
+                });
+                throw e;
+            });
         const { unknownMissing: missingEntries } = getMissingCatalogEntries(
             warehouseCatalog,
             models,
