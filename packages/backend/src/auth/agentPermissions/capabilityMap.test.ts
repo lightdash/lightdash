@@ -652,7 +652,6 @@ it.each(compositeFixtures)(
             allowedCapabilities: null,
             allowedGroupUuids: null,
             version: 1,
-            editableCustomRoleUuid: null,
         };
         const operation = {
             requiredCapabilities,

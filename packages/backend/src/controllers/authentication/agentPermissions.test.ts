@@ -5,7 +5,6 @@ import {
     AiAccessRefusedError,
     FeatureFlags,
     ForbiddenError,
-    OrganizationMemberRole,
     type PossibleAbilities,
 } from '@lightdash/common';
 import express, {
@@ -104,7 +103,6 @@ const setup = ({
         groupsModel,
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
         resolveResourceProjectUuid,
-        isCustomRolesLicensed: () => false,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: mode !== 'off' }),
         },
@@ -125,12 +123,6 @@ const setup = ({
             getProjectPolicies: vi.fn().mockResolvedValue([]),
             saveProjectPolicy: vi.fn(),
             deleteProjectPolicy: vi.fn(),
-        },
-        userModel: {
-            getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                systemRoles: [OrganizationMemberRole.ADMIN],
-                customRoles: [],
-            }),
         },
         projectModel: {
             getSummary: vi
@@ -863,9 +855,6 @@ test.each([0, 1, 3])(
         const assertion = vi.spyOn(sql.service, 'assertOperationWithRequest');
         await expect(h.run(allowOauthAuthentication)).resolves.toBeUndefined();
         expect(assertion).toHaveBeenCalledTimes(Math.max(1, count));
-        expect(
-            sql.deps.userModel.getAgentRoleAssignments,
-        ).toHaveBeenCalledTimes(Math.max(1, count));
         expectAdmissionSql(admissionTracker, {
             policy: 1,
             groups: 0,

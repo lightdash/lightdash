@@ -1,6 +1,5 @@
 import {
     AgentCapability,
-    OrganizationMemberRole,
     type AgentCapabilityPolicy,
     type AgentConnectionExecution,
 } from '@lightdash/common';
@@ -39,19 +38,8 @@ export const managedExecutionFixture = () => {
         allowedCapabilities: null,
         allowedGroupUuids: null,
     };
-    const assignments = {
-        systemRoles: [OrganizationMemberRole.VIEWER],
-        customRoles: [] as { roleUuid: string; scopes: string[] }[],
-    };
     const userModel = {
         findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(user),
-        getAgentRoleAssignments: vi.fn().mockResolvedValue(assignments),
-        getAgentRoleAssignmentsForProjects: vi
-            .fn()
-            .mockImplementation(
-                async (_user, _org, projects: string[]) =>
-                    new Map(projects.map((uuid) => [uuid, assignments])),
-            ),
     };
     const projectModel = {
         getAllByOrganizationUuid: vi.fn(),
@@ -67,7 +55,6 @@ export const managedExecutionFixture = () => {
     };
     const permissions = new AgentPermissionService({
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(projectUuid),
-        isCustomRolesLicensed: () => true,
         groupsModel: { findUserInGroups: vi.fn().mockResolvedValue([]) },
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
@@ -86,7 +73,6 @@ export const managedExecutionFixture = () => {
             saveProjectPolicy: vi.fn(),
             deleteProjectPolicy: vi.fn(),
         },
-        userModel,
         projectModel,
 
         agentActionLogModel: { insert: vi.fn() },
@@ -113,7 +99,6 @@ export const managedExecutionFixture = () => {
         userModel,
         projectModel,
         policy,
-        assignments,
         execution,
         grant,
         user,

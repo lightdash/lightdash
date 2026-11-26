@@ -1,8 +1,4 @@
-import {
-    AGENT_CAPABILITY_SCOPES,
-    AgentCapability,
-    ProjectMemberRole,
-} from '@lightdash/common';
+import { AgentCapability, ProjectMemberRole } from '@lightdash/common';
 import { type ChildProcess } from 'node:child_process';
 import {
     createMigratedDatabase,
@@ -159,7 +155,6 @@ const warm = async (
 };
 
 it.each([
-    'role lowered',
     'project removed',
     'group removed',
     'policy narrowed',
@@ -177,9 +172,7 @@ it.each([
             .where('user_id', f.user.user_id)
             .update({
                 role: ProjectMemberRole.DEVELOPER,
-                role_uuid: await customRole(f, 'Agent reader', 'project', [
-                    AGENT_CAPABILITY_SCOPES[AgentCapability.ReadDiscover],
-                ]),
+                role_uuid: await customRole(f, 'Project role', 'project', []),
             });
         await f
             .database('organization_memberships')
@@ -208,20 +201,6 @@ it.each([
         const connection = await f.createConnection();
         const { route, cookie } = await warm(f, connection.accessToken);
         switch (change) {
-            case 'role lowered':
-                await f
-                    .database('project_memberships')
-                    .where('user_id', f.user.user_id)
-                    .update({
-                        role: ProjectMemberRole.VIEWER,
-                        role_uuid: await customRole(
-                            f,
-                            'Project reader',
-                            'project',
-                            [],
-                        ),
-                    });
-                break;
             case 'project removed':
                 await f.projects.deleteProjectAccess(f.projectUuid, f.userUuid);
                 break;

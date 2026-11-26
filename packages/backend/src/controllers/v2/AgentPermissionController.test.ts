@@ -33,7 +33,6 @@ const setup = () => {
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
         groupsModel: { findUserInGroups: vi.fn().mockResolvedValue([]) },
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
-        isCustomRolesLicensed: vi.fn().mockReturnValue(true),
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         agentCapabilityPolicyModel: {
             get: vi.fn().mockResolvedValue(policy),
@@ -50,7 +49,6 @@ const setup = () => {
             saveProjectPolicy: vi.fn(),
             deleteProjectPolicy: vi.fn(),
         },
-        userModel: { getAgentRoleAssignments: vi.fn() },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({
                 organizationUuid: account.organization.organizationUuid,

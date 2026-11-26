@@ -73,11 +73,7 @@ export class AgentConnectionService extends BaseService {
                 AgentConnectionGrantModel,
                 'find' | 'revoke' | 'listForSubject'
             >;
-            userModel: Pick<
-                UserModel,
-                | 'findSessionUserAndOrgByUuid'
-                | 'getAgentRoleAssignmentsForProjects'
-            >;
+            userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
             projectModel: Pick<
                 ProjectModel,
                 'getAllByOrganizationUuid' | 'getSummaries'
@@ -325,7 +321,6 @@ export class AgentConnectionService extends BaseService {
                         })),
                     },
                     {
-                        userModel: this.deps.userModel,
                         projectModel: this.deps.projectModel,
                     },
                 );
