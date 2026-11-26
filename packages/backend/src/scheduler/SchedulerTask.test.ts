@@ -2720,11 +2720,13 @@ describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
 
     const setupDelivery = ({
         run,
+        cacheHit = false,
         download = async ({ queryUuid }: { queryUuid: string }) => ({
             fileUrl: `https://files/${queryUuid}`,
         }),
     }: {
         run: Mock;
+        cacheHit?: boolean;
         download?: (args: { queryUuid: string }) => Promise<unknown>;
     }) => {
         const downloadSyncQueryResults = vi.fn(download);
@@ -2738,16 +2740,17 @@ describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
                 savedChartModel: {
                     get: vi.fn().mockResolvedValue({
                         name: 'Classic',
-                        chartConfig: { type: ChartType.TABLE, config: {} },
+                        chartConfig: { type: ChartType.CARTESIAN, config: {} },
                         tableConfig: { columnOrder: [] },
                     }),
                 },
                 logSchedulerJob: vi.fn(),
             }),
             asyncQueryService: asDep<'asyncQueryService'>({
-                executeAsyncDashboardChartQuery: vi
-                    .fn()
-                    .mockResolvedValue({ queryUuid: 'classic-q' }),
+                executeAsyncDashboardChartQuery: vi.fn().mockResolvedValue({
+                    queryUuid: 'classic-q',
+                    cacheMetadata: { cacheHit },
+                }),
                 downloadSyncQueryResults,
             }),
             composerChartService: asDep<'composerChartService'>({
@@ -2790,7 +2793,11 @@ describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
                 projectUuid: 'project-1',
             }),
         });
-        const deliver = (format: SchedulerFormat) =>
+        const deliver = (
+            format: SchedulerFormat,
+            schedulerUuid?: string,
+            xlsxContent?: XlsxExportContent,
+        ) =>
             (
                 task as unknown as {
                     getNotificationPageData(
@@ -2800,12 +2807,13 @@ describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
             ).getNotificationPageData(
                 {
                     name: 'Daily export',
+                    schedulerUuid,
                     createdBy: 'user-1',
                     format,
                     savedChartUuid: null,
                     dashboardUuid: 'dashboard-1',
                     appUuid: null,
-                    options: {},
+                    options: { xlsxContent },
                     filters: [{ ...statusFilter, values: ['shipped'] }],
                     parameters: { region: 'EU' },
                 },
@@ -2860,6 +2868,46 @@ describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
                     },
                 }),
                 expect.anything(),
+            );
+        },
+    );
+
+    it.each([
+        [SchedulerFormat.XLSX, 'schedule', false, undefined, true],
+        [SchedulerFormat.XLSX, 'schedule', true, undefined, false],
+        [
+            SchedulerFormat.XLSX,
+            'schedule',
+            false,
+            XlsxExportContent.CHART_IMAGE,
+            false,
+        ],
+        [SchedulerFormat.XLSX, undefined, false, undefined, false],
+        [SchedulerFormat.CSV, 'schedule', false, undefined, false],
+    ] as const)(
+        'selects tile polling for %s, scheduler=%s, cacheHit=%s, content=%s',
+        async (format, schedulerUuid, cacheHit, xlsxContent, deferred) => {
+            const { deliver, downloadSyncQueryResults } = setupDelivery({
+                run: vi.fn().mockResolvedValue(runResults(null)),
+                cacheHit,
+            });
+            await deliver(format, schedulerUuid, xlsxContent);
+            const options = {
+                initialBackoffMs: 2000,
+                maxBackoffMs: 5000,
+                timeoutMs: lightdashConfigMock.scheduler.queryPollingTimeout,
+                source: 'scheduler',
+            };
+            expect(downloadSyncQueryResults).toHaveBeenCalledWith(
+                expect.objectContaining({ queryUuid: 'classic-q' }),
+                deferred
+                    ? { ...options, firstPollAt: expect.any(Number) }
+                    : options,
+                'dashboard-1',
+            );
+            expect(downloadSyncQueryResults).toHaveBeenCalledWith(
+                expect.objectContaining({ queryUuid: 'terminal-q' }),
+                options,
             );
         },
     );

@@ -9,6 +9,7 @@ import {
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { createHash } from 'node:crypto';
+import { setTimeout as abortableSleep } from 'node:timers/promises';
 import { buildAccount } from '../../auth/account/account.mock';
 import {
     getQueryHistoryRequestColumns,
@@ -521,6 +522,82 @@ describe('QueryHistoryModel', () => {
                 '33efccf84fba3974bb81a93e5267e0e8ef6b31a514d963997b435640d3ae23e4',
             );
         });
+    });
+});
+
+vi.mock('node:timers/promises', { spy: true });
+
+describe('QueryHistoryModel first poll timing', () => {
+    it.each([
+        { firstPollAt: 250, timeoutMs: 60_000, reads: [250] },
+        {
+            firstPollAt: 250,
+            timeoutMs: 60_000,
+            reads: [250, 2000, 6000, 11000],
+        },
+        {
+            firstPollAt: undefined,
+            timeoutMs: 60_000,
+            reads: [0, 2000, 6000, 11000],
+        },
+        { firstPollAt: -10, timeoutMs: 60_000, reads: [0] },
+        { firstPollAt: 250, timeoutMs: 100, reads: [0] },
+    ])(
+        'reads at $reads with firstPollAt=$firstPollAt and timeout=$timeoutMs',
+        async ({ firstPollAt, timeoutMs, reads }) => {
+            const model = new QueryHistoryModel({ database: {} as Knex });
+            const readTimes: number[] = [];
+            const get = vi
+                .spyOn(model, 'getByQueryUuid')
+                .mockImplementation(async () => {
+                    readTimes.push(Date.now());
+                    return {
+                        status:
+                            readTimes.length === reads.length
+                                ? QueryHistoryStatus.READY
+                                : QueryHistoryStatus.EXECUTING,
+                    } as QueryHistory;
+                });
+            vi.useFakeTimers({ toFake: ['Date'], now: 0 });
+            try {
+                await vi.mocked(abortableSleep).withImplementation(
+                    async (delay = 0) => {
+                        vi.setSystemTime(Date.now() + delay);
+                    },
+                    async () => {
+                        await model.pollForQueryCompletion({
+                            account: null,
+                            projectUuid: 'project',
+                            queryUuid: 'query',
+                            firstPollAt,
+                            initialBackoffMs: 2000,
+                            maxBackoffMs: 5000,
+                            timeoutMs,
+                        });
+                    },
+                );
+                expect(readTimes).toEqual(reads);
+            } finally {
+                get.mockRestore();
+                vi.useRealTimers();
+            }
+        },
+    );
+
+    it('aborts during the first delay before reading query history', async () => {
+        const model = new QueryHistoryModel({ database: {} as Knex });
+        const get = vi.spyOn(model, 'getByQueryUuid');
+        const controller = new AbortController();
+        const completion = model.pollForQueryCompletion({
+            account: null,
+            projectUuid: 'project',
+            queryUuid: 'query',
+            firstPollAt: Date.now() + 250,
+            abortSignal: controller.signal,
+        });
+        controller.abort();
+        await expect(completion).rejects.toMatchObject({ name: 'AbortError' });
+        expect(get).not.toHaveBeenCalled();
     });
 });
 
