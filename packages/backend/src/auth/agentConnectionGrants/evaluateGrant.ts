@@ -10,7 +10,7 @@ import {
     getRequiredAgentCapabilities,
     type AgentCapabilityOperationKind,
 } from '../agentPermissions/capabilityMap';
-import { HUMAN_ONLY_IN_MANAGED } from '../agentPermissions/humanOnlyInManaged';
+import { HUMAN_ONLY_WHEN_RESTRICTED } from '../agentPermissions/humanOnlyWhenRestricted';
 import {
     getGrantOperationContract,
     GRANT_MCP_TOOL_CONTRACTS,
@@ -52,7 +52,7 @@ export const evaluateGrant = ({
         return 'This agent connection has an unsupported grant contract.';
     if (grant.expiresAt.getTime() <= now.getTime())
         return 'This agent connection has expired.';
-    if (HUMAN_ONLY_IN_MANAGED.has(key))
+    if (HUMAN_ONLY_WHEN_RESTRICTED.has(key))
         return 'This operation requires a person.';
     const contract = kind === 'rest' ? getGrantOperationContract(key) : null;
     if (

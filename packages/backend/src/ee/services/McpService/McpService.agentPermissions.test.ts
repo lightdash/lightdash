@@ -254,7 +254,7 @@ describe.each(['oauth', 'session'] as const)(
             expect(handler).toHaveBeenCalledOnce();
         });
 
-        test.each(['off', 'legacy'] as const)(
+        test.each(['off', 'unrestricted'] as const)(
             '%s keeps SQL and writes unchanged',
             async (mode) => {
                 const {
@@ -352,7 +352,7 @@ test('missing permission dependency fails closed', async () => {
     expect(handler).not.toHaveBeenCalled();
 });
 
-test('managed unknown tool refuses before dispatch', async () => {
+test('restricted unknown tool refuses before dispatch', async () => {
     const { call, handler } = setup();
     expect(await call('unknown_tool')).toMatchObject({
         isError: true,
@@ -363,7 +363,7 @@ test('managed unknown tool refuses before dispatch', async () => {
     expect(handler).not.toHaveBeenCalled();
 });
 
-test.each(['off', 'legacy'] as const)(
+test.each(['off', 'unrestricted'] as const)(
     '%s skips project lookup failures and pin validation',
     async (mode) => {
         const { call, getContext, extra, deps, policy, handler } = setup();
@@ -646,7 +646,7 @@ describe('MCP resource protocol permissions', () => {
         }
     });
 
-    test.each(['off', 'legacy'] as const)(
+    test.each(['off', 'unrestricted'] as const)(
         '%s preserves resource responses',
         async (mode) => {
             const { client, deps, policy, assertOperationWithRequest } =
@@ -813,7 +813,7 @@ test('keeps the existing connect URL instructions unchanged', async () => {
     expect(result.structuredContent.refusal).toEqual(error.refusal);
 });
 
-describe('bound MCP grant in legacy mode', () => {
+describe('bound MCP grant in unrestricted mode', () => {
     const bound = () => {
         const fixture = setup();
         fixture.policy.allowedCapabilities = null;
@@ -828,7 +828,7 @@ describe('bound MCP grant in legacy mode', () => {
         return fixture;
     };
     test.each(['run_sql', 'create_content', 'unknown_tool'])(
-        'denies %s before unmanaged return',
+        'denies %s before unrestricted return',
         async (name) => {
             const { service, extra, handler } = bound();
             await expect(
@@ -855,7 +855,7 @@ describe('bound MCP grant in legacy mode', () => {
 });
 
 test.each([true, false])(
-    'legacy group restriction checks MCP tools (member %s)',
+    'unrestricted group restriction checks MCP tools (member %s)',
     async (member) => {
         const { policy, deps, call, handler, getContext } = setup();
         policy.allowedCapabilities = null;
@@ -882,7 +882,7 @@ test.each([true, false])(
 );
 
 test.each([true, false])(
-    'legacy group restriction checks MCP resources (member %s)',
+    'unrestricted group restriction checks MCP resources (member %s)',
     async (member) => {
         const { client, policy, deps } = await setupResourceProtocol();
         policy.allowedCapabilities = null;
@@ -916,7 +916,7 @@ test.each([true, false])(
 );
 
 test.each(['pat', 'service-account'] as const)(
-    'legacy restriction keeps the %s MCP exemption',
+    'unrestricted restriction keeps the %s MCP exemption',
     async (authentication) => {
         const { call, handler, policy, deps } = setup(authentication);
         policy.allowedCapabilities = null;
@@ -967,7 +967,7 @@ test.each([
     {
         name: 'flag off',
         enabled: false,
-        mode: 'managed',
+        mode: 'restricted',
         groups: ['live'],
         live: true,
         member: true,
@@ -976,9 +976,9 @@ test.each([
         refused: false,
     },
     {
-        name: 'managed null',
+        name: 'restricted null',
         enabled: true,
-        mode: 'managed',
+        mode: 'restricted',
         groups: null,
         live: false,
         member: true,
@@ -987,9 +987,9 @@ test.each([
         refused: false,
     },
     {
-        name: 'legacy deleted',
+        name: 'unrestricted deleted',
         enabled: true,
-        mode: 'legacy',
+        mode: 'unrestricted',
         groups: ['deleted'],
         live: false,
         member: false,
@@ -998,9 +998,9 @@ test.each([
         refused: true,
     },
     {
-        name: 'legacy empty',
+        name: 'unrestricted empty',
         enabled: true,
-        mode: 'legacy',
+        mode: 'unrestricted',
         groups: [],
         live: false,
         member: false,
@@ -1009,9 +1009,9 @@ test.each([
         refused: true,
     },
     {
-        name: 'legacy non-member',
+        name: 'unrestricted non-member',
         enabled: true,
-        mode: 'legacy',
+        mode: 'unrestricted',
         groups: ['live'],
         live: true,
         member: false,
@@ -1027,7 +1027,7 @@ test.each([
         fromSession(defaultSessionUser),
     );
     sql.state.policy.allowedCapabilities =
-        profile.mode === 'legacy'
+        profile.mode === 'unrestricted'
             ? null
             : (sql.state.policy.allowedCapabilities ??
               Object.values(AgentCapability));

@@ -33,7 +33,7 @@ import {
     expectAdmissionSql,
     setupPermissionSql,
 } from '../../services/AgentPermissionService/agentPermissionSqlFixture';
-import { assertHumanManagedMutation } from '../../services/AgentPermissionService/assertHumanManagedMutation';
+import { assertHumanOnlyMutation } from '../../services/AgentPermissionService/assertHumanOnlyMutation';
 import { ProjectService } from '../../services/ProjectService/ProjectService';
 import { type ServiceRepository } from '../../services/ServiceRepository';
 import { SpaceService } from '../../services/SpaceService/SpaceService';
@@ -59,7 +59,7 @@ const restrictedCapabilities = [
 ] as const;
 
 const setup = ({
-    mode = 'managed',
+    mode = 'restricted',
     clientId = 'client',
     operation = 'ProjectController_createDashboard',
     authentication = 'oauth',
@@ -70,7 +70,7 @@ const setup = ({
     allowedGroupUuids = null,
     allowedCapabilities = [...restrictedCapabilities],
 }: {
-    mode?: 'off' | 'legacy' | 'managed';
+    mode?: 'off' | 'unrestricted' | 'restricted';
     clientId?: string;
     operation?: string;
     authentication?: 'oauth' | 'pat' | 'session' | 'service-account';
@@ -94,7 +94,7 @@ const setup = ({
         allowed_project_uuids: allowedProjectUuids,
         allowed_user_uuids: allowedUserUuids,
         allowedCapabilities:
-            mode === 'managed'
+            mode === 'restricted'
                 ? (allowedCapabilities ?? Object.values(AgentCapability))
                 : null,
         allowedGroupUuids,
@@ -234,7 +234,7 @@ describe.each([
     { name: 'OAuth-only', middleware: allowOauthAuthentication },
     { name: 'API-key OAuth', middleware: allowApiKeyAuthentication },
 ])('$name agent policy', ({ middleware }) => {
-    it.each(['off', 'legacy', 'managed'] as const)(
+    it.each(['off', 'unrestricted', 'restricted'] as const)(
         'treats a personal CLI login as a person using a tool in %s mode',
         async (mode) => {
             const { run, assertOperationWithRequest, getPolicy } = setup({
@@ -248,7 +248,7 @@ describe.each([
             expect(getPolicy).not.toHaveBeenCalled();
         },
     );
-    it.each(['legacy', 'managed'] as const)(
+    it.each(['unrestricted', 'restricted'] as const)(
         'still polices other OAuth clients in %s mode',
         async (mode) => {
             const { run } = setup({
@@ -270,7 +270,7 @@ describe.each([
                 .getPolicy(request.account!),
         ).rejects.toThrow('Only a person can manage agent permissions');
     });
-    it('keeps personal CLI logins out of human-only managed mutations', async () => {
+    it('keeps personal CLI logins out of human-only restricted mutations', async () => {
         const { request, run } = setup({ clientId: 'lightdash-cli' });
         await expect(run(middleware)).resolves.toBeUndefined();
         const get = vi
@@ -282,7 +282,7 @@ describe.each([
             });
         try {
             await expect(
-                assertHumanManagedMutation({
+                assertHumanOnlyMutation({
                     organizationUuid:
                         request.account!.organization.organizationUuid,
                     ability: request.account!.user.ability,
@@ -313,7 +313,7 @@ describe.each([
         expect(assertOperationWithRequest).not.toHaveBeenCalled();
     });
 
-    it('refuses content writes for a managed pilot and preserves typed 403 data', async () => {
+    it('refuses content writes for a restricted pilot and preserves typed 403 data', async () => {
         const { run, assertOperationWithRequest } = setup();
         const error = await run(middleware);
         expect(error).toBeInstanceOf(AiAccessRefusedError);
@@ -345,22 +345,22 @@ describe.each([
         expect(passport.authenticate).not.toHaveBeenCalled();
         expect(authenticateServiceAccount).not.toHaveBeenCalled();
     });
-    it.each(['off', 'legacy'] as const)(
+    it.each(['off', 'unrestricted'] as const)(
         'preserves content writes in %s mode',
         async (mode) => {
             const { run } = setup({ mode });
             await expect(run(middleware)).resolves.toBeUndefined();
         },
     );
-    it.each(['off', 'legacy', 'managed'] as const)(
-        'denies an unmapped route only in managed mode: %s',
+    it.each(['off', 'unrestricted', 'restricted'] as const)(
+        'denies an unmapped route only in restricted mode: %s',
         async (mode) => {
             const { run } = setup({
                 mode,
                 operation: 'NewController_unreviewed',
             });
             const error = await run(middleware);
-            if (mode === 'managed')
+            if (mode === 'restricted')
                 expect(error).toMatchObject({
                     statusCode: 403,
                     refusal: {
@@ -387,7 +387,7 @@ describe.each([
             }),
         );
     });
-    it('allows a managed pilot query in its permitted project', async () => {
+    it('allows a restricted pilot query in its permitted project', async () => {
         const { run } = setup({
             operation: 'QueryController_executeAsyncMetricQuery',
             allowedProjectUuids: ['project'],
@@ -416,7 +416,7 @@ describe.each([
         ['spaceUuid', 'space'],
         ['queryUuid', 'query'],
     ])(
-        'resolves a managed resource project from %s',
+        'resolves a restricted resource project from %s',
         async (parameter, type) => {
             const {
                 request,
@@ -442,7 +442,7 @@ describe.each([
             ).toBe('project');
         },
     );
-    it.each(['off', 'legacy'] as const)(
+    it.each(['off', 'unrestricted'] as const)(
         'skips a failing resource lookup in %s mode',
         async (mode) => {
             const { request, run, resolveResourceProjectUuid } = setup({
@@ -472,7 +472,7 @@ describe.each([
         });
         expect(resolveResourceProjectUuid).not.toHaveBeenCalled();
     });
-    it('fails closed when a managed resource lookup fails', async () => {
+    it('fails closed when a restricted resource lookup fails', async () => {
         const {
             request,
             run,
@@ -547,7 +547,7 @@ describe.each([
 
 it.each(
     ['pat', 'session', 'service-account'].flatMap((authentication) =>
-        ['off', 'managed'].map((mode) => ({ authentication, mode })),
+        ['off', 'restricted'].map((mode) => ({ authentication, mode })),
     ),
 )(
     'leaves $authentication outside the $mode agent policy',
@@ -557,7 +557,7 @@ it.each(
                 | 'pat'
                 | 'session'
                 | 'service-account',
-            mode: mode as 'off' | 'managed',
+            mode: mode as 'off' | 'restricted',
             allowedCapabilities: [],
             allowedGroupUuids: [],
             allowedUserUuids: [],
@@ -574,7 +574,7 @@ it.each([
     'GroupsController_addUserToGroup',
     'OrganizationController_updateOrganizationMember',
 ])(
-    'refuses managed OAuth self-grants through %s even with administration and publish',
+    'refuses restricted OAuth self-grants through %s even with administration and publish',
     async (operation) => {
         const { run, getPolicy, request } = setup({
             operation,
@@ -599,12 +599,13 @@ it.each([
         });
     },
 );
-it.each(['off', 'legacy', 'pat', 'session'] as const)(
+it.each(['off', 'unrestricted', 'pat', 'session'] as const)(
     'preserves %s membership REST writes',
     async (mode) => {
         const { run } = setup({
             operation: 'ProjectController_updateProjectAccessForUser',
-            mode: mode === 'off' || mode === 'legacy' ? mode : 'managed',
+            mode:
+                mode === 'off' || mode === 'unrestricted' ? mode : 'restricted',
             authentication:
                 mode === 'pat' || mode === 'session' ? mode : 'oauth',
             scopes: ['write'],
@@ -613,12 +614,13 @@ it.each(['off', 'legacy', 'pat', 'session'] as const)(
     },
 );
 
-it.each(['off', 'legacy', 'pat', 'session'] as const)(
+it.each(['off', 'unrestricted', 'pat', 'session'] as const)(
     'preserves %s invite REST writes',
     async (mode) => {
         const { run } = setup({
             operation: 'InviteLinksController_createInviteLink',
-            mode: mode === 'off' || mode === 'legacy' ? mode : 'managed',
+            mode:
+                mode === 'off' || mode === 'unrestricted' ? mode : 'restricted',
             authentication:
                 mode === 'pat' || mode === 'session' ? mode : 'oauth',
         });
@@ -626,7 +628,7 @@ it.each(['off', 'legacy', 'pat', 'session'] as const)(
     },
 );
 
-it('allows managed OAuth space metadata edits with content_write', async () => {
+it('allows restricted OAuth space metadata edits with content_write', async () => {
     const { run, getPolicy } = setup({
         operation: 'SpaceController_updateSpace',
     });
@@ -755,10 +757,10 @@ it.each([
 );
 
 test.each([allowOauthAuthentication, allowApiKeyAuthentication])(
-    'OAuth legacy admission precedes managed resource work',
+    'OAuth unrestricted admission precedes restricted resource work',
     async (middleware) => {
         const h = setup({
-            mode: 'legacy',
+            mode: 'unrestricted',
             operation: 'SavedChartController_get',
             projectUuid: null,
             allowedGroupUuids: ['group'],
@@ -784,7 +786,7 @@ test.each([allowOauthAuthentication, allowApiKeyAuthentication])(
     'SQL admission uses one handle in REST %s',
     async (middleware) => {
         const h = setup({
-            mode: 'legacy',
+            mode: 'unrestricted',
             operation: 'UserController_getAccount',
         });
         const sql = setupPermissionSql(

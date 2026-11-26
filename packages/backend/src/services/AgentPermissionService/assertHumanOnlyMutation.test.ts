@@ -16,10 +16,10 @@ import {
 } from '../AiAccessService/agentExecutionContext';
 import {
     assertHumanAgentPolicyMutation,
-    getManagedAgentPolicy,
-} from './assertHumanManagedMutation';
+    getRestrictingAgentPolicy,
+} from './assertHumanOnlyMutation';
 
-describe.each(['managed', 'admission', 'people-only'] as const)(
+describe.each(['restricted', 'admission', 'people-only'] as const)(
     'human policy changes in %s mode',
     (mode) => {
         const setup = (enabled = true) => {
@@ -32,7 +32,9 @@ describe.each(['managed', 'admission', 'people-only'] as const)(
                     mode === 'admission' ? ['allowed-group'] : null,
                 version: 7,
                 allowedCapabilities:
-                    mode === 'managed' ? Object.values(AgentCapability) : null,
+                    mode === 'restricted'
+                        ? Object.values(AgentCapability)
+                        : null,
             };
             const getPolicy = vi
                 .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
@@ -131,8 +133,8 @@ describe.each(['managed', 'admission', 'people-only'] as const)(
         test('returns the policy for content operations only when it restricts agents', async () => {
             const f = setup();
             f.context.oauth = true;
-            await expect(getManagedAgentPolicy(f.context)).resolves.toEqual(
-                mode === 'managed' ? f.policy : null,
+            await expect(getRestrictingAgentPolicy(f.context)).resolves.toEqual(
+                mode === 'restricted' ? f.policy : null,
             );
         });
     },

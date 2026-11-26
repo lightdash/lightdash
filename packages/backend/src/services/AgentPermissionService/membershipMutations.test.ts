@@ -14,7 +14,7 @@ import { GroupsService } from '../GroupService';
 import { OrganizationService } from '../OrganizationService/OrganizationService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
-const setup = (mode: 'off' | 'legacy' | 'managed', oauth: boolean) => {
+const setup = (mode: 'off' | 'unrestricted' | 'restricted', oauth: boolean) => {
     const ability = new Ability<PossibleAbilities>([
         { action: 'manage', subject: 'all' },
     ]);
@@ -46,7 +46,7 @@ const setup = (mode: 'off' | 'legacy' | 'managed', oauth: boolean) => {
         allowedGroupUuids: null,
         version: 1,
         allowedCapabilities:
-            mode === 'legacy' ? null : Object.values(AgentCapability),
+            mode === 'unrestricted' ? null : Object.values(AgentCapability),
     });
     const projectModel = {
         getSummary: vi
@@ -134,7 +134,7 @@ describe.each([
     'group role update',
     'org role',
 ] as const)('%s membership boundary', (operation) => {
-    it.each(['managed', 'legacy', 'off', 'pat'] as const)(
+    it.each(['restricted', 'unrestricted', 'off', 'pat'] as const)(
         'handles %s actors before persistence',
         async (mode) => {
             const {
@@ -146,7 +146,7 @@ describe.each([
                 projectModel,
                 groupsModel,
                 organizationMemberProfileModel,
-            } = setup(mode === 'pat' ? 'managed' : mode, mode !== 'pat');
+            } = setup(mode === 'pat' ? 'restricted' : mode, mode !== 'pat');
             const operations = {
                 'project update': () =>
                     projects.updateProjectAccess(
@@ -205,8 +205,8 @@ describe.each([
                     organizationMemberProfileModel.updateOrganizationMember,
             };
             if (
-                mode === 'managed' ||
-                (mode === 'legacy' &&
+                mode === 'restricted' ||
+                (mode === 'unrestricted' &&
                     ['group join', 'group update', 'groups as code'].includes(
                         operation,
                     ))

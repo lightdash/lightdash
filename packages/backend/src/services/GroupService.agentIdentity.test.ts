@@ -19,7 +19,7 @@ import {
 import { GroupsService } from './GroupService';
 
 const setup = (
-    mode: 'managed' | 'admission' | 'people-only',
+    mode: 'restricted' | 'admission' | 'people-only',
     enabled = true,
 ) => {
     const account = fromSession(
@@ -57,7 +57,7 @@ const setup = (
             version: 1,
             allowedGroupUuids: mode === 'people-only' ? null : [group.uuid],
             allowedCapabilities:
-                mode !== 'managed' ? null : Object.values(AgentCapability),
+                mode !== 'restricted' ? null : Object.values(AgentCapability),
         });
     const service = new GroupsService({
         analytics: { track: vi.fn() } as never,
@@ -96,7 +96,7 @@ const operations = ['add', 'remove', 'replace', 'delete', 'upsert'] as const;
 
 afterEach(() => vi.restoreAllMocks());
 
-describe.each(['managed', 'admission', 'people-only'] as const)(
+describe.each(['restricted', 'admission', 'people-only'] as const)(
     'group policy changes in %s mode',
     (mode) => {
         test.each(operations)(

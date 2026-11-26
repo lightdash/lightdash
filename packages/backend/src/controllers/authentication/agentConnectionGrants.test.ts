@@ -74,7 +74,7 @@ it.each(['subjectUserUuid', 'organizationUuid', 'clientId', 'resource'])(
         });
     },
 );
-it('puts validated metadata on the account in OAuth log and legacy org mode', async () => {
+it('puts validated metadata on the account in OAuth log and unrestricted org mode', async () => {
     const { req, run, grant } = setup();
     expect(await run(allowApiKeyAuthentication)).toEqual({
         status: 200,
@@ -88,12 +88,12 @@ it('puts validated metadata on the account in OAuth log and legacy org mode', as
         },
     });
 });
-it('enforces the grant before the legacy return, even after the org allows more', async () => {
+it('enforces the grant before the unrestricted return, even after the org allows more', async () => {
     const { req, run, permissions } = setup();
     req.params.projectUuid = outsideProjectUuid;
     const check = async (managed: boolean) => {
         permissions.loadRequest.mockResolvedValue({
-            enforcementMode: managed ? 'managed' : 'off',
+            enforcementMode: managed ? 'restricted' : 'off',
         });
         expect((await run(allowApiKeyAuthentication)).error).toMatchObject({
             message: expect.stringContaining('project'),
@@ -128,7 +128,7 @@ it.each([
     'ProjectController.createPreview',
     'organizationRouter POST /projects/precompiled',
     'unknown',
-])('denies %s in legacy/log mode', async (operation) => {
+])('denies %s in unrestricted/log mode', async (operation) => {
     const { req, run } = setup();
     if (operation.startsWith('organizationRouter')) {
         req.baseUrl = '/api/v1/org';
@@ -165,7 +165,7 @@ it('a normal PAT account remains unchanged', async () => {
     expect(deps.featureFlags.get).not.toHaveBeenCalled();
 });
 
-it('enforces OAuth wire scopes on a bound unchecked operation in legacy/log mode', async () => {
+it('enforces OAuth wire scopes on a bound unchecked operation in unrestricted/log mode', async () => {
     const { req, grant, token, run } = setup();
     grant.approvedCapabilities = [AgentCapability.DeployUpload];
     req.params.sessionUuid = 'session';
@@ -189,12 +189,14 @@ it('refuses an API grant on the MCP audience before using the person', async () 
     expect(deps.model.findActive).not.toHaveBeenCalled();
 });
 
-it('passes the contracted path project to managed org policy', async () => {
+it('passes the contracted path project to restricted org policy', async () => {
     const { req, run, grant, permissions } = setup();
     req.params = { projectUuid: grant.approvedProjectUuids[0] };
     req.body = { projectUuid: 'ignored' };
     req.method = 'POST';
-    permissions.loadRequest.mockResolvedValue({ enforcementMode: 'managed' });
+    permissions.loadRequest.mockResolvedValue({
+        enforcementMode: 'restricted',
+    });
     expect((await run(allowApiKeyAuthentication)).error).toBeUndefined();
     expect(permissions.assertOperationWithRequest).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -694,7 +696,7 @@ describe.each([
                     true) as Request['isAuthenticated'];
             }
             f.permissions.loadRequest.mockResolvedValue({
-                enforcementMode: 'managed',
+                enforcementMode: 'restricted',
             });
             f.downstream.mockImplementation(async () => {
                 const scope = agentExecutionContext.getStore();
@@ -842,7 +844,7 @@ describe.each([
     it('keeps the connection on a refused permission check without running downstream', async () => {
         const f = setup();
         f.permissions.loadRequest.mockResolvedValue({
-            enforcementMode: 'managed',
+            enforcementMode: 'restricted',
         });
         const refusal = new Error('Permission refused');
         f.permissions.assertOperationWithRequest.mockImplementation(
@@ -1014,7 +1016,7 @@ describe('connection lifecycle operations', () => {
             f.req.method = method;
             f.grant.approvedCapabilities = [];
             f.permissions.loadRequest.mockResolvedValue({
-                enforcementMode: 'managed',
+                enforcementMode: 'restricted',
             });
             f.permissions.assertOperationWithRequest.mockRejectedValue(
                 new Error('admission removed'),

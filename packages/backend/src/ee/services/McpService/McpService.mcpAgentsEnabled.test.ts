@@ -182,7 +182,7 @@ const makeMcpService = ({
     };
 };
 
-describe.each(['off', 'legacy', 'managed'] as const)(
+describe.each(['off', 'unrestricted', 'restricted'] as const)(
     'McpService with MCP agent access disabled and %s policy',
     (mode) => {
         let permissions: AgentPermissionService;
@@ -190,7 +190,9 @@ describe.each(['off', 'legacy', 'managed'] as const)(
             const policy = {
                 version: 1,
                 allowedCapabilities:
-                    mode === 'legacy' ? null : Object.values(AgentCapability),
+                    mode === 'unrestricted'
+                        ? null
+                        : Object.values(AgentCapability),
                 storedAllowedGroupUuids: null,
                 hasExistingAllowedGroup: null,
             };

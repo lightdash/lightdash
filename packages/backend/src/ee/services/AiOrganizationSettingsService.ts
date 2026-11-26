@@ -43,7 +43,7 @@ import { logAuditEvent } from '../../logging/winston';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { assertHumanManagedMutation } from '../../services/AgentPermissionService/assertHumanManagedMutation';
+import { assertHumanOnlyMutation } from '../../services/AgentPermissionService/assertHumanOnlyMutation';
 import { BaseService } from '../../services/BaseService';
 import { AiOrganizationProviderCredentialModel } from '../models/AiOrganizationProviderCredentialModel';
 import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
@@ -741,7 +741,7 @@ export class AiOrganizationSettingsService extends BaseService {
         aiSettingsUpdate: UpdateAiOrganizationSettings,
     ): Promise<AiOrganizationSettings> {
         const user = toSessionUser(account);
-        await assertHumanManagedMutation({
+        await assertHumanOnlyMutation({
             organizationUuid: user.organizationUuid,
             ability: user.ability,
             oauth: account.authentication.type === 'oauth',

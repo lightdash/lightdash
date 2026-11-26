@@ -172,9 +172,9 @@ import { UserModel } from '../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import {
-    assertHumanManagedMutation,
-    getManagedAgentPolicy,
-} from '../AgentPermissionService/assertHumanManagedMutation';
+    assertHumanOnlyMutation,
+    getRestrictingAgentPolicy,
+} from '../AgentPermissionService/assertHumanOnlyMutation';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import {
     logAgentContentWrite,
@@ -1724,7 +1724,7 @@ export class CoderService extends BaseService {
                     `You don't have permission to create space "${desiredSpace.slug}"`,
                 );
             }
-            await assertHumanManagedMutation(managedMutationContext);
+            await assertHumanOnlyMutation(managedMutationContext);
         }
 
         const parentPath = path.includes('.')
@@ -1896,7 +1896,7 @@ export class CoderService extends BaseService {
             accessChanged = !isEqual(currentAccess, desiredSpace.access);
         }
         if (accessChanged) {
-            await assertHumanManagedMutation(managedMutationContext);
+            await assertHumanOnlyMutation(managedMutationContext);
         }
         if (existingSpace && !metadataChanged && !accessChanged) {
             return { action: SpaceAsCodeAction.NO_CHANGES };
@@ -1905,7 +1905,7 @@ export class CoderService extends BaseService {
         const omitUnchangedAccess =
             !accessChanged &&
             desiredSpace.access !== undefined &&
-            (await getManagedAgentPolicy(managedMutationContext)) !== null;
+            (await getRestrictingAgentPolicy(managedMutationContext)) !== null;
 
         const applyInput = {
             projectUuid,

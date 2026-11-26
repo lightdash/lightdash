@@ -12,7 +12,7 @@ The source of truth in code:
 | ---------------------------------------------- | --------------------------------------------------------------------------------- |
 | Capability keys, plain names, what each allows | `AGENT_CAPABILITY_DEFINITIONS` in `packages/common/src/types/agentPermissions.ts` |
 | Which operations need which capabilities | `packages/backend/src/auth/agentPermissions/capabilityMap.ts` |
-| Operations only a person can do | `packages/backend/src/auth/agentPermissions/humanOnlyInManaged.ts` |
+| Operations only a person can do | `packages/backend/src/auth/agentPermissions/humanOnlyWhenRestricted.ts` |
 | The decision | `AgentPermissionService` (`evaluate`, `resolvePolicy`, `assertOperation`) |
 | Coverage tests | `capabilityMap.test.ts`, `AgentPermissionService.test.ts` |
 
@@ -140,7 +140,7 @@ roles, groups, project and space access, custom roles, service accounts,
 personal access tokens, invite links, OAuth clients, the agent permission
 policy itself, agent identity rules, feature flag overrides, the Google Drive
 access token, and AI organization settings. The full list is in
-`humanOnlyInManaged.ts`. Granting Administration does not change this.
+`humanOnlyWhenRestricted.ts`. Granting Administration does not change this.
 
 This list is not yet complete. Some credential and settings changes still
 need only Administration, for example AI provider credentials, connector
@@ -205,7 +205,7 @@ cancel another.
 | Group admission, the organization list, and the capabilities from the person's roles | `AgentPermissionService.assertOperation` and `evaluate`  |
 | Project, data and destination limits (pinned project, agent tags, SQL scope) | MCP, agent tools and data services |
 | MCP settings                                                                         | MCP tool registration and configured-agent gates         |
-| Operations only a person can do | `humanOnlyInManaged.ts`, `assertHumanManagedMutation.ts` |
+| Operations only a person can do | `humanOnlyWhenRestricted.ts`, `assertHumanOnlyMutation.ts` |
 
 Agent connections enforce their stored approval and token scopes. Current
 **Permissions** and the person's ordinary permissions can narrow them further.

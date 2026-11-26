@@ -25,13 +25,13 @@ vi.mock('../controllers/authentication', () => ({
     ) => next(),
 }));
 
-test.each(['off', 'legacy', 'managed'] as const)(
+test.each(['off', 'unrestricted', 'restricted'] as const)(
     '%s preserves browser-session transport authentication',
     async (mode) => {
         const account = fromSession(defaultSessionUser);
         const getAgentPermissionService = vi.fn(() => ({
             loadRequest: vi.fn().mockResolvedValue({
-                enforcementMode: mode === 'managed' ? 'managed' : 'off',
+                enforcementMode: mode === 'restricted' ? 'restricted' : 'off',
             }),
             assertOperationWithRequest: vi.fn(),
         }));

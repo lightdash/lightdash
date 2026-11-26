@@ -18,71 +18,71 @@ afterAll(async () => database.destroy());
 
 test.each([
     {
-        name: 'legacy null',
-        mode: 'legacy',
+        name: 'unrestricted null',
+        mode: 'unrestricted',
         groups: null,
         live: false,
         member: true,
     },
     {
-        name: 'legacy live member',
-        mode: 'legacy',
+        name: 'unrestricted live member',
+        mode: 'unrestricted',
         groups: ['live'],
         live: true,
         member: true,
     },
     {
-        name: 'legacy live non-member',
-        mode: 'legacy',
+        name: 'unrestricted live non-member',
+        mode: 'unrestricted',
         groups: ['live'],
         live: true,
         member: false,
     },
     {
-        name: 'legacy deleted',
-        mode: 'legacy',
+        name: 'unrestricted deleted',
+        mode: 'unrestricted',
         groups: ['deleted'],
         live: false,
         member: false,
     },
     {
-        name: 'legacy empty',
-        mode: 'legacy',
+        name: 'unrestricted empty',
+        mode: 'unrestricted',
         groups: [],
         live: false,
         member: false,
     },
     {
-        name: 'managed null',
-        mode: 'managed',
+        name: 'restricted null',
+        mode: 'restricted',
         groups: null,
         live: false,
         member: true,
     },
     {
-        name: 'managed live member',
-        mode: 'managed',
+        name: 'restricted live member',
+        mode: 'restricted',
         groups: ['live'],
         live: true,
         member: true,
     },
     {
-        name: 'managed live non-member',
-        mode: 'managed',
+        name: 'restricted live non-member',
+        mode: 'restricted',
         groups: ['live'],
         live: true,
         member: false,
     },
     {
-        name: 'managed deleted',
-        mode: 'managed',
+        name: 'restricted deleted',
+        mode: 'restricted',
         groups: ['deleted'],
         live: false,
         member: false,
     },
     {
-        name: 'managed empty',
-        mode: 'managed',
+        name: 'restricted empty',
+        mode: 'restricted',
         groups: [],
         live: false,
         member: false,
@@ -90,7 +90,7 @@ test.each([
 ] as const)('characterizes direct and gated SQL: $name', async (profile) => {
     const h = setupPermissionSql(database, tracker);
     h.state.policy.allowedCapabilities =
-        profile.mode === 'legacy'
+        profile.mode === 'unrestricted'
             ? null
             : (h.state.policy.allowedCapabilities ??
               Object.values(AgentCapability));
@@ -166,7 +166,7 @@ test.each([
 });
 
 test.each([{ groups: null }, { groups: ['live'] }])(
-    'managed evaluation ignores stored people without a hydration read: $groups',
+    'restricted evaluation ignores stored people without a hydration read: $groups',
     async ({ groups }) => {
         const h = setupPermissionSql(database, tracker);
         h.state.policy.allowedCapabilities ??= Object.values(AgentCapability);
@@ -444,7 +444,7 @@ test.each([
     {
         name: 'missing',
         missing: true,
-        mode: 'legacy',
+        mode: 'unrestricted',
         groups: null,
         people: null,
         members: true,
@@ -455,7 +455,7 @@ test.each([
     {
         name: 'partly deleted',
         missing: false,
-        mode: 'legacy',
+        mode: 'unrestricted',
         groups: ['live', 'deleted'],
         people: null,
         members: true,
@@ -464,9 +464,9 @@ test.each([
         admitted: true,
     },
     {
-        name: 'retained legacy people',
+        name: 'retained unrestricted people',
         missing: false,
-        mode: 'legacy',
+        mode: 'unrestricted',
         groups: ['live'],
         people: ['departed'],
         members: true,
@@ -475,9 +475,9 @@ test.each([
         admitted: true,
     },
     {
-        name: 'departed managed people',
+        name: 'departed restricted people',
         missing: false,
-        mode: 'managed',
+        mode: 'restricted',
         groups: ['live'],
         people: ['departed'],
         members: true,
@@ -486,9 +486,9 @@ test.each([
         admitted: true,
     },
     {
-        name: 'empty managed people',
+        name: 'empty restricted people',
         missing: false,
-        mode: 'managed',
+        mode: 'restricted',
         groups: ['live'],
         people: [],
         members: true,
@@ -499,7 +499,7 @@ test.each([
     {
         name: 'foreign groups',
         missing: false,
-        mode: 'legacy',
+        mode: 'unrestricted',
         groups: ['foreign'],
         people: null,
         members: true,
@@ -511,7 +511,7 @@ test.each([
     const h = setupPermissionSql(database, tracker);
     h.state.missing = profile.missing;
     h.state.policy.allowedCapabilities =
-        profile.mode === 'legacy'
+        profile.mode === 'unrestricted'
             ? null
             : (h.state.policy.allowedCapabilities ??
               Object.values(AgentCapability));
@@ -550,7 +550,7 @@ test.each([
 });
 
 test.each(['deleted', 'empty', 'non-member'])(
-    'keeps the full legacy refusal and activity record: %s',
+    'keeps the full unrestricted refusal and activity record: %s',
     async (state) => {
         const h = setupPermissionSql(database, tracker);
         h.state.policy.allowedGroupUuids =
@@ -629,7 +629,7 @@ test.each(['deleted', 'empty', 'non-member'])(
     },
 );
 
-test('keeps the full managed refusal and activity record', async () => {
+test('keeps the full restricted refusal and activity record', async () => {
     const h = setupPermissionSql(database, tracker);
     h.state.policy.allowedCapabilities ??= Object.values(AgentCapability);
     h.state.policy.allowedGroupUuids = [];

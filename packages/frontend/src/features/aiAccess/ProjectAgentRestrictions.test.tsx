@@ -35,7 +35,6 @@ const setup = ({
                 ? []
                 : [{ projectUuid: 'project', allowedCapabilities: project }];
         return {
-            mode: organization === null ? 'legacy' : 'managed',
             version: 1,
             allowedCapabilities: organization,
             allowedGroupUuids: null,

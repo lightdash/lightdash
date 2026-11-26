@@ -95,7 +95,7 @@ import {
     matchesResultEntitlementFingerprint,
     type ResultEntitlementFingerprintForms,
 } from '../../utils/queryResultProducer';
-import { assertHumanAgentPolicyMutation } from '../AgentPermissionService/assertHumanManagedMutation';
+import { assertHumanAgentPolicyMutation } from '../AgentPermissionService/assertHumanOnlyMutation';
 import {
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,

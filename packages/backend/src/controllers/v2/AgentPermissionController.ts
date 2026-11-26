@@ -68,7 +68,7 @@ export class AgentPermissionController extends BaseController {
 
     @Post('/reset')
     @OperationId('resetAgentCapabilityPolicy')
-    async resetToLegacy(
+    async resetPolicy(
         @Request() req: express.Request,
         @Body() body?: ResetPolicyRequest,
     ): Promise<AgentPolicyResponse> {
@@ -77,7 +77,7 @@ export class AgentPermissionController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getAgentPermissionService()
-                .resetToLegacy(req.account, body?.version),
+                .resetPolicy(req.account, body?.version),
         };
     }
 

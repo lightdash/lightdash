@@ -1591,7 +1591,7 @@ describe('bound grant SQL source effects', () => {
             const { registry, sqlSource } = createRegistryWithFakes();
             const { service, mocks } = createService(registry);
             mocks.permissions.loadRequest.mockResolvedValue({
-                enforcementMode: managed ? 'managed' : 'off',
+                enforcementMode: managed ? 'restricted' : 'off',
             });
             if (sourceType === QuerySourceType.EXTERNAL)
                 registry.register(createFakeSource(QuerySourceType.EXTERNAL));
@@ -1672,7 +1672,7 @@ it.each(['duckdb', 'external', 'pipeline'] as const)(
         registry.register(createFakeSource(QuerySourceType.EXTERNAL));
         const { service, mocks } = createService(registry);
         mocks.permissions.loadRequest.mockResolvedValue({
-            enforcementMode: 'managed',
+            enforcementMode: 'restricted',
         });
         mocks.permissions.assertOperationWithRequest.mockRejectedValue(
             new ForbiddenError('Raw SQL disabled'),

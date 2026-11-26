@@ -5148,7 +5148,13 @@ describe('UserService', () => {
     });
 
     describe('createPendingUserAndInviteLink', () => {
-        test.each(['managed', 'legacy', 'off', 'pat', 'session'] as const)(
+        test.each([
+            'restricted',
+            'unrestricted',
+            'off',
+            'pat',
+            'session',
+        ] as const)(
             'handles %s invite role grants before persistence',
             async (mode) => {
                 const policy = vi
@@ -5157,7 +5163,7 @@ describe('UserService', () => {
                         allowedGroupUuids: null,
                         version: 1,
                         allowedCapabilities:
-                            mode === 'legacy'
+                            mode === 'unrestricted'
                                 ? null
                                 : Object.values(AgentCapability),
                     });
@@ -5184,7 +5190,7 @@ describe('UserService', () => {
                         actor,
                         inviteUser,
                     );
-                    if (mode === 'managed') {
+                    if (mode === 'restricted') {
                         await expect(result).rejects.toMatchObject({
                             refusal: { reason: 'agent_capability_denied' },
                         });

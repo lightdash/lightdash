@@ -161694,7 +161694,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsAgentPermissionController_resetToLegacy: Record<
+    const argsAgentPermissionController_resetPolicy: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -161705,10 +161705,10 @@ export function RegisterRoutes(app: Router) {
         '/api/v2/org/agent-permissions/reset',
         ...fetchMiddlewares<RequestHandler>(AgentPermissionController),
         ...fetchMiddlewares<RequestHandler>(
-            AgentPermissionController.prototype.resetToLegacy,
+            AgentPermissionController.prototype.resetPolicy,
         ),
 
-        async function AgentPermissionController_resetToLegacy(
+        async function AgentPermissionController_resetPolicy(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -161718,7 +161718,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsAgentPermissionController_resetToLegacy,
+                    args: argsAgentPermissionController_resetPolicy,
                     request,
                     response,
                 });
@@ -161737,7 +161737,7 @@ export function RegisterRoutes(app: Router) {
                 }
 
                 await templateService.apiHandler({
-                    methodName: 'resetToLegacy',
+                    methodName: 'resetPolicy',
                     controller,
                     response,
                     next,

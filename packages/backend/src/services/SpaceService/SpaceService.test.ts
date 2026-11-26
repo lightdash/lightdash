@@ -2122,7 +2122,7 @@ describe('Space cascade audit for Documents', () => {
 
 describe('managed space updates', () => {
     afterEach(() => vi.restoreAllMocks());
-    it.each(['managed', 'legacy', 'off', 'pat', 'session'] as const)(
+    it.each(['restricted', 'unrestricted', 'off', 'pat', 'session'] as const)(
         '%s allows metadata edits and gates access changes',
         async (mode) => {
             vi.spyOn(
@@ -2132,7 +2132,9 @@ describe('managed space updates', () => {
                 allowedGroupUuids: null,
                 version: 1,
                 allowedCapabilities:
-                    mode === 'legacy' ? null : Object.values(AgentCapability),
+                    mode === 'unrestricted'
+                        ? null
+                        : Object.values(AgentCapability),
             });
             const user = createTestUser({
                 organizationUuid: 'org',
@@ -2194,7 +2196,7 @@ describe('managed space updates', () => {
                         name: 'Renamed',
                         ...access,
                     });
-                    if (mode === 'managed') {
+                    if (mode === 'restricted') {
                         await expect(result).rejects.toMatchObject({
                             refusal: { reason: 'agent_capability_denied' },
                         });
@@ -2211,7 +2213,14 @@ describe('managed space updates', () => {
 
 describe('space metadata updates after a human revocation', () => {
     afterEach(() => vi.restoreAllMocks());
-    it.each(['managed', 'agent', 'legacy', 'off', 'pat', 'session'] as const)(
+    it.each([
+        'restricted',
+        'agent',
+        'unrestricted',
+        'off',
+        'pat',
+        'session',
+    ] as const)(
         '%s handles unchanged access without restoring a concurrent restriction',
         async (mode) => {
             vi.spyOn(
@@ -2221,7 +2230,9 @@ describe('space metadata updates after a human revocation', () => {
                 allowedGroupUuids: null,
                 version: 1,
                 allowedCapabilities:
-                    mode === 'legacy' ? null : Object.values(AgentCapability),
+                    mode === 'unrestricted'
+                        ? null
+                        : Object.values(AgentCapability),
             });
             const user = createTestUser({
                 organizationUuid: 'org',
@@ -2297,7 +2308,7 @@ describe('space metadata updates after a human revocation', () => {
             ).not.toHaveBeenCalled();
             const [, input] = spaceModel.update.mock.calls[0];
             expect(persisted.name).toBe('Renamed');
-            if (mode === 'managed' || mode === 'agent') {
+            if (mode === 'restricted' || mode === 'agent') {
                 expect(input).not.toHaveProperty('inheritParentPermissions');
                 expect(input).not.toHaveProperty('projectMemberAccessRole');
                 expect(persisted.inheritParentPermissions).toBe(false);

@@ -67,7 +67,7 @@ import {
     validateProjectScopesCanBeGranted,
 } from '../../utils/organizationRolePermissions';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
-import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
+import { assertHumanOnlyMutation } from '../AgentPermissionService/assertHumanOnlyMutation';
 import { BaseService } from '../BaseService';
 import { LicenseService } from '../LicenseService/LicenseService';
 
@@ -149,7 +149,7 @@ export class RolesService extends BaseService {
     }
 
     private async assertHumanMutation(account: Account): Promise<void> {
-        await assertHumanManagedMutation({
+        await assertHumanOnlyMutation({
             organizationUuid: account.organization.organizationUuid,
             ability: account.user.ability,
             oauth: account.authentication.type === 'oauth',
