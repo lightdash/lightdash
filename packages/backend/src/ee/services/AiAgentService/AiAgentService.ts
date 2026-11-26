@@ -756,8 +756,6 @@ import { ProjectContextService } from '../ProjectContextService/ProjectContextSe
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
 import { saveDbtTryOut } from '../SemanticStudioService/dbtTryOut';
 import { type IncrementalDbtCompileService } from '../SemanticStudioService/IncrementalDbtCompileService';
-import { type SemanticStudioCheckoutService } from '../SemanticStudioService/SemanticStudioCheckoutService';
-import { type SemanticStudioService } from '../SemanticStudioService/SemanticStudioService';
 import {
     parseAgentSelectionValue,
     resolveAgentSelectionPrompt,
@@ -1163,8 +1161,6 @@ type AiAgentServiceDependencies = {
     aiAgentContentValidation: AiAgentContentValidation;
     aiWritebackService: AiWritebackService;
     projectContextService: ProjectContextService;
-    semanticStudioService: SemanticStudioService;
-    semanticStudioCheckoutService: SemanticStudioCheckoutService;
     findWritebackSetup: FindAgentWritebackSetup;
     incrementalDbtCompileService: IncrementalDbtCompileService;
     writebackPreviewService: WritebackPreviewService;
@@ -1551,10 +1547,6 @@ export class AiAgentService extends BaseService {
     private readonly aiWritebackService: AiWritebackService;
 
     private readonly projectContextService: ProjectContextService;
-
-    private readonly semanticStudioService: SemanticStudioService;
-
-    private readonly semanticStudioCheckoutService: SemanticStudioCheckoutService;
 
     private readonly findWritebackSetup: FindAgentWritebackSetup;
 
@@ -2349,9 +2341,6 @@ export class AiAgentService extends BaseService {
         this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
         this.aiWritebackService = dependencies.aiWritebackService;
         this.projectContextService = dependencies.projectContextService;
-        this.semanticStudioService = dependencies.semanticStudioService;
-        this.semanticStudioCheckoutService =
-            dependencies.semanticStudioCheckoutService;
         this.findWritebackSetup = dependencies.findWritebackSetup;
         this.incrementalDbtCompileService =
             dependencies.incrementalDbtCompileService;
@@ -3537,10 +3526,6 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         agent: AiAgent,
     ): Promise<boolean> {
-        // The Studio builder follows Studio's permission, not Ask AI's, on the reads Studio still makes here.
-        if (agent.kind === 'semantic_studio') {
-            return this.canUseStudio(user, agent.projectUuid);
-        }
         return canAccessAiAgent(user, agent, {
             auditedAbility: this.createAuditedAbility(user),
             groupsModel: this.groupsModel,
@@ -3756,20 +3741,6 @@ export class AiAgentService extends BaseService {
         agent: AiAgent,
         threadUserUuid: string,
     ): Promise<boolean> {
-        // A Studio chat is its owner's, or anyone's who manages agents, as other chats are.
-        if (agent.kind === 'semantic_studio') {
-            return (
-                (await this.canUseStudio(user, agent.projectUuid)) &&
-                (threadUserUuid === user.userUuid ||
-                    this.createAuditedAbility(user).can(
-                        'manage',
-                        subject('AiAgent', {
-                            organizationUuid: agent.organizationUuid,
-                            projectUuid: agent.projectUuid,
-                        }),
-                    ))
-            );
-        }
         return canAccessAiAgentThread(user, agent, threadUserUuid, {
             auditedAbility: this.createAuditedAbility(user),
             groupsModel: this.groupsModel,
@@ -5042,7 +5013,6 @@ export class AiAgentService extends BaseService {
         projectUuid?: string,
         options?: {
             includeSummaryContext: true;
-            includeBuiltIn?: boolean;
         },
     ): Promise<AiAgentWithContext>;
 
@@ -5052,7 +5022,6 @@ export class AiAgentService extends BaseService {
         projectUuid?: string,
         options?: {
             includeSummaryContext?: false;
-            includeBuiltIn?: boolean;
         },
     ): Promise<AiAgent>;
 
@@ -5062,8 +5031,6 @@ export class AiAgentService extends BaseService {
         projectUuid?: string,
         options?: {
             includeSummaryContext?: boolean;
-            // Only the reads a chat screen makes ask for the built-in Studio agent; to everything else it does not exist.
-            includeBuiltIn?: boolean;
         },
     ): Promise<AiAgent | AiAgentWithContext> {
         const { organizationUuid } = user;
@@ -5080,7 +5047,6 @@ export class AiAgentService extends BaseService {
             organizationUuid,
             agentUuid,
             projectUuid,
-            ...(options?.includeBuiltIn ? {} : { agentKind: 'user' }),
         });
 
         if (!agent) {
@@ -6057,7 +6023,6 @@ export class AiAgentService extends BaseService {
         modelPreference: AgentModelPreference | null = null,
     ) {
         const { organizationUuid, uuid: agentUuid } = agent;
-        AiAgentService.assertAgentServesThread(agent, body.createdFrom);
 
         const context = body.prompt
             ? await this.validatePromptContextAccess(
@@ -7150,9 +7115,7 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError('Organization not found');
         }
 
-        await this.getAgent(user, agentUuid, projectUuid, {
-            includeBuiltIn: true,
-        });
+        await this.getAgent(user, agentUuid, projectUuid);
 
         return this.aiAgentModel
             .getAgentMcpServersWithSensitiveData(agentUuid, user.userUuid)
@@ -8556,38 +8519,12 @@ export class AiAgentService extends BaseService {
         return `🔒 No agent is configured for this channel, and this organization requires channels to be added from the agent settings page. Ask an admin to add one at ${this.lightdashConfig.siteUrl}/ai-agents`;
     }
 
-    // The built-in Studio agent answers Studio threads only.
-    private static assertAgentServesThread(
-        agent: Pick<AiAgent, 'kind'>,
-        createdFrom: AiThreadCreatedFrom | undefined,
-    ): void {
-        if (
-            agent.kind === 'semantic_studio' &&
-            !isSemanticStudioThread(createdFrom)
-        ) {
-            throw new ForbiddenError(
-                'This agent only works in Semantic Studio',
-            );
-        }
-    }
-
-    private async canUseStudio(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<boolean> {
-        return (await this.semanticStudioService.getStatus(user, projectUuid))
-            .enabled;
-    }
-
-    // Studio's conversations run through Studio's own routes; to an agent's thread routes they do not exist.
+    // A Studio conversation runs through Studio's own routes; to an agent's thread routes it does not exist.
     private static assertNotStudioOnAgentRoute(
-        agent: Pick<AiAgent, 'uuid' | 'kind'>,
+        agent: Pick<AiAgent, 'uuid'>,
         createdFrom: AiThreadCreatedFrom | undefined,
     ): void {
-        if (
-            agent.kind === 'semantic_studio' ||
-            isSemanticStudioThread(createdFrom)
-        ) {
+        if (isSemanticStudioThread(createdFrom)) {
             throw new AiAgentNotFoundError(
                 `AI agent not found for uuid: ${agent.uuid}`,
             );
@@ -10598,10 +10535,7 @@ export class AiAgentService extends BaseService {
                     threadUuid,
                     ...prepareOptions,
                 }),
-            () =>
-                this.getAgent(user, agentUuid, undefined, {
-                    includeBuiltIn: true,
-                }),
+            () => this.getAgent(user, agentUuid),
         );
     }
 
@@ -10852,9 +10786,11 @@ export class AiAgentService extends BaseService {
         if (claim.subject.uuid !== account.user.id) return 'other_person';
         assertRegisteredAccount(account);
         const { organizationUuid } = account.organization;
+        // A result is bound to the agent that produced it, whichever kind that is.
         const agent = await this.aiAgentModel.getAgent({
             organizationUuid,
             agentUuid: claim.act.agent_uuid,
+            agentKind: 'any',
         });
         const user = toSessionUser(account);
         if (
@@ -10875,9 +10811,7 @@ export class AiAgentService extends BaseService {
         agentUuid: string,
         projectUuid: string,
     ): Promise<AiAgent> {
-        return this.getAgent(user, agentUuid, projectUuid, {
-            includeBuiltIn: true,
-        });
+        return this.getAgent(user, agentUuid, projectUuid);
     }
 
     private async getArtifactOwnerResultReader(
@@ -11362,9 +11296,7 @@ export class AiAgentService extends BaseService {
         }
 
         // Check if user has access to this agent
-        await this.getAgent(user, agentUuid, agent.projectUuid, {
-            includeBuiltIn: true,
-        });
+        await this.getAgent(user, agentUuid, agent.projectUuid);
 
         const artifact = await this.getArtifact(
             user,
@@ -11928,9 +11860,7 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        const agent = await this.getAgent(user, agentUuid, projectUuid, {
-            includeBuiltIn: true,
-        });
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
         const message = await this.aiAgentModel.findPromptContext(messageUuid);
         if (
             !message ||
@@ -12649,7 +12579,6 @@ export class AiAgentService extends BaseService {
             user.organizationUuid,
             prompt,
         );
-        AiAgentService.assertAgentServesThread(agent, prompt.threadCreatedFrom);
         return agent;
     }
 
@@ -12660,9 +12589,11 @@ export class AiAgentService extends BaseService {
         prompt: SlackPrompt | AiWebAppPrompt,
     ): Promise<AiAgent> {
         if (prompt.agentUuid) {
+            // The turn runs on its thread's agent; whoever started it decided the thread may run.
             return this.aiAgentModel.getAgent({
                 organizationUuid,
                 agentUuid: prompt.agentUuid,
+                agentKind: 'any',
             });
         }
 
@@ -14376,7 +14307,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     !suppressWritebackPreview &&
                     !reviewRemediation
                 ) {
-                    // Studio shows the pull request now; building its preview can take a minute.
+                    // Such a thread shows the pull request now; building its preview can take a minute.
                     if (writebackSetup.showsPullRequestBeforePreview) {
                         if (assertPublishAllowed) await assertPublishAllowed();
                         await storeResult(null, new Date().toISOString());
@@ -25078,8 +25009,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         if (!agent) {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
-        // A copy is an ordinary chat, which the built-in Studio agent does not serve.
-        AiAgentService.assertAgentServesThread(agent, undefined);
 
         const sourceThread = await this.aiAgentModel.getThread({
             organizationUuid,
@@ -25220,7 +25149,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         if (!agent || agent.projectUuid !== projectUuid) {
             throw new NotFoundError(`Agent not found: ${share.agentUuid}`);
         }
-        AiAgentService.assertAgentServesThread(agent, undefined);
 
         const hasAgentAccess = await this.checkAgentAccess(user, agent);
         if (!hasAgentAccess) {
@@ -25842,9 +25770,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             throw new ForbiddenError('Organization not found');
         }
 
-        const agent = await this.getAgent(user, agentUuid, projectUuid, {
-            includeBuiltIn: true,
-        });
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
         const artifact = await this.aiAgentModel.getArtifact(
             artifactUuid,
             versionUuid,

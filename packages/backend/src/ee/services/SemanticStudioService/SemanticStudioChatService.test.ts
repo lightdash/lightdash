@@ -133,6 +133,7 @@ describe('SemanticStudioChatService', () => {
             expect(getAgent).toHaveBeenCalledWith({
                 organizationUuid: owner.organizationUuid,
                 agentUuid: 'built-in-agent',
+                agentKind: 'semantic_studio',
             });
             expect(ai.createThreadForAgent).toHaveBeenCalledWith(
                 owner,
@@ -315,9 +316,11 @@ describe('SemanticStudioChatService', () => {
                 PROJECT_UUID,
                 THREAD_UUID,
             );
+            // Whichever kind of agent the conversation runs on.
             expect(getAgent).toHaveBeenCalledWith({
                 organizationUuid: owner.organizationUuid,
                 agentUuid: 'older-user-agent',
+                agentKind: 'any',
             });
             expect(getThread).toHaveBeenCalledWith({
                 organizationUuid: owner.organizationUuid,

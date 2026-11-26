@@ -1020,10 +1020,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiWritebackService<AiWritebackService>(),
                     projectContextService:
                         repository.getProjectContextService<ProjectContextService>(),
-                    semanticStudioService:
-                        repository.getSemanticStudioService<SemanticStudioService>(),
-                    semanticStudioCheckoutService:
-                        repository.getSemanticStudioCheckoutService<SemanticStudioCheckoutService>(),
                     // The API and the scheduler worker both build the service here, so both know Studio's saves.
                     findWritebackSetup: (save) =>
                         repository

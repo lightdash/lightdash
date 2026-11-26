@@ -1,143 +1,75 @@
-import {
-    AiAgentNotFoundError,
-    ForbiddenError,
-    NotFoundError,
-} from '@lightdash/common';
+import { AiAgentNotFoundError, NotFoundError } from '@lightdash/common';
 import { defaultSessionUser as user } from '../../../auth/account/account.mock';
 import { AiAgentService } from './AiAgentService';
 
 const { organizationUuid } = user;
 const projectUuid = 'project-uuid';
 const agentUuid = 'studio-agent-uuid';
-const studioAgent = {
-    uuid: agentUuid,
-    projectUuid,
-    organizationUuid,
-    kind: 'semantic_studio',
-};
 
-const buildService = ({ studioEnabled }: { studioEnabled: boolean }) => {
+const buildService = () => {
     const aiAgentModel = {
-        getAgent: vi.fn(async (_args: unknown) => studioAgent),
+        getAgent: vi.fn(async (_args: unknown) => ({
+            uuid: agentUuid,
+            projectUuid,
+            organizationUuid,
+        })),
         createWebAppThread: vi.fn(),
-        deleteAgent: vi.fn(),
     };
     const service: AiAgentService = Object.assign(
         Object.create(AiAgentService.prototype),
         {
             aiAgentModel,
-            semanticStudioService: {
-                getStatus: vi.fn(async () => ({ enabled: studioEnabled })),
-                assertCanUseStudio: vi.fn(async () => {
-                    if (!studioEnabled) throw new ForbiddenError();
-                }),
-            },
             getIsCopilotEnabled: vi.fn(async () => true),
-            createAuditedAbility: () => ({ cannot: () => false }),
             checkAgentAccess: vi.fn(async () => true),
-            getAgent: vi.fn(async () => studioAgent),
         },
     );
     return { service, aiAgentModel };
 };
 
-describe('built-in Semantic Studio agent', () => {
-    it('starts no thread through the agent route, whoever asks and whatever the thread', async () => {
-        const { service, aiAgentModel } = buildService({ studioEnabled: true });
+describe('an agent that is not one people made', () => {
+    it('is not asked for by an agent route, so the model leaves it out', async () => {
+        const { service, aiAgentModel } = buildService();
 
+        await service.getAgent(user, agentUuid, projectUuid);
+
+        expect(aiAgentModel.getAgent).toHaveBeenCalledWith({
+            organizationUuid,
+            agentUuid,
+            projectUuid,
+        });
+    });
+
+    it('answers not found on an agent route, and starts no thread', async () => {
+        const { service, aiAgentModel } = buildService();
+        aiAgentModel.getAgent.mockRejectedValue(
+            new NotFoundError('AI agent not found'),
+        );
+
+        await expect(
+            service.getAgent(user, agentUuid, projectUuid),
+        ).rejects.toThrow(NotFoundError);
         await expect(
             service.createAgentThread(user, agentUuid, {
                 prompt: 'How many orders last week?',
             }),
-        ).rejects.toThrow(AiAgentNotFoundError);
-        await expect(
-            service.createAgentThread(user, agentUuid, {
-                prompt: 'Add a metric',
-                createdFrom: 'semantic_studio',
-            }),
-        ).rejects.toThrow(AiAgentNotFoundError);
+        ).rejects.toThrow(NotFoundError);
         expect(aiAgentModel.createWebAppThread).not.toHaveBeenCalled();
     });
 
-    it('does not let someone with only AI agent permission use it', async () => {
-        // An interactive viewer: can view agents, cannot use Studio.
-        const { service } = buildService({ studioEnabled: false });
-        const checkAgentAccess = Reflect.get(
-            AiAgentService.prototype,
-            'checkAgentAccess',
-        );
-        const checkAgentThreadAccess = Reflect.get(
-            AiAgentService.prototype,
-            'checkAgentThreadAccess',
-        );
+    it("is still found by a turn, which runs on its thread's agent", async () => {
+        const { service, aiAgentModel } = buildService();
 
-        await expect(
-            checkAgentAccess.call(service, user, studioAgent),
-        ).resolves.toBe(false);
-        await expect(
-            checkAgentThreadAccess.call(
-                service,
-                user,
-                studioAgent,
-                user.userUuid,
-            ),
-        ).resolves.toBe(false);
-    });
-
-    // The service's own lookup, without the stub the other tests stand on.
-    const lookUp = (service: AiAgentService, includeBuiltIn: boolean) =>
-        AiAgentService.prototype.getAgent.call(
+        await Reflect.get(AiAgentService.prototype, 'getAgentForPrompt').call(
             service,
-            user,
+            organizationUuid,
+            { agentUuid },
+        );
+
+        expect(aiAgentModel.getAgent).toHaveBeenCalledWith({
+            organizationUuid,
             agentUuid,
-            projectUuid,
-            { includeBuiltIn },
-        );
-
-    it('does not exist for anything outside Studio that looks an agent up', async () => {
-        const { service, aiAgentModel } = buildService({ studioEnabled: true });
-        aiAgentModel.getAgent.mockRejectedValueOnce(
-            new NotFoundError('AI agent not found'),
-        );
-
-        await expect(lookUp(service, false)).rejects.toThrow(NotFoundError);
-        expect(aiAgentModel.getAgent).toHaveBeenCalledWith(
-            expect.objectContaining({ agentKind: 'user' }),
-        );
-    });
-
-    it('is found by the reads a chat screen makes', async () => {
-        const { service, aiAgentModel } = buildService({ studioEnabled: true });
-
-        await expect(lookUp(service, true)).resolves.toBe(studioAgent);
-        expect(aiAgentModel.getAgent).toHaveBeenCalledWith(
-            expect.not.objectContaining({ agentKind: 'user' }),
-        );
-    });
-
-    it("follows Studio's permission, not Ask AI's", async () => {
-        // Someone with no AI agent permission at all.
-        const withoutAgentPermission = (studioEnabled: boolean) => {
-            const { service } = buildService({ studioEnabled });
-            Object.assign(service, {
-                checkAgentAccess: Reflect.get(
-                    AiAgentService.prototype,
-                    'checkAgentAccess',
-                ),
-                createAuditedAbility: () => ({
-                    can: () => false,
-                    cannot: () => true,
-                }),
-            });
-            return service;
-        };
-
-        await expect(lookUp(withoutAgentPermission(true), true)).resolves.toBe(
-            studioAgent,
-        );
-        await expect(
-            lookUp(withoutAgentPermission(false), true),
-        ).rejects.toThrow(ForbiddenError);
+            agentKind: 'any',
+        });
     });
 });
 

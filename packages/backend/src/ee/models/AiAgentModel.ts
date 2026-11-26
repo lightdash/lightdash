@@ -779,8 +779,8 @@ export class AiAgentModel {
         organizationUuid: string;
         agentUuid: string;
         projectUuid?: string;
-        /** Finds the agent only if it is of this kind; any kind when left out. */
-        agentKind?: DbAiAgent['agent_kind'];
+        /** Which agents the lookup may find: one a person made, unless the caller already knows the thread it serves. */
+        agentKind?: DbAiAgent['agent_kind'] | 'any';
     }): Promise<AiAgentSummary> {
         const integrations = this.database
             .from(AiAgentIntegrationTableName)
@@ -924,8 +924,9 @@ export class AiAgentModel {
         if (projectUuid) {
             void query.where(`${AiAgentTableName}.project_uuid`, projectUuid);
         }
-        if (agentKind) {
-            void query.where(`${AiAgentTableName}.agent_kind`, agentKind);
+        const kind = agentKind ?? 'user';
+        if (kind !== 'any') {
+            void query.where(`${AiAgentTableName}.agent_kind`, kind);
         }
 
         const agent = await query;
@@ -2717,7 +2718,11 @@ export class AiAgentModel {
         };
 
         const agentUuid = (await findUuid()) ?? (await create());
-        return this.getAgent({ organizationUuid, agentUuid });
+        return this.getAgent({
+            organizationUuid,
+            agentUuid,
+            agentKind: 'semantic_studio',
+        });
     }
 
     /**

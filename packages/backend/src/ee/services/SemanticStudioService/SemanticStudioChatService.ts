@@ -125,6 +125,7 @@ export class SemanticStudioChatService extends BaseService {
         const agent = await this.aiAgentModel.getAgent({
             organizationUuid,
             agentUuid,
+            agentKind: 'any',
         });
         const thread = await this.aiAgentModel.getThread({
             organizationUuid,
@@ -288,7 +289,11 @@ export class SemanticStudioChatService extends BaseService {
         await this.studio.assertCanStartThread(user, projectUuid, surface);
         return this.ai.createThreadForAgent(
             user,
-            await this.aiAgentModel.getAgent({ organizationUuid, agentUuid }),
+            await this.aiAgentModel.getAgent({
+                organizationUuid,
+                agentUuid,
+                agentKind: 'semantic_studio',
+            }),
             { ...body, createdFrom: 'semantic_studio' },
             surface,
             undefined,
