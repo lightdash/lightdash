@@ -2,7 +2,7 @@
 set +x
 set -euo pipefail
 
-if [[ $# -ne 1 || ! "$1" =~ ^e-[a-z0-9]+$ ]] || ! command -v rainbow >/dev/null; then
+show_operator_instructions() {
     cat >&2 <<'EOF'
 After reconnecting the shared Google test account as the seeded admin on gsheets:
 1. Ask a Rainbow operator to open a shell on the host that serves lightdash/lightdash.
@@ -11,6 +11,19 @@ After reconnecting the shared Google test account as the seeded admin on gsheets
    The script sends the token to `rainbow secrets set` on stdin.
    Do not run the guest export through MCP exec or print the token.
 EOF
+}
+
+if [[ $# -ne 1 || ! "$1" =~ ^e-[a-z0-9]+$ ]] || ! command -v rainbow >/dev/null; then
+    show_operator_instructions
+    exit 2
+fi
+
+if ! rainbow ls | awk -F '\t' -v id="$1" '
+    $1 == id && ($2 == "name=gsheets" || $2 == "name=lightdash/gsheets") { found = 1 }
+    END { exit !found }
+'; then
+    echo 'Could not verify that the environment ID belongs to gsheets.' >&2
+    show_operator_instructions
     exit 2
 fi
 
