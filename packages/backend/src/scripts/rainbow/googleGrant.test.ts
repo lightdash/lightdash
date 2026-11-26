@@ -1,6 +1,7 @@
 import { OpenIdIdentityIssuerType, SEED_ORG_1_ADMIN } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import {
+    exportGoogleGrant,
     getGoogleGrantErrorFields,
     readConnectedGoogleGrant,
     runGoogleGrant,
@@ -202,6 +203,54 @@ describe('validateGoogleGrant', () => {
         await expect(
             validateGoogleGrant('test-refresh', client, request),
         ).rejects.toThrow('GOOGLE_GRANT_ACCESS_TOKEN_MISSING');
+    });
+});
+
+describe('exportGoogleGrant', () => {
+    const client = {
+        oauth2ClientId: 'test-client',
+        oauth2ClientSecret: 'test-secret',
+    };
+    const connectedStore = () => {
+        const store = createStore();
+        store.find.mockResolvedValue({
+            provider_subject: 'google-account-subject',
+            encrypted_refresh_token: Buffer.from('ciphertext'),
+            scopes,
+        });
+        store.decrypt.mockReturnValue('test-refresh');
+        return store;
+    };
+
+    it('waits for Google to issue an access token before exporting the grant', async () => {
+        const started = Promise.withResolvers<void>();
+        const response = Promise.withResolvers<Response>();
+        const request = vi.fn<typeof fetch>().mockImplementation(() => {
+            started.resolve();
+            return response.promise;
+        });
+        const onExport = vi.fn<(token: string) => void>();
+        const result = exportGoogleGrant(connectedStore(), client, request);
+        const completed = result.then(onExport);
+
+        await Promise.race([started.promise, completed]);
+        expect(request).toHaveBeenCalledTimes(1);
+        expect(onExport).not.toHaveBeenCalled();
+
+        response.resolve(Response.json({ access_token: 'test-access' }));
+        await completed;
+        expect(onExport).toHaveBeenCalledExactlyOnceWith('test-refresh');
+    });
+
+    it('does not return the grant if Google refuses it', async () => {
+        const request = vi
+            .fn<typeof fetch>()
+            .mockResolvedValue(
+                Response.json({ error: 'invalid_grant' }, { status: 400 }),
+            );
+        await expect(
+            exportGoogleGrant(connectedStore(), client, request),
+        ).rejects.toThrow('GOOGLE_GRANT_REFRESH_REJECTED');
     });
 });
 

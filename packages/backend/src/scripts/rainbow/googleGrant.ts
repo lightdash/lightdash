@@ -32,6 +32,11 @@ type GrantStore = {
     decrypt: EncryptionUtil['decrypt'];
 };
 
+type GoogleOAuthClient = {
+    oauth2ClientId: string | undefined;
+    oauth2ClientSecret: string | undefined;
+};
+
 class GoogleGrantError extends Error {
     constructor(readonly code: string) {
         super(code);
@@ -97,10 +102,7 @@ export async function readConnectedGoogleGrant(
 
 export async function validateGoogleGrant(
     refreshToken: string,
-    google: {
-        oauth2ClientId: string | undefined;
-        oauth2ClientSecret: string | undefined;
-    },
+    google: GoogleOAuthClient,
     request: typeof fetch = fetch,
 ): Promise<void> {
     if (!google.oauth2ClientId || !google.oauth2ClientSecret) {
@@ -130,6 +132,16 @@ export async function validateGoogleGrant(
     ) {
         throw new GoogleGrantError('GOOGLE_GRANT_ACCESS_TOKEN_MISSING');
     }
+}
+
+export async function exportGoogleGrant(
+    store: GrantStore,
+    google: GoogleOAuthClient,
+    request: typeof fetch = fetch,
+): Promise<string> {
+    const token = await readConnectedGoogleGrant(store);
+    await validateGoogleGrant(token, google, request);
+    return token;
 }
 
 export async function runGoogleGrant({
@@ -179,9 +191,7 @@ export async function runGoogleGrant({
             await seedGoogleGrant(refreshToken, store);
             return undefined;
         }
-        const connectedToken = await readConnectedGoogleGrant(store);
-        await validateGoogleGrant(connectedToken, lightdashConfig.auth.google);
-        return connectedToken;
+        return await exportGoogleGrant(store, lightdashConfig.auth.google);
     } finally {
         await database.destroy();
     }
