@@ -12,7 +12,7 @@ agent's prompt.
 
 Server instructions were rejected as the home for the rules: Claude chat,
 77.5% of production calls, shows them only from the turn after the first tool
-call, and Haiku, shown the rules there, passed the merge task 1 time in 5,
+call, and Haiku, shown the rules there, passed the merge task 2 times in 5,
 against 0 in 5 with no rules at all. The same rule on the tool description or
 in a pointed-to skill passed 5 in 5. Putting every rule in the description
 passed too (Opus 40 in 40, Haiku 5 in 5), as did the skill with a pointer; the
