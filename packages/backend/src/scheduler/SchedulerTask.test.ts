@@ -67,6 +67,8 @@ import {
     SnowflakePrivateKeyError,
 } from '@lightdash/warehouses';
 import ExecutionContext from 'node-execution-context';
+import { writeFile } from 'node:fs/promises';
+import { text } from 'node:stream/consumers';
 import type { Mock } from 'vitest';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
 import { fromJwt, fromSession } from '../auth/account';
@@ -6336,13 +6338,18 @@ describe('dashboard export download filenames', () => {
     });
 
     it('uploads the workbook with the dashboard name as the download filename', async () => {
-        vi.spyOn(WorkbookExportHelper, 'createWorkbookFile').mockResolvedValue({
-            worksheetCount: 2,
-            failedFileCount: 0,
-        });
-        const uploadExcel = vi
-            .fn()
-            .mockResolvedValue('https://files.example.com/workbook.xlsx');
+        vi.spyOn(WorkbookExportHelper, 'createWorkbookFile').mockImplementation(
+            async ({ outputPath }) => {
+                await writeFile(outputPath, 'workbook');
+                return { worksheetCount: 2, failedFileCount: 0 };
+            },
+        );
+        const uploadExcel = vi.fn<TaskDeps['fileStorageClient']['uploadExcel']>(
+            async (stream) => {
+                expect(await text(stream)).toBe('workbook');
+                return 'https://files.example.com/workbook.xlsx';
+            },
+        );
         const task = makeTaskWithDeps({
             fileStorageClient: asDep<'fileStorageClient'>({
                 isEnabled: () => true,
