@@ -37,7 +37,7 @@ const SecurityContactsForm: FC<{ savedEmails: string[] }> = ({
             <SettingRow
                 icon={IconMail}
                 title="Security contacts"
-                description="Lightdash emails these addresses about critical security advisories before they are published. Use a group address such as security@yourcompany.com."
+                description="Lightdash emails these addresses about critical security advisories before they are published. We strongly advise using a group address such as security@yourcompany.com."
             >
                 <Stack gap="sm" mt="sm">
                     <TagsInput
