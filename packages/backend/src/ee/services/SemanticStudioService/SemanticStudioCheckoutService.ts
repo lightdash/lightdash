@@ -37,6 +37,10 @@ import { type ProjectService } from '../../../services/ProjectService/ProjectSer
 import { startStepTimings } from '../../../utils/stepTimings';
 import { type AiAgentModel } from '../../models/AiAgentModel';
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
+import {
+    type AgentTurnSetup,
+    type AgentWritebackSetup,
+} from '../ai/types/agentTurnSetup';
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import { sourceRevision } from '../AiWritebackService/utils';
@@ -59,6 +63,7 @@ import {
     worksAsDbtPullRequests,
     type ModelProject,
 } from './studioProject';
+import { getStudioProjectMode, getStudioTurnSetup } from './studioTurn';
 
 export type SemanticStudioCheckoutServiceArguments = {
     analytics: Pick<LightdashAnalytics, 'track'>;
@@ -113,7 +118,7 @@ export type SemanticStudioCheckoutServiceArguments = {
     >;
     incrementalDbtCompile: Pick<
         IncrementalDbtCompileService,
-        'checkDbtScriptChange'
+        'checkDbtScriptChange' | 'getDbtProjectMap'
     >;
     aiAgentModel: Pick<AiAgentModel, 'getOrCreateSemanticStudioAgent'>;
     ai: {
@@ -467,6 +472,32 @@ export class SemanticStudioCheckoutService extends BaseService {
             threadUuid: active.threadUuid,
             prompt: compileFollowUpPrompt(compile.error),
         };
+    }
+
+    /** A Studio thread keeps one pull request, shows it at once, and compiles its branch after every save. */
+    getAgentWritebackSetup(
+        user: SessionUser,
+        projectUuid: string,
+    ): AgentWritebackSetup {
+        return {
+            continuesThreadPullRequest: true,
+            showsPullRequestBeforePreview: true,
+            onSaved: (prUrl) =>
+                this.queueBranchCompile(user, projectUuid, prUrl, 'agent'),
+        };
+    }
+
+    /** What a Studio thread brings to each of its turns on this project. */
+    async getAgentTurnSetup(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AgentTurnSetup> {
+        return getStudioTurnSetup(
+            await getStudioProjectMode(
+                await this.studio.getStatus(user, projectUuid),
+                () => this.incrementalDbtCompile.getDbtProjectMap(projectUuid),
+            ),
+        );
     }
 
     /** The built-in agent behind this project's Studio chat, created the first time someone who can use Studio asks for it. */

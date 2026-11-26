@@ -354,7 +354,10 @@ const setup = ({
             createPreviewForPullRequest: vi.fn(async () => null),
         },
         aiWritebackService,
-        incrementalDbtCompile: { checkDbtScriptChange: unused },
+        incrementalDbtCompile: {
+            checkDbtScriptChange: unused,
+            getDbtProjectMap: async () => 'models/ (3 files)',
+        },
         aiAgentModel: { getOrCreateSemanticStudioAgent: createBuilderAgent },
         ai: {
             getAvailability: async () => ai,
@@ -381,6 +384,45 @@ const setup = ({
 };
 
 describe('SemanticStudioCheckoutService', () => {
+    describe('setting up an agent turn', () => {
+        it('edits the repository of a dbt project, with its layout to hand', async () => {
+            const turn = await setup({
+                dbtConnection: DBT_IN_GITHUB,
+            }).service.getAgentTurnSetup(repoWriter, PROJECT_UUID);
+            expect(turn.studio).toEqual({
+                enabled: true,
+                drafts: false,
+                keepsContext: false,
+                projectMap: 'models/ (3 files)',
+            });
+            expect(turn).toMatchObject({
+                autoApproveSql: true,
+                usesFastDecisions: false,
+                waitsOnMcpServers: false,
+                asksWithoutFlag: true,
+            });
+            expect(turn.turnCard).not.toBeNull();
+        });
+
+        it('keeps a thread on one pull request and has something to run after a save', () => {
+            const writeback = setup({
+                dbtConnection: DBT_IN_GITHUB,
+            }).service.getAgentWritebackSetup(repoWriter, PROJECT_UUID);
+            expect(writeback).toMatchObject({
+                continuesThreadPullRequest: true,
+                showsPullRequestBeforePreview: true,
+            });
+            expect(writeback.onSaved).not.toBeNull();
+        });
+
+        it('says so when the person cannot change the semantic layer', async () => {
+            const turn = await setup({
+                dbtConnection: DBT_IN_GITHUB,
+            }).service.getAgentTurnSetup(viewer, PROJECT_UUID);
+            expect(turn.studio?.enabled).toBe(false);
+        });
+    });
+
     describe('handing out the built-in agent', () => {
         const inOrganization = (person: SessionUser): SessionUser => ({
             ...person,
@@ -960,6 +1002,20 @@ describe('SemanticStudioCheckoutService', () => {
             context.service.compileBranch(
                 context.queueBranchCompile.mock.calls[index][0],
             );
+
+        it("queues that compile after an agent's save, through the writeback setup", async () => {
+            const context = onChange();
+            await context.service
+                .getAgentWritebackSetup(repoWriter, PROJECT_UUID)
+                .onSaved?.(OWN_PULL_REQUEST);
+            expect(context.queueBranchCompile).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    projectUuid: PROJECT_UUID,
+                    userUuid: repoWriter.userUuid,
+                    workspaceUuid: 'workspace-thread',
+                }),
+            );
+        });
 
         it('queues a compile of the change on the saved pull request, and shows the person what its branch compiles to', async () => {
             const context = onChange();
