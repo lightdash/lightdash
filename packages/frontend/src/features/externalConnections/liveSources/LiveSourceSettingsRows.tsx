@@ -12,7 +12,11 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconInfoCircle, type Icon as TablerIcon } from '@tabler/icons-react';
+import {
+    IconInfoCircle,
+    IconPencil,
+    type Icon as TablerIcon,
+} from '@tabler/icons-react';
 import { type FC, type FormEvent, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -112,6 +116,7 @@ export const SettingsCard: FC<{
                     size="compact-xs"
                     variant="subtle"
                     color="gray"
+                    leftSection={<MantineIcon icon={IconPencil} />}
                     aria-label={`Edit ${edit.label ?? title}`}
                     onClick={edit.onEdit}
                 >
