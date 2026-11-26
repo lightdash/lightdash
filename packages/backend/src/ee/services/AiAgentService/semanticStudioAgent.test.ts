@@ -20,23 +20,9 @@ const user: Pick<SessionUser, 'organizationUuid' | 'userUuid'> = {
     userUuid: 'user-uuid',
 };
 
-const AI_ON = {
-    isCopilotEnabled: true,
-    isTrial: false,
-    aiAgentsVisible: true,
-    hasModel: true,
-};
-
-const buildService = ({
-    studioEnabled,
-    ai = AI_ON,
-}: {
-    studioEnabled: boolean;
-    ai?: typeof AI_ON;
-}) => {
+const buildService = ({ studioEnabled }: { studioEnabled: boolean }) => {
     const aiAgentModel = {
         getAgent: vi.fn(async (_args: unknown) => studioAgent),
-        getOrCreateSemanticStudioAgent: vi.fn(async () => studioAgent),
         createWebAppThread: vi.fn(),
         deleteAgent: vi.fn(),
     };
@@ -51,22 +37,6 @@ const buildService = ({
                 }),
             },
             getIsCopilotEnabled: vi.fn(async () => true),
-            aiOrganizationSettingsService: {
-                getRuntimeSettings: vi.fn(async () => ai),
-            },
-            orgAiCopilotConfigResolver: {
-                getOrgModelCatalogue: vi.fn(async () => ({
-                    catalogue: { instancePresets: [], offeredPresets: [] },
-                    copilotConfig: {
-                        defaultProvider: 'azure',
-                        providers: {
-                            azure: ai.hasModel
-                                ? { deploymentName: 'model' }
-                                : undefined,
-                        },
-                    },
-                })),
-            },
             createAuditedAbility: () => ({ cannot: () => false }),
             checkAgentAccess: vi.fn(async () => true),
             getAgent: vi.fn(async () => studioAgent),
@@ -85,27 +55,6 @@ describe('built-in Semantic Studio agent', () => {
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(aiAgentModel.createWebAppThread).not.toHaveBeenCalled();
-    });
-
-    it('is handed out only to someone who can use Studio on the project', async () => {
-        const allowed = buildService({ studioEnabled: true });
-        await expect(
-            allowed.service.getSemanticStudioAgent(
-                user as SessionUser,
-                projectUuid,
-            ),
-        ).resolves.toBe(studioAgent);
-
-        const refused = buildService({ studioEnabled: false });
-        await expect(
-            refused.service.getSemanticStudioAgent(
-                user as SessionUser,
-                projectUuid,
-            ),
-        ).rejects.toThrow(ForbiddenError);
-        expect(
-            refused.aiAgentModel.getOrCreateSemanticStudioAgent,
-        ).not.toHaveBeenCalled();
     });
 
     // The service's own lookup, without the stub the other tests stand on.
@@ -162,23 +111,5 @@ describe('built-in Semantic Studio agent', () => {
         await expect(
             lookUp(withoutAgentPermission(false), true),
         ).rejects.toThrow(ForbiddenError);
-    });
-
-    it.each([
-        ['the organization has no AI', { ...AI_ON, isCopilotEnabled: false }],
-        ['an admin has hidden AI', { ...AI_ON, aiAgentsVisible: false }],
-        ['no model is configured', { ...AI_ON, hasModel: false }],
-    ])('is not handed out when %s', async (_, ai) => {
-        const { service, aiAgentModel } = buildService({
-            studioEnabled: true,
-            ai,
-        });
-
-        await expect(
-            service.getSemanticStudioAgent(user as SessionUser, projectUuid),
-        ).rejects.toThrow(ForbiddenError);
-        expect(
-            aiAgentModel.getOrCreateSemanticStudioAgent,
-        ).not.toHaveBeenCalled();
     });
 });

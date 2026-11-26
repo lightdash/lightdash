@@ -8473,59 +8473,12 @@ export class AiAgentService extends BaseService {
         }
     }
 
-    /** AI is on for the organization, an admin has not hidden it, and there is a model to run on. */
-    private async assertAiIsLive(
-        user: SessionUser,
-        organizationUuid: string,
-        projectUuid: string,
-    ): Promise<void> {
-        const ai =
-            await this.aiOrganizationSettingsService.getRuntimeSettings(user);
-        if (!ai.isCopilotEnabled && !ai.isTrial) {
-            throw new ForbiddenError('Copilot is not enabled');
-        }
-        if (!ai.aiAgentsVisible) {
-            throw new ForbiddenError('AI is turned off for this organization');
-        }
-        const { catalogue, copilotConfig } =
-            await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
-                organizationUuid,
-                projectUuid,
-                credentialUuid: null,
-            });
-        if (
-            !getDefaultModel(copilotConfig) &&
-            !findSemanticStudioPreset(catalogue, null)
-        ) {
-            throw new ForbiddenError(
-                'No AI model is configured for this organization',
-            );
-        }
-    }
-
     private async canUseStudio(
         user: SessionUser,
         projectUuid: string,
     ): Promise<boolean> {
         return (await this.semanticStudioService.getStatus(user, projectUuid))
             .enabled;
-    }
-
-    /** The built-in agent behind a project's Semantic Studio chat, created the first time someone who can use Studio opens it. */
-    public async getSemanticStudioAgent(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<AiAgentSummary> {
-        const { organizationUuid } = user;
-        if (!organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-        await this.assertAiIsLive(user, organizationUuid, projectUuid);
-        await this.semanticStudioService.assertCanUseStudio(user, projectUuid);
-        return this.aiAgentModel.getOrCreateSemanticStudioAgent({
-            organizationUuid,
-            projectUuid,
-        });
     }
 
     private async getManageableAgentOrThrow(
