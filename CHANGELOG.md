@@ -1,3 +1,10 @@
+## [3.411.4](https://github.com/lightdash/lightdash/compare/3.411.3...3.411.4) (2026-11-26)
+
+
+### Bug Fixes
+
+* **dashboard:** keep tiles in place when entering edit ([#33466](https://github.com/lightdash/lightdash/issues/33466)) ([d37ea5d](https://github.com/lightdash/lightdash/commit/d37ea5d68f5c479b749c579ebe305fb83ac8ddaf))
+
 ## [3.411.3](https://github.com/lightdash/lightdash/compare/3.411.2...3.411.3) (2026-11-26)
 
 
