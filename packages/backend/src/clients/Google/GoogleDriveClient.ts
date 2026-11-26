@@ -13,6 +13,7 @@ import {
     isDimension,
     isField,
     ItemsMap,
+    LightdashError,
     Metric,
     MissingConfigError,
     NotFoundError,
@@ -79,6 +80,9 @@ export const GSHEETS_WRITE_CHUNK_MAX_BYTES = 8 * 1024 * 1024;
 // copies at most this much per batchUpdate. Clearing cells does not count.
 export const GSHEETS_SWAP_BATCH_MAX_ROWS = 100_000;
 export const GSHEETS_SWAP_BATCH_MAX_CELLS = 500_000;
+// A paste is limited by bytes too: a single write with four 64-character
+// text columns passed at 15.5 MB and failed at 23.3 MB.
+export const GSHEETS_SWAP_BATCH_MAX_BYTES = 12 * 1024 * 1024;
 // Cells per spreadsheet, counted over every tab, empty cells included.
 // Google raised it from 10M to 20M in September 2026.
 export const GOOGLE_SHEETS_CELL_LIMIT = 20_000_000;
@@ -86,6 +90,11 @@ export const GOOGLE_SHEETS_CELL_LIMIT = 20_000_000;
 // window. Our own retries replace gaxios's hidden ones (see `retry: false`).
 export const GSHEETS_WRITE_RETRY_DELAYS_MS = [5_000, 15_000, 45_000];
 const GSHEETS_RETRY_AFTER_CEILING_MS = 60_000;
+// Each backoff delay is moved by up to this share, up or down.
+const GSHEETS_RETRY_JITTER = 0.2;
+// The retries of one write may wait at most this share of the job timeout,
+// so a throttled run fails cleanly before the timeout stops it.
+const GSHEETS_RETRY_BUDGET_SHARE_OF_JOB_TIMEOUT = 0.4;
 const GOOGLE_INTERNAL_ERROR_MESSAGE =
     'Google Drive internal error encountered. Please try again later.';
 // Hidden, so it does not show in the tab bar. Named so that an editor who
@@ -99,6 +108,9 @@ const STAGING_STALE_MARGIN_MS = 10 * 60 * 1000;
 const DEFAULT_JOB_TIMEOUT_MS = 10 * 60 * 1000;
 // Developer metadata on the tab: the id of the last run that claimed it.
 export const GSHEETS_SYNC_CLAIM_KEY = 'lightdash.sync.claim';
+// Developer metadata on the tab: the id of the last run whose last batch
+// landed. Proves a batch landed when its response was lost.
+export const GSHEETS_SYNC_DONE_KEY = 'lightdash.sync.done';
 
 // Sorts by start time: base-36 milliseconds, padded, then a random suffix.
 const newSyncRunId = () =>
@@ -149,6 +161,41 @@ export const planGoogleSheetsWriteChunks = (
     return { chunks, totalBytes };
 };
 
+// Groups whole write chunks into swap batches bounded by rows, cells and
+// bytes. Each chunk is already far under all three bounds.
+export const planGoogleSheetsSwapBatches = (
+    chunks: GoogleSheetsWriteChunk[],
+    columnCount: number,
+    maxRows: number = GSHEETS_SWAP_BATCH_MAX_ROWS,
+    maxCells: number = GSHEETS_SWAP_BATCH_MAX_CELLS,
+    maxBytes: number = GSHEETS_SWAP_BATCH_MAX_BYTES,
+): Array<{ start: number; end: number; bytes: number }> =>
+    chunks.reduce<Array<{ start: number; end: number; bytes: number }>>(
+        (batches, chunk) => {
+            const last = batches.at(-1);
+            if (
+                last &&
+                chunk.end - last.start <= maxRows &&
+                (chunk.end - last.start) * columnCount <= maxCells &&
+                last.bytes + chunk.bytes <= maxBytes
+            ) {
+                return [
+                    ...batches.slice(0, -1),
+                    {
+                        start: last.start,
+                        end: chunk.end,
+                        bytes: last.bytes + chunk.bytes,
+                    },
+                ];
+            }
+            return [
+                ...batches,
+                { start: chunk.start, end: chunk.end, bytes: chunk.bytes },
+            ];
+        },
+        [],
+    );
+
 const formatCount = (value: number) => value.toLocaleString('en-US');
 
 const formatSize = (bytes: number) =>
@@ -167,7 +214,11 @@ type SheetProperties = {
     basicFilter?: sheets_v4.Schema$BasicFilter;
     // The id of the last run that claimed this tab.
     claim?: string;
+    // The id of the last run whose last batch landed on this tab.
+    done?: string;
 };
+
+type RetryBudget = { remainingMs: number };
 
 type WriteContext = {
     rowCount: number;
@@ -251,78 +302,89 @@ export class GoogleDriveClient {
         try {
             return await promise;
         } catch (err: AnyType) {
-            if (err?.response?.status === 404) {
-                throw new NotFoundError(
-                    `Google Sheet not found: ${err.response?.data?.error?.message}`,
-                );
-            }
-
-            if (err?.response?.status === 401) {
-                throw new ForbiddenError(
-                    `Failed to authorize: ${err.response.data?.error}: ${err.response.data?.error_description}`,
-                );
-            }
-
-            if (
-                err?.response?.status === 400 &&
-                err?.response?.data?.error === 'invalid_grant'
-            ) {
-                throw new ForbiddenError(
-                    `Failed to refresh token: ${err.response.data.error}: ${err.response.data.error_description}`,
-                );
-            }
-
-            if (
-                err?.message &&
-                err.message.includes('The caller does not have permission')
-            ) {
-                throw new ForbiddenError(
-                    `The caller does not have permission to access this Google Sheet: ${err.message}`,
-                );
-            }
-
-            if (
-                err?.message &&
-                err.message.includes('The service is currently unavailable')
-            ) {
-                throw new GoogleSheetsTransientError(err);
-            }
-
-            if (
-                err?.message &&
-                err.message.includes(
-                    'This operation is not supported for this document',
-                )
-            ) {
-                throw new UnexpectedGoogleSheetsError(
-                    `This operation is not supported for the provided file. ` +
-                        `Please ensure you are using a valid Google Sheets file. ` +
-                        `The file might be an Excel .xlsx file, or another file type that does not support Google spreadsheet operations.`,
-                );
-            }
-            if (
-                err?.message &&
-                err.message.includes('Internal error encountered.')
-            ) {
-                throw new UnexpectedGoogleSheetsError(
-                    GOOGLE_INTERNAL_ERROR_MESSAGE,
-                );
-            }
-
-            // Detect quota/rate limit errors - these should be retried, not permanently disabled
-            // like: Write requests per minute per user
-            if (err?.message && err.message.includes('Quota exceeded')) {
-                throw new GoogleSheetsQuotaError(getErrorMessage(err), {
-                    retryAfterMs: GoogleDriveClient.parseRetryAfterMs(err),
-                });
-            }
-
-            if (GoogleDriveClient.isNetworkError(err)) {
-                throw new GoogleSheetsTransientError(getErrorMessage(err));
-            }
-
-            throw new UnexpectedGoogleSheetsError(getErrorMessage(err));
+            throw GoogleDriveClient.toGoogleSheetsError(err);
         }
+    }
+
+    // Maps a Google API error to a Lightdash error class. An error that is
+    // already mapped passes through.
+    private static toGoogleSheetsError(err: AnyType): Error {
+        if (err instanceof LightdashError) return err;
+
+        if (err?.response?.status === 404) {
+            return new NotFoundError(
+                `Google Sheet not found: ${err.response?.data?.error?.message}`,
+            );
+        }
+
+        if (err?.response?.status === 401) {
+            return new ForbiddenError(
+                `Failed to authorize: ${err.response.data?.error}: ${err.response.data?.error_description}`,
+            );
+        }
+
+        if (
+            err?.response?.status === 400 &&
+            err?.response?.data?.error === 'invalid_grant'
+        ) {
+            return new ForbiddenError(
+                `Failed to refresh token: ${err.response.data.error}: ${err.response.data.error_description}`,
+            );
+        }
+
+        if (
+            err?.message &&
+            err.message.includes('The caller does not have permission')
+        ) {
+            return new ForbiddenError(
+                `The caller does not have permission to access this Google Sheet: ${err.message}`,
+            );
+        }
+
+        if (
+            err?.message &&
+            err.message.includes('The service is currently unavailable')
+        ) {
+            return new GoogleSheetsTransientError(err);
+        }
+
+        if (
+            err?.message &&
+            err.message.includes(
+                'This operation is not supported for this document',
+            )
+        ) {
+            return new UnexpectedGoogleSheetsError(
+                `This operation is not supported for the provided file. ` +
+                    `Please ensure you are using a valid Google Sheets file. ` +
+                    `The file might be an Excel .xlsx file, or another file type that does not support Google spreadsheet operations.`,
+            );
+        }
+        if (
+            err?.message &&
+            err.message.includes('Internal error encountered.')
+        ) {
+            return new UnexpectedGoogleSheetsError(
+                GOOGLE_INTERNAL_ERROR_MESSAGE,
+            );
+        }
+
+        // Detect quota/rate limit errors - these should be retried, not permanently disabled
+        // like: Write requests per minute per user, or "Rate Limit Exceeded"
+        if (
+            err?.response?.status === 429 ||
+            (err?.message && err.message.includes('Quota exceeded'))
+        ) {
+            return new GoogleSheetsQuotaError(getErrorMessage(err), {
+                retryAfterMs: GoogleDriveClient.parseRetryAfterMs(err),
+            });
+        }
+
+        if (GoogleDriveClient.isNetworkError(err)) {
+            return new GoogleSheetsTransientError(getErrorMessage(err));
+        }
+
+        return new UnexpectedGoogleSheetsError(getErrorMessage(err));
     }
 
     // No HTTP response (DNS, reset, refused, timeout — incl. token refresh) is a
@@ -833,7 +895,7 @@ export class GoogleDriveClient {
             fileId,
         );
         // The first visible tab is where a write to range "A1" used to go.
-        const tabTitle =
+        const wantedTitle =
             (tabName ? tabName.replaceAll(':', '.') : undefined) ??
             (
                 existingSheets.find(
@@ -842,14 +904,20 @@ export class GoogleDriveClient {
                         !sheet.title.startsWith(STAGING_TAB_PREFIX),
                 ) ?? existingSheets[0]
             )?.title;
-        if (tabTitle === undefined) {
+        if (wantedTitle === undefined) {
             throw new UnexpectedGoogleSheetsError(
                 'Unable to find the first sheet name in the spreadsheet',
             );
         }
-        const target = existingSheets.find((sheet) => sheet.title === tabTitle);
+        // Tab names are unique without regard to case, and a range matches
+        // them that way, so the old write went to an existing tab whose name
+        // differs only in case. Keep that tab and its name.
+        const target = existingSheets.find(
+            (sheet) => sheet.title.toLowerCase() === wantedTitle.toLowerCase(),
+        );
+        const tabTitle = target?.title ?? wantedTitle;
         const stagingPrefix = `${STAGING_TAB_PREFIX}${createHash('sha256')
-            .update(tabTitle)
+            .update(tabTitle.toLowerCase())
             .digest('hex')
             .slice(0, 8)}-`;
         const stagingRunId = (sheet: SheetProperties) =>
@@ -860,11 +928,15 @@ export class GoogleDriveClient {
         // scheduled run, or two schedulers on one tab). So only delete a
         // staging tab that no live run can own: one from a run that started
         // before the job timeout plus a margin, or with an older name.
+        const jobTimeoutMs =
+            this.lightdashConfig.scheduler?.jobTimeout ??
+            DEFAULT_JOB_TIMEOUT_MS;
         const staleBefore =
-            Date.now() -
-            ((this.lightdashConfig.scheduler?.jobTimeout ??
-                DEFAULT_JOB_TIMEOUT_MS) +
-                STAGING_STALE_MARGIN_MS);
+            Date.now() - (jobTimeoutMs + STAGING_STALE_MARGIN_MS);
+        const budget: RetryBudget = {
+            remainingMs:
+                GSHEETS_RETRY_BUDGET_SHARE_OF_JOB_TIMEOUT * jobTimeoutMs,
+        };
         const staleStagingSheets = existingSheets.filter((sheet) => {
             const id = stagingRunId(sheet);
             if (id === undefined) return false;
@@ -983,30 +1055,15 @@ export class GoogleDriveClient {
 
         let targetSheetId = target?.sheetId;
         let ownSheetId: number | undefined;
-        let filterCleared = false;
-        let filterToRestore = target?.basicFilter;
         try {
-            const response = await GoogleDriveClient.withWriteRetry(
-                () =>
-                    sheets.spreadsheets.batchUpdate(
-                        {
-                            spreadsheetId: fileId,
-                            requestBody: { requests: setupRequests },
-                        },
-                        { retry: false },
-                    ),
-                'tab setup',
-            );
-            const added = (response.data.replies ?? []).flatMap(
-                (reply) => reply.addSheet?.properties ?? [],
-            );
-            targetSheetId =
-                targetSheetId ??
-                added.find(({ title }) => title === tabTitle)?.sheetId ??
-                undefined;
-            ownSheetId =
-                added.find(({ title }) => title === ownTitle)?.sheetId ??
-                undefined;
+            const created = await GoogleDriveClient.setUpTabs(sheets, fileId, {
+                requests: setupRequests,
+                tabTitle,
+                ownTitle,
+                budget,
+            });
+            targetSheetId = targetSheetId ?? created.targetSheetId;
+            ownSheetId = created.ownSheetId;
             if (targetSheetId === undefined || ownSheetId === undefined) {
                 throw new UnexpectedGoogleSheetsError(
                     'Unable to create the Google Sheets tabs for the sync',
@@ -1019,6 +1076,7 @@ export class GoogleDriveClient {
                     runId,
                     sheetId,
                     ownSheetId: ownTab,
+                    budget,
                     olderStagingIds: (list) =>
                         list.flatMap((sheet) => {
                             const id = stagingRunId(sheet);
@@ -1067,6 +1125,7 @@ export class GoogleDriveClient {
                             { retry: false },
                         ),
                     `write of rows ${chunk.start + 1}-${chunk.end}`,
+                    budget,
                 );
                 if (inPlace) context.rowsInTab = chunk.end;
                 Logger.info(
@@ -1104,6 +1163,8 @@ export class GoogleDriveClient {
                 await GoogleDriveClient.finishInPlaceWrite(sheets, fileId, {
                     sheetId,
                     ownSheetId: ownTab,
+                    runId,
+                    budget,
                     rowCount,
                     columnCount,
                     gridRowCount: targetRowCount,
@@ -1116,11 +1177,13 @@ export class GoogleDriveClient {
                 // can no longer paste into this tab. This run pastes every
                 // row afterwards, so their earlier pastes do not stay.
                 const freshTarget = await claimTab();
-                filterToRestore = freshTarget.basicFilter ?? filterToRestore;
                 const swapStartedAt = Date.now();
                 await GoogleDriveClient.swapStagingTab(sheets, fileId, {
                     sheetId,
                     stagingSheetId: ownTab,
+                    runId,
+                    budget,
+                    pieces: planGoogleSheetsSwapBatches(chunks, columnCount),
                     rowCount,
                     columnCount,
                     growGrid:
@@ -1135,11 +1198,7 @@ export class GoogleDriveClient {
                         freshTarget.columnCount,
                     ),
                     formatRequests,
-                    clearFilter: freshTarget.basicFilter !== undefined,
-                    basicFilter: filterToRestore,
-                    onFilterCleared: (cleared) => {
-                        filterCleared = cleared;
-                    },
+                    basicFilter: freshTarget.basicFilter,
                     onRowsInTab: (rows) => {
                         context.rowsInTab = rows;
                     },
@@ -1174,17 +1233,6 @@ export class GoogleDriveClient {
                     `A newer run of this Google Sheets sync took over the tab "${tabTitle}", so this run stopped. The newer run writes the data.`,
                 );
             }
-            if (
-                filterCleared &&
-                filterToRestore &&
-                targetSheetId !== undefined
-            ) {
-                await GoogleDriveClient.restoreBasicFilter(
-                    sheets,
-                    fileId,
-                    filterToRestore,
-                );
-            }
             if (ownSheetId !== undefined) {
                 await GoogleDriveClient.deleteTabsIfPresent(sheets, fileId, [
                     ownSheetId,
@@ -1198,16 +1246,115 @@ export class GoogleDriveClient {
         );
     }
 
-    private static latestClaim(
+    // The newest value of each sync key on a tab.
+    private static syncMarkers(
         developerMetadata: sheets_v4.Schema$DeveloperMetadata[] | undefined,
-    ): { claim?: string } {
-        const claims = (developerMetadata ?? []).flatMap(
-            ({ metadataKey, metadataValue }) =>
-                metadataKey === GSHEETS_SYNC_CLAIM_KEY && metadataValue
-                    ? [metadataValue]
-                    : [],
+    ): { claim?: string; done?: string } {
+        const latest = (key: string) =>
+            (developerMetadata ?? [])
+                .flatMap(({ metadataKey, metadataValue }) =>
+                    metadataKey === key && metadataValue ? [metadataValue] : [],
+                )
+                .sort()
+                .at(-1);
+        const claim = latest(GSHEETS_SYNC_CLAIM_KEY);
+        const done = latest(GSHEETS_SYNC_DONE_KEY);
+        return {
+            ...(claim !== undefined ? { claim } : {}),
+            ...(done !== undefined ? { done } : {}),
+        };
+    }
+
+    // Replaces a sync key on the tab with a new value.
+    private static syncMarkerRequests(
+        sheetId: number,
+        key: string,
+        value: string,
+    ): sheets_v4.Schema$Request[] {
+        return [
+            {
+                deleteDeveloperMetadata: {
+                    dataFilter: {
+                        developerMetadataLookup: {
+                            metadataKey: key,
+                            metadataLocation: { sheetId },
+                        },
+                    },
+                },
+            },
+            {
+                createDeveloperMetadata: {
+                    developerMetadata: {
+                        metadataKey: key,
+                        metadataValue: value,
+                        location: { sheetId },
+                        visibility: 'DOCUMENT',
+                    },
+                },
+            },
+        ];
+    }
+
+    // Creates the run's tab (and the target tab if it is missing). If the
+    // response is lost and the retry finds the tab already there, the first
+    // try worked: the run's tab name is unique to the run.
+    private static async setUpTabs(
+        sheets: sheets_v4.Sheets,
+        fileId: string,
+        args: {
+            requests: sheets_v4.Schema$Request[];
+            tabTitle: string;
+            ownTitle: string;
+            budget: RetryBudget;
+        },
+    ): Promise<{ targetSheetId?: number; ownSheetId: number }> {
+        let replies: sheets_v4.Schema$Response[] = [];
+        try {
+            const response = await GoogleDriveClient.withWriteRetry(
+                () =>
+                    sheets.spreadsheets.batchUpdate(
+                        {
+                            spreadsheetId: fileId,
+                            requestBody: { requests: args.requests },
+                        },
+                        { retry: false },
+                    ),
+                'tab setup',
+                args.budget,
+            );
+            replies = response.data.replies ?? [];
+        } catch (e) {
+            const list = await GoogleDriveClient.listSheetProperties(
+                sheets,
+                fileId,
+            ).catch(() => []);
+            const own = list.find(({ title }) => title === args.ownTitle);
+            if (!own) throw e;
+            return {
+                targetSheetId: list.find(
+                    ({ title }) =>
+                        title.toLowerCase() === args.tabTitle.toLowerCase(),
+                )?.sheetId,
+                ownSheetId: own.sheetId,
+            };
+        }
+        const added = replies.flatMap(
+            (reply) => reply.addSheet?.properties ?? [],
         );
-        return claims.length > 0 ? { claim: claims.sort().at(-1) } : {};
+        const ownSheetId = added.find(
+            ({ title }) => title === args.ownTitle,
+        )?.sheetId;
+        if (ownSheetId === undefined || ownSheetId === null) {
+            throw new UnexpectedGoogleSheetsError(
+                'Unable to create the Google Sheets tabs for the sync',
+            );
+        }
+        return {
+            targetSheetId:
+                added.find(({ title }) => title === args.tabTitle)?.sheetId ??
+                undefined,
+            ownSheetId,
+        };
     }
 
     // Records this run as the one that writes the tab and deletes the
@@ -1220,6 +1367,7 @@ export class GoogleDriveClient {
             runId: string;
             sheetId: number;
             ownSheetId: number;
+            budget: RetryBudget;
             olderStagingIds: (list: SheetProperties[]) => number[];
         },
         attempt = 0,
@@ -1247,26 +1395,11 @@ export class GoogleDriveClient {
                     fields: 'hidden',
                 },
             },
-            {
-                deleteDeveloperMetadata: {
-                    dataFilter: {
-                        developerMetadataLookup: {
-                            metadataKey: GSHEETS_SYNC_CLAIM_KEY,
-                            metadataLocation: { sheetId: args.sheetId },
-                        },
-                    },
-                },
-            },
-            {
-                createDeveloperMetadata: {
-                    developerMetadata: {
-                        metadataKey: GSHEETS_SYNC_CLAIM_KEY,
-                        metadataValue: args.runId,
-                        location: { sheetId: args.sheetId },
-                        visibility: 'DOCUMENT',
-                    },
-                },
-            },
+            ...GoogleDriveClient.syncMarkerRequests(
+                args.sheetId,
+                GSHEETS_SYNC_CLAIM_KEY,
+                args.runId,
+            ),
             ...args.olderStagingIds(list).map((sheetId) => ({
                 deleteSheet: { sheetId },
             })),
@@ -1279,6 +1412,7 @@ export class GoogleDriveClient {
                         { retry: false },
                     ),
                 'tab claim',
+                args.budget,
             );
         } catch (e) {
             if (attempt < 2 && e instanceof UnexpectedGoogleSheetsError) {
@@ -1329,32 +1463,6 @@ export class GoogleDriveClient {
         }
     }
 
-    private static async restoreBasicFilter(
-        sheets: sheets_v4.Sheets,
-        fileId: string,
-        basicFilter: sheets_v4.Schema$BasicFilter,
-    ) {
-        await GoogleDriveClient.catchApiError(
-            sheets.spreadsheets.batchUpdate(
-                {
-                    spreadsheetId: fileId,
-                    requestBody: {
-                        requests: [
-                            GoogleDriveClient.setBasicFilterRequest(
-                                basicFilter,
-                            ),
-                        ],
-                    },
-                },
-                { retry: false },
-            ),
-        ).catch((error) =>
-            Logger.warn(
-                `Unable to restore the Google Sheets filter: ${getErrorMessage(error)}`,
-            ),
-        );
-    }
-
     // Set back without its sort: a sort would re-sort the synced rows on
     // every sync, and only part of them when the data grows past a fixed
     // filter range. The old write left the rows in query order.
@@ -1393,7 +1501,7 @@ export class GoogleDriveClient {
                               columnCount:
                                   properties.gridProperties?.columnCount ?? 0,
                               ...(basicFilter ? { basicFilter } : {}),
-                              ...GoogleDriveClient.latestClaim(
+                              ...GoogleDriveClient.syncMarkers(
                                   developerMetadata,
                               ),
                           },
@@ -1405,42 +1513,30 @@ export class GoogleDriveClient {
     // Pastes the staging values into the existing tab, which keeps its
     // sheetId, so references, charts, filters, protections and formatting
     // that point at it keep working. Pasted blank cells clear old values.
-    // Each batchUpdate is atomic. Data that fits in one batch (up to 100k
-    // rows and 500k cells) is swapped in all-or-nothing. Larger data takes
-    // several batches; if a later one fails, the tab holds new rows at the
-    // top and old rows below, and the error says so.
+    // Each batchUpdate is atomic. Data that fits in one batch is swapped in
+    // all-or-nothing. Larger data takes several batches; if a later one
+    // fails, the tab holds new rows at the top and old rows below, and the
+    // error says so.
     private static async swapStagingTab(
         sheets: sheets_v4.Sheets,
         fileId: string,
         args: {
             sheetId: number;
             stagingSheetId: number;
+            runId: string;
+            budget: RetryBudget;
+            pieces: Array<{ start: number; end: number }>;
             rowCount: number;
             columnCount: number;
             growGrid: boolean;
             gridRowCount: number;
             gridColumnCount: number;
             formatRequests: sheets_v4.Schema$Request[];
-            clearFilter: boolean;
             basicFilter?: sheets_v4.Schema$BasicFilter;
-            onFilterCleared: (cleared: boolean) => void;
             onRowsInTab: (rows: number) => void;
         },
     ) {
-        const batchRows = Math.max(
-            1,
-            Math.min(
-                GSHEETS_SWAP_BATCH_MAX_ROWS,
-                Math.floor(GSHEETS_SWAP_BATCH_MAX_CELLS / args.columnCount),
-            ),
-        );
-        const pieces: Array<{ start: number; end: number }> = [];
-        for (let start = 0; start < args.rowCount; start += batchRows) {
-            pieces.push({
-                start,
-                end: Math.min(args.rowCount, start + batchRows),
-            });
-        }
+        const { pieces } = args;
         const copy = ({
             start,
             end,
@@ -1480,6 +1576,72 @@ export class GoogleDriveClient {
               ]
             : [];
         const finishRequests: sheets_v4.Schema$Request[] = [
+            ...GoogleDriveClient.leftoverClearRequests(args),
+            ...args.formatRequests,
+            { deleteSheet: { sheetId: args.stagingSheetId } },
+        ];
+        // A paste skips the rows that a basic filter hides. Each batch turns
+        // the filter off, pastes and sets the filter back, so the tab never
+        // stays without it, also when a run stops between batches.
+        const { basicFilter } = args;
+        const withFilterOff = (
+            requests: sheets_v4.Schema$Request[],
+        ): sheets_v4.Schema$Request[] =>
+            basicFilter
+                ? [
+                      { clearBasicFilter: { sheetId: args.sheetId } },
+                      ...requests,
+                      GoogleDriveClient.setBasicFilterRequest(basicFilter),
+                  ]
+                : requests;
+
+        await pieces.reduce(async (previous, piece, index) => {
+            await previous;
+            const isLast = index === pieces.length - 1;
+            const requests = withFilterOff([
+                ...(index === 0 ? growRequests : []),
+                copy(piece),
+                ...(isLast ? finishRequests : []),
+            ]);
+            const batchStartedAt = Date.now();
+            const label = `tab swap of rows ${piece.start + 1}-${piece.end}`;
+            if (isLast) {
+                await GoogleDriveClient.runFinalBatch(sheets, fileId, {
+                    requests,
+                    sheetId: args.sheetId,
+                    runId: args.runId,
+                    budget: args.budget,
+                    label,
+                });
+            } else {
+                await GoogleDriveClient.withWriteRetry(
+                    () =>
+                        sheets.spreadsheets.batchUpdate(
+                            {
+                                spreadsheetId: fileId,
+                                requestBody: { requests },
+                            },
+                            { retry: false },
+                        ),
+                    label,
+                    args.budget,
+                );
+            }
+            args.onRowsInTab(piece.end);
+            Logger.info(
+                `Copied rows ${piece.start + 1}-${piece.end} of ${args.rowCount} into the Google Sheets tab (batch ${index + 1} of ${pieces.length}) in ${Date.now() - batchStartedAt} ms`,
+            );
+        }, Promise.resolve());
+    }
+
+    private static leftoverClearRequests(args: {
+        sheetId: number;
+        rowCount: number;
+        columnCount: number;
+        gridRowCount: number;
+        gridColumnCount: number;
+    }): sheets_v4.Schema$Request[] {
+        return [
             ...(args.gridRowCount > args.rowCount
                 ? [
                       {
@@ -1508,100 +1670,60 @@ export class GoogleDriveClient {
                       },
                   ]
                 : []),
-            ...args.formatRequests,
-            { deleteSheet: { sheetId: args.stagingSheetId } },
         ];
-
-        // A paste skips the rows that a basic filter hides, so the filter
-        // is off during the swap and the last batch sets it back. If a later
-        // batch fails, the caller sets it back.
-        const { basicFilter } = args;
-        const clearFilterRequests: sheets_v4.Schema$Request[] = args.clearFilter
-            ? [{ clearBasicFilter: { sheetId: args.sheetId } }]
-            : [];
-        const restoreFilterRequests: sheets_v4.Schema$Request[] = basicFilter
-            ? [GoogleDriveClient.setBasicFilterRequest(basicFilter)]
-            : [];
-
-        await GoogleDriveClient.runSwapBatches(sheets, fileId, {
-            ...args,
-            pieces,
-            requestsFor: (index) => [
-                ...(index === 0
-                    ? [...clearFilterRequests, ...growRequests]
-                    : []),
-                copy(pieces[index]),
-                ...(index === pieces.length - 1
-                    ? [...finishRequests, ...restoreFilterRequests]
-                    : []),
-            ],
-            onBatchDone: (index) => {
-                args.onFilterCleared(
-                    basicFilter !== undefined && index < pieces.length - 1,
-                );
-            },
-        });
     }
 
-    private static async runSwapBatches(
+    // The last batch of a write also records "done" for this run on the tab.
+    // After an ambiguous failure (no response, or a 5xx), Google may have
+    // applied the batch, and a retry would fail: the run's tab is deleted.
+    // So read the record back: only this run's id proves the batch landed.
+    // A 4xx response means it did not land.
+    private static async runFinalBatch(
         sheets: sheets_v4.Sheets,
         fileId: string,
         args: {
-            stagingSheetId: number;
-            rowCount: number;
-            pieces: Array<{ start: number; end: number }>;
-            requestsFor: (index: number) => sheets_v4.Schema$Request[];
-            onBatchDone: (index: number) => void;
-            onRowsInTab: (rows: number) => void;
+            requests: sheets_v4.Schema$Request[];
+            sheetId: number;
+            runId: string;
+            budget: RetryBudget;
+            label: string;
         },
     ) {
-        const { pieces } = args;
-        await pieces.reduce(async (previous, piece, index) => {
-            await previous;
-            const isLast = index === pieces.length - 1;
-            const requests = args.requestsFor(index);
-            const batchStartedAt = Date.now();
-            await GoogleDriveClient.withWriteRetry(
-                async () => {
-                    try {
-                        return await sheets.spreadsheets.batchUpdate(
-                            {
-                                spreadsheetId: fileId,
-                                requestBody: { requests },
-                            },
-                            { retry: false },
-                        );
-                    } catch (e) {
-                        // With no HTTP response, Google can have applied the
-                        // last batch: then the staging tab is gone. A 4xx or
-                        // 5xx response means the batch was not applied.
-                        if (!isLast || !GoogleDriveClient.isNetworkError(e)) {
-                            throw e;
-                        }
-                        const stagingTabExists =
-                            await GoogleDriveClient.listSheetProperties(
-                                sheets,
-                                fileId,
-                            )
-                                .then((list) =>
-                                    list.some(
-                                        ({ sheetId }) =>
-                                            sheetId === args.stagingSheetId,
-                                    ),
-                                )
-                                .catch(() => true);
-                        if (!stagingTabExists) return undefined;
-                        throw e;
-                    }
-                },
-                `tab swap of rows ${piece.start + 1}-${piece.end}`,
-            );
-            args.onRowsInTab(piece.end);
-            args.onBatchDone(index);
-            Logger.info(
-                `Copied rows ${piece.start + 1}-${piece.end} of ${args.rowCount} into the Google Sheets tab (batch ${index + 1} of ${pieces.length}) in ${Date.now() - batchStartedAt} ms`,
-            );
-        }, Promise.resolve());
+        const requests = [
+            ...args.requests,
+            ...GoogleDriveClient.syncMarkerRequests(
+                args.sheetId,
+                GSHEETS_SYNC_DONE_KEY,
+                args.runId,
+            ),
+        ];
+        await GoogleDriveClient.withWriteRetry(
+            async () => {
+                try {
+                    return await sheets.spreadsheets.batchUpdate(
+                        { spreadsheetId: fileId, requestBody: { requests } },
+                        { retry: false },
+                    );
+                } catch (e) {
+                    if (!GoogleDriveClient.isAmbiguousFailure(e)) throw e;
+                    const done = await GoogleDriveClient.listSheetProperties(
+                        sheets,
+                        fileId,
+                    )
+                        .then(
+                            (list) =>
+                                list.find(
+                                    ({ sheetId }) => sheetId === args.sheetId,
+                                )?.done,
+                        )
+                        .catch(() => undefined);
+                    if (done === args.runId) return undefined;
+                    throw e;
+                }
+            },
+            args.label,
+            args.budget,
+        );
     }
 
     private static async finishInPlaceWrite(
@@ -1610,6 +1732,8 @@ export class GoogleDriveClient {
         args: {
             sheetId: number;
             ownSheetId: number;
+            runId: string;
+            budget: RetryBudget;
             rowCount: number;
             columnCount: number;
             gridRowCount: number;
@@ -1617,46 +1741,17 @@ export class GoogleDriveClient {
             formatRequests: sheets_v4.Schema$Request[];
         },
     ) {
-        const requests: sheets_v4.Schema$Request[] = [
-            ...(args.gridRowCount > args.rowCount
-                ? [
-                      {
-                          updateCells: {
-                              range: {
-                                  sheetId: args.sheetId,
-                                  startRowIndex: args.rowCount,
-                              },
-                              fields: 'userEnteredValue',
-                          },
-                      },
-                  ]
-                : []),
-            ...(args.gridColumnCount > args.columnCount
-                ? [
-                      {
-                          updateCells: {
-                              range: {
-                                  sheetId: args.sheetId,
-                                  startRowIndex: 0,
-                                  endRowIndex: args.rowCount,
-                                  startColumnIndex: args.columnCount,
-                              },
-                              fields: 'userEnteredValue',
-                          },
-                      },
-                  ]
-                : []),
-            ...args.formatRequests,
-            { deleteSheet: { sheetId: args.ownSheetId } },
-        ];
-        await GoogleDriveClient.withWriteRetry(
-            () =>
-                sheets.spreadsheets.batchUpdate(
-                    { spreadsheetId: fileId, requestBody: { requests } },
-                    { retry: false },
-                ),
-            'clear of old rows',
-        );
+        await GoogleDriveClient.runFinalBatch(sheets, fileId, {
+            requests: [
+                ...GoogleDriveClient.leftoverClearRequests(args),
+                ...args.formatRequests,
+                { deleteSheet: { sheetId: args.ownSheetId } },
+            ],
+            sheetId: args.sheetId,
+            runId: args.runId,
+            budget: args.budget,
+            label: 'clear of old rows',
+        });
     }
 
     // Best effort: a tab that another run already deleted is not an error.
@@ -1695,44 +1790,89 @@ export class GoogleDriveClient {
         );
     }
 
-    private static isRetryableWriteError(error: unknown) {
+    // Retry on what the HTTP response says, as gaxios did before we turned
+    // its retries off: no response, 429 and any 5xx. Some Google errors come
+    // without a status, so the mapped class counts too.
+    private static isRetryableWriteError(raw: AnyType, mapped: Error) {
+        const status = GoogleDriveClient.httpStatus(raw);
         return (
-            error instanceof GoogleSheetsQuotaError ||
-            error instanceof GoogleSheetsTransientError ||
-            (error instanceof UnexpectedGoogleSheetsError &&
-                error.message === GOOGLE_INTERNAL_ERROR_MESSAGE)
+            GoogleDriveClient.isNetworkError(raw) ||
+            status === 429 ||
+            (status !== undefined && status >= 500 && status <= 599) ||
+            mapped instanceof GoogleSheetsQuotaError ||
+            mapped instanceof GoogleSheetsTransientError ||
+            (mapped instanceof UnexpectedGoogleSheetsError &&
+                mapped.message === GOOGLE_INTERNAL_ERROR_MESSAGE)
+        );
+    }
+
+    private static httpStatus(raw: AnyType): number | undefined {
+        const status = raw?.response?.status;
+        return typeof status === 'number' ? status : undefined;
+    }
+
+    // An ambiguous failure: Google can have applied the request.
+    private static isAmbiguousFailure(raw: AnyType) {
+        const status = GoogleDriveClient.httpStatus(raw);
+        return (
+            GoogleDriveClient.isNetworkError(raw) ||
+            (status !== undefined && status >= 500 && status <= 599)
         );
     }
 
     private static async withWriteRetry<T>(
         write: () => Promise<T>,
         label: string,
+        budget?: RetryBudget,
         attempt = 0,
     ): Promise<T> {
         try {
-            return await GoogleDriveClient.catchApiError(write());
-        } catch (e) {
+            return await write();
+        } catch (raw) {
+            const mapped = GoogleDriveClient.toGoogleSheetsError(raw);
             if (
-                !GoogleDriveClient.isRetryableWriteError(e) ||
+                !GoogleDriveClient.isRetryableWriteError(raw, mapped) ||
                 attempt >= GSHEETS_WRITE_RETRY_DELAYS_MS.length
             ) {
-                throw e;
+                throw mapped;
             }
             const retryAfterMs =
-                e instanceof GoogleSheetsQuotaError &&
-                typeof e.data?.retryAfterMs === 'number'
+                mapped instanceof GoogleSheetsQuotaError &&
+                typeof mapped.data?.retryAfterMs === 'number'
                     ? Math.min(
-                          e.data.retryAfterMs,
+                          mapped.data.retryAfterMs,
                           GSHEETS_RETRY_AFTER_CEILING_MS,
                       )
                     : undefined;
+            // Jitter spreads the retries of runs that share one quota.
             const delayMs =
-                retryAfterMs ?? GSHEETS_WRITE_RETRY_DELAYS_MS[attempt];
+                retryAfterMs ??
+                Math.round(
+                    GSHEETS_WRITE_RETRY_DELAYS_MS[attempt] *
+                        (1 -
+                            GSHEETS_RETRY_JITTER +
+                            2 * GSHEETS_RETRY_JITTER * Math.random()),
+                );
+            if (budget && delayMs > budget.remainingMs) {
+                Logger.warn(
+                    `Google Sheets ${label} failed (${getErrorMessage(mapped)}). No retry: the retry time for this sync is used up`,
+                );
+                throw mapped;
+            }
+            if (budget) {
+                // eslint-disable-next-line no-param-reassign
+                budget.remainingMs -= delayMs;
+            }
             Logger.warn(
-                `Google Sheets ${label} failed (${getErrorMessage(e)}). Retry ${attempt + 1} of ${GSHEETS_WRITE_RETRY_DELAYS_MS.length} in ${delayMs} ms`,
+                `Google Sheets ${label} failed (${getErrorMessage(mapped)}). Retry ${attempt + 1} of ${GSHEETS_WRITE_RETRY_DELAYS_MS.length} in ${delayMs} ms`,
             );
             await sleep(delayMs);
-            return GoogleDriveClient.withWriteRetry(write, label, attempt + 1);
+            return GoogleDriveClient.withWriteRetry(
+                write,
+                label,
+                budget,
+                attempt + 1,
+            );
         }
     }
 

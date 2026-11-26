@@ -603,7 +603,7 @@ describe('GoogleDriveClient', () => {
         // Google fails a single values.update with "Internal error
         // encountered" once it holds more than ~187k rows with a long text
         // column, so no request may come near that row count.
-        test('splits a large result into requests of at most 50,000 rows', async () => {
+        test('splits a large result into requests of at most 25,000 rows', async () => {
             const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
             useFake(fake);
             const rows = makeRows(120_000);
@@ -616,7 +616,7 @@ describe('GoogleDriveClient', () => {
 
             expect(
                 Math.max(...fake.updateCalls.map((call) => call.rows.length)),
-            ).toBeLessThanOrEqual(50_000);
+            ).toBeLessThanOrEqual(25_000);
             expect(fake.tabValues('Sheet1')).toEqual(rows);
         });
 
@@ -1126,10 +1126,10 @@ describe('GoogleDriveClient', () => {
             );
 
             expect((error as Error).message).toBe(
-                'Google Sheets could not write 150,001 rows (including header rows, about 6.4 MB) to the tab "Sheet1". The sync stopped part-way. Rows 1-71,428 of the tab are new. The rows after them can be from the previous sync until a later run completes. If the sync was turned off, turn it on again to replace them. Google error: Google Drive internal error encountered. Please try again later.',
+                'Google Sheets could not write 150,001 rows (including header rows, about 6.4 MB) to the tab "Sheet1". The sync stopped part-way. Rows 1-50,000 of the tab are new. The rows after them can be from the previous sync until a later run completes. If the sync was turned off, turn it on again to replace them. Google error: Google Drive internal error encountered. Please try again later.',
             );
-            expect(fake.tabValues('Sheet1')[71_427][1]).toBe('new-71426');
-            expect(fake.tabValues('Sheet1')[71_428][1]).toBe('old-71427');
+            expect(fake.tabValues('Sheet1')[49_999][1]).toBe('new-49998');
+            expect(fake.tabValues('Sheet1')[50_000][1]).toBe('old-49999');
             expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
         });
 
@@ -1223,7 +1223,7 @@ describe('GoogleDriveClient', () => {
             `${ms.toString(36).padStart(9, '0')}-ffff`;
         const stagingTitleFor = (tab: string, runId: string) =>
             `Lightdash sync in progress ${createHash('sha256')
-                .update(tab)
+                .update(tab.toLowerCase())
                 .digest('hex')
                 .slice(0, 8)}-${runId}`;
         const addHiddenTab = (fake: GoogleSheetsFake, title: string) => {
@@ -1330,14 +1330,14 @@ describe('GoogleDriveClient', () => {
 
             expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1', newer]);
             expect(fake.tabValues('Sheet1')).toEqual(rows);
-            expect(fake.sheet('Sheet1').developerMetadata).toEqual([
+            expect(fake.sheet('Sheet1').developerMetadata).toContainEqual(
                 expect.objectContaining({
                     metadataKey: 'lightdash.sync.claim',
                     metadataValue: expect.stringMatching(
                         /^[0-9a-z]{9}-[0-9a-f]{4}$/,
                     ),
                 }),
-            ]);
+            );
         });
 
         test('a run that a newer run supersedes during the upload stops with the superseded outcome', async () => {
@@ -1416,7 +1416,7 @@ describe('GoogleDriveClient', () => {
 
             expect(error).toBeInstanceOf(UnexpectedGoogleSheetsError);
             expect((error as Error).message).toContain(
-                'The sync stopped part-way. Rows 1-142,856 of the tab are new.',
+                'The sync stopped part-way. Rows 1-100,000 of the tab are new.',
             );
         });
 
@@ -1532,6 +1532,480 @@ describe('GoogleDriveClient', () => {
             expect((error as Error).message).toContain(
                 'The sync stopped part-way. Rows 1-25,000 of the tab are new. The rows after them can be from the previous sync until a later run completes. Google error:',
             );
+        });
+
+        const networkError = () =>
+            Object.assign(new Error('socket hang up'), {
+                name: 'FetchError',
+                code: 'ECONNRESET',
+            });
+        const hasRequest = (requests: unknown[], kind: string) =>
+            requests.some((r) => kind in (r as object));
+
+        test.each([
+            ['a 502', () => googleApiError(502, 'Bad Gateway')],
+            ['a 504', () => googleApiError(504, 'Gateway Timeout')],
+            ['a 500 Backend Error', () => googleApiError(500, 'Backend Error')],
+            [
+                'a 429 Rate Limit Exceeded',
+                () => googleApiError(429, 'Rate Limit Exceeded'),
+            ],
+            ['a network error', networkError],
+        ])('retries a write that fails with %s', async (_name, error) => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+            fake.beforeUpdate = (_call, index) => {
+                if (index === 0) throw error();
+            };
+            const rows = makeRows(10);
+
+            const result = await settle(
+                makeClient().appendCsvToSheet('refresh-token', 'file-id', rows),
+            );
+
+            expect(result).toBeUndefined();
+            expect(fake.updateCalls).toHaveLength(2);
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+        });
+
+        test('does not retry a 4xx such as a bad request', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+            fake.beforeUpdate = () => {
+                throw googleApiError(400, 'Invalid value at data.values');
+            };
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeRows(10),
+                ),
+            );
+
+            expect(error).toBeInstanceOf(UnexpectedGoogleSheetsError);
+            expect(fake.updateCalls).toHaveLength(1);
+        });
+
+        test('keeps the quota class after the retries run out, so the job is retried', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+            fake.beforeUpdate = () => {
+                throw googleQuotaError();
+            };
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeRows(10),
+                ),
+            );
+
+            expect(error).toBeInstanceOf(GoogleSheetsQuotaError);
+            expect(fake.updateCalls).toHaveLength(4);
+        });
+
+        test('waits about 5 s, with jitter, before the first retry', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+            fake.beforeUpdate = (_call, index) => {
+                if (index === 0) {
+                    throw googleApiError(
+                        503,
+                        'The service is currently unavailable.',
+                    );
+                }
+            };
+
+            const write = makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                makeRows(10),
+            );
+            await vi.advanceTimersByTimeAsync(3_900);
+            expect(fake.updateCalls).toHaveLength(1);
+            await vi.advanceTimersByTimeAsync(2_200);
+            await write;
+
+            expect(fake.updateCalls).toHaveLength(2);
+        });
+
+        test('waits at most 60 s for a long Retry-After', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+            fake.beforeUpdate = (_call, index) => {
+                if (index === 0) {
+                    throw Object.assign(googleQuotaError(), {
+                        response: {
+                            status: 429,
+                            headers: { 'retry-after': '600' },
+                        },
+                    });
+                }
+            };
+
+            const write = makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                makeRows(10),
+            );
+            await vi.advanceTimersByTimeAsync(59_000);
+            expect(fake.updateCalls).toHaveLength(1);
+            await vi.advanceTimersByTimeAsync(1_000);
+            await write;
+
+            expect(fake.updateCalls).toHaveLength(2);
+        });
+
+        test('stops retrying when the retry time for the sync is used up', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+            fake.beforeUpdate = () => {
+                throw googleApiError(
+                    503,
+                    'The service is currently unavailable.',
+                );
+            };
+            // 40% of a 60 s job timeout: room for the 5 s and 15 s waits,
+            // not for the 45 s one.
+            const client = new GoogleDriveClient({
+                lightdashConfig: {
+                    auth: {
+                        google: {
+                            oauth2ClientId: 'client-id',
+                            oauth2ClientSecret: 'client-secret',
+                        },
+                    },
+                    scheduler: { jobTimeout: 60_000 },
+                },
+            } as never);
+
+            const error = await settle(
+                client.appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeRows(10),
+                ),
+            );
+
+            expect(error).toBeInstanceOf(GoogleSheetsTransientError);
+            expect(fake.updateCalls).toHaveLength(3);
+        });
+
+        test('writes every request as RAW, so text is never parsed', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                makeRows(30_000),
+            );
+
+            expect(fake.updateCalls.map((c) => c.valueInputOption)).toEqual([
+                'RAW',
+                'RAW',
+            ]);
+        });
+
+        test('keeps a stale staging tab of another tab', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1' },
+                { title: 'Other' },
+            ]);
+            useFake(fake);
+            const otherStale = stagingTitleFor(
+                'Other',
+                syncRunId(Date.now() - 30 * 60_000),
+            );
+            addHiddenTab(fake, otherStale);
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                makeRows(10),
+            );
+
+            expect(fake.sheets.map((s) => s.title)).toEqual([
+                'Sheet1',
+                'Other',
+                otherStale,
+            ]);
+        });
+
+        test('does not count a stale staging tab in the cell budget', async () => {
+            const stale = stagingTitleFor(
+                'Sheet1',
+                syncRunId(Date.now() - 30 * 60_000),
+            );
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1' },
+                { title: stale, rowCount: 19_990_000, columnCount: 1 },
+            ]);
+            fake.sheet(stale).hidden = true;
+            useFake(fake);
+            const rows = makeRows(10);
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                rows,
+            );
+
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+            expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
+        });
+
+        test('escapes a quote in the tab name of an in-place write', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: "Q1's data", rows: makeRows(40_000, 'old') },
+                { title: 'Filler', rowCount: 18_930_000, columnCount: 1 },
+            ]);
+            useFake(fake);
+            const rows = makeRows(30_000);
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                rows,
+                "Q1's data",
+            );
+
+            expect(fake.updateCalls[0].range).toBe("'Q1''s data'!A1");
+            expect(fake.tabValues("Q1's data")).toEqual(rows);
+        });
+
+        test('bounds swap batches at 100,000 rows for narrow data', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+            const rows = [
+                ['id'],
+                ...Array.from({ length: 250_000 }, (_, i) => [i + 1]),
+            ];
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                rows,
+            );
+
+            const sizes = copyBatches(fake).map(
+                ([copy]) =>
+                    copy.copyPaste.source.endRowIndex -
+                    copy.copyPaste.source.startRowIndex,
+            );
+            expect(sizes).toEqual([100_000, 100_000, 50_001]);
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+        });
+
+        test('bounds swap batches by bytes for rows of long text', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+            // Four 64-character text columns, about 280 bytes per row.
+            const rows = [
+                ['a', 'b', 'c', 'd'],
+                ...Array.from({ length: 60_000 }, (_, i) =>
+                    ['a', 'b', 'c', 'd'].map((c) => `${c}${i}`.padEnd(64, c)),
+                ),
+            ];
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                rows,
+            );
+
+            const sizes = copyBatches(fake).map(
+                ([copy]) =>
+                    copy.copyPaste.source.endRowIndex -
+                    copy.copyPaste.source.startRowIndex,
+            );
+            // 25,000 rows are about 7 MB, so two of them do not fit in 12 MB;
+            // the last 10,001 rows (about 2.8 MB) join the second batch.
+            expect(sizes).toEqual([25_000, 35_001]);
+        });
+
+        test('takes a 5xx on the last batch as done when the batch landed', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+            let failed = false;
+            fake.afterBatchUpdate = (requests) => {
+                if (!failed && hasRequest(requests, 'copyPaste')) {
+                    failed = true;
+                    throw googleApiError(503, 'Backend Error');
+                }
+            };
+            const rows = makeRows(10);
+
+            const error = await settle(
+                makeClient().appendCsvToSheet('refresh-token', 'file-id', rows),
+            );
+
+            expect(error).toBeUndefined();
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+        });
+
+        test('does not take a lost response as done when the batch did not land', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeRows(10, 'old') },
+            ]);
+            useFake(fake);
+            fake.beforeBatchUpdate = (requests) => {
+                if (hasRequest(requests, 'copyPaste')) {
+                    const own = ownStagingTab(fake);
+                    if (own) {
+                        fake.applyNow([
+                            { deleteSheet: { sheetId: own.sheetId } },
+                        ]);
+                    }
+                    throw networkError();
+                }
+            };
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeRows(10),
+                ),
+            );
+
+            expect(error).toBeInstanceOf(Error);
+            expect(fake.tabValues('Sheet1')).toEqual(makeRows(10, 'old'));
+        });
+
+        test('reports a 4xx on a one-batch swap as no change, also when the staging tab is gone', async () => {
+            const oldRows = makeRows(10, 'old');
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: oldRows },
+            ]);
+            useFake(fake);
+            fake.beforeBatchUpdate = (requests) => {
+                if (hasRequest(requests, 'copyPaste')) {
+                    const own = ownStagingTab(fake);
+                    fake.applyNow([{ deleteSheet: { sheetId: own!.sheetId } }]);
+                    throw googleApiError(
+                        400,
+                        `No grid with id: ${own!.sheetId}`,
+                    );
+                }
+            };
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeRows(10),
+                ),
+            );
+
+            expect(error).toBeInstanceOf(UnexpectedGoogleSheetsError);
+            expect((error as Error).message).toContain(
+                'The data in the tab was not changed.',
+            );
+            expect(fake.tabValues('Sheet1')).toEqual(oldRows);
+        });
+
+        test('takes a lost response on the in-place finish as done when it landed', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeRows(40_000, 'old') },
+                { title: 'Filler', rowCount: 18_930_000, columnCount: 1 },
+            ]);
+            useFake(fake);
+            let failed = false;
+            fake.afterBatchUpdate = (requests) => {
+                const done = (requests as Array<Record<string, AnyType>>).some(
+                    (r) =>
+                        r.createDeveloperMetadata?.developerMetadata
+                            ?.metadataKey === 'lightdash.sync.done',
+                );
+                if (done && !failed) {
+                    failed = true;
+                    throw networkError();
+                }
+            };
+            const rows = makeRows(30_000);
+
+            const error = await settle(
+                makeClient().appendCsvToSheet('refresh-token', 'file-id', rows),
+            );
+
+            expect(error).toBeUndefined();
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+            expect(fake.sheets.map((s) => s.title)).toEqual([
+                'Sheet1',
+                'Filler',
+            ]);
+        });
+
+        test('recovers when the response to the tab setup is lost', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+            let failed = false;
+            fake.afterBatchUpdate = (requests) => {
+                if (!failed && hasRequest(requests, 'addSheet')) {
+                    failed = true;
+                    throw networkError();
+                }
+            };
+            const rows = makeRows(10);
+
+            const error = await settle(
+                makeClient().appendCsvToSheet('refresh-token', 'file-id', rows),
+            );
+
+            expect(error).toBeUndefined();
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+            expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
+        });
+
+        test('keeps the basic filter on when a run stops between swap batches', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeWideRows(150_000, 'old') },
+            ]);
+            useFake(fake);
+            const filter = addBasicFilter(fake, [1]);
+            let copyBatch = 0;
+            fake.beforeBatchUpdate = (requests) => {
+                if (hasRequest(requests, 'copyPaste')) {
+                    copyBatch += 1;
+                    if (copyBatch >= 2) throw googleApiError(400, 'Stopped');
+                }
+            };
+
+            await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeWideRows(150_000, 'new'),
+                ),
+            );
+
+            expect(fake.sheet('Sheet1').basicFilter).toEqual(filter);
+            fake.batchUpdateCalls
+                .filter((requests) => hasRequest(requests, 'clearBasicFilter'))
+                .forEach((requests) =>
+                    expect(hasRequest(requests, 'setBasicFilter')).toBe(true),
+                );
+        });
+
+        test('writes into an existing tab whose name differs only in case', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'revenue', rows: makeRows(10, 'old') },
+            ]);
+            useFake(fake);
+            const rows = makeRows(20);
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                rows,
+                'Revenue',
+            );
+
+            expect(fake.sheets.map((s) => s.title)).toEqual(['revenue']);
+            expect(fake.tabValues('revenue')).toEqual(rows);
         });
 
         test('writes to the first visible tab when no tab name is set', async () => {

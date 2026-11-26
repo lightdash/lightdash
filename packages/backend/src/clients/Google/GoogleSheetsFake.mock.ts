@@ -35,6 +35,7 @@ type GridRange = {
 
 type UpdateCall = {
     range: string;
+    valueInputOption?: string;
     rows: unknown[][];
     options: unknown;
 };
@@ -163,15 +164,18 @@ export class GoogleSheetsFake {
                     update: async (
                         {
                             range,
+                            valueInputOption,
                             requestBody,
                         }: {
                             range: string;
+                            valueInputOption?: string;
                             requestBody: { values: unknown[][] };
                         },
                         options?: unknown,
                     ) => {
                         const call = {
                             range,
+                            valueInputOption,
                             rows: requestBody.values,
                             options,
                         };
@@ -322,7 +326,12 @@ export class GoogleSheetsFake {
             cellPart = range.slice(bang + 1);
         }
         if (titlePart?.startsWith("'") && titlePart.endsWith("'")) {
-            titlePart = titlePart.slice(1, -1).replaceAll("''", "'");
+            const quoted = titlePart.slice(1, -1);
+            // Like Google, a quote inside a quoted name must be doubled.
+            if (quoted.replaceAll("''", '').includes("'")) {
+                throw googleApiError(400, `Unable to parse range: ${range}`);
+            }
+            titlePart = quoted.replaceAll("''", "'");
         }
         const sheet =
             titlePart === undefined
