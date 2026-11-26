@@ -1,3 +1,10 @@
+## [3.411.7](https://github.com/lightdash/lightdash/compare/3.411.6...3.411.7) (2026-11-26)
+
+
+### Bug Fixes
+
+* **dashboard:** keep tiles loaded when saving a dashboard opened by uuid URL ([#33476](https://github.com/lightdash/lightdash/issues/33476)) ([6737a37](https://github.com/lightdash/lightdash/commit/6737a37bd31340c744810315caa997c47f893212))
+
 ## [3.411.6](https://github.com/lightdash/lightdash/compare/3.411.5...3.411.6) (2026-11-26)
 
 
