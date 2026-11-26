@@ -116,11 +116,11 @@ describe('useFinishDiscardedWork', () => {
 });
 
 describe('useStudioThread', () => {
-    const fail = (name: string) =>
+    const fail = (name: string, statusCode = 400) =>
         act(() =>
             held.onError?.({
                 status: 'error',
-                error: { name, statusCode: 400, message: 'm', data: {} },
+                error: { name, statusCode, message: 'm', data: {} },
             }),
         );
 
@@ -134,6 +134,22 @@ describe('useStudioThread', () => {
         fail('AiAgentNotFoundError');
         expect(storedThread()).toBe(null);
         expect(held.toast).not.toHaveBeenCalled();
+    });
+
+    it("forgets it when Studio's own route says the thread is not found", () => {
+        renderHook(() => useStudioThread('project', 'agent', 'thread'));
+        fail('NotFoundError', 404);
+        expect(storedThread()).toBe(null);
+        expect(held.toast).not.toHaveBeenCalled();
+    });
+
+    it('keeps the thread when it is refused, not missing', () => {
+        renderHook(() => useStudioThread('project', 'agent', 'thread'));
+        fail('ForbiddenError', 403);
+        expect(storedThread()).toEqual({
+            threadUuid: 'thread',
+            agentUuid: 'agent',
+        });
     });
 
     it('keeps the thread and says so on any other failure', () => {
