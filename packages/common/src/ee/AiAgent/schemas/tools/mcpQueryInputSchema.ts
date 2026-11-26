@@ -1,7 +1,9 @@
 import type { z } from 'zod';
 import { toJsonSchema, type JsonSchema } from '../../../../utils/zodJsonSchema';
 
-type QueryNodeSchema = z.ZodObject<z.ZodRawShape>;
+type QueryNodeSchema = z.ZodObject<
+    z.ZodRawShape & { sourceType: z.ZodLiteral<string> }
+>;
 type QueriesSchema = z.ZodArray<z.ZodUnion<readonly QueryNodeSchema[]>>;
 type McpQueryArgsSchema = z.ZodObject<{ queries: QueriesSchema }>;
 
@@ -33,14 +35,8 @@ const withoutNull = (property: JsonSchema): JsonSchema => {
         : { ...withoutUnion, anyOf: branches };
 };
 
-/**
- * Drops `null` from every optional property. The server still accepts null;
- * this keeps the advertised schema small enough for clients that compact
- * large tool schemas.
- */
-export const advertiseOptionalPropertiesWithoutNull = (
-    schema: unknown,
-): unknown => {
+// The server still accepts null; advertising it costs bytes clients that compact large schemas lack.
+const advertiseOptionalPropertiesWithoutNull = (schema: unknown): unknown => {
     if (Array.isArray(schema)) {
         return schema.map(advertiseOptionalPropertiesWithoutNull);
     }
@@ -67,7 +63,7 @@ export const advertiseOptionalPropertiesWithoutNull = (
 };
 
 const sourceTypeOf = (node: QueryNodeSchema): string =>
-    String((node.shape.sourceType as z.ZodLiteral<string>).value);
+    node.shape.sourceType.value;
 
 const formatPath = (path: PropertyKey[]): string =>
     path
@@ -133,30 +129,20 @@ const describeNodeIssue = (
     ].join('; ');
 };
 
-const exampleCall = (withProjectUuid: boolean): string =>
-    `Minimal valid call: ${JSON.stringify({
-        ...(withProjectUuid ? { projectUuid: '<projectUuid>' } : {}),
-        queries: [
-            {
-                sourceType: 'semanticLayer',
-                nodeId: 'orders_by_month',
-                title: 'Orders by month',
-                description: 'Counts orders per month.',
-                exploreName: 'orders',
-                dimensions: ['orders_order_date_month'],
-                metrics: ['orders_count'],
-            },
-        ],
-    })}`;
+const EXAMPLE_NODE = {
+    sourceType: 'semanticLayer',
+    nodeId: 'orders_by_month',
+    title: 'Orders by month',
+    description: 'Counts orders per month.',
+    exploreName: 'orders',
+    dimensions: ['orders_order_date_month'],
+    metrics: ['orders_count'],
+};
 
-/**
- * The query tool's MCP input schema: validates exactly as `argsSchema`, is
- * advertised without null on optional node properties, and on rejection
- * names the offending node keys and ends with a valid example call.
- */
+/** Validates exactly as `argsSchema`; only the advertised schema and rejection text differ. */
 export const createMcpQueryInputSchema = <TArgs extends McpQueryArgsSchema>(
     argsSchema: TArgs,
-): TArgs => {
+): z.ZodObject<TArgs['shape']> => {
     const { queries } = argsSchema.shape;
     const nodes = queries.element;
     const advertisedQueries = advertiseOptionalPropertiesWithoutNull(
@@ -174,7 +160,12 @@ export const createMcpQueryInputSchema = <TArgs extends McpQueryArgsSchema>(
     // eslint-disable-next-line no-underscore-dangle
     describedQueries._zod.toJSONSchema = () =>
         structuredClone(advertisedQueries);
-    const example = exampleCall('projectUuid' in argsSchema.shape);
+    const example = `Minimal valid call: ${JSON.stringify({
+        ...('projectUuid' in argsSchema.shape
+            ? { projectUuid: '<projectUuid>' }
+            : {}),
+        queries: [EXAMPLE_NODE],
+    })}`;
     return argsSchema
         .extend({ queries: describedQueries })
         .superRefine(
@@ -182,5 +173,5 @@ export const createMcpQueryInputSchema = <TArgs extends McpQueryArgsSchema>(
             {
                 when: (payload) => payload.issues.length > 0,
             },
-        ) as unknown as TArgs;
+        );
 };

@@ -724,15 +724,15 @@ describe('MCP tool contracts', () => {
             const service = makeMcpService();
             mockRegisteredMcpTools.length = 0;
             await service.createServer(makeMcpServerOptions({ queryPath }));
-            const query = mockRegisteredMcpTools.find(
-                ({ name }) => name === McpToolName.QUERY,
+            const inputSchema = normalizeObjectSchema(
+                mockRegisteredMcpTools.find(
+                    ({ name }) => name === McpToolName.QUERY,
+                )?.config.inputSchema,
             );
+            if (!inputSchema) throw new Error('query tool not registered');
             const bytes = codexStrippedSchemaBytes(
                 // As tools/list serves it.
-                toJsonSchemaCompat(
-                    normalizeObjectSchema(query?.config.inputSchema)!,
-                    { pipeStrategy: 'input' },
-                ),
+                toJsonSchemaCompat(inputSchema, { pipeStrategy: 'input' }),
             );
             expect(
                 bytes,
