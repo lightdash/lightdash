@@ -9,6 +9,7 @@ import { type FC } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import ScrollableTable from '.';
 import { renderWithProviders } from '../../../../testing/testUtils';
+import { TABLE_LINE_HEIGHT_PX } from '../../PivotTable/getRowSpanMerges';
 import { ROW_HEIGHT_PX } from '../constants';
 import { TableProvider } from '../TableProvider';
 import { type CellContextMenuProps, type TableColumn } from '../types';
@@ -173,10 +174,13 @@ const scrollViewportTo = async (table: HTMLTableElement, rowIndex: number) => {
 // The browser sizes a row from its tallest cell. A merged cell whose value has
 // more lines than fit in the rows it covers grows those rows, so it must not
 // show more lines than fit.
+const getValueSpan = (cell: HTMLTableCellElement) =>
+    cell.querySelector<HTMLElement>(':scope > span');
+
 const getValueLineLimit = (cell: HTMLTableCellElement) => {
-    const limit = cell
-        .querySelector<HTMLElement>(':scope > span')
-        ?.style.getPropertyValue('--merged-line-clamp');
+    const limit = getValueSpan(cell)?.style.getPropertyValue(
+        '--merged-line-clamp',
+    );
     return limit ? Number(limit) : undefined;
 };
 
@@ -200,12 +204,19 @@ it('shows the lines of a merged value that fit in the rows its cell covers', asy
     expect(pairCells[0]).not.toHaveAttribute('rowspan');
     // One row fits one line. Two rows fit all three lines.
     expect(getValueLineLimit(pairCells[0])).toBe(1);
+    // A one-line value keeps the cell's own line height, so the row keeps the
+    // height of the rows next to it.
+    expect(getValueSpan(pairCells[0])!.style.lineHeight).toBe('');
     const twoRowCells = pairCells.filter(
         (cell) => cell.getAttribute('rowspan') === '2',
     );
     expect(twoRowCells.length).toBeGreaterThan(0);
     twoRowCells.forEach((cell) => {
         expect(getValueLineLimit(cell)).toBe(3);
+        // The line count assumes this line height.
+        expect(getValueSpan(cell)!.style.lineHeight).toBe(
+            `${TABLE_LINE_HEIGHT_PX}px`,
+        );
     });
 
     const cityCell = Array.from(rows[0].tr.querySelectorAll('td')).find(

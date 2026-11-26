@@ -13,6 +13,7 @@ import {
 } from '../../../testing/fakeResizeObserver';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { CELL_HEIGHT } from '../LightTable/constants';
+import { TABLE_LINE_HEIGHT_PX } from './getRowSpanMerges';
 
 // The menu's actions need app data; these tests only check cell selection.
 vi.mock('./ValueCellMenu', () => ({
@@ -194,10 +195,11 @@ it('starts a new merged cell at a group boundary inside the rendered rows', asyn
 
 // The browser sizes a row from its tallest cell. Pivot cells keep line breaks,
 // so a merged cell must not show more lines than fit in the rows it covers.
+const getValueSpan = (cell: HTMLTableCellElement) =>
+    cell.querySelector<HTMLElement>(':scope > span');
+
 const getValueLineLimit = (cell: HTMLTableCellElement) => {
-    const limit = cell
-        .querySelector<HTMLElement>(':scope > span')
-        ?.style.getPropertyValue('--lt-line-clamp');
+    const limit = getValueSpan(cell)?.style.getPropertyValue('--lt-line-clamp');
     return limit ? Number(limit) : undefined;
 };
 
@@ -223,12 +225,19 @@ it('shows the lines of a merged value that fit in the rows its cell covers', asy
     expect(pairCells[0]).not.toHaveAttribute('rowspan');
     // One row fits one line. Two rows fit all three lines.
     expect(getValueLineLimit(pairCells[0])).toBe(1);
+    // A one-line value keeps the cell's own line height, so the row keeps the
+    // height of the rows next to it.
+    expect(getValueSpan(pairCells[0])!.style.lineHeight).toBe('');
     const twoRowCells = pairCells.filter(
         (cell) => cell.getAttribute('rowspan') === '2',
     );
     expect(twoRowCells.length).toBeGreaterThan(0);
     twoRowCells.forEach((cell) => {
         expect(getValueLineLimit(cell)).toBe(3);
+        // The line count assumes this line height.
+        expect(getValueSpan(cell)!.style.lineHeight).toBe(
+            `${TABLE_LINE_HEIGHT_PX}px`,
+        );
     });
 
     const cityCell = Array.from(rows[0].tr.querySelectorAll('td')).find(
