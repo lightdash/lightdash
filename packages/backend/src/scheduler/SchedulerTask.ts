@@ -1979,7 +1979,7 @@ export default class SchedulerTask {
                             !cacheMetadata.cacheHit
                                 ? {
                                       ...this.schedulerPollingOptions,
-                                      firstPollAt: Date.now() + 250,
+                                      firstPollAt: Date.now() + 500,
                                   }
                                 : this.schedulerPollingOptions;
 

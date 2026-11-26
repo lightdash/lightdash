@@ -2891,7 +2891,12 @@ describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
                 run: vi.fn().mockResolvedValue(runResults(null)),
                 cacheHit,
             });
-            await deliver(format, schedulerUuid, xlsxContent);
+            const clock = vi.spyOn(Date, 'now').mockReturnValue(10_000);
+            try {
+                await deliver(format, schedulerUuid, xlsxContent);
+            } finally {
+                clock.mockRestore();
+            }
             const options = {
                 initialBackoffMs: 2000,
                 maxBackoffMs: 5000,
@@ -2900,9 +2905,7 @@ describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
             };
             expect(downloadSyncQueryResults).toHaveBeenCalledWith(
                 expect.objectContaining({ queryUuid: 'classic-q' }),
-                deferred
-                    ? { ...options, firstPollAt: expect.any(Number) }
-                    : options,
+                deferred ? { ...options, firstPollAt: 10_500 } : options,
                 'dashboard-1',
             );
             expect(downloadSyncQueryResults).toHaveBeenCalledWith(

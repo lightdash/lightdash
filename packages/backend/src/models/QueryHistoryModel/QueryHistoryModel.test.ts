@@ -529,11 +529,11 @@ vi.mock('node:timers/promises', { spy: true });
 
 describe('QueryHistoryModel first poll timing', () => {
     it.each([
-        { firstPollAt: 250, timeoutMs: 60_000, reads: [250] },
+        { firstPollAt: 500, timeoutMs: 60_000, reads: [500] },
         {
-            firstPollAt: 250,
+            firstPollAt: 500,
             timeoutMs: 60_000,
-            reads: [250, 2000, 6000, 11000],
+            reads: [500, 2000, 6000, 11000],
         },
         {
             firstPollAt: undefined,
@@ -541,7 +541,7 @@ describe('QueryHistoryModel first poll timing', () => {
             reads: [0, 2000, 6000, 11000],
         },
         { firstPollAt: -10, timeoutMs: 60_000, reads: [0] },
-        { firstPollAt: 250, timeoutMs: 100, reads: [0] },
+        { firstPollAt: 500, timeoutMs: 100, reads: [0] },
     ])(
         'reads at $reads with firstPollAt=$firstPollAt and timeout=$timeoutMs',
         async ({ firstPollAt, timeoutMs, reads }) => {
@@ -592,7 +592,7 @@ describe('QueryHistoryModel first poll timing', () => {
             account: null,
             projectUuid: 'project',
             queryUuid: 'query',
-            firstPollAt: Date.now() + 250,
+            firstPollAt: Date.now() + 500,
             abortSignal: controller.signal,
         });
         controller.abort();
