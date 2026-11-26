@@ -1,3 +1,11 @@
+## [3.415.5](https://github.com/lightdash/lightdash/compare/3.415.4...3.415.5) (2026-11-26)
+
+
+### Bug Fixes
+
+* **export:** wait for the Excel writer so large exports stop buffering in memory ([#33501](https://github.com/lightdash/lightdash/issues/33501)) ([bdaffda](https://github.com/lightdash/lightdash/commit/bdaffdaf67634cd75d4f2c41be345a4e81f0bcac))
+* **export:** yield to the event loop while reading results for exports ([#33499](https://github.com/lightdash/lightdash/issues/33499)) ([9fd38ea](https://github.com/lightdash/lightdash/commit/9fd38eacfc730f68ff0db115c7a11e52d0229771))
+
 ## [3.415.4](https://github.com/lightdash/lightdash/compare/3.415.3...3.415.4) (2026-11-26)
 
 
