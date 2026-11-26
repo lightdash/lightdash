@@ -23,7 +23,7 @@ ${toComposerRuleBullets([
     COMPOSER_RULES.duckdbCombine,
     COMPOSER_RULES.customMetric,
     COMPOSER_RULES.sqlNode,
-    COMPOSER_RULES.noData,
+    COMPOSER_RULES.noExplore,
     COMPOSER_RULES.duckdbCompute,
     COMPOSER_RULES.pythonNode,
     COMPOSER_RULES.onePipeline,

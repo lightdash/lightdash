@@ -165,7 +165,8 @@ ${toComposerRuleBullets([
     COMPOSER_RULES.mergeRefused,
     COMPOSER_RULES.duckdbCombine,
     COMPOSER_RULES.onePipeline,
-    `${COMPOSER_RULES.sqlNodeCore} ${COMPOSER_RULES.noData}`,
+    COMPOSER_RULES.sqlNode,
+    COMPOSER_RULES.noExplore,
     COMPOSER_RULES.followUpPlan,
 ])}
 
