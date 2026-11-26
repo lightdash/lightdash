@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Button, Menu } from '@mantine/core';
+import { ActionIcon, Menu, Tooltip } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
@@ -15,9 +15,9 @@ import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 
 const ExploreFromHereButton = ({
-    asMenuItem = false,
+    variant,
 }: {
-    asMenuItem?: boolean;
+    variant: 'icon' | 'menuItem';
 }) => {
     // Get savedChart from Redux
     const authoringEnabled = useContentAuthoringEnabled();
@@ -56,17 +56,26 @@ const ExploreFromHereButton = ({
     if (!authoringEnabled || cannotManageExplore) return null;
     if (!exploreFromHereUrl) return null;
 
-    const actionProps = {
-        leftSection: <MantineIcon icon={IconTelescope} />,
-        onClick: () => void handleCreateShareUrl(),
-    };
+    const onClick = () => void handleCreateShareUrl();
 
-    return asMenuItem ? (
-        <Menu.Item {...actionProps}>Explore from here</Menu.Item>
-    ) : (
-        <Button size="xs" {...actionProps}>
+    return variant === 'menuItem' ? (
+        <Menu.Item
+            leftSection={<MantineIcon icon={IconTelescope} />}
+            onClick={onClick}
+        >
             Explore from here
-        </Button>
+        </Menu.Item>
+    ) : (
+        <Tooltip label="Explore from here" position="bottom" openDelay={200}>
+            <ActionIcon
+                variant="default"
+                size="md"
+                aria-label="Explore from here"
+                onClick={onClick}
+            >
+                <MantineIcon icon={IconTelescope} />
+            </ActionIcon>
+        </Tooltip>
     );
 };
 

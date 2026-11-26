@@ -1,5 +1,12 @@
 import { ContentReviewContentType, ContentType } from '@lightdash/common';
-import { ActionIcon, Badge, Button, Menu, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Badge,
+    Button,
+    Menu,
+    Popover,
+    Tooltip,
+} from '@mantine/core';
 import {
     IconArrowBack,
     IconCircleCheckFilled,
@@ -76,10 +83,7 @@ import {
 import PageHeader from '../../common/Page/PageHeader';
 import { useCompactContentHeader } from '../../common/Page/useCompactContentHeader';
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
-import {
-    ResourceInfoPopup,
-    ResourceInfoPopupContent,
-} from '../../common/ResourceInfoPopup/ResourceInfoPopup';
+import { ResourceInfoPopupContent } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
 import { UnsavedChangesLeaveModal } from '../UnsavedChangesLeaveModal';
@@ -218,6 +222,9 @@ const SavedChartsHeader: FC = () => {
         savedChart?.uuid,
     );
     const chartViewStats = useChartViewStats(savedChart?.uuid);
+    const updatedByName = savedChart?.updatedByUser?.firstName
+        ? `${savedChart.updatedByUser.firstName} ${savedChart.updatedByUser.lastName}`.trim()
+        : undefined;
     const managedFromRepository = savedChart?.managedFromRepository && {
         contentType: 'chart' as const,
         source: savedChart.managedFromRepository,
@@ -375,9 +382,9 @@ const SavedChartsHeader: FC = () => {
 
             <PageHeader
                 mobileLayout={!isEditMode ? 'content' : undefined}
-                variant="query"
+                variant="dashboard"
             >
-                <HeaderMain>
+                <HeaderMain miw={0} mr="sm">
                     {savedChart && projectUuid && (
                         <>
                             {compact && !isFullscreen && (
@@ -393,7 +400,8 @@ const SavedChartsHeader: FC = () => {
                                 </HeaderBreadcrumbs>
                             )}
                             <HeaderTitle
-                                gap={4}
+                                gap="xs"
+                                wrap={compact ? 'wrap' : 'nowrap'}
                                 data-tour-scope="manage:VerifiedContent"
                                 data-tour-step="1"
                                 data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
@@ -408,29 +416,19 @@ const SavedChartsHeader: FC = () => {
                                         : undefined
                                 }
                             >
-                                {!compact && (
-                                    <>
-                                        {!isFullscreen && (
-                                            <TitleBreadCrumbs
-                                                projectUuid={projectUuid}
-                                                spaceUuid={savedChart.spaceUuid}
-                                                spaceName={savedChart.spaceName}
-                                                dashboardUuid={
-                                                    savedChart.dashboardUuid
-                                                }
-                                                dashboardSlug={
-                                                    savedChart.dashboardSlug
-                                                }
-                                                dashboardName={
-                                                    savedChart.dashboardName
-                                                }
-                                            />
-                                        )}
-                                    </>
+                                {!compact && !isFullscreen && (
+                                    <TitleBreadCrumbs
+                                        size="sm"
+                                        projectUuid={projectUuid}
+                                        spaceUuid={savedChart.spaceUuid}
+                                        spaceName={savedChart.spaceName}
+                                        dashboardUuid={savedChart.dashboardUuid}
+                                        dashboardSlug={savedChart.dashboardSlug}
+                                        dashboardName={savedChart.dashboardName}
+                                    />
                                 )}
                                 <HeaderHeading
-                                    order={5}
-                                    maw={500}
+                                    order={6}
                                     lineClamp={compact ? 2 : 1}
                                     // Scope-tour result marker: a saved chart
                                     // (manage:SavedChart). Saving lands here,
@@ -476,6 +474,64 @@ const SavedChartsHeader: FC = () => {
                                         to review
                                     </Badge>
                                 )}
+                                {!compact && !isFullscreen && (
+                                    <Popover
+                                        withArrow
+                                        offset={{ mainAxis: -2, crossAxis: 6 }}
+                                    >
+                                        <Popover.Target>
+                                            <ActionIcon
+                                                size="md"
+                                                aria-label="Chart information"
+                                                data-tour-scope="manage:DeletedContent"
+                                                data-tour-step="1"
+                                                data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                                                data-tour-label="Inspect the restored chart"
+                                                data-tour-docs="explore/version-history.mdx#recently-deleted-charts-and-dashboards:p2:1-3"
+                                                data-tour-return='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"]'
+                                                data-tour-resultdocs="explore/version-history.mdx#recently-deleted-charts-and-dashboards:li1"
+                                            >
+                                                <MantineIcon
+                                                    icon={IconInfoCircle}
+                                                />
+                                            </ActionIcon>
+                                        </Popover.Target>
+                                        <Popover.Dropdown
+                                            w={320}
+                                            mah={480}
+                                            p="md"
+                                            className={
+                                                classes.scrollableDropdown
+                                            }
+                                        >
+                                            <ResourceInfoPopupContent
+                                                resourceUuid={savedChart.uuid}
+                                                projectUuid={projectUuid}
+                                                title={savedChart.name}
+                                                description={
+                                                    savedChart.description
+                                                }
+                                                slug={savedChart.slug}
+                                                managedFromRepository={
+                                                    managedFromRepository
+                                                }
+                                                updatedAt={savedChart.updatedAt}
+                                                updatedBy={updatedByName}
+                                                spaceName={savedChart.spaceName}
+                                                spaceUuid={savedChart.spaceUuid}
+                                                viewStats={
+                                                    chartViewStats.data?.views
+                                                }
+                                                viewStatsResourceType="chart"
+                                                firstViewedAt={
+                                                    chartViewStats.data
+                                                        ?.firstViewedAt
+                                                }
+                                                withChartData={true}
+                                            />
+                                        </Popover.Dropdown>
+                                    </Popover>
+                                )}
                                 {contentReview.pendingRequest && (
                                     <PendingReviewBadge
                                         request={contentReview.pendingRequest}
@@ -498,28 +554,29 @@ const SavedChartsHeader: FC = () => {
                                     </Tooltip>
                                 )}
                                 {!compact && (
-                                    <>
-                                        {' '}
-                                        <FavoriteActionIcon
-                                            size="xs"
-                                            variant="transparent"
-                                            isFavorite={isChartFavorited}
-                                            onToggle={() => {
-                                                toggleFavorite(
-                                                    ContentType.CHART,
-                                                    savedChart.uuid,
-                                                );
-                                            }}
-                                        />
-                                    </>
-                                )}{' '}
+                                    <FavoriteActionIcon
+                                        size="md"
+                                        isFavorite={isChartFavorited}
+                                        onToggle={() => {
+                                            toggleFavorite(
+                                                ContentType.CHART,
+                                                savedChart.uuid,
+                                            );
+                                        }}
+                                    />
+                                )}
                                 {isEditMode && userCanManageChart && (
                                     <ActionIcon
-                                        size="xs"
+                                        size="md"
+                                        aria-label="Edit details"
                                         disabled={updateSavedChart.isLoading}
                                         onClick={() => setIsRenamingChart(true)}
                                     >
-                                        <MantineIcon icon={IconPencil} />
+                                        <MantineIcon
+                                            icon={IconPencil}
+                                            size={14}
+                                            strokeWidth={2.25}
+                                        />
                                     </ActionIcon>
                                 )}
                             </HeaderTitle>
@@ -529,82 +586,55 @@ const SavedChartsHeader: FC = () => {
                                 onClose={() => setIsRenamingChart(false)}
                                 onConfirm={() => setIsRenamingChart(false)}
                             />
-                            {!isFullscreen && (
-                                <HeaderMetadata
-                                    gap="xs"
-                                    data-tour-scope="manage:DeletedContent"
-                                    data-tour-step="1"
-                                    data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
-                                    data-tour-label="Inspect the restored chart"
-                                    data-tour-docs="explore/version-history.mdx#recently-deleted-charts-and-dashboards:p2:1-3"
-                                    data-tour-return='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"]'
-                                    data-tour-resultdocs="explore/version-history.mdx#recently-deleted-charts-and-dashboards:li1"
-                                >
+                            {compact && !isFullscreen && (
+                                <HeaderMetadata gap="xs">
                                     <UpdatedInfo
                                         updatedAt={savedChart.updatedAt}
-                                        user={
-                                            compact
-                                                ? undefined
-                                                : savedChart.updatedByUser
-                                        }
+                                        user={undefined}
                                         partiallyBold={false}
                                     />
-                                    {!compact && (
-                                        <ResourceInfoPopup
-                                            resourceUuid={savedChart.uuid}
-                                            projectUuid={projectUuid}
-                                            title={savedChart.name}
-                                            description={savedChart.description}
-                                            slug={savedChart.slug}
-                                            managedFromRepository={
-                                                managedFromRepository
-                                            }
-                                            updatedAt={savedChart.updatedAt}
-                                            spaceName={savedChart.spaceName}
-                                            spaceUuid={savedChart.spaceUuid}
-                                            viewStats={
-                                                chartViewStats.data?.views
-                                            }
-                                            viewStatsResourceType="chart"
-                                            firstViewedAt={
-                                                chartViewStats.data
-                                                    ?.firstViewedAt
-                                            }
-                                            withChartData={true}
-                                        />
-                                    )}
                                 </HeaderMetadata>
                             )}
                         </>
                     )}
                 </HeaderMain>
-                <HeaderActions gap="xs">
+                <HeaderActions gap={isEditMode ? 'xs' : 'sm'}>
                     {showChartActions && (
                         <>
+                            {userCanManageChart &&
+                                !isEditMode &&
+                                canEditChart &&
+                                !compact && (
+                                    <Tooltip
+                                        label="Edit chart"
+                                        position="bottom"
+                                        openDelay={200}
+                                    >
+                                        <ActionIcon
+                                            aria-label="Edit chart"
+                                            onClick={editChart}
+                                            bg="foreground"
+                                            c="background"
+                                            size="md"
+                                            // Anchor for scope walkthroughs (data-tour-via)
+                                            data-tour-anchor="edit-chart"
+                                            data-tour-hint="Edit the chart"
+                                        >
+                                            <MantineIcon
+                                                icon={IconPencil}
+                                                color="background"
+                                                size="md"
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                )}
                             {canExploreFromHere && !compact && (
-                                <ExploreFromHereButton />
+                                <ExploreFromHereButton variant="icon" />
                             )}
                             {userCanManageChart && (
                                 <>
                                     {!isEditMode ? (
                                         <>
-                                            {canEditChart && !compact && (
-                                                <Button
-                                                    variant="default"
-                                                    size="xs"
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconPencil}
-                                                        />
-                                                    }
-                                                    onClick={editChart}
-                                                    // Anchor for scope walkthroughs (data-tour-via)
-                                                    data-tour-anchor="edit-chart"
-                                                    data-tour-hint="Edit the chart"
-                                                >
-                                                    Edit chart
-                                                </Button>
-                                            )}
                                             <ShareShortLinkButton
                                                 withLabel={compact}
                                                 disabled={!isValidQuery}
@@ -767,7 +797,7 @@ const SavedChartsHeader: FC = () => {
                                         </Menu.Item>
                                     )}
                                     {canExploreFromHere && (
-                                        <ExploreFromHereButton asMenuItem />
+                                        <ExploreFromHereButton variant="menuItem" />
                                     )}
                                 </>
                             )}

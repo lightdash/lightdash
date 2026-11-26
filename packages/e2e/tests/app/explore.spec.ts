@@ -93,10 +93,7 @@ test.describe('Explore', () => {
             page.getByText('Loading chart', { exact: true }),
         ).toHaveCount(0);
 
-        await page
-            .getByText('Edit chart', { exact: true })
-            .locator('..')
-            .click();
+        await page.getByRole('button', { name: 'Edit chart' }).click();
         await page.getByText('Configure', { exact: true }).click();
         await page.getByRole('button', { name: 'Change chart type' }).click();
         await page
