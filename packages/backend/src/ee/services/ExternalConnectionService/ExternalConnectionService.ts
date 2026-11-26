@@ -1035,6 +1035,16 @@ export class ExternalConnectionService extends BaseService {
                 'Reconnect this source to change its sign-in, region, project or site',
             );
         }
+        // Charts on a Supabase explore would silently lose the old table's fields
+        if (
+            existing.apiSource?.connector === ApiConnectorType.SUPABASE &&
+            data.apiSource?.connector === ApiConnectorType.SUPABASE &&
+            data.apiSource.table !== existing.apiSource.table
+        ) {
+            throw new ParameterError(
+                'Add a new Supabase source to read another table',
+            );
+        }
         const resolved = ExternalConnectionService.resolveConnectionUpdate(
             existing,
             data,
