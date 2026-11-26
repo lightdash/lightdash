@@ -39,15 +39,42 @@ const cmds = {
         const tableId = m.tables?.[0]?.tableId;
         const r = await L.batchx(sid, [
             {
+                // Google answers 500 to a table filter with criteria, so the
+                // API can only make one without them: read back as tableId + range.
+                setBasicFilter: { filter: { tableId } },
+            },
+        ]);
+        console.log(JSON.stringify({ setTableFilter: r.status, error: r.error }));
+    },
+    // A plain filter over the table cells: hides rows, read back with range only.
+    async rangefilter() {
+        const m = await meta();
+        const r = await L.batchx(sid, [
+            {
                 setBasicFilter: {
                     filter: {
-                        tableId,
+                        range: m.tables[0].range,
                         filterSpecs: [{ columnIndex: 1, filterCriteria: { condition: { type: 'NUMBER_GREATER', values: [{ userEnteredValue: '1000' }] } } }],
                     },
                 },
             },
         ]);
-        console.log(JSON.stringify({ setTableFilter: r.status, error: r.error }));
+        console.log(JSON.stringify({ setRangeFilter: r.status, error: r.error }));
+    },
+    // A plain basic filter, no table: hides rows whose value <= 1000.
+    async plainfilter() {
+        const id = await sheetIdOf();
+        const r = await L.batchx(sid, [
+            {
+                setBasicFilter: {
+                    filter: {
+                        range: { sheetId: id, startRowIndex: 0, endRowIndex: Number(a3), startColumnIndex: 0, endColumnIndex: Number(a4) },
+                        filterSpecs: [{ columnIndex: 1, filterCriteria: { condition: { type: 'NUMBER_GREATER', values: [{ userEnteredValue: '1000' }] } } }],
+                    },
+                },
+            },
+        ]);
+        console.log(JSON.stringify({ setPlainFilter: r.status, error: r.error }));
     },
     async 'filter-elsewhere'() {
         const id = await sheetIdOf();
@@ -64,9 +91,10 @@ const cmds = {
         const hidden = await L.gs('GET', `/${sid}?ranges=${L.q(L.qt(tab))}&fields=${encodeURIComponent('sheets.data.rowMetadata.hiddenByFilter')}`);
         const hiddenRows = [];
         (hidden.sheets?.[0]?.data?.[0]?.rowMetadata ?? []).forEach((x, i) => x.hiddenByFilter && hiddenRows.push(i + 1));
-        const s = { grid: m.properties.gridProperties, basicFilter: m.basicFilter ?? null, tables: m.tables ?? [], hiddenRows };
+        const tabs = await L.tabs(sid);
+        const s = { grid: m.properties.gridProperties, basicFilter: m.basicFilter ?? null, tables: (m.tables ?? []).map((t) => ({ tableId: t.tableId, range: t.range })), hiddenRows, tabs: tabs.map((t) => `${t.title}${t.hidden ? '(hidden)' : ''}`) };
         L.save(a3, s);
-        console.log(JSON.stringify({ label: a3, grid: s.grid, basicFilter: !!s.basicFilter, tableId: s.basicFilter?.tableId, tables: s.tables.map((t) => t.range), hidden: hiddenRows.length }));
+        console.log(JSON.stringify({ label: a3, grid: `${s.grid.rowCount}x${s.grid.columnCount}`, basicFilter: s.basicFilter, tables: s.tables.map((t) => `${t.range.startRowIndex}-${t.range.endRowIndex}x${t.range.startColumnIndex}-${t.range.endColumnIndex}`), hidden: hiddenRows.length, tabs: s.tabs }));
     },
 };
 cmds[cmd]().catch((e) => {
