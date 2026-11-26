@@ -44,6 +44,7 @@ import {
     mcpEditContentArgsSchema,
     mcpReadContentArgsSchema,
 } from './mcpDocumentContent';
+import { createMcpQueryInputSchema } from './mcpQueryInputSchema';
 import {
     MCP_TOOL_LIST_EXPLORES_DESCRIPTION,
     mcpToolListExploresArgsSchema,
@@ -791,6 +792,7 @@ export const queryToolDefinition: ToolDefinitionWithMcpOutput<
     mcp: {
         annotations: readOnlyAnnotations,
         structuredContentSchema: mcpQueryStructuredOutputSchema,
+        inputSchema: createMcpQueryInputSchema,
     },
 });
 

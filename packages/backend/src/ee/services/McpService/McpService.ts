@@ -24,7 +24,9 @@ import {
     convertFieldRefToFieldId,
     createContentToolDefinition,
     createCustomChartTypeToolDefinition,
+    createMcpCompatibleInputSchema,
     createMcpCompatibleInputShape,
+    createMcpQueryInputSchema,
     createScheduledDeliveryToolDefinition,
     createToolComposerQueriesArgsSchema,
     createToolRunSqlArgsSchema,
@@ -5148,7 +5150,9 @@ export class McpService extends BaseService {
                 {
                     title: mcpQueryTool.title,
                     description: mcpQueryTool.description,
-                    inputSchema: createMcpCompatibleInputShape(queryArgsSchema),
+                    inputSchema: createMcpQueryInputSchema(
+                        createMcpCompatibleInputSchema(queryArgsSchema),
+                    ),
                     outputSchema: mcpQueryTool.outputSchema,
                     annotations: mcpQueryTool.annotations,
                 },

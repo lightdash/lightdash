@@ -92,14 +92,22 @@ export type McpToolConfigWithoutOutput = McpToolConfigBase & {
     structuredContentSchema?: undefined;
 };
 
-export type McpToolConfigWithOutput<TOutputSchema extends McpOutputSchema> =
-    McpToolConfigBase & {
-        structuredContentSchema: TOutputSchema;
-    };
+export type McpToolConfigWithOutput<
+    TOutputSchema extends McpOutputSchema,
+    TInput extends z.ZodObject<z.ZodRawShape> = z.ZodObject<z.ZodRawShape>,
+> = McpToolConfigBase & {
+    structuredContentSchema: TOutputSchema;
+    /** Reshapes the MCP-compatible input schema this tool serves. */
+    inputSchema?(
+        schema: McpCompatibleInputSchema<TInput>,
+    ): McpCompatibleInputSchema<TInput>;
+};
 
-export type McpToolConfig =
+export type McpToolConfig<
+    TInput extends z.ZodObject<z.ZodRawShape> = z.ZodObject<z.ZodRawShape>,
+> =
     | McpToolConfigWithoutOutput
-    | McpToolConfigWithOutput<McpOutputSchema>;
+    | McpToolConfigWithOutput<McpOutputSchema, TInput>;
 
 type AgentToolViewBase<
     TName extends string,
@@ -259,7 +267,7 @@ type ToolDefinitionArgsWithMcpOutput<
     TInputTransformed,
     TAgentOutputSchema
 > & {
-    mcp: McpToolConfigWithOutput<TOutputSchema>;
+    mcp: McpToolConfigWithOutput<TOutputSchema, TInput>;
 };
 
 const validateToolDefinition = (args: {
@@ -280,9 +288,11 @@ const validateToolDefinition = (args: {
     }
 };
 
-const hasMcpStructuredContentSchema = (
-    mcpConfig: McpToolConfig | undefined,
-): mcpConfig is McpToolConfigWithOutput<McpOutputSchema> =>
+const hasMcpStructuredContentSchema = <
+    TInput extends z.ZodObject<z.ZodRawShape>,
+>(
+    mcpConfig: McpToolConfig<TInput> | undefined,
+): mcpConfig is McpToolConfigWithOutput<McpOutputSchema, TInput> =>
     mcpConfig?.structuredContentSchema !== undefined;
 
 export function defineTool<
@@ -361,7 +371,7 @@ export function defineTool<
     const inputSchemaTransformed =
         def.inputSchemaTransformed ?? def.inputSchema;
 
-    const mcpConfig: McpToolConfig | undefined = def.mcp;
+    const mcpConfig: McpToolConfig<TInput> | undefined = def.mcp;
 
     if (hasMcpStructuredContentSchema(mcpConfig)) {
         return new ToolDefinitionWithMcpOutputImpl({

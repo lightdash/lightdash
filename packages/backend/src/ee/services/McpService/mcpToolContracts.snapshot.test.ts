@@ -8,6 +8,8 @@ import {
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
+import { normalizeObjectSchema } from '@modelcontextprotocol/sdk/server/zod-compat.js';
+import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-schema-compat.js';
 import type { ZodRawShape, ZodType } from 'zod';
 import { z } from 'zod';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
@@ -226,6 +228,127 @@ const mcpQueryPaths: McpQueryPath[] = Object.values(mcpQueryPathsByType).flat();
 
 // Observed in Claude Code 2.1.263; this is not an MCP protocol limit.
 const MCP_CLIENT_TEXT_MAX_CHARS = 2048;
+
+// Codex CLI 0.172.0 turns nested objects into `unknown` above 5,000 bytes (codex-rs/tools/src/json_schema/compaction.rs).
+const QUERY_INPUT_SCHEMA_CODEX_BYTES_BUDGET = 4950;
+
+const CODEX_SCHEMA_KEYWORDS = [
+    '$ref',
+    'type',
+    'enum',
+    'items',
+    'minItems',
+    'properties',
+    'required',
+    'additionalProperties',
+    'anyOf',
+    'oneOf',
+    'allOf',
+    '$defs',
+    'definitions',
+] as const;
+const JSON_SCHEMA_TYPES = new Set([
+    'string',
+    'number',
+    'boolean',
+    'integer',
+    'object',
+    'array',
+    'null',
+]);
+
+// Ports Codex's sanitize + serialize: known keywords only, const as enum, inferred types.
+const toCodexSchema = (schema: unknown): unknown => {
+    if (typeof schema === 'boolean') return { type: 'string' };
+    if (Array.isArray(schema)) return schema.map(toCodexSchema);
+    if (typeof schema !== 'object' || schema === null) return schema;
+    const node = schema as Record<string, unknown>;
+    const declared = [node.type]
+        .flat()
+        .filter(
+            (type): type is string =>
+                typeof type === 'string' && JSON_SCHEMA_TYPES.has(type),
+        );
+    const isComposite =
+        '$ref' in node || 'anyOf' in node || 'oneOf' in node || 'allOf' in node;
+    const inferred = (): string | undefined => {
+        if (
+            ['properties', 'required', 'additionalProperties'].some(
+                (k) => k in node,
+            )
+        )
+            return 'object';
+        if ('items' in node) return 'array';
+        if ('enum' in node || 'const' in node || 'format' in node)
+            return 'string';
+        if (
+            [
+                'minimum',
+                'maximum',
+                'exclusiveMinimum',
+                'exclusiveMaximum',
+                'multipleOf',
+            ].some((k) => k in node)
+        )
+            return 'number';
+        return undefined;
+    };
+    const types =
+        declared.length > 0 || isComposite
+            ? declared
+            : [inferred()].filter(Boolean);
+    if (types.length === 0 && !isComposite) return {};
+    const out: Record<string, unknown> = {
+        ...node,
+        ...(node.const !== undefined ? { enum: [node.const] } : {}),
+        ...(types.length > 0
+            ? { type: types.length === 1 ? types[0] : types }
+            : {}),
+        ...(types.includes('object') && !node.properties
+            ? { properties: {} }
+            : {}),
+        ...(types.includes('array') && !node.items
+            ? { items: { type: 'string' } }
+            : {}),
+    };
+    return Object.fromEntries(
+        CODEX_SCHEMA_KEYWORDS.filter((key) => out[key] !== undefined).map(
+            (key) => {
+                const value = out[key];
+                if (['properties', '$defs', 'definitions'].includes(key)) {
+                    return [
+                        key,
+                        Object.fromEntries(
+                            Object.entries(value as object).map(
+                                ([name, child]) => [name, toCodexSchema(child)],
+                            ),
+                        ),
+                    ];
+                }
+                if (
+                    [
+                        'items',
+                        'additionalProperties',
+                        'anyOf',
+                        'oneOf',
+                        'allOf',
+                    ].includes(key)
+                ) {
+                    return [
+                        key,
+                        typeof value === 'boolean'
+                            ? value
+                            : toCodexSchema(value),
+                    ];
+                }
+                return [key, value];
+            },
+        ),
+    );
+};
+
+const codexStrippedSchemaBytes = (schema: unknown): number =>
+    JSON.stringify(toCodexSchema(schema)).length;
 
 // Classify new features explicitly: registration-only or text-changing.
 const registrationOnlyFeatures = {
@@ -592,6 +715,29 @@ describe('MCP tool contracts', () => {
                     )
                     .toBeLessThanOrEqual(MCP_CLIENT_TEXT_MAX_CHARS);
             });
+        },
+    );
+
+    it.each(mcpQueryPathsByType.composer)(
+        `keeps the query input schema within ${QUERY_INPUT_SCHEMA_CODEX_BYTES_BUDGET} bytes as Codex measures it: %o`,
+        async (queryPath) => {
+            const service = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await service.createServer(makeMcpServerOptions({ queryPath }));
+            const query = mockRegisteredMcpTools.find(
+                ({ name }) => name === McpToolName.QUERY,
+            );
+            const bytes = codexStrippedSchemaBytes(
+                // As tools/list serves it.
+                toJsonSchemaCompat(
+                    normalizeObjectSchema(query?.config.inputSchema)!,
+                    { pipeStrategy: 'input' },
+                ),
+            );
+            expect(
+                bytes,
+                `query input schema is ${bytes} bytes; trim it instead of raising the budget`,
+            ).toBeLessThanOrEqual(QUERY_INPUT_SCHEMA_CODEX_BYTES_BUDGET);
         },
     );
 

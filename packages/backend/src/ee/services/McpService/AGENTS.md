@@ -7,3 +7,8 @@
 - If an MCP tool or prompt contract intentionally changes, update only the affected entry in the backend runtime contract snapshot and mention the contract change in review.
 - Separately, run `pnpm generate:mcp-tools-snapshot` and commit `packages/common/src/schemas/json/mcp-tools-1.0.json` whenever the stable/default MCP tool surface changes, including tool membership, metadata, input or output schemas, and imported schemas.
 - Do not regenerate the committed tool-surface snapshot solely for a temporary runtime-selected rollout variant. Regenerate it when the variant becomes the default; run `pnpm check:mcp-tools-snapshot` when unsure.
+
+## Query input schema
+
+- Keep the `query` input schema within 4,950 bytes with descriptions stripped (`keeps the query input schema within … bytes as Codex measures it` in `mcpToolContracts.snapshot.test.ts`): Codex replaces nested objects with `unknown` above 5,000 (`codex-rs/tools/src/json_schema/compaction.rs`).
+- A rejected `query` call's error names the offending keys and ends with one valid example call (`createMcpQueryInputSchema`).

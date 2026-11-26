@@ -39,7 +39,7 @@ export class ToolDefinitionWithMcpOutputImpl<
 
     private readonly agentConfig: AgentToolConfig<TAgentOutputSchema> | null;
 
-    private readonly mcpConfig: McpToolConfigWithOutput<TOutputSchema>;
+    private readonly mcpConfig: McpToolConfigWithOutput<TOutputSchema, TInput>;
 
     constructor(args: {
         name: TName;
@@ -49,7 +49,7 @@ export class ToolDefinitionWithMcpOutputImpl<
         inputSchema: TInput;
         inputSchemaTransformed: TInputTransformed;
         agentConfig: AgentToolConfig<TAgentOutputSchema> | null;
-        mcpConfig: McpToolConfigWithOutput<TOutputSchema>;
+        mcpConfig: McpToolConfigWithOutput<TOutputSchema, TInput>;
     }) {
         this.name = args.name;
         this.title = args.title;
@@ -106,6 +106,7 @@ export class ToolDefinitionWithMcpOutputImpl<
         }
 
         const mcpName = this.mcpConfig.name ?? snakeCase(this.name);
+        const inputSchema = createMcpCompatibleInputSchema(this.inputSchema);
         return {
             name: mcpName,
             canonicalName: this.name,
@@ -114,7 +115,8 @@ export class ToolDefinitionWithMcpOutputImpl<
                 runtime: 'mcp',
                 toolName: mcpName,
             }),
-            inputSchema: createMcpCompatibleInputSchema(this.inputSchema),
+            inputSchema:
+                this.mcpConfig.inputSchema?.(inputSchema) ?? inputSchema,
             annotations: { title: this.title, ...this.mcpConfig.annotations },
             outputSchema: this.outputSchema,
             meta: this.mcpConfig.meta,
