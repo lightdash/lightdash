@@ -49,6 +49,9 @@ const DEFAULT_COLUMN_COUNT = 26;
 export const googleApiError = (status: number, message: string) =>
     Object.assign(new Error(message), {
         code: status,
+        config: {
+            url: 'https://sheets.googleapis.com/v4/spreadsheets/file-id',
+        },
         response: { status, data: { error: { code: status, message } } },
     });
 
@@ -57,12 +60,27 @@ export const googleInternalError = () =>
 
 // What google-auth-library throws when the token endpoint answers with an
 // OAuth error body: the message is the `error` string, not `error.message`.
-export const googleOAuthError = (status: number, error: string) =>
-    Object.assign(new Error(error), {
+// For some statuses the library adds a prefix to the message.
+export const googleOAuthError = (
+    status: number,
+    error: string,
+    message: string = error,
+) =>
+    Object.assign(new Error(message), {
         code: String(status),
         config: { url: 'https://oauth2.googleapis.com/token', method: 'POST' },
         response: { status, data: { error } },
     });
+
+// A token endpoint answer that is an HTML page, as from a Google front end.
+export const googleOAuthHtmlError = (status: number) => {
+    const html = `<!DOCTYPE html><html lang=en><title>Error ${status} (Server Error)!!1</title><p>The server encountered a temporary error.</p></html>`;
+    return Object.assign(new Error(html), {
+        code: String(status),
+        config: { url: 'https://oauth2.googleapis.com/token', method: 'POST' },
+        response: { status, data: html },
+    });
+};
 
 export const googleQuotaError = () =>
     googleApiError(

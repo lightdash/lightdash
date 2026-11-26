@@ -19,6 +19,7 @@ import {
     googleApiError,
     googleInternalError,
     googleOAuthError,
+    googleOAuthHtmlError,
     googleQuotaError,
     GoogleSheetsFake,
 } from './GoogleSheetsFake.mock';
@@ -521,47 +522,111 @@ describe('GoogleDriveClient', () => {
         });
 
         // The token refresh runs inside the first Sheets call of a write.
-        // Google's token endpoint can answer "internal_failure"; a sync must
-        // retry it, not turn itself off.
-        test.each([500, 503])(
-            'classifies an internal_failure from the Google token endpoint (HTTP %s) as GoogleSheetsTransientError',
-            async (status) => {
-                const get = vi
-                    .fn()
-                    .mockRejectedValue(
-                        googleOAuthError(status, 'internal_failure'),
-                    );
+        // Only a server-side failure of the token endpoint is transient. The
+        // other token errors keep their class, and a Sheets error is never
+        // read as a token error.
+        const READABLE_TOKEN_ERROR =
+            /^Google's sign-in service failed while it refreshed the access to Google Sheets \(([a-z_]+|HTTP \d+)\)\./;
+        test.each([
+            [
+                '500 internal_failure',
+                googleOAuthError(500, 'internal_failure'),
+                'GoogleSheetsTransientError',
+                'internal_failure',
+            ],
+            [
+                '400 internal_failure',
+                googleOAuthError(400, 'internal_failure'),
+                'GoogleSheetsTransientError',
+                'internal_failure',
+            ],
+            [
+                '500 server_error',
+                googleOAuthError(500, 'server_error'),
+                'GoogleSheetsTransientError',
+                'server_error',
+            ],
+            [
+                '503 temporarily_unavailable',
+                googleOAuthError(503, 'temporarily_unavailable'),
+                'GoogleSheetsTransientError',
+                'temporarily_unavailable',
+            ],
+            [
+                '502 with an HTML page',
+                googleOAuthHtmlError(502),
+                'GoogleSheetsTransientError',
+                'HTTP 502',
+            ],
+            [
+                '400 unauthorized_client',
+                googleOAuthError(400, 'unauthorized_client'),
+                'UnexpectedGoogleSheetsError',
+                undefined,
+            ],
+            [
+                '403 access_denied',
+                googleOAuthError(
+                    403,
+                    'access_denied',
+                    'Could not refresh access token: access_denied',
+                ),
+                'UnexpectedGoogleSheetsError',
+                undefined,
+            ],
+            [
+                '401 invalid_client',
+                googleOAuthError(401, 'invalid_client'),
+                'ForbiddenError',
+                undefined,
+            ],
+            [
+                '400 invalid_grant',
+                googleOAuthError(400, 'invalid_grant'),
+                'ForbiddenError',
+                undefined,
+            ],
+            [
+                'Sheets 500 Internal error encountered',
+                googleInternalError(),
+                'UnexpectedGoogleSheetsError',
+                undefined,
+            ],
+            [
+                'Sheets 503',
+                googleApiError(503, 'The service is currently unavailable.'),
+                'GoogleSheetsTransientError',
+                undefined,
+            ],
+        ])(
+            'classifies a token or Sheets error (%s)',
+            async (_name, error, name, code) => {
+                const get = vi.fn().mockRejectedValue(error);
                 vi.mocked(google.sheets).mockReturnValue({
                     spreadsheets: { get },
                 } as never);
 
-                await expect(
-                    makeClient().assertFileIsGoogleSheet(
+                let caught: unknown;
+                try {
+                    await makeClient().assertFileIsGoogleSheet(
                         'refresh-token',
                         'file-id',
-                    ),
-                ).rejects.toMatchObject({
-                    name: 'GoogleSheetsTransientError',
-                    message: 'internal_failure',
-                });
+                    );
+                } catch (e) {
+                    caught = e;
+                }
+
+                expect((caught as Error).name).toBe(name);
+                const { message } = caught as Error;
+                expect(READABLE_TOKEN_ERROR.test(message)).toBe(
+                    code !== undefined,
+                );
+                if (code !== undefined) {
+                    expect(message).toContain(`(${code})`);
+                    expect(message).not.toContain('<');
+                }
             },
         );
-
-        test('keeps invalid_grant from the token endpoint as a ForbiddenError', async () => {
-            const get = vi
-                .fn()
-                .mockRejectedValue(googleOAuthError(400, 'invalid_grant'));
-            vi.mocked(google.sheets).mockReturnValue({
-                spreadsheets: { get },
-            } as never);
-
-            await expect(
-                makeClient().assertFileIsGoogleSheet(
-                    'refresh-token',
-                    'file-id',
-                ),
-            ).rejects.toMatchObject({ name: 'ForbiddenError' });
-        });
 
         test('keeps a non-network error without a response as UnexpectedGoogleSheetsError', async () => {
             const get = vi
@@ -1280,10 +1345,10 @@ describe('GoogleDriveClient', () => {
                 startColumnIndex: 0,
                 endColumnIndex: 7,
             };
-            sheet.tables = [{ tableId: '1580800616', name: 'Table1', range }];
+            sheet.tables = [{ tableId: '123456789', name: 'Table1', range }];
             sheet.basicFilter = {
                 range,
-                tableId: '1580800616',
+                tableId: '123456789',
                 filterSpecs: [
                     {
                         columnIndex: 1,
@@ -1336,18 +1401,178 @@ describe('GoogleDriveClient', () => {
             },
         );
 
-        test('writes the tab in place when Google rejects the first swap batch, so the sync completes', async () => {
+        const rejectFilterRestore = (
+            fake: GoogleSheetsFake,
+            status = 400,
+            fromCopyBatch = 1,
+        ) => {
+            let copyBatch = 0;
+            // eslint-disable-next-line no-param-reassign
+            fake.beforeBatchUpdate = (requests) => {
+                if (requests.some((r) => 'copyPaste' in (r as object))) {
+                    copyBatch += 1;
+                    if (copyBatch >= fromCopyBatch) {
+                        throw googleApiError(
+                            status,
+                            'Invalid requests[5].setBasicFilter: A filter that Google does not accept',
+                        );
+                    }
+                }
+            };
+        };
+        const tabWrites = (fake: GoogleSheetsFake) =>
+            fake.updateCalls.filter((call) => call.range.startsWith("'Sheet1'"))
+                .length;
+
+        test.each([
+            ['60 rows', 60],
+            ['60,000 rows, past the grid', 60_000],
+        ])(
+            'writes the tab in place when Google rejects setting the filter back (%s)',
+            async (_name, count) => {
+                const fake = new GoogleSheetsFake([
+                    { title: 'Sheet1', rows: makeWideRows(20, 'old') },
+                ]);
+                useFake(fake);
+                const filter = addBasicFilter(fake, [3]);
+                rejectFilterRestore(fake);
+                const rows = makeWideRows(count, 'new');
+
+                const error = await settle(
+                    makeClient().appendCsvToSheet(
+                        'refresh-token',
+                        'file-id',
+                        rows,
+                    ),
+                );
+
+                expect(error).toBeUndefined();
+                expect(fake.tabValues('Sheet1')).toEqual(rows);
+                expect(fake.sheet('Sheet1').rowCount).toBeGreaterThanOrEqual(
+                    count + 1,
+                );
+                expect(fake.sheet('Sheet1').basicFilter).toEqual(filter);
+                expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
+            },
+        );
+
+        test('keeps the tab unchanged when Google rejects the first swap batch with another 400', async () => {
+            const oldRows = makeWideRows(20, 'old');
             const fake = new GoogleSheetsFake([
-                { title: 'Sheet1', rows: makeWideRows(20, 'old') },
+                { title: 'Sheet1', rows: oldRows },
             ]);
             useFake(fake);
             fake.beforeBatchUpdate = (requests) => {
                 if (requests.some((r) => 'copyPaste' in (r as object))) {
                     throw googleApiError(
                         400,
-                        'Invalid requests[0].copyPaste: A shape that Google does not accept',
+                        'Invalid requests[0].copyPaste: You are trying to paste over a protected range',
                     );
                 }
+            };
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeWideRows(60, 'new'),
+                ),
+            );
+
+            expect(error).toBeInstanceOf(UnexpectedGoogleSheetsError);
+            expect((error as Error).message).toContain(
+                'The data in the tab was not changed.',
+            );
+            expect(tabWrites(fake)).toBe(0);
+            expect(fake.tabValues('Sheet1')).toEqual(oldRows);
+        });
+
+        test.each([401, 403, 404, 409, 429])(
+            'does not write in place when the first swap batch fails with a %s',
+            async (status) => {
+                const oldRows = makeWideRows(20, 'old');
+                const fake = new GoogleSheetsFake([
+                    { title: 'Sheet1', rows: oldRows },
+                ]);
+                useFake(fake);
+                addBasicFilter(fake, []);
+                rejectFilterRestore(fake, status);
+
+                const error = await settle(
+                    makeClient().appendCsvToSheet(
+                        'refresh-token',
+                        'file-id',
+                        makeWideRows(60, 'new'),
+                    ),
+                );
+
+                expect(error).toBeInstanceOf(Error);
+                expect(tabWrites(fake)).toBe(0);
+                expect(fake.tabValues('Sheet1')).toEqual(oldRows);
+            },
+        );
+
+        test('does not write in place when a later swap batch fails to set the filter back', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeWideRows(150_000, 'old') },
+            ]);
+            useFake(fake);
+            addBasicFilter(fake, []);
+            rejectFilterRestore(fake, 400, 2);
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeWideRows(150_000, 'new'),
+                ),
+            );
+
+            expect(error).toBeInstanceOf(UnexpectedGoogleSheetsError);
+            expect((error as Error).message).toContain(
+                'The sync stopped part-way.',
+            );
+            expect(tabWrites(fake)).toBe(0);
+        });
+
+        test('grows the grid before it writes a tab with a table filter in place (60,000 rows)', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeWideRows(20, 'old') },
+            ]);
+            useFake(fake);
+            const { filter } = addTableFilter(fake, []);
+            let claimAtFirstWrite: string[] | undefined;
+            fake.beforeUpdate = (call) => {
+                if (
+                    claimAtFirstWrite === undefined &&
+                    call.range.startsWith("'Sheet1'")
+                ) {
+                    claimAtFirstWrite = fake
+                        .sheet('Sheet1')
+                        .developerMetadata.map((m) => m.metadataKey);
+                }
+            };
+            const rows = makeWideRows(60_000, 'new');
+
+            const error = await settle(
+                makeClient().appendCsvToSheet('refresh-token', 'file-id', rows),
+            );
+
+            expect(error).toBeUndefined();
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+            expect(fake.sheet('Sheet1').basicFilter).toEqual(filter);
+            // An in-place write claims the tab before it changes it.
+            expect(claimAtFirstWrite).toContain('lightdash.sync.claim');
+        });
+
+        test('writes in place when a table filter is added to the tab during the upload', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeWideRows(20, 'old') },
+            ]);
+            useFake(fake);
+            let added: AnyType;
+            fake.beforeUpdate = (_call, index) => {
+                if (index === 0) added = addTableFilter(fake, [4]).filter;
             };
             const rows = makeWideRows(60, 'new');
 
@@ -1357,7 +1582,45 @@ describe('GoogleDriveClient', () => {
 
             expect(error).toBeUndefined();
             expect(fake.tabValues('Sheet1')).toEqual(rows);
+            expect(fake.sheet('Sheet1').basicFilter).toEqual(added);
+            // Google can answer 500 to setting a table filter back, so the
+            // run must not take it off.
+            expect(
+                fake.batchUpdateCalls
+                    .flat()
+                    .some(
+                        (r) =>
+                            'setBasicFilter' in (r as object) ||
+                            'clearBasicFilter' in (r as object),
+                    ),
+            ).toBe(false);
             expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
+        });
+
+        test('retries the first read after a token refresh failure and then writes the tab', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeRows(10, 'old') },
+            ]);
+            useFake(fake);
+            const api = fake.api();
+            const get = vi
+                .fn()
+                .mockRejectedValueOnce(
+                    googleOAuthError(500, 'internal_failure'),
+                )
+                .mockImplementation(api.spreadsheets.get);
+            vi.mocked(google.sheets).mockReturnValue({
+                ...api,
+                spreadsheets: { ...api.spreadsheets, get },
+            } as never);
+            const rows = makeRows(20);
+
+            const error = await settle(
+                makeClient().appendCsvToSheet('refresh-token', 'file-id', rows),
+            );
+
+            expect(error).toBeUndefined();
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
         });
 
         test('retries a token refresh failure before the write and keeps the old rows', async () => {
@@ -1388,6 +1651,9 @@ describe('GoogleDriveClient', () => {
             );
 
             expect(error).toBeInstanceOf(GoogleSheetsTransientError);
+            expect((error as Error).message).toBe(
+                "Google's sign-in service failed while it refreshed the access to Google Sheets (internal_failure). This is a temporary Google error, and the sync tries again.",
+            );
             expect(fake.tabValues('Sheet1')).toEqual(oldRows);
         });
 
