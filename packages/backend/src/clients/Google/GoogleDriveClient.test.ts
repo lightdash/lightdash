@@ -1322,6 +1322,17 @@ describe('GoogleDriveClient', () => {
                 expect(fake.sheet('Sheet1').basicFilter).toEqual(filter);
                 expect(fake.sheet('Sheet1').tables).toEqual(tables);
                 expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
+                // Google rejects a table filter with criteria in any form,
+                // so the sync must not take it off and set it back.
+                expect(
+                    fake.batchUpdateCalls
+                        .flat()
+                        .some(
+                            (r) =>
+                                'setBasicFilter' in (r as object) ||
+                                'clearBasicFilter' in (r as object),
+                        ),
+                ).toBe(false);
             },
         );
 

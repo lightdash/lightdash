@@ -577,8 +577,8 @@ export class GoogleSheetsFake {
             }
             case 'setBasicFilter': {
                 const { filter } = body;
-                // Measured in production: Google rejects a filter that names
-                // both a table and a range, which is the form it reads back.
+                // Measured on Google: a filter that names both a table and a
+                // range, the form Google reads back, is rejected with a 400.
                 if (
                     filter.tableId !== undefined &&
                     filter.range !== undefined
@@ -587,6 +587,15 @@ export class GoogleSheetsFake {
                         400,
                         `Invalid requests[${index}].setBasicFilter: Filter can either be applied to a table or a range, not both.`,
                     );
+                }
+                // Measured on Google: a table filter with criteria fails with
+                // a 500. One without criteria, or with only a sort, is set.
+                if (
+                    filter.tableId !== undefined &&
+                    (filter.filterSpecs !== undefined ||
+                        filter.criteria !== undefined)
+                ) {
+                    throw googleInternalError();
                 }
                 if (filter.tableId !== undefined) {
                     const sheet = this.sheets.find((s) =>
