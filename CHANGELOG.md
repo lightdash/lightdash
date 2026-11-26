@@ -1,3 +1,10 @@
+## [3.415.4](https://github.com/lightdash/lightdash/compare/3.415.3...3.415.4) (2026-11-26)
+
+
+### Bug Fixes
+
+* **duckdb:** look up the shared S3 scope with a set ([#33498](https://github.com/lightdash/lightdash/issues/33498)) ([3c929b2](https://github.com/lightdash/lightdash/commit/3c929b213b2821429155643c33ff215a64da3030))
+
 ## [3.415.3](https://github.com/lightdash/lightdash/compare/3.415.2...3.415.3) (2026-11-26)
 
 
