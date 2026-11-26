@@ -44,7 +44,6 @@ import { validateUserName } from './utils/userName';
 import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
-export * from './authorization/agentCapabilityScopes';
 export { getPermissionsFromAbilityRules } from './authorization/abilityPermissions';
 export * from './authorization/buildAccountHelpers';
 export { collapseAbilityRules } from './authorization/collapseAbilityRules';

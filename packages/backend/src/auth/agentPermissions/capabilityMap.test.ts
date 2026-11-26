@@ -1,5 +1,4 @@
 import {
-    AGENT_CAPABILITY_DEFAULTS,
     AgentCapability,
     agentToolDefinitionsByName,
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
@@ -422,16 +421,6 @@ it('requires discovery for the chart type frame, as render_chart does to resolve
     expect(
         getRequiredAgentCapabilities('mcp', 'get_custom_chart_type_frame'),
     ).toEqual([AgentCapability.ReadDiscover, AgentCapability.Export]);
-});
-
-it('keeps the defaults explicit', () => {
-    expect(Object.values(AgentCapability)).toHaveLength(11);
-    expect(AGENT_CAPABILITY_DEFAULTS).toEqual([
-        AgentCapability.ReadDiscover,
-        AgentCapability.Query,
-        AgentCapability.Export,
-        AgentCapability.RawSql,
-    ]);
 });
 
 it.each([

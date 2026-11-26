@@ -3,7 +3,6 @@ import { ServiceAccountScope } from '../ee/serviceAccounts/types';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectType } from '../types/projects';
 import { getPermissionsFromAbilityRules } from './abilityPermissions';
-import { AGENT_DEFAULT_CAPABILITY_SUBJECTS } from './agentCapabilityScopes';
 import { applyOrganizationMemberStaticAbilities } from './organizationMemberAbility';
 import { type MemberAbility } from './types';
 
@@ -26,9 +25,6 @@ const applyServiceAccountStaticAbilities: Record<
         organizationUuid,
         builder: { can },
     }) => {
-        AGENT_DEFAULT_CAPABILITY_SUBJECTS.forEach((resource) => {
-            can('view', resource, { organizationUuid });
-        });
         can('view', 'OrganizationMemberProfile', {
             organizationUuid,
         });

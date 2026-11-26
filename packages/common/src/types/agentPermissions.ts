@@ -139,13 +139,6 @@ export const AGENT_CAPABILITY_DEFINITIONS: Record<
 export const getAgentCapabilityName = (capability: AgentCapability): string =>
     AGENT_CAPABILITY_DEFINITIONS[capability].name;
 
-export const AGENT_CAPABILITY_DEFAULTS = [
-    AgentCapability.ReadDiscover,
-    AgentCapability.Query,
-    AgentCapability.Export,
-    AgentCapability.RawSql,
-] as const;
-
 export const AGENT_CAPABILITY_LIMIT_DEFAULTS = [
     AgentCapability.ReadDiscover,
     AgentCapability.Query,
