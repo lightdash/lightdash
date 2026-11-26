@@ -1,5 +1,4 @@
-import { subject } from '@casl/ability';
-import { FeatureFlags, getResourceViewItemName } from '@lightdash/common';
+import { getResourceViewItemName } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -27,14 +26,10 @@ import {
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { ReviewRequestsMenuItem } from '../../ee/features/contentReview';
-import { useChartTypesEnabled } from '../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
-import { canOpenSemanticStudio } from '../../features/semanticStudio/permissions';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
-import useApp from '../../providers/App/useApp';
 import scrollAreaClasses from '../../styles/ScrollArea.module.css';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
@@ -42,6 +37,11 @@ import TruncatedText from '../common/TruncatedText';
 import { getFavoriteItemIcon, getFavoriteItemUrl } from './favoriteItems';
 import { MetricsLink } from './MetricsLink';
 import { useNavBarMenuProps } from './NavBarPortalContext';
+import {
+    useCanOpenSemanticStudio,
+    useCanViewChartStudio,
+    useCanViewDataApps,
+} from './useDestinationAccess';
 
 interface Props {
     projectUuid: string;
@@ -68,28 +68,9 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
         projectUuid,
     });
     const { data: favorites } = useFavorites(projectUuid);
-    const { user } = useApp();
-    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
-    const chartTypesEnabled = useChartTypesEnabled();
-    const canViewDataApps = user.data?.ability?.can('view', 'DataApp') ?? false;
-    // The gallery list endpoint is gated on `manage Explore`, not on data app access.
-    const canViewChartTypes =
-        user.data?.ability?.can(
-            'manage',
-            subject('Explore', {
-                organizationUuid: user.data.organizationUuid,
-                projectUuid,
-            }),
-        ) ?? false;
-
-    const canOpenStudio =
-        user.data?.ability && user.data.organizationUuid
-            ? canOpenSemanticStudio(
-                  user.data.ability,
-                  user.data.organizationUuid,
-                  projectUuid,
-              )
-            : false;
+    const canViewDataApps = useCanViewDataApps();
+    const canViewChartStudio = useCanViewChartStudio(projectUuid);
+    const canOpenStudio = useCanOpenSemanticStudio(projectUuid);
 
     const hasFavorites = favorites && favorites.length > 0;
     const hasSpaces = isInitialLoading || (spaces && spaces.length > 0);
@@ -178,7 +159,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     All documents
                 </Menu.Item>
 
-                {dataAppsFlag.data?.enabled && canViewDataApps && (
+                {canViewDataApps && (
                     <Menu.Item
                         component={Link}
                         to={`/projects/${projectUuid}/apps`}
@@ -191,7 +172,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     </Menu.Item>
                 )}
 
-                {chartTypesEnabled.enabled && canViewChartTypes && (
+                {canViewChartStudio && (
                     <Menu.Item
                         component={Link}
                         to={`/projects/${projectUrlIdentifier}/chart-studio`}

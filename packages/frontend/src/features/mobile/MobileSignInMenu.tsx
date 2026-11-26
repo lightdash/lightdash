@@ -27,7 +27,7 @@ import { EventName } from '../../types/Events';
 import { isSignInIdle, isWaitingForScan } from './isSignInIdle';
 import { useMobilePitchDismissed } from './mobilePitchDismissed';
 import classes from './MobileSettingsPage.module.css';
-import { MobileSignInOpenerContext } from './mobileSignInOpener';
+import { MobileSignInDisclosureContext } from './mobileSignInDisclosure';
 import { useMobileSignInSeen } from './mobileSignInSeen';
 import {
     MobileSignInDetails,
@@ -122,8 +122,14 @@ const MobileSignInPopover: FC<{
 }> = ({ withLabel, pitch, onPitchDismissed, sourceProjectUuid }) => {
     const menuProps = useNavBarMenuProps();
     const id = useId();
-    const [opened, setOpened] = useState(false);
+    const disclosure = useContext(MobileSignInDisclosureContext);
+    const [ownOpened, setOwnOpened] = useState(false);
+    const opened = disclosure?.opened ?? ownOpened;
+    const setOpened = disclosure?.setOpened ?? setOwnOpened;
     const { seen, markSeen } = useMobileSignInSeen();
+    useEffect(() => {
+        if (opened) markSeen();
+    }, [opened, markSeen]);
     const tracking = useTracking({ failSilently: true });
     const preview = usePreviewSignInPhase();
     const liveSignIn = useMobileSignInCode({
@@ -138,24 +144,12 @@ const MobileSignInPopover: FC<{
     const phoneButton = useRef<HTMLButtonElement>(null);
     useKeepFocusInPopover(signIn.phase, dropdown);
 
-    const open = () => {
-        setOpened(true);
-        markSeen();
-    };
+    const open = () => setOpened(true);
 
     const close = () => {
         setOpened(false);
         liveSignIn.hide();
     };
-
-    const opener = useContext(MobileSignInOpenerContext);
-    useEffect(() => {
-        if (!opener) return;
-        opener.current = open;
-        return () => {
-            opener.current = null;
-        };
-    });
 
     const onDismissPitch = (reason: MobilePitchDismissReason) => {
         tracking?.track({
@@ -192,7 +186,7 @@ const MobileSignInPopover: FC<{
             {...menuProps}
         >
             <Popover.Target>
-                {opener ? (
+                {disclosure ? (
                     <Box id={id} className={classes.signInAnchor} />
                 ) : (
                     <Tooltip

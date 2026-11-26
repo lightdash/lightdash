@@ -1,15 +1,12 @@
-import {
-    Box,
-    Indicator,
-    NavLink,
-    Tooltip,
-    UnstyledButton,
-} from '@mantine/core';
+import { Box, Indicator, Tooltip, UnstyledButton } from '@mantine/core';
 import { clsx } from 'clsx';
-import { forwardRef, useContext } from 'react';
-import { type NavMenuTriggerProps } from '../NavBar/NavMenuTriggerContext';
+import { forwardRef } from 'react';
+import {
+    useNavLayout,
+    type NavMenuTriggerProps,
+} from '../NavBar/NavLayoutContext';
 import classes from './AppSidebar.module.css';
-import { SidebarCollapsedContext } from './SidebarCollapsedContext';
+import { SidebarNavLink } from './SidebarNavLink';
 
 /** How the navbar's menus are opened from the sidebar: a row, or a lone icon. */
 export const SidebarMenuTrigger = forwardRef<
@@ -23,12 +20,14 @@ export const SidebarMenuTrigger = forwardRef<
             hasIndicator,
             badge,
             variant,
+            // The sidebar decides for itself when a label is in sight.
+            withLabel: _withLabel,
             className,
             ...buttonProps
         },
         ref,
     ) => {
-        const isCollapsed = useContext(SidebarCollapsedContext);
+        const { isCollapsed } = useNavLayout();
 
         if (variant === 'icon') {
             return (
@@ -54,30 +53,26 @@ export const SidebarMenuTrigger = forwardRef<
         }
 
         return (
-            <Tooltip label={label} position="right" disabled={!isCollapsed}>
-                <NavLink
-                    ref={ref}
-                    {...buttonProps}
-                    component="button"
-                    type="button"
-                    label={label}
-                    leftSection={
-                        <Box className={classes.triggerIcon}>
-                            {icon}
-                            {badge}
-                        </Box>
-                    }
-                    rightSection={
-                        hasIndicator ? <Box className={classes.dot} /> : null
-                    }
-                    className={className}
-                    classNames={{
-                        root: classes.item,
-                        label: classes.itemLabel,
-                        section: classes.itemSection,
-                    }}
-                />
-            </Tooltip>
+            <SidebarNavLink
+                ref={ref}
+                {...buttonProps}
+                component="button"
+                type="button"
+                tooltip={label}
+                isTooltipShown={isCollapsed}
+                isActive={false}
+                label={label}
+                leftSection={
+                    <Box className={classes.triggerIcon}>
+                        {icon}
+                        {badge}
+                    </Box>
+                }
+                rightSection={
+                    hasIndicator ? <Box className={classes.dot} /> : null
+                }
+                className={className}
+            />
         );
     },
 );

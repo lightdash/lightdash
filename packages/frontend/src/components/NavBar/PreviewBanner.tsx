@@ -4,22 +4,18 @@ import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import { BANNER_HEIGHT } from '../common/Page/constants';
 import classes from './PreviewBanner.module.css';
+import { formatExpiresIn, getExpiresInDays } from './previewExpiry';
 import {
     useBackToUpstreamProject,
     type UpstreamProject,
 } from './useBackToUpstreamProject';
 
 const formatExpirationSuffix = (expiresAt: Date): string => {
-    const expiresAtDate = new Date(expiresAt);
-    const diffMs = expiresAtDate.getTime() - Date.now();
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    const formatted = expiresAtDate.toLocaleString(undefined, {
+    const formatted = new Date(expiresAt).toLocaleString(undefined, {
         dateStyle: 'medium',
         timeStyle: 'short',
     });
-    if (diffDays <= 0) return ` Expires today (${formatted}).`;
-    if (diffDays === 1) return ` Expires in 1 day (${formatted}).`;
-    return ` Expires in ${diffDays} days (${formatted}).`;
+    return ` ${formatExpiresIn(getExpiresInDays(expiresAt))} (${formatted}).`;
 };
 
 export const PreviewBanner: FC<{

@@ -1,8 +1,10 @@
-import { getResourceViewItemName } from '@lightdash/common';
-import { Box, NavLink, Text, Tooltip } from '@mantine/core';
+import {
+    getResourceViewItemName,
+    type ResourceViewItem,
+} from '@lightdash/common';
+import { Box, Text } from '@mantine/core';
 import { useRef, type FC } from 'react';
 import { Link } from 'react-router';
-import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import MantineIcon from '../common/MantineIcon';
 import {
@@ -10,6 +12,7 @@ import {
     getFavoriteItemUrl,
 } from '../NavBar/favoriteItems';
 import classes from './AppSidebar.module.css';
+import { SidebarNavLink } from './SidebarNavLink';
 import { SidebarSection } from './SidebarSection';
 
 type FavoriteProps = {
@@ -22,29 +25,24 @@ type FavoriteProps = {
 const SidebarFavorite: FC<FavoriteProps> = ({ name, to, icon, isActive }) => {
     const { ref, isTruncated } = useIsTruncated<HTMLDivElement>();
     return (
-        <Tooltip label={name} position="right" disabled={!isTruncated}>
-            <NavLink
-                component={Link}
-                to={to}
-                label={
-                    <Text ref={ref} inherit truncate>
-                        {name}
-                    </Text>
-                }
-                leftSection={<MantineIcon icon={icon} />}
-                active={isActive}
-                aria-current={isActive ? 'page' : undefined}
-                classNames={{
-                    root: classes.item,
-                    label: classes.itemLabel,
-                    section: classes.itemSection,
-                }}
-            />
-        </Tooltip>
+        <SidebarNavLink
+            component={Link}
+            to={to}
+            tooltip={name}
+            isTooltipShown={isTruncated}
+            isActive={isActive}
+            label={
+                <Text ref={ref} inherit truncate>
+                    {name}
+                </Text>
+            }
+            leftSection={<MantineIcon icon={icon} />}
+        />
     );
 };
 
 type Props = {
+    favorites: ResourceViewItem[] | undefined;
     projectUuid: string;
     projectUrlIdentifier: string;
     isSidebarCollapsed: boolean;
@@ -52,12 +50,12 @@ type Props = {
 };
 
 export const SidebarFavorites: FC<Props> = ({
+    favorites,
     projectUuid,
     projectUrlIdentifier,
     isSidebarCollapsed,
     activeFavoriteUuid,
 }) => {
-    const { data: favorites } = useFavorites(projectUuid);
     // Favorites already there when the list first loads just appear; only
     // the ones starred afterwards open into place.
     const initialFavorites = useRef<Set<string> | null>(null);

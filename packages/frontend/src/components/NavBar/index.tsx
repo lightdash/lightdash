@@ -10,6 +10,7 @@ import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
 import { NavBarRoot } from './NavBarRoot';
 import { useNavBarState } from './useNavBarState';
+import { WorkspaceBanner } from './WorkspaceBanner';
 
 enum NavBarMode {
     DEFAULT = 'default',
@@ -61,9 +62,11 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
         activeProjectUuid,
         projectUrlIdentifier,
         isLoadingActiveProject,
-        hasBanner,
-        banner,
+        isImpersonating,
+        notice,
+        organizationAccess,
     } = useNavBarState();
+    const hasBanner = isImpersonating || notice !== null;
     const { navBarMode } = useNavBarMode();
 
     // Calculate placeholder height: navbar + banner.
@@ -75,7 +78,11 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             hasVisibleFixedNavbar={isFixed && !isFullscreen}
             hasBanner={hasBanner}
         >
-            {banner}
+            <WorkspaceBanner
+                isImpersonating={isImpersonating}
+                notice={notice}
+                organizationAccess={organizationAccess}
+            />
             <Box
                 component="header"
                 h={NAVBAR_HEIGHT}

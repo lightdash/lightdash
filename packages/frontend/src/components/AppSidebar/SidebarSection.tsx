@@ -42,7 +42,8 @@ const SectionItem: FC<{ item: SidebarSectionItem; isSectionOpen: boolean }> = ({
 
 type Props = {
     sectionKey: string;
-    label: string;
+    /** A section without a label has nothing to fold it from. */
+    label: string | null;
     /** The rail has no labels to fold a section from, so it shows them all. */
     isSidebarCollapsed: boolean;
     items: SidebarSectionItem[];
@@ -61,30 +62,39 @@ export const SidebarSection: FC<Props> = ({
     });
     const isFolded = foldedSections.includes(sectionKey);
     // A walkthrough points at rows by name, so none may be folded away.
-    const isOpen = isSidebarCollapsed || !isFolded || isScopeTourRunning();
+    const isOpen =
+        label === null ||
+        isSidebarCollapsed ||
+        !isFolded ||
+        isScopeTourRunning();
 
     return (
         <Box>
-            <UnstyledButton
-                className={clsx(classes.sectionLabel, classes.sectionToggle)}
-                aria-expanded={isOpen}
-                data-folded={isFolded}
-                tabIndex={isSidebarCollapsed ? -1 : undefined}
-                onClick={() =>
-                    setFoldedSections((folded) =>
-                        folded.includes(sectionKey)
-                            ? folded.filter((key) => key !== sectionKey)
-                            : [...folded, sectionKey],
-                    )
-                }
-            >
-                {label}
-                <MantineIcon
-                    icon={IconChevronDown}
-                    size={12}
-                    className={classes.sectionChevron}
-                />
-            </UnstyledButton>
+            {label !== null && (
+                <UnstyledButton
+                    className={clsx(
+                        classes.sectionLabel,
+                        classes.sectionToggle,
+                    )}
+                    aria-expanded={isOpen}
+                    data-folded={isFolded}
+                    tabIndex={isSidebarCollapsed ? -1 : undefined}
+                    onClick={() =>
+                        setFoldedSections((folded) =>
+                            folded.includes(sectionKey)
+                                ? folded.filter((key) => key !== sectionKey)
+                                : [...folded, sectionKey],
+                        )
+                    }
+                >
+                    {label}
+                    <MantineIcon
+                        icon={IconChevronDown}
+                        size={12}
+                        className={classes.sectionChevron}
+                    />
+                </UnstyledButton>
+            )}
             {items.map((item) => (
                 <SectionItem
                     key={item.key}

@@ -1,6 +1,9 @@
 import { subject } from '@casl/ability';
-import { OrganizationAccessStatus, ProjectType } from '@lightdash/common';
-import { type ReactNode } from 'react';
+import {
+    OrganizationAccessStatus,
+    ProjectType,
+    type OrganizationAccess,
+} from '@lightdash/common';
 import { useDraftCheckoutView } from '../../features/semanticStudio/useSemanticLayerModel';
 import { useOrganizationAccess } from '../../hooks/organization/useOrganizationAccess';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
@@ -10,30 +13,48 @@ import { useImpersonation } from '../../hooks/user/useImpersonation';
 import useApp from '../../providers/App/useApp';
 import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { getProjectUrlIdentifier } from '../../utils/projectUrl';
-import { ImpersonationBanner } from './ImpersonationBanner';
-import { PreviewBanner } from './PreviewBanner';
-import { SampleDataBanner } from './SampleDataBanner';
-import { TrialWarningBanner } from './TrialWarningBanner';
 import { type UpstreamProject } from './useBackToUpstreamProject';
 
-type PreviewNotice = {
-    previewName: string;
-    expiresAt: Date | null;
-    upstreamProject: UpstreamProject | null;
-};
+/** What the workspace is, when that needs saying. At most one applies. */
+export type WorkspaceNotice =
+    | {
+          type: 'preview';
+          previewName: string;
+          expiresAt: Date | null;
+          upstreamProject: UpstreamProject | null;
+      }
+    | { type: 'sampleData' }
+    | { type: 'trial'; isExpired: boolean };
 
 type NavBarState = {
     activeProjectUuid: string | undefined;
     projectUrlIdentifier: string | undefined;
     isLoadingActiveProject: boolean;
-    hasBanner: boolean;
-    banner: ReactNode;
-    /** The current project is a preview, for layouts that draw the notice themselves. */
-    previewNotice: PreviewNotice | null;
-    /** The organization's trial needs attention; `isExpired` once queries are off. */
-    trialNotice: { isExpired: boolean } | null;
-    hasSampleDataNotice: boolean;
+    /** Runs alongside any notice, and outranks it where only one can show. */
     isImpersonating: boolean;
+    notice: WorkspaceNotice | null;
+    organizationAccess: OrganizationAccess | undefined;
+};
+
+const getWorkspaceNotice = ({
+    preview,
+    hasSampleData,
+    trialAccess,
+}: {
+    preview: Extract<WorkspaceNotice, { type: 'preview' }> | null;
+    hasSampleData: boolean;
+    trialAccess: OrganizationAccess | null;
+}): WorkspaceNotice | null => {
+    if (preview) return preview;
+    if (hasSampleData) return { type: 'sampleData' };
+    if (trialAccess) {
+        return {
+            type: 'trial',
+            isExpired:
+                trialAccess.status === OrganizationAccessStatus.TRIAL_EXPIRED,
+        };
+    }
+    return null;
 };
 
 export const useNavBarState = (): NavBarState => {
@@ -91,55 +112,35 @@ export const useNavBarState = (): NavBarState => {
 
     const showPreviewBanner = isCurrentProjectPreview && !isTrainingCopy;
 
-    const previewNotice: PreviewNotice | null =
-        showPreviewBanner && project
-            ? {
-                  previewName: project.name,
-                  expiresAt: project.expiresAt ?? null,
-                  upstreamProject: upstreamProject
-                      ? {
-                            projectUuid: upstreamProject.projectUuid,
-                            slug: upstreamProject.slug,
-                            name: upstreamProject.name,
-                        }
-                      : null,
-              }
-            : null;
-
-    const banner = isImpersonating ? (
-        <ImpersonationBanner />
-    ) : showPreviewBanner ? (
-        <PreviewBanner
-            expiresAt={project?.expiresAt ?? null}
-            upstreamProject={previewNotice?.upstreamProject ?? null}
-        />
-    ) : showSampleDataBanner ? (
-        <SampleDataBanner />
-    ) : (
-        organizationAccess && <TrialWarningBanner access={organizationAccess} />
-    );
-
     return {
         activeProjectUuid,
         projectUrlIdentifier: project
             ? getProjectUrlIdentifier(project)
             : activeProjectUuid,
         isLoadingActiveProject,
-        hasBanner:
-            isImpersonating ||
-            showPreviewBanner ||
-            showSampleDataBanner ||
-            showTrialWarning,
-        banner,
-        previewNotice,
-        trialNotice: showTrialWarning
-            ? {
-                  isExpired:
-                      organizationAccess?.status ===
-                      OrganizationAccessStatus.TRIAL_EXPIRED,
-              }
-            : null,
-        hasSampleDataNotice: showSampleDataBanner,
         isImpersonating,
+        organizationAccess,
+        notice: getWorkspaceNotice({
+            preview:
+                showPreviewBanner && project
+                    ? {
+                          type: 'preview',
+                          previewName: project.name,
+                          expiresAt: project.expiresAt ?? null,
+                          upstreamProject: upstreamProject
+                              ? {
+                                    projectUuid: upstreamProject.projectUuid,
+                                    slug: upstreamProject.slug,
+                                    name: upstreamProject.name,
+                                }
+                              : null,
+                      }
+                    : null,
+            hasSampleData: showSampleDataBanner,
+            trialAccess:
+                showTrialWarning && organizationAccess
+                    ? organizationAccess
+                    : null,
+        }),
     };
 };

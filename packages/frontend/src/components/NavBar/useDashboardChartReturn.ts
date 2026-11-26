@@ -1,10 +1,25 @@
-import { assertUnreachable } from '@lightdash/common';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 
 export type DashboardChartAction = 'creating' | 'editing' | 'viewing';
+
+const CANCEL_COPY: Record<
+    DashboardChartAction,
+    { buttonText: string; tooltipText: string }
+> = {
+    creating: {
+        buttonText: 'Cancel',
+        tooltipText: 'Cancel chart creation and return to dashboard',
+    },
+    editing: {
+        buttonText: 'Cancel',
+        tooltipText: 'Cancel chart editing and return to dashboard',
+    },
+    // The button copy says enough on its own.
+    viewing: { buttonText: 'Return to dashboard', tooltipText: '' },
+};
 
 export const useDashboardChartAction = (): DashboardChartAction => {
     const { savedQueryUuid, mode } = useParams<{
@@ -37,37 +52,6 @@ export const useDashboardChartReturn = (projectUuid: string | undefined) => {
         dashboardSlug,
         activeTabUuid,
     } = getEditingDashboardInfo();
-
-    const cancelButtonText = useMemo(() => {
-        switch (action) {
-            case 'viewing':
-                return 'Return to dashboard';
-            case 'creating':
-            case 'editing':
-                return 'Cancel';
-            default:
-                return assertUnreachable(
-                    action,
-                    `${action} is not a valid action`,
-                );
-        }
-    }, [action]);
-
-    const cancelButtonTooltipText = useMemo(() => {
-        switch (action) {
-            case 'creating':
-                return 'Cancel chart creation and return to dashboard';
-            case 'editing':
-                return 'Cancel chart editing and return to dashboard';
-            case 'viewing':
-                return '';
-            default:
-                return assertUnreachable(
-                    action,
-                    `${action} is not a valid action`,
-                );
-        }
-    }, [action]);
 
     const handleOnCancel = useCallback(() => {
         if (!projectUrlIdentifier) {
@@ -105,8 +89,8 @@ export const useDashboardChartReturn = (projectUuid: string | undefined) => {
         action,
         dashboardName,
         isCancelling,
-        cancelButtonText,
-        cancelButtonTooltipText,
+        cancelButtonText: CANCEL_COPY[action].buttonText,
+        cancelButtonTooltipText: CANCEL_COPY[action].tooltipText,
         handleOnCancel,
     };
 };

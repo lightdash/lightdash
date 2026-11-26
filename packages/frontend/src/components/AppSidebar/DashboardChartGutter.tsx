@@ -1,4 +1,3 @@
-import { assertUnreachable } from '@lightdash/common';
 import { type FC } from 'react';
 import {
     useDashboardChartReturn,
@@ -10,30 +9,20 @@ type Props = {
     projectUuid: string | undefined;
 };
 
-const getTitle = (action: DashboardChartAction) => {
-    switch (action) {
-        case 'viewing':
-            return null;
-        case 'editing':
-            return 'Editing from a dashboard';
-        case 'creating':
-            return 'Creating for a dashboard';
-        default:
-            return assertUnreachable(action, 'Unknown dashboard chart action');
-    }
-};
-
-const getHint = (action: DashboardChartAction) => {
-    switch (action) {
-        case 'viewing':
-            return null;
-        case 'editing':
-            return 'Saved changes update the chart in the dashboard';
-        case 'creating':
-            return 'The chart will be added to the dashboard as a tile';
-        default:
-            return assertUnreachable(action, 'Unknown dashboard chart action');
-    }
+// Only a task with a way out is announced; viewing a chart is not one.
+const NOTICE_COPY: Record<
+    DashboardChartAction,
+    { title: string; hint: string } | null
+> = {
+    viewing: null,
+    editing: {
+        title: 'Editing from a dashboard',
+        hint: 'Saved changes update the chart in the dashboard',
+    },
+    creating: {
+        title: 'Creating for a dashboard',
+        hint: 'The chart will be added to the dashboard as a tile',
+    },
 };
 
 /** Says a chart is being edited or created for a dashboard, and offers the way out. */
@@ -46,8 +35,8 @@ export const DashboardChartGutter: FC<Props> = ({ projectUuid }) => {
         handleOnCancel,
     } = useDashboardChartReturn(projectUuid);
 
-    const title = getTitle(action);
-    if (title === null) {
+    const copy = NOTICE_COPY[action];
+    if (copy === null) {
         return null;
     }
 
@@ -55,8 +44,8 @@ export const DashboardChartGutter: FC<Props> = ({ projectUuid }) => {
         <NoticeGutter
             tone="neutral"
             icon={null}
-            title={isCancelling ? 'Cancelling…' : title}
-            hint={getHint(action)}
+            title={isCancelling ? 'Cancelling…' : copy.title}
+            hint={copy.hint}
             detail={null}
             action={{
                 type: 'back',

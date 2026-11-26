@@ -114,7 +114,6 @@ export const MainNavBarContent: FC<Props> = ({
                                         Home
                                     </Button>
                                     <ProjectSwitcher
-                                        layout="navbar"
                                         portalTarget={
                                             MOBILE_NAVIGATION_PORTAL_TARGET
                                         }
@@ -186,10 +185,7 @@ export const MainNavBarContent: FC<Props> = ({
                         )}
 
                     {!compact && (
-                        <ProjectSwitcher
-                            layout="navbar"
-                            portalTarget="#navbar-header"
-                        />
+                        <ProjectSwitcher portalTarget="#navbar-header" />
                     )}
 
                     <ProjectCredentialsSwitcher />

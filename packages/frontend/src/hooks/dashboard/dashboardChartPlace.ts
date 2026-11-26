@@ -9,6 +9,18 @@ export type DashboardChartPlace =
 const matches = (path: string, pathname: string) =>
     matchPath({ path, end: false }, pathname) !== null;
 
+/** Whether a path is this saved chart's page, or a page below it. */
+export const isSavedChartPath = (
+    pathname: string,
+    projectIdentifier: string | undefined,
+    chartIdentifier: string | undefined,
+) => {
+    if (!projectIdentifier || !chartIdentifier) return false;
+
+    const chartPath = `/projects/${projectIdentifier}/saved/${chartIdentifier}`;
+    return pathname.endsWith(chartPath) || pathname.includes(`${chartPath}/`);
+};
+
 export const getDashboardChartPlace = (
     pathname: string,
 ): DashboardChartPlace => {

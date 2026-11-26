@@ -58,11 +58,6 @@
     }
 }
 
-.previewIcon {
-    flex: none;
-    color: var(--mantine-color-anchor);
-}
-
 /* The expiry is set smaller than the name, so the two share a baseline
    rather than a centre line. */
 .label {
@@ -72,7 +67,7 @@
 }
 
 .previewName {
-    color: var(--mantine-color-anchor);
+    color: var(--notice-color);
 }
 
 /* When the strip runs short the expiry gives way long before the name. */

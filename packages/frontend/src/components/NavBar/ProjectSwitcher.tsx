@@ -55,6 +55,8 @@ import AppColorSchemeScope from './AppColorSchemeScope';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
 import { DraftCheckoutSection } from './DraftCheckoutSection';
 import { getNavBarMenuProps } from './NavBarPortalContext';
+import { useNavLayout } from './NavLayoutContext';
+import { getExpiresInDays } from './previewExpiry';
 import classes from './ProjectSwitcher.module.css';
 import { isPlaygroundProject, splitSwitcherProjects } from './switcherProjects';
 
@@ -62,13 +64,6 @@ const MENU_TEXT_PROPS = {
     c: 'ldGray.9',
     fz: 'xs',
     fw: 500,
-};
-
-const getExpiresInDays = (expiresAt: Date | null): number | null => {
-    if (!expiresAt) return null;
-    const now = new Date();
-    const diffMs = new Date(expiresAt).getTime() - now.getTime();
-    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 };
 
 const CurrentBadge: FC = () => (
@@ -91,8 +86,8 @@ const PlaygroundBadge: FC = () => (
 );
 
 const ExpiryBadge: FC<{ expiresAt: Date | null }> = ({ expiresAt }) => {
+    if (expiresAt === null) return null;
     const expiresInDays = getExpiresInDays(expiresAt);
-    if (expiresInDays === null) return null;
     return (
         <Badge color="orange" size="xs" className={classes.badge}>
             {expiresInDays === 0
@@ -398,20 +393,14 @@ const swappableProjectRoutes = (
     ].map((path) => ({ path, handle: { useProjectSlug: false } })),
 ];
 
-/** Where the switcher sits: the top navbar or the left sidebar. */
-type ProjectSwitcherLayout = 'navbar' | 'sidebar';
-
 type ProjectSwitcherProps = {
     /** Selector the dropdown is portaled into, or null to portal into the body.
      *  The desktop navbar targets its own forced-dark subtree. */
     portalTarget: string | null;
-    layout: ProjectSwitcherLayout;
 };
 
-const ProjectSwitcher: FC<ProjectSwitcherProps> = ({
-    portalTarget,
-    layout,
-}) => {
+const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
+    const isInSidebar = useNavLayout().layout === 'sidebar';
     const { showToastSuccess } = useToaster();
     const navigate = useNavigate();
 
@@ -690,7 +679,6 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({
             ? upstreamProject.name
             : activeProjectName;
     const targetLabel = `Switch project, current: ${activeProject?.name ?? 'none'}${draftCheckout ? `, on the draft ${draftCheckout.name}` : ''}`;
-    const isInSidebar = layout !== 'navbar';
 
     return (
         <>

@@ -9,7 +9,7 @@ import { clsx } from 'clsx';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../common/MantineIcon';
-import classes from './PreviewGutter.module.css';
+import classes from './NoticeGutter.module.css';
 
 type NoticeAction =
     | { type: 'link'; label: string; to: string }
@@ -32,7 +32,7 @@ type Props = {
     action: NoticeAction;
 };
 
-const NoticeActionLink: FC<{ action: NoticeAction }> = ({ action }) => {
+export const NoticeActionLink: FC<{ action: NoticeAction }> = ({ action }) => {
     const className = clsx(classes.backLink, classes.noticeAction);
     switch (action.type) {
         case 'external':
@@ -76,7 +76,9 @@ const NoticeActionLink: FC<{ action: NoticeAction }> = ({ action }) => {
                         className={className}
                     >
                         <MantineIcon icon={IconArrowLeft} size="sm" />
-                        {action.label}
+                        <Text span inherit truncate maw={200}>
+                            {action.label}
+                        </Text>
                     </Anchor>
                 </Tooltip>
             );

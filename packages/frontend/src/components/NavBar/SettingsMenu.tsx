@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Button, getDefaultZIndex, Menu } from '@mantine/core';
+import { getDefaultZIndex, Menu } from '@mantine/core';
 import {
     IconBuildingBank,
     IconDatabase,
@@ -13,11 +13,12 @@ import { useProject } from '../../hooks/useProject';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { useNavBarMenuProps } from './NavBarPortalContext';
-import { useNavMenuTrigger } from './NavMenuTriggerContext';
+import { useNavLayout, useNavTriggerMenuProps } from './NavLayoutContext';
 
 const SettingsMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
     const menuProps = useNavBarMenuProps();
-    const Trigger = useNavMenuTrigger();
+    const triggerMenuProps = useNavTriggerMenuProps();
+    const { Trigger } = useNavLayout();
     const {
         user: { data: user },
     } = useApp();
@@ -45,33 +46,21 @@ const SettingsMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
             offset={-2}
             zIndex={getDefaultZIndex('max')}
             {...menuProps}
+            {...triggerMenuProps}
         >
             <Menu.Target>
-                {Trigger ? (
-                    <Trigger
-                        variant="row"
-                        icon={<MantineIcon icon={IconSettings} />}
-                        label="Settings"
-                        hasIndicator={false}
-                        badge={null}
-                        data-testid="settings-menu"
-                        data-tour-nav="settings"
-                        data-tour-hint="Click Settings"
-                    />
-                ) : (
-                    <Button
-                        aria-label="Settings"
-                        variant="default"
-                        size="xs"
-                        data-testid="settings-menu"
-                        // Navigation anchor for scope walkthroughs (data-tour-via)
-                        data-tour-nav="settings"
-                        data-tour-hint="Click Settings"
-                    >
-                        <MantineIcon icon={IconSettings} />
-                        {withLabel && ' Settings'}
-                    </Button>
-                )}
+                <Trigger
+                    variant="row"
+                    withLabel={withLabel}
+                    icon={<MantineIcon icon={IconSettings} />}
+                    label="Settings"
+                    hasIndicator={false}
+                    badge={null}
+                    data-testid="settings-menu"
+                    // Navigation anchor for scope walkthroughs (data-tour-via)
+                    data-tour-nav="settings"
+                    data-tour-hint="Click Settings"
+                />
             </Menu.Target>
 
             <Menu.Dropdown>

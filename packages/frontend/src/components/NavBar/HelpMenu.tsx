@@ -22,11 +22,13 @@ import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import { Z_INDEX_FLOATING } from '../common/Page/constants';
 import { useNavBarMenuProps } from './NavBarPortalContext';
-import { useNavMenuTrigger } from './NavMenuTriggerContext';
+import { useNavLayout, useNavTriggerMenuProps } from './NavLayoutContext';
 
 const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
     const menuProps = useNavBarMenuProps();
-    const Trigger = useNavMenuTrigger();
+    const triggerMenuProps = useNavTriggerMenuProps();
+    const { layout, Trigger } = useNavLayout();
+    const isInSidebar = layout === 'sidebar';
     const health = useHealth();
     const { user } = useApp();
     const canViewRoadmap = user.data?.ability.can(
@@ -46,10 +48,11 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
 
     // If helpMenuUrl is set, render a button that opens the URL in a new tab
     if (helpMenuUrl) {
-        if (Trigger) {
+        if (isInSidebar) {
             return (
                 <Trigger
                     variant="row"
+                    withLabel={withLabel}
                     icon={<MantineIcon icon={IconHelp} />}
                     label="Help"
                     hasIndicator={false}
@@ -87,26 +90,21 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
             offset={-2}
             zIndex={getDefaultZIndex('max')}
             {...menuProps}
+            {...triggerMenuProps}
         >
             <Menu.Target>
-                {Trigger ? (
-                    <Trigger
-                        variant="row"
-                        icon={<MantineIcon icon={IconHelp} />}
-                        label="Help"
-                        hasIndicator={false}
-                        badge={null}
-                    />
-                ) : (
-                    <Button aria-label="Help" variant="default" size="xs">
-                        <MantineIcon icon={IconHelp} />
-                        {withLabel && ' Help'}
-                    </Button>
-                )}
+                <Trigger
+                    variant="row"
+                    withLabel={withLabel}
+                    icon={<MantineIcon icon={IconHelp} />}
+                    label="Help"
+                    hasIndicator={false}
+                    badge={null}
+                />
             </Menu.Target>
 
             <Menu.Dropdown>
-                {Trigger && <LearnMenuItem />}
+                {isInSidebar && <LearnMenuItem />}
 
                 <LargeMenuItem
                     component="a"
@@ -172,7 +170,7 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                     />
                 )}
 
-                {Trigger && version && (
+                {isInSidebar && version && (
                     <>
                         <Menu.Divider />
                         <Menu.Item

@@ -8,15 +8,13 @@ import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useDashboardChartAction } from '../NavBar/useDashboardChartReturn';
 
 /**
- * Whether the chart on screen is being edited or created for a dashboard.
- * The sidebar lets the user leave mid-task, so leaving drops the hand-over
- * instead of letting it follow them to other pages.
+ * The sidebar lets the user leave a chart handed over by a dashboard mid-task,
+ * so leaving drops the hand-over instead of letting it follow them around.
  */
-export const useDashboardChartNotice = () => {
+export const useEndDashboardChartTaskOnLeave = () => {
     const { pathname } = useLocation();
     const { isEditingDashboardChart, clearDashboardStorage } =
         useDashboardStorage();
-    const action = useDashboardChartAction();
     const place = getDashboardChartPlace(pathname);
     const previousPlace = useRef(place);
 
@@ -27,6 +25,14 @@ export const useDashboardChartNotice = () => {
             clearDashboardStorage();
         }
     }, [place, isEditingDashboardChart, clearDashboardStorage]);
+};
+
+/** Whether the chart on screen is being edited or created for a dashboard. */
+export const useShowsDashboardChartNotice = (): boolean => {
+    const { pathname } = useLocation();
+    const { isEditingDashboardChart } = useDashboardStorage();
+    const action = useDashboardChartAction();
+    const place = getDashboardChartPlace(pathname);
 
     return (
         isEditingDashboardChart &&

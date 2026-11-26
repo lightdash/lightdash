@@ -1,26 +1,14 @@
-import { Anchor, Box, Text, Tooltip } from '@mantine/core';
-import {
-    IconArrowLeft,
-    IconChevronRight,
-    IconTools,
-} from '@tabler/icons-react';
+import { Box, Text, Tooltip } from '@mantine/core';
+import { IconChevronRight, IconTools } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
+import { formatExpiresIn, getExpiresInDays } from '../NavBar/previewExpiry';
 import {
     useBackToUpstreamProject,
     type UpstreamProject,
 } from '../NavBar/useBackToUpstreamProject';
-import classes from './PreviewGutter.module.css';
-
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-const formatExpiry = (expiresAt: Date): string => {
-    const days = Math.ceil(
-        (new Date(expiresAt).getTime() - Date.now()) / MS_PER_DAY,
-    );
-    if (days <= 0) return 'Expires today';
-    return days === 1 ? 'Expires in 1 day' : `Expires in ${days} days`;
-};
+import { NoticeActionLink } from './NoticeGutter';
+import classes from './NoticeGutter.module.css';
 
 type Props = {
     previewName: string;
@@ -48,6 +36,7 @@ export const PreviewGutter: FC<Props> = ({
             className={classes.gutter}
             role="status"
             aria-label="Preview project"
+            data-tone="neutral"
         >
             <Box className={classes.path}>
                 {upstreamProject && (
@@ -72,7 +61,7 @@ export const PreviewGutter: FC<Props> = ({
                 <MantineIcon
                     icon={IconTools}
                     size={14}
-                    className={classes.previewIcon}
+                    className={classes.noticeIcon}
                 />
                 <Box className={classes.label}>
                     <Text
@@ -95,26 +84,21 @@ export const PreviewGutter: FC<Props> = ({
                             )}
                         >
                             <Text c="dimmed" className={classes.expiry}>
-                                {formatExpiry(expiresAt)}
+                                {formatExpiresIn(getExpiresInDays(expiresAt))}
                             </Text>
                         </Tooltip>
                     )}
                 </Box>
             </Box>
             {upstreamProject && (
-                <Anchor
-                    component="button"
-                    type="button"
-                    onClick={handleBackToUpstream}
-                    fz="xs"
-                    fw={500}
-                    className={classes.backLink}
-                >
-                    <MantineIcon icon={IconArrowLeft} size="sm" />
-                    <Text span inherit truncate maw={200}>
-                        Back to {upstreamProject.name}
-                    </Text>
-                </Anchor>
+                <NoticeActionLink
+                    action={{
+                        type: 'back',
+                        label: `Back to ${upstreamProject.name}`,
+                        hint: null,
+                        onClick: handleBackToUpstream,
+                    }}
+                />
             )}
         </Box>
     );

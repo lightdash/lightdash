@@ -1,6 +1,5 @@
 import { AppShell, useAppShellResize } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { IconClock, IconTestPipe } from '@tabler/icons-react';
 import { clamp } from 'es-toolkit/compat';
 import { type FC, type ReactNode } from 'react';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
@@ -12,7 +11,6 @@ import {
     APP_SIDEBAR_MIN_WIDTH,
     APP_SIDEBAR_RAIL_WIDTH,
     APP_SIDEBAR_WIDTH,
-    BANNER_HEIGHT,
 } from '../common/Page/constants';
 import NavBar from '../NavBar';
 import { NavBarRoot } from '../NavBar/NavBarRoot';
@@ -23,11 +21,13 @@ import classes from './AppSidebar.module.css';
 import { APP_SIDEBAR_ID } from './appSidebarNavigation';
 import { DashboardChartGutter } from './DashboardChartGutter';
 import { ImpersonationNotch } from './ImpersonationNotch';
-import { NoticeGutter } from './NoticeGutter';
-import { PreviewGutter } from './PreviewGutter';
 import { useAppSidebarCollapse } from './useAppSidebarCollapse';
-import { useDashboardChartNotice } from './useDashboardChartNotice';
+import {
+    useEndDashboardChartTaskOnLeave,
+    useShowsDashboardChartNotice,
+} from './useDashboardChartNotice';
 import { useIsLeftNavigationShown } from './useIsLeftNavigationShown';
+import { WorkspaceNoticeGutter } from './WorkspaceNoticeGutter';
 
 const APP_SIDEBAR_WIDTH_STORAGE_KEY = 'app-sidebar:width';
 
@@ -57,35 +57,21 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
         activeProjectUuid,
         projectUrlIdentifier,
         isLoadingActiveProject,
-        hasBanner,
-        banner,
-        previewNotice,
-        trialNotice,
-        hasSampleDataNotice,
         isImpersonating,
+        notice,
     } = useNavBarState();
-    // The strip above the page holds whichever of these applies; the rules
-    // that decide them never let two apply at once. Impersonation is the
-    // exception and marks the page itself.
     // Editing or creating a chart for a dashboard is a task with a way out,
     // which outranks what kind of project this is. Only viewing one is not.
-    const showsDashboardChartNotice = useDashboardChartNotice();
+    useEndDashboardChartTaskOnLeave();
+    const showsDashboardChartNotice = useShowsDashboardChartNotice();
+    // Impersonation can run alongside either, so it marks the page itself.
     const hasGutter =
-        showsDashboardChartNotice ||
-        previewNotice !== null ||
-        trialNotice !== null ||
-        hasSampleDataNotice ||
-        isImpersonating;
-    const showsProjectNotice =
-        !showsDashboardChartNotice && previewNotice === null;
-    const showsTrialNotice = showsProjectNotice && trialNotice !== null;
-    const showsSampleDataNotice =
-        showsProjectNotice && trialNotice === null && hasSampleDataNotice;
+        showsDashboardChartNotice || notice !== null || isImpersonating;
     // Impersonation and sample data change what the whole page means, so the
     // page itself is outlined; impersonation's mark wins when both apply.
     const pageOutline = isImpersonating
         ? 'impersonation'
-        : showsSampleDataNotice
+        : !showsDashboardChartNotice && notice?.type === 'sampleData'
           ? 'sample-data'
           : 'none';
     const { isCollapsed, setIsCollapsed } = useAppSidebarCollapse();
@@ -132,62 +118,28 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
                 breakpoint: 0,
                 collapsed: { desktop: isFullscreen, mobile: isFullscreen },
             }}
-            header={{
-                height: hasGutter
-                    ? APP_PREVIEW_GUTTER_HEIGHT
-                    : hasBanner
-                      ? BANNER_HEIGHT
-                      : 0,
-            }}
+            header={{ height: hasGutter ? APP_PREVIEW_GUTTER_HEIGHT : 0 }}
             // Animating the offset would re-measure every chart on each frame.
             transitionDuration={0}
             resize={resize}
         >
             <AppShell.Header withBorder={false} className={classes.gutter}>
-                {showsDashboardChartNotice && (
+                {showsDashboardChartNotice ? (
                     <DashboardChartGutter projectUuid={activeProjectUuid} />
-                )}
-                {!showsDashboardChartNotice && previewNotice && (
-                    <PreviewGutter
-                        {...previewNotice}
-                        isSidebarCollapsed={isCollapsed}
-                    />
-                )}
-                {showsTrialNotice && trialNotice && (
-                    <NoticeGutter
-                        hint={null}
-                        tone="warning"
-                        icon={IconClock}
-                        title="Trial ended"
-                        detail={
-                            trialNotice.isExpired
-                                ? 'Queries are disabled. Contact sales to reactivate.'
-                                : 'Contact sales to keep your workspace'
-                        }
-                        action={{
-                            type: 'external',
-                            label: 'Contact sales',
-                            href: 'mailto:sales@lightdash.com',
-                        }}
-                    />
-                )}
-                {showsSampleDataNotice && (
-                    <NoticeGutter
-                        hint={null}
-                        tone="info"
-                        icon={IconTestPipe}
-                        title="Sample data"
-                        detail="A demo project to look around in while you get set up"
-                        action={{
-                            type: 'link',
-                            label: 'Connect your data',
-                            to: '/onboarding/data-source',
-                        }}
-                    />
+                ) : (
+                    notice && (
+                        <WorkspaceNoticeGutter
+                            notice={notice}
+                            isSidebarCollapsed={isCollapsed}
+                        />
+                    )
                 )}
                 {isImpersonating && <ImpersonationNotch />}
-                <NavBarRoot hasVisibleFixedNavbar={false} hasBanner={hasBanner}>
-                    {!hasGutter && banner}
+                {/* Portalled navbar overlays still look for this root. */}
+                <NavBarRoot
+                    hasVisibleFixedNavbar={false}
+                    hasBanner={isImpersonating || notice !== null}
+                >
                     <SharedSignInExpiryListener />
                 </NavBarRoot>
             </AppShell.Header>

@@ -8,7 +8,7 @@ import {
 } from '@tabler/icons-react';
 import { useContext, type FC } from 'react';
 import { Link } from 'react-router';
-import { MobileSignInOpenerContext } from '../../features/mobile/mobileSignInOpener';
+import { MobileSignInDisclosureContext } from '../../features/mobile/mobileSignInDisclosure';
 import { MOBILE_STRINGS } from '../../features/mobile/mobileStrings';
 import { useIsMobileSignInOffered } from '../../features/mobile/useIsMobileSignInOffered';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
@@ -17,13 +17,15 @@ import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { UserAvatar } from '../UserAvatar';
 import { useNavBarMenuProps } from './NavBarPortalContext';
-import { useNavMenuTrigger } from './NavMenuTriggerContext';
+import { useNavLayout, useNavTriggerMenuProps } from './NavLayoutContext';
 import { ThemeSwitcherMenuItem } from './ThemeSwitcher';
 
 const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
     const menuProps = useNavBarMenuProps();
-    const Trigger = useNavMenuTrigger();
-    const mobileSignInOpener = useContext(MobileSignInOpenerContext);
+    const triggerMenuProps = useNavTriggerMenuProps();
+    const { layout, Trigger } = useNavLayout();
+    const isInSidebar = layout === 'sidebar';
+    const mobileSignIn = useContext(MobileSignInDisclosureContext);
     const isMobileSignInOffered = useIsMobileSignInOffered();
     const { user } = useApp();
     const { activeProjectUuid } = useActiveProjectUuid();
@@ -40,11 +42,13 @@ const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
             offset={-2}
             zIndex={getDefaultZIndex('max')}
             {...menuProps}
+            {...triggerMenuProps}
         >
             <Menu.Target>
-                {Trigger ? (
+                {isInSidebar ? (
                     <Trigger
                         variant="row"
+                        withLabel={withLabel}
                         icon={<UserAvatar size={20} />}
                         label={
                             [user.data?.firstName, user.data?.lastName]
@@ -100,24 +104,24 @@ const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                     </Menu.Item>
                 ) : null}
 
-                {mobileSignInOpener && isMobileSignInOffered ? (
+                {mobileSignIn && isMobileSignInOffered ? (
                     <Menu.Item
                         role="menuitem"
-                        onClick={() => mobileSignInOpener.current?.()}
+                        onClick={() => mobileSignIn.setOpened(true)}
                         leftSection={<MantineIcon icon={IconDeviceMobile} />}
                     >
                         {MOBILE_STRINGS.signInTitle}
                     </Menu.Item>
                 ) : null}
 
-                {Trigger && <Menu.Divider />}
+                {isInSidebar && <Menu.Divider />}
 
                 <Menu.Item
                     role="menuitem"
                     onClick={() => logout()}
                     leftSection={<MantineIcon icon={IconLogout} />}
                 >
-                    {Trigger ? 'Log out' : 'Logout'}
+                    {isInSidebar ? 'Log out' : 'Logout'}
                 </Menu.Item>
             </Menu.Dropdown>
         </Menu>

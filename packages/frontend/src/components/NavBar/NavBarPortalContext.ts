@@ -1,5 +1,4 @@
 import { createContext, useContext, type MouseEvent } from 'react';
-import { useNavMenuTrigger } from './NavMenuTriggerContext';
 
 export const MOBILE_NAVIGATION_PORTAL_TARGET = '#navbar-navigation-content';
 
@@ -18,18 +17,8 @@ export const getNavBarMenuProps = (portalTarget: string | null) => {
     };
 };
 
-// Menus opened from a side layout's own controls open beside it.
-const SIDE_MENU_PROPS = {
-    position: 'right-end',
-    offset: 8,
-    withArrow: false,
-} as const;
-
-export const useNavBarMenuProps = () => {
-    const menuProps = getNavBarMenuProps(useNavBarPortalTarget());
-    const hasOwnTrigger = useNavMenuTrigger() !== null;
-    return hasOwnTrigger ? { ...menuProps, ...SIDE_MENU_PROPS } : menuProps;
-};
+export const useNavBarMenuProps = () =>
+    getNavBarMenuProps(useNavBarPortalTarget());
 
 export const revealInlineNavMenuOnToggle = (event: MouseEvent<HTMLElement>) => {
     if (!(event.target instanceof Element)) return;

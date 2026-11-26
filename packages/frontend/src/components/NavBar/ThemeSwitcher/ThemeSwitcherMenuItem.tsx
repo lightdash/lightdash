@@ -5,7 +5,7 @@ import {
     type ColorSchemePreference,
 } from '../../../theme';
 import MantineIcon from '../../common/MantineIcon';
-import { useNavMenuTrigger } from '../NavMenuTriggerContext';
+import { useNavLayout } from '../NavLayoutContext';
 import { useThemePreference } from './useThemePreference';
 
 const THEME_OPTIONS: { value: ColorSchemePreference; label: string }[] = [
@@ -16,7 +16,7 @@ const THEME_OPTIONS: { value: ColorSchemePreference; label: string }[] = [
 
 export const ThemeSwitcherMenuItem = () => {
     const { colorSchemePreference, handleThemeChange } = useThemePreference();
-    const isInSidebar = useNavMenuTrigger() !== null;
+    const isInSidebar = useNavLayout().layout === 'sidebar';
 
     return (
         <>

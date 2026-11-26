@@ -8,6 +8,12 @@
     background-color: var(--ld-color-sidebar);
 }
 
+/* In dark mode the page and the sidebar are nearly the same gray, so the
+   page's edges get a hairline where the two meet. */
+.shell {
+    --app-page-hairline: light-dark(transparent, rgb(236 236 238 / 0.07));
+}
+
 .content {
     display: flex;
     flex-direction: column;
@@ -101,6 +107,10 @@
     align-items: flex-start;
 }
 
+.searchRow {
+    margin-top: rem(4px);
+}
+
 .sectionLabel {
     padding-inline: var(--mantine-spacing-xs);
     margin-bottom: rem(4px);
@@ -148,17 +158,6 @@
     .sectionChevron {
         transition: none;
     }
-}
-
-.shortcut {
-    font-size: rem(11px);
-    color: var(--mantine-color-placeholder);
-    opacity: 0;
-    transition: opacity 120ms ease;
-}
-
-.item:is(:hover, :focus-visible) .shortcut {
-    opacity: 1;
 }
 
 .itemStatus {
@@ -350,7 +349,7 @@
 }
 
 .shell[data-rounded-page='true']::before {
-    --app-page-border: light-dark(transparent, rgb(236 236 238 / 0.07));
+    --app-page-border: var(--app-page-hairline);
     --app-page-corner-stops:
         transparent calc(var(--app-page-radius) - 1px),
         var(--app-page-border) calc(var(--app-page-radius) - 1px),
@@ -449,9 +448,9 @@
     position: absolute;
     right: 0;
     bottom: 0;
-    left: rem(12px);
+    left: var(--app-page-radius, 0rem);
     height: 1px;
-    background-color: light-dark(transparent, rgb(236 236 238 / 0.07));
+    background-color: var(--app-page-hairline);
     pointer-events: none;
 }
 
@@ -480,7 +479,7 @@
     left: var(--app-shell-navbar-offset, 0rem);
     z-index: calc(var(--mantine-z-index-app) + 21);
     border: rem(2px) solid var(--app-page-outline);
-    border-radius: rem(12px) 0 0 rem(12px);
+    border-radius: var(--app-page-radius, 0rem) 0 0 var(--app-page-radius, 0rem);
     pointer-events: none;
 }
 
