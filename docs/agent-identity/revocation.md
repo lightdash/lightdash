@@ -162,32 +162,30 @@ see [Instance URLs and proxies for agent connections](../../packages/cli/README.
 An agent permission check has two steps:
 
 - `AgentPermissionService.loadRequest` reads the flag and the organisation's
-  **Permissions**: the mode, the capabilities for each role, the organization
-  capability list, and allowed groups. It returns a frozen handle.
-- `assertOperationWithRequest` evaluates one operation with that handle. With
-  "Limit what agents can do" on, it reads the person's current role
-  assignments. It reads the person's group membership once
-  for each handle.
+  **Permissions**: the organization capability list, each project's own
+  list, and allowed groups. It returns a frozen handle.
+- `assertOperationWithRequest` evaluates one operation with that handle. It
+  reads the person's group membership once for each handle.
 
 These reads do not use the caches below. A handle belongs to one request. It
 keeps the **Permissions** that it loaded, so it does not see a later change
 to them. It keeps the result of its first group lookup, so it does not see a
-group change after that lookup. The next request sees both. Role assignments
-are read again at each evaluation. MCP owns its own settings; the permission
-check does not read them.
+group change after that lookup. The next request sees both. MCP owns its own
+settings; the permission check does not read them.
 
 What the next check sees:
 
 | Change | Result |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| A role, or a custom role's capability scope, is removed from the person | The capability is gone, unless another role or custom role of the person still gives it. Roles add up. |
-| A capability is removed from a role on the **Agents** page | The same. The table of capabilities for each role is not an upper limit on what a custom role gives. |
-| A capability is unticked in the organization list                       | Refused for every role, including custom roles                                                         |
+| --- | --- |
+| A role is removed from the person | The agent loses what that role let the person do. The person's own permissions are checked by the service that does the work. |
+| A capability is unticked in the organization list | Refused in every project that follows the organization |
+| A capability is unticked in a project's own list | Refused in that project |
+| A project's own setting is removed | The project follows the organization list |
 | The person is removed from an allowed group | Refused, when the person is in no other allowed group |
-| Every capability is unticked with limits on                             | Refused, including agent turns                                                                         |
+| Every capability is unticked | Refused, including agent turns |
 
-The capability and "every capability unticked" rows apply with
-"Limit what agents can do" on. Group admission applies in both modes. A
+The capability rows apply where the organization or the project restricts
+agents. Group admission applies with or without capability restrictions. A
 person's active state is not part of this check: authentication and the job
 checks cover it.
 
