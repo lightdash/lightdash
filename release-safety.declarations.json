@@ -397,6 +397,11 @@
                     "mcp": []
                 }
             }
+        },
+        "prod-13447-agent-policy-mode-column-dropped": {
+            "reason": "Drops the mode column on organization_agent_capability_policies. Releases from 3.415.2 onward do not read mode, and releases that include lightdash/lightdash#33503 do not write it, so a rolling upgrade from one of those is unaffected. During a rolling upgrade from an earlier release, old pods still write mode when an admin saves the organization agent restrictions, so that save fails until the rollout finishes; pods older than 3.415.2 also read mode, so their agent permission checks fail in that window. Both only happen with the agent-identity feature flag on, which is off by default. Use the Recreate strategy to avoid the window.",
+            "requiredStop": false,
+            "migration": "packages/backend/src/database/migrations/20261126150000_drop_agent_policy_mode.ts"
         }
     }
 }
