@@ -1,5 +1,7 @@
 import {
     assertRegisteredAccount,
+    type ApiAiAgentArtifactResponseTSOACompat,
+    type ApiAiAgentArtifactVizQueryResponse,
     type ApiAiAgentResponse,
     type ApiAiAgentThreadCreateRequest,
     type ApiAiAgentThreadCreateResponse,
@@ -1149,5 +1151,78 @@ export class SemanticStudioController extends BaseController {
                 ),
             },
         };
+    }
+
+    /**
+     * One version of something a Semantic Studio conversation made, such as a query result.
+     * @summary Get a Semantic Studio chat artifact version
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/chat/artifacts/{artifactUuid}/versions/{versionUuid}')
+    @OperationId('getSemanticStudioChatArtifactVersion')
+    async getChatArtifactVersion(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() artifactUuid: UUID,
+        @Path() versionUuid: UUID,
+    ): Promise<ApiAiAgentArtifactResponseTSOACompat> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getChatService().getArtifact(
+                toSessionUser(req.account),
+                { projectUuid, artifactUuid, versionUuid },
+            ),
+        };
+    }
+
+    /**
+     * Runs the query behind an artifact of a Semantic Studio conversation.
+     * @summary Run a Semantic Studio chat artifact query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/chat/artifacts/{artifactUuid}/versions/{versionUuid}/viz-query')
+    @OperationId('getSemanticStudioChatArtifactVizQuery')
+    async getChatArtifactVizQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() artifactUuid: UUID,
+        @Path() versionUuid: UUID,
+    ): Promise<ApiAiAgentArtifactVizQueryResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getChatService().getArtifactVizQuery(
+                toSessionUser(req.account),
+                { projectUuid, artifactUuid, versionUuid },
+                req.account,
+            ),
+        };
+    }
+
+    /**
+     * Records the SQL chart an artifact of a Semantic Studio conversation was saved as.
+     * @summary Link a Semantic Studio chat artifact to its saved SQL chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch('/chat/artifacts/{artifactUuid}/versions/{versionUuid}/savedSql')
+    @OperationId('updateSemanticStudioChatArtifactSavedSql')
+    async updateChatArtifactSavedSql(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() artifactUuid: UUID,
+        @Path() versionUuid: UUID,
+        @Body() body: { savedSqlUuid: string | null },
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getChatService().linkArtifactSavedSql(
+            toSessionUser(req.account),
+            { projectUuid, artifactUuid, versionUuid },
+            body.savedSqlUuid,
+        );
+        return { status: 'ok', results: undefined };
     }
 }

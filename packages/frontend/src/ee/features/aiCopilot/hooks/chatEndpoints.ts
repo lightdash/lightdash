@@ -1,23 +1,45 @@
 import { createContext, useCallback, useContext } from 'react';
 import { getAiAgentApiBase } from './aiAgentRouting';
 
-/** Where a chat's threads live when it is not an agent's own; null for an ordinary agent chat. */
-export const ChatThreadsUrlContext = createContext<string | null>(null);
+/** Where a chat's threads and artifacts live when it is not an agent's own; null for an ordinary agent chat. */
+export const ChatApiBaseContext = createContext<string | null>(null);
+
+export const getStudioChatApiBase = (projectUuid: string) =>
+    `/projects/${projectUuid}/semantic-studio/chat`;
 
 export const getStudioChatThreadsUrl = (projectUuid: string) =>
-    `/projects/${projectUuid}/semantic-studio/chat/threads`;
+    `${getStudioChatApiBase(projectUuid)}/threads`;
 
-/** Resolves the threads endpoint of the surrounding chat, an agent's unless a chat supplies its own. */
-export const useChatThreadsUrl = () => {
-    const ownThreadsUrl = useContext(ChatThreadsUrlContext);
+// The surrounding chat's own base, an agent's unless the chat supplies one.
+const useChatApiBase = () => {
+    const ownBase = useContext(ChatApiBaseContext);
     return useCallback(
         (projectUuid: string, agentUuid: string | undefined) =>
-            ownThreadsUrl ??
-            `${getAiAgentApiBase(projectUuid)}/${agentUuid}/threads`,
-        [ownThreadsUrl],
+            ownBase ?? `${getAiAgentApiBase(projectUuid)}/${agentUuid}`,
+        [ownBase],
+    );
+};
+
+/** Resolves the threads endpoint of the surrounding chat. */
+export const useChatThreadsUrl = () => {
+    const getBase = useChatApiBase();
+    return useCallback(
+        (projectUuid: string, agentUuid: string | undefined) =>
+            `${getBase(projectUuid, agentUuid)}/threads`,
+        [getBase],
+    );
+};
+
+/** Resolves the artifacts endpoint of the surrounding chat, for the reads a chat with its own endpoints serves. */
+export const useChatArtifactsUrl = () => {
+    const getBase = useChatApiBase();
+    return useCallback(
+        (projectUuid: string, agentUuid: string | undefined) =>
+            `${getBase(projectUuid, agentUuid)}/artifacts`,
+        [getBase],
     );
 };
 
 /** False in a chat with its own endpoints: it has no agent settings, skills or MCP servers to read. */
 export const useChatReadsItsAgent = () =>
-    useContext(ChatThreadsUrlContext) === null;
+    useContext(ChatApiBaseContext) === null;
