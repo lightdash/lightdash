@@ -9,6 +9,7 @@ import {
     NotFoundError,
     ParameterError,
     ProjectType,
+    type AiAgentSummary,
     type CompileSemanticStudioBranchPayload,
     type Explore,
     type ExploreError,
@@ -34,6 +35,7 @@ import { type JobModel } from '../../../models/JobModel/JobModel';
 import { BaseService } from '../../../services/BaseService';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
 import { startStepTimings } from '../../../utils/stepTimings';
+import { type AiAgentModel } from '../../models/AiAgentModel';
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
 import {
     type AgentTurnSetup,
@@ -118,6 +120,20 @@ export type SemanticStudioCheckoutServiceArguments = {
         IncrementalDbtCompileService,
         'checkDbtScriptChange' | 'getDbtProjectMap'
     >;
+    aiAgentModel: Pick<AiAgentModel, 'getOrCreateSemanticStudioAgent'>;
+    ai: {
+        /** Whether AI is on for the person's organization, and whether an admin has hidden it. */
+        getAvailability: (user: SessionUser) => Promise<{
+            isCopilotEnabled: boolean;
+            isTrial: boolean;
+            aiAgentsVisible: boolean;
+        }>;
+        /** Whether the organization has a model the builder can run on. */
+        hasModel: (
+            organizationUuid: string,
+            projectUuid: string,
+        ) => Promise<boolean>;
+    };
 };
 
 const NOT_YOUR_CHANGE =
@@ -187,6 +203,10 @@ export class SemanticStudioCheckoutService extends BaseService {
 
     private readonly incrementalDbtCompile: SemanticStudioCheckoutServiceArguments['incrementalDbtCompile'];
 
+    private readonly aiAgentModel: SemanticStudioCheckoutServiceArguments['aiAgentModel'];
+
+    private readonly ai: SemanticStudioCheckoutServiceArguments['ai'];
+
     constructor(args: SemanticStudioCheckoutServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -200,6 +220,8 @@ export class SemanticStudioCheckoutService extends BaseService {
         this.writebackPreviewService = args.writebackPreviewService;
         this.aiWritebackService = args.aiWritebackService;
         this.incrementalDbtCompile = args.incrementalDbtCompile;
+        this.aiAgentModel = args.aiAgentModel;
+        this.ai = args.ai;
     }
 
     private track(
@@ -476,6 +498,43 @@ export class SemanticStudioCheckoutService extends BaseService {
                 () => this.incrementalDbtCompile.getDbtProjectMap(projectUuid),
             ),
         );
+    }
+
+    /** The built-in agent behind this project's Studio chat, created the first time someone who can use Studio asks for it. */
+    async getBuilderAgent(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AiAgentSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        await this.assertAiIsLive(user, organizationUuid, projectUuid);
+        await this.studio.assertCanUseStudio(user, projectUuid);
+        return this.aiAgentModel.getOrCreateSemanticStudioAgent({
+            organizationUuid,
+            projectUuid,
+        });
+    }
+
+    /** AI is on for the organization, an admin has not hidden it, and there is a model to run on. */
+    private async assertAiIsLive(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+    ): Promise<void> {
+        const ai = await this.ai.getAvailability(user);
+        if (!ai.isCopilotEnabled && !ai.isTrial) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+        if (!ai.aiAgentsVisible) {
+            throw new ForbiddenError('AI is turned off for this organization');
+        }
+        if (!(await this.ai.hasModel(organizationUuid, projectUuid))) {
+            throw new ForbiddenError(
+                'No AI model is configured for this organization',
+            );
+        }
     }
 
     /**
