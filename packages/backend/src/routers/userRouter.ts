@@ -2,6 +2,7 @@ import express, { type Router } from 'express';
 import {
     isAuthenticated,
     unauthorisedInDemo,
+    unauthorisedWhileImpersonating,
 } from '../controllers/authentication';
 
 export const userRouter: Router = express.Router();
@@ -41,6 +42,7 @@ userRouter.post(
     '/password',
     isAuthenticated,
     unauthorisedInDemo,
+    unauthorisedWhileImpersonating,
     async (req, res, next) =>
         req.services
             .getUserService()
@@ -90,6 +92,7 @@ userRouter.delete(
     '/identity',
     isAuthenticated,
     unauthorisedInDemo,
+    unauthorisedWhileImpersonating,
     async (req, res, next) => {
         req.services
             .getUserService()
