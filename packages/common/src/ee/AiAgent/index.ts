@@ -166,6 +166,8 @@ export const baseAgentSchema = z.object({
     organizationUuid: z.string(),
 
     name: z.string(),
+    // 'semantic_studio' is the built-in agent behind Semantic Studio's chat.
+    kind: z.enum(['user', 'semantic_studio']),
     description: z.string().nullable(),
     imageUrl: z.string().url().nullable(),
     imageUrlSource: z.enum(['upload', 'url']).nullable(),
@@ -233,6 +235,7 @@ export type AiAgent = Pick<
     | 'integrations'
     | 'tags'
     | 'name'
+    | 'kind'
     | 'description'
     | 'createdAt'
     | 'updatedAt'
@@ -261,6 +264,7 @@ export type AiAgentSummary = Pick<
     AiAgent,
     | 'uuid'
     | 'name'
+    | 'kind'
     | 'description'
     | 'integrations'
     | 'tags'
