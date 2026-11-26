@@ -1,5 +1,6 @@
 import { OpenIdIdentityIssuerType, SEED_ORG_1_ADMIN } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
+import { createRequire } from 'node:module';
 import { UserOAuthGrantsTableName } from '../../database/entities/userOAuthGrants';
 import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -100,7 +101,9 @@ async function main(): Promise<string | undefined> {
     }
 
     const { lightdashConfig } = await import('../../config/lightdashConfig');
-    const { default: knexConfig } = await import('../../knexfile');
+    const { default: knexConfig } = createRequire(__filename)(
+        '../../knexfile',
+    ) as typeof import('../../knexfile');
     const database = knex(knexConfig.development);
     const encryptionUtil = new EncryptionUtil({ lightdashConfig });
     const model = new UserOAuthGrantsModel({
