@@ -51,7 +51,6 @@
         "@shopify/react-web-worker": "5.0.13",
         "@tabler/icons-react": "3.50.0",
         "@tanstack/react-query": "4.36.1",
-        "@tanstack/react-query-devtools": "4.36.1",
         "@tanstack/react-table": "8.21.3",
         "@tanstack/react-virtual": "3.13.19",
         "@tiptap/extension-image": "3.30.5",

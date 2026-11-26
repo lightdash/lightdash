@@ -113,8 +113,6 @@ export default defineConfig(({ mode }) => {
         define: {
             __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
             __SDK_VERSION__: JSON.stringify(sdkPackageJson.version),
-            REACT_QUERY_DEVTOOLS_ENABLED:
-                process.env.REACT_QUERY_DEVTOOLS_ENABLED ?? false,
         },
     };
 });

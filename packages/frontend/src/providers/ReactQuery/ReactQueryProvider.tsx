@@ -1,5 +1,4 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useRef, useState, type FC, type PropsWithChildren } from 'react';
 import {
     createQueryClient,
@@ -21,9 +20,6 @@ const ReactQueryProvider: FC<
     return (
         <QueryClientProvider client={queryClient}>
             {children}
-            {import.meta.env.DEV && REACT_QUERY_DEVTOOLS_ENABLED && (
-                <ReactQueryDevtools initialIsOpen={false} />
-            )}
         </QueryClientProvider>
     );
 };

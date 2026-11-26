@@ -21,8 +21,6 @@ export default defineConfig({
     publicDir: 'public',
     define: {
         __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
-        REACT_QUERY_DEVTOOLS_ENABLED:
-            process.env.REACT_QUERY_DEVTOOLS_ENABLED ?? true,
     },
     plugins: [
         buildHashPlugin(),
@@ -145,9 +143,6 @@ export default defineConfig({
         // Files that rely on jsdom behaviour opt back in with `// @vitest-environment jsdom`.
         environment: 'happy-dom',
         setupFiles: './src/testing/vitest.setup.ts',
-        env: {
-            VITE_REACT_QUERY_DEVTOOLS_ENABLED: 'false',
-        },
         maxWorkers: '50%',
         // What `--changed` treats as changed, and the files that make it run everything.
         experimental: {
