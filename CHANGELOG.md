@@ -1,3 +1,10 @@
+## [3.411.6](https://github.com/lightdash/lightdash/compare/3.411.5...3.411.6) (2026-11-26)
+
+
+### Bug Fixes
+
+* grouped tables scroll by themselves, lose the cell menu and hide the footer border ([#33461](https://github.com/lightdash/lightdash/issues/33461)) ([be847cf](https://github.com/lightdash/lightdash/commit/be847cf1d7d9b48a77917c559be5d1304ae5a3df)), closes [#33427](https://github.com/lightdash/lightdash/issues/33427) [#33427](https://github.com/lightdash/lightdash/issues/33427) [#33427](https://github.com/lightdash/lightdash/issues/33427) [#33427](https://github.com/lightdash/lightdash/issues/33427)
+
 ## [3.411.5](https://github.com/lightdash/lightdash/compare/3.411.4...3.411.5) (2026-11-26)
 
 
