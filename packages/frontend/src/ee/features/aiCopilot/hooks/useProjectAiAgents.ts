@@ -71,6 +71,7 @@ import { requestSqlApprovalNotificationPermission } from '../utils/sqlApprovalNo
 import { getAiAgentApiBase, getAiAgentPageBase } from './aiAgentRouting';
 import {
     useChatArtifactsUrl,
+    useChatReadsAgent,
     useChatReadsItsAgent,
     useChatThreadsUrl,
 } from './chatEndpoints';
@@ -158,7 +159,7 @@ export const useProjectAiAgent = (
     agentUuid: string | undefined,
 ) => {
     const lightdashApi = useLightdashApi();
-    const readsItsAgent = useChatReadsItsAgent();
+    const readsAgent = useChatReadsAgent(agentUuid);
 
     const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
@@ -179,7 +180,7 @@ export const useProjectAiAgent = (
                 });
             }
         },
-        enabled: !!projectUuid && !!agentUuid && readsItsAgent,
+        enabled: !!projectUuid && !!agentUuid && readsAgent,
         retry: (failureCount, error) => {
             // Don't retry permission errors
             if (error.error?.statusCode === 403) {
@@ -894,6 +895,7 @@ export const useAiAgentThread = (
 ) => {
     const lightdashApi = useLightdashApi();
     const getThreadsUrl = useChatThreadsUrl();
+    const readsItsAgent = useChatReadsItsAgent();
 
     const isEmbed = useIsEmbedded();
     const { showToastApiError } = useToaster();
@@ -909,6 +911,8 @@ export const useAiAgentThread = (
             );
         },
         onError: (error) => {
+            // A chat with its own endpoints handles its thread's errors itself and stays on its page.
+            if (!readsItsAgent) return;
             if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
                     `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,
