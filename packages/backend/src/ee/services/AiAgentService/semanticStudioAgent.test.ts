@@ -1,90 +1,74 @@
-import {
-    ForbiddenError,
-    NotFoundError,
-    type SessionUser,
-} from '@lightdash/common';
+import { NotFoundError } from '@lightdash/common';
+import { defaultSessionUser as user } from '../../../auth/account/account.mock';
 import { AiAgentService } from './AiAgentService';
 
-const organizationUuid = 'organization-uuid';
+const { organizationUuid } = user;
 const projectUuid = 'project-uuid';
 const agentUuid = 'studio-agent-uuid';
-const studioAgent = {
-    uuid: agentUuid,
-    projectUuid,
-    organizationUuid,
-    kind: 'semantic_studio',
-};
 
-const user: Pick<SessionUser, 'organizationUuid' | 'userUuid'> = {
-    organizationUuid,
-    userUuid: 'user-uuid',
-};
-
-const buildService = ({ studioEnabled }: { studioEnabled: boolean }) => {
+const buildService = () => {
     const aiAgentModel = {
-        getAgent: vi.fn(async (_args: unknown) => studioAgent),
+        getAgent: vi.fn(async (_args: unknown) => ({
+            uuid: agentUuid,
+            projectUuid,
+            organizationUuid,
+        })),
         createWebAppThread: vi.fn(),
-        deleteAgent: vi.fn(),
     };
     const service: AiAgentService = Object.assign(
         Object.create(AiAgentService.prototype),
         {
             aiAgentModel,
-            semanticStudioService: {
-                getStatus: vi.fn(async () => ({ enabled: studioEnabled })),
-                assertCanUseStudio: vi.fn(async () => {
-                    if (!studioEnabled) throw new ForbiddenError();
-                }),
-            },
             getIsCopilotEnabled: vi.fn(async () => true),
-            createAuditedAbility: () => ({ cannot: () => false }),
             checkAgentAccess: vi.fn(async () => true),
-            getAgent: vi.fn(async () => studioAgent),
         },
     );
     return { service, aiAgentModel };
 };
 
-describe('built-in Semantic Studio agent', () => {
-    it('refuses a thread that is not a Studio one', async () => {
-        const { service, aiAgentModel } = buildService({ studioEnabled: true });
+describe('an agent that is not one people made', () => {
+    it('is not asked for by an agent route, so the model leaves it out', async () => {
+        const { service, aiAgentModel } = buildService();
 
-        await expect(
-            service.createAgentThread(user as SessionUser, agentUuid, {
-                prompt: 'How many orders last week?',
-            }),
-        ).rejects.toThrow(ForbiddenError);
-        expect(aiAgentModel.createWebAppThread).not.toHaveBeenCalled();
-    });
+        await service.getAgent(user, agentUuid, projectUuid);
 
-    // The service's own lookup, without the stub the other tests stand on.
-    const lookUp = (service: AiAgentService, includeBuiltIn: boolean) =>
-        AiAgentService.prototype.getAgent.call(
-            service,
-            user as SessionUser,
+        expect(aiAgentModel.getAgent).toHaveBeenCalledWith({
+            organizationUuid,
             agentUuid,
             projectUuid,
-            { includeBuiltIn },
-        );
+        });
+    });
 
-    it('does not exist for anything outside Studio that looks an agent up', async () => {
-        const { service, aiAgentModel } = buildService({ studioEnabled: true });
-        aiAgentModel.getAgent.mockRejectedValueOnce(
+    it('answers not found on an agent route, and starts no thread', async () => {
+        const { service, aiAgentModel } = buildService();
+        aiAgentModel.getAgent.mockRejectedValue(
             new NotFoundError('AI agent not found'),
         );
 
-        await expect(lookUp(service, false)).rejects.toThrow(NotFoundError);
-        expect(aiAgentModel.getAgent).toHaveBeenCalledWith(
-            expect.objectContaining({ agentKind: 'user' }),
-        );
+        await expect(
+            service.getAgent(user, agentUuid, projectUuid),
+        ).rejects.toThrow(NotFoundError);
+        await expect(
+            service.createAgentThread(user, agentUuid, {
+                prompt: 'How many orders last week?',
+            }),
+        ).rejects.toThrow(NotFoundError);
+        expect(aiAgentModel.createWebAppThread).not.toHaveBeenCalled();
     });
 
-    it('is found by the reads a chat screen makes', async () => {
-        const { service, aiAgentModel } = buildService({ studioEnabled: true });
+    it("is still found by a turn, which runs on its thread's agent", async () => {
+        const { service, aiAgentModel } = buildService();
 
-        await expect(lookUp(service, true)).resolves.toBe(studioAgent);
-        expect(aiAgentModel.getAgent).toHaveBeenCalledWith(
-            expect.not.objectContaining({ agentKind: 'user' }),
+        await Reflect.get(AiAgentService.prototype, 'getAgentForPrompt').call(
+            service,
+            organizationUuid,
+            { agentUuid },
         );
+
+        expect(aiAgentModel.getAgent).toHaveBeenCalledWith({
+            organizationUuid,
+            agentUuid,
+            agentKind: 'any',
+        });
     });
 });

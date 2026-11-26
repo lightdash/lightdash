@@ -729,6 +729,8 @@ export class AiAgentAdminService extends BaseService {
             ? await this.aiAgentModel.getAgent({
                   organizationUuid,
                   agentUuid: data.thread.agentUuid,
+                  // The dump is of a thread, whichever kind of agent it ran on.
+                  agentKind: 'any',
               })
             : null;
 
