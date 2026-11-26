@@ -356,7 +356,7 @@ const Probe = () => {
 };
 
 const DASHBOARD_PATH = `/projects/${PROJECT_UUID}/dashboards/${DASHBOARD_UUID}`;
-// Save and cancel return to the slug URL, which remounts the provider
+// Cancel returns to the slug URL, which remounts the provider
 const SLUG_PATH = `/projects/${PROJECT_UUID}/dashboards/payments`;
 
 const renderDashboard = (path: string) => {
@@ -496,7 +496,7 @@ describe('edit lifecycle: layout edits and save', () => {
             parameters: {},
         });
 
-        await waitFor(() => expect(url()).toBe(`${SLUG_PATH}/view`));
+        await waitFor(() => expect(url()).toBe(`${DASHBOARD_PATH}/view`));
         await waitFor(() => expect(changed()).toBe('false'));
     });
 
@@ -533,7 +533,7 @@ describe('edit lifecycle: layout edits and save', () => {
         await click('Save');
         await waitFor(() => expect(patches()).toHaveLength(2));
         expect(patches()[1]).toEqual(patches()[0]);
-        await waitFor(() => expect(url()).toBe(`${SLUG_PATH}/view`));
+        await waitFor(() => expect(url()).toBe(`${DASHBOARD_PATH}/view`));
     });
 
     it('takes tiles from the save response when the server rewrites them', async () => {
@@ -650,7 +650,9 @@ describe('edit lifecycle: tabs', () => {
             { uuid: 'tab-a', name: 'A', order: 0 },
             { uuid: 'tab-b', name: 'B', order: 1 },
         ]);
-        await waitFor(() => expect(url()).toBe(`${SLUG_PATH}/view/tabs/tab-b`));
+        await waitFor(() =>
+            expect(url()).toBe(`${DASHBOARD_PATH}/view/tabs/tab-b`),
+        );
     });
 
     it('falls back to the first visible tab in view mode', async () => {

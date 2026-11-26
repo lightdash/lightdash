@@ -181,7 +181,11 @@ const Dashboard: FC = () => {
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardUuid = dashboard?.uuid;
-    const dashboardIdentifier = dashboard?.slug ?? routeDashboardIdentifier;
+    // The URL's uuid keys the cached dashboard: swapping it for the slug reloads every tile
+    const dashboardIdentifier =
+        routeDashboardIdentifier === dashboardUuid
+            ? routeDashboardIdentifier
+            : (dashboard?.slug ?? routeDashboardIdentifier);
     const { mutate: reopenDraft, isLoading: isReopeningDraft } =
         useReopenDraftMutation(projectUuid);
     const { mutate: rebaseDraft, isLoading: isRebasingDraft } =
@@ -769,20 +773,20 @@ const Dashboard: FC = () => {
         setHasParameterOrderChanged(false);
         resetControlDrafts(dashboard.config);
 
+        // On a uuid URL the remount this causes discards every unsaved draft
         if (dashboardTabs.length > 0) {
             void navigate(
-                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/view/tabs/${activeTab?.uuid}`,
                 { replace: true },
             );
         } else {
             void navigate(
-                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/view`,
                 { replace: true },
             );
         }
     }, [
         dashboard,
-        dashboardIdentifier,
         navigate,
         projectUrlIdentifier,
         setDashboardTiles,
@@ -966,7 +970,7 @@ const Dashboard: FC = () => {
                 projectUuid,
                 projectSlug: projectUrlIdentifier,
                 dashboardUuid,
-                dashboardSlug: dashboardIdentifier,
+                dashboardSlug: dashboard?.slug,
             }) &&
             // Allow user to add a new table
             (nextLocation.state?.saveDashboardBeforeChartEdit === true ||
