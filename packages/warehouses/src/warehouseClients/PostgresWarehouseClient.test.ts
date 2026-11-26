@@ -718,25 +718,63 @@ describe('PostgresWarehouseClient statement timeout', () => {
         };
         const timeoutMessage =
             "Query timed out after 300s. This limit is the timeout in the project's warehouse connection settings";
+        const likelyTimeoutMessage =
+            "Query was cancelled after running for 300s. This is likely the timeout in the project's warehouse connection settings";
 
         it.each([
-            ["Query cancelled on user's request", '57014'],
-            // Matched on the wording alone when the driver gives no code
-            ["Query (1234) cancelled on user's request", undefined],
-            ['canceling statement due to statement timeout', '57014'],
+            // Redshift words a timeout like a manual cancel, so it is qualified
+            [
+                "Query cancelled on user's request",
+                '57014',
+                likelyTimeoutMessage,
+            ],
+            [
+                "Query (1234) cancelled on user's request",
+                undefined,
+                likelyTimeoutMessage,
+            ],
+            // Postgres states the reason, so it is reported as fact
+            [
+                'canceling statement due to statement timeout',
+                '57014',
+                timeoutMessage,
+            ],
         ])(
-            'reports "%s" at the statement timeout as a timeout',
-            async (message, code) => {
+            'rewords "%s" at the statement timeout',
+            async (message, code, expected) => {
                 const error = await runWithTimeout(
                     cancelAfter(300 * 1000, message, code),
                     300 * 1000,
                 );
 
                 expect(error).toBeInstanceOf(WarehouseQueryError);
-                expect(error.message).toBe(timeoutMessage);
+                expect(error.message).toBe(expected);
                 expect((error.cause as Error).message).toBe(message);
             },
         );
+
+        it('reports a Postgres statement timeout whenever the warehouse says so', async () => {
+            const error = await runWithTimeout(
+                cancelAfter(
+                    60 * 1000,
+                    'canceling statement due to statement timeout',
+                    '57014',
+                ),
+                60 * 1000,
+            );
+
+            expect(error.message).toBe(timeoutMessage);
+        });
+
+        it('keeps a Postgres user cancellation that arrives after the timeout', async () => {
+            const message = 'canceling statement due to user request';
+            const error = await runWithTimeout(
+                cancelAfter(301 * 1000, message, '57014'),
+                301 * 1000,
+            );
+
+            expect(error.message).toBe(message);
+        });
 
         it('keeps the warehouse message for a cancellation before the timeout', async () => {
             const message = "Query cancelled on user's request";

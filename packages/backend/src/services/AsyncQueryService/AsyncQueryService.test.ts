@@ -33393,6 +33393,8 @@ describe('query polling timeout', () => {
     const fiveMinutes = 5 * 60 * 1000;
     const timeoutMessage =
         'Timed out after 300s waiting for the query to finish';
+    const scheduledDeliveryTimeoutMessage =
+        'Query did not finish within 300s, the query time limit for scheduled deliveries';
     const fastPolling = { initialBackoffMs: 1, maxBackoffMs: 1 };
     const savedChartArgs = {
         account: sessionAccount,
@@ -33626,7 +33628,7 @@ describe('query polling timeout', () => {
                     savedChartArgs,
                     schedulerOptions(fiveMinutes),
                 ),
-            ).rejects.toThrow(timeoutMessage);
+            ).rejects.toThrow(scheduledDeliveryTimeoutMessage);
             expect(f.row.status).toBe(QueryHistoryStatus.CANCELLED);
             expect(f.executeAsyncSavedChartQuery).toHaveBeenCalledOnce();
             expect(f.poll).toHaveBeenCalledOnce();
@@ -33669,7 +33671,7 @@ describe('query polling timeout', () => {
                         lightdashConfigMock.scheduler.queryPollingTimeout,
                     ),
                 ),
-            ).rejects.toThrow(timeoutMessage);
+            ).rejects.toThrow(scheduledDeliveryTimeoutMessage);
             expect(f.row.status).toBe(QueryHistoryStatus.CANCELLED);
         } finally {
             await f.cleanup();

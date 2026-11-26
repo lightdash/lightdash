@@ -51,6 +51,7 @@ import {
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import KnexPaginate from '../../database/pagination';
+import type { QueryPollingSource } from '../../services/AsyncQueryService/queryPollingSource';
 import type {
     ResultsCacheContextStatsRow,
     ResultsCacheRecommendationRow,
@@ -171,9 +172,13 @@ export function getQueryHistoryRequestColumns(
 export class QueryPollingTimeoutError extends Error {
     readonly timeoutMs: number;
 
-    constructor(timeoutMs: number) {
+    // `source` names whose limit ran out, so the reader knows which setting applies
+    constructor(timeoutMs: number, source: QueryPollingSource = 'other') {
+        const seconds = Math.round(timeoutMs / 1000);
         super(
-            `Timed out after ${Math.round(timeoutMs / 1000)}s waiting for the query to finish`,
+            source === 'scheduler'
+                ? `Query did not finish within ${seconds}s, the query time limit for scheduled deliveries`
+                : `Timed out after ${seconds}s waiting for the query to finish`,
         );
         this.timeoutMs = timeoutMs;
     }

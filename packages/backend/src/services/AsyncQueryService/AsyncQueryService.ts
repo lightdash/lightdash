@@ -17217,6 +17217,7 @@ export class AsyncQueryService extends ProjectService {
                     projectUuid,
                     queryUuid,
                 });
+                throw new QueryPollingTimeoutError(error.timeoutMs, source);
             }
             throw error;
         }
