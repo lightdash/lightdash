@@ -256,15 +256,6 @@
     cursor: pointer;
 }
 
-.withLineClamp {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: var(--lt-line-clamp);
-    line-clamp: var(--lt-line-clamp);
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
 .withInteractions:hover,
 .withInteractions[data-is-selected='true'] {
     background-color: var(--lt-selected-bg);

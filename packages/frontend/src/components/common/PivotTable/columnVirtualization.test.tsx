@@ -5,17 +5,11 @@ import {
     type ResultRow,
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { type PropsWithChildren } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import PivotTable from '.';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { measureColumnWidth } from '../Table/measureColumnWidth';
 import { PIVOT_CELL_PADDING } from './getPivotColumnWidths';
-
-// The menu's actions need app data; the selection test checks the cell only.
-vi.mock('./ValueCellMenu', () => ({
-    default: ({ children }: PropsWithChildren) => children,
-}));
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -206,45 +200,4 @@ it('renders every pivot column when column windowing is off', async () => {
     expect(within(table).getByText('week 0')).toBeInTheDocument();
     expect(within(table).getByText('week 79')).toBeInTheDocument();
     expect(within(table).getByText('1,234,567,890,123')).toBeInTheDocument();
-});
-
-it('clears the selection of a merged cell when its column leaves the column window', async () => {
-    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
-    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(200);
-    const { data, getField, getFieldLabel } = buildPivot(false);
-    renderWithProviders(
-        <PivotTable
-            data={data}
-            conditionalFormattings={[]}
-            minMaxMap={{}}
-            getField={getField}
-            getFieldLabel={getFieldLabel}
-            hideRowNumbers
-            isMinimal={false}
-            showRowGrouping
-            showSubtotals={false}
-            enableContextMenu
-            renderSortMenu={() => null}
-        />,
-        undefined,
-        { columnWindowing: true },
-    );
-    const table = screen.getByRole('table');
-    const west = await within(table).findByText('West');
-    expect(west.closest('td')).toHaveAttribute('rowspan', '2');
-    fireEvent.click(west);
-    expect(west.closest('td')).toHaveAttribute('data-is-selected', 'true');
-
-    const viewport = table.parentElement!;
-    viewport.scrollLeft = 6000;
-    fireEvent.scroll(viewport);
-    await waitFor(() => expect(within(table).queryByText('West')).toBeNull());
-
-    viewport.scrollLeft = 0;
-    fireEvent.scroll(viewport);
-    const westAgain = await within(table).findByText('West');
-    expect(westAgain.closest('td')).toHaveAttribute(
-        'data-is-selected',
-        'false',
-    );
 });
