@@ -1,3 +1,10 @@
+## [3.415.3](https://github.com/lightdash/lightdash/compare/3.415.2...3.415.3) (2026-11-26)
+
+
+### Bug Fixes
+
+* **mcp:** record the tool names that tools/list serves ([#33480](https://github.com/lightdash/lightdash/issues/33480)) ([1c8e121](https://github.com/lightdash/lightdash/commit/1c8e1219d3d9394998b78d058b98753e673f3f48))
+
 ## [3.415.2](https://github.com/lightdash/lightdash/compare/3.415.1...3.415.2) (2026-11-26)
 
 
