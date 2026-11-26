@@ -378,7 +378,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         exploreName: z
             .string()
             .describe(
-                'The explore to run the metric query against. Query each explore with one semanticLayer node.',
+                `The explore to run the metric query against. ${COMPOSER_RULES.oneNodePerExplore}`,
             ),
         dimensions: z
             .array(z.string())
@@ -426,7 +426,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         sql: z
             .string()
             .describe(
-                "A SELECT or WITH statement in the warehouse's SQL dialect. Explores are governed and reusable, so use a sql node only when the user asks for SQL or names a warehouse table, or no explore can produce the result.",
+                `A SELECT or WITH statement in the warehouse's SQL dialect. ${COMPOSER_RULES.sqlNode}`,
             ),
         limit: limitSchema,
     });

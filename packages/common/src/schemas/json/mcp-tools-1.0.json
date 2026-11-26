@@ -3803,7 +3803,7 @@
                                             "type": "string"
                                         },
                                         "sql": {
-                                            "description": "A SELECT or WITH statement in the warehouse's SQL dialect. Explores are governed and reusable, so use a sql node only when the user asks for SQL or names a warehouse table, or no explore can produce the result.",
+                                            "description": "A SELECT or WITH statement in the warehouse's SQL dialect. Explores are governed and reusable, so use a `sql` node only when the user points you at a raw table or asks for SQL, or when the semantic layer cannot produce the result: a table outside every explore, a join key no explore exposes as a dimension, a computation whose row-level inputs would exceed a node's row limit, or warehouse-specific syntax.",
                                             "type": "string"
                                         },
                                         "title": {
