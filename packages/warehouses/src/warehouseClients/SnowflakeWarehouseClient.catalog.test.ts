@@ -1,9 +1,6 @@
 import { DimensionType, WarehouseConnectionError } from '@lightdash/common';
 import { createConnection, type ConnectionOptions } from 'snowflake-sdk';
-import {
-    getTransientNetworkErrorCode,
-    SnowflakeWarehouseClient,
-} from './SnowflakeWarehouseClient';
+import { SnowflakeWarehouseClient } from './SnowflakeWarehouseClient';
 import { credentials } from './SnowflakeWarehouseClient.mock';
 
 vi.mock('snowflake-sdk', async () => ({
@@ -84,19 +81,8 @@ const request = (schema: string, table: string) => ({
     table,
 });
 
-const catalogEvents = (
-    spy: ReturnType<typeof vi.spyOn>,
-    event: string,
-): Record<string, unknown>[] =>
-    spy.mock.calls
-        .map(([line]: unknown[]) => {
-            try {
-                return JSON.parse(String(line)) as Record<string, unknown>;
-            } catch {
-                return {};
-            }
-        })
-        .filter((payload: Record<string, unknown>) => payload.event === event);
+const summary = (spy: ReturnType<typeof vi.spyOn>) =>
+    JSON.parse(String(spy.mock.calls.at(-1)?.[0])) as Record<string, unknown>;
 
 // Runs the fetch while flushing retry backoff timers.
 const fetchCatalog = async (
@@ -110,18 +96,18 @@ const fetchCatalog = async (
     return promise;
 };
 
+const resetLogin = () => ({
+    connect: vi.fn((callback) => callback(new Error('read ECONNRESET'))),
+});
+
 describe('SnowflakeWarehouseClient.getCatalog', () => {
     let infoSpy: ReturnType<typeof vi.spyOn>;
-    let warnSpy: ReturnType<typeof vi.spyOn>;
-    let errorSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
         vi.useFakeTimers();
         connections.length = 0;
         infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
-        warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        vi.spyOn(console, 'debug').mockImplementation(() => {});
+        vi.spyOn(console, 'error').mockImplementation(() => {});
     });
 
     afterEach(() => {
@@ -137,10 +123,8 @@ describe('SnowflakeWarehouseClient.getCatalog', () => {
             request('A', 'T2'),
             request('B', 'T3'),
             request('A', 'T4'),
-            request('B', 'T5'),
         ]);
 
-        expect(connections).toHaveLength(2);
         expect(
             connections.map(({ options }) => [
                 options.database,
@@ -151,7 +135,7 @@ describe('SnowflakeWarehouseClient.getCatalog', () => {
             ['DB', 'B'],
         ]);
         expect(connections[0].execute).toHaveBeenCalledTimes(3);
-        expect(connections[1].execute).toHaveBeenCalledTimes(2);
+        expect(connections[1].execute).toHaveBeenCalledTimes(1);
         connections.forEach((connection) =>
             expect(connection.destroy).toHaveBeenCalledOnce(),
         );
@@ -162,142 +146,56 @@ describe('SnowflakeWarehouseClient.getCatalog', () => {
                     T2: { ID: DimensionType.NUMBER },
                     T4: { ID: DimensionType.NUMBER },
                 },
-                B: {
-                    T3: { ID: DimensionType.NUMBER },
-                    T5: { ID: DimensionType.NUMBER },
-                },
+                B: { T3: { ID: DimensionType.NUMBER } },
             },
         });
-        expect(catalogEvents(infoSpy, 'warehouse.getCatalog')).toEqual([
-            expect.objectContaining({
-                status: 'success',
-                warehouse: 'snowflake',
-                requestedTables: 5,
-                schemas: 2,
-                respondedTables: 5,
-                connectionsOpened: 2,
-                connectionRetries: 0,
-                queryRetries: 0,
-                failedTables: 0,
-                skippedSchemas: 0,
-                transientErrors: {},
-            }),
-        ]);
-    });
-
-    it('limits concurrent statements per connection', async () => {
-        let inFlight = 0;
-        let maxInFlight = 0;
-        mockConnections((connection) => ({
-            execute: vi.fn((args: ExecuteArgs) => {
-                inFlight += 1;
-                maxInFlight = Math.max(maxInFlight, inFlight);
-                setTimeout(() => {
-                    inFlight -= 1;
-                    succeed(connection.options, args);
-                }, 10);
-            }),
-        }));
-        const catalog = await fetchCatalog(
-            Array.from({ length: 40 }, (_, i) => request('A', `T${i}`)),
-        );
-        expect(Object.keys(catalog.DB.A)).toHaveLength(40);
-        expect(connections).toHaveLength(1);
-        expect(maxInFlight).toBe(8);
+        expect(summary(infoSpy)).toMatchObject({
+            event: 'warehouse.getCatalog',
+            requestedTables: 4,
+            respondedTables: 4,
+            schemas: 2,
+            skippedSchemas: 0,
+            loginRetries: 0,
+        });
     });
 
     it('retries a login that hits a connection reset', async () => {
-        mockConnections((_, index) =>
-            index === 0
-                ? {
-                      connect: vi.fn((callback) =>
-                          callback(new Error('read ECONNRESET')),
-                      ),
-                  }
-                : {},
-        );
+        mockConnections((_, index) => (index === 0 ? resetLogin() : {}));
         const catalog = await fetchCatalog([request('A', 'T1')]);
 
         expect(connections).toHaveLength(2);
         expect(catalog.DB.A.T1).toEqual({ ID: DimensionType.NUMBER });
-        expect(
-            catalogEvents(warnSpy, 'warehouse.getCatalog.connectionRetry'),
-        ).toEqual([
-            expect.objectContaining({
-                database: 'DB',
-                schema: 'A',
-                attempt: 1,
-                errorCode: 'ECONNRESET',
-            }),
-        ]);
-        expect(catalogEvents(infoSpy, 'warehouse.getCatalog')).toEqual([
-            expect.objectContaining({
-                status: 'success',
-                connectionAttempts: 2,
-                connectionsOpened: 1,
-                connectionRetries: 1,
-                transientErrors: { ECONNRESET: 1 },
-            }),
-        ]);
+        expect(summary(infoSpy)).toMatchObject({
+            loginRetries: 1,
+            skippedSchemas: 0,
+        });
     });
 
     it('skips only the schema whose login keeps resetting', async () => {
         mockConnections((connection) =>
-            connection.options.schema === 'BAD'
-                ? {
-                      connect: vi.fn((callback) =>
-                          callback(new Error('read ECONNRESET')),
-                      ),
-                  }
-                : {},
+            connection.options.schema === 'BAD' ? resetLogin() : {},
         );
         const catalog = await fetchCatalog([
             request('BAD', 'T1'),
-            request('BAD', 'T2'),
-            request('GOOD', 'T3'),
+            request('GOOD', 'T2'),
         ]);
 
         expect(catalog).toMatchObject({
-            DB: { GOOD: { T3: { ID: DimensionType.NUMBER } } },
+            DB: { GOOD: { T2: { ID: DimensionType.NUMBER } } },
         });
         expect(catalog.DB.BAD).toBeUndefined();
-        expect(
-            catalogEvents(errorSpy, 'warehouse.getCatalog.schemaSkipped'),
-        ).toEqual([
-            expect.objectContaining({
-                schema: 'BAD',
-                tables: 2,
-                errorCode: 'ECONNRESET',
-            }),
-        ]);
-        expect(catalogEvents(warnSpy, 'warehouse.getCatalog')).toEqual([
-            expect.objectContaining({
-                status: 'partial',
-                respondedTables: 1,
-                skippedSchemas: 1,
-                skippedTables: 2,
-                connectionAttempts: 4,
-                transientErrors: { ECONNRESET: 3 },
-            }),
-        ]);
+        expect(connections).toHaveLength(4);
+        expect(summary(infoSpy)).toMatchObject({
+            respondedTables: 1,
+            skippedSchemas: 1,
+        });
     });
 
     it('fails when every login is reset, so an empty catalog is never returned', async () => {
-        mockConnections(() => ({
-            connect: vi.fn((callback) =>
-                callback(new Error('read ECONNRESET')),
-            ),
-        }));
+        mockConnections(resetLogin);
         await expect(
             fetchCatalog([request('A', 'T1'), request('B', 'T2')]),
         ).rejects.toThrow(WarehouseConnectionError);
-        expect(catalogEvents(errorSpy, 'warehouse.getCatalog')).toEqual([
-            expect.objectContaining({
-                status: 'failed',
-                skippedSchemas: 2,
-                errorCode: 'ECONNRESET',
-            }),
-        ]);
     });
 
     it('fails without retrying on a non-network login error', async () => {
@@ -312,66 +210,6 @@ describe('SnowflakeWarehouseClient.getCatalog', () => {
             'Incorrect username or password',
         );
         expect(connections).toHaveLength(1);
-        expect(catalogEvents(errorSpy, 'warehouse.getCatalog')).toEqual([
-            expect.objectContaining({ status: 'failed', errorCode: null }),
-        ]);
-    });
-
-    it('retries a statement that hits a connection reset on the same connection', async () => {
-        let calls = 0;
-        mockConnections((connection) => ({
-            execute: vi.fn((args: ExecuteArgs) => {
-                calls += 1;
-                if (calls === 1) {
-                    args.complete(new Error('read ECONNRESET'));
-                    return;
-                }
-                succeed(connection.options, args);
-            }),
-        }));
-        const catalog = await fetchCatalog([request('A', 'T1')]);
-
-        expect(connections).toHaveLength(1);
-        expect(catalog.DB.A.T1).toEqual({ ID: DimensionType.NUMBER });
-        expect(catalogEvents(infoSpy, 'warehouse.getCatalog')).toEqual([
-            expect.objectContaining({
-                status: 'success',
-                queryRetries: 1,
-                reconnects: 0,
-                transientErrors: { ECONNRESET: 1 },
-            }),
-        ]);
-    });
-
-    it('reconnects once when the shared connection goes down mid-fetch', async () => {
-        mockConnections((connection, index) =>
-            index === 0
-                ? {
-                      execute: vi.fn((args: ExecuteArgs) =>
-                          args.complete(new Error('socket hang up')),
-                      ),
-                      isUp: vi.fn(() => false),
-                  }
-                : {},
-        );
-        const catalog = await fetchCatalog([
-            request('A', 'T1'),
-            request('A', 'T2'),
-            request('A', 'T3'),
-        ]);
-
-        expect(connections).toHaveLength(2);
-        expect(connections[0].destroy).toHaveBeenCalledOnce();
-        expect(connections[1].destroy).toHaveBeenCalledOnce();
-        expect(Object.keys(catalog.DB.A).sort()).toEqual(['T1', 'T2', 'T3']);
-        expect(catalogEvents(infoSpy, 'warehouse.getCatalog')).toEqual([
-            expect.objectContaining({
-                status: 'success',
-                reconnects: 1,
-                queryRetries: 3,
-                connectionsOpened: 2,
-            }),
-        ]);
     });
 
     it('skips only the table whose query fails', async () => {
@@ -390,64 +228,9 @@ describe('SnowflakeWarehouseClient.getCatalog', () => {
         ]);
 
         expect(Object.keys(catalog.DB.A)).toEqual(['T1']);
-        expect(connections[0].execute).toHaveBeenCalledTimes(2);
-        expect(
-            catalogEvents(errorSpy, 'warehouse.getCatalog.tableFailed'),
-        ).toEqual([
-            expect.objectContaining({
-                schema: 'A',
-                table: 'GONE',
-                attempts: 1,
-                errorCode: null,
-            }),
-        ]);
-        expect(catalogEvents(warnSpy, 'warehouse.getCatalog')).toEqual([
-            expect.objectContaining({
-                status: 'partial',
-                failedTables: 1,
-                failedTableSamples: ['DB.A.GONE: Object does not exist'],
-            }),
-        ]);
-    });
-
-    it('logs progress during a long fetch', async () => {
-        mockConnections((connection) => ({
-            execute: vi.fn((args: ExecuteArgs) => {
-                setTimeout(() => succeed(connection.options, args), 20_000);
-            }),
-        }));
-        await fetchCatalog(
-            Array.from({ length: 24 }, (_, i) => request('A', `T${i}`)),
-        );
-        expect(catalogEvents(infoSpy, 'warehouse.getCatalog.progress')).toEqual(
-            [
-                expect.objectContaining({
-                    requestedTables: 24,
-                    completedTables: 9,
-                    elapsedMs: 40_000,
-                }),
-            ],
-        );
-    });
-});
-
-describe('getTransientNetworkErrorCode', () => {
-    it.each([
-        [new Error('read ECONNRESET'), 'ECONNRESET'],
-        [
-            new WarehouseConnectionError('Snowflake error: read ECONNRESET'),
-            'ECONNRESET',
-        ],
-        [new Error('connect ETIMEDOUT 10.0.0.1:443'), 'ETIMEDOUT'],
-        [new Error('socket hang up'), 'SOCKET_HANG_UP'],
-        [
-            new Error('Network error. Could not reach Snowflake.'),
-            'NETWORK_ERROR',
-        ],
-        [new Error('wrapped', { cause: new Error('write EPIPE') }), 'EPIPE'],
-        [new Error('Incorrect username or password was specified.'), null],
-        [new Error('SQL compilation error: Object does not exist'), null],
-    ])('classifies %s as %s', (error, expected) => {
-        expect(getTransientNetworkErrorCode(error)).toBe(expected);
+        expect(summary(infoSpy)).toMatchObject({
+            requestedTables: 2,
+            respondedTables: 1,
+        });
     });
 });

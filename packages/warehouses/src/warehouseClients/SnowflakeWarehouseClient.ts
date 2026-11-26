@@ -64,122 +64,12 @@ configure({
 // Catalog fetch: one connection per schema, capped at 12 x 8 statements in flight.
 const CATALOG_SCHEMA_CONCURRENCY = 12;
 const CATALOG_QUERIES_PER_CONNECTION = 8;
-const CATALOG_MAX_ATTEMPTS = 3;
-const CATALOG_RETRY_BASE_DELAY_MS = 500;
-const CATALOG_PROGRESS_LOG_INTERVAL_MS = 30_000;
-const CATALOG_ERROR_SAMPLE_SIZE = 5;
-
-const TRANSIENT_NETWORK_ERROR_PATTERN =
-    /ECONNRESET|ETIMEDOUT|ECONNREFUSED|ECONNABORTED|EPIPE|EAI_AGAIN|ENETUNREACH|EHOSTUNREACH|socket hang up|network error|request to snowflake failed/i;
-
-// Returns a label for errors worth retrying (resets, timeouts), or null.
-export const getTransientNetworkErrorCode = (error: unknown): string | null => {
-    const match = getErrorMessage(error).match(TRANSIENT_NETWORK_ERROR_PATTERN);
-    if (match) return match[0].toUpperCase().replace(/\s+/g, '_');
-    if (error instanceof Error && error.cause !== undefined)
-        return getTransientNetworkErrorCode(error.cause);
-    return null;
-};
-
-const sleep = (ms: number) =>
-    new Promise<void>((resolve) => {
-        setTimeout(resolve, ms);
-    });
+const CATALOG_LOGIN_ATTEMPTS = 3;
+const CATALOG_LOGIN_RETRY_DELAY_MS = 1000;
+const TRANSIENT_NETWORK_ERROR =
+    /ECONNRESET|ETIMEDOUT|ECONNREFUSED|EPIPE|EAI_AGAIN|socket hang up|network error/i;
 
 type CatalogTableRequest = { database: string; schema: string; table: string };
-
-type CatalogQueryResult = {
-    fields: Record<string, { type: DimensionType }>;
-    rows: AnyType[];
-};
-
-type CatalogFetchCounter =
-    | 'completedTables'
-    | 'failedTables'
-    | 'queryRetries'
-    | 'connectionAttempts'
-    | 'connectionsOpened'
-    | 'connectionRetries'
-    | 'reconnects'
-    | 'skippedSchemas'
-    | 'skippedTables'
-    | 'destroyFailures';
-
-class CatalogFetchStats {
-    completedTables = 0;
-
-    failedTables = 0;
-
-    queryRetries = 0;
-
-    connectionAttempts = 0;
-
-    connectionsOpened = 0;
-
-    connectionRetries = 0;
-
-    reconnects = 0;
-
-    skippedSchemas = 0;
-
-    skippedTables = 0;
-
-    destroyFailures = 0;
-
-    transientErrors: Record<string, number> = {};
-
-    failedTableSamples: string[] = [];
-
-    lastConnectionError: unknown = undefined;
-
-    aborted = false;
-
-    readonly startedAt = Date.now();
-
-    lastProgressAt = this.startedAt;
-
-    constructor(
-        readonly requestedTables: number,
-        readonly schemas: number,
-    ) {}
-
-    add(counter: CatalogFetchCounter, amount: number = 1) {
-        this[counter] += amount;
-    }
-
-    addTransientError(code: string) {
-        this.transientErrors[code] = (this.transientErrors[code] ?? 0) + 1;
-    }
-
-    addFailedTableSample(sample: string) {
-        if (this.failedTableSamples.length < CATALOG_ERROR_SAMPLE_SIZE)
-            this.failedTableSamples.push(sample);
-    }
-
-    setLastConnectionError(error: unknown) {
-        this.lastConnectionError = error;
-    }
-
-    abort(error: unknown) {
-        this.lastConnectionError = error;
-        this.aborted = true;
-    }
-
-    // True at most once per progress interval.
-    shouldLogProgress(now: number) {
-        if (now - this.lastProgressAt < CATALOG_PROGRESS_LOG_INTERVAL_MS)
-            return false;
-        this.lastProgressAt = now;
-        return true;
-    }
-}
-
-// Shares one connection between a schema's queries, replacing it if it goes down.
-type CatalogConnectionHandle = {
-    get: () => Promise<Connection>;
-    replaceIfDown: (stale: Connection) => void;
-    close: () => Promise<void>;
-};
 
 export enum SnowflakeTypes {
     NUMBER = 'NUMBER',
@@ -1969,267 +1859,75 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         });
     }
 
-    private static logCatalogEvent(
-        level: 'debug' | 'info' | 'warn' | 'error',
-        event: string,
-        payload: Record<string, unknown>,
-    ) {
-        console[level](
-            JSON.stringify({ event, warehouse: 'snowflake', ...payload }),
-        );
-    }
-
-    private async connectForCatalog(
-        database: string,
-        schema: string,
-        stats: CatalogFetchStats,
-    ): Promise<Connection> {
+    // Logs in with retries on network errors; a reset login must not fail the whole fetch.
+    private async connectForCatalog(database: string, schema: string) {
         /* eslint-disable no-await-in-loop */
-        for (let attempt = 1; ; attempt += 1) {
-            stats.add('connectionAttempts');
+        for (let retries = 0; ; retries += 1) {
             try {
                 const connection = await this.getConnection({
                     schema,
                     database,
                 });
-                stats.add('connectionsOpened');
-                return connection;
+                return { connection, retries };
             } catch (e) {
-                const transientCode = getTransientNetworkErrorCode(e);
-                if (transientCode) stats.addTransientError(transientCode);
-                if (!transientCode || attempt >= CATALOG_MAX_ATTEMPTS) throw e;
-                stats.add('connectionRetries');
-                const delayMs =
-                    CATALOG_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1) +
-                    Math.floor(Math.random() * CATALOG_RETRY_BASE_DELAY_MS);
-                SnowflakeWarehouseClient.logCatalogEvent(
-                    'warn',
-                    'warehouse.getCatalog.connectionRetry',
-                    {
-                        database,
-                        schema,
-                        attempt,
-                        maxAttempts: CATALOG_MAX_ATTEMPTS,
-                        delayMs,
-                        errorCode: transientCode,
-                        error: getErrorMessage(e),
-                    },
-                );
-                await sleep(delayMs);
-            }
-        }
-        /* eslint-enable no-await-in-loop */
-    }
-
-    private async destroyCatalogConnection(
-        connection: Connection,
-        database: string,
-        schema: string,
-        stats: CatalogFetchStats,
-    ) {
-        try {
-            await this.destroyConnection(
-                connection,
-                this.connectionOptions.authenticator,
-            );
-        } catch (e) {
-            stats.add('destroyFailures');
-            SnowflakeWarehouseClient.logCatalogEvent(
-                'warn',
-                'warehouse.getCatalog.destroyFailed',
-                { database, schema, error: getErrorMessage(e) },
-            );
-        }
-    }
-
-    private createCatalogConnectionHandle(
-        initial: Connection,
-        database: string,
-        schema: string,
-        stats: CatalogFetchStats,
-    ): CatalogConnectionHandle {
-        let current = Promise.resolve(initial);
-        return {
-            get: () => current,
-            replaceIfDown: (stale) => {
-                if (stale.isUp()) return;
-                // Chained so concurrent queries that saw the same dead connection reconnect once.
-                current = current.then(async (connection) => {
-                    if (connection !== stale) return connection;
-                    stats.add('reconnects');
-                    SnowflakeWarehouseClient.logCatalogEvent(
-                        'warn',
-                        'warehouse.getCatalog.reconnect',
-                        { database, schema },
-                    );
-                    await this.destroyCatalogConnection(
-                        stale,
-                        database,
-                        schema,
-                        stats,
-                    );
-                    return this.connectForCatalog(database, schema, stats);
-                });
-                // A failed reconnect surfaces through get(); avoid an unhandled rejection here.
-                current.catch(() => undefined);
-            },
-            close: async () => {
-                const connection = await current.catch(() => undefined);
-                if (connection)
-                    await this.destroyCatalogConnection(
-                        connection,
-                        database,
-                        schema,
-                        stats,
-                    );
-            },
-        };
-    }
-
-    private static logCatalogProgress(stats: CatalogFetchStats) {
-        const now = Date.now();
-        if (!stats.shouldLogProgress(now)) return;
-        SnowflakeWarehouseClient.logCatalogEvent(
-            'info',
-            'warehouse.getCatalog.progress',
-            {
-                requestedTables: stats.requestedTables,
-                completedTables: stats.completedTables,
-                failedTables: stats.failedTables,
-                skippedTables: stats.skippedTables,
-                connectionsOpened: stats.connectionsOpened,
-                connectionRetries: stats.connectionRetries,
-                queryRetries: stats.queryRetries,
-                reconnects: stats.reconnects,
-                elapsedMs: now - stats.startedAt,
-            },
-        );
-    }
-
-    private async runTableCatalogQuery(
-        handle: CatalogConnectionHandle,
-        { database, schema, table }: CatalogTableRequest,
-        stats: CatalogFetchStats,
-    ): Promise<CatalogQueryResult | undefined> {
-        const sqlText = `SHOW COLUMNS IN TABLE ${table}`;
-        /* eslint-disable no-await-in-loop */
-        for (let attempt = 1; ; attempt += 1) {
-            if (stats.aborted) return undefined;
-            let connection: Connection | undefined;
-            try {
-                connection = await handle.get();
-                const result = await this.executeStatements(
-                    connection,
-                    sqlText,
-                );
-                stats.add('completedTables');
-                SnowflakeWarehouseClient.logCatalogProgress(stats);
-                return result;
-            } catch (e) {
-                const transientCode = getTransientNetworkErrorCode(e);
-                // No connection means the reconnect already failed: fail fast, it was retried there.
                 if (
-                    connection &&
-                    transientCode &&
-                    attempt < CATALOG_MAX_ATTEMPTS
+                    !TRANSIENT_NETWORK_ERROR.test(getErrorMessage(e)) ||
+                    retries + 1 >= CATALOG_LOGIN_ATTEMPTS
                 ) {
-                    stats.add('queryRetries');
-                    stats.addTransientError(transientCode);
-                    await sleep(
-                        CATALOG_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1) +
-                            Math.floor(
-                                Math.random() * CATALOG_RETRY_BASE_DELAY_MS,
-                            ),
-                    );
-                    handle.replaceIfDown(connection);
-                } else {
-                    stats.add('failedTables');
-                    stats.addFailedTableSample(
-                        `${database}.${schema}.${table}: ${getErrorMessage(e)}`,
-                    );
-                    SnowflakeWarehouseClient.logCatalogEvent(
-                        'error',
-                        'warehouse.getCatalog.tableFailed',
-                        {
-                            database,
-                            schema,
-                            table,
-                            attempts: attempt,
-                            errorCode: transientCode,
-                            error: getErrorMessage(e),
-                        },
-                    );
-                    SnowflakeWarehouseClient.logCatalogProgress(stats);
-                    // Ignore error and let UI show invalid table
-                    return undefined;
+                    throw e;
                 }
+                await new Promise((resolve) => {
+                    setTimeout(
+                        resolve,
+                        CATALOG_LOGIN_RETRY_DELAY_MS * (retries + 1),
+                    );
+                });
             }
         }
         /* eslint-enable no-await-in-loop */
     }
 
-    private async fetchSchemaCatalog(
-        tables: CatalogTableRequest[],
-        stats: CatalogFetchStats,
-    ): Promise<(CatalogQueryResult | undefined)[]> {
+    private async runSchemaCatalogQueries(tables: CatalogTableRequest[]) {
         const { database, schema } = tables[0];
-        const schemaStartedAt = Date.now();
-        let connection: Connection;
+        let login: Awaited<ReturnType<typeof this.connectForCatalog>>;
         try {
-            connection = await this.connectForCatalog(database, schema, stats);
+            login = await this.connectForCatalog(database, schema);
         } catch (e) {
-            // Only network failures are skippable; bad credentials or agent-session errors still fail the compile.
-            if (
-                e instanceof ForbiddenError ||
-                !getTransientNetworkErrorCode(e)
-            ) {
-                stats.abort(e);
-                throw e;
-            }
-            stats.setLastConnectionError(e);
-            stats.add('skippedSchemas');
-            stats.add('skippedTables', tables.length);
-            SnowflakeWarehouseClient.logCatalogEvent(
-                'error',
-                'warehouse.getCatalog.schemaSkipped',
-                {
-                    database,
-                    schema,
-                    tables: tables.length,
-                    attempts: CATALOG_MAX_ATTEMPTS,
-                    errorCode: getTransientNetworkErrorCode(e),
-                    error: getErrorMessage(e),
-                },
+            // Bad credentials still fail the compile; only network failures skip the schema.
+            if (!TRANSIENT_NETWORK_ERROR.test(getErrorMessage(e))) throw e;
+            console.error(
+                `\nSkipping catalog for ${tables.length} tables in ${database}.${schema}: ${getErrorMessage(e)}`,
             );
-            return tables.map(() => undefined);
+            return { results: [], loginRetries: 0, loginError: e };
         }
 
-        const handle = this.createCatalogConnectionHandle(
-            connection,
-            database,
-            schema,
-            stats,
-        );
         try {
             const results = await mapWithConcurrency(
                 tables,
                 CATALOG_QUERIES_PER_CONNECTION,
-                (table) => this.runTableCatalogQuery(handle, table, stats),
-            );
-            SnowflakeWarehouseClient.logCatalogEvent(
-                'debug',
-                'warehouse.getCatalog.schema',
-                {
-                    database,
-                    schema,
-                    tables: tables.length,
-                    respondedTables: results.filter(Boolean).length,
-                    durationMs: Date.now() - schemaStartedAt,
+                async ({ table }) => {
+                    try {
+                        return await this.executeStatements(
+                            login.connection,
+                            `SHOW COLUMNS IN TABLE ${table}`,
+                        );
+                    } catch (e) {
+                        console.error(
+                            `\nError running catalog query for table ${database}.${schema}.${table}:`,
+                        );
+                        console.error(e);
+
+                        // Ignore error and let UI show invalid table
+                        return undefined;
+                    }
                 },
             );
-            return results;
+            return { results, loginRetries: login.retries, loginError: null };
         } finally {
-            await handle.close();
+            await this.destroyConnection(
+                login.connection,
+                this.connectionOptions.authenticator,
+            ).catch(() => undefined);
         }
     }
 
@@ -2238,56 +1936,26 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         const tablesBySchema = new Map<string, CatalogTableRequest[]>();
         config.forEach((request) => {
             const key = `${request.database}\u0000${request.schema}`;
-            const group = tablesBySchema.get(key);
-            if (group) group.push(request);
-            else tablesBySchema.set(key, [request]);
+            tablesBySchema.set(key, [
+                ...(tablesBySchema.get(key) ?? []),
+                request,
+            ]);
         });
-        const stats = new CatalogFetchStats(config.length, tablesBySchema.size);
-        const statsPayload = () => ({
-            requestedTables: stats.requestedTables,
-            schemas: stats.schemas,
-            respondedTables: stats.completedTables,
-            failedTables: stats.failedTables,
-            skippedSchemas: stats.skippedSchemas,
-            skippedTables: stats.skippedTables,
-            connectionAttempts: stats.connectionAttempts,
-            connectionsOpened: stats.connectionsOpened,
-            connectionRetries: stats.connectionRetries,
-            reconnects: stats.reconnects,
-            queryRetries: stats.queryRetries,
-            destroyFailures: stats.destroyFailures,
-            transientErrors: stats.transientErrors,
-            failedTableSamples: stats.failedTableSamples,
-            schemaConcurrency: CATALOG_SCHEMA_CONCURRENCY,
-            queriesPerConnection: CATALOG_QUERIES_PER_CONNECTION,
-        });
-
-        let tablesMetadata: (CatalogQueryResult | undefined)[];
-        try {
-            tablesMetadata = (
-                await mapWithConcurrency(
-                    [...tablesBySchema.values()],
-                    CATALOG_SCHEMA_CONCURRENCY,
-                    (tables) => this.fetchSchemaCatalog(tables, stats),
-                )
-            ).flat();
-            // Nothing answered and logins failed: surface it rather than cache an empty catalog.
-            if (stats.completedTables === 0 && stats.skippedSchemas > 0) {
-                throw stats.lastConnectionError;
-            }
-        } catch (e) {
-            SnowflakeWarehouseClient.logCatalogEvent(
-                'error',
-                'warehouse.getCatalog',
-                {
-                    status: 'failed',
-                    ...statsPayload(),
-                    errorCode: getTransientNetworkErrorCode(e),
-                    error: getErrorMessage(e),
-                    durationMs: Date.now() - startedAt,
-                },
-            );
-            throw e;
+        const schemaResults = await mapWithConcurrency(
+            [...tablesBySchema.values()],
+            CATALOG_SCHEMA_CONCURRENCY,
+            (tables) => this.runSchemaCatalogQueries(tables),
+        );
+        const tablesMetadata = schemaResults.flatMap(({ results }) => results);
+        const skippedSchemas = schemaResults.filter(
+            ({ loginError }) => loginError !== null,
+        );
+        // Every login failed: surface it rather than cache an empty catalog.
+        if (
+            skippedSchemas.length > 0 &&
+            skippedSchemas.length === schemaResults.length
+        ) {
+            throw skippedSchemas[0].loginError;
         }
         const fetchedAt = Date.now();
 
@@ -2341,19 +2009,24 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         );
 
         const finishedAt = Date.now();
-        const partial = stats.failedTables > 0 || stats.skippedTables > 0;
-        SnowflakeWarehouseClient.logCatalogEvent(
-            partial ? 'warn' : 'info',
-            'warehouse.getCatalog',
-            {
-                status: partial ? 'partial' : 'success',
-                ...statsPayload(),
+        console.info(
+            JSON.stringify({
+                event: 'warehouse.getCatalog',
+                warehouse: 'snowflake',
+                requestedTables: config.length,
+                respondedTables: tablesMetadata.filter(Boolean).length,
+                schemas: schemaResults.length,
+                skippedSchemas: skippedSchemas.length,
+                loginRetries: schemaResults.reduce(
+                    (sum, { loginRetries }) => sum + loginRetries,
+                    0,
+                ),
                 columnRows,
                 unmatchedRows,
                 fetchDurationMs: fetchedAt - startedAt,
                 indexDurationMs: finishedAt - fetchedAt,
                 durationMs: finishedAt - startedAt,
-            },
+            }),
         );
         return catalog;
     }
