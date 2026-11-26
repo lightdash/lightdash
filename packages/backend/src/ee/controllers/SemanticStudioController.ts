@@ -59,7 +59,6 @@ import {
     isAuthenticated,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
-import { type AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { type SemanticStudioCheckoutService } from '../services/SemanticStudioService/SemanticStudioCheckoutService';
 import { type SemanticStudioService } from '../services/SemanticStudioService/SemanticStudioService';
 
@@ -113,11 +112,8 @@ export class SemanticStudioController extends BaseController {
         return {
             status: 'ok',
             results: await this.services
-                .getAiAgentService<AiAgentService>()
-                .getSemanticStudioAgent(
-                    toSessionUser(req.account),
-                    projectUuid,
-                ),
+                .getSemanticStudioCheckoutService<SemanticStudioCheckoutService>()
+                .getBuilderAgent(toSessionUser(req.account), projectUuid),
         };
     }
 
