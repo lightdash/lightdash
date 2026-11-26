@@ -1,12 +1,5 @@
 import { ContentReviewContentType, ContentType } from '@lightdash/common';
-import {
-    ActionIcon,
-    Badge,
-    Button,
-    Menu,
-    Popover,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Badge, Button, Menu, Tooltip } from '@mantine/core';
 import {
     IconArrowBack,
     IconCircleCheckFilled,
@@ -72,6 +65,8 @@ import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
 import { Z_INDEX_FLOATING } from '../../common/Page/constants';
+import { editorName } from '../../common/Page/editorName';
+import { HeaderInfoPopover } from '../../common/Page/HeaderInfoPopover';
 import {
     HeaderActions,
     HeaderBreadcrumbs,
@@ -149,6 +144,19 @@ const verifiedTourProps = {
     'data-tour-resultdocs': 'explore/verified-content.mdx#intro:p2:1-2',
 };
 
+const deletedContentTourProps = {
+    'data-tour-scope': 'manage:DeletedContent',
+    'data-tour-step': '1',
+    'data-tour-route': '/projects/:projectUuid/saved/:savedQueryUuid',
+    'data-tour-label': 'Inspect the restored chart',
+    'data-tour-docs':
+        'explore/version-history.mdx#recently-deleted-charts-and-dashboards:p2:1-3',
+    'data-tour-return':
+        '[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
+    'data-tour-resultdocs':
+        'explore/version-history.mdx#recently-deleted-charts-and-dashboards:li1',
+};
+
 const SavedChartsHeader: FC = () => {
     const authoringEnabled = useContentAuthoringEnabled();
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -222,9 +230,7 @@ const SavedChartsHeader: FC = () => {
         savedChart?.uuid,
     );
     const chartViewStats = useChartViewStats(savedChart?.uuid);
-    const updatedByName = savedChart?.updatedByUser?.firstName
-        ? `${savedChart.updatedByUser.firstName} ${savedChart.updatedByUser.lastName}`.trim()
-        : undefined;
+    const updatedByName = editorName(savedChart?.updatedByUser);
     const managedFromRepository = savedChart?.managedFromRepository && {
         contentType: 'chart' as const,
         source: savedChart.managedFromRepository,
@@ -475,62 +481,29 @@ const SavedChartsHeader: FC = () => {
                                     </Badge>
                                 )}
                                 {!compact && !isFullscreen && (
-                                    <Popover
-                                        withArrow
-                                        offset={{ mainAxis: -2, crossAxis: 6 }}
-                                    >
-                                        <Popover.Target>
-                                            <ActionIcon
-                                                size="md"
-                                                aria-label="Chart information"
-                                                data-tour-scope="manage:DeletedContent"
-                                                data-tour-step="1"
-                                                data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
-                                                data-tour-label="Inspect the restored chart"
-                                                data-tour-docs="explore/version-history.mdx#recently-deleted-charts-and-dashboards:p2:1-3"
-                                                data-tour-return='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"]'
-                                                data-tour-resultdocs="explore/version-history.mdx#recently-deleted-charts-and-dashboards:li1"
-                                            >
-                                                <MantineIcon
-                                                    icon={IconInfoCircle}
-                                                />
-                                            </ActionIcon>
-                                        </Popover.Target>
-                                        <Popover.Dropdown
-                                            w={320}
-                                            mah={480}
-                                            p="md"
-                                            className={
-                                                classes.scrollableDropdown
-                                            }
-                                        >
-                                            <ResourceInfoPopupContent
-                                                resourceUuid={savedChart.uuid}
-                                                projectUuid={projectUuid}
-                                                title={savedChart.name}
-                                                description={
-                                                    savedChart.description
-                                                }
-                                                slug={savedChart.slug}
-                                                managedFromRepository={
-                                                    managedFromRepository
-                                                }
-                                                updatedAt={savedChart.updatedAt}
-                                                updatedBy={updatedByName}
-                                                spaceName={savedChart.spaceName}
-                                                spaceUuid={savedChart.spaceUuid}
-                                                viewStats={
-                                                    chartViewStats.data?.views
-                                                }
-                                                viewStatsResourceType="chart"
-                                                firstViewedAt={
-                                                    chartViewStats.data
-                                                        ?.firstViewedAt
-                                                }
-                                                withChartData={true}
-                                            />
-                                        </Popover.Dropdown>
-                                    </Popover>
+                                    <HeaderInfoPopover
+                                        label="Chart information"
+                                        tourProps={deletedContentTourProps}
+                                        info={{
+                                            resourceUuid: savedChart.uuid,
+                                            projectUuid,
+                                            title: savedChart.name,
+                                            description: savedChart.description,
+                                            slug: savedChart.slug,
+                                            managedFromRepository,
+                                            updatedAt: savedChart.updatedAt,
+                                            updatedBy: updatedByName,
+                                            spaceName: savedChart.spaceName,
+                                            spaceUuid: savedChart.spaceUuid,
+                                            viewStats:
+                                                chartViewStats.data?.views,
+                                            viewStatsResourceType: 'chart',
+                                            firstViewedAt:
+                                                chartViewStats.data
+                                                    ?.firstViewedAt,
+                                            withChartData: true,
+                                        }}
+                                    />
                                 )}
                                 {contentReview.pendingRequest && (
                                     <PendingReviewBadge
