@@ -3,8 +3,10 @@ import { type REST_OPERATION_CAPABILITIES } from './capabilityMap';
 export const HUMAN_ONLY_IN_MANAGED: ReadonlySet<string> = new Set<
     keyof typeof REST_OPERATION_CAPABILITIES
 >([
+    'AgentPermissionController.deleteProjectPolicy',
     'AgentPermissionController.resetToLegacy',
     'AgentPermissionController.saveCeiling',
+    'AgentPermissionController.saveProjectPolicy',
     'AiAgentAdminController.upsertSettings',
     'AiServiceAccountController.delete',
     'AiServiceAccountController.upsert',

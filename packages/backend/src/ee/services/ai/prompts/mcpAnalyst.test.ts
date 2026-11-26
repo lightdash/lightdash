@@ -2,46 +2,60 @@ import {
     FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
     getContextToolDefinition,
 } from '@lightdash/common';
+import type { McpQueryPath } from '../../McpService/mcpQueryPath';
+import { classicQueryPath } from '../../McpService/McpService.mock';
 import { MCP_FILTER_EXPRESSION_GUIDANCE_SECTION } from './filterGuidance';
 import { getMcpAnalystPrompt } from './mcpAnalyst';
 
 const semanticQueryOptions = {
-    runSqlEnabled: true,
-    runMetricQueryEnabled: true,
-    filterExpressionsEnabled: false,
+    queryPath: classicQueryPath(true, false),
     documentsEnabled: false,
 };
 
 describe('getMcpAnalystPrompt', () => {
-    it.each([
-        { runSqlEnabled: false, runMetricQueryEnabled: false },
-        { runSqlEnabled: true, runMetricQueryEnabled: false },
-        { runSqlEnabled: false, runMetricQueryEnabled: true },
-        { runSqlEnabled: true, runMetricQueryEnabled: true },
-    ])('preserves production-first selection in every mode: %o', (mode) => {
-        const prompt = getMcpAnalystPrompt({
-            ...semanticQueryOptions,
-            ...mode,
-        });
+    it.each<McpQueryPath>([
+        { type: 'contentOnly' },
+        { type: 'sqlOnly' },
+        classicQueryPath(false, false),
+        classicQueryPath(true, false),
+        {
+            type: 'composer',
+            sqlRunnerEnabled: true,
+            filterExpressionsEnabled: false,
+        },
+    ])(
+        'preserves production-first selection in every mode: %o',
+        (queryPath) => {
+            const prompt = getMcpAnalystPrompt({
+                ...semanticQueryOptions,
+                queryPath,
+            });
 
-        expect(prompt).toContain('production/preview and pinned-scope');
-        const guidance = getContextToolDefinition.for('mcp').description;
-        expect(guidance).toContain(
-            'not a restriction or evidence of intent to analyze a preview',
-        );
-        expect(guidance).toContain(
-            'otherwise use the only DEFAULT project in availableProjects',
-        );
-        expect(guidance).toContain('ask which to use when there are several');
-        expect(guidance).toContain(
-            'If none are available, explain that no production project is available',
-        );
-        expect(guidance).toContain('including an explicitly requested preview');
-        expect(guidance).toContain(
-            'ask for confirmation before ordinary business analysis',
-        );
-        expect(guidance).toContain('activeProject is the only allowed project');
-    });
+            expect(prompt).toContain('production/preview and pinned-scope');
+            const guidance = getContextToolDefinition.for('mcp').description;
+            expect(guidance).toContain(
+                'not a restriction or evidence of intent to analyze a preview',
+            );
+            expect(guidance).toContain(
+                'otherwise use the only DEFAULT project in availableProjects',
+            );
+            expect(guidance).toContain(
+                'ask which to use when there are several',
+            );
+            expect(guidance).toContain(
+                'If none are available, explain that no production project is available',
+            );
+            expect(guidance).toContain(
+                'including an explicitly requested preview',
+            );
+            expect(guidance).toContain(
+                'ask for confirmation before ordinary business analysis',
+            );
+            expect(guidance).toContain(
+                'activeProject is the only allowed project',
+            );
+        },
+    );
 
     it('keeps workflow guidance without tool-specific manuals', () => {
         const prompt = getMcpAnalystPrompt(semanticQueryOptions);
@@ -65,7 +79,7 @@ describe('getMcpAnalystPrompt', () => {
         (runSqlEnabled) => {
             const prompt = getMcpAnalystPrompt({
                 ...semanticQueryOptions,
-                runSqlEnabled,
+                queryPath: classicQueryPath(runSqlEnabled, false),
             });
             expect(
                 [...prompt.matchAll(/^\d\. `([^`]+)`/gm)].map(
@@ -108,7 +122,7 @@ describe('getMcpAnalystPrompt', () => {
     it('defers detailed filter expression guidance to the shared skill when enabled', () => {
         const prompt = getMcpAnalystPrompt({
             ...semanticQueryOptions,
-            filterExpressionsEnabled: true,
+            queryPath: classicQueryPath(true, true),
         });
 
         expect(prompt).not.toContain(MCP_FILTER_EXPRESSION_GUIDANCE_SECTION);
@@ -128,7 +142,7 @@ describe('getMcpAnalystPrompt', () => {
     it('returns the query-building workflow when only run_sql is disabled', () => {
         const prompt = getMcpAnalystPrompt({
             ...semanticQueryOptions,
-            runSqlEnabled: false,
+            queryPath: classicQueryPath(false, false),
         });
 
         expect(prompt).toContain('Query Building Workflow');
@@ -138,9 +152,7 @@ describe('getMcpAnalystPrompt', () => {
     it('returns saved-content mode when no query execution is available', () => {
         const prompt = getMcpAnalystPrompt({
             ...semanticQueryOptions,
-            runSqlEnabled: false,
-            runMetricQueryEnabled: false,
-            filterExpressionsEnabled: true,
+            queryPath: { type: 'contentOnly' },
         });
 
         expect(prompt).toContain('Saved Content Mode');
@@ -170,9 +182,7 @@ describe('getMcpAnalystPrompt', () => {
     it('returns SQL runner mode when only run_sql is available', () => {
         const prompt = getMcpAnalystPrompt({
             ...semanticQueryOptions,
-            runSqlEnabled: true,
-            runMetricQueryEnabled: false,
-            filterExpressionsEnabled: true,
+            queryPath: { type: 'sqlOnly' },
         });
 
         expect(prompt).toContain('SQL Runner Mode');

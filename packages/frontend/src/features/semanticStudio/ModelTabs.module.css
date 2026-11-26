@@ -5,6 +5,11 @@
     flex-direction: column;
 }
 
+/* Content that sets its own height, so the page scrolls it with room below. */
+.root[data-fit-content] {
+    flex: none;
+}
+
 .panel {
     flex: 1;
     min-height: 0;
@@ -25,16 +30,9 @@
     white-space: pre-wrap;
 }
 
-.codeHost {
-    color-scheme: light;
-
-    @mixin dark {
-        color-scheme: dark;
-    }
-}
-
 .codeToolbar {
     flex: none;
+    min-height: 45px;
     padding: 6px 8px 6px 12px;
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
@@ -55,4 +53,15 @@
 
 .undo {
     flex: none;
+}
+
+/* Reading the draft's marks or a field: a click starts editing. */
+.clickToEdit {
+    cursor: text;
+}
+
+.history:disabled,
+.history[data-disabled] {
+    background: transparent;
+    opacity: 0.4;
 }

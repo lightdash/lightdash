@@ -2,32 +2,50 @@ import {
     Anchor,
     Box,
     Breadcrumbs,
+    Button,
     Center,
     Group,
     Loader,
     Text,
     Title,
 } from '@mantine/core';
-import { useVirtualizer } from '@tanstack/react-virtual';
-import { useContext, useEffect, useMemo, useRef, type FC } from 'react';
-import { useNavigate } from 'react-router';
+import { IconSettings } from '@tabler/icons-react';
+import {
+    useContext,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+    type MouseEvent,
+} from 'react';
+import { Link, useNavigate } from 'react-router';
+import MantineIcon from '../../components/common/MantineIcon';
+import { useLiveSourceActions } from '../externalConnections/liveSources/liveSourceActions';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
-import { DraftMarksContext } from './draftMarks';
-import { useExternalSourceActions } from './externalSources/externalSourceActions';
+import { LiveSourceRefreshAction } from '../externalConnections/liveSources/LiveSourceRefreshAction';
+import { LiveSourceSettings } from '../externalConnections/liveSources/LiveSourceSettings';
+import {
+    LiveSourceSummary,
+    LiveSourcesTable,
+} from '../externalConnections/liveSources/LiveSourcesView';
+import { useManagedLiveSource } from '../externalConnections/liveSources/useManagedLiveSource';
 import {
     ExternalSourceHeaderActions,
     ExternalSourceSummary,
     ExternalSourcesTable,
-} from './externalSources/ExternalSourcesView';
-import { useManagedExternalSource } from './externalSources/useManagedExternalSource';
+} from '../externalSources/components/ExternalSourcesView';
+import { useExternalSourceActions } from '../externalSources/hooks/externalSourceActions';
+import { useManagedExternalSource } from '../externalSources/hooks/useManagedExternalSource';
+import { DraftMarksContext } from './draftMarks';
+import { FieldDetailModal } from './FieldDetailModal';
+import { FieldList, FieldListToolbar } from './FieldList';
 import { JoinDiagram } from './JoinDiagram';
-import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import {
-    LiveSourceHeaderActions,
-    LiveSourceSummary,
-    LiveSourcesTable,
-} from './liveSources/LiveSourcesView';
-import { useManagedLiveSource } from './liveSources/useManagedLiveSource';
+    LiveExploreEditAction,
+    LiveExploreNotInUseBadge,
+    LiveExploreRows,
+} from './LiveExploreDetails';
 import {
     containerOf,
     fieldGroups,
@@ -39,33 +57,67 @@ import {
     summaryOf,
     trailTo,
     type NodeRef,
+    type Field,
+    type Source,
     type TreeNode,
+    sourceWarehouse,
 } from './model';
 import {
     CHANGE_KIND_LABELS,
     describeFieldChanges,
     getModelCodeSearch,
+    VIEW_PARAM,
+    type ModelTab,
 } from './modelCode';
 import { ModelMark } from './ModelMark';
-import { ModelTabs } from './ModelTabs';
-import {
-    FieldDetailModal,
-    FieldList,
-    FieldListToolbar,
-    NodeIcon,
-    SemanticLayerNudge,
-    SettingsLink,
-} from './shared';
+import { LiveSourceFlow, ModelTabs } from './ModelTabs';
+import { OthersDraftNotice } from './OthersDraftNotice';
+import { PageScrollContext, usePageVirtualizer } from './pageScroll';
+import { SemanticLayerNudge } from './SemanticLayerNudge';
+import { NodeIcon } from './shared';
+import sharedClasses from './shared.module.css';
 import { useAddToStudioChat, startStudioChatRefDrag } from './studioChatRefs';
-import { getSemanticStudioUrl } from './urls';
+import { getSemanticStudioSourceUrl, getSemanticStudioUrl } from './urls';
+import { addPath } from './useAddSource';
 import { useExploreFields } from './useExploreFields';
+import { useFieldListState } from './useFieldListState';
 import {
+    usePublishMode,
     useSemanticLayerDraft,
     useSemanticLayerModel,
 } from './useSemanticLayerModel';
-import { useFieldListState, type ViewModel } from './useSemanticStudio';
+import { type ViewModel } from './useSemanticStudio';
 import { findCheckedOutModel, useStudioCheckout } from './useStudioCheckout';
-import classes from './WorkbenchView.module.css';
+import { WarehouseStatusLine } from './WarehouseStatusLine';
+import classes from './WorkbenchMainPane.module.css';
+
+/** Opens the source's existing settings page; labelled, never a bare gear. */
+const SettingsLink: FC<{
+    view: ViewModel;
+    source: Source;
+    variant?: 'button' | 'subtle';
+}> = ({ view, source, variant = 'button' }) => {
+    if (
+        !source.settingsPath ||
+        !view.canOpenSettings ||
+        !view.permissions[source.kind]
+    )
+        return null;
+    return (
+        <Button
+            component={Link}
+            to={addPath(view, source.settingsPath)}
+            size="xs"
+            variant={variant === 'subtle' ? 'subtle' : 'default'}
+            color={variant === 'subtle' ? 'gray' : undefined}
+            className={sharedClasses.pressable}
+            leftSection={<MantineIcon icon={IconSettings} size={14} />}
+            onClick={(event: MouseEvent) => event.stopPropagation()}
+        >
+            Settings
+        </Button>
+    );
+};
 
 const CHILD_ROW_HEIGHT = 40;
 
@@ -77,9 +129,8 @@ const ChildrenList: FC<{
 }> = ({ view, nodes, onOpen }) => {
     const parentRef = useRef<HTMLDivElement>(null);
     const { kinds } = useContext(DraftMarksContext);
-    const virtualizer = useVirtualizer({
+    const virtualizer = usePageVirtualizer(parentRef, {
         count: nodes.length,
-        getScrollElement: () => parentRef.current,
         estimateSize: () => CHILD_ROW_HEIGHT,
         overscan: 12,
     });
@@ -126,7 +177,10 @@ const ChildrenList: FC<{
                                 data-virtual
                                 data-describe={describe}
                                 data-name-only={exploresOnly && !describe}
-                                top={item.start}
+                                top={
+                                    item.start -
+                                    virtualizer.options.scrollMargin
+                                }
                                 onClick={() => onOpen(node)}
                             >
                                 <Group gap={10} wrap="nowrap" miw={0}>
@@ -193,6 +247,7 @@ const ExploreBody: FC<{
     const othersHere =
         draft?.othersDrafting.find(({ model }) => model === exploreId)
             ?.drafters ?? [];
+    const publishMode = usePublishMode(view.project.id);
     const {
         fields: loaded,
         isLoading,
@@ -213,7 +268,7 @@ const ExploreBody: FC<{
             (loaded ?? []).map((field) => {
                 const change = field.draftState
                     ? undefined
-                    : published?.find(
+                    : published?.fields.find(
                           ({ kind, name }) =>
                               name === field.name && kind === field.fieldKind,
                       );
@@ -224,8 +279,15 @@ const ExploreBody: FC<{
         [loaded, published],
     );
     const groups = useMemo(() => fieldGroups(allFields), [allFields]);
-    const { fields, hiddenCount, onShowHidden, toolbarProps } =
-        useFieldListState(allFields, openFieldId);
+    const { fields, toolbarProps } = useFieldListState(allFields, openFieldId);
+    const revealFieldId = published
+        ? (fields.find(({ draftState }) => draftState)?.id ?? null)
+        : null;
+    const openListField = (field: Field) =>
+        view.select(
+            { type: 'field', exploreId, fieldId: field.id },
+            { replace: true },
+        );
     const openField = openFieldId
         ? allFields.find(({ id }) => id === openFieldId)
         : undefined;
@@ -279,45 +341,28 @@ const ExploreBody: FC<{
                     </Text>
                 </Group>
             ) : null}
-            {modelDraft || othersHere.length > 0 ? (
-                <Group gap="sm" mb="sm" wrap="nowrap">
-                    <Text fz="xs" c="dimmed">
-                        {[
-                            modelDraft
-                                ? 'Only you see this until you publish.'
-                                : null,
-                            ...othersHere.map(
-                                ({ name, paths }) =>
-                                    `${name} is changing ${paths.length > 0 ? paths.join(', ') : 'this model'}, in a draft.`,
-                            ),
-                        ]
-                            .filter(Boolean)
-                            .join(' ')}
-                    </Text>
-                </Group>
+            {modelDraft ? (
+                <Text fz="xs" c="dimmed" mb="sm">
+                    Not live until you publish. Only you can change it.
+                </Text>
             ) : null}
+            <OthersDraftNotice
+                projectUuid={view.project.id}
+                model={exploreId}
+                drafters={othersHere}
+                publishMode={publishMode}
+            />
+
             <FieldList
                 view={view}
                 explore={explore}
                 fields={fields}
-                hiddenCount={hiddenCount}
-                onShowHidden={onShowHidden}
                 openFieldId={openFieldId}
-                revealFieldId={
-                    published
-                        ? (fields.find(({ draftState }) => draftState)?.id ??
-                          null)
-                        : null
-                }
+                revealFieldId={revealFieldId}
                 toolbar={<FieldListToolbar {...toolbarProps} />}
                 // The open field is in the URL; opening and closing replaces
                 // the entry rather than stacking up the back button.
-                onOpen={(field) =>
-                    view.select(
-                        { type: 'field', exploreId, fieldId: field.id },
-                        { replace: true },
-                    )
-                }
+                onOpen={openListField}
             />
             {openField ? (
                 <FieldDetailModal
@@ -366,12 +411,17 @@ const Crumbs: FC<{
     </Breadcrumbs>
 );
 
+/** The `view` of a live data source's page that shows its settings. */
+const SETTINGS_VIEW: ModelTab = 'settings';
+
 export const MainPane: FC<{
     view: ViewModel;
     onOpen: (ref: NodeRef | null) => void;
     onOpenNode: (node: TreeNode) => void;
     onBuildModel: (() => void) | null;
 }> = ({ view, onOpen, onOpenNode, onBuildModel }) => {
+    const [pageScroll, setPageScroll] = useState<HTMLElement | null>(null);
+    const navigate = useNavigate();
     const canDrag = useAddToStudioChat() !== null;
     const selected = view.selected;
     const ref = selected ? containerOf(selected) : null;
@@ -405,22 +455,25 @@ export const MainPane: FC<{
     const liveActions = useLiveSourceActions();
     const isLiveSourcesPage =
         !!liveActions && ref?.type === 'kind' && ref.kind === 'live';
-    const sourceExploreLabels = source
-        ? view.project.explores
-              .filter(({ sourceId }) => sourceId === source.id)
-              .map(({ label }) => label)
-        : [];
-    // A source with several explores shows its usage and controls on its own
-    // page, not on each explore's
-    const isLiveSourcePage =
-        ref?.type !== 'kind' &&
-        (ref?.type !== 'explore' || sourceExploreLabels.length === 1);
+    // A source shows its usage and controls on its own page, never on its
+    // explores', however many it has
+    const isLiveSourcePage = ref?.type !== 'kind' && ref?.type !== 'explore';
     const liveConnection = useManagedLiveSource(
         view.project.id,
         isLiveSourcePage && source?.kind === 'live'
             ? source.connectionUuid
             : undefined,
     );
+    // A source's settings sit below its fields or explores, on one page
+    const liveSettings = liveConnection ? (
+        <LiveSourceSettings
+            key={liveConnection.externalConnectionUuid}
+            projectUuid={view.project.id}
+            connection={liveConnection}
+            reconnect={liveActions?.getReconnect(liveConnection) ?? null}
+            onDelete={() => liveActions?.remove(liveConnection)}
+        />
+    ) : null;
     // External sources likewise: the list on their kind's page, and each
     // file's or sheet's state and controls above its fields.
     const externalActions = useExternalSourceActions();
@@ -432,6 +485,11 @@ export const MainPane: FC<{
             ? source.id
             : undefined,
     );
+    // The warehouse's own page says what it is and links to its connection
+    const isWarehousePage =
+        ref?.type !== 'explore' &&
+        source?.kind === 'modelled' &&
+        !!sourceWarehouse(view.project, source);
     const trail = node ? trailTo(view.tree.nodes, node.key) : [];
     // A page sits under its parent.
     const crumbs = trail.slice(0, -1);
@@ -451,123 +509,214 @@ export const MainPane: FC<{
     ) : null;
 
     return (
-        <Box className={classes.main}>
-            <Box className={classes.mainHeader}>
-                {showCrumbs ? (
-                    <Crumbs view={view} trail={crumbs} onOpen={onOpen} />
-                ) : null}
-                <Group justify="space-between" wrap="nowrap" gap="md">
-                    <Group gap={10} wrap="nowrap" miw={0}>
-                        {icon ? (
-                            <Box flex="none" display="flex">
-                                {icon}
-                            </Box>
-                        ) : null}
-                        <Title
-                            order={3}
-                            className={classes.title}
-                            title={title}
-                            draggable={canDrag && ref?.type === 'explore'}
-                            onDragStart={(event) => {
-                                if (ref?.type !== 'explore') return;
-                                startStudioChatRefDrag(event.dataTransfer, {
-                                    modelName: ref.exploreId,
-                                    fieldName: null,
-                                    modelLabel: title,
-                                    fieldLabel: null,
-                                    fieldKind: null,
-                                    fieldType: null,
-                                    code: null,
-                                });
-                            }}
-                        >
-                            {title}
-                        </Title>
-                        {isLiveSourcesPage ? <LiveSourceBetaBadge /> : null}
-                    </Group>
-                    <Group gap={4} wrap="nowrap" flex="none">
-                        {liveConnection ? (
-                            <LiveSourceHeaderActions
-                                projectUuid={view.project.id}
-                                connection={liveConnection}
-                            />
-                        ) : null}
-                        {externalSource ? (
-                            <ExternalSourceHeaderActions
-                                projectUuid={view.project.id}
-                                source={externalSource}
-                            />
-                        ) : null}
-                        {source && ref?.type !== 'explore' ? (
-                            <SettingsLink
-                                view={view}
-                                source={source}
-                                variant="subtle"
-                            />
-                        ) : null}
-                    </Group>
-                </Group>
-            </Box>
-            <Box className={classes.mainBody}>
-                {onBuildModel && !ref ? (
-                    <SemanticLayerNudge onBuild={onBuildModel} />
-                ) : null}
-                {liveConnection ? (
-                    <LiveSourceSummary
-                        projectUuid={view.project.id}
-                        connection={liveConnection}
-                        exploreLabels={sourceExploreLabels}
-                    />
-                ) : null}
-                {externalSource ? (
-                    <ExternalSourceSummary source={externalSource} />
-                ) : null}
-                {isLiveSourcesPage ? (
-                    <LiveSourcesTable
-                        projectUuid={view.project.id}
-                        onOpen={(connectionUuid) =>
-                            onOpen({ type: 'source', sourceId: connectionUuid })
-                        }
-                    />
-                ) : isExternalSourcesPage ? (
-                    <ExternalSourcesTable
-                        projectUuid={view.project.id}
-                        onOpen={(sourceUuid) =>
-                            onOpen({ type: 'source', sourceId: sourceUuid })
-                        }
-                    />
-                ) : explore ? (
-                    <ModelTabs
-                        key={explore.id}
-                        projectUuid={view.project.id}
-                        modelName={explore.id}
-                        exploreName={explore.name}
-                        isModelled={source?.kind === 'modelled'}
-                        lineage={
-                            source?.kind === 'modelled' && !isAdded ? (
-                                <JoinDiagram
+        <Box className={classes.main} data-page-scroll ref={setPageScroll}>
+            <PageScrollContext.Provider value={pageScroll}>
+                <Box className={classes.mainHeader}>
+                    {showCrumbs ? (
+                        <Crumbs view={view} trail={crumbs} onOpen={onOpen} />
+                    ) : null}
+                    <Group justify="space-between" wrap="nowrap" gap="md">
+                        <Group gap={10} wrap="nowrap" miw={0}>
+                            {icon ? (
+                                <Box flex="none" display="flex">
+                                    {icon}
+                                </Box>
+                            ) : null}
+                            <Title
+                                order={3}
+                                className={classes.title}
+                                title={title}
+                                draggable={canDrag && ref?.type === 'explore'}
+                                onDragStart={(event) => {
+                                    if (ref?.type !== 'explore') return;
+                                    startStudioChatRefDrag(event.dataTransfer, {
+                                        modelName: ref.exploreId,
+                                        fieldName: null,
+                                        modelLabel: title,
+                                        fieldLabel: null,
+                                        fieldKind: null,
+                                        fieldType: null,
+                                        code: null,
+                                    });
+                                }}
+                            >
+                                {title}
+                            </Title>
+                            {isLiveSourcesPage ? <LiveSourceBetaBadge /> : null}
+                            {explore &&
+                            source?.kind === 'live' &&
+                            !liveConnection ? (
+                                <LiveExploreNotInUseBadge
                                     projectUuid={view.project.id}
-                                    exploreName={explore.name}
+                                    connectionUuid={source.connectionUuid ?? ''}
+                                    exploreName={explore.id}
                                 />
-                            ) : null
-                        }
-                        fields={
-                            <ExploreBody
-                                key={explore.id}
-                                view={view}
-                                exploreId={explore.id}
-                                openFieldId={openFieldId}
-                            />
-                        }
-                    />
-                ) : nodes.length > 0 ? (
-                    <ChildrenList
-                        view={view}
-                        nodes={nodes}
-                        onOpen={onOpenNode}
-                    />
-                ) : null}
-            </Box>
+                            ) : null}
+                        </Group>
+                        <Group gap={4} wrap="nowrap" flex="none">
+                            {explore &&
+                            source?.kind === 'live' &&
+                            !liveConnection ? (
+                                <LiveExploreEditAction
+                                    key={explore.id}
+                                    projectUuid={view.project.id}
+                                    connectionUuid={source.connectionUuid ?? ''}
+                                    exploreName={explore.id}
+                                    onSwitchedOff={() =>
+                                        onOpen({
+                                            type: 'source',
+                                            sourceId: explore.sourceId,
+                                        })
+                                    }
+                                />
+                            ) : null}
+                            {liveConnection ? (
+                                <LiveSourceRefreshAction
+                                    projectUuid={view.project.id}
+                                    connectionUuid={
+                                        liveConnection.externalConnectionUuid
+                                    }
+                                />
+                            ) : null}
+                            {externalSource ? (
+                                <ExternalSourceHeaderActions
+                                    projectUuid={view.project.id}
+                                    source={externalSource}
+                                />
+                            ) : null}
+                            {source &&
+                            ref?.type !== 'explore' &&
+                            !isWarehousePage ? (
+                                <SettingsLink
+                                    view={view}
+                                    source={source}
+                                    variant="subtle"
+                                />
+                            ) : null}
+                        </Group>
+                    </Group>
+                </Box>
+                <Box className={classes.mainBody}>
+                    {onBuildModel && !ref ? (
+                        <SemanticLayerNudge onBuild={onBuildModel} />
+                    ) : null}
+                    {isWarehousePage ? (
+                        <WarehouseStatusLine
+                            projectUuid={view.project.id}
+                            named={!node}
+                            settingsPath={
+                                view.canOpenSettings && source?.settingsPath
+                                    ? addPath(view, source.settingsPath)
+                                    : null
+                            }
+                        />
+                    ) : null}
+                    {liveConnection ? (
+                        <LiveSourceSummary
+                            projectUuid={view.project.id}
+                            connection={liveConnection}
+                        />
+                    ) : null}
+                    {externalSource ? (
+                        <ExternalSourceSummary source={externalSource} />
+                    ) : null}
+                    {isLiveSourcesPage ? (
+                        <LiveSourcesTable
+                            projectUuid={view.project.id}
+                            onOpen={(connectionUuid) =>
+                                onOpen({
+                                    type: 'source',
+                                    sourceId: connectionUuid,
+                                })
+                            }
+                            onOpenSettings={(connectionUuid) =>
+                                void navigate(
+                                    `${getSemanticStudioSourceUrl(
+                                        view.project.id,
+                                        connectionUuid,
+                                    )}?${VIEW_PARAM}=${SETTINGS_VIEW}`,
+                                )
+                            }
+                        />
+                    ) : isExternalSourcesPage ? (
+                        <ExternalSourcesTable
+                            projectUuid={view.project.id}
+                            onOpen={(sourceUuid) =>
+                                onOpen({ type: 'source', sourceId: sourceUuid })
+                            }
+                        />
+                    ) : explore && source?.kind === 'live' ? (
+                        <LiveSourceFlow
+                            key={explore.id}
+                            main={
+                                <ExploreBody
+                                    key={explore.id}
+                                    view={view}
+                                    exploreId={explore.id}
+                                    openFieldId={openFieldId}
+                                />
+                            }
+                            settings={null}
+                        />
+                    ) : explore ? (
+                        <ModelTabs
+                            key={explore.id}
+                            projectUuid={view.project.id}
+                            modelName={explore.id}
+                            exploreName={explore.name}
+                            isModelled={source?.kind === 'modelled'}
+                            settings={liveSettings}
+                            lineage={
+                                source?.kind === 'modelled' && !isAdded ? (
+                                    <JoinDiagram
+                                        projectUuid={view.project.id}
+                                        exploreName={explore.name}
+                                    />
+                                ) : null
+                            }
+                            fields={
+                                <ExploreBody
+                                    key={explore.id}
+                                    view={view}
+                                    exploreId={explore.id}
+                                    openFieldId={openFieldId}
+                                />
+                            }
+                        />
+                    ) : liveConnection && liveSettings ? (
+                        <LiveSourceFlow
+                            main={
+                                <LiveExploreRows
+                                    projectUuid={view.project.id}
+                                    connectionUuid={
+                                        liveConnection.externalConnectionUuid
+                                    }
+                                    isOpenable={(exploreName) =>
+                                        view.project.explores.some(
+                                            ({ id }) => id === exploreName,
+                                        )
+                                    }
+                                    onOpen={(exploreName) =>
+                                        onOpen({
+                                            type: 'explore',
+                                            exploreId: exploreName,
+                                        })
+                                    }
+                                />
+                            }
+                            settings={liveSettings}
+                        />
+                    ) : nodes.length > 0 ? (
+                        <ChildrenList
+                            view={view}
+                            nodes={nodes}
+                            onOpen={onOpenNode}
+                        />
+                    ) : (
+                        liveSettings
+                    )}
+                </Box>
+            </PageScrollContext.Provider>
         </Box>
     );
 };

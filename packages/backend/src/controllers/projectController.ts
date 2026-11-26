@@ -145,6 +145,7 @@ import {
     getDeprecatedRouteMiddleware,
     isAuthenticated,
     unauthorisedInDemo,
+    unauthorisedWhileImpersonating,
 } from './authentication';
 import { BaseController } from './baseController';
 
@@ -178,7 +179,11 @@ export class ProjectController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedWhileImpersonating,
+    ])
     @Post('{projectUuid}/warehouse-credentials/shared-sign-in')
     @OperationId('ReconnectSharedSignIn')
     async reconnectSharedSignIn(

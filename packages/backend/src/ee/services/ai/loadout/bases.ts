@@ -1,4 +1,9 @@
-import { ADD_ON_NAMES, ADD_ONS, applicableAddOns } from './addOns';
+import {
+    ADD_ON_NAMES,
+    ADD_ONS,
+    applicableAddOns,
+    hasProjectContextTool,
+} from './addOns';
 import type {
     AgentToolName,
     BaseDefinition,
@@ -55,6 +60,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             'exportChartAsCode',
             ...onlyIf(input.canRunSql, ['runSql']),
         ],
+        withheldTools: [],
         sections: [],
         skills: [],
         accepts: ADD_ON_NAMES,
@@ -68,6 +74,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             // The service enables composer only with data access; kept for exact parity.
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
         ],
+        withheldTools: [],
         sections: ['queryingComposer'],
         skills: [],
         accepts: ADD_ON_NAMES,
@@ -79,43 +86,95 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             'generateVisualization',
             ...onlyIf(input.canRunSql, ['runSql']),
         ],
+        withheldTools: [],
         sections: [],
         skills: [],
         accepts: ADD_ON_NAMES,
     }),
     // Reads the layer and warehouse, and proposes; a person applies. No charts or content.
-    // On a dbt project there is no draft: it reads the repository and edits it in a pull request.
-    semantic_studio: (input) => ({
-        tools: [
-            'grepFields',
-            'getMetadata',
-            'searchSemanticLayer',
-            'analyzeFieldImpact',
-            'listChanges',
-            ...onlyIf(input.semanticStudioDrafts, [
-                'readSemanticModel',
-                'proposeSemanticLayerChange',
-            ]),
-            // A dbt draft compiles after the turn, so a query there could read what is published and pass for the draft.
-            ...onlyIf(input.semanticStudioDrafts && input.enableDataAccess, [
-                'runMetricQuery',
-            ]),
-            ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
-            ...onlyIf(input.canRunSql, ['runSql', 'grepWarehouseColumns']),
-        ],
-        sections: ['semanticStudio'],
-        skills: [],
-        accepts: input.semanticStudioDrafts
-            ? ['sqlCatalog', 'projectContext', 'askUser']
-            : [
-                  'sqlCatalog',
-                  'projectContext',
-                  'repoDiscovery',
-                  'writeback',
-                  'pullRequests',
-                  'askUser',
-              ],
-    }),
+    // On a dbt project with writeback it is the builder: read, write and verify, with every lookup inside read.
+    semantic_studio: (input) =>
+        !input.studio?.drafts && input.enableAiWriteback
+            ? {
+                  tools: [
+                      'read',
+                      'write',
+                      'verify',
+                      ...onlyIf(input.canRunSql, ['runSql']),
+                  ],
+                  withheldTools: [
+                      'grepFields',
+                      'getMetadata',
+                      'searchSemanticLayer',
+                      'analyzeFieldImpact',
+                      'listChanges',
+                      ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
+                      ...onlyIf(input.canRunSql, [
+                          'grepWarehouseColumns',
+                          'listWarehouseTables',
+                          'describeWarehouseTable',
+                      ]),
+                      ...onlyIf(hasProjectContextTool(input), [
+                          'loadProjectContext',
+                      ]),
+                      'editDbtProject',
+                      'listWorkstreams',
+                      'getPullRequestDiff',
+                      // Publishing the draft recompiles the project, and the person discards it from the page.
+                      'syncDbtProject',
+                      'closePullRequest',
+                  ],
+                  sections: ['semanticStudio'],
+                  skills: [],
+                  accepts: [
+                      'sqlCatalog',
+                      'projectContext',
+                      'writeback',
+                      'pullRequests',
+                      'askUser',
+                  ],
+              }
+            : {
+                  tools: [
+                      'grepFields',
+                      'getMetadata',
+                      'searchSemanticLayer',
+                      'analyzeFieldImpact',
+                      'listChanges',
+                      ...onlyIf(input.studio?.drafts ?? false, [
+                          'readSemanticModel',
+                          'proposeSemanticLayerChange',
+                      ]),
+                      // Agents read published context only where project context is on.
+                      ...onlyIf(
+                          (input.studio?.keepsContext ?? false) &&
+                              input.projectContextEnabled,
+                          ['draftProjectContext'],
+                      ),
+                      // A dbt draft compiles after the turn, so a query there could read what is published and pass for the draft.
+                      ...onlyIf(
+                          (input.studio?.drafts ?? false) &&
+                              input.enableDataAccess,
+                          ['runMetricQuery'],
+                      ),
+                      ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
+                      ...onlyIf(input.canRunSql, [
+                          'runSql',
+                          'grepWarehouseColumns',
+                      ]),
+                  ],
+                  withheldTools: [],
+                  sections: ['semanticStudio'],
+                  skills: [],
+                  accepts: input.studio?.drafts
+                      ? ['sqlCatalog', 'projectContext', 'askUser']
+                      : [
+                            'sqlCatalog',
+                            'projectContext',
+                            'repoDiscovery',
+                            'askUser',
+                        ],
+              },
     deep_research_worker: (input) => ({
         tools: [
             'generateVisualization',
@@ -126,6 +185,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             ...onlyIf(input.canRunSql, ['runSql']),
             'submitWorkerFindings',
         ],
+        withheldTools: [],
         ...applicableAddOnPrompt(input),
         accepts: ['sqlCatalog'],
     }),
@@ -139,6 +199,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             ...onlyIf(input.canRunSql, ['runSql']),
             'delegateResearchTask',
         ],
+        withheldTools: [],
         ...applicableAddOnPrompt(input),
         accepts: [
             'contentReads',

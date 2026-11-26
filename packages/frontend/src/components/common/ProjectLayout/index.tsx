@@ -5,7 +5,7 @@ import { Outlet, useLocation, useMatches, useNavigation } from 'react-router';
 import ScopeTourHost from '../../../features/scopeTours/ScopeTourHost';
 import { useAnalyticsProjectRouteView } from '../../../hooks/useAnalyticsProjectView';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
-import NavBar from '../../NavBar';
+import { AppNavigationShell } from '../../AppSidebar/AppNavigationShell';
 import PageSpinner from '../../PageSpinner';
 import { ContentAuthoringRoute } from './ContentAuthoringRoute';
 import classes from './ProjectLayout.module.css';
@@ -35,8 +35,7 @@ const ProjectLayout: FC = () => {
     });
 
     return (
-        <>
-            <NavBar isFixed={isNavBarFixed || isNavigating} />
+        <AppNavigationShell isNavBarFixed={isNavBarFixed || isNavigating}>
             <Sentry.ErrorBoundary fallback={<></>}>
                 <ScopeTourHost />
             </Sentry.ErrorBoundary>
@@ -52,7 +51,7 @@ const ProjectLayout: FC = () => {
                     <PageSpinner />
                 </Box>
             )}
-        </>
+        </AppNavigationShell>
     );
 };
 

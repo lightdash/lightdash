@@ -134,15 +134,11 @@ test.describe('Space', () => {
 
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/home`);
         // Complete user onboarding
-        // The composer taking focus closes the dropdown, so reopen it until the option is picked
-        const roleSelect = page.getByPlaceholder('Select your role');
-        await expect(async () => {
-            await roleSelect.click();
-            await page
-                .getByText('Product', { exact: true })
-                .click({ timeout: 2_000 });
-        }).toPass();
-        await page.getByText('Next', { exact: true }).click();
+        await expect(page).toHaveURL(/\/organization-setup/);
+        await page.getByPlaceholder('Select your role').click();
+        await page.getByText('Product', { exact: true }).click();
+        await page.getByRole('button', { name: 'Continue' }).click();
+        await expect(page).toHaveURL(/\/home/);
 
         // Don't show private spaces in navbar
         await page.getByText('Browse', { exact: true }).click();

@@ -3,6 +3,8 @@ import {
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicyOverview,
     type AgentCapabilityCeiling,
+    type AgentProjectCapabilityPolicy,
+    type AgentProjectCapabilityPolicySave,
     type ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse,
     type WarehouseTypes,
     type ApiAiServiceAccountStatusResponse,
@@ -487,5 +489,51 @@ export const useSaveAgentCapabilityCeiling = (
         'PUT',
         'Could not save agent permissions.',
         onSaved,
+        agentPolicyMutationKey,
+    );
+
+const projectAgentPolicyUrl = `${agentPolicyUrl}/projects`;
+
+export const useProjectAgentPolicies = (enabled = true) => {
+    const lightdashApi = useLightdashApi();
+    const { user } = useApp();
+    const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    return useQuery<AgentProjectCapabilityPolicy[], ApiError>({
+        queryKey: [
+            'ai-access',
+            'org',
+            user.data?.organizationUuid,
+            'agent-permissions',
+            'projects',
+        ],
+        queryFn: () =>
+            lightdashApi<AgentProjectCapabilityPolicy[]>({
+                version: 'v2',
+                url: projectAgentPolicyUrl,
+                method: 'GET',
+                body: undefined,
+            }),
+        enabled: enabled && flag?.enabled === true,
+    });
+};
+
+export const useSaveProjectAgentPolicy = (projectUuid: string) =>
+    useAgentPermissionMutation<
+        AgentProjectCapabilityPolicy,
+        AgentProjectCapabilityPolicySave
+    >(
+        `${projectAgentPolicyUrl}/${encodeURIComponent(projectUuid)}`,
+        'PUT',
+        'Could not save agent restrictions for this project.',
+        undefined,
+        agentPolicyMutationKey,
+    );
+
+export const useDeleteProjectAgentPolicy = (projectUuid: string) =>
+    useAgentPermissionMutation<undefined, undefined>(
+        `${projectAgentPolicyUrl}/${encodeURIComponent(projectUuid)}`,
+        'DELETE',
+        'Could not save agent restrictions for this project.',
+        undefined,
         agentPolicyMutationKey,
     );

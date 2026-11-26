@@ -1,10 +1,9 @@
-import { FeatureFlags, type HealthState } from '@lightdash/common';
+import { type HealthState } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useExternalConnections } from '../features/externalConnections/hooks/useExternalConnections';
 import { useExternalSources } from '../features/externalSources/hooks/useExternalSources';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import OnboardingTools from './OnboardingTools';
 
@@ -29,9 +28,6 @@ vi.mock('../hooks/useExplores', () => ({
         isInitialLoading: project.isLoadingExplores,
     }),
 }));
-vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: vi.fn(),
-}));
 vi.mock('../features/externalConnections/hooks/useExternalConnections', () => ({
     useExternalConnections: vi.fn(),
 }));
@@ -45,23 +41,13 @@ vi.mock(
 
 const ORG_UUID = '172a2270-000f-42be-9c68-c4752c23ae51';
 
-const mockFlags = (enabled: Partial<Record<string, boolean>>) =>
-    vi.mocked(useServerFeatureFlag).mockImplementation(
-        (flag) =>
-            ({
-                data: {
-                    id: flag,
-                    enabled:
-                        flag === FeatureFlags.NewOnboarding ||
-                        (enabled[flag] ?? false),
-                },
-                isLoading: false,
-            }) as ReturnType<typeof useServerFeatureFlag>,
-    );
+const LICENSED: Partial<HealthState> = {
+    license: { hasLicenseKey: true, valid: true },
+};
 
-const renderPage = (health: Partial<HealthState>) =>
+const renderPage = (health: Partial<HealthState>, search = '') =>
     renderWithProviders(
-        <MemoryRouter initialEntries={['/onboarding/tools/project-1']}>
+        <MemoryRouter initialEntries={[`/onboarding/tools/project-1${search}`]}>
             <Routes>
                 <Route
                     path="/onboarding/tools/:projectUuid"
@@ -79,7 +65,7 @@ const renderPage = (health: Partial<HealthState>) =>
                 abilityRules: [
                     {
                         action: 'manage',
-                        subject: 'ExternalConnection',
+                        subject: 'LiveSource',
                         conditions: { organizationUuid: ORG_UUID },
                     },
                     {
@@ -106,11 +92,24 @@ describe('OnboardingTools', () => {
         } as unknown as ReturnType<typeof useExternalSources>);
     });
 
+    it('finishes onboarding without querying external connections on an unlicensed instance', async () => {
+        vi.mocked(useExternalConnections).mockClear();
+        renderPage(
+            { license: { hasLicenseKey: false, valid: false } },
+            '?step=done',
+        );
+
+        expect(
+            await screen.findByRole('link', { name: 'Go to home' }),
+        ).toHaveAttribute('href', '/projects/project-1/home');
+        expect(vi.mocked(useExternalConnections).mock.calls).toContainEqual([
+            undefined,
+        ]);
+        expect(useExternalConnections).not.toHaveBeenCalledWith('project-1');
+    });
+
     it('offers every enabled group and lets the user skip', async () => {
-        mockFlags({
-            [FeatureFlags.ApiQuerySources]: true,
-        });
-        renderPage({ hasGoogleLiveSources: true });
+        renderPage({ ...LICENSED, hasGoogleLiveSources: true });
 
         expect(
             await screen.findByRole('heading', {
@@ -126,8 +125,7 @@ describe('OnboardingTools', () => {
     });
 
     it('hides Google sources when Google sign-in is not configured', async () => {
-        mockFlags({ [FeatureFlags.ApiQuerySources]: true });
-        renderPage({ hasGoogleLiveSources: false });
+        renderPage({ ...LICENSED, hasGoogleLiveSources: false });
 
         expect(
             await screen.findByText('Product analytics'),
@@ -140,8 +138,7 @@ describe('OnboardingTools', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('goes straight to the Slack and GitHub step when no source kind is enabled', async () => {
-        mockFlags({});
+    it('goes straight to the Slack and GitHub step without an Enterprise licence', async () => {
         renderPage({ hasGoogleLiveSources: true, hasSlack: true });
 
         expect(
@@ -152,7 +149,6 @@ describe('OnboardingTools', () => {
     });
 
     it('shows Slack as connected once it is installed', async () => {
-        mockFlags({});
         slack.data = { slackTeamName: 'Acme' };
         renderPage({ hasSlack: true });
 
@@ -166,9 +162,8 @@ describe('OnboardingTools', () => {
     });
 
     it('asks for a tool in a project started from tools', async () => {
-        mockFlags({ [FeatureFlags.ApiQuerySources]: true });
         project.data = { warehouseConnection: null };
-        renderPage({});
+        renderPage(LICENSED);
 
         expect(
             await screen.findByRole('heading', { name: 'Connect your tools' }),
@@ -177,10 +172,9 @@ describe('OnboardingTools', () => {
     });
 
     it('holds the button until it knows the project has models', async () => {
-        mockFlags({ [FeatureFlags.ApiQuerySources]: true });
         project.data = { warehouseConnection: null };
         project.isLoadingExplores = true;
-        renderPage({});
+        renderPage(LICENSED);
 
         expect(
             await screen.findByRole('button', { name: 'Skip for now' }),
@@ -188,10 +182,9 @@ describe('OnboardingTools', () => {
     });
 
     it('keeps skip for a CLI-deployed project without stored credentials', async () => {
-        mockFlags({ [FeatureFlags.ApiQuerySources]: true });
         project.data = { warehouseConnection: null };
         project.explores = [{ name: 'orders', type: 'default' }];
-        renderPage({});
+        renderPage(LICENSED);
 
         expect(
             await screen.findByRole('button', { name: 'Skip for now' }),

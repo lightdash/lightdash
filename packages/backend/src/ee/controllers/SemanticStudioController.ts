@@ -1,5 +1,6 @@
 import {
     assertRegisteredAccount,
+    type ApiAiAgentResponse,
     type ApiErrorPayload,
     type ApiSemanticLayerDraftApplyResponse,
     type ApiSemanticLayerDraftedModelsResponse,
@@ -12,9 +13,11 @@ import {
     type ApiSemanticLayerDraftTakeLiveRequest,
     type ApiSemanticLayerDraftUsageResponse,
     type ApiSemanticLayerModelResponse,
+    type ApiSemanticLayerOthersDraftModelResponse,
     type ApiSemanticLayerStatusResponse,
     type ApiSemanticLayerStoredModelsResponse,
     type ApiSemanticLayerUndoResponse,
+    type ApiSemanticStudioBranchCompileFollowUpResponse,
     type ApiSemanticStudioCheckoutResponse,
     type ApiSemanticStudioSourceFileResponse,
     type ApiSemanticStudioSourceSaveResponse,
@@ -27,6 +30,7 @@ import {
     type SaveSemanticStudioSourceRequest,
     type SemanticLayerFieldUsageBody,
     type SemanticLayerUndoRequest,
+    type SemanticStudioBranchCompileFollowUpBody,
     type SemanticStudioPublishBody,
     type SemanticStudioWorkspaceRenameBody,
     type SemanticStudioWorkspaceStartBody,
@@ -55,6 +59,7 @@ import {
     isAuthenticated,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import { type SemanticStudioCheckoutService } from '../services/SemanticStudioService/SemanticStudioCheckoutService';
 import { type SemanticStudioService } from '../services/SemanticStudioService/SemanticStudioService';
 
 @Route('/api/v1/projects/{projectUuid}/semantic-studio')
@@ -63,6 +68,10 @@ import { type SemanticStudioService } from '../services/SemanticStudioService/Se
 export class SemanticStudioController extends BaseController {
     private getService(): SemanticStudioService {
         return this.services.getSemanticStudioService<SemanticStudioService>();
+    }
+
+    private getCheckoutService(): SemanticStudioCheckoutService {
+        return this.services.getSemanticStudioCheckoutService<SemanticStudioCheckoutService>();
     }
 
     /**
@@ -84,6 +93,27 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
             ),
+        };
+    }
+
+    /**
+     * The built-in agent behind this project's Semantic Studio chat, created on first use.
+     * @summary Get the Semantic Studio agent
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/agent')
+    @OperationId('getSemanticStudioAgent')
+    async getStudioAgent(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiAiAgentResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSemanticStudioCheckoutService<SemanticStudioCheckoutService>()
+                .getBuilderAgent(toSessionUser(req.account), projectUuid),
         };
     }
 
@@ -190,7 +220,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().getCheckout(
+            results: await this.getCheckoutService().getCheckout(
                 toSessionUser(req.account),
                 projectUuid,
             ),
@@ -212,9 +242,33 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().compileCheckout(
+            results: await this.getCheckoutService().compileCheckout(
                 toSessionUser(req.account),
                 projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * Claims the hidden prompt that sends a failed compile of the agent's last save back to the agent; null when there is none to send.
+     * @summary Claim a Semantic Studio compile follow-up
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/checkout/compile/follow-up')
+    @OperationId('claimSemanticStudioCompileFollowUp')
+    async claimCompileFollowUp(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: SemanticStudioBranchCompileFollowUpBody,
+    ): Promise<ApiSemanticStudioBranchCompileFollowUpResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getCheckoutService().claimBranchCompileFollowUp(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
             ),
         };
     }
@@ -235,7 +289,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().publishCheckout(
+            results: await this.getCheckoutService().publishCheckout(
                 toSessionUser(req.account),
                 projectUuid,
                 body.prUrl,
@@ -259,7 +313,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().listSources(
+            results: await this.getCheckoutService().listSources(
                 toSessionUser(req.account),
                 projectUuid,
                 prUrl ?? null,
@@ -284,7 +338,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().readSource(
+            results: await this.getCheckoutService().readSource(
                 toSessionUser(req.account),
                 projectUuid,
                 prUrl ?? null,
@@ -309,7 +363,7 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: await this.getService().saveSource(
+            results: await this.getCheckoutService().saveSource(
                 toSessionUser(req.account),
                 projectUuid,
                 body,
@@ -688,6 +742,56 @@ export class SemanticStudioController extends BaseController {
             toSessionUser(req.account),
             projectUuid,
             { kind: 'model', model },
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * One model as someone else's draft leaves it, read-only.
+     * @summary Get another person's semantic layer draft of a model
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/drafts/{ownerUuid}/models/{model}')
+    @OperationId('getOthersSemanticLayerDraftModel')
+    async getOthersDraftModel(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() ownerUuid: UUID,
+        @Path() model: string,
+    ): Promise<ApiSemanticLayerOthersDraftModelResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getOthersDraftModel(
+                toSessionUser(req.account),
+                projectUuid,
+                ownerUuid,
+                model,
+            ),
+        };
+    }
+
+    /**
+     * Takes one model out of someone else's draft; only a project admin, once the draft has had no activity for 7 days.
+     * @summary Discard one model from another person's stale semantic layer draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete('/drafts/{ownerUuid}/models/{model}')
+    @OperationId('discardOthersSemanticLayerDraftModel')
+    async discardOthersDraftModel(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() ownerUuid: UUID,
+        @Path() model: string,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().discardOthersDraftModel(
+            toSessionUser(req.account),
+            projectUuid,
+            ownerUuid,
+            model,
         );
         return { status: 'ok', results: undefined };
     }

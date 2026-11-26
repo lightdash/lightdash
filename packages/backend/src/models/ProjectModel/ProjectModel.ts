@@ -2,6 +2,7 @@ import {
     AgentSqlScope,
     AlreadyExistsError,
     AnyType,
+    ApiConnectorType,
     assertUnreachable,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
@@ -35,6 +36,7 @@ import {
     IdContentMapping,
     isExploreError,
     isUserManagedExplore,
+    LiveExploreSwitchedOffError,
     normalizeWarehouseCredentials,
     NotFoundError,
     NotImplementedError,
@@ -200,6 +202,7 @@ import {
     AiDeepResearchEventsTableName,
     AiDeepResearchRunsTableName,
 } from '../../ee/database/entities/aiDeepResearch';
+import { ExternalConnectionsTableName } from '../../ee/database/entities/externalConnections';
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import {
     newExploreCacheReadContext,
@@ -3601,16 +3604,86 @@ export class ProjectModel {
         );
         const cachedExplore = cachedExplores[exploreName];
         if (cachedExplore === undefined) {
-            const candidateExploreNames = await this.findExploreSplitCandidates(
-                projectUuid,
-                exploreName,
-            );
-            if (candidateExploreNames.length >= 2) {
-                throw new ExploreSplitError(exploreName, candidateExploreNames);
-            }
-            throw new NotFoundError(`Explore "${exploreName}" does not exist.`);
+            throw await this.getMissingExploreError(projectUuid, exploreName);
         }
         return cachedExplore;
+    }
+
+    /**
+     * Why an explore isn't in the cache: a live explore an admin switched
+     * off, an explore split into several, or one that doesn't exist.
+     */
+    async getMissingExploreError(
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<NotFoundError> {
+        const switchedOff = await this.findSwitchedOffLiveExplore(
+            projectUuid,
+            exploreName,
+        );
+        if (switchedOff) {
+            return new LiveExploreSwitchedOffError({
+                exploreName,
+                ...switchedOff,
+            });
+        }
+        const candidateExploreNames = await this.findExploreSplitCandidates(
+            projectUuid,
+            exploreName,
+        );
+        if (candidateExploreNames.length >= 2) {
+            return new ExploreSplitError(exploreName, candidateExploreNames);
+        }
+        return new NotFoundError(`Explore "${exploreName}" does not exist.`);
+    }
+
+    private async findSwitchedOffLiveExplore(
+        projectUuid: string,
+        exploreName: string,
+    ) {
+        const rows = await this.database(ExternalConnectionsTableName)
+            .where('project_uuid', projectUuid)
+            .where('connection_kind', 'live_source')
+            .whereNull('deleted_at')
+            .whereRaw("api_source->'explores' IS NOT NULL")
+            .select<
+                {
+                    name: string;
+                    source_name: string | null;
+                    connector: ApiConnectorType;
+                    api_source: unknown;
+                }[]
+            >(
+                'name',
+                this.database.raw("api_source->>'sourceName' as source_name"),
+                this.database.raw("api_source->>'connector' as connector"),
+                'api_source',
+            );
+        if (rows.length === 0) return undefined;
+        // Loaded here, not at the top: the live integrations build warehouse
+        // clients when they load, which every ProjectModel import would pay for
+        const [{ findSwitchedOffLiveExplore }, { parseLiveSourceFieldState }] =
+            await Promise.all([
+                import('../../services/QuerySourceService/live/explores/build'),
+                import('../../services/QuerySourceService/live/explores/fields'),
+            ]);
+        return findSwitchedOffLiveExplore(
+            rows.flatMap((row) =>
+                row.source_name
+                    ? [
+                          {
+                              name: row.name,
+                              sourceName: row.source_name,
+                              connector: row.connector,
+                              exploreEdits: parseLiveSourceFieldState(
+                                  row.api_source,
+                              ).explores,
+                          },
+                      ]
+                    : [],
+            ),
+            exploreName,
+        );
     }
 
     async findExploreSplitCandidates(
@@ -6329,6 +6402,26 @@ export class ProjectModel {
         }));
     }
 
+    /** Projects tagged as sample data, whatever their connection is now. */
+    async getPlaygroundProjectUuids(): Promise<string[]> {
+        const rows = await this.database(ProjectTableName)
+            .select('project_uuid')
+            .where('provisioning_source', 'playground')
+            .orderBy('project_id');
+        return rows.map((row) => row.project_uuid);
+    }
+
+    /** Turns a sample data project into an ordinary one. */
+    async clearPlaygroundProvisioning(projectUuid: string): Promise<void> {
+        await this.database(ProjectTableName)
+            .update({
+                provisioning_source: null,
+                playground_bundle_version: null,
+            })
+            .where('project_uuid', projectUuid)
+            .andWhere('provisioning_source', 'playground');
+    }
+
     /** Records when any server first saw a bundle version and returns that time. */
     async recordPlaygroundBundleVersionSeen(version: string): Promise<Date> {
         await this.database(PlaygroundBundleVersionsTableName)
@@ -8858,14 +8951,16 @@ export class ProjectModel {
     /**
      * Replaces every explore of one live data source. Sources are soft
      * deleted and explores have no foreign key, so explores are always
-     * written and removed per source.
+     * written and removed per source. Pass `trx` to write them with other
+     * changes, such as the field edits they were built from.
      */
     async replaceApiSourceExplores(
         projectUuid: string,
         connectionUuid: string,
         explores: Explore[],
+        outerTrx?: Knex.Transaction,
     ): Promise<void> {
-        await this.database.transaction(async (trx) => {
+        const replace = async (trx: Knex.Transaction) => {
             await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
             const clashing = await trx(CachedExploreTableName)
                 .select('name')
@@ -8898,7 +8993,10 @@ export class ProjectModel {
                     })),
                 );
             }
-        });
+        };
+        await (outerTrx
+            ? replace(outerTrx)
+            : this.database.transaction(replace));
     }
 
     /** Which of these explore names belong to something other than this live source. */
@@ -8959,6 +9057,21 @@ export class ProjectModel {
                 this.database.raw("explore->'apiSource'->'fields' as fields"),
             );
         return rows.flatMap(({ fields }) => Object.keys(fields ?? {}));
+    }
+
+    /** The names of a live data source's explores in the project. */
+    async getApiSourceExploreNames(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<string[]> {
+        const rows = await this.database(CachedExploreTableName)
+            .select<{ name: string }[]>('name')
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
+            .whereRaw("explore->'apiSource'->>'connectionUuid' = ?", [
+                connectionUuid,
+            ]);
+        return rows.map(({ name }) => name);
     }
 
     async hasApiSourceExplores(

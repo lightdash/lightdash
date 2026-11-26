@@ -1,4 +1,8 @@
-import { ConflictError, ParameterError } from '@lightdash/common';
+import {
+    ApiConnectorType,
+    ConflictError,
+    ParameterError,
+} from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -14,6 +18,7 @@ import {
     ExternalConnectionModel,
     parseApiSourceSchemaScan,
     readLiveSourceCacheSettings,
+    readLiveSourceRateLimits,
 } from './ExternalConnectionModel';
 
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000001';
@@ -406,6 +411,7 @@ describe('ExternalConnectionModel', () => {
             tracker.on.select(ApiSourceCallsTableName).responseOnce([
                 {
                     external_connection_uuid: CONNECTION_UUID,
+                    queries: '15',
                     api_calls: '12',
                     cache_hits: '3',
                     response_bytes: '4096',
@@ -413,6 +419,7 @@ describe('ExternalConnectionModel', () => {
                 },
                 {
                     external_connection_uuid: 'conn-reused-only',
+                    queries: '5',
                     api_calls: '0',
                     cache_hits: '5',
                     response_bytes: null,
@@ -420,10 +427,19 @@ describe('ExternalConnectionModel', () => {
                 },
             ]);
 
-            const usage = await model.getApiSourceUsage(PROJECT_UUID);
+            const since = new Date('2026-10-21T00:00:00Z');
+            const usage = await model.getApiSourceUsage(PROJECT_UUID, since);
+
+            expect(tracker.history.select[0].sql).toContain(
+                '"created_at" >= $2',
+            );
+            expect(tracker.history.select[0].bindings).toContain(since);
 
             expect(tracker.history.select[0].sql).toContain(
                 'percentile_cont(0.5) within group (order by duration_ms) filter (where api_calls > 0)',
+            );
+            expect(tracker.history.select[0].sql).toContain(
+                'count(*) as queries',
             );
             expect(tracker.history.select[0].sql).toContain(
                 'count(*) filter (where cache_hit) as cache_hits',
@@ -431,6 +447,7 @@ describe('ExternalConnectionModel', () => {
             expect(usage).toEqual([
                 {
                     externalConnectionUuid: CONNECTION_UUID,
+                    queries: 15,
                     apiCalls: 12,
                     cacheHits: 3,
                     responseBytes: 4096,
@@ -438,12 +455,104 @@ describe('ExternalConnectionModel', () => {
                 },
                 {
                     externalConnectionUuid: 'conn-reused-only',
+                    queries: 5,
                     apiCalls: 0,
                     cacheHits: 5,
                     responseBytes: 0,
                     medianDurationMs: null,
                 },
             ]);
+        });
+    });
+
+    describe('cleanupApiSourceCalls', () => {
+        const cutoff = new Date('2026-10-21T00:00:00Z');
+        const OTHER_CONNECTION_UUID = 'conn-2';
+        const day = (iso: string) => new Date(`${iso}T12:00:00Z`);
+
+        /** A call log the mocked deletes act on, as Postgres would. */
+        const seedCallLog = () => {
+            const rows = [
+                ...['2026-10-01', '2026-10-02', '2026-10-03'].map((d) => ({
+                    connection: CONNECTION_UUID,
+                    createdAt: day(d),
+                })),
+                { connection: CONNECTION_UUID, createdAt: day('2026-11-01') },
+                {
+                    connection: OTHER_CONNECTION_UUID,
+                    createdAt: day('2026-10-05'),
+                },
+                {
+                    connection: OTHER_CONNECTION_UUID,
+                    createdAt: day('2026-11-02'),
+                },
+            ];
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .responseOnce([
+                    { external_connection_uuid: CONNECTION_UUID },
+                    { external_connection_uuid: OTHER_CONNECTION_UUID },
+                ]);
+            tracker.on.delete(ApiSourceCallsTableName).response((query) => {
+                const [connection, before, limit] = query.bindings as [
+                    string,
+                    Date,
+                    number,
+                ];
+                const expired = rows
+                    .filter(
+                        (row) =>
+                            row.connection === connection &&
+                            row.createdAt < before,
+                    )
+                    .slice(0, limit);
+                expired.forEach((row) => rows.splice(rows.indexOf(row), 1));
+                return expired.length;
+            });
+            return rows;
+        };
+
+        it('deletes rows older than the cutoff per source, in batches, and keeps newer ones', async () => {
+            const rows = seedCallLog();
+
+            const result = await model.cleanupApiSourceCalls(cutoff, {
+                batchSize: 2,
+                delayMs: 0,
+                maxBatches: 10,
+            });
+
+            expect(result).toEqual({
+                totalDeleted: 4,
+                batchCount: 3,
+                completed: true,
+            });
+            expect(rows).toEqual([
+                { connection: CONNECTION_UUID, createdAt: day('2026-11-01') },
+                {
+                    connection: OTHER_CONNECTION_UUID,
+                    createdAt: day('2026-11-02'),
+                },
+            ]);
+            expect(tracker.history.delete[0].sql).toContain(
+                '"external_connection_uuid" = $1 and "created_at" < $2',
+            );
+        });
+
+        it('stops at the batch cap with expired rows left', async () => {
+            const rows = seedCallLog();
+
+            const result = await model.cleanupApiSourceCalls(cutoff, {
+                batchSize: 2,
+                delayMs: 0,
+                maxBatches: 1,
+            });
+
+            expect(result).toEqual({
+                totalDeleted: 2,
+                batchCount: 1,
+                completed: false,
+            });
+            expect(rows).toHaveLength(4);
         });
     });
 
@@ -536,6 +645,23 @@ describe('ExternalConnectionModel', () => {
                 query.sql.includes(ExternalConnectionSecretsTableName),
             );
             expect(secretWrites).toHaveLength(0);
+        });
+
+        it("keeps the admin's rate limits when an integration's settings are replaced", async () => {
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .response([makeDbConnection()]);
+            tracker.on.update(ExternalConnectionsTableName).response(1);
+
+            await model.update(CONNECTION_UUID, USER_UUID, {
+                apiSource: { connector: ApiConnectorType.AMPLITUDE },
+            });
+
+            const [write] = tracker.history.update;
+            expect(write.sql).toContain('jsonb_each');
+            expect(write.bindings).toContainEqual(
+                expect.arrayContaining(['rateLimits']),
+            );
         });
 
         it('leaves the stored secret unchanged when secret is blank', async () => {
@@ -1040,6 +1166,27 @@ describe('parseApiSourceSchemaScan', () => {
             scannedAt: requestedAt,
             error: 'The schema scan did not finish',
         });
+    });
+});
+
+describe('readLiveSourceRateLimits', () => {
+    const rateLimits = {
+        buckets: { hour: 100 },
+        callsPerSecond: null,
+        concurrentCalls: 2,
+    };
+
+    it('reads the limits an admin set', () => {
+        expect(readLiveSourceRateLimits({ rateLimits })).toEqual(rateLimits);
+    });
+
+    it.each([
+        {},
+        { rateLimits: null },
+        { rateLimits: { ...rateLimits, buckets: { hour: 0 } } },
+        { rateLimits: { ...rateLimits, concurrentCalls: 'two' } },
+    ])('reads nothing from %j', (value) => {
+        expect(readLiveSourceRateLimits(value)).toBeNull();
     });
 });
 

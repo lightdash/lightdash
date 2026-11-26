@@ -1,4 +1,8 @@
-import { SchedulerFormat, ThresholdOperator } from '@lightdash/common';
+import {
+    SchedulerFormat,
+    ThresholdOperator,
+    XlsxExportContent,
+} from '@lightdash/common';
 import { describe, expect, test } from 'vitest';
 import {
     DEFAULT_VALUES,
@@ -111,5 +115,49 @@ describe('transformFormValues', () => {
         );
 
         expect(result.useCachedResults).toBe(true);
+    });
+
+    const chartImageValues = {
+        ...DEFAULT_VALUES,
+        format: SchedulerFormat.XLSX,
+        options: {
+            ...DEFAULT_VALUES.options,
+            xlsxContent: XlsxExportContent.CHART_IMAGE,
+        },
+    };
+
+    test.each(['chart', 'dashboard'] as const)(
+        'sends the chart image choice for an xlsx %s delivery',
+        (resourceType) => {
+            const result = transformFormValues(chartImageValues, resourceType);
+
+            expect(result.options).toMatchObject({
+                xlsxContent: XlsxExportContent.CHART_IMAGE,
+            });
+        },
+    );
+
+    test('leaves the chart image choice out when charts export as data', () => {
+        const result = transformFormValues(
+            { ...DEFAULT_VALUES, format: SchedulerFormat.XLSX },
+            'dashboard',
+        );
+
+        expect(result.options).toMatchObject({ xlsxContent: undefined });
+    });
+
+    test('leaves the chart image choice out of csv deliveries', () => {
+        const result = transformFormValues(
+            { ...chartImageValues, format: SchedulerFormat.CSV },
+            'dashboard',
+        );
+
+        expect(result.options).toMatchObject({ xlsxContent: undefined });
+    });
+
+    test('leaves the chart image choice out of app deliveries', () => {
+        const result = transformFormValues(chartImageValues, 'app');
+
+        expect(result.options).toMatchObject({ xlsxContent: undefined });
     });
 });

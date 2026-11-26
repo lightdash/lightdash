@@ -13,6 +13,7 @@ import {
     RequestMethod,
     SCREENSHOT_FAILED_STATUS,
     SCREENSHOT_SELECTORS,
+    SessionStorageKeys,
     UnexpectedServerError,
     type DeliveryCaptureManifest,
     type Document,
@@ -333,6 +334,24 @@ describe('UnfurlService', () => {
                     expect.objectContaining({
                         [`dashboardExportTileParameters:${DASHBOARD_UUID}`]:
                             tileParameters,
+                    }),
+                );
+            },
+        );
+
+        it.each(['pdf', 'image'] as const)(
+            'marks an embed %s render as a headless capture',
+            async (format) => {
+                const { service, page } = setup();
+                await expect(
+                    format === 'pdf'
+                        ? service.exportEmbedDashboardPdf(exportArgs)
+                        : service.exportEmbedDashboardImage(exportArgs),
+                ).rejects.toThrow();
+                expect(page.addInitScript).toHaveBeenCalledWith(
+                    expect.any(Function),
+                    expect.objectContaining({
+                        [SessionStorageKeys.HEADLESS_CAPTURE]: true,
                     }),
                 );
             },

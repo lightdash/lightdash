@@ -1,11 +1,24 @@
 // Points and boxes are fractions (0 to 1) of the capture region, origin top left.
 export type Point = { x: number; y: number };
 export type Box = { x: number; y: number; width: number; height: number };
+/** Something on the page a mark can sit on, such as a tile. Content pixels. */
+export type Anchor = { id: string; rect: Box };
 export type Stroke = { points: Point[] };
-export type MarkShape = 'circle' | 'underline' | 'arrow' | 'scribble';
-export type CaptureTarget = { kind: string; id: string; label: string };
+export type MarkShape = 'circle' | 'underline' | 'arrow' | 'scribble' | 'pick';
+/** A mark drawn with the pointer, or an element picked with a click. */
+export type MarkKind = 'ink' | 'pick';
+export type CaptureTarget = {
+    kind: string;
+    id: string;
+    label: string;
+    /** The id of the thing this is a part of (a bar's tile); null when it stands alone. */
+    parentId: string | null;
+};
 
 /** A target under a mark and the share (0 to 1) of the mark's area on it. */
+/** An element a click picked, with its bounds in viewport pixels. */
+export type PickedElement = { target: CaptureTarget; rect: DOMRect };
+
 export type CaptureCover = { target: CaptureTarget; share: number };
 
 export type CaptureMark = {
@@ -15,6 +28,8 @@ export type CaptureMark = {
     endMs: number;
     strokes: Stroke[];
     shape: MarkShape;
+    /** The dashboard tab the mark was made on; null when there are no tabs. */
+    tabName: string | null;
     box: Box;
     arrow: { from: Point; to: Point } | null;
     /** What the mark is on; for an arrow, what it starts on. */
@@ -33,37 +48,60 @@ export type TranscriptPhrase = { atMs: number; text: string };
 // A spoken word timed from the start of the audio recording.
 export type TranscriptWord = { startMs: number; endMs: number; text: string };
 
-export type CaptureResult = {
-    images: File[];
-    summary: string;
-    marks: CaptureMark[];
-    transcript: TranscriptPhrase[];
-    durationMs: number;
-};
+export type VoiceState = 'on' | 'off';
 
-/** Where the pixels come from: browser tab capture, or the page's own DOM. */
-export type CaptureFrameSource = 'tab' | 'dom';
-
-export type CaptureSurface = {
+/** A page that offers Design Mode: where to draw, how to picture it, what is on it. */
+export type DesignSurface = {
     getRegion: () => DOMRect;
-    /** Defaults to tab capture. "dom" needs no share prompt. */
-    frameSource?: CaptureFrameSource;
-    /** False when the surface only needs marks and words, not pictures. */
-    captureImages: boolean;
+    /** Scroll offset of the surface's content, for content coords. */
+    getScroll: () => { x: number; y: number };
     /**
-     * The surface's own picture of its whole page, from the top. Asked for
-     * once when a recording starts; tab capture is used if it does not answer.
+     * Where marks and bubbles are put so the browser scrolls them with the
+     * content. Null when the content scrolls somewhere they cannot be put.
      */
-    grabAppImage?: (() => Promise<Blob>) | null;
-    /** What is at a viewport point (a tile, a data point). */
+    getScrollContainer: () => HTMLElement | null;
+    /** Tells when the scroll changed. Null when the surface scrolls with the window. */
+    watchScroll: ((onChange: () => void) => () => void) | null;
+    frameSource: 'dom' | 'app';
+    /** Required when frameSource is 'app'. */
+    grabAppImage: (() => Promise<Blob>) | null;
+    getTab: () => { uuid: string; name: string } | null;
     resolveTarget:
         | ((point: { x: number; y: number }) => CaptureTarget | null)
         | null;
-    /** Turns the recorded audio into timed words. Null means no voice. */
+    /** What a click at a viewport point picks, with its bounds. Null when nothing can be picked. */
+    pickAt:
+        | ((point: { x: number; y: number }) => Promise<PickedElement | null>)
+        | null;
     transcribe: ((audio: Blob) => Promise<TranscriptWord[]>) | null;
-    onCapture: (result: CaptureResult) => void;
+    /** Where each thing marks sit on is now, in content pixels. Null when marks cannot follow the page. */
+    getAnchors: (() => Anchor[]) | null;
 };
 
-export type VoiceState = 'on' | 'off';
+export type DesignPayload = {
+    bubbleId: string;
+    /** The marks and speech from buildSummary; empty when there are none. */
+    summary: string;
+    /** The words typed into the bubble, trimmed. */
+    typed: string;
+    marks: CaptureMark[];
+    images: File[];
+    transcript: TranscriptPhrase[];
+};
 
-export const MAX_CAPTURE_IMAGES = 5;
+// 'queued': the surface holds the bubble to send later with others.
+export type DesignSendResult =
+    | { threadId: string; agentUuid: string }
+    | 'queued'
+    | 'cancelled';
+
+/** A mark kept on screen. Box and stroke points are content pixels (viewport plus scroll). */
+export type LayerMark = {
+    bubbleId: string;
+    number: number;
+    tabUuid: string | null;
+    box: Box;
+    strokes: Stroke[];
+    /** A pick: the element's bounds are outlined. */
+    outlined: boolean;
+};

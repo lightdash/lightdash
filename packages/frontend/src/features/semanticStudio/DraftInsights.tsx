@@ -1,11 +1,7 @@
 /** What a person needs around a draft before publishing it: what happened under it, who else is in it, each change in order, and what it does to the numbers. */
 import {
-    diffModelDocuments,
     getItemId,
-    readModelPart,
-    type Metric,
     type SemanticLayerDraft,
-    type SemanticLayerDraftConflict,
     type SemanticLayerDraftModel,
     type SemanticLayerDraftUsage,
 } from '@lightdash/common';
@@ -18,289 +14,51 @@ import {
     Group,
     Paper,
     Stack,
-    Table,
     Text,
     Tooltip,
     VisuallyHidden,
 } from '@mantine/core';
 import {
+    IconChevronRight,
     IconCircleCheck,
     IconCircleDashed,
     IconAlertTriangle,
     IconArrowDown,
     IconArrowUp,
     IconGitMerge,
-    IconArrowsDiff,
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
-import { upperFirst } from 'es-toolkit/compat';
-import { useMemo, useState, type FC, type ReactNode } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
-import {
-    DEVELOPMENT_PREVIEW_HEADER,
-    DEVELOPMENT_VIEW_HEADER,
-} from './developmentView';
 import classes from './DraftInsights.module.css';
 import { describePublisher } from './draftState';
 import { FieldChangeIcon } from './KindTypeIcon';
-import { describeShift, pickComparedMetrics } from './metricComparison';
+import { LineCounts } from './LineCounts';
 import {
+    CHANGE_GLYPHS,
     CHANGE_KIND_LABELS,
     describeModelChange,
     getChangeKind,
     count,
     countChangedLines,
     listPublishedParts,
+    summarizeDraftedPaths,
 } from './modelCode';
-import { LIVE_HEADERS, useTotals } from './useMetricTotals';
 import {
     useDiscardDraftChange,
-    useKeepDraftModel,
     useMoveDraftChange,
-    useTakeLiveDraftPart,
     useSemanticLayerDraftUsage,
+    usePublishMode,
 } from './useSemanticLayerModel';
-import { LineCounts } from './WorkbenchRail';
 
 const listNames = (names: string[]): string =>
     names.length <= 2
         ? names.join(' and ')
         : `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`;
-
-const describePath = (path: string): string =>
-    path === '' ? 'the whole model' : path;
-
-/** A part's name as a person would say it; a nested part keeps its path. */
-const PartName: FC<{ path: string }> = ({ path }) =>
-    path.includes('.') ? (
-        <Text fz="xs" fw={500} ff="monospace" truncate>
-            {path}
-        </Text>
-    ) : (
-        <Text fz="xs" fw={500} truncate>
-            {path === ''
-                ? 'The whole model'
-                : upperFirst(path.replaceAll('_', ' '))}
-        </Text>
-    );
-
-/** Drops the draft's change to one part, so what is live stands. */
-const KeepTheirsButton: FC<{
-    projectUuid: string;
-    model: string;
-    path: string;
-    label: string;
-}> = ({ projectUuid, model, path, label }) => {
-    const takeLive = useTakeLiveDraftPart(projectUuid);
-    return (
-        <Button
-            size="compact-xs"
-            variant="default"
-            flex="none"
-            aria-label={label}
-            loading={takeLive.isLoading}
-            onClick={() => takeLive.mutate({ model, path })}
-        >
-            Keep theirs
-        </Button>
-    );
-};
-
-/** Keeps the draft over what was published, for every part of the model still contested. */
-const KeepMineButton: FC<{
-    projectUuid: string;
-    model: SemanticLayerDraftModel;
-    label: string;
-    ariaLabel: string | null;
-}> = ({ projectUuid, model, label, ariaLabel }) => {
-    const keep = useKeepDraftModel(projectUuid);
-    return (
-        <Button
-            size="compact-xs"
-            variant="default"
-            flex="none"
-            aria-label={ariaLabel ?? undefined}
-            loading={keep.isLoading}
-            onClick={() =>
-                keep.mutate({
-                    model: model.model,
-                    liveVersion: model.reconciliation?.liveVersion ?? null,
-                })
-            }
-        >
-            {label}
-        </Button>
-    );
-};
-
-/** A word without the punctuation around it, so a comma added after it does not count as a change. */
-const toBareWord = (word: string): string =>
-    word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
-
-/** A version of a part with the words its start did not have marked, so the difference is the first thing read. */
-const ChangedWords: FC<{ value: string; base: string | null }> = ({
-    value,
-    base,
-}) => {
-    if (base === null) return value;
-    // Words compared as a set, so a moved or repeated word is not marked; use a real diff if that misleads.
-    const known = new Set(base.split(/\s+/).map(toBareWord));
-    return value.split(/(\s+)/).map((word, index) =>
-        toBareWord(word) === '' || known.has(toBareWord(word)) ? (
-            word
-        ) : (
-            <mark key={index} className={classes.changed}>
-                {word}
-            </mark>
-        ),
-    );
-};
-
-/** Whether a part's value is YAML to read as code, and not a sentence or a name to read as words. */
-const isYaml = (value: string): boolean =>
-    value.includes('\n') || /^[\w-]+:(\s|$)/.test(value);
-
-/** A part's value in the face it is read in: code for YAML, the body face for words. */
-const PartValue: FC<{ value: string; children: ReactNode }> = ({
-    value,
-    children,
-}) =>
-    isYaml(value) ? (
-        <Box component="pre" className={classes.code}>
-            {children}
-        </Box>
-    ) : (
-        <Text fz="sm" className={classes.prose}>
-            {children}
-        </Text>
-    );
-
-/** One of the two versions a contested part can end up as: whose it is, with a Keep button whose tooltip says what keeping it does. */
-const ConflictOption: FC<{
-    title: string;
-    state: string;
-    tone: 'live' | 'draft';
-    /** Null when this side removed the part. */
-    value: string | null;
-    base: string | null;
-    outcome: string;
-    action: ReactNode;
-}> = ({ title, state, tone, value, base, outcome, action }) => (
-    <Box className={classes.option}>
-        <Group gap="xs" wrap="nowrap" justify="space-between">
-            <Text fz="xs" truncate>
-                <Box
-                    component="span"
-                    className={classes.tone}
-                    data-tone={tone}
-                />
-                <Text span fz="xs" fw={500}>
-                    {title}
-                </Text>
-                <Text span fz="xs" c="dimmed">
-                    {' · '}
-                    {state}
-                </Text>
-            </Text>
-            {action ? (
-                <Tooltip label={outcome} withinPortal maw={240} multiline>
-                    <Box flex="none">{action}</Box>
-                </Tooltip>
-            ) : null}
-        </Group>
-        {value === null ? (
-            <Text fz="sm" c="dimmed">
-                Removed
-            </Text>
-        ) : (
-            <PartValue value={value}>
-                <ChangedWords value={value} base={base} />
-            </PartValue>
-        )}
-    </Box>
-);
-
-/** One part two people changed: each person's version, the words that differ marked, with the button that keeps it. */
-const ConflictSides: FC<{
-    projectUuid: string;
-    model: SemanticLayerDraftModel;
-    conflict: SemanticLayerDraftConflict;
-    /** When theirs went live, in words. */
-    publishedAgo: string;
-    /** False when it is the only contested part: the notice names it, and keeping the draft is offered right here. */
-    isOneOfSeveral: boolean;
-}> = ({ projectUuid, model, conflict, publishedAgo, isOneOfSeveral }) => {
-    const publisher = describePublisher(model.publishedSince);
-    return (
-        <Stack gap="xs" className={classes.conflict}>
-            {isOneOfSeveral ? <PartName path={conflict.path} /> : null}
-            <Box className={classes.options}>
-                <ConflictOption
-                    title={publisher.option}
-                    state={`published ${publishedAgo}`}
-                    tone="live"
-                    value={conflict.live}
-                    base={conflict.base}
-                    outcome={
-                        conflict.path === ''
-                            ? 'Everything you changed on this model leaves your draft.'
-                            : 'Your edit to this part leaves your draft.'
-                    }
-                    action={
-                        <KeepTheirsButton
-                            projectUuid={projectUuid}
-                            model={model.model}
-                            path={conflict.path}
-                            label={publisher.keepLabel}
-                        />
-                    }
-                />
-                <ConflictOption
-                    title="You"
-                    state="your draft"
-                    tone="draft"
-                    value={conflict.mine}
-                    base={conflict.base}
-                    outcome={
-                        isOneOfSeveral
-                            ? 'Kept with the button under this list.'
-                            : 'Yours replaces theirs when you publish.'
-                    }
-                    action={
-                        isOneOfSeveral ? null : (
-                            <KeepMineButton
-                                projectUuid={projectUuid}
-                                model={model}
-                                label="Keep mine"
-                                ariaLabel="Keep your version"
-                            />
-                        )
-                    }
-                />
-            </Box>
-        </Stack>
-    );
-};
-
-/** The one contested part, named inside a sentence. */
-const ContestedPart: FC<{ path: string }> = ({ path }) => {
-    if (path === '') return 'this model';
-    if (!path.includes('.')) {
-        return `this model's ${path.replaceAll('_', ' ')}`;
-    }
-    return (
-        <>
-            <Text span ff="monospace">
-                {path}
-            </Text>{' '}
-            on this model
-        </>
-    );
-};
 
 /** One notice on a model's card: its icon sits in the column the card's own icon uses, so the words line up with the title. */
 const NoticeRow: FC<{
@@ -318,95 +76,36 @@ const NoticeRow: FC<{
 
 /** What happened to a model outside this draft: a publish under it, or someone else's work in it. */
 export const ModelNotices: FC<{
-    projectUuid: string;
     model: SemanticLayerDraftModel;
-}> = ({ projectUuid, model }) => {
+}> = ({ model }) => {
     const publishedAgo = useTimeAgo(model.publishedSince?.at ?? new Date());
-    const conflicts = model.reconciliation?.conflicts ?? [];
-    const merged = model.reconciliation?.merged ?? [];
     const publisher = describePublisher(model.publishedSince);
     // Kept over what was published: the draft is based on live again.
     const publishedUnder =
         model.reconciliation?.state === 'current' ? null : model.publishedSince;
-    if (
-        !publishedUnder &&
-        model.alsoChanging.length === 0 &&
-        conflicts.length === 0
-    ) {
-        return null;
-    }
+    if (!publishedUnder && model.alsoChanging.length === 0) return null;
     return (
         <Stack gap={4} className={classes.notices}>
-            {conflicts.length > 0 ? (
-                <Stack gap="xs" data-conflict>
-                    <NoticeRow icon={IconAlertTriangle} color="yellow">
-                        <Tooltip
-                            label="Choose which to keep. You can publish once you have."
-                            position="top-start"
-                            withinPortal
-                        >
-                            <Text fz="xs" w="fit-content">
-                                <Text span fw={600}>
-                                    {publisher.subject}
-                                </Text>{' '}
-                                published a change to{' '}
-                                {conflicts.length === 1 ? (
-                                    <ContestedPart path={conflicts[0].path} />
-                                ) : (
-                                    `${conflicts.length} parts of this model`
-                                )}
-                                {publisher.where} that this draft also edits.
-                            </Text>
-                        </Tooltip>
-                    </NoticeRow>
-                    {conflicts.map((conflict) => (
-                        <ConflictSides
-                            key={conflict.path}
-                            projectUuid={projectUuid}
-                            model={model}
-                            conflict={conflict}
-                            publishedAgo={publishedAgo}
-                            isOneOfSeveral={conflicts.length > 1}
-                        />
-                    ))}
-                    {conflicts.length > 1 ? (
-                        <Box className={classes.conflictActions}>
-                            <KeepMineButton
-                                projectUuid={projectUuid}
-                                model={model}
-                                label={`Keep mine for all ${conflicts.length} parts`}
-                                ariaLabel={null}
-                            />
-                        </Box>
-                    ) : null}
-                </Stack>
-            ) : null}
-            {publishedUnder && conflicts.length === 0 ? (
+            {publishedUnder ? (
                 <NoticeRow icon={IconGitMerge} color="dimmed">
                     <Text fz="xs" c="dimmed">
                         <Text span fw={600}>
                             {publisher.subject}
                         </Text>{' '}
-                        published a change to this model{publisher.where}{' '}
-                        {publishedAgo}, after you started
-                        {merged.length > 0
-                            ? `, in ${listNames(merged.map(describePath))}, which you did not touch`
-                            : ''}
-                        . Your changes are shown on top of it.
+                        published this model{publisher.where} {publishedAgo},
+                        after you started. Below is what publishing would change
+                        now.
                     </Text>
                 </NoticeRow>
             ) : null}
-            {model.alsoChanging.map(({ name, paths }) => (
-                <NoticeRow key={name} icon={IconUsers} color="dimmed">
+            {model.alsoChanging.map(({ userUuid, name, paths }) => (
+                <NoticeRow key={userUuid} icon={IconUsers} color="dimmed">
                     <Text fz="xs" c="dimmed">
                         <Text span fw={600}>
                             {name}
                         </Text>{' '}
-                        is also changing{' '}
-                        {paths.length > 0
-                            ? listNames(paths.map(describePath))
-                            : 'this model'}
-                        , in a draft.
+                        is also editing {summarizeDraftedPaths(paths)}, in a
+                        draft.
                     </Text>
                 </NoticeRow>
             ))}
@@ -430,6 +129,10 @@ const ChangeRow: FC<{
     const failed = change.models.filter(({ error }) => error !== null);
     const named = (models: { model: string }[]) =>
         listNames(models.map(({ model }) => labels.get(model) ?? model));
+    const touched = listNames([
+        ...change.models.map(({ model }) => labels.get(model) ?? model),
+        ...(change.projectContextEntries.length > 0 ? ['Project context'] : []),
+    ]);
     return (
         <Group gap="sm" wrap="nowrap" className={classes.change}>
             <Text fz="xs" c="dimmed" className={classes.changeIndex}>
@@ -442,7 +145,7 @@ const ChangeRow: FC<{
                 <Text fz="xs" c={failed.length > 0 ? 'red' : 'dimmed'} truncate>
                     {failed.length > 0
                         ? `No longer applies to ${named(failed)}`
-                        : `${named(change.models)} · ${ago}`}
+                        : `${touched} · ${ago}`}
                 </Text>
             </Box>
             {failed.length > 0 ? (
@@ -534,7 +237,8 @@ export const ChangeQueue: FC<{
     projectUuid: string;
     draft: SemanticLayerDraft;
     onAskAgent: (prompt: string) => void;
-}> = ({ projectUuid, draft, onAskAgent }) => {
+    className: string;
+}> = ({ projectUuid, draft, onAskAgent, className }) => {
     const hasFailure = draft.changes.some(({ models }) =>
         models.some(({ error }) => error !== null),
     );
@@ -546,19 +250,26 @@ export const ChangeQueue: FC<{
         ]),
     );
     return (
-        <Paper
+        <Box
             component="details"
-            className={classes.section}
+            className={className}
             open={hasFailure || undefined}
         >
-            <Text
+            <Group
                 component="summary"
-                fz="sm"
-                fw={500}
-                className={classes.sectionTitle}
+                gap="xs"
+                wrap="nowrap"
+                className={classes.queueTitle}
             >
-                {count(draft.changes.length, 'change')}
-            </Text>
+                <MantineIcon
+                    icon={IconChevronRight}
+                    color="dimmed"
+                    className={classes.queueChevron}
+                />
+                <Text fz="sm" fw={500}>
+                    {count(draft.changes.length, 'change')}
+                </Text>
+            </Group>
             {draft.changes.map((change, index) => (
                 <ChangeRow
                     key={change.draftChangeUuid}
@@ -570,7 +281,7 @@ export const ChangeQueue: FC<{
                     onAskAgent={onAskAgent}
                 />
             ))}
-        </Paper>
+        </Box>
     );
 };
 
@@ -636,212 +347,6 @@ export const FieldUsage: FC<{
     );
 };
 
-const findComparedMetrics = (
-    draft: SemanticLayerDraft,
-    model: SemanticLayerDraftModel,
-): Metric[] => {
-    if (!model.explore) return [];
-    const changed = new Set(
-        draft.changes
-            .flatMap(({ models }) => models)
-            .filter((entry) => entry.model === model.model)
-            .flatMap(({ changes }) => changes)
-            .flatMap(({ path }) => {
-                const name = /(?:^|\.)metrics\.([^.]+)/.exec(path)?.[1];
-                return name ? [name] : [];
-            }),
-    );
-    return pickComparedMetrics(
-        Object.values(
-            model.explore.tables[model.explore.baseTable]?.metrics ?? {},
-        ),
-        changed,
-        model.contentBefore === null,
-    );
-};
-
-const DRAFT_HEADERS = {
-    [DEVELOPMENT_VIEW_HEADER]: 'true',
-    [DEVELOPMENT_PREVIEW_HEADER]: '',
-};
-
-/** A model's metrics as totals, live against in development, run only when asked for since each side is a warehouse query. */
-const CompareTotals: FC<{
-    projectUuid: string;
-    exploreName: string;
-    metrics: Metric[];
-    /** The metrics that exist live too; asking live for a new one fails the whole query. */
-    liveMetricIds: string[];
-    isNewModel: boolean;
-    developmentHeaders: Record<string, string>;
-    cacheKey: string;
-}> = ({
-    projectUuid,
-    exploreName,
-    metrics,
-    liveMetricIds,
-    isNewModel,
-    developmentHeaders,
-    cacheKey,
-}) => {
-    const [isAsked, setIsAsked] = useState(false);
-    const ids = metrics.map((metric) => getItemId(metric));
-    const development = useTotals(
-        projectUuid,
-        exploreName,
-        ids,
-        developmentHeaders,
-        isAsked && ids.length > 0,
-        cacheKey,
-    );
-    const live = useTotals(
-        projectUuid,
-        exploreName,
-        liveMetricIds,
-        LIVE_HEADERS,
-        isAsked && liveMetricIds.length > 0 && !isNewModel,
-        cacheKey,
-    );
-    if (metrics.length === 0) return null;
-    if (!isAsked) {
-        return (
-            <Group className={classes.compare} gap="xs">
-                <Tooltip
-                    label={`${metrics.length === 1 ? '1 metric' : `${metrics.length} metrics`}, ${isNewModel ? 'one warehouse query' : 'one warehouse query each side'}.`}
-                >
-                    <Button
-                        size="compact-xs"
-                        variant="transparent"
-                        color="gray"
-                        px={0}
-                        className={classes.compareAction}
-                        leftSection={
-                            <MantineIcon icon={IconArrowsDiff} size={14} />
-                        }
-                        onClick={() => setIsAsked(true)}
-                    >
-                        {isNewModel
-                            ? 'Run the totals'
-                            : 'Compare totals with Published'}
-                    </Button>
-                </Tooltip>
-            </Group>
-        );
-    }
-    return (
-        <Box className={classes.compare}>
-            <Table verticalSpacing={4} fz="xs">
-                <Table.Thead>
-                    <Table.Tr>
-                        <Table.Th>Metric</Table.Th>
-                        {isNewModel ? null : (
-                            <Table.Th ta="right">Published</Table.Th>
-                        )}
-                        <Table.Th ta="right">My changes</Table.Th>
-                        {isNewModel ? null : <Table.Th ta="right" />}
-                    </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                    {metrics.map((metric) => {
-                        const id = getItemId(metric);
-                        const after = development.data?.[id];
-                        const before = live.data?.[id];
-                        const shift =
-                            before && after
-                                ? describeShift(before.raw, after.raw)
-                                : null;
-                        return (
-                            <Table.Tr key={id}>
-                                <Table.Td>{metric.label}</Table.Td>
-                                {isNewModel ? null : (
-                                    <Table.Td ta="right" c="dimmed">
-                                        {live.isInitialLoading
-                                            ? '…'
-                                            : (before?.formatted ?? 'new')}
-                                    </Table.Td>
-                                )}
-                                <Table.Td ta="right">
-                                    {development.isInitialLoading
-                                        ? '…'
-                                        : (after?.formatted ?? '∅')}
-                                </Table.Td>
-                                {isNewModel ? null : (
-                                    <Table.Td
-                                        ta="right"
-                                        c={shift ? 'orange' : 'dimmed'}
-                                    >
-                                        {shift ??
-                                            (before && after ? 'same' : '')}
-                                    </Table.Td>
-                                )}
-                            </Table.Tr>
-                        );
-                    })}
-                </Table.Tbody>
-            </Table>
-            {live.isError ? (
-                <Text fz="xs" c="dimmed">
-                    Could not run these live: {live.error.error.message}
-                </Text>
-            ) : null}
-            {development.isError ? (
-                <Text fz="xs" c="dimmed">
-                    Could not run these on the draft:{' '}
-                    {development.error.error.message}
-                </Text>
-            ) : null}
-        </Box>
-    );
-};
-
-/** A drafted model's metrics as totals, live against in development. */
-export const MetricComparison: FC<{
-    projectUuid: string;
-    draft: SemanticLayerDraft;
-    model: SemanticLayerDraftModel;
-}> = ({ projectUuid, draft, model }) => {
-    const metrics = useMemo(
-        () => findComparedMetrics(draft, model),
-        [draft, model],
-    );
-    const liveMetricIds = useMemo(() => {
-        // A metric the draft adds does not exist live.
-        const added = diffModelDocuments(
-            model.contentBefore,
-            model.contentAfter,
-        )
-            .filter(({ kind }) => kind === 'added')
-            .map(({ path }) => path);
-        return metrics
-            .filter(
-                ({ name }) =>
-                    !added.some(
-                        (path) =>
-                            path.endsWith(`metrics.${name}`) ||
-                            readModelPart(
-                                model.contentAfter,
-                                `${path}.metrics.${name}`,
-                            ) !== null,
-                    ),
-            )
-            .map((metric) => getItemId(metric));
-    }, [metrics, model]);
-    return (
-        <CompareTotals
-            projectUuid={projectUuid}
-            exploreName={model.model}
-            metrics={metrics}
-            liveMetricIds={liveMetricIds}
-            isNewModel={model.contentBefore === null}
-            // A draft is read from the draft itself, never from another project's preview.
-            developmentHeaders={DRAFT_HEADERS}
-            cacheKey={draft.changes
-                .map(({ draftChangeUuid }) => draftChangeUuid)
-                .join()}
-        />
-    );
-};
-
 type CheckState = 'ok' | 'attention' | 'unknown' | 'note';
 
 const CHECK_ICONS = {
@@ -877,14 +382,9 @@ export const PublishChecklist: FC<{
                 (model === null || entry.model === model),
         ),
     ).length;
-    const conflicted = models.filter(
-        (entry) => entry.reconciliation?.state === 'conflict',
-    );
     const movedUnder = models.filter(
         (entry) =>
-            entry.publishedSince &&
-            entry.reconciliation?.state !== 'current' &&
-            !conflicted.includes(entry),
+            entry.publishedSince && entry.reconciliation?.state !== 'current',
     );
     const others = [
         ...new Set(
@@ -903,28 +403,12 @@ export const PublishChecklist: FC<{
                   },
               ]
             : []),
-        ...(conflicted.length > 0
-            ? [
-                  {
-                      state: 'attention' as const,
-                      text: `${listNames(conflicted.map(labelOf))} changed in Published in parts you changed too. Choose which to keep in the review`,
-                  },
-              ]
-            : []),
         ...(movedUnder.length > 0
             ? [
-                  movedUnder.every(
-                      (entry) => entry.reconciliation?.state === 'merged',
-                  )
-                      ? {
-                            // Published elsewhere in the model, and the draft already sits on top of it.
-                            state: 'note' as const,
-                            text: `${listNames(movedUnder.map(labelOf))} changed in Published after you started, outside what you changed. Yours goes on top`,
-                        }
-                      : {
-                            state: 'attention' as const,
-                            text: `${listNames(movedUnder.map(labelOf))} changed in Published after you started, and it could not be set against yours. Look at it in the review first`,
-                        },
+                  {
+                      state: 'note' as const,
+                      text: `${listNames(movedUnder.map(labelOf))} changed in Published after you started. The review shows what publishing changes now`,
+                  },
               ]
             : []),
         ...(others.length > 0
@@ -967,8 +451,6 @@ export const PublishChecklist: FC<{
     );
 };
 
-const GLYPHS = { new: '+', changed: '~', removed: '−' };
-
 const describeUse = ({
     charts,
     dashboards,
@@ -987,11 +469,29 @@ export const PublishSummary: FC<{
     model: string | null;
 }> = ({ projectUuid, draft, model }) => {
     const { data: usage } = useSemanticLayerDraftUsage(projectUuid);
+    // Line counts mean something only to people who read the files.
+    const showsLines = usePublishMode(projectUuid) !== 'live';
     const models = draft.models.filter(
         (entry) => model === null || entry.model === model,
     );
     return (
         <Stack gap="xs">
+            {model === null && draft.projectContext ? (
+                <Box className={classes.publishModel}>
+                    <Group
+                        className={classes.publishHead}
+                        gap="xs"
+                        wrap="nowrap"
+                    >
+                        <Text fz="sm" fw={500} truncate flex={1} miw={0}>
+                            Project context
+                        </Text>
+                        <LineCounts
+                            counts={countChangedLines(draft.projectContext)}
+                        />
+                    </Group>
+                </Box>
+            ) : null}
             {models.map((entry) => {
                 const { title, subtitle } = describeModelChange(
                     entry.model,
@@ -1013,7 +513,9 @@ export const PublishSummary: FC<{
                                     </Text>
                                 ) : null}
                             </Text>
-                            <LineCounts counts={countChangedLines(entry)} />
+                            {showsLines ? (
+                                <LineCounts counts={countChangedLines(entry)} />
+                            ) : null}
                         </Group>
                         {parts.map((part) => {
                             const used = usage?.fields.find(
@@ -1039,7 +541,7 @@ export const PublishSummary: FC<{
                                         data-change={part.change}
                                         aria-hidden
                                     >
-                                        {GLYPHS[part.change]}
+                                        {CHANGE_GLYPHS[part.change]}
                                     </Text>
                                     <FieldChangeIcon field={part} />
                                     <Text fz="sm" truncate>

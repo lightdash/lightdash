@@ -103,6 +103,7 @@ describe('PythonSandboxRunner output limits', () => {
                     appRuntime: {
                         ...lightdashConfigMock.appRuntime,
                         sandboxProvider: 'e2b',
+                        e2bApiKey: 'key',
                     },
                 },
                 logger: silentLogger,
@@ -171,6 +172,7 @@ describe('PythonSandboxRunner provider selection', () => {
                     appRuntime: {
                         ...lightdashConfigMock.appRuntime,
                         sandboxProvider: 'e2b',
+                        e2bApiKey: 'key',
                         e2bPythonTemplateTag: tag,
                     },
                 },
@@ -224,7 +226,7 @@ describe('PythonSandboxRunner provider selection', () => {
             }),
         ).rejects.toThrow(
             new MissingConfigError(
-                'GCP Cloud Run python sandboxes are not configured (GCP_CLOUD_RUN_PYTHON_SANDBOX_URL / GCP_CLOUD_RUN_PYTHON_SANDBOX_SECRET)',
+                'GCP Cloud Run Python sandboxes are not configured (GCP_CLOUD_RUN_PYTHON_SANDBOX_URL / GCP_CLOUD_RUN_PYTHON_SANDBOX_SECRET)',
             ),
         );
         expect(createSandboxProvider).not.toHaveBeenCalled();
@@ -290,7 +292,7 @@ describe('PythonSandboxRunner provider selection', () => {
             }),
         ).rejects.toThrow(
             new MissingConfigError(
-                'Azure python sandbox disk image is not configured (AZURE_SANDBOXES_PYTHON_DISK_IMAGE)',
+                'Azure Python sandbox disk image is not configured (AZURE_SANDBOXES_PYTHON_DISK_IMAGE)',
             ),
         );
         expect(create).not.toHaveBeenCalled();
@@ -301,7 +303,7 @@ describe('PythonSandboxRunner provider selection', () => {
             runWith({ sandboxProvider: 'lambda-microvm' }),
         ).rejects.toThrow(
             new MissingConfigError(
-                'Python queries are not supported on the lambda-microvm sandbox provider yet',
+                'The lambda-microvm sandbox provider does not support Python queries yet',
             ),
         );
         expect(createSandboxProvider).not.toHaveBeenCalled();
@@ -354,6 +356,7 @@ describe('PythonSandboxRunner stage instrumentation', () => {
                     appRuntime: {
                         ...lightdashConfigMock.appRuntime,
                         sandboxProvider,
+                        e2bApiKey: 'key',
                         e2bPythonTemplateName: 'custom-template',
                         e2bPythonTemplateTag: 'custom-tag',
                     },
@@ -437,6 +440,7 @@ describe('PythonSandboxRunner batching', () => {
                 appRuntime: {
                     ...lightdashConfigMock.appRuntime,
                     sandboxProvider: 'e2b',
+                    e2bApiKey: 'key',
                 },
             },
             logger: silentLogger,
@@ -493,6 +497,7 @@ describe('PythonSandboxRunner batching', () => {
                 appRuntime: {
                     ...lightdashConfigMock.appRuntime,
                     sandboxProvider: 'e2b',
+                    e2bApiKey: 'key',
                 },
             },
             logger: silentLogger,

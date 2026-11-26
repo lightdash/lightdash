@@ -3,19 +3,16 @@ import {
     buildAbilityFromScopes,
     defineUserAbility,
     ExpectedNotFoundError,
-    FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
     ProjectMemberRole,
     type AiAgentWithContext,
-    type ApiCaptureRouteRequest,
     type MemberAbility,
     type RegisteredAccount,
 } from '@lightdash/common';
 import { selectAgent } from '../ai/agents/agentSelector';
 import { getModel } from '../ai/models';
 import { AiRouterService } from './AiRouterService';
-import { routeCaptureWithModel } from './captureRouter';
 
 vi.mock('../ai/agents/agentSelector', () => ({
     selectAgent: vi.fn(),
@@ -23,10 +20,6 @@ vi.mock('../ai/agents/agentSelector', () => ({
 
 vi.mock('../ai/models', () => ({
     getModel: vi.fn(),
-}));
-
-vi.mock('./captureRouter', () => ({
-    routeCaptureWithModel: vi.fn(),
 }));
 
 const organizationUuid = 'org-uuid';
@@ -114,6 +107,7 @@ const createCandidate = (
     projectUuid,
     organizationUuid,
     name: overrides.name,
+    kind: 'user',
     description: overrides.description ?? null,
     imageUrl: null,
     imageUrlSource: null,
@@ -144,7 +138,6 @@ const createCandidate = (
         name: overrides.name,
         description: overrides.description ?? null,
         explores: [`${overrides.name.toLowerCase()}_explore`],
-        verifiedQuestions: [`${overrides.name} question`],
         instruction: overrides.instruction ?? null,
     },
 });
@@ -153,13 +146,11 @@ const makeService = ({
     candidates,
     routerEnabled = true,
     instruction = 'Route finance questions to @[Finance](agent-2)',
-    dashboardCaptureEnabled = true,
     reachingPinnedUuids = null,
 }: {
     candidates: AiAgentWithContext[];
     routerEnabled?: boolean;
     instruction?: string | null;
-    dashboardCaptureEnabled?: boolean;
     /** Agents that can open the pinned content; null means all of them. */
     reachingPinnedUuids?: string[] | null;
 }) => {
@@ -235,16 +226,6 @@ const makeService = ({
     const orgAiCopilotConfigResolver = {
         getCopilotConfig: vi.fn().mockResolvedValue({}),
     };
-    // A plain function, so the suite's resetAllMocks leaves it working.
-    const featureFlagModel = {
-        get: async ({ featureFlagId }: { featureFlagId: string }) => ({
-            id: featureFlagId,
-            enabled:
-                featureFlagId === FeatureFlags.DashboardCapture
-                    ? dashboardCaptureEnabled
-                    : false,
-        }),
-    };
 
     const service = new AiRouterService({
         analytics: analytics as never,
@@ -254,7 +235,6 @@ const makeService = ({
         dashboardService: dashboardService as never,
         savedChartService: savedChartService as never,
         orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
-        featureFlagModel: featureFlagModel as never,
     });
 
     return {
@@ -738,45 +718,5 @@ describe('routing from pinned content', () => {
         expect(aiRouterModel.createDecision).toHaveBeenCalledWith(
             expect.objectContaining({ candidateAgentUuids: ['agent-1'] }),
         );
-    });
-});
-
-describe('routing a Voice Design recording', () => {
-    const request: ApiCaptureRouteRequest = {
-        dashboardName: 'Weekly KPIs',
-        gridColumns: 36,
-        tiles: [],
-        marks: [],
-        looseSpeech: [],
-        images: [],
-    };
-    const route = { layout: [], questions: [], edits: [] };
-
-    beforeEach(() => {
-        vi.resetAllMocks();
-        (getModel as import('vitest').Mock).mockReturnValue({ model: {} });
-        (routeCaptureWithModel as import('vitest').Mock).mockResolvedValue(
-            route,
-        );
-    });
-
-    it('refuses while the dashboard flag is off, before calling a model', async () => {
-        const { service } = makeService({
-            candidates: [],
-            dashboardCaptureEnabled: false,
-        });
-
-        await expect(
-            service.routeCapture(account, projectUuid, request),
-        ).rejects.toThrow(ForbiddenError);
-        expect(routeCaptureWithModel).not.toHaveBeenCalled();
-    });
-
-    it('sorts the recording while the dashboard flag is on', async () => {
-        const { service } = makeService({ candidates: [] });
-
-        await expect(
-            service.routeCapture(account, projectUuid, request),
-        ).resolves.toEqual(route);
     });
 });

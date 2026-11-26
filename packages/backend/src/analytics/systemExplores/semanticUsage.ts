@@ -119,6 +119,21 @@ export const semanticUsageMetrics: SystemMetricDefinition[] = [
         },
     ].map((metric) => ({ ...metric, type: MetricType.COUNT_DISTINCT })),
     {
+        name: 'queries_with_field_details',
+        description:
+            'Distinct query attempts whose direct field references were all recorded. Excludes partial lists, SQL-only queries and older queries.',
+        type: MetricType.COUNT_DISTINCT,
+        column: 'query_id',
+        filters: [
+            {
+                id: 'queries-with-field-details',
+                target: { fieldRef: 'lineage_status' },
+                operator: FilterOperator.EQUALS,
+                values: ['captured'],
+            },
+        ],
+    },
+    {
         name: 'failed_queries',
         description:
             'Distinct attempts ending in an execution error after successful compilation.',

@@ -1,8 +1,14 @@
-import { act, renderHook } from '@testing-library/react';
+import type * as ReactQuery from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-    useFinishDiscardedWork,
     useChatOpen,
+    useStoredStudioThread,
+    type StoredThread,
+} from '../../../../../features/semanticStudio/studioChange';
+import {
+    useCompileFollowUp,
+    useFinishDiscardedWork,
     useStudioAgent,
     useStudioThread,
 } from './useSemanticStudioChat';
@@ -13,6 +19,13 @@ const held = vi.hoisted(() => ({
     mutate: vi.fn(),
     toast: vi.fn(),
     onError: null as ((error: unknown) => void) | null,
+    compile: null as {
+        status: 'compiling' | 'ready' | 'failed';
+        requestedByAgent: boolean;
+        compileRequestUuid: string;
+    } | null,
+    claim: vi.fn(),
+    send: vi.fn(),
 }));
 
 vi.mock('../../../../../hooks/toaster/useToaster', () => ({
@@ -29,6 +42,7 @@ vi.mock('../../hooks/useProjectAiAgents', () => ({
         held.onError = options.onError;
         return { data: undefined };
     },
+    useCreateAgentThreadMessageMutation: () => ({ mutate: held.send }),
 }));
 
 vi.mock('../../../../../features/semanticStudio/useStudioWorkspaces', () => ({
@@ -38,8 +52,9 @@ vi.mock('../../../../../features/semanticStudio/useStudioWorkspaces', () => ({
 }));
 
 vi.mock('../../../../../features/semanticStudio/useSemanticLayerModel', () => ({
-    useKeepsSemanticLayerDraft: () => true,
     useCanEditSemanticLayer: () => true,
+    useDraftCheckout: () => ({ data: { branchCompile: held.compile } }),
+    useClaimCompileFollowUp: () => ({ mutateAsync: held.claim }),
 }));
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: held.editing } }),
@@ -47,16 +62,30 @@ vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
 vi.mock('../Launcher/useDefaultAiAgent', () => ({
     useDefaultAiAgent: () => ({ agent: null, agents: [{ uuid: 'agent' }] }),
 }));
+vi.mock('../../../../../providers/LightdashApi/useLightdashApi', () => ({
+    useLightdashApi: () => vi.fn(),
+}));
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+    ...(await importOriginal<typeof ReactQuery>()),
+    useQuery: ({ enabled }: { enabled: boolean }) => ({
+        data: enabled ? { uuid: 'studio-agent' } : undefined,
+        isInitialLoading: false,
+        error: null,
+    }),
+}));
 
-const THREAD_KEY = 'semantic-studio-agent-thread-project';
+// Each read mounts a fresh hook, so a value has to survive a remount to be seen.
+const storedThread = () =>
+    renderHook(() => useStoredStudioThread('project')).result.current[0];
+const storeThread = (thread: StoredThread | null) => {
+    const { result } = renderHook(() => useStoredStudioThread('project'));
+    act(() => result.current[1](thread));
+};
 
 describe('useFinishDiscardedWork', () => {
     beforeEach(() => {
         held.mutate.mockReset();
-        localStorage.setItem(
-            THREAD_KEY,
-            JSON.stringify({ threadUuid: 'thread', agentUuid: 'agent' }),
-        );
+        storeThread({ threadUuid: 'thread', agentUuid: 'agent' });
     });
 
     it('finishes the active workspace and closes its chat', () => {
@@ -67,9 +96,7 @@ describe('useFinishDiscardedWork', () => {
             kind: 'finish',
             workspaceUuid: 'workspace',
         });
-        expect(JSON.parse(localStorage.getItem(THREAD_KEY) ?? 'null')).toBe(
-            null,
-        );
+        expect(storedThread()).toBe(null);
     });
 
     it('still closes the chat when no workspace is active', () => {
@@ -77,9 +104,7 @@ describe('useFinishDiscardedWork', () => {
         const { result } = renderHook(() => useFinishDiscardedWork('project'));
         act(() => result.current());
         expect(held.mutate).not.toHaveBeenCalled();
-        expect(JSON.parse(localStorage.getItem(THREAD_KEY) ?? 'null')).toBe(
-            null,
-        );
+        expect(storedThread()).toBe(null);
     });
 });
 
@@ -94,25 +119,20 @@ describe('useStudioThread', () => {
 
     beforeEach(() => {
         held.toast.mockReset();
-        localStorage.setItem(
-            THREAD_KEY,
-            JSON.stringify({ threadUuid: 'thread', agentUuid: 'agent' }),
-        );
+        storeThread({ threadUuid: 'thread', agentUuid: 'agent' });
     });
 
     it('forgets a stored thread that no longer exists, without a toast', () => {
         renderHook(() => useStudioThread('project', 'agent', 'thread'));
         fail('AiAgentNotFoundError');
-        expect(JSON.parse(localStorage.getItem(THREAD_KEY) ?? 'null')).toBe(
-            null,
-        );
+        expect(storedThread()).toBe(null);
         expect(held.toast).not.toHaveBeenCalled();
     });
 
     it('keeps the thread and says so on any other failure', () => {
         renderHook(() => useStudioThread('project', 'agent', 'thread'));
         fail('UnexpectedServerError');
-        expect(JSON.parse(localStorage.getItem(THREAD_KEY) ?? 'null')).toEqual({
+        expect(storedThread()).toEqual({
             threadUuid: 'thread',
             agentUuid: 'agent',
         });
@@ -120,9 +140,20 @@ describe('useStudioThread', () => {
     });
 });
 
-it('uses an accessible agent when no default is selected', () => {
+it('starts new chats on the built-in agent, whatever agents the project has', () => {
     const { result } = renderHook(() => useStudioAgent('new-project'));
-    expect(result.current.agent?.uuid).toBe('agent');
+    expect(result.current.agent?.uuid).toBe('studio-agent');
+    expect(result.current.thread).toBe(null);
+});
+
+it('keeps a chat started on another agent with that agent', () => {
+    storeThread({ threadUuid: 'thread', agentUuid: 'agent' });
+    const { result } = renderHook(() => useStudioAgent('project'));
+    expect(result.current.thread).toEqual({
+        agent: { uuid: 'agent' },
+        threadUuid: 'thread',
+    });
+    expect(result.current.agent?.uuid).toBe('studio-agent');
 });
 
 it('keeps chat gated when cached project status allows editing but the flag is off', () => {
@@ -141,4 +172,76 @@ it('opens the composer by default even if another project hid its new chat', () 
     expect(first.result.current[0]).toBe(false);
     const second = renderHook(() => useChatOpen('second-project'));
     expect(second.result.current[0]).toBe(true);
+});
+
+describe('useCompileFollowUp', () => {
+    const render = (isBusy: boolean) =>
+        renderHook(
+            (props: { isBusy: boolean }) =>
+                useCompileFollowUp({
+                    projectUuid: 'project',
+                    agentUuid: 'agent',
+                    threadUuid: 'thread',
+                    isBusy: props.isBusy,
+                    enableSqlMode: false,
+                }),
+            { initialProps: { isBusy } },
+        );
+
+    beforeEach(() => {
+        held.claim.mockReset();
+        held.send.mockReset();
+        held.compile = {
+            status: 'failed',
+            requestedByAgent: true,
+            compileRequestUuid: 'request-1',
+        };
+    });
+
+    it('sends the failure to the agent as a hidden prompt once the chat is idle', async () => {
+        held.claim.mockResolvedValue({
+            agentUuid: 'agent',
+            threadUuid: 'thread',
+            prompt: 'Fix it',
+        });
+        const { rerender } = render(true);
+        expect(held.claim).not.toHaveBeenCalled();
+        rerender({ isBusy: false });
+        await waitFor(() =>
+            expect(held.send).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    prompt: 'Fix it',
+                    hidden: true,
+                    autoApproveSql: false,
+                }),
+            ),
+        );
+        expect(held.claim).toHaveBeenCalledWith({
+            compileRequestUuid: 'request-1',
+            threadUuid: 'thread',
+        });
+        rerender({ isBusy: true });
+        rerender({ isBusy: false });
+        expect(held.claim).toHaveBeenCalledTimes(1);
+    });
+
+    it('asks again after a refusal once the chat is next idle', async () => {
+        held.claim.mockResolvedValue(null);
+        const { rerender } = render(false);
+        await waitFor(() => expect(held.claim).toHaveBeenCalledTimes(1));
+        rerender({ isBusy: true });
+        rerender({ isBusy: false });
+        await waitFor(() => expect(held.claim).toHaveBeenCalledTimes(2));
+        expect(held.send).not.toHaveBeenCalled();
+    });
+
+    it("leaves a person's own compile alone", () => {
+        held.compile = {
+            status: 'failed',
+            requestedByAgent: false,
+            compileRequestUuid: 'request-1',
+        };
+        render(false);
+        expect(held.claim).not.toHaveBeenCalled();
+    });
 });

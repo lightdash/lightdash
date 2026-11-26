@@ -1,7 +1,6 @@
 import {
     AgentCapability,
     AiAccessRefusalReason,
-    OrganizationMemberRole,
     type AgentCapabilityPolicy,
 } from '@lightdash/common';
 import { toSessionUser } from '../../../auth/account/account';
@@ -31,7 +30,6 @@ const setup = () => {
     const user = toSessionUser(account);
     const organizationUuid = account.organization.organizationUuid!;
     const policy: AgentCapabilityPolicy = {
-        mode: 'managed',
         version: 1,
         allowedCapabilities: [AgentCapability.Query],
         allowedGroupUuids: null,
@@ -44,7 +42,6 @@ const setup = () => {
         resolveResourceProjectUuid: vi.fn(),
         groupsModel,
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
-        isCustomRolesLicensed: () => false,
         featureFlagModel,
         agentCapabilityPolicyModel: {
             get: vi.fn().mockResolvedValue(policy),
@@ -57,12 +54,9 @@ const setup = () => {
                         : policy.allowedGroupUuids.length > 0,
             })),
             save: vi.fn(),
-        },
-        userModel: {
-            getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                systemRoles: [OrganizationMemberRole.VIEWER],
-                customRoles: [],
-            }),
+            getProjectPolicies: vi.fn().mockResolvedValue([]),
+            saveProjectPolicy: vi.fn(),
+            deleteProjectPolicy: vi.fn(),
         },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({ organizationUuid }),
@@ -228,12 +222,11 @@ test.each(['off', 'legacy', 'managed'] as const)(
     '%s permits the existing chart effects when allowed',
     async (mode) => {
         const h = setup();
-        if (mode === 'off')
+        if (mode === 'off') {
             h.featureFlagModel.get.mockResolvedValue({ enabled: false });
-        if (mode === 'legacy') h.policy.mode = 'legacy';
-        if (mode !== 'managed') {
             h.policy.allowedCapabilities = [AgentCapability.ReadDiscover];
         }
+        if (mode === 'legacy') h.policy.allowedCapabilities = null;
         await h.privateService.tryApplyChartEdit(h.args);
         await h.privateService.searchFilterValueCandidates({
             ...h.args,
@@ -250,7 +243,7 @@ test.each(['off', 'legacy', 'managed'] as const)(
 
 test('legacy group admission stops the agent turn and every fast chart path', async () => {
     const h = setup();
-    h.policy.mode = 'legacy';
+    h.policy.allowedCapabilities = null;
     h.policy.allowedGroupUuids = ['group'];
     await Promise.all(
         (

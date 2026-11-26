@@ -1,5 +1,4 @@
 import {
-    type PreAggregateMaterializationStatus,
     type PreAggregateMaterializationSummary,
     type PreAggregateMaterializationTrigger,
     type PreAggregateMaterializationWarning,
@@ -65,6 +64,11 @@ import {
 import TruncatedText from '../common/TruncatedText';
 import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
+import {
+    getPreAggregateStatus,
+    PRE_AGGREGATE_STATUS,
+    type PreAggregateStatusKind,
+} from './preAggregateStatus';
 import { StatusBadge } from './StatusBadge';
 
 type Props = {
@@ -80,35 +84,9 @@ const TimeAgoText: FC<{ date: Date | string }> = ({ date }) => {
     );
 };
 
-type StatusType =
-    | PreAggregateMaterializationStatus
-    | 'external'
-    | 'never_materialized';
-
-const STATUS_LABELS: Record<StatusType, string> = {
-    active: 'Active',
-    in_progress: 'Building',
-    failed: 'Failed',
-    superseded: 'Superseded',
-    external: 'External',
-    never_materialized: 'Never materialized',
-};
-
-const ALL_STATUSES: StatusType[] = [
-    'active',
-    'in_progress',
-    'failed',
-    'superseded',
-    'external',
-    'never_materialized',
-];
-
-const getStatusType = (
-    summary: PreAggregateMaterializationSummary,
-): StatusType => {
-    if (summary.externalTable) return 'external';
-    return summary.materialization?.status ?? 'never_materialized';
-};
+const ALL_STATUSES = Object.keys(
+    PRE_AGGREGATE_STATUS,
+) as PreAggregateStatusKind[];
 
 const TRIGGER_LABELS: Record<PreAggregateMaterializationTrigger, string> = {
     compile: 'compile',
@@ -194,8 +172,8 @@ const ScheduleCell: FC<{ summary: PreAggregateMaterializationSummary }> = ({
 };
 
 const StatusFilter: FC<{
-    selected: StatusType | null;
-    onChange: (value: StatusType | null) => void;
+    selected: PreAggregateStatusKind | null;
+    onChange: (value: PreAggregateStatusKind | null) => void;
 }> = ({ selected, onChange }) => {
     const hasSelection = selected !== null;
 
@@ -240,7 +218,7 @@ const StatusFilter: FC<{
                         <Radio.Group
                             value={selected ?? ''}
                             onChange={(v) =>
-                                onChange((v as StatusType) || null)
+                                onChange((v as PreAggregateStatusKind) || null)
                             }
                         >
                             <Stack gap="xs">
@@ -248,7 +226,9 @@ const StatusFilter: FC<{
                                     <Radio
                                         key={status}
                                         value={status}
-                                        label={STATUS_LABELS[status]}
+                                        label={
+                                            PRE_AGGREGATE_STATUS[status].label
+                                        }
                                         size="xs"
                                     />
                                 ))}
@@ -325,9 +305,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
 
     const [sorting, setSorting] = useState<ContentTableSortingState>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedStatus, setSelectedStatus] = useState<StatusType | null>(
-        null,
-    );
+    const [selectedStatus, setSelectedStatus] =
+        useState<PreAggregateStatusKind | null>(null);
     const [isDrawerOpen, { open: openDrawer, close: closeDrawer }] =
         useDisclosure(false);
     const [selectedSummary, setSelectedSummary] =
@@ -358,7 +337,9 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             );
         }
         if (selectedStatus) {
-            rows = rows.filter((r) => getStatusType(r) === selectedStatus);
+            rows = rows.filter(
+                (r) => getPreAggregateStatus(r) === selectedStatus,
+            );
         }
         return rows;
     }, [materializations, searchQuery, selectedStatus]);

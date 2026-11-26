@@ -1721,6 +1721,7 @@ export class AppModel {
     async listRegistryInstalledApps(projectUuid: string): Promise<
         Array<{
             app_id: string;
+            slug: string;
             registry_slug: string;
             latest_ready_registry_version: string | null;
             created_by_user_uuid: string | null;
@@ -1734,12 +1735,14 @@ export class AppModel {
             .select<
                 Array<{
                     app_id: string;
+                    slug: string;
                     registry_slug: string;
                     latest_ready_registry_version: string | null;
                     created_by_user_uuid: string | null;
                 }>
             >(
                 `${AppsTableName}.app_id`,
+                `${AppsTableName}.slug`,
                 `${AppsTableName}.registry_slug`,
                 `${AppsTableName}.created_by_user_uuid`,
                 this.database
@@ -1759,6 +1762,7 @@ export class AppModel {
     ): Promise<
         | {
               app_id: string;
+              slug: string;
               registry_slug: string;
               latest_ready_registry_version: string | null;
               created_by_user_uuid: string | null;
@@ -1773,12 +1777,14 @@ export class AppModel {
             .select<
                 Array<{
                     app_id: string;
+                    slug: string;
                     registry_slug: string;
                     latest_ready_registry_version: string | null;
                     created_by_user_uuid: string | null;
                 }>
             >(
                 `${AppsTableName}.app_id`,
+                `${AppsTableName}.slug`,
                 `${AppsTableName}.registry_slug`,
                 `${AppsTableName}.created_by_user_uuid`,
                 this.database

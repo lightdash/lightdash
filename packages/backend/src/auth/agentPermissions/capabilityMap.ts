@@ -68,10 +68,14 @@ export const AGENT_TOOL_CAPABILITIES = {
     discoverRepos: [AgentCapability.ReadDiscover],
     editContent: [AgentCapability.ContentWrite],
     editDbtProject: [AgentCapability.DbtWriteback],
+    write: [AgentCapability.DbtWriteback],
     editProjectContext: [AgentCapability.DbtWriteback],
     proposeSemanticLayerChange: [AgentCapability.DbtWriteback],
     listChanges: [AgentCapability.ReadDiscover],
     readSemanticModel: [AgentCapability.ReadDiscover],
+    draftProjectContext: [AgentCapability.DbtWriteback],
+    verify: [AgentCapability.DbtWriteback],
+    read: [AgentCapability.ReadDiscover],
     exploreRepo: [AgentCapability.ReadDiscover],
     exportChartAsCode: [AgentCapability.Export],
     findCharts: [AgentCapability.ReadDiscover],
@@ -156,6 +160,15 @@ export const REST_OPERATION_CAPABILITIES = {
     'AgentPermissionController.getPolicy': [AgentCapability.Administration],
     'AgentPermissionController.saveCeiling': [AgentCapability.Administration],
     'AgentPermissionController.resetToLegacy': [AgentCapability.Administration],
+    'AgentPermissionController.getProjectPolicies': [
+        AgentCapability.Administration,
+    ],
+    'AgentPermissionController.saveProjectPolicy': [
+        AgentCapability.Administration,
+    ],
+    'AgentPermissionController.deleteProjectPolicy': [
+        AgentCapability.Administration,
+    ],
 
     'AiAccessController.getCapabilities': [AgentCapability.ReadDiscover],
     'AiAccessController.getMyAccess': [AgentCapability.ReadDiscover],
@@ -349,8 +362,6 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'AiAgentController.getModelOptions': [AgentCapability.ReadDiscover],
     'AiAgentController.getUserAgentPreferences': [AgentCapability.ReadDiscover],
-    'AiAgentController.getVerifiedArtifacts': [AgentCapability.ReadDiscover],
-    'AiAgentController.getVerifiedQuestions': [AgentCapability.ReadDiscover],
     'AiAgentController.interruptAgentThreadMessage': [
         AgentCapability.ReadDiscover,
     ],
@@ -377,7 +388,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentController.sendVisualizeSlackChart': [
         AgentCapability.Administration,
     ],
-    'AiAgentController.setArtifactVersionVerified': [AgentCapability.Publish],
     'AiAgentController.setUserDefaultAgent': [AgentCapability.ReadDiscover],
     'AiAgentController.startMcpOAuthConnection': [
         AgentCapability.Administration,
@@ -534,7 +544,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiRouterController.getInstruction': [AgentCapability.ReadDiscover],
     'AiRouterController.listDecisions': [AgentCapability.ReadDiscover],
     'AiRouterController.route': [AgentCapability.ReadDiscover],
-    'AiRouterController.routeCapture': [AgentCapability.ReadDiscover],
     'AiRouterController.upsertConfig': [AgentCapability.Administration],
     'AiRouterController.upsertInstruction': [AgentCapability.Administration],
     'AiServiceAccountController.delete': [
@@ -915,8 +924,17 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.getExternalConnectionApiUsage': [
         AgentCapability.ReadDiscover,
     ],
+    'ExternalConnectionController.getExternalConnectionRateLimitUsage': [
+        AgentCapability.ReadDiscover,
+    ],
     'ExternalConnectionController.getExternalConnectionSchema': [
         AgentCapability.ReadDiscover,
+    ],
+    'ExternalConnectionController.getLiveSourceAccess': [
+        AgentCapability.Administration,
+    ],
+    'ExternalConnectionController.getLiveSourceContentUsage': [
+        AgentCapability.Administration,
     ],
     'ExternalConnectionController.getLiveSourceFields': [
         AgentCapability.Administration,
@@ -972,7 +990,13 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.updateLiveSourceCache': [
         AgentCapability.Administration,
     ],
+    'ExternalConnectionController.updateLiveSourceAccess': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.updateLiveSourceFields': [
+        AgentCapability.Administration,
+    ],
+    'ExternalConnectionController.updateLiveSourceRateLimits': [
         AgentCapability.Administration,
     ],
     'ExternalSourceController.commitUpload': [
@@ -1071,6 +1095,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.applyDraft': [AgentCapability.DbtWriteback],
     'SemanticStudioController.applyDraftModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.checkDraftImpact': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.claimCompileFollowUp': [
+        AgentCapability.DbtWriteback,
+    ],
     'SemanticStudioController.compileCheckout': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getCheckout': [AgentCapability.ReadDiscover],
     'SemanticStudioController.publishCheckout': [AgentCapability.DbtWriteback],
@@ -1082,6 +1109,12 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.DbtWriteback,
     ],
     'SemanticStudioController.getDraft': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getOthersDraftModel': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.discardOthersDraftModel': [
+        AgentCapability.DbtWriteback,
+    ],
     'SemanticStudioController.moveDraftChange': [AgentCapability.DbtWriteback],
     'SemanticStudioController.keepDraftModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getDraftState': [AgentCapability.DbtWriteback],
@@ -1111,6 +1144,7 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'SemanticStudioController.finishWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getBuilderStatus': [AgentCapability.ReadDiscover],
+    'SemanticStudioController.getStudioAgent': [AgentCapability.DbtWriteback],
     'SemanticStudioController.undo': [AgentCapability.DbtWriteback],
     'InviteLinksController.createInviteLink': [AgentCapability.Administration],
     'InviteLinksController.revokeAllInviteLinks': [

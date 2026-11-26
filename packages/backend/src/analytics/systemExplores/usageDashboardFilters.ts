@@ -16,6 +16,7 @@ export const usageDashboardProjectFilterLabel = 'Project';
 // Models named differently from the table their fields belong to
 const tableOfModel: Record<string, string> = {
     content_inventory: 'content_health',
+    content_created: 'content_health',
     agent_request_starts: 'agent_requests',
 };
 // These tables describe the present, not a period, so a date range does not apply to them
@@ -23,6 +24,17 @@ const tablesWithoutPeriod = ['content_health', 'people_adoption'];
 const dateFieldOfTable: Record<string, string> = {
     user_activity: 'activity_date_day',
     agent_requests: 'requested_at_day',
+};
+
+// A chart of a table that describes the present can still count what was created in the period
+const dateFieldOfChart: Record<string, string> = {
+    'lightdash-analytics-home-content-created': 'created_at_day',
+    // The same card on Content. Without this the Date filter passed it by: the number was all of
+    // history under the words "Selected period", with a trend point for every day since the first item
+    'lightdash-analytics-content-content-created-in-period': 'created_at_day',
+    // New content is content created in the period, whenever it was viewed
+    'lightdash-analytics-content-new-content-adoption-creation-week-proxy':
+        'created_at_day',
 };
 
 const tableOf = (chart: ChartAsCode) =>
@@ -37,6 +49,8 @@ const setsOwnPeriod = (chart: ChartAsCode) =>
 
 const dateTarget = (chart: ChartAsCode): Target | false => {
     const tableName = tableOf(chart);
+    const ownField = dateFieldOfChart[chart.slug];
+    if (ownField) return { fieldId: `${tableName}_${ownField}`, tableName };
     if (tablesWithoutPeriod.includes(tableName) || setsOwnPeriod(chart))
         return false;
     return {

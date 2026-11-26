@@ -65,6 +65,12 @@ export const createMicrosoftTokenExchangeGrantType = (
     resolveStrict: (user: OAuth2Server.User) => Promise<boolean>,
     siteUrl: string,
     getMobileSignInService?: () => MobileSignInService,
+    recordScopeResolution?: (
+        client: OAuth2Server.Client,
+        user: OAuth2Server.User,
+        requested: string[],
+        resolved: string[],
+    ) => Promise<void>,
 ) =>
     class TokenExchangeGrantType extends AbstractGrantType {
         declare protected readonly model: OAuth2Server.AuthorizationCodeModel;
@@ -235,6 +241,12 @@ export const createMicrosoftTokenExchangeGrantType = (
                     'Invalid scope: requested scope is invalid',
                 );
             }
+            await recordScopeResolution?.(
+                client,
+                user,
+                requestedScope ?? [],
+                scope,
+            );
             const accessToken = await this.generateAccessToken(
                 client,
                 user,

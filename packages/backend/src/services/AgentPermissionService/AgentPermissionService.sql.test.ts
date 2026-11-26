@@ -89,7 +89,11 @@ test.each([
     },
 ] as const)('characterizes direct and gated SQL: $name', async (profile) => {
     const h = setupPermissionSql(database, tracker);
-    h.state.policy.mode = profile.mode;
+    h.state.policy.allowedCapabilities =
+        profile.mode === 'legacy'
+            ? null
+            : (h.state.policy.allowedCapabilities ??
+              Object.values(AgentCapability));
     h.state.policy.allowedGroupUuids =
         profile.groups === null ? null : [...profile.groups];
     h.state.existingGroups = profile.live ? ['live'] : [];
@@ -165,7 +169,7 @@ test.each([{ groups: null }, { groups: ['live'] }])(
     'managed evaluation ignores stored people without a hydration read: $groups',
     async ({ groups }) => {
         const h = setupPermissionSql(database, tracker);
-        h.state.policy.mode = 'managed';
+        h.state.policy.allowedCapabilities ??= Object.values(AgentCapability);
         h.state.allowedUserUuids = [h.operation.account.user.id];
         h.state.policy.allowedGroupUuids = groups;
         const request = await h.service.loadRequest(
@@ -186,9 +190,6 @@ test.each([{ groups: null }, { groups: ['live'] }])(
             membership: groups === null ? 0 : 1,
         });
         expect(h.deps.projectModel.getSummary).toHaveBeenCalledTimes(3);
-        expect(h.deps.userModel.getAgentRoleAssignments).toHaveBeenCalledTimes(
-            3,
-        );
     },
 );
 
@@ -509,7 +510,11 @@ test.each([
 ] as const)('preserves edge admission and SQL: $name', async (profile) => {
     const h = setupPermissionSql(database, tracker);
     h.state.missing = profile.missing;
-    h.state.policy.mode = profile.mode;
+    h.state.policy.allowedCapabilities =
+        profile.mode === 'legacy'
+            ? null
+            : (h.state.policy.allowedCapabilities ??
+              Object.values(AgentCapability));
     h.state.policy.allowedGroupUuids =
         profile.groups === null ? null : [...profile.groups];
     h.state.allowedUserUuids =
@@ -532,7 +537,11 @@ test.each([
     });
     expect(h.deps.areGroupsAvailable).not.toHaveBeenCalled();
     if (profile.name === 'partly deleted')
-        expect(tracker.history.select[1].bindings).toEqual([
+        expect(
+            tracker.history.select.find((query) =>
+                query.sql.includes('from "group_memberships"'),
+            )?.bindings,
+        ).toEqual([
             h.operation.account.user.id,
             h.operation.organizationUuid,
             'live',
@@ -622,7 +631,7 @@ test.each(['deleted', 'empty', 'non-member'])(
 
 test('keeps the full managed refusal and activity record', async () => {
     const h = setupPermissionSql(database, tracker);
-    h.state.policy.mode = 'managed';
+    h.state.policy.allowedCapabilities ??= Object.values(AgentCapability);
     h.state.policy.allowedGroupUuids = [];
     const error = await h.service
         .assertOperation(h.operation)
@@ -700,7 +709,7 @@ test('keeps the full managed refusal and activity record', async () => {
 
 test('copies and freezes the capability list while the next handle sees revocation', async () => {
     const h = setupPermissionSql(database, tracker);
-    h.state.policy.mode = 'managed';
+    h.state.policy.allowedCapabilities ??= Object.values(AgentCapability);
     h.state.policy.allowedCapabilities = [AgentCapability.RawSql];
     const request = await h.service.loadRequest(h.operation.organizationUuid);
     expect(Object.isFrozen(request.policy?.allowedCapabilities)).toBe(true);
@@ -733,7 +742,7 @@ test.each([
     'raw historical lists never refuse %s %s on %s',
     async (kind, key, surface) => {
         const h = setupPermissionSql(database, tracker);
-        h.state.policy.mode = 'managed';
+        h.state.policy.allowedCapabilities ??= Object.values(AgentCapability);
         h.state.policy.allowedGroupUuids = null;
         h.state.allowedUserUuids = ['excluded-person'];
         h.state.allowedProjectUuids = ['excluded-project'];

@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    assertUnreachable,
     DimensionType,
     PYLON_ACCOUNTS_SEARCH_PATH,
     PYLON_CONTACTS_SEARCH_PATH,
@@ -51,12 +52,31 @@ const COLUMNS = {
         'team_id',
         'tags',
         'created_at',
+        'created_at_week',
+        'created_at_month',
         'updated_at',
+        'updated_at_week',
+        'updated_at_month',
         'resolved_at',
+        'resolved_at_week',
+        'resolved_at_month',
         'first_response_minutes',
         'resolution_hours',
         'touches',
         'csat_score',
+        'first_response_due',
+        'first_response_breached',
+        'resolution_due',
+        'resolution_breached',
+        'next_reply_due',
+        'first_resolved_at',
+        'business_first_response_minutes',
+        'business_resolution_hours',
+        'created_time',
+        'priority',
+        'csat_comment',
+        'linked_issue_sources',
+        'linked_issue_links',
     ],
     accounts: [
         'id',
@@ -93,12 +113,33 @@ const NUMBER_COLUMNS = new Set([
     'resolution_hours',
     'touches',
     'csat_score',
+    'business_first_response_minutes',
+    'business_resolution_hours',
+]);
+
+const TIMESTAMP_COLUMNS = new Set([
+    'first_response_due',
+    'resolution_due',
+    'next_reply_due',
+    'created_time',
+]);
+
+const BOOLEAN_COLUMNS = new Set([
+    'first_response_breached',
+    'resolution_breached',
 ]);
 
 const DATE_COLUMNS = new Set([
     'created_at',
+    'created_at_week',
+    'created_at_month',
     'updated_at',
+    'updated_at_week',
+    'updated_at_month',
     'resolved_at',
+    'resolved_at_week',
+    'resolved_at_month',
+    'first_resolved_at',
     'last_customer_activity_at',
     'last_vendor_activity_at',
 ]);
@@ -140,6 +181,25 @@ const groupSchema = z
     })
     .strict();
 
+/** A filter applied here on the rows read, where Pylon's search can't be trusted. */
+const localFilterSchema = z.union([
+    z
+        .object({
+            column: z.literal('first_response_minutes'),
+            operator: z.enum(['greater_than', 'less_than']),
+            value: z.number(),
+        })
+        .strict(),
+    z
+        .object({
+            column: z.enum(['account_id', 'assignee_id']),
+            operator: z.enum(['is_null', 'is_not_null']),
+        })
+        .strict(),
+]);
+
+export type PylonLocalFilter = z.infer<typeof localFilterSchema>;
+
 export type PylonFilterLeaf = z.infer<typeof leafSchema>;
 export type PylonFilter = PylonFilterLeaf | z.infer<typeof groupSchema>;
 
@@ -150,6 +210,8 @@ export const pylonRequestSchema = z
         /** ANDed; Pylon's own search filters, plus the lookup fields. */
         filters: z.array(z.union([leafSchema, groupSchema])),
         columns: z.array(z.string()).min(1, 'Ask for at least one column'),
+        /** ANDed; applied to the rows read, which are then read up to the cap. */
+        localFilters: z.array(localFilterSchema).optional(),
         sort: z
             .object({
                 field: z.string(),
@@ -171,6 +233,13 @@ export const pylonRequestSchema = z
                 });
             }
         });
+        if (request.localFilters?.length && request.kind !== 'issues') {
+            context.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['localFilters'],
+                message: 'Only issues take local filters',
+            });
+        }
         if (
             request.sort &&
             !allowed(SORT_FIELDS[request.kind], request.sort.field)
@@ -230,7 +299,43 @@ const issueSchema = z.object({
     first_response_time: z.string().nullable().optional(),
     first_response_seconds: z.number().optional(),
     number_of_touches: z.number(),
-    csat_responses: z.array(z.object({ score: z.number() })).optional(),
+    csat_responses: z
+        .array(
+            z.object({
+                score: z.number(),
+                comment: z.string().nullable().optional(),
+            }),
+        )
+        .optional(),
+    // Issue-level SLAs only; per-team SLAs (team_slas) stay out
+    first_response_breach_time: z.string().nullable().optional(),
+    resolution_breach_time: z.string().nullable().optional(),
+    next_reply: z
+        .object({ breach_time: z.string().nullable().optional() })
+        .nullable()
+        .optional(),
+    first_resolution_time: z.string().nullable().optional(),
+    business_hours_first_response_seconds: z.number().nullable().optional(),
+    business_hours_resolution_seconds: z.number().nullable().optional(),
+    custom_fields: z
+        .record(
+            z.string(),
+            // Multi-select fields hold arrays; only text values are read
+            z.object({ value: z.unknown() }).passthrough(),
+        )
+        .nullable()
+        .optional(),
+    external_issues: z
+        .array(
+            z
+                .object({
+                    source: z.string().nullable().optional(),
+                    link: z.string().nullable().optional(),
+                })
+                .passthrough(),
+        )
+        .nullable()
+        .optional(),
 });
 type PylonIssue = z.infer<typeof issueSchema>;
 
@@ -279,11 +384,45 @@ const usersSchema = z.object({
 const toDay = (timestamp: string | null | undefined) =>
     timestamp ? timestamp.slice(0, 10) : null;
 
+const DAY_MS = 86_400_000;
+
+/** The Monday of a UTC day's week. */
+const toWeek = (day: string | null) => {
+    if (!day) {
+        return null;
+    }
+    const date = new Date(`${day}T00:00:00Z`);
+    const daysSinceMonday = (date.getUTCDay() + 6) % 7;
+    return new Date(date.getTime() - daysSinceMonday * DAY_MS)
+        .toISOString()
+        .slice(0, 10);
+};
+
+/** The first day of a UTC day's month. */
+const toMonth = (day: string | null) => (day ? `${day.slice(0, 7)}-01` : null);
+
 const round = (value: number, digits: number) =>
     Math.round(value * 10 ** digits) / 10 ** digits;
 
+const toText = (value: unknown) =>
+    typeof value === 'string' && value !== '' ? value : null;
+
 const joinTags = (tags: string[] | null | undefined) =>
     tags && tags.length > 0 ? tags.join(', ') : null;
+
+/**
+ * Whether an SLA was missed: answered after its deadline, or unanswered with
+ * the deadline passed. Empty without a deadline.
+ */
+const isBreached = (
+    deadline: string | null | undefined,
+    met: string | null | undefined,
+    now: number,
+) => {
+    if (!deadline) return null;
+    const due = Date.parse(deadline);
+    return met ? Date.parse(met) > due : now > due;
+};
 
 /** What issues and contacts hold only by ID, read for the columns asked for. */
 type Names = {
@@ -326,10 +465,22 @@ const readIssueColumn = (
             return joinTags(issue.tags);
         case 'created_at':
             return toDay(issue.created_at);
+        case 'created_at_week':
+            return toWeek(toDay(issue.created_at));
+        case 'created_at_month':
+            return toMonth(toDay(issue.created_at));
         case 'updated_at':
             return toDay(issue.updated_at);
+        case 'updated_at_week':
+            return toWeek(toDay(issue.updated_at));
+        case 'updated_at_month':
+            return toMonth(toDay(issue.updated_at));
         case 'resolved_at':
             return toDay(issue.resolution_time);
+        case 'resolved_at_week':
+            return toWeek(toDay(issue.resolution_time));
+        case 'resolved_at_month':
+            return toMonth(toDay(issue.resolution_time));
         case 'first_response_minutes':
             return issue.first_response_time &&
                 issue.first_response_seconds !== undefined
@@ -344,6 +495,50 @@ const readIssueColumn = (
             return issue.number_of_touches;
         case 'csat_score':
             return issue.csat_responses?.[0]?.score ?? null;
+        case 'csat_comment':
+            return issue.csat_responses?.[0]?.comment || null;
+        case 'first_response_due':
+            return issue.first_response_breach_time || null;
+        case 'first_response_breached':
+            return isBreached(
+                issue.first_response_breach_time,
+                issue.first_response_time,
+                Date.now(),
+            );
+        case 'resolution_due':
+            return issue.resolution_breach_time || null;
+        case 'resolution_breached':
+            return isBreached(
+                issue.resolution_breach_time,
+                issue.resolution_time,
+                Date.now(),
+            );
+        case 'next_reply_due':
+            return issue.next_reply?.breach_time || null;
+        case 'first_resolved_at':
+            return toDay(issue.first_resolution_time);
+        case 'business_first_response_minutes':
+            return issue.first_response_time &&
+                typeof issue.business_hours_first_response_seconds === 'number'
+                ? round(issue.business_hours_first_response_seconds / 60, 2)
+                : null;
+        case 'business_resolution_hours':
+            return issue.resolution_time &&
+                typeof issue.business_hours_resolution_seconds === 'number'
+                ? round(issue.business_hours_resolution_seconds / 3600, 2)
+                : null;
+        case 'created_time':
+            return issue.created_at;
+        case 'priority':
+            return toText(issue.custom_fields?.priority?.value);
+        case 'linked_issue_sources':
+            return joinTags(
+                issue.external_issues?.flatMap(({ source }) => source || []),
+            );
+        case 'linked_issue_links':
+            return joinTags(
+                issue.external_issues?.flatMap(({ link }) => link || []),
+            );
         default:
             return null;
     }
@@ -612,6 +807,12 @@ const toColumns = (names: string[]): LiveColumn[] =>
         if (DATE_COLUMNS.has(name)) {
             return { name, type: DimensionType.DATE };
         }
+        if (TIMESTAMP_COLUMNS.has(name)) {
+            return { name, type: DimensionType.TIMESTAMP };
+        }
+        if (BOOLEAN_COLUMNS.has(name)) {
+            return { name, type: DimensionType.BOOLEAN };
+        }
         return {
             name,
             type: NUMBER_COLUMNS.has(name)
@@ -619,6 +820,31 @@ const toColumns = (names: string[]): LiveColumn[] =>
                 : DimensionType.STRING,
         };
     });
+
+/** Whether an issue passes a local filter; a missing number never matches, as in SQL. */
+const matchesLocalFilter = (issue: PylonIssue, filter: PylonLocalFilter) => {
+    switch (filter.column) {
+        case 'first_response_minutes': {
+            const value = readIssueColumn(issue, filter.column, {
+                accounts: new Map(),
+                users: new Map(),
+            });
+            if (typeof value !== 'number') return false;
+            return filter.operator === 'greater_than'
+                ? value > filter.value
+                : value < filter.value;
+        }
+        case 'account_id':
+        case 'assignee_id': {
+            const ref =
+                filter.column === 'account_id' ? issue.account : issue.assignee;
+            const isNull = !ref?.id;
+            return filter.operator === 'is_null' ? isNull : !isNull;
+        }
+        default:
+            return assertUnreachable(filter, 'Unknown Pylon local filter');
+    }
+};
 
 /** Runs one Pylon request: one search, paged by cursor. */
 export const runPylonQuery = async ({
@@ -630,31 +856,45 @@ export const runPylonQuery = async ({
     PylonRequest
 >): Promise<LiveRunResult> => {
     assertMaxRows(limit, PYLON_MAX_QUERY_ROWS);
-    const { kind, columns, sort } = request;
+    const { kind, columns, sort, localFilters = [] } = request;
     const resultColumns = toColumns(columns);
     const filters = await resolveLookups(request.filters, calls);
     if (!filters) {
         return { columns: resultColumns, rows: [], hasMoreRows: false };
     }
-    const { rows: records, hasMoreRows } = await readRowsWithinCap({
-        label: LABEL,
-        requestedRows: limit,
-        maxRows: PYLON_MAX_QUERY_ROWS,
-        pageSize: Math.min(PAGE_SIZE, limit + 1),
-        maxPages: MAX_PAGES,
-        fetchPage: async ({ limit: pageLimit, cursor }) => {
-            const page = await searchPage({
-                calls,
-                kind,
-                filters,
-                sort,
-                limit: pageLimit,
-                cursor,
-            });
-            return { rows: page.records, nextCursor: page.nextCursor };
-        },
-    });
-    const typedRecords = records as PylonRecord[];
+    // Rows filtered here are read up to the cap, so the limit counts kept rows
+    const rowsToRead = localFilters.length > 0 ? PYLON_MAX_QUERY_ROWS : limit;
+    const { rows: readRecords, hasMoreRows: hasMoreRead } =
+        await readRowsWithinCap({
+            label: LABEL,
+            requestedRows: rowsToRead,
+            maxRows: PYLON_MAX_QUERY_ROWS,
+            pageSize: Math.min(PAGE_SIZE, rowsToRead + 1),
+            maxPages: MAX_PAGES,
+            fetchPage: async ({ limit: pageLimit, cursor }) => {
+                const page = await searchPage({
+                    calls,
+                    kind,
+                    filters,
+                    sort,
+                    limit: pageLimit,
+                    cursor,
+                });
+                return { rows: page.records, nextCursor: page.nextCursor };
+            },
+        });
+    // Matches past the rows read would be missed, so the filter needs them all
+    if (localFilters.length > 0 && hasMoreRead) {
+        throw tooManyRowsError({ label: LABEL, maxRows: PYLON_MAX_QUERY_ROWS });
+    }
+    const keptRecords = (readRecords as PylonRecord[]).filter((record) =>
+        localFilters.every((filter) =>
+            matchesLocalFilter(record as PylonIssue, filter),
+        ),
+    );
+    const typedRecords = keptRecords.slice(0, limit);
+    const hasMoreRows =
+        localFilters.length > 0 ? keptRecords.length > limit : hasMoreRead;
     const names = await readNames(calls, typedRecords, columns);
     return {
         columns: resultColumns,

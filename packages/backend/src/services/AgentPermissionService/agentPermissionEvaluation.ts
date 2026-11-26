@@ -4,6 +4,7 @@ import {
     AiAccessRefusedError,
     getAgentCapabilityName,
     getAgentCapabilityRefusalMessage,
+    getProjectAgentIdentitySettingsPath,
     type AgentPermissionBlocker,
     type AgentPermissionCheck,
     type AgentPermissionCheckKind,
@@ -61,6 +62,16 @@ export const agentPermissionChecks = (
     evaluate: () => AgentPermissionCheck;
 }[] => {
     const required = operation.requiredCapabilities;
+    // A project's own restrictions replace the organization's, so the refusal
+    // points at the project's settings instead.
+    const scopedProjectUuid =
+        policy.projectScoped === true ? operation.projectUuid : null;
+    const settingLayer =
+        scopedProjectUuid === null ? 'organization_setting' : 'project_scope';
+    const settingUrl =
+        scopedProjectUuid === null
+            ? '/generalSettings/agentIdentity'
+            : getProjectAgentIdentitySettingsPath(scopedProjectUuid);
     const notNeeded = (kind: AgentPermissionCheckKind, label: string) =>
         permissionCheck(
             kind,
@@ -133,7 +144,9 @@ export const agentPermissionChecks = (
                           'agent_enabled',
                           'Agents enabled',
                           AiAccessRefusalReason.AGENT_ACCESS_DISABLED,
-                          'organization_setting',
+                          settingLayer,
+                          null,
+                          settingUrl,
                       ),
         },
         {
@@ -168,8 +181,9 @@ export const agentPermissionChecks = (
                             'capability',
                             getAgentCapabilityName(capability),
                             AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
-                            'organization_setting',
+                            settingLayer,
                             capability,
+                            settingUrl,
                         ),
                         id,
                     };
@@ -180,7 +194,7 @@ export const agentPermissionChecks = (
                             'capability',
                             getAgentCapabilityName(capability),
                             'allowed',
-                            `This person's roles grant ${getAgentCapabilityName(capability)} to agents.`,
+                            `The agent setting allows ${getAgentCapabilityName(capability)}.`,
                         ),
                         capability,
                         id,
@@ -193,9 +207,7 @@ export const agentPermissionChecks = (
                         AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
                         'org_ceiling',
                         capability,
-                        policy.editableCustomRoleUuid
-                            ? `/generalSettings/customRoles/${policy.editableCustomRoleUuid}`
-                            : '/generalSettings/agentIdentity',
+                        '/generalSettings/agentIdentity',
                     ),
                     id,
                 };

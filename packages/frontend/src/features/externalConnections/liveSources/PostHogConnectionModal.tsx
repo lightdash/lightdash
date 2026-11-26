@@ -1,4 +1,14 @@
-import { ApiConnectorType, type ExternalConnection } from '@lightdash/common';
+/**
+ * Adds a PostHog source, laid out like its settings: how it reaches PostHog
+ * first, by signing in or with a personal API key, then what it is called.
+ */
+import { ApiConnectorType, POSTHOG_TEST_QUERY } from '@lightdash/common';
+import {
+    PasswordInput,
+    SegmentedControl,
+    Stack,
+    TextInput,
+} from '@mantine/core';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import {
@@ -6,24 +16,29 @@ import {
     useCreateExternalConnection,
 } from '../hooks/useCreateExternalConnection';
 import { useNewSourceId } from '../hooks/useNewSourceId';
+import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
+import { LiveSourceTitle } from './LiveSourceIcon';
+import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
+import { LiveSourceSetupCard } from './LiveSourceSetupCard';
+import { LiveSourceTestRow } from './LiveSourceTestRow';
+import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 import {
-    LIVE_SOURCE_UPDATE_MESSAGES,
-    useUpdateExternalConnection,
-} from '../hooks/useUpdateExternalConnection';
-import {
+    getPostHogQueryPath,
     getPostHogSignInUrl,
+    POSTHOG_PROJECT_ID_FIELD,
     toPostHogCreatePayload,
-    toPostHogUpdatePayload,
     usePostHogConnectionForm,
+    type PostHogAuthMethod,
+    type PostHogRegion,
 } from './postHogConnection';
-import { PostHogConnectionStep } from './PostHogConnectionStep';
-import { SourceIdField } from './SourceIdField';
+
+/** Matches the fields of the Details card below. */
+const FIELD_WIDTH = 240;
 
 type Props = {
     opened: boolean;
     onClose: () => void;
     projectUuid: string;
-    connection: ExternalConnection | null;
     canSignIn: boolean;
     onCreated: (connectionUuid: string) => void;
 };
@@ -32,51 +47,46 @@ export const PostHogConnectionModal: FC<Props> = ({
     opened,
     onClose,
     projectUuid,
-    connection,
     canSignIn,
     onCreated,
 }) => {
-    const form = usePostHogConnectionForm(connection, canSignIn);
+    const form = usePostHogConnectionForm(null, canSignIn);
     const createMutation = useCreateExternalConnection(
         LIVE_SOURCE_CREATE_MESSAGES,
     );
-    const updateMutation = useUpdateExternalConnection(
-        LIVE_SOURCE_UPDATE_MESSAGES,
-    );
+    const testMutation = useTestConnectionConfig({ showErrorToast: false });
     const sourceId = useNewSourceId({
         projectUuid,
         connector: ApiConnectorType.POSTHOG,
         name: form.values.name,
-        enabled: opened && !connection,
+        enabled: opened,
     });
-    const isSaving = createMutation.isLoading || updateMutation.isLoading;
+    const isSaving = createMutation.isLoading;
+    const isSignIn = form.values.authMethod === 'signIn';
 
-    const signIn = (connectionUuid: string | null) => {
-        if (form.validateField('name').hasError) return;
-        window.location.assign(
-            getPostHogSignInUrl(
-                projectUuid,
-                form.values,
-                connectionUuid,
-                'settings',
-                connectionUuid ? undefined : sourceId.value,
-            ),
-        );
+    const handleTest = () => {
+        if (form.validate().hasErrors) return;
+        testMutation.mutate({
+            projectUuid,
+            config: toPostHogCreatePayload(form.values),
+            method: 'POST',
+            path: getPostHogQueryPath(form.values.projectId.trim()),
+            body: { query: { kind: 'HogQLQuery', query: POSTHOG_TEST_QUERY } },
+        });
     };
 
     const handleSave = form.onSubmit(async (values) => {
         if (sourceId.isBlocked) return;
-        if (!connection && values.authMethod === 'signIn') {
-            signIn(null);
-            return;
-        }
-        if (connection) {
-            await updateMutation.mutateAsync({
-                projectUuid,
-                connectionUuid: connection.externalConnectionUuid,
-                data: toPostHogUpdatePayload(values),
-            });
-            onClose();
+        if (values.authMethod === 'signIn') {
+            window.location.assign(
+                getPostHogSignInUrl(
+                    projectUuid,
+                    values,
+                    null,
+                    'settings',
+                    sourceId.value,
+                ),
+            );
             return;
         }
         const created = await createMutation.mutateAsync({
@@ -90,37 +100,110 @@ export const PostHogConnectionModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={connection ? 'Edit PostHog source' : 'Add PostHog source'}
-            confirmLabel={
-                connection
-                    ? 'Save'
-                    : form.values.authMethod === 'signIn'
-                      ? 'Continue to PostHog'
-                      : 'Add source'
+            size="xl"
+            title={
+                <LiveSourceTitle connector={ApiConnectorType.POSTHOG}>
+                    Add PostHog source
+                </LiveSourceTitle>
             }
+            confirmLabel={isSignIn ? 'Continue to PostHog' : 'Add source'}
             onConfirm={() => handleSave()}
             confirmLoading={isSaving}
             confirmDisabled={sourceId.isBlocked}
             cancelDisabled={isSaving}
         >
-            <PostHogConnectionStep
-                showIntro
-                projectUuid={projectUuid}
-                form={form}
-                isEditing={!!connection}
-                canSignIn={canSignIn}
-                onReconnect={
-                    connection && canSignIn
-                        ? () => signIn(connection.externalConnectionUuid)
-                        : null
-                }
-                sourceIdField={
-                    <SourceIdField
-                        connection={connection}
-                        sourceId={sourceId}
-                    />
-                }
-            />
+            <Stack gap="lg">
+                {isSignIn ? null : (
+                    <LiveSourceSetupCard connector={ApiConnectorType.POSTHOG} />
+                )}
+                <SettingsCard title="Authentication" titleOutside>
+                    {canSignIn ? (
+                        <SettingsRow
+                            label="Connect with"
+                            hint="Sign in or use a key"
+                        >
+                            <SegmentedControl
+                                size="xs"
+                                w={FIELD_WIDTH}
+                                data={[
+                                    { value: 'signIn', label: 'Sign in' },
+                                    { value: 'apiKey', label: 'API key' },
+                                ]}
+                                value={form.values.authMethod}
+                                onChange={(value) =>
+                                    form.setFieldValue(
+                                        'authMethod',
+                                        value as PostHogAuthMethod,
+                                    )
+                                }
+                            />
+                        </SettingsRow>
+                    ) : null}
+                    <SettingsRow label="Region" hint="Where you log in">
+                        <SegmentedControl
+                            size="xs"
+                            w={FIELD_WIDTH}
+                            data={[
+                                { value: 'us', label: 'US Cloud' },
+                                { value: 'eu', label: 'EU Cloud' },
+                            ]}
+                            value={form.values.region}
+                            onChange={(value) =>
+                                form.setFieldValue(
+                                    'region',
+                                    value as PostHogRegion,
+                                )
+                            }
+                        />
+                    </SettingsRow>
+                    {isSignIn ? null : (
+                        <>
+                            <SettingsRow
+                                label={POSTHOG_PROJECT_ID_FIELD.label}
+                                hint={POSTHOG_PROJECT_ID_FIELD.description}
+                            >
+                                <TextInput
+                                    w={FIELD_WIDTH}
+                                    size="xs"
+                                    aria-label={POSTHOG_PROJECT_ID_FIELD.label}
+                                    placeholder={
+                                        POSTHOG_PROJECT_ID_FIELD.placeholder
+                                    }
+                                    {...form.getInputProps('projectId')}
+                                />
+                            </SettingsRow>
+                            <SettingsRow
+                                label="Personal API key"
+                                hint="Read access is enough"
+                            >
+                                <PasswordInput
+                                    w={FIELD_WIDTH}
+                                    size="xs"
+                                    aria-label="Personal API key"
+                                    placeholder="phx_..."
+                                    {...form.getInputProps('apiKey')}
+                                />
+                            </SettingsRow>
+                            {/* A sign-in can only be tested once PostHog sends it back */}
+                            <LiveSourceTestRow
+                                hint="Checks the details above, without saving"
+                                test={testMutation}
+                                onTest={handleTest}
+                                inputs={[
+                                    form.values.region,
+                                    form.values.projectId,
+                                    form.values.apiKey,
+                                ]}
+                            />
+                        </>
+                    )}
+                </SettingsCard>
+
+                <NewLiveSourceDetails
+                    nameProps={form.getInputProps('name')}
+                    sourceId={sourceId}
+                />
+            </Stack>
         </MantineModal>
     );
 };

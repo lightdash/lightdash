@@ -12,11 +12,10 @@
  *
  * Each group level is its own segment, so a group named a/b stays one.
  */
-import { nodeKey, type Kind, type NodeRef } from './model';
+import { assertUnreachable } from '@lightdash/common';
+import { KIND_ORDER, nodeKey, type Kind, type NodeRef } from './model';
 
 const STUDIO_PATH = /\/semantic-layer(?=\/|$)/;
-
-const KINDS: readonly Kind[] = ['modelled', 'sqlViews', 'files', 'live'];
 
 export type StudioRoute = { ref: NodeRef | null };
 
@@ -34,7 +33,7 @@ const segmentsOf = (ref: NodeRef | null): string[] => {
         case 'field':
             return ['explores', ref.exploreId, 'fields', ref.fieldId];
         default:
-            return [];
+            return assertUnreachable(ref, 'Unknown node ref');
     }
 };
 
@@ -57,7 +56,7 @@ export const getSemanticStudioSourceUrl = (
     });
 
 const isKind = (value: string | undefined): value is Kind =>
-    KINDS.some((kind) => kind === value);
+    KIND_ORDER.some((kind) => kind === value);
 
 const refOf = (segments: string[]): NodeRef | null => {
     const [first, id, third, rest] = segments;
@@ -82,7 +81,6 @@ const refOf = (segments: string[]): NodeRef | null => {
     return null;
 };
 
-/** Reads the part of the pathname after /semantic-layer. */
 /** Whether a browser path is on the Semantic Layer page at all. */
 export const isSemanticStudioPath = (pathname: string): boolean =>
     STUDIO_PATH.test(pathname);
@@ -92,6 +90,7 @@ export const isSameRoute = (a: StudioRoute, b: StudioRoute): boolean =>
         ? a.ref === b.ref
         : nodeKey(a.ref) === nodeKey(b.ref);
 
+/** Reads the part of the pathname after /semantic-layer. */
 export const parseSemanticStudioPath = (pathname: string): StudioRoute => {
     const match = STUDIO_PATH.exec(pathname);
     const after = match ? pathname.slice(match.index + match[0].length) : '';
@@ -159,3 +158,9 @@ export const getLiveDataSourcesRedirectUrl = (
 
 export const pullRequestNumberOf = (url: string | null | undefined) =>
     /\/(\d+)\/?$/.exec(url ?? '')?.[1] ?? null;
+
+/** A dbt draft named after its pull request, such as "Draft #12"; null when the url has no number. */
+export const draftNameOfPullRequest = (url: string | null | undefined) => {
+    const number = pullRequestNumberOf(url);
+    return number ? `Draft #${number}` : null;
+};

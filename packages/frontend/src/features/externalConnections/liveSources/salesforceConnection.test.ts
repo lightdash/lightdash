@@ -1,0 +1,49 @@
+import { getSalesforceSignInUrl } from './salesforceConnection';
+
+describe('getSalesforceSignInUrl', () => {
+    it('starts sign-in with the name, keeping a reconnected source', () => {
+        const url = new URL(
+            getSalesforceSignInUrl(
+                'project-1',
+                { name: ' Pipeline ' },
+                'connection-1',
+                'settings',
+            ),
+            'https://lightdash.example.com',
+        );
+        expect(url.pathname).toBe(
+            '/api/v1/ee/projects/project-1/live-sources/salesforce/oauth/start',
+        );
+        expect(Object.fromEntries(url.searchParams)).toMatchObject({
+            name: 'Pipeline',
+            connectionUuid: 'connection-1',
+        });
+    });
+
+    it('sends the Sandbox choice for a new source', () => {
+        const url = new URL(
+            getSalesforceSignInUrl(
+                'project-1',
+                { name: 'Pipeline', environment: 'sandbox' },
+                null,
+                'settings',
+            ),
+            'https://lightdash.example.com',
+        );
+        expect(url.searchParams.get('environment')).toBe('sandbox');
+        expect(url.searchParams.has('connectionUuid')).toBe(false);
+    });
+
+    it('sends the explore prefix the admin typed', () => {
+        const url = new URL(
+            getSalesforceSignInUrl(
+                'project-1',
+                { name: 'Pipeline', explorePrefix: 'crm' },
+                null,
+                'settings',
+            ),
+            'http://localhost',
+        );
+        expect(url.searchParams.get('explorePrefix')).toBe('crm');
+    });
+});

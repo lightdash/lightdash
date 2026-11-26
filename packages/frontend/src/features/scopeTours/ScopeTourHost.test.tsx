@@ -68,6 +68,10 @@ vi.mock('../../providers/App/useApp', () => ({
     default: () => ({ user: { data: { organizationUuid: 'org-1' } } }),
 }));
 
+vi.mock('../../components/AppSidebar/useIsLeftNavigationShown', () => ({
+    useIsLeftNavigationShown: () => false,
+}));
+
 vi.mock('../../hooks/useProjectRoute', () => ({
     useOptionalProjectRoute: () => undefined,
 }));

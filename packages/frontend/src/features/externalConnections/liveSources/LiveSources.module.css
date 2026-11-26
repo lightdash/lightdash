@@ -1,0 +1,61 @@
+/* Live data sources' columns, on the shared source table. */
+
+.row {
+    composes: row from '../../../components/common/sourceTable.module.css';
+    grid-template-columns:
+        minmax(160px, 220px) minmax(0, 1fr)
+        96px 96px 120px 28px;
+}
+
+.usageInfo {
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+/* A right-aligned header that keeps its info icon on the same line */
+.headWithInfo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    white-space: nowrap;
+}
+
+/* A source's rate limits in its settings: usage beside each limit's field. */
+
+/* One block per limit, the same width down the card: count and max over the bar. */
+.rateMeter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 180px;
+}
+
+.rateCount {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 16px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.rateMax {
+    font-size: 11px;
+    color: var(--mantine-color-dimmed);
+}
+
+.rateDetail[data-limit-reached],
+.rateError {
+    color: var(--mantine-color-red-text);
+}
+
+.warningText {
+    color: var(--mantine-color-orange-text);
+}
+
+/* A source that hasn't been called yet: its numbers are dashes, set back. */
+.row [data-empty] {
+    color: var(--mantine-color-dimmed);
+}

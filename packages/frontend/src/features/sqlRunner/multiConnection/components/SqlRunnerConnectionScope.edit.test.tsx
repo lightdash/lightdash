@@ -58,13 +58,9 @@ vi.mock(
     '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs',
     () => ({ TitleBreadCrumbs: () => null }),
 );
-vi.mock('../../../../components/common/PageHeader/UpdatedInfo', () => ({
-    UpdatedInfo: () => null,
+vi.mock('../../../../components/common/Page/HeaderInfoPopover', () => ({
+    HeaderInfoPopover: () => null,
 }));
-vi.mock(
-    '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup',
-    () => ({ ResourceInfoPopup: () => null }),
-);
 vi.mock('../../components/ChartErrorsAlert', () => ({
     ChartErrorsAlert: () => null,
 }));

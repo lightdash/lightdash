@@ -10,6 +10,8 @@ describeContentAsCodeSchemaContract({
         'groupAccess',
         'imageUrlSource',
         'integrations',
+        // Set by the product; only ordinary agents are written as code.
+        'kind',
         'organizationUuid',
         'projectUuid',
         // Credential pins reference org-specific credential uuids, which do

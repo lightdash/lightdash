@@ -20,14 +20,9 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import {
-    IconAlertTriangleFilled,
-    IconChevronLeft,
-    IconX,
-} from '@tabler/icons-react';
+import { IconAlertTriangleFilled, IconChevronLeft, IconPlayerSkipForwardFilled, IconX } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { useMemo, type FC } from 'react';
-import { BarChartIcon, DashboardIcon } from '../common/ContentIcons';
+import { useMemo, type ComponentProps, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import classes from './RunDetailsModal.module.css';
@@ -37,6 +32,7 @@ import {
     getLogStatusIconWithoutTooltip,
     getSchedulerIconRaw,
 } from './SchedulersViewUtils';
+import { BarChartIcon, DashboardIcon } from '../common/ContentIcons';
 
 type JobSummary = {
     jobId: string;
@@ -48,6 +44,8 @@ type JobSummary = {
     finalStatus: SchedulerRunLog['status'];
     errorDetails: string | null;
     batchResult: BatchDeliveryResult | null;
+    // A Google Sheets run that stopped because a newer run took over the tab.
+    superseded: boolean;
 };
 
 type RunDetailsModalProps = {
@@ -131,9 +129,11 @@ const JobTimingInfo: FC<{
     startedAt: Date | null;
     completedAt: Date | null;
     status: SchedulerJobStatus;
-}> = ({ startedAt, completedAt, status }) => {
+    endLabel?: string;
+}> = ({ startedAt, completedAt, status, endLabel: endLabelOverride }) => {
     const endLabel =
-        status === SchedulerJobStatus.ERROR ? 'failed' : 'completed';
+        endLabelOverride ??
+        (status === SchedulerJobStatus.ERROR ? 'failed' : 'completed');
 
     return (
         <Group gap="md" wrap="nowrap" w={240}>
@@ -247,6 +247,43 @@ const getPartialFailureKey = (
     if ('captureKey' in failure) return failure.captureKey;
     return index;
 };
+
+// A Google Sheets run that stopped because a newer run took over the tab.
+// Not a failure: the newer run writes the tab.
+const SupersededJobRow: FC<{
+    job: JobSummary;
+    getTargetDisplayName: (
+        target: string | null,
+        targetType: SchedulerRunLog['targetType'],
+    ) => string | null;
+}> = ({ job, getTargetDisplayName }) => (
+    <Box p="sm" className={classes.jobCard}>
+        <Group gap="md" wrap="nowrap">
+            <MantineIcon icon={IconPlayerSkipForwardFilled} color="gray.6" />
+            <Stack gap={4} flex={1}>
+                <Box>
+                    <Text fz="sm" fw={500}>
+                        {formatTaskName(job.task)}
+                    </Text>
+                    {job.target && (
+                        <Text fz="xs" c="dimmed">
+                            {getTargetDisplayName(job.target, job.targetType)}
+                        </Text>
+                    )}
+                </Box>
+                <Text fz="xs" c="dimmed">
+                    Stopped: a newer run took over this tab
+                </Text>
+            </Stack>
+            <JobTimingInfo
+                startedAt={job.startedAt}
+                completedAt={job.completedAt}
+                status={job.finalStatus}
+                endLabel="stopped"
+            />
+        </Group>
+    </Box>
+);
 
 // Unified component for job rows (success, failure, partial failure)
 const JobRow: FC<{
@@ -502,6 +539,32 @@ const JobStatusSummaryHeader: FC<{
     );
 };
 
+// Picks the row for a job: batch delivery, superseded Google Sheets run, or
+// any other job.
+const JobRowForJob: FC<
+    ComponentProps<typeof JobRow> & {
+        getSlackChannelName: (channelId: string) => string | null;
+    }
+> = ({ getSlackChannelName, ...props }) => {
+    if (props.job.batchResult) {
+        return (
+            <BatchJobRow
+                job={props.job}
+                getSlackChannelName={getSlackChannelName}
+            />
+        );
+    }
+    if (props.job.superseded) {
+        return (
+            <SupersededJobRow
+                job={props.job}
+                getTargetDisplayName={props.getTargetDisplayName}
+            />
+        );
+    }
+    return <JobRow {...props} />;
+};
+
 const BatchJobRow: FC<{
     job: JobSummary;
     getSlackChannelName: (channelId: string) => string | null;
@@ -687,6 +750,9 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                             ? (completedLog.details?.error as string) || null
                             : null,
                     batchResult,
+                    superseded:
+                        completedLog?.status === SchedulerJobStatus.ERROR &&
+                        completedLog.details?.superseded === true,
                 };
             })
             .sort((a, b) => {
@@ -717,7 +783,8 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
         // Count failed jobs (including batch jobs where all targets failed)
         const errorCount = jobSummaries.filter(
             (job) =>
-                job.finalStatus === SchedulerJobStatus.ERROR ||
+                (job.finalStatus === SchedulerJobStatus.ERROR &&
+                    !job.superseded) ||
                 (job.batchResult &&
                     job.batchResult.succeeded === 0 &&
                     job.batchResult.failed > 0),
@@ -845,30 +912,17 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                         </Center>
                     ) : jobSummaries.length > 0 ? (
                         <Stack gap="xs">
-                            {jobSummaries.map((job) =>
-                                job.batchResult ? (
-                                    <BatchJobRow
-                                        key={job.jobId}
-                                        job={job}
-                                        getSlackChannelName={
-                                            getSlackChannelName
-                                        }
-                                    />
-                                ) : (
-                                    <JobRow
-                                        key={job.jobId}
-                                        job={job}
-                                        run={run}
-                                        partialFailures={partialFailures}
-                                        getTargetDisplayName={
-                                            getTargetDisplayName
-                                        }
-                                        getFormatDisplayName={
-                                            getFormatDisplayName
-                                        }
-                                    />
-                                ),
-                            )}
+                            {jobSummaries.map((job) => (
+                                <JobRowForJob
+                                    key={job.jobId}
+                                    job={job}
+                                    run={run}
+                                    partialFailures={partialFailures}
+                                    getSlackChannelName={getSlackChannelName}
+                                    getTargetDisplayName={getTargetDisplayName}
+                                    getFormatDisplayName={getFormatDisplayName}
+                                />
+                            ))}
                         </Stack>
                     ) : (
                         <Text fz="sm" c="dimmed">

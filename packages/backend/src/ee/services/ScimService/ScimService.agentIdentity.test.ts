@@ -1,5 +1,6 @@
 import {
     AgentActorSurface,
+    AgentCapability,
     AiAccessRefusedError,
     ScimSchemaType,
 } from '@lightdash/common';
@@ -45,10 +46,10 @@ const setup = (
         deleteGroup: vi.fn().mockResolvedValue(undefined),
     };
     vi.spyOn(AgentCapabilityPolicyModel.prototype, 'get').mockResolvedValue({
-        mode: mode === 'managed' ? 'managed' : 'legacy',
         version: 1,
         allowedGroupUuids: mode === 'people-only' ? null : [group.uuid],
-        allowedCapabilities: null,
+        allowedCapabilities:
+            mode !== 'managed' ? null : Object.values(AgentCapability),
     });
     const service = new ScimService({
         ...ScimServiceArgumentsMock,

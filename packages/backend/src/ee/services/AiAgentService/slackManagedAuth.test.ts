@@ -1,4 +1,5 @@
 import {
+    AgentCapability,
     AiAccessRefusalReason,
     InvalidUser,
     type AgentCapabilityPolicy,
@@ -25,9 +26,8 @@ const setup = ({
     multiAgent = false,
 } = {}) => {
     const policy: AgentCapabilityPolicy = {
-        mode: managed ? 'managed' : 'legacy',
         version: 1,
-        allowedCapabilities: null,
+        allowedCapabilities: !managed ? null : Object.values(AgentCapability),
         allowedGroupUuids: restricted ? ['group'] : null,
     };
     const insert = vi.fn().mockResolvedValue(undefined);
@@ -43,6 +43,7 @@ const setup = ({
                         ? null
                         : policy.allowedGroupUuids.length > 0,
             })),
+            getProjectPolicies: vi.fn().mockResolvedValue([]),
         },
         agentActionLogModel: { insert },
     } as unknown as ConstructorParameters<typeof AgentPermissionService>[0]);

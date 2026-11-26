@@ -4,11 +4,14 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo } from 'react';
 import {
     Link,
+    Navigate,
     useOutletContext,
     useParams,
     useSearchParams,
 } from 'react-router';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { getSemanticStudioUrl } from '../../../features/semanticStudio/urls';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
@@ -126,12 +129,13 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         projectUuid,
     });
 
+    const projectSlug = useOptionalProjectRoute()?.project.slug ?? null;
     const handleToolResult = useCallback(
         (toolResult: AiAgentToolResult) => {
             if (!projectUuid) return;
 
             const dashboardUrl = getDashboardNavigationUrlFromContentToolResult(
-                projectUuid,
+                { projectUuid, projectSlug },
                 toolResult,
             );
             if (!dashboardUrl || isEmbed) return;
@@ -144,6 +148,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         [
             navigateFromAgentChat,
             isEmbed,
+            projectSlug,
             projectUuid,
             thread?.firstMessage?.message,
             thread?.title,
@@ -441,6 +446,16 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                         {getUiString('aiAgent.thread.startNew')}
                     </Button>
                 }
+            />
+        );
+    }
+
+    // A Studio conversation belongs to Studio, not to the Ask AI thread view.
+    if (thread?.createdFrom === 'semantic_studio' && projectUuid) {
+        return (
+            <Navigate
+                to={getSemanticStudioUrl(projectUuid, { ref: null })}
+                replace
             />
         );
     }

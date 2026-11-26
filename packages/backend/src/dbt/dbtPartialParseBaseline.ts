@@ -22,6 +22,11 @@ export const DBT_PARTIAL_PARSE_BASELINE_LIMITS = {
     abandonedWriteAgeMs: 60 * 60 * 1000,
 };
 
+export type DbtPartialParseBaseline = {
+    path: string;
+    access: 'read-only' | 'read-write';
+};
+
 type BaselineLimits = typeof DBT_PARTIAL_PARSE_BASELINE_LIMITS;
 
 export const getDbtPartialParseBaselineLimits = (
@@ -61,22 +66,27 @@ export const getDbtPartialParseBaselineSize = (
  * One baseline per project and dbt source. `dbtSourceUuid` is null for the
  * project's own dbt connection.
  */
-export const getDbtPartialParseBaselinePath = ({
+export const getDbtPartialParseBaseline = ({
     projectUuid,
     dbtSourceUuid,
     root = DBT_PARTIAL_PARSE_BASELINE_ROOT,
+    access,
 }: {
     projectUuid: string;
     dbtSourceUuid: string | null;
     root?: string;
-}): string =>
-    path.join(
+    /** read-only for a compile whose parse state must not replace the live one, such as a branch. */
+    access: DbtPartialParseBaseline['access'];
+}): DbtPartialParseBaseline => ({
+    access,
+    path: path.join(
         root,
         `${createHash('sha256')
             .update(`${projectUuid}:${dbtSourceUuid ?? 'project'}`)
             .digest('hex')
             .slice(0, 32)}${BASELINE_EXTENSION}`,
-    );
+    ),
+});
 
 const isMissingFileError = (error: unknown) =>
     error instanceof Error && 'code' in error && error.code === 'ENOENT';
@@ -105,11 +115,28 @@ export const seedDbtPartialParse = async (
     }
 };
 
+export type DbtPartialParsePruneResult = {
+    removedPaths: string[];
+    removedBytes: number;
+    keptFiles: number;
+    keptBytes: number;
+};
+
+export type DbtPartialParseSaveOutcome = {
+    status: 'saved' | 'skipped' | 'no_file' | 'failed';
+    baselineBytes: number | null;
+    cacheBytes: number;
+    prunedFiles: number;
+    prunedBytes: number;
+    prunedOwnBaseline: boolean;
+    capBytes: number;
+};
+
 export const pruneDbtPartialParseBaselines = async (
     root: string,
     now: number,
     limits: BaselineLimits = getDbtPartialParseBaselineLimits(),
-): Promise<void> => {
+): Promise<DbtPartialParsePruneResult> => {
     const names = await fs.readdir(root);
     const files = (
         await Promise.all(
@@ -164,41 +191,76 @@ export const pruneDbtPartialParseBaselines = async (
         return keptBytes > limits.maxBytes;
     });
 
+    const removed = [...expired, ...overLimit];
+    const kept = entries.filter((entry) => !removed.includes(entry));
+    const removedPaths = removed.flatMap((entry) => entry.paths);
     await Promise.all(
-        [...expired, ...overLimit].flatMap((entry) =>
-            entry.paths.map((filePath) => fs.rm(filePath, { force: true })),
-        ),
+        removedPaths.map((filePath) => fs.rm(filePath, { force: true })),
     );
+    return {
+        removedPaths,
+        removedBytes: removed.reduce((bytes, entry) => bytes + entry.size, 0),
+        keptFiles: kept.reduce((count, entry) => count + entry.paths.length, 0),
+        keptBytes: kept.reduce((bytes, entry) => bytes + entry.size, 0),
+    };
 };
 
 /**
  * Stores the partial_parse.msgpack that dbt wrote to the target directory as
  * the baseline for the next compile. The write goes to a temporary file in
  * the same directory and is renamed into place, so a concurrent seed never
- * reads a half-written file. Failures are logged and never fail the compile.
+ * reads a half-written file. Failures are logged and never fail the compile;
+ * the resolved outcome says what happened to the baseline and the cache.
  */
 export const saveDbtPartialParse = async (
     baselinePath: string,
     targetDirectory: string,
     limits: BaselineLimits = getDbtPartialParseBaselineLimits(),
-): Promise<void> => {
+): Promise<DbtPartialParseSaveOutcome> => {
     const root = path.dirname(baselinePath);
     const temporaryPath = `${baselinePath}.${randomUUID()}.tmp`;
+    let copied = false;
+    let baselineBytes: number | null = null;
     try {
         await fs.mkdir(root, { recursive: true, mode: 0o700 });
         await fs.copyFile(
             path.join(targetDirectory, DBT_PARTIAL_PARSE_FILE),
             temporaryPath,
         );
+        copied = true;
         await fs.chmod(temporaryPath, 0o600);
+        baselineBytes = (await fs.stat(temporaryPath)).size;
         await fs.rename(temporaryPath, baselinePath);
-        await pruneDbtPartialParseBaselines(root, Date.now(), limits);
+        const pruned = await pruneDbtPartialParseBaselines(
+            root,
+            Date.now(),
+            limits,
+        );
+        return {
+            status: 'saved',
+            baselineBytes,
+            cacheBytes: pruned.keptBytes,
+            prunedFiles: pruned.removedPaths.length,
+            prunedBytes: pruned.removedBytes,
+            prunedOwnBaseline: pruned.removedPaths.includes(baselinePath),
+            capBytes: limits.maxBytes,
+        };
     } catch (error) {
         await fs.rm(temporaryPath, { force: true }).catch(() => undefined);
-        if (!isMissingFileError(error)) {
+        const noFile = !copied && isMissingFileError(error);
+        if (!noFile) {
             Logger.warn(
                 `Could not save dbt partial parse baseline: ${getErrorMessage(error)}`,
             );
         }
+        return {
+            status: noFile ? 'no_file' : 'failed',
+            baselineBytes,
+            cacheBytes: getDbtPartialParseBaselineSize(root),
+            prunedFiles: 0,
+            prunedBytes: 0,
+            prunedOwnBaseline: false,
+            capBytes: limits.maxBytes,
+        };
     }
 };

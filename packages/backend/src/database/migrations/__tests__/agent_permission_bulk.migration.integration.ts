@@ -1,6 +1,5 @@
 import {
     AGENT_CAPABILITY_LIMIT_DEFAULTS,
-    AGENT_CAPABILITY_SCOPES,
     AgentActorSurface,
     AgentCapability,
     AiAccessRefusedError,
@@ -113,7 +112,7 @@ const fixture = async (customRolesEnabled = false) => {
         .returning('*');
     await database('scoped_roles').insert({
         role_uuid: custom.role_uuid,
-        scope_name: AGENT_CAPABILITY_SCOPES[AgentCapability.Query],
+        scope_name: 'view:Dashboard',
         granted_by: people[0].user_uuid,
     });
     const [group] = await database('groups')
@@ -189,7 +188,6 @@ const fixture = async (customRolesEnabled = false) => {
     ) =>
         policies.save({
             organizationUuid: org.organization_uuid,
-            mode: 'managed',
             allowedCapabilities: [...AGENT_CAPABILITY_LIMIT_DEFAULTS],
             allowedGroupUuids: null,
             updatedByUserUuid: people[0].user_uuid,
@@ -204,12 +202,10 @@ const fixture = async (customRolesEnabled = false) => {
     };
     const service = new AgentPermissionService({
         resolveResourceProjectUuid: async () => null,
-        isCustomRolesLicensed: () => true,
         areGroupsAvailable: async () => true,
         featureFlagModel: flags,
         groupsModel: new GroupsModel({ database }),
         agentCapabilityPolicyModel: policies,
-        userModel: users,
         projectModel,
         agentActionLogModel: new AgentActionLogModel({ database }),
     });
@@ -233,7 +229,8 @@ const fixture = async (customRolesEnabled = false) => {
         group,
         service,
         accounts,
-        loaders: { userModel: users, projectModel },
+        loaders: { projectModel },
+        policies,
         savePolicy,
         flags,
         users,
@@ -243,72 +240,22 @@ const fixture = async (customRolesEnabled = false) => {
 
 type BulkFixture = Awaited<ReturnType<typeof fixture>>;
 
-const insertCustomRole = async (
-    f: BulkFixture,
-    name: string,
-    level: 'organization' | 'project',
-    scopes: string[],
-) => {
-    const [role] = await f
-        .database('roles')
-        .insert({
-            name,
-            description: null,
-            level,
-            organization_uuid: f.org.organization_uuid,
-            created_by: f.people[0].user_uuid,
-        })
-        .returning('*');
-    await f.database('scoped_roles').insert(
-        scopes.map((scope_name) => ({
-            role_uuid: role.role_uuid,
-            scope_name,
-            granted_by: f.people[0].user_uuid,
-        })),
-    );
-    return role;
-};
-
-const moveToOrganizationCustomRole = async (f: BulkFixture, index: number) => {
-    const role = await insertCustomRole(
-        f,
-        `Organization role ${index}`,
-        'organization',
-        ['view:Project'],
-    );
-    await f
-        .database('organization_memberships')
-        .where({
-            organization_id: f.org.organization_id,
-            user_id: f.people[index].user_id,
-        })
-        .update({ role_uuid: role.role_uuid });
-};
-
-const restrictGroupToCustomRoles = async (f: BulkFixture) => {
-    await moveToOrganizationCustomRole(f, 7);
-    const deploy = await insertCustomRole(f, 'Deploy only', 'project', [
-        AGENT_CAPABILITY_SCOPES[AgentCapability.DeployUpload],
-    ]);
+// Even projects exclude Query and odd projects exclude Deploy, so every
+// project carries its own restrictions.
+const restrictProjects = async (f: BulkFixture) => {
     await Promise.all(
-        [0, 1].map((parity) =>
-            f
-                .database('project_group_access')
-                .where('group_uuid', f.group.group_uuid)
-                .whereIn(
-                    'project_uuid',
-                    f.projects
-                        .filter((_, index) => index % 2 === parity)
-                        .map((project) => project.project_uuid),
-                )
-                .update({
-                    role:
-                        parity === 0
-                            ? ProjectMemberRole.DEVELOPER
-                            : ProjectMemberRole.VIEWER,
-                    role_uuid:
-                        parity === 0 ? deploy.role_uuid : f.custom.role_uuid,
-                }),
+        f.projects.map((project, index) =>
+            f.policies.saveProjectPolicy({
+                projectUuid: project.project_uuid,
+                allowedCapabilities: Object.values(AgentCapability).filter(
+                    (capability) =>
+                        capability !==
+                        (index % 2 === 0
+                            ? AgentCapability.Query
+                            : AgentCapability.DeployUpload),
+                ),
+                updatedByUserUuid: f.people[0].user_uuid,
+            }),
         ),
     );
 };
@@ -363,15 +310,14 @@ it('matches both operation paths cell by cell with real roles and policies', asy
             enabled: scenario !== 'off',
         }));
         await f.savePolicy({
-            mode: scenario.startsWith('legacy') ? 'legacy' : 'managed',
-            allowedCapabilities:
-                scenario === 'disabled'
-                    ? []
-                    : AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
-                          (capability) =>
-                              scenario !== 'capability-limited' ||
-                              capability !== AgentCapability.Query,
-                      ),
+            allowedCapabilities: scenario.startsWith('legacy')
+                ? null
+                : AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
+                      (capability) =>
+                          scenario !== 'disabled' &&
+                          (scenario !== 'capability-limited' ||
+                              capability !== AgentCapability.Query),
+                  ),
             allowedGroupUuids:
                 scenario === 'group-limited' ||
                 scenario === 'legacy-group-limited'
@@ -465,9 +411,9 @@ it('matches both operation paths cell by cell with real roles and policies', asy
     );
 });
 
-it('keeps role, policy, group and project query counts constant for 3 and 50 differentiated projects', async () => {
+it('keeps policy, group and project query counts constant for 3 and 50 differentiated projects', async () => {
     const f = await fixture();
-    await restrictGroupToCustomRoles(f);
+    await restrictProjects(f);
     await f.savePolicy({ allowedGroupUuids: [f.group.group_uuid] });
     const count = async (size: number) => {
         const sql: string[] = [];
@@ -515,7 +461,7 @@ it('keeps role, policy, group and project query counts constant for 3 and 50 dif
                 ]),
         );
     expect(families(large.sql)).toEqual(families(small.sql));
-    expect(large.sql.length).toBe(9);
+    expect(large.sql.length).toBe(4);
     expect(large.sql.every((query) => query.startsWith('select'))).toBe(true);
     for (const [index, project] of f.projects.entries()) {
         const queryIndex =
@@ -531,7 +477,7 @@ it('keeps role, policy, group and project query counts constant for 3 and 50 dif
             allowed: large.result[queryIndex] === null,
         }).toEqual({
             project: project.name,
-            allowed: index % 2 === 1 || index === 2,
+            allowed: index % 2 === 1,
         });
         expect({
             project: project.name,
@@ -540,14 +486,10 @@ it('keeps role, policy, group and project query counts constant for 3 and 50 dif
     }
     expect(families(large.sql)).toMatchInlineSnapshot(`
       {
-        "group_memberships": 2,
+        "group_memberships": 1,
         "organization_agent_capability_policies": 1,
-        "organization_membership_custom_roles": 1,
-        "project_group_access_custom_roles": 1,
-        "project_memberships": 1,
+        "project_agent_capability_policies": 1,
         "projects": 1,
-        "scoped_roles": 1,
-        "users": 1,
       }
     `);
 });
@@ -570,18 +512,6 @@ it('refuses loaders that are not the models the single check uses', async () => 
         'Bulk agent permission loaders must be the models this service uses.';
     await expect(
         f.service.evaluateOperations(args, {
-            userModel: {
-                getAgentRoleAssignmentsForProjects: (...loaderArgs) =>
-                    f.loaders.userModel.getAgentRoleAssignmentsForProjects(
-                        ...loaderArgs,
-                    ),
-            },
-            projectModel: f.loaders.projectModel,
-        }),
-    ).rejects.toThrow(message);
-    await expect(
-        f.service.evaluateOperations(args, {
-            userModel: f.loaders.userModel,
             projectModel: {
                 getSummaries: (...loaderArgs) =>
                     f.loaders.projectModel.getSummaries(...loaderArgs),
@@ -589,9 +519,8 @@ it('refuses loaders that are not the models the single check uses', async () => 
         }),
     ).rejects.toThrow(message);
 });
-it('reads changed roles again on the next call', async () => {
+it('reads a changed policy again on the next call', async () => {
     const f = await fixture();
-    await moveToOrganizationCustomRole(f, 5);
     const args = {
         account: f.accounts[5],
         organizationUuid: f.org.organization_uuid,
@@ -605,63 +534,18 @@ it('reads changed roles again on the next call', async () => {
         ],
     };
     expect(await f.service.evaluateOperations(args, f.loaders)).toEqual([null]);
-    await f
-        .database('project_memberships')
-        .where({
-            user_id: f.people[5].user_id,
-            project_id: f.projects[0].project_id,
-        })
-        .delete();
+    await f.savePolicy({
+        allowedCapabilities: AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
+            (capability) => capability !== AgentCapability.Query,
+        ),
+    });
     expect(await f.service.evaluateOperations(args, f.loaders)).toMatchObject([
         { reason: 'agent_capability_denied' },
     ]);
 });
 
-it('preserves model role unions and rejects unknown or foreign projects without a partial answer', async () => {
+it('rejects unknown or foreign projects without a partial answer', async () => {
     const f = await fixture();
-    const projectUuids = f.projects
-        .slice(0, 3)
-        .map((project) => project.project_uuid);
-    const member = await f.users.getAgentRoleAssignmentsForProjects(
-        f.people[5].user_uuid,
-        f.org.organization_uuid,
-        [...projectUuids, null],
-    );
-    expect(member.get(projectUuids[0])).toEqual({
-        systemRoles: ['member', 'viewer'],
-        customRoles: [],
-    });
-    expect(member.get(projectUuids[1])).toEqual({
-        systemRoles: ['member', 'developer'],
-        customRoles: [],
-    });
-    expect(member.get(null)).toEqual({
-        systemRoles: ['member'],
-        customRoles: [],
-    });
-    const custom = await f.users.getAgentRoleAssignmentsForProjects(
-        f.people[6].user_uuid,
-        f.org.organization_uuid,
-        projectUuids,
-    );
-    expect(custom.get(projectUuids[0])).toEqual({
-        systemRoles: ['member'],
-        customRoles: [
-            {
-                roleUuid: f.custom.role_uuid,
-                scopes: [AGENT_CAPABILITY_SCOPES[AgentCapability.Query]],
-            },
-        ],
-    });
-    const absent = await f.users.getAgentRoleAssignmentsForProjects(
-        f.people[8].user_uuid,
-        f.org.organization_uuid,
-        projectUuids,
-    );
-    expect(absent.get(projectUuids[0])).toEqual({
-        systemRoles: ['member'],
-        customRoles: [],
-    });
     const foreign = await fixture();
     await forEachSequential(
         [
@@ -784,7 +668,7 @@ it('review offered and blocked cells agree with independent capability policy an
 
 it('review answer uses equal SQL round trips for 3 and 50 differentiated projects', async () => {
     const f = await fixture();
-    await restrictGroupToCustomRoles(f);
+    await restrictProjects(f);
     await f.savePolicy({ allowedGroupUuids: [f.group.group_uuid] });
     const approval = approvalFixture(f);
     const count = async (size: number) => {
@@ -832,7 +716,7 @@ it('review answer uses equal SQL round trips for 3 and 50 differentiated project
                 (c) => c.capability === AgentCapability.Query,
             )?.visibility,
         ).toBe(
-            (fixtureIndex % 2 === 1 || fixtureIndex === 2) &&
+            fixtureIndex % 2 === 1 &&
                 personAllowsAgentCapability(
                     f.accounts[7].user.ability,
                     f.org.organization_uuid,
@@ -927,25 +811,21 @@ it.each([
         const mode = scenario.startsWith('legacy') ? 'legacy' : 'managed';
         const f = await fixture(true);
         await f.savePolicy({
-            mode,
             allowedCapabilities:
-                scenario === 'managed-disabled'
-                    ? []
+                mode === 'legacy'
+                    ? null
                     : AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
                           (capability) =>
-                              scenario !== 'managed-limited' ||
-                              capability !== AgentCapability.RawSql,
+                              scenario !== 'managed-disabled' &&
+                              (scenario !== 'managed-limited' ||
+                                  capability !== AgentCapability.RawSql),
                       ),
             allowedGroupUuids: scenario.endsWith('group-limited')
                 ? [f.group.group_uuid]
                 : null,
         });
         await f.database('scoped_roles').insert(
-            [
-                'view:Project',
-                'manage:SqlRunner',
-                AGENT_CAPABILITY_SCOPES[AgentCapability.RawSql],
-            ].map((scope_name) => ({
+            ['view:Project', 'manage:SqlRunner'].map((scope_name) => ({
                 role_uuid: f.custom.role_uuid,
                 scope_name,
                 granted_by: f.people[0].user_uuid,

@@ -1,5 +1,6 @@
 import {
     APP_SDK_APP_STATE_MESSAGE,
+    APP_SDK_CAPTURE_HOLD_MESSAGE,
     APP_SDK_CAPTURE_HOTKEY_MESSAGE,
     APP_SDK_APP_STATE_RESPONSE_MESSAGE,
     APP_SDK_COLOR_SCHEME_MESSAGE,
@@ -36,6 +37,7 @@ import {
     LightdashSignedDownloadHeader,
     parseAppSdkExploreBaseTableRequest,
     type AppColorScheme,
+    type AppSdkCaptureHold,
     type AppSdkSpaceChartsResult,
     type AppSdkExploreBaseTableResult,
     type DashboardFilters,
@@ -54,6 +56,7 @@ import {
     getGdriveAccessToken,
     triggerGdriveLogin,
 } from '../../../hooks/gdrive/useGdrive';
+import { reportWarehouseCredentialsError } from '../../../hooks/userWarehouseCredentials/warehouseCredentialsError';
 import useApp from '../../../providers/App/useApp';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import type { DeliveryCaptureAccumulator } from '../deliveryCapture/deliveryCaptureAccumulator';
@@ -469,9 +472,39 @@ export type SdkManifest = {
     navigationId?: string;
 };
 
+export type ElementRect = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+
 export type ElementSelectedEvent = {
     /** Bracketed reference produced by the iframe inspector, e.g. `[button "Save"]`. */
     label: string;
+    /** The element's bounds in the iframe's viewport. Bundles built before
+     *  the SDK sent them leave it out. */
+    rect?: ElementRect;
+};
+
+export const parseElementRect = (value: unknown): ElementRect | null => {
+    if (!value || typeof value !== 'object') return null;
+    const { x, y, width, height } = value as Record<string, unknown>;
+    return [x, y, width, height].every(Number.isFinite)
+        ? ({ x, y, width, height } as ElementRect)
+        : null;
+};
+
+// Bundles built while there were two hold keys name the key as a tool: only
+// the Option one ('stylus') is still a hold.
+const parseCaptureHold = (data: {
+    tool?: unknown;
+    phase?: unknown;
+}): AppSdkCaptureHold | null => {
+    const { tool, phase } = data;
+    if (tool !== undefined && tool !== 'stylus') return null;
+    if (phase !== 'down' && phase !== 'up') return null;
+    return { phase };
 };
 
 /**
@@ -663,6 +696,12 @@ export type UseAppSdkBridgeParams = {
      * the SDK forwarded the hotkey never send it.
      */
     onCaptureHotkey?: () => void;
+    /**
+     * Design Mode's hold key (Option/Alt, on its own) went down or came up
+     * while focus was inside the app. Absent = dropped. Bundles built
+     * before the SDK forwarded the hold keys never send it.
+     */
+    onCaptureHold?: (hold: AppSdkCaptureHold) => void;
 };
 
 export function useAppSdkBridge({
@@ -709,6 +748,7 @@ export function useAppSdkBridge({
     onInsightAnalyseOnLoadChange,
     onMountedQueriesChange,
     onCaptureHotkey,
+    onCaptureHold,
 }: UseAppSdkBridgeParams) {
     const lightdashApi = useLightdashApi();
     // Embed mode adapts the bridge's outgoing fetches in two ways:
@@ -896,6 +936,12 @@ export function useAppSdkBridge({
                 return;
             }
 
+            if (data?.type === APP_SDK_CAPTURE_HOLD_MESSAGE) {
+                const hold = parseCaptureHold(data);
+                if (hold) onCaptureHold?.(hold);
+                return;
+            }
+
             if (data?.type === APP_SDK_INSIGHTS_REQUEST_MESSAGE) {
                 const { inUse, instructions, analyseOnLoad } = data as {
                     inUse?: unknown;
@@ -992,7 +1038,8 @@ export function useAppSdkBridge({
             if (data?.type === 'lightdash:inspect:selected') {
                 const label = typeof data.label === 'string' ? data.label : '';
                 if (label && onElementSelected) {
-                    onElementSelected({ label });
+                    const rect = parseElementRect(data.rect);
+                    onElementSelected(rect ? { label, rect } : { label });
                 }
                 return;
             }
@@ -1867,6 +1914,12 @@ export function useAppSdkBridge({
                         json.error?.message ?? `API error (${res.status})`;
                     if (json.error?.data?.code === DATA_APP_NEWER_VERSION_CODE)
                         onNewerVersion?.();
+                    // The navbar prompts for personal warehouse credentials
+                    if (!embedToken)
+                        reportWarehouseCredentialsError(
+                            projectUuid,
+                            json.error,
+                        );
                     emitPostFailure(errorMessage);
                     respond({ error: errorMessage });
                 }
@@ -1925,6 +1978,7 @@ export function useAppSdkBridge({
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             onCaptureHotkey,
+            onCaptureHold,
             lightdashApi,
         ],
     );

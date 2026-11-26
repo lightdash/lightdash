@@ -6,8 +6,10 @@ import {
     EXTERNAL_CONNECTION_DEFAULTS,
     generateSlug,
     getAppDisplayName,
+    isLiveSourceAccessRuleEmpty,
     NotFoundError,
     ParameterError,
+    sleep,
     type ApiSourceSchemaScan,
     type CreateExternalConnection,
     type ExternalConnection,
@@ -18,6 +20,8 @@ import {
     type ExternalConnectionListItem,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
+    type LiveSourceAccessRule,
+    type LiveSourceRateLimitSettings,
     type ProjectType,
     type UpdateExternalConnection,
 } from '@lightdash/common';
@@ -29,7 +33,14 @@ import {
 } from '../../database/entities/apps';
 import { SpaceTableName } from '../../database/entities/spaces';
 import {
+    pauseBetweenBatchesMs,
+    type RetentionCleanupOptions,
+    type RetentionCleanupResult,
+} from '../../models/retentionCleanup';
+import {
+    isLiveExploreInUse,
     parseLiveSourceFieldState,
+    type LiveSourceExploreEdits,
     type LiveSourceFieldEdits,
     type LiveSourceFieldState,
     type LiveSourceScan,
@@ -47,6 +58,9 @@ import {
     ApiSourceCallCountersTableName,
     ApiSourceCallLeasesTableName,
     ApiSourceCallsTableName,
+    ApiSourceRateBucketsTableName,
+    ApiSourceRatePacingTableName,
+    ApiSourceRateSlotsTableName,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTableName,
     ExternalConnectionSamplesTableName,
@@ -117,10 +131,31 @@ const SERVER_OWNED_API_SOURCE_KEYS = [
     'sourceName',
     'lastScan',
     'fields',
+    'explores',
     'aiHint',
     'targetLabel',
+    'tags',
     'cache',
+    'access',
+    'rateLimits',
 ] as const;
+
+const conditionsSchema = z.record(z.string(), z.array(z.string()));
+const liveSourceAccessSchema = z.object({
+    access: z
+        .object({ required: conditionsSchema, any: conditionsSchema })
+        .nullish()
+        .catch(null),
+});
+
+/** Who can query a live source, kept under `access` in `api_source`; null when everyone can. */
+export const readLiveSourceAccessRule = (
+    value: unknown,
+): LiveSourceAccessRule | null => {
+    const parsed = liveSourceAccessSchema.safeParse(value);
+    const access = parsed.success ? parsed.data.access : null;
+    return access && !isLiveSourceAccessRuleEmpty(access) ? access : null;
+};
 
 const liveSourceCacheSchema = z.object({
     cache: z
@@ -144,14 +179,32 @@ export const readLiveSourceCacheSettings = (
     };
 };
 
+const rateLimitValueSchema = z.number().int().positive();
+
+const liveSourceRateLimitsSchema = z.object({
+    rateLimits: z.object({
+        buckets: z.record(z.string(), rateLimitValueSchema),
+        callsPerSecond: rateLimitValueSchema.nullable(),
+        concurrentCalls: rateLimitValueSchema.nullable(),
+    }),
+});
+
+/** The rate limits an admin set on a live source, kept under `rateLimits` in `api_source`. */
+export const readLiveSourceRateLimits = (
+    value: unknown,
+): LiveSourceRateLimitSettings | null => {
+    const parsed = liveSourceRateLimitsSchema.safeParse(value);
+    return parsed.success ? parsed.data.rateLimits : null;
+};
+
 const readSourceName = (value: unknown): string | null => {
     const parsed = z.object({ sourceName: z.string() }).safeParse(value);
     return parsed.success ? parsed.data.sourceName : null;
 };
 
 const readSourceDetails = (value: unknown) => {
-    const { aiHint, targetLabel } = parseLiveSourceFieldState(value);
-    return { aiHint, targetLabel };
+    const { aiHint, targetLabel, tags } = parseLiveSourceFieldState(value);
+    return { aiHint, targetLabel, tags };
 };
 
 /** Connector settings only: drops any server-owned key a caller sent. */
@@ -159,6 +212,12 @@ const toApiSourceSettingsJson = (apiSource: ExternalConnectionApiSource) =>
     JSON.stringify(
         getLiveIntegration(apiSource.connector).settings.parse(apiSource),
     );
+
+/** The curation edits of a live source, saved together. */
+export type LiveSourceEdits = {
+    fields: LiveSourceFieldEdits;
+    explores: LiveSourceExploreEdits;
+};
 
 /** A deleted live source, kept so a new one can reattach to its name. */
 export type DeletedLiveSource = {
@@ -170,8 +229,11 @@ export type DeletedLiveSource = {
     sourceName: string | null;
     /** Null when the source was deleted before fields could be curated. */
     fieldEdits: LiveSourceFieldEdits | null;
+    exploreEdits: LiveSourceExploreEdits;
     aiHint: string | null;
     targetLabel: string | null;
+    accessRule: LiveSourceAccessRule | null;
+    tags: string[];
 };
 
 const kindOf = (
@@ -185,6 +247,96 @@ type DbApp = {
     created_by_user_uuid: string;
     organization_uuid: string;
 };
+
+// Whole milliseconds, so a refund can match the window it read back exactly.
+const WINDOW_START = `date_trunc('milliseconds', now())`;
+// Whether a bucket's window has closed, in the bucket upsert's terms.
+const WINDOW_CLOSED = `b.window_started_at + :windowMs * interval '1 millisecond' <= now()`;
+
+export type ApiSourceRateBucketLimit = {
+    id: string;
+    windowMs: number;
+    capacity: number;
+};
+
+/** The window a call was charged in, so a refund hits that window only. */
+export type ApiSourceRateWindow = { bucketId: string; windowStartedAt: Date };
+
+/** `used` counts the window's calls, this one included. */
+export type ApiSourceRateChargedWindow = ApiSourceRateWindow & {
+    used: number;
+};
+
+export type ApiSourceRateCharge =
+    | { charged: true; now: Date; windows: ApiSourceRateChargedWindow[] }
+    | {
+          charged: false;
+          now: Date;
+          bucketId: string;
+          used: number;
+          resumesAt: Date;
+          /** The integration asked to slow down, rather than the bucket being full. */
+          isHeldByVendor: boolean;
+      };
+
+export type ApiSourceRateTurn = { booked: boolean; turnAt: Date; now: Date };
+
+/** A limit key's stored rate-limit state, as of the DB's `now`. */
+export type ApiSourceRateUsageSnapshot = {
+    now: Date;
+    buckets: {
+        bucketId: string;
+        used: number;
+        windowStartedAt: Date;
+        limitedUntil: Date | null;
+    }[];
+    /** Slots held by calls still in flight. */
+    runningCalls: number;
+};
+
+type FullBucketRow = {
+    used: number;
+    window_started_at: Date;
+    limited_until: Date | null;
+    now: Date;
+};
+
+/** Why a bucket refused a call, and when it takes calls again. */
+const toBucketRefusal = (
+    bucket: ApiSourceRateBucketLimit,
+    row: FullBucketRow | undefined,
+): Extract<ApiSourceRateCharge, { charged: false }> => {
+    const now = row?.now ?? new Date();
+    const windowEndsAt =
+        (row?.window_started_at ?? now).getTime() + bucket.windowMs;
+    const isFull =
+        (row?.used ?? bucket.capacity) >= bucket.capacity &&
+        windowEndsAt > now.getTime();
+    const limitedUntil =
+        row?.limited_until && row.limited_until > now
+            ? row.limited_until.getTime()
+            : null;
+    return {
+        charged: false,
+        now,
+        bucketId: bucket.id,
+        used: row?.used ?? bucket.capacity,
+        resumesAt: new Date(
+            Math.max(isFull ? windowEndsAt : now.getTime(), limitedUntil ?? 0),
+        ),
+        isHeldByVendor: limitedUntil !== null,
+    };
+};
+type QueuedTurnRow = { next_call_at: Date; now: Date };
+
+/** Rolls back a charge that a full bucket refused. */
+class BucketFull extends Error {
+    constructor(
+        readonly refusal: Extract<ApiSourceRateCharge, { charged: false }>,
+    ) {
+        super('Rate-limit bucket is full');
+    }
+}
 
 /**
  * Owns all DB access for external connections, their secrets (kept in a
@@ -238,7 +390,13 @@ export class ExternalConnectionModel {
             liveSourceName: readSourceName(row.api_source),
             ...readSourceDetails(row.api_source),
             ...(row.api_source
-                ? readLiveSourceCacheSettings(row.api_source)
+                ? { accessRule: readLiveSourceAccessRule(row.api_source) }
+                : {}),
+            ...(row.api_source
+                ? {
+                      ...readLiveSourceCacheSettings(row.api_source),
+                      adminRateLimits: readLiveSourceRateLimits(row.api_source),
+                  }
                 : {}),
             hasSecret,
             createdByUserUuid: row.created_by_user_uuid,
@@ -944,6 +1102,21 @@ export class ExternalConnectionModel {
                     });
             }
 
+            if (data.tags !== undefined) {
+                await trx(ExternalConnectionsTableName)
+                    .where('external_connection_uuid', uuid)
+                    .update({
+                        api_source: (data.tags?.length
+                            ? trx.raw(
+                                  `api_source || jsonb_build_object('tags', ?::jsonb)`,
+                                  [JSON.stringify(data.tags)],
+                              )
+                            : trx.raw(
+                                  `api_source - 'tags'`,
+                              )) as unknown as string,
+                    });
+            }
+
             // Secret tri-state: `null` clears it, a non-empty string sets it,
             // and undefined/blank leaves it unchanged unless the credential's
             // auth type or credential destination changes.
@@ -1061,14 +1234,16 @@ export class ExternalConnectionModel {
     }
 
     /**
-     * Moves a deleted source's name, and its field edits when it has any, to
-     * a new source. False when another active source holds the name.
+     * Moves a deleted source's name, and its field and explore edits when it
+     * has any, to a new source. False when another active source holds the
+     * name.
      */
     async reattachLiveSourceName(
         projectUuid: string,
         uuid: string,
         sourceName: string,
         fieldEdits: LiveSourceFieldEdits | null,
+        exploreEdits: LiveSourceExploreEdits = {},
     ): Promise<boolean> {
         return this.database.transaction(async (trx) => {
             await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
@@ -1091,15 +1266,21 @@ export class ExternalConnectionModel {
                 `jsonb_set(api_source, '{sourceName}', to_jsonb(?::text))`,
                 [sourceName],
             );
+            const withFields = fieldEdits
+                ? trx.raw(`jsonb_set(?, '{fields}', ?::jsonb)`, [
+                      withName,
+                      JSON.stringify(fieldEdits),
+                  ])
+                : withName;
             await trx(ExternalConnectionsTableName)
                 .where('external_connection_uuid', uuid)
                 .update({
-                    api_source: (fieldEdits
-                        ? trx.raw(`jsonb_set(?, '{fields}', ?::jsonb)`, [
-                              withName,
-                              JSON.stringify(fieldEdits),
+                    api_source: (Object.keys(exploreEdits).length > 0
+                        ? trx.raw(`jsonb_set(?, '{explores}', ?::jsonb)`, [
+                              withFields,
+                              JSON.stringify(exploreEdits),
                           ])
-                        : withName) as unknown as string,
+                        : withFields) as unknown as string,
                 });
             return true;
         });
@@ -1123,15 +1304,49 @@ export class ExternalConnectionModel {
     /** Gives a source a deleted twin's details, keeping any it already has. */
     async restoreLiveSourceDetails(
         uuid: string,
-        details: { aiHint: string | null; targetLabel: string | null },
+        details: {
+            aiHint: string | null;
+            targetLabel: string | null;
+            accessRule: LiveSourceAccessRule | null;
+            tags: string[];
+        },
     ): Promise<void> {
         await this.database(ExternalConnectionsTableName)
             .where('external_connection_uuid', uuid)
             .update({
                 api_source: this.database.raw(
-                    `jsonb_strip_nulls(jsonb_build_object('aiHint', ?::text, 'targetLabel', ?::text)) || api_source`,
-                    [details.aiHint, details.targetLabel],
+                    `jsonb_strip_nulls(jsonb_build_object('aiHint', ?::text, 'targetLabel', ?::text, 'access', ?::jsonb, 'tags', ?::jsonb)) || api_source`,
+                    [
+                        details.aiHint,
+                        details.targetLabel,
+                        details.accessRule
+                            ? JSON.stringify(details.accessRule)
+                            : null,
+                        details.tags.length
+                            ? JSON.stringify(details.tags)
+                            : null,
+                    ],
                 ) as unknown as string,
+            });
+    }
+
+    /** Null lets everyone in the project query the source again. */
+    async setLiveSourceAccessRule(
+        uuid: string,
+        rule: LiveSourceAccessRule | null,
+    ): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', uuid)
+            .whereNotNull('api_source')
+            .update({
+                api_source: (rule
+                    ? this.database.raw(
+                          `jsonb_set(api_source, '{access}', ?::jsonb)`,
+                          [JSON.stringify(rule)],
+                      )
+                    : this.database.raw(
+                          `api_source - 'access'`,
+                      )) as unknown as string,
             });
     }
 
@@ -1151,6 +1366,26 @@ export class ExternalConnectionModel {
             });
     }
 
+    /** Null puts the source back on its integration's rate limits. */
+    async setLiveSourceRateLimits(
+        uuid: string,
+        settings: LiveSourceRateLimitSettings | null,
+    ): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', uuid)
+            .whereNotNull('api_source')
+            .update({
+                api_source: (settings
+                    ? this.database.raw(
+                          `jsonb_set(api_source, '{rateLimits}', ?::jsonb)`,
+                          [JSON.stringify(settings)],
+                      )
+                    : this.database.raw(
+                          `api_source - 'rateLimits'`,
+                      )) as unknown as string,
+            });
+    }
+
     /** Results fetched before `at` stop being reused, for everyone. */
     async purgeLiveSourceCache(uuid: string, at: Date): Promise<void> {
         await this.database(ExternalConnectionsTableName)
@@ -1164,12 +1399,13 @@ export class ExternalConnectionModel {
             });
     }
 
-    /** Every active live source, in any project. */
+    /** Every active live source, in any project, with the models it has switched off. */
     async listLiveSourceRefs(): Promise<
         {
             externalConnectionUuid: string;
             projectUuid: string;
             connector: ApiConnectorType;
+            switchedOffModels: string[];
         }[]
     > {
         const rows = await this.database(ExternalConnectionsTableName)
@@ -1181,37 +1417,53 @@ export class ExternalConnectionModel {
                     external_connection_uuid: string;
                     project_uuid: string;
                     connector: ApiConnectorType;
+                    explores: unknown;
                 }[]
             >(
                 'external_connection_uuid',
                 'project_uuid',
                 this.database.raw("api_source->>'connector' as connector"),
+                this.database.raw("api_source->'explores' as explores"),
             );
-        return rows.map((row) => ({
-            externalConnectionUuid: row.external_connection_uuid,
-            projectUuid: row.project_uuid,
-            connector: row.connector,
-        }));
+        return rows.map((row) => {
+            const { explores } = parseLiveSourceFieldState({
+                explores: row.explores,
+            });
+            return {
+                externalConnectionUuid: row.external_connection_uuid,
+                projectUuid: row.project_uuid,
+                connector: row.connector,
+                switchedOffModels: Object.keys(explores).filter(
+                    (model) => !isLiveExploreInUse(explores, model),
+                ),
+            };
+        });
     }
 
     /**
      * Runs a rebuild alone for this source, so a rebuild that read older
-     * field edits can't overwrite one that read newer edits.
+     * field edits can't overwrite one that read newer edits. The rebuild gets
+     * the transaction holding the lock; pass `trx` to join an outer one.
      */
     async withLiveSourceBuildLock<T>(
         uuid: string,
-        rebuild: () => Promise<T>,
+        rebuild: (trx: Knex.Transaction) => Promise<T>,
+        trx?: Knex.Transaction,
     ): Promise<T> {
-        return this.database.transaction(async (trx) => {
-            await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+        const run = async (lockTrx: Knex.Transaction) => {
+            await lockTrx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
                 `live_source_build:${uuid}`,
             ]);
-            return rebuild();
-        });
+            return rebuild(lockTrx);
+        };
+        return trx ? run(trx) : this.database.transaction(run);
     }
 
-    async getLiveSourceFieldState(uuid: string): Promise<LiveSourceFieldState> {
-        const row = await this.database(ExternalConnectionsTableName)
+    async getLiveSourceFieldState(
+        uuid: string,
+        trx: Knex = this.database,
+    ): Promise<LiveSourceFieldState> {
+        const row = await trx(ExternalConnectionsTableName)
             .select('api_source')
             .where('external_connection_uuid', uuid)
             .first();
@@ -1251,14 +1503,16 @@ export class ExternalConnectionModel {
     }
 
     /**
-     * Applies field edits under a row lock, so two editors never lose each
-     * other's changes. Returns the edits as saved.
+     * Applies field and explore edits under a row lock, so two editors never
+     * lose each other's changes. Returns the edits as saved. Pass `trx` to
+     * save them with other writes, such as the rebuild they cause.
      */
-    async updateLiveSourceFieldEdits(
+    async updateLiveSourceEdits(
         uuid: string,
-        update: (current: LiveSourceFieldEdits) => LiveSourceFieldEdits,
-    ): Promise<LiveSourceFieldEdits> {
-        return this.database.transaction(async (trx) => {
+        update: (current: LiveSourceEdits) => LiveSourceEdits,
+        outerTrx?: Knex.Transaction,
+    ): Promise<LiveSourceEdits> {
+        const run = async (trx: Knex.Transaction) => {
             const row = await trx(ExternalConnectionsTableName)
                 .select('api_source')
                 .where('external_connection_uuid', uuid)
@@ -1268,19 +1522,25 @@ export class ExternalConnectionModel {
             if (!row?.api_source) {
                 throw new NotFoundError('Live data source not found');
             }
-            const next = update(
-                parseLiveSourceFieldState(row.api_source).fields ?? {},
-            );
+            const state = parseLiveSourceFieldState(row.api_source);
+            const next = update({
+                fields: state.fields ?? {},
+                explores: state.explores,
+            });
             await trx(ExternalConnectionsTableName)
                 .where('external_connection_uuid', uuid)
                 .update({
                     api_source: trx.raw(
-                        `jsonb_set(api_source, '{fields}', ?::jsonb)`,
-                        [JSON.stringify(next)],
+                        `jsonb_set(jsonb_set(api_source, '{fields}', ?::jsonb), '{explores}', ?::jsonb)`,
+                        [
+                            JSON.stringify(next.fields),
+                            JSON.stringify(next.explores),
+                        ],
                     ) as unknown as string,
                 });
             return next;
-        });
+        };
+        return outerTrx ? run(outerTrx) : this.database.transaction(run);
     }
 
     /** Deleted live sources of a project, most recently deleted first. */
@@ -1312,7 +1572,11 @@ export class ExternalConnectionModel {
                           sourceName: readSourceName(row.api_source),
                           fieldEdits: parseLiveSourceFieldState(row.api_source)
                               .fields,
+                          exploreEdits: parseLiveSourceFieldState(
+                              row.api_source,
+                          ).explores,
                           ...readSourceDetails(row.api_source),
+                          accessRule: readLiveSourceAccessRule(row.api_source),
                       },
                   ]
                 : [];
@@ -1769,77 +2033,7 @@ export class ExternalConnectionModel {
             .delete();
     }
 
-    /** Counts one call in the window unless it already holds `limit`; false when it does. */
-    async tryCountApiSourceCall(
-        externalConnectionUuid: string,
-        windowSeconds: number,
-        windowStartedAt: Date,
-        limit: number,
-    ): Promise<boolean> {
-        const rows = await this.database(ApiSourceCallCountersTableName)
-            .insert({
-                external_connection_uuid: externalConnectionUuid,
-                window_seconds: windowSeconds,
-                window_started_at: windowStartedAt,
-                call_count: 1,
-            })
-            .onConflict([
-                'external_connection_uuid',
-                'window_seconds',
-                'window_started_at',
-            ])
-            .merge({
-                call_count: this.database.raw(
-                    `${ApiSourceCallCountersTableName}.call_count + 1`,
-                ) as unknown as number,
-            })
-            .where(`${ApiSourceCallCountersTableName}.call_count`, '<', limit)
-            .returning('call_count');
-        return rows.length > 0;
-    }
-
-    /** Takes a free or expired slot out of `slots`; false when all are held. */
-    async tryAcquireApiSourceCallLease(
-        externalConnectionUuid: string,
-        slots: number,
-        leaseUuid: string,
-        expiresAt: Date,
-    ): Promise<boolean> {
-        /* eslint-disable no-await-in-loop */
-        for (let slot = 0; slot < slots; slot += 1) {
-            const rows = await this.database(ApiSourceCallLeasesTableName)
-                .insert({
-                    external_connection_uuid: externalConnectionUuid,
-                    slot,
-                    lease_uuid: leaseUuid,
-                    expires_at: expiresAt,
-                })
-                .onConflict(['external_connection_uuid', 'slot'])
-                .merge({ lease_uuid: leaseUuid, expires_at: expiresAt })
-                .where(
-                    `${ApiSourceCallLeasesTableName}.expires_at`,
-                    '<',
-                    this.database.fn.now(),
-                )
-                .returning('slot');
-            if (rows.length > 0) return true;
-        }
-        /* eslint-enable no-await-in-loop */
-        return false;
-    }
-
-    async releaseApiSourceCallLease(
-        externalConnectionUuid: string,
-        leaseUuid: string,
-    ): Promise<void> {
-        await this.database(ApiSourceCallLeasesTableName)
-            .where({
-                external_connection_uuid: externalConnectionUuid,
-                lease_uuid: leaseUuid,
-            })
-            .delete();
-    }
-
+    /** The old limiter's tables, kept for one release while servers on the old code drain. */
     async deleteApiSourceCallWindowsBefore(cutoff: Date): Promise<number> {
         const [counters, leases] = await Promise.all([
             this.database(ApiSourceCallCountersTableName)
@@ -1852,22 +2046,349 @@ export class ExternalConnectionModel {
         return counters + leases;
     }
 
+    /**
+     * Charges one call to every bucket, or to none. A bucket's window starts
+     * at the first call after its previous window closed. Times are the
+     * database's, so every server agrees on them.
+     */
+    async chargeApiSourceRateBuckets(
+        limitKey: string,
+        buckets: readonly ApiSourceRateBucketLimit[],
+    ): Promise<ApiSourceRateCharge> {
+        try {
+            return await this.database.transaction(async (trx) => {
+                const windows: ApiSourceRateChargedWindow[] = [];
+                let now: Date | null = null;
+                /* eslint-disable no-await-in-loop */
+                for (const bucket of buckets) {
+                    const { rows } = await trx.raw<{
+                        rows: {
+                            window_started_at: Date;
+                            used: number;
+                            now: Date;
+                        }[];
+                    }>(
+                        `INSERT INTO ${ApiSourceRateBucketsTableName} AS b
+                            (limit_key, bucket_id, window_started_at, used, updated_at)
+                        VALUES (:limitKey, :bucketId, ${WINDOW_START}, 1, now())
+                        ON CONFLICT (limit_key, bucket_id) DO UPDATE SET
+                            window_started_at = CASE WHEN ${WINDOW_CLOSED} THEN ${WINDOW_START} ELSE b.window_started_at END,
+                            used = CASE WHEN ${WINDOW_CLOSED} THEN 1 ELSE b.used + 1 END,
+                            updated_at = now()
+                        WHERE (${WINDOW_CLOSED} OR b.used < :capacity)
+                            AND (b.limited_until IS NULL OR b.limited_until <= now())
+                        RETURNING window_started_at, used, now() AS now`,
+                        {
+                            limitKey,
+                            bucketId: bucket.id,
+                            windowMs: bucket.windowMs,
+                            capacity: bucket.capacity,
+                        },
+                    );
+                    if (rows.length === 0) {
+                        const {
+                            rows: [full],
+                        } = await trx.raw<{ rows: FullBucketRow[] }>(
+                            `SELECT used, window_started_at, limited_until, now() AS now
+                            FROM ${ApiSourceRateBucketsTableName}
+                            WHERE limit_key = :limitKey AND bucket_id = :bucketId`,
+                            { limitKey, bucketId: bucket.id },
+                        );
+                        throw new BucketFull(toBucketRefusal(bucket, full));
+                    }
+                    now = rows[0].now;
+                    windows.push({
+                        bucketId: bucket.id,
+                        windowStartedAt: rows[0].window_started_at,
+                        used: rows[0].used,
+                    });
+                }
+                /* eslint-enable no-await-in-loop */
+                return {
+                    charged: true as const,
+                    now: now ?? new Date(),
+                    windows,
+                };
+            });
+        } catch (error) {
+            if (error instanceof BucketFull) return error.refusal;
+            throw error;
+        }
+    }
+
+    /**
+     * Holds buckets after the integration said to slow down: calls charging
+     * them wait until `resumesAt`, or the end of the bucket's window when the
+     * integration didn't say. A hold only ever gets longer.
+     */
+    async holdApiSourceRateBuckets(
+        limitKey: string,
+        buckets: readonly Pick<ApiSourceRateBucketLimit, 'id' | 'windowMs'>[],
+        resumesAt: Date | null,
+    ): Promise<void> {
+        await Promise.all(
+            buckets.map((bucket) =>
+                this.database.raw(
+                    `UPDATE ${ApiSourceRateBucketsTableName}
+                    SET limited_until = greatest(
+                            coalesce(limited_until, now()),
+                            coalesce(
+                                CAST(:resumesAt AS timestamptz),
+                                window_started_at + :windowMs * interval '1 millisecond'
+                            )
+                        ),
+                        updated_at = now()
+                    WHERE limit_key = :limitKey AND bucket_id = :bucketId`,
+                    {
+                        limitKey,
+                        bucketId: bucket.id,
+                        windowMs: bucket.windowMs,
+                        resumesAt,
+                    },
+                ),
+            ),
+        );
+    }
+
+    /** Gives back a charge made in the same windows; a window that has since closed keeps it. */
+    async refundApiSourceRateBuckets(
+        limitKey: string,
+        windows: readonly ApiSourceRateWindow[],
+    ): Promise<void> {
+        if (windows.length === 0) return;
+        await this.database(ApiSourceRateBucketsTableName)
+            .where('limit_key', limitKey)
+            .andWhere('used', '>', 0)
+            .andWhere((query) => {
+                windows.forEach(({ bucketId, windowStartedAt }) => {
+                    void query.orWhere({
+                        bucket_id: bucketId,
+                        window_started_at: windowStartedAt,
+                    });
+                });
+            })
+            .update({
+                used: this.database.raw('used - 1') as unknown as number,
+            });
+    }
+
+    /**
+     * Books the next evenly spaced turn, `gapMs` after the last one, unless
+     * it would come more than `maxWaitMs` from now. Turns go in the order
+     * callers book them, across servers.
+     */
+    async bookApiSourceRateTurn(
+        limitKey: string,
+        gapMs: number,
+        maxWaitMs: number,
+    ): Promise<ApiSourceRateTurn> {
+        const { rows } = await this.database.raw<{
+            rows: { turn_at: Date; now: Date }[];
+        }>(
+            `INSERT INTO ${ApiSourceRatePacingTableName} AS p
+                (limit_key, next_call_at, updated_at)
+            VALUES (:limitKey, now() + :gapMs * interval '1 millisecond', now())
+            ON CONFLICT (limit_key) DO UPDATE SET
+                next_call_at = greatest(p.next_call_at, now()) + :gapMs * interval '1 millisecond',
+                updated_at = now()
+            WHERE greatest(p.next_call_at, now()) <= now() + :maxWaitMs * interval '1 millisecond'
+            RETURNING next_call_at - :gapMs * interval '1 millisecond' AS turn_at, now() AS now`,
+            { limitKey, gapMs, maxWaitMs },
+        );
+        if (rows.length > 0) {
+            return { booked: true, turnAt: rows[0].turn_at, now: rows[0].now };
+        }
+        const {
+            rows: [queued],
+        } = await this.database.raw<{ rows: QueuedTurnRow[] }>(
+            `SELECT next_call_at, now() AS now
+            FROM ${ApiSourceRatePacingTableName}
+            WHERE limit_key = :limitKey`,
+            { limitKey },
+        );
+        return {
+            booked: false,
+            turnAt: queued?.next_call_at ?? new Date(),
+            now: queued?.now ?? new Date(),
+        };
+    }
+
+    /** Takes a free or expired slot out of `slots`, held for `holdMs`; false when all are held. */
+    async tryTakeApiSourceRateSlot(
+        limitKey: string,
+        slots: number,
+        leaseUuid: string,
+        holdMs: number,
+    ): Promise<boolean> {
+        /* eslint-disable no-await-in-loop */
+        for (let slot = 0; slot < slots; slot += 1) {
+            // The count covers calls still holding higher slots from before the limit was lowered
+            const { rows } = await this.database.raw<{ rows: unknown[] }>(
+                `INSERT INTO ${ApiSourceRateSlotsTableName} AS s
+                    (limit_key, slot, lease_uuid, expires_at, updated_at)
+                SELECT :limitKey, CAST(:slot AS integer), CAST(:leaseUuid AS uuid), now() + :holdMs * interval '1 millisecond', now()
+                WHERE (
+                    SELECT count(*) FROM ${ApiSourceRateSlotsTableName}
+                    WHERE limit_key = :limitKey AND expires_at >= now()
+                ) < :slots
+                ON CONFLICT (limit_key, slot) DO UPDATE SET
+                    lease_uuid = EXCLUDED.lease_uuid,
+                    expires_at = EXCLUDED.expires_at,
+                    updated_at = now()
+                WHERE s.expires_at < now()
+                RETURNING slot`,
+                { limitKey, slot, slots, leaseUuid, holdMs },
+            );
+            if (rows.length > 0) return true;
+        }
+        /* eslint-enable no-await-in-loop */
+        return false;
+    }
+
+    async releaseApiSourceRateSlot(
+        limitKey: string,
+        leaseUuid: string,
+    ): Promise<void> {
+        await this.database(ApiSourceRateSlotsTableName)
+            .where({ limit_key: limitKey, lease_uuid: leaseUuid })
+            .delete();
+    }
+
+    /** A limit key's bucket rows and held slots, read with the DB's clock. */
+    async getApiSourceRateUsage(
+        limitKey: string,
+    ): Promise<ApiSourceRateUsageSnapshot> {
+        const { rows } = await this.database.raw<{
+            rows: {
+                now: Date;
+                running_calls: number;
+                buckets: {
+                    bucket_id: string;
+                    used: number;
+                    window_started_at: string;
+                    limited_until: string | null;
+                }[];
+            }[];
+        }>(
+            `SELECT now() AS now,
+                (SELECT count(*)::int FROM ${ApiSourceRateSlotsTableName}
+                    WHERE limit_key = :limitKey AND expires_at >= now()) AS running_calls,
+                COALESCE((SELECT json_agg(json_build_object(
+                        'bucket_id', bucket_id,
+                        'used', used,
+                        'window_started_at', window_started_at,
+                        'limited_until', limited_until))
+                    FROM ${ApiSourceRateBucketsTableName}
+                    WHERE limit_key = :limitKey), '[]'::json) AS buckets`,
+            { limitKey },
+        );
+        const [row] = rows;
+        return {
+            now: row.now,
+            runningCalls: row.running_calls,
+            buckets: row.buckets.map((bucket) => ({
+                bucketId: bucket.bucket_id,
+                used: bucket.used,
+                windowStartedAt: new Date(bucket.window_started_at),
+                limitedUntil: bucket.limited_until
+                    ? new Date(bucket.limited_until)
+                    : null,
+            })),
+        };
+    }
+
+    /** Forgets a bucket's window, so its next call opens a new one. */
+    async deleteApiSourceRateBucket(
+        limitKey: string,
+        bucketId: string,
+    ): Promise<void> {
+        await this.database(ApiSourceRateBucketsTableName)
+            .where({ limit_key: limitKey, bucket_id: bucketId })
+            .delete();
+    }
+
+    /** Deletes rate-limit rows nothing has touched since `cutoff`. */
+    async deleteApiSourceRateLimitsBefore(cutoff: Date): Promise<number> {
+        const counts = await Promise.all(
+            [
+                ApiSourceRateBucketsTableName,
+                ApiSourceRatePacingTableName,
+                ApiSourceRateSlotsTableName,
+            ].map((tableName) =>
+                this.database(tableName)
+                    .where('updated_at', '<', cutoff)
+                    .delete(),
+            ),
+        );
+        return counts.reduce((sum, count) => sum + count, 0);
+    }
+
     async insertApiSourceCall(
         call: Knex.ResolveTableType<ApiSourceCallsTable, 'insert'>,
     ): Promise<void> {
         await this.database(ApiSourceCallsTableName).insert(call);
     }
 
-    /** API calls, response bytes and median fetch time per connection, over every logged query in the project. */
+    /**
+     * Deletes call log rows older than the cutoff, one live data source at a
+     * time so each batch reads the (external_connection_uuid, created_at)
+     * index. Stops at `maxBatches` across all sources.
+     */
+    async cleanupApiSourceCalls(
+        cutoffDate: Date,
+        options: RetentionCleanupOptions,
+    ): Promise<RetentionCleanupResult> {
+        const connections: { external_connection_uuid: string }[] =
+            await this.database(ExternalConnectionsTableName).select(
+                'external_connection_uuid',
+            );
+        let totalDeleted = 0;
+        let batchCount = 0;
+        for (const {
+            external_connection_uuid: connectionUuid,
+        } of connections) {
+            for (;;) {
+                if (batchCount >= options.maxBatches) {
+                    return { totalDeleted, batchCount, completed: false };
+                }
+                const batchStartedAt = Date.now();
+                // eslint-disable-next-line no-await-in-loop
+                const deleted = await this.database(ApiSourceCallsTableName)
+                    .whereIn(
+                        'api_source_call_uuid',
+                        this.database(ApiSourceCallsTableName)
+                            .select('api_source_call_uuid')
+                            .where('external_connection_uuid', connectionUuid)
+                            .andWhere('created_at', '<', cutoffDate)
+                            .limit(options.batchSize),
+                    )
+                    .delete();
+                if (deleted === 0) break;
+                totalDeleted += deleted;
+                batchCount += 1;
+                if (deleted < options.batchSize) break;
+                // eslint-disable-next-line no-await-in-loop
+                await sleep(
+                    pauseBetweenBatchesMs(options, Date.now() - batchStartedAt),
+                );
+            }
+        }
+        return { totalDeleted, batchCount, completed: true };
+    }
+
+    /** API calls, response bytes and median fetch time per connection, over the logged queries since `since`. */
     async getApiSourceUsage(
         projectUuid: string,
-    ): Promise<ExternalConnectionApiUsage[]> {
+        since: Date,
+    ): Promise<Omit<ExternalConnectionApiUsage, 'windowDays'>[]> {
         const rows = await this.database(ApiSourceCallsTableName)
             .where('project_uuid', projectUuid)
+            .andWhere('created_at', '>=', since)
             .groupBy('external_connection_uuid')
             .select<
                 {
                     external_connection_uuid: string;
+                    queries: string | null;
                     api_calls: string | null;
                     cache_hits: string | null;
                     response_bytes: string | null;
@@ -1875,6 +2396,7 @@ export class ExternalConnectionModel {
                 }[]
             >(
                 'external_connection_uuid',
+                this.database.raw('count(*) as queries'),
                 this.database.raw('sum(api_calls) as api_calls'),
                 this.database.raw(
                     'count(*) filter (where cache_hit) as cache_hits',
@@ -1887,6 +2409,7 @@ export class ExternalConnectionModel {
             );
         return rows.map((row) => ({
             externalConnectionUuid: row.external_connection_uuid,
+            queries: Number(row.queries ?? 0),
             apiCalls: Number(row.api_calls ?? 0),
             cacheHits: Number(row.cache_hits ?? 0),
             responseBytes: Number(row.response_bytes ?? 0),

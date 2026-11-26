@@ -78,27 +78,22 @@ describe('summaryOf', () => {
     ])('summarises %j as %j', (markdown, expected) => {
         expect(summaryOf(markdown)).toBe(expected);
     });
-
-    it('returns the same summary on repeat calls (cached)', () => {
-        const markdown = '# T\n\nCached body';
-        expect(summaryOf(markdown)).toBe('Cached body');
-        expect(summaryOf(markdown)).toBe('Cached body');
-    });
 });
 
 describe('buildProjectTree', () => {
-    it('opens a warehouse-only project straight on its explores', () => {
+    it('keeps a warehouse-only project under its warehouse group', () => {
         const tree = buildProjectTree(
             project(
                 [warehouse],
                 [explore('orders', 'warehouse'), explore('items', 'warehouse')],
             ),
         );
-        expect(tree.nodes.map(({ label }) => label)).toEqual([
+        expect(tree.nodes.map(({ label }) => label)).toEqual(['PostgreSQL']);
+        expect(tree.nodes[0].children.map(({ label }) => label)).toEqual([
             'items',
             'orders',
         ]);
-        expect(tree.rootSource?.id).toBe('warehouse');
+        expect(tree.rootSource).toBeNull();
     });
 
     it('groups explores by their group path, folders first then by label', () => {
@@ -116,25 +111,19 @@ describe('buildProjectTree', () => {
             ),
         );
         expect(tree.nodes.map(({ label }) => label)).toEqual([
-            'Warehouse',
+            'PostgreSQL',
             'Virtual views',
         ]);
-        const pg = tree.nodes[0].children[0];
-        expect(pg.label).toBe('PostgreSQL');
-        expect(pg.children.map(({ label }) => label)).toEqual([
+        // A project has one warehouse, so the group is the warehouse itself.
+        expect(tree.nodes[0].children.map(({ label }) => label)).toEqual([
             'finance',
             'alpha',
             'zeta',
         ]);
         const billing = findNode(tree.nodes, 'group:warehouse:finance/billing');
-        expect(billing?.path).toEqual([
-            'Warehouse',
-            'PostgreSQL',
-            'finance',
-            'billing',
-        ]);
+        expect(billing?.path).toEqual(['PostgreSQL', 'finance', 'billing']);
         expect(billing?.children[0].label).toBe('payments');
-        // A one-source kind other than Warehouse shows its explores directly.
+        // Any one-source kind shows its explores directly.
         expect(tree.nodes[1].children.map(({ label }) => label)).toEqual([
             'big_orders',
         ]);
@@ -150,19 +139,22 @@ describe('buildProjectTree', () => {
                 ],
             ),
         );
-        expect(tree.nodes.map(({ label }) => label)).toEqual(['a', 'a/b']);
+        expect(tree.nodes[0].children.map(({ label }) => label)).toEqual([
+            'a',
+            'a/b',
+        ]);
         expect(
             findNode(tree.nodes, 'group:warehouse:a%2Fb')?.children,
         ).toHaveLength(1);
     });
 
-    it('folds a source with one explore into the explore', () => {
+    it('keeps a live data source with one explore as a folder', () => {
         const tree = buildProjectTree(
             project(
                 [warehouse, posthog, stripe],
                 [
                     explore('orders', 'warehouse'),
-                    explore('posthog_events', 'posthog'),
+                    explore('posthog_events', 'posthog', { label: 'Events' }),
                     explore('stripe_charges', 'stripe'),
                     explore('stripe_refunds', 'stripe'),
                 ],
@@ -171,17 +163,55 @@ describe('buildProjectTree', () => {
         const live = tree.nodes[1];
         expect(live.label).toBe('Live data sources');
         expect(live.children.map(({ ref }) => ref.type)).toEqual([
-            'explore',
+            'source',
             'source',
         ]);
+        expect(
+            findNode(tree.nodes, 'source:posthog')?.children.map(
+                ({ label }) => label,
+            ),
+        ).toEqual(['Events']);
         expect(live.exploreCount).toBe(3);
     });
 
-    it('folds a warehouse with one explore into that explore', () => {
+    it('keeps the only live data source as a folder', () => {
+        const tree = buildProjectTree(
+            project(
+                [warehouse, posthog],
+                [
+                    explore('orders', 'warehouse'),
+                    explore('posthog_events', 'posthog'),
+                ],
+            ),
+        );
+        expect(tree.nodes[1].children.map(({ ref }) => ref)).toEqual([
+            { type: 'source', sourceId: 'posthog' },
+        ]);
+    });
+
+    it('folds a virtual views source with one explore into the explore', () => {
+        const tree = buildProjectTree(
+            project(
+                [warehouse, virtualViews],
+                [
+                    explore('orders', 'warehouse'),
+                    explore('big_orders', 'virtual-views'),
+                ],
+            ),
+        );
+        expect(tree.nodes[1].children.map(({ ref }) => ref.type)).toEqual([
+            'explore',
+        ]);
+    });
+
+    it('shows a warehouse with one explore as its group with that explore', () => {
         const tree = buildProjectTree(
             project([warehouse], [explore('orders', 'warehouse')]),
         );
-        expect(tree.nodes.map(({ ref }) => ref.type)).toEqual(['explore']);
+        expect(tree.nodes.map(({ ref }) => ref.type)).toEqual(['kind']);
+        expect(tree.nodes[0].children.map(({ ref }) => ref.type)).toEqual([
+            'explore',
+        ]);
     });
 
     it('leaves out sources without explores', () => {
@@ -227,12 +257,25 @@ describe('refs', () => {
     });
 
     it('sends a folded source to its only explore', () => {
+        const withViews = project(
+            [warehouse, virtualViews],
+            [
+                explore('orders', 'warehouse'),
+                explore('big_orders', 'virtual-views'),
+            ],
+        );
+        expect(
+            resolveRef(withViews, buildProjectTree(withViews).nodes, {
+                type: 'source',
+                sourceId: 'virtual-views',
+            }),
+        ).toEqual({ type: 'explore', exploreId: 'big_orders' });
         expect(
             resolveRef(shop, tree.nodes, {
                 type: 'source',
                 sourceId: 'posthog',
             }),
-        ).toEqual({ type: 'explore', exploreId: 'posthog_events' });
+        ).toEqual({ type: 'source', sourceId: 'posthog' });
         expect(
             resolveRef(shop, tree.nodes, {
                 type: 'source',
@@ -244,7 +287,7 @@ describe('refs', () => {
     it('builds the breadcrumb trail', () => {
         expect(
             trailTo(tree.nodes, 'explore:orders').map(({ label }) => label),
-        ).toEqual(['Warehouse', 'PostgreSQL', 'orders']);
+        ).toEqual(['PostgreSQL', 'orders']);
     });
 });
 
@@ -287,12 +330,7 @@ describe('searchProject', () => {
             exploreId: 'orders',
             fieldId: 'orders_sales_total',
         });
-        expect(results[1].path).toEqual([
-            'Warehouse',
-            'PostgreSQL',
-            'sales',
-            'Orders',
-        ]);
+        expect(results[1].path).toEqual(['PostgreSQL', 'sales', 'Orders']);
     });
 
     it('matches explores by name as well as label, case-insensitively', () => {
@@ -324,19 +362,19 @@ describe('pageNodes', () => {
 
     it('lists a source the tree folded into its kind', () => {
         const shop = project(
-            [warehouse, posthog],
+            [warehouse, virtualViews],
             [
                 explore('orders', 'warehouse'),
-                explore('events', 'posthog'),
-                explore('persons', 'posthog'),
+                explore('big_orders', 'virtual-views'),
+                explore('small_orders', 'virtual-views'),
             ],
         );
         const tree = buildProjectTree(shop);
-        const ref = { type: 'source', sourceId: 'posthog' } as const;
-        expect(findNode(tree.nodes, 'source:posthog')).toBeUndefined();
+        const ref = { type: 'source', sourceId: 'virtual-views' } as const;
+        expect(findNode(tree.nodes, 'source:virtual-views')).toBeUndefined();
         expect(labels(pageNodes(shop, tree, ref))).toEqual([
-            'events',
-            'persons',
+            'big_orders',
+            'small_orders',
         ]);
     });
 

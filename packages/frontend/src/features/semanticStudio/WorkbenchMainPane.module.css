@@ -1,0 +1,208 @@
+/* Where the person is in the workspace: the models, or the changes the conversation made. */
+.crumb {
+    padding: 4px 6px;
+    border-radius: 6px;
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-sm);
+}
+
+.crumb:hover {
+    background: color-mix(in srgb, var(--mantine-color-text) 5%, transparent);
+}
+
+.crumb[aria-current='page'] {
+    color: var(--mantine-color-text);
+    font-weight: 500;
+}
+
+/* What the draft does to a model, beside its name in a list. */
+.changeTag {
+    flex: none;
+    font-size: 12px;
+    color: var(--mantine-color-yellow-8);
+}
+
+.changeTag[data-change='new'] {
+    color: var(--mantine-color-green-8);
+}
+
+.changeTag[data-change='removed'] {
+    color: var(--mantine-color-red-8);
+}
+
+.main {
+    grid-area: main;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    /* The page width settings uses, centred beside the tree. */
+    justify-self: center;
+    width: 100%;
+    max-width: calc(var(--page-content-width) + 48px);
+}
+
+/* Browsing scrolls as one page: header, summary and lists together. */
+.main[data-page-scroll] {
+    overflow-y: auto;
+}
+
+.main[data-page-scroll] > .mainBody {
+    flex: 1 0 auto;
+    overflow: visible;
+}
+
+.mainHeader {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 20px 24px 20px;
+}
+
+/* Breadcrumbs: quiet, one line, each level a way back up. */
+.crumbs {
+    flex-wrap: nowrap;
+    min-width: 0;
+    overflow: hidden;
+    line-height: 20px;
+    /* Pulls back the first crumb's padding, so its text starts where the
+       title below it does. */
+    margin-left: -6px;
+}
+
+.crumb {
+    min-width: 0;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+}
+
+.crumb:hover {
+    color: var(--mantine-color-text);
+    text-decoration: none;
+}
+
+.crumbSeparator {
+    font-size: 12px;
+    color: light-dark(
+        var(--mantine-color-ldGray-4),
+        var(--mantine-color-dark-3)
+    );
+}
+
+.title {
+    flex: 0 1 auto;
+    min-width: 0;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mainBody {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 0 24px 24px;
+    overflow: auto;
+}
+
+/* Children list: the same raised table as the field list. */
+.table {
+    display: flex;
+    flex-direction: column;
+    flex: 0 1 auto;
+    min-height: 0;
+    background: var(--mantine-color-body);
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.childRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 96px;
+    align-items: center;
+    gap: 12px;
+    min-height: 40px;
+    padding: 4px 12px;
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-ldGray-1), var(--mantine-color-dark-5));
+    cursor: pointer;
+}
+
+.childScroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* On a scrolling page the list virtualises against the page, so the table
+   is as tall as its rows and never scrolls by itself. */
+.main[data-page-scroll] .table {
+    flex: none;
+}
+
+.main[data-page-scroll] .childScroll {
+    flex: none;
+    overflow: visible;
+}
+
+.childInner {
+    position: relative;
+}
+
+.childRow[data-virtual] {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 40px;
+}
+
+/* Explores without descriptions: just the name. */
+.childRow[data-name-only='true'] {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+/* A list of explores: name, then its description. */
+.childRow[data-describe='true'] {
+    grid-template-columns: minmax(200px, 360px) minmax(0, 1fr);
+}
+
+.childDescription {
+    font-size: 13px;
+    color: var(--mantine-color-dimmed);
+}
+
+.childRow[data-virtual]:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.childRow[data-head] {
+    flex: none;
+    min-height: 32px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+    border-bottom-color: light-dark(
+        var(--mantine-color-ldGray-2),
+        var(--mantine-color-dark-4)
+    );
+    cursor: default;
+}
+
+.alignRight {
+    text-align: right;
+}
+
+.childLabel {
+    font-size: 13px;
+    font-weight: 500;
+}

@@ -1,1 +1,2 @@
+# rainbow.toml installs the same browserless version for preview environments: bump both together.
 FROM ghcr.io/browserless/chromium:v2.49.0

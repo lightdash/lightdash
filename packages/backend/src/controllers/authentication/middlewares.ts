@@ -7,6 +7,7 @@ import {
     assertRegisteredAccount,
     AuthorizationError,
     DeactivatedAccountError,
+    ForbiddenError,
     InvalidUser,
     LightdashMode,
     MobileOrgDisabledError,
@@ -28,7 +29,6 @@ import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
 import { getGrantOperationContract } from '../../auth/agentConnectionGrants/operationContracts';
 import { MobileOrgDisabledOAuthError } from '../../auth/mobileAppAccess';
-import { resolveOAuthScopeMode } from '../../auth/oauthScopes/mode';
 import {
     oauthApiResource,
     oauthMcpResource,
@@ -100,31 +100,19 @@ const hasWrongOAuthAudience = (
     );
 };
 
-const getOAuthScopePolicy = async (
-    req: Request,
-    user: SessionUser,
-    enforceGrant = false,
-): Promise<OAuthScopePolicy | null> => {
-    const mode = await resolveOAuthScopeMode(
-        req.services.getFeatureFlagService(),
-        user,
-    );
-    if (mode === null && !enforceGrant) return null;
-    return {
-        mode: enforceGrant ? 'enforce' : mode!,
-        getRequest: () => {
-            const route = req.route as { path: unknown } | undefined;
-            return {
-                method: req.method,
-                routeTemplate:
-                    !req.baseUrl.endsWith('/mcp') &&
-                    typeof route?.path === 'string'
-                        ? route.path
-                        : null,
-            };
-        },
-    };
-};
+const getOAuthScopePolicy = (req: Request): OAuthScopePolicy => ({
+    mode: 'enforce',
+    getRequest: () => {
+        const route = req.route as { path: unknown } | undefined;
+        return {
+            method: req.method,
+            routeTemplate:
+                !req.baseUrl.endsWith('/mcp') && typeof route?.path === 'string'
+                    ? route.path
+                    : null,
+        };
+    },
+});
 
 const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
     const { account } = req;
@@ -317,6 +305,25 @@ export const unauthorisedInDemo: RequestHandler = (req, res, next) => {
     }
 };
 
+/**
+ * Opts a route out of impersonation. Add it to any route that mints or
+ * changes a credential: one issued while an admin acts as another user would
+ * belong to that user, outlive the impersonation TTL, and carry no
+ * `impersonatedBy` audit trail.
+ */
+export const unauthorisedWhileImpersonating: RequestHandler = (
+    req,
+    res,
+    next,
+) => {
+    if (req.user?.impersonation || req.session?.impersonation) {
+        throw new ForbiddenError(
+            'Action not available while impersonating a user',
+        );
+    }
+    next();
+};
+
 /** Debug routes that exist only on a local development server. */
 export const devModeOnly: RequestHandler = (req, res, next) => {
     if (lightdashConfig.mode !== LightdashMode.DEV) {
@@ -347,7 +354,7 @@ const refuseFailedBoundBearer = async (
 
 /*
 This middleware allows ONLY OAuth bearer token authentication (no PAT, no service account).
-Used for endpoints that intentionally exclude PAT auth, e.g. creating a PAT from an OAuth token.
+Used for endpoints that intentionally exclude PAT auth, e.g. creating a PAT.
 For most endpoints, use allowApiKeyAuthentication which includes OAuth + all other auth methods.
 */
 export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
@@ -403,11 +410,7 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                                 : await req.services
                                       .getAgentConnectionGrantService()
                                       .authenticate(token, user);
-                        const scopePolicy = await getOAuthScopePolicy(
-                            req,
-                            user,
-                            grant !== null,
-                        );
+                        const scopePolicy = getOAuthScopePolicy(req);
                         req.account = fromOauth(
                             user,
                             token,
@@ -562,11 +565,7 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                                 : await req.services
                                       .getAgentConnectionGrantService()
                                       .authenticate(token, user);
-                        const scopePolicy = await getOAuthScopePolicy(
-                            req,
-                            user,
-                            grant !== null,
-                        );
+                        const scopePolicy = getOAuthScopePolicy(req);
                         req.account = fromOauth(
                             user,
                             token,

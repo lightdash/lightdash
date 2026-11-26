@@ -1,12 +1,13 @@
 import { Ability } from '@casl/ability';
 import {
+    type ApiKeyAccount,
     type PersonalAccessToken,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { type NextFunction, type Request, type Response } from 'express';
 import { type Knex } from 'knex';
 import passport from 'passport';
-import { fromServiceAccount } from '../../auth/account/account';
+import { fromServiceAccount, toSessionUser } from '../../auth/account/account';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { authenticateServiceAccount } from '../../ee/authentication';
@@ -134,9 +135,17 @@ it.each(
     },
 );
 
-it.each([allowApiKeyAuthentication, allowApiKeyAuthenticationIfPresent])(
-    'keeps PAT authentication on the real PAT cache: %s',
-    async (middleware) => {
+it.each(
+    [allowApiKeyAuthentication, allowApiKeyAuthenticationIfPresent].flatMap(
+        (middleware) =>
+            [false, true].map((cliOAuthPatCompat) => ({
+                middleware,
+                cliOAuthPatCompat,
+            })),
+    ),
+)(
+    'keeps PAT authentication on the real PAT cache: $middleware.name, CLI mark $cliOAuthPatCompat',
+    async ({ middleware, cliOAuthPatCompat }) => {
         const f = setupGrantAuthentication();
         const user = {
             ...f.user,
@@ -165,6 +174,7 @@ it.each([allowApiKeyAuthentication, allowApiKeyAuthenticationIfPresent])(
                 expiresAt: null,
                 lastUsedAt: new Date(),
             } as PersonalAccessToken,
+            cliOAuthPatCompat,
         });
         f.req.headers.authorization = 'ApiKey pat';
         f.oauth.authenticate.mockRejectedValue(new Error('Not OAuth'));
@@ -188,7 +198,18 @@ it.each([allowApiKeyAuthentication, allowApiKeyAuthenticationIfPresent])(
                 status: 200,
                 error: undefined,
             });
-            expect(f.req.account!.authentication.type).toBe('pat');
+            expect(f.req.account!.authentication).toEqual({
+                type: 'pat',
+                source: 'ApiKey pat',
+                cliOAuthPatCompat,
+            });
+            expect(f.req.user!.personalAccessToken).toEqual({
+                cliOAuthPatCompat,
+            });
+            expect(
+                toSessionUser(f.req.account as ApiKeyAccount)
+                    .personalAccessToken,
+            ).toEqual({ cliOAuthPatCompat });
             expect(cached).toHaveBeenCalledExactlyOnceWith('pat');
             const { value } = cached.mock.results[0];
             expect(await value).toMatchObject({

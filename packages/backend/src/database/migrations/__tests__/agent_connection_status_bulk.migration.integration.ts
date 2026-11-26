@@ -102,15 +102,14 @@ it.each([
     async (scenario) => {
         const f = await setup();
         await f.savePolicy({
-            mode: scenario.startsWith('legacy') ? 'legacy' : 'managed',
-            allowedCapabilities:
-                scenario === 'managed-disabled'
-                    ? []
-                    : AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
-                          (capability) =>
-                              scenario !== 'managed-limited' ||
-                              capability !== AgentCapability.RawSql,
-                      ),
+            allowedCapabilities: scenario.startsWith('legacy')
+                ? null
+                : AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
+                      (capability) =>
+                          scenario !== 'managed-disabled' &&
+                          (scenario !== 'managed-limited' ||
+                              capability !== AgentCapability.RawSql),
+                  ),
             allowedGroupUuids: scenario.endsWith('group-limited')
                 ? [f.group.group_uuid]
                 : null,
@@ -356,7 +355,7 @@ it('status makes the same number of database reads for 1, 10 and 50 projects', a
             expect.soft(result.sample.rows).toBeLessThanOrEqual(32 + 5 * size);
             reads.push(result.sample.reads);
         }
-        expect(reads).toEqual([23, 23, 23]);
+        expect(reads).toEqual([19, 19, 19]);
     } finally {
         await f.close();
     }

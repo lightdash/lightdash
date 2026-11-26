@@ -245,7 +245,7 @@ test('all capabilities unticked refuses the verified Slack turn before decisions
         admissionTracker,
         fromSession(defaultSessionUser),
     );
-    sql.state.policy.mode = 'managed';
+    sql.state.policy.allowedCapabilities ??= Object.values(AgentCapability);
     sql.state.policy.allowedGroupUuids = null;
     sql.state.policy.allowedCapabilities = [];
     Object.assign(h.service, { agentPermissionService: sql.service });

@@ -1,0 +1,69 @@
+/* In the page's own content: marks scroll with it, under its sticky bars. */
+.layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    z-index: var(--ld-z-design-marks);
+    pointer-events: none;
+    user-select: none;
+}
+
+/* Over a surface that scrolls on its own: cut off at the surface's edges. */
+.layer[data-clipped='true'] {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    height: auto;
+    clip-path: inset(
+        var(--region-top) calc(100% - var(--region-right))
+            calc(100% - var(--region-bottom)) var(--region-left)
+    );
+}
+
+/* Content coordinates start here; shifted by the surface's own scroll. */
+.content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    will-change: transform;
+}
+
+.ink {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1px;
+    height: 1px;
+    overflow: visible;
+}
+
+.outline {
+    position: absolute;
+    left: var(--mark-left);
+    top: var(--mark-top);
+    width: var(--mark-width);
+    height: var(--mark-height);
+    border: 2px solid var(--bubble-color);
+    border-radius: 6px;
+}
+
+.badge {
+    position: absolute;
+    left: var(--mark-left);
+    top: var(--mark-top);
+    transform: translate(-50%, -50%);
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 11px;
+    background: var(--bubble-color);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 22px;
+    text-align: center;
+}

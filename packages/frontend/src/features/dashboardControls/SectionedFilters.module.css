@@ -1,15 +1,13 @@
-/* The feature's own flow inside the shipped bar, which aligns to the top:
-   every line is a 28px line box, centred on the 30px funnel's line by 1px
-   at the top, so naming a first section moves nothing on its line */
+/* The feature's own flow inside the shipped bar: 28px lines, the flat bar's
+   height, so the bar is as tall in edit as in view */
 .flow {
     display: flex;
-    /* A zero basis keeps the flow on the funnel's line and wraps inside it */
+    /* A zero basis keeps the flow on the bar's first line and wraps inside it */
     flex: 1 1 0;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 6px;
     min-width: 0;
-    margin-top: 1px;
     /* A drop line's height (`dropLine` in FilterPills.module.css) */
     --controls-pill-height: 28px;
 }
@@ -311,9 +309,8 @@
 /* The shipped bar's narrow layout makes its buttons 44px tall
    (`DashboardFiltersBar.module.css`): the input matches the name button */
 @container (width < 600px) {
-    /* No funnel here; the shipped bar's pills are 44px */
+    /* The shipped bar's pills are 44px here */
     .flow {
-        margin-top: 0;
         --controls-pill-height: 44px;
     }
 

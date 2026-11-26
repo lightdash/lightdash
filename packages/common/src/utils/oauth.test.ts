@@ -3,6 +3,7 @@ import {
     generateOAuthRedirectPage,
     generateOAuthSuccessResponse,
     getAgentConnectErrorMessage,
+    getOAuthRedirectDestination,
     isSafeRedirectScheme,
     parseScopeString,
 } from './oauth';
@@ -14,11 +15,14 @@ const AUTHORIZE_VIEWPORT_META =
 const JAVASCRIPT_SCHEME = ['javascript', ''].join(':');
 const JAVASCRIPT_REDIRECT_URI = `${JAVASCRIPT_SCHEME}alert(1)`;
 
-const authorizePage = () =>
+const authorizePage = (
+    redirectUri: string = 'https://client.example/callback',
+) =>
     generateOAuthAuthorizePage({
         action: '/api/v1/oauth/authorize',
         client_id: 'test-client',
         client_name: 'Test Client',
+        redirect_uri: redirectUri,
         scope: 'read',
         scopes: parseScopeString('read'),
         user: {
@@ -52,6 +56,36 @@ describe('isSafeRedirectScheme', () => {
         'not a URL',
     ])('rejects unsafe redirect URI %s', (redirectUri) => {
         expect(isSafeRedirectScheme(redirectUri)).toBe(false);
+    });
+});
+
+describe('getOAuthRedirectDestination', () => {
+    it.each([
+        ['https://client.example/callback?x=1#y', 'https://client.example'],
+        ['http://localhost:8080/callback', 'http://localhost:8080'],
+        ['http://localhost:8080@evil.example/callback', 'http://evil.example'],
+        ['HTTPS://Client.Example:8443/cb', 'https://client.example:8443'],
+        [
+            'cursor://anysphere.cursor-retrieval/oauth',
+            'cursor://anysphere.cursor-retrieval',
+        ],
+        ['com.example.app:/oauth/callback', 'com.example.app:'],
+        ['not a URL', 'not a URL'],
+    ])('shows %s as %s', (redirectUri, expected) => {
+        expect(getOAuthRedirectDestination(redirectUri)).toBe(expected);
+    });
+});
+
+describe('OAuth authorize page redirect destination', () => {
+    it('tells the user where the code will be sent', () => {
+        expect(authorizePage('https://evil.example/callback?a=1')).toContain(
+            'You will be redirected to <strong>https://evil.example</strong> after you authorize.',
+        );
+    });
+
+    it('escapes the destination', () => {
+        const html = authorizePage('x"><script>alert(1)</script>');
+        expect(html).not.toContain('<script>alert(1)</script>');
     });
 });
 

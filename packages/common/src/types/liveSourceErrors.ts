@@ -21,6 +21,10 @@ export const LIVE_SOURCE_REFUSAL_CODES = [
     'live_source.refused.field_combination',
     'live_source.refused.too_many_fields',
     'live_source.refused.timezone',
+    'live_source.refused.row_limit',
+    'live_source.refused.call_budget',
+    'live_source.refused.sort',
+    'live_source.refused.date_grain',
 ] as const;
 
 /** Lightdash refused the query before calling the API: the source can't run it. */
@@ -41,9 +45,13 @@ export type LiveSourceUpstreamErrorCode =
 export const LIVE_SOURCE_INTERNAL_ERROR_CODES = [
     'live_source.internal.invalid_request',
     'live_source.internal.error',
+    'live_source.internal.concurrency_limit',
 ] as const;
 
-/** Lightdash failed: our own validation rejected the request, or something broke. */
+/**
+ * Lightdash failed: our own validation rejected the request, something broke,
+ * or the source hit our own limit on queries running at once.
+ */
 export type LiveSourceInternalErrorCode =
     (typeof LIVE_SOURCE_INTERNAL_ERROR_CODES)[number];
 

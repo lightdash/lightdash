@@ -62,10 +62,14 @@ export const AGENT_TOOL_NAMES = [
     'listDataAppThemes',
     'listDataAppConnections',
     'editDbtProject',
+    'write',
     'editProjectContext',
     'proposeSemanticLayerChange',
     'listChanges',
     'readSemanticModel',
+    'draftProjectContext',
+    'verify',
+    'read',
     'runMetricQuery',
     'syncDbtProject',
     'exploreRepo',
@@ -146,8 +150,7 @@ export type LoadoutInput = Pick<
     | 'enableAiWriteback'
     | 'enableRepoDiscovery'
     | 'enableEditProjectContext'
-    | 'isSemanticStudioThread'
-    | 'semanticStudioDrafts'
+    | 'studio'
     | 'enableReadAttachments'
     | 'enableReadPinnedThread'
     | 'enableAskUser'
@@ -166,12 +169,16 @@ export type Loadout = {
     base: LoadoutBase;
     addOns: ReadonlySet<AddOnName>;
     toolNames: ReadonlySet<AgentToolName>;
+    /** Tools never offered to the model; read's libraries call the lookups among them. */
+    withheldToolNames: ReadonlySet<AgentToolName>;
     promptSections: ReadonlySet<PromptSection>;
     skills: ReadonlySet<BuiltInSkillName>;
 };
 
 export type BaseDefinition = (input: LoadoutInput) => {
     tools: readonly AgentToolName[];
+    /** Kept from the model, including an accepted add-on's; read's libraries call the lookups among them. */
+    withheldTools: readonly AgentToolName[];
     sections: readonly PromptSection[];
     skills: readonly BuiltInSkillName[];
     accepts: readonly AddOnName[];

@@ -1,25 +1,21 @@
 import { subject } from '@casl/ability';
-import {
-    ContentType,
-    FeatureFlags,
-    isSemanticLayerExplore,
-} from '@lightdash/common';
+import { ContentType, isSemanticLayerExplore } from '@lightdash/common';
 import { useMatches } from '@mantine/core';
 import { useLocalStorage } from 'react-use';
 import { useChartTypesEnabled } from '../../../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualizations } from '../../../../../features/chartTypes/hooks/useDataAppVisualizations';
 import { useRegistryChartTypes } from '../../../../../features/chartTypes/hooks/useRegistryChartTypes';
 import { useExternalConnections } from '../../../../../features/externalConnections/hooks/useExternalConnections';
+import { useLiveSourcesAvailability } from '../../../../../features/externalConnections/hooks/useLiveSourcesAvailability';
 import { useExternalSources } from '../../../../../features/externalSources/hooks/useExternalSources';
 import { getSemanticStudioUrl } from '../../../../../features/semanticStudio/urls';
 import { useOrganizationBrand } from '../../../../../hooks/organization/useOrganizationBrand';
 import { useInfiniteContent } from '../../../../../hooks/useContent';
 import { useExplores } from '../../../../../hooks/useExplores';
 import { useOrganizationUsers } from '../../../../../hooks/useOrganizationUsers';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import { useCanManageProject } from '../../hooks/useHomepageAbilities';
-import { useIsNewOnboardingOrg } from '../../hooks/useIsNewOnboardingOrg';
+import { useIsNewOrg } from '../../hooks/useIsNewOrg';
 import { type RecommendedActionsState } from '../useRecommendedActions';
 import { buildSetupGuide, type SetupGuideRowId } from './setupGuideModel';
 
@@ -27,22 +23,25 @@ export const useSetupGuide = (
     projectUuid: string,
     actions: RecommendedActionsState,
 ) => {
-    const { user } = useApp();
+    const { user, health } = useApp();
     const userUuid = user.data?.userUuid;
-    const newOnboardingOrg = useIsNewOnboardingOrg();
-    const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
+    const newOrg = useIsNewOrg();
+    const liveSources = useLiveSourcesAvailability();
     const canManageProject = useCanManageProject(projectUuid);
     // visibleActions is empty on the playground, where setup has no place
     const isEligible =
-        newOnboardingOrg.isNewOrg &&
+        newOrg.isNewOrg &&
         canManageProject &&
         actions.visibleActions.length > 0;
     const enabled = { enabled: isEligible };
 
     const explores = useExplores(projectUuid, true, false, enabled);
     // These hooks take no enabled option; an undefined project keeps them idle
-    const gatedProjectUuid = isEligible ? projectUuid : undefined;
-    const connections = useExternalConnections(gatedProjectUuid);
+    const gatedProjectUuid =
+        isEligible && health.data?.license?.valid ? projectUuid : undefined;
+    const connections = useExternalConnections(
+        liveSources.isAvailable ? gatedProjectUuid : undefined,
+    );
     const sources = useExternalSources(gatedProjectUuid);
     const brand = useOrganizationBrand(enabled);
     const users = useOrganizationUsers(enabled);
@@ -78,8 +77,8 @@ export const useSetupGuide = (
     // Hold a slot while eligibility resolves so the guide doesn't push the page down
     const isLoading =
         canManageProject &&
-        (newOnboardingOrg.isLoading ||
-            (newOnboardingOrg.isNewOrg &&
+        (newOrg.isLoading ||
+            (newOrg.isNewOrg &&
                 (actions.isLoading ||
                     [explores, brand].some(
                         (query) => query.isInitialLoading,
@@ -111,10 +110,10 @@ export const useSetupGuide = (
         ),
         semanticStudioUrl,
         canAddLiveSources:
-            liveSourcesFlag.data?.enabled === true &&
+            liveSources.isAvailable &&
             !!user.data?.ability.can(
                 'manage',
-                subject('ExternalConnection', {
+                subject('LiveSource', {
                     organizationUuid: user.data.organizationUuid,
                     projectUuid,
                 }),

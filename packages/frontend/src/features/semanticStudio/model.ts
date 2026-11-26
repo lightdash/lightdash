@@ -8,12 +8,12 @@ import { type ChangeKind } from './modelCode';
 
 export type Kind = 'modelled' | 'sqlViews' | 'files' | 'live';
 
-const KIND_ORDER: Kind[] = ['modelled', 'sqlViews', 'files', 'live'];
+export const KIND_ORDER: Kind[] = ['modelled', 'sqlViews', 'files', 'live'];
 
 /**
- * Names match the rest of the product: "Warehouse" for the semantic layer,
- * "Virtual views" from the Explore sidebar, "External sources" and "Live
- * data sources" from settings.
+ * Names match the rest of the product: the warehouse's own name for the
+ * semantic layer, "Virtual views" from the Explore sidebar, "External
+ * sources" and "Live data sources" from settings.
  */
 const KIND_LABELS: Record<Exclude<Kind, 'modelled'>, string> = {
     sqlViews: 'Virtual views',
@@ -28,23 +28,12 @@ export const sourceWarehouse = (
 ): WarehouseConnection | undefined =>
     onWarehouse ? project.warehouse : undefined;
 
-/** Under Warehouse, the semantic layer is named after the warehouse type. */
-const sourceLabel = (project: Project, source: Source): string => {
-    const warehouse =
-        source.kind === 'modelled'
-            ? sourceWarehouse(project, source)
-            : undefined;
-    return warehouse ? warehouse.label : source.name;
-};
-
 const kindLabel = (project: Project, kind: Kind): string =>
     kind === 'modelled'
-        ? project.warehouse
-            ? 'Warehouse'
-            : 'dbt project'
+        ? (project.warehouse?.label ?? 'dbt project')
         : KIND_LABELS[kind];
 
-export type SourceType = 'dbt' | 'sqlView' | 'csv' | 'sheets' | 'live';
+type SourceType = 'dbt' | 'sqlView' | 'csv' | 'sheets' | 'live';
 
 export type WarehouseConnection = {
     /** WarehouseTypes value, such as `bigquery`. */
@@ -351,7 +340,7 @@ export const buildProjectTree = (project: Project): ProjectTree => {
                 ({ sourceId }) => sourceId === source.id,
             );
             const ref: NodeRef = { type: 'source', sourceId: source.id };
-            const label = sourceLabel(project, source);
+            const label = source.name;
             const path = [...kindPath, label];
             return {
                 key: nodeKey(ref),
@@ -377,11 +366,15 @@ export const buildProjectTree = (project: Project): ProjectTree => {
 
     const simplify = (node: TreeNode): TreeNode => {
         if (node.ref.type !== 'kind') return node;
+        // A live data source always shows as a folder of its explores, so
+        // its name stays visible even with one source or one explore.
+        const isLive = node.ref.kind === 'live';
         const children =
-            node.children.length === 1 && node.ref.kind !== 'modelled'
+            node.children.length === 1 && !isLive
                 ? node.children[0].children
                 : node.children.map((child) =>
                       // A source with one explore shows the explore itself.
+                      !isLive &&
                       child.ref.type === 'source' &&
                       child.children.length === 1 &&
                       child.children[0].ref.type === 'explore'
@@ -403,7 +396,16 @@ export const buildProjectTree = (project: Project): ProjectTree => {
 
     let rootSource: Source | null = null;
     let nodes = kindNodes.map(simplify);
-    if (nodes.length === 1 && nodes[0].ref.type === 'kind') {
+    // The warehouse stays a named group, so its tables never float without a parent
+    const isWarehouseGroup = (node: TreeNode) =>
+        node.ref.type === 'kind' &&
+        node.ref.kind === 'modelled' &&
+        !!project.warehouse;
+    if (
+        nodes.length === 1 &&
+        nodes[0].ref.type === 'kind' &&
+        !isWarehouseGroup(nodes[0])
+    ) {
         const { kind } = nodes[0].ref;
         nodes = nodes[0].children;
         const onlySources = project.sources.filter(
@@ -478,7 +480,7 @@ export const pageNodes = (
 };
 
 /** Flattens the expanded part of a tree into rows for a virtual list. */
-export type TreeRow = { node: TreeNode; depth: number };
+type TreeRow = { node: TreeNode; depth: number };
 
 export const flattenTree = (
     nodes: TreeNode[],
@@ -534,7 +536,7 @@ export const containerOf = (ref: NodeRef): NodeRef =>
 // ---------------------------------------------------------------------------
 // Search: flat results with their path
 
-export type SearchGroup = 'Sources' | 'Folders' | 'Explores' | 'Fields';
+type SearchGroup = 'Sources' | 'Folders' | 'Explores' | 'Fields';
 
 const SEARCH_GROUPS: readonly SearchGroup[] = [
     'Sources',

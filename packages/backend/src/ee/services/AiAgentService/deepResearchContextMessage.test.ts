@@ -104,10 +104,7 @@ describe('AiAgentService deep research conversation history', () => {
                 },
             ] as never,
             {
-                organizationUuid: 'organization-1',
                 projectUuid: 'project-1',
-                agentUuid: 'agent-1',
-                retrieveRelevantArtifacts: false,
                 currentPromptUuid: 'follow-up-prompt',
                 threadUuid: 'thread-uuid',
             },

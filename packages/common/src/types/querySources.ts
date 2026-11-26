@@ -74,7 +74,18 @@ export enum ApiConnectorType {
     PYLON = 'pylon',
     ATTIO = 'attio',
     HUBSPOT = 'hubspot',
+    SALESFORCE = 'salesforce',
+    AMPLITUDE = 'amplitude',
+    MIXPANEL = 'mixpanel',
+    /** A test integration the tests control; registered only when turned on. */
+    HYDRA = 'hydra',
 }
+
+/** The source name of sources built before names were stored, from their id. */
+export const getLegacyLiveSourceName = (
+    connector: ApiConnectorType,
+    connectionUuid: string,
+) => `${connector}_${connectionUuid.replace(/-/g, '').slice(0, 8)}`;
 
 /**
  * What an api query asks its connector to run. Only `query` exists: a query

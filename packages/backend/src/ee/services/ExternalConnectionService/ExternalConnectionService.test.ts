@@ -178,17 +178,25 @@ function buildService(opts: {
             }),
     };
     const service = new ExternalConnectionService({
+        userAttributesModel: {
+            getAttributeValuesForOrgMember: vi.fn().mockResolvedValue({}),
+            find: vi.fn().mockResolvedValue([]),
+        },
         projectModel: {
             replaceApiSourceExplores: vi.fn(),
             deleteApiSourceExplores: vi.fn(),
             findExploreNamesTakenByOthers: vi.fn().mockResolvedValue([]),
             hasApiSourceExplores: vi.fn().mockResolvedValue(false),
+            getApiSourceExploreNames: vi.fn().mockResolvedValue([]),
             listApiSourceExploreHashes: vi.fn().mockResolvedValue([]),
             getApiSourceFieldIds: vi.fn().mockResolvedValue([]),
         },
         savedChartModel: {
             getChartCountPerField: vi.fn().mockResolvedValue([]),
             getChartCountForExplores: vi.fn().mockResolvedValue(0),
+            getContentOnExplore: vi
+                .fn()
+                .mockResolvedValue({ charts: [], dashboards: [] }),
         },
         allowedPrivateHostCidrs: {},
         externalConnectionModel: model as never,
@@ -217,9 +225,6 @@ function buildService(opts: {
         encryptionUtil: {} as never,
         lightdashConfig: lightdashConfigMock,
         orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
-        featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
-        } as never,
         schedulerClient: { scanApiSourceSchema: vi.fn() },
     });
     return { service, model, orgAiCopilotConfigResolver };
@@ -754,7 +759,7 @@ describe('ExternalConnectionService.testConnection', () => {
                 path: '/v1/current',
                 config: { origin: 'https://other.example.com' },
             }),
-        ).rejects.toThrow('type "bearer_token" requires a secret');
+        ).rejects.toThrow('Re-enter the secret to change the origin');
 
         expect(model.getDecryptedSecret).not.toHaveBeenCalled();
         expect(executeExternalFetchSpy).not.toHaveBeenCalled();
@@ -1516,5 +1521,146 @@ describe('ExternalConnectionService proposeConfig', () => {
             modelName: 'claude-sonnet-4-5',
             enableReasoning: false,
         });
+    });
+});
+
+describe('live data source permission', () => {
+    const liveSource: ExternalConnectionListItem = {
+        ...listedConnection,
+        externalConnectionUuid: 'live-uuid',
+        name: 'PostHog',
+        kind: 'live_source',
+        // Linking never applies to live data sources, whatever is stored
+        allowDataAppBuilderLinking: true,
+        apiSource: {
+            connector: 'posthog',
+        } as ExternalConnectionListItem['apiSource'],
+    };
+    const dataAppConnection: ExternalConnectionListItem = {
+        ...listedConnection,
+        kind: 'data_app',
+    };
+    const grants = {
+        LiveSource: { action: 'manage', subject: 'LiveSource' },
+        ExternalConnection: { action: 'manage', subject: 'ExternalConnection' },
+    } as const;
+    const withAbility = (
+        service: ExternalConnectionService,
+        held: (keyof typeof grants)[],
+    ) => {
+        vi.spyOn(
+            service as unknown as { createAuditedAbility: () => unknown },
+            'createAuditedAbility',
+        ).mockReturnValue(
+            new Ability<PossibleAbilities>(
+                held.map((name) => ({
+                    ...grants[name],
+                    conditions: { projectUuid },
+                })),
+            ),
+        );
+    };
+    const canManage = async (
+        held: (keyof typeof grants)[],
+        target: ExternalConnectionListItem,
+    ) => {
+        const { service } = buildService({ connection: target });
+        withAbility(service, held);
+        return service
+            .listLinkedApps(
+                adminAccount,
+                projectUuid,
+                target.externalConnectionUuid,
+            )
+            .then(
+                () => true,
+                (error: unknown) => {
+                    if (error instanceof ForbiddenError) return false;
+                    throw error;
+                },
+            );
+    };
+
+    it.each([
+        [['LiveSource'], true, false],
+        [['ExternalConnection'], false, true],
+        [['LiveSource', 'ExternalConnection'], true, true],
+        [[], false, false],
+    ] as const)(
+        'holding %j manages live data sources: %s, data app connections: %s',
+        async (held, live, dataApp) => {
+            await expect(canManage([...held], liveSource)).resolves.toBe(live);
+            await expect(canManage([...held], dataAppConnection)).resolves.toBe(
+                dataApp,
+            );
+        },
+    );
+
+    it.each([
+        [['LiveSource'], ['live-uuid']],
+        [['ExternalConnection'], [connectionUuid]],
+        [
+            ['LiveSource', 'ExternalConnection'],
+            [connectionUuid, 'live-uuid'],
+        ],
+    ] as const)(
+        'holding %j lists each row by its own subject',
+        async (held, listed) => {
+            const { service } = buildService({
+                connections: [dataAppConnection, liveSource],
+            });
+            withAbility(service, [...held]);
+            const rows = await service.list(adminAccount, projectUuid);
+            expect(rows.map((row) => row.externalConnectionUuid)).toEqual(
+                listed,
+            );
+        },
+    );
+
+    it.each([
+        [['ExternalConnection'], 'data_app', { connector: 'posthog' }],
+        [['LiveSource'], 'live_source', undefined],
+    ] as const)(
+        'holding %j cannot pick its own check by sending kind %s',
+        async (held, kind, apiSource) => {
+            const { service } = buildService({});
+            withAbility(service, [...held]);
+            await expect(
+                service.create(adminAccount, projectUuid, {
+                    name: 'API',
+                    type: 'none',
+                    origin: 'https://api.example.com',
+                    allowedPathPrefixes: ['/'],
+                    allowedMethods: ['GET'],
+                    allowedContentTypes: ['application/json'],
+                    responseMaxBytes: 1000,
+                    secret: null,
+                    apiSource,
+                    kind,
+                } as never),
+            ).rejects.toThrow(ForbiddenError);
+        },
+    );
+
+    it('refuses the list to someone holding neither', async () => {
+        const { service } = buildService({
+            connections: [dataAppConnection, liveSource],
+        });
+        withAbility(service, []);
+        await expect(service.list(adminAccount, projectUuid)).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
+
+    it('refuses turning on data app linking for a live data source', async () => {
+        const updateFn = vi.fn();
+        const { service } = buildService({ connection: liveSource, updateFn });
+        withAbility(service, ['LiveSource']);
+        await expect(
+            service.update(adminAccount, projectUuid, 'live-uuid', {
+                allowDataAppBuilderLinking: true,
+            }),
+        ).rejects.toThrow('Live data sources cannot be linked to data apps');
+        expect(updateFn).not.toHaveBeenCalled();
     });
 });

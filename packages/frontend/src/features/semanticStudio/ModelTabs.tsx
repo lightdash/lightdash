@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     Accordion,
+    ActionIcon,
     Alert,
     Badge,
     Box,
@@ -12,6 +13,7 @@ import {
     Group,
     Kbd,
     Paper,
+    Stack,
     Tabs,
     Text,
     Tooltip,
@@ -22,20 +24,32 @@ import {
     File,
     WorkerPoolContextProvider,
 } from '@pierre/diffs/react';
-import { IconPencil } from '@tabler/icons-react';
-import dayjs from 'dayjs';
-import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router';
-import { CopyActionIcon } from '../../components/common/CopyActionIcon';
-import MantineIcon from '../../components/common/MantineIcon';
 import {
-    PIERRE_HIGHLIGHTER_OPTIONS,
-    PIERRE_POOL_OPTIONS,
-} from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
+    IconArrowBackUp,
+    IconArrowForwardUp,
+    IconFileCode,
+    IconLock,
+} from '@tabler/icons-react';
+import dayjs from 'dayjs';
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
+import { useSearchParams } from 'react-router';
+import MantineIcon from '../../components/common/MantineIcon';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import {
+    PIERRE_HIGHLIGHTER_OPTIONS,
+    PIERRE_POOL_OPTIONS,
+    pierreThemeFor,
+} from '../writeback/pierreDiffConfig';
 import { ChangeDiff } from './ChangeDiff';
 import {
     CHANGE_KIND_VERBS,
@@ -44,11 +58,27 @@ import {
     getChangeKind,
     changeTitle,
     findFieldBlock,
+    MODEL_TABS,
     VIEW_PARAM,
+    type ModelTab,
 } from './modelCode';
 import { ModelPreAggregates } from './ModelPreAggregates';
 import classes from './ModelTabs.module.css';
-import { createEditor } from './pierreEditor';
+import {
+    createEditor,
+    editorOptionsFor,
+    leaveOnEscape,
+    MOD_KEY,
+    REDO_KEYS,
+    pointInCode,
+    type CodePoint,
+    readSelection,
+    replaceText,
+    selectWordAt,
+    hasSelection,
+    type Attached,
+} from './pierreEditor';
+import { useAddToStudioChat } from './studioChatRefs';
 import {
     useSemanticLayerModel,
     useAppliesAsPullRequest,
@@ -75,14 +105,16 @@ const saveErrorText = ({ error }: ApiError) =>
         ? error.message
         : 'This model could not be saved. Try again in a moment.';
 
-/** A model's YAML as the checked-out change leaves it; your own draft's, or Published's, can be edited and saved into the draft. */
+/** A model's YAML as the checked-out change leaves it; your own draft's, or Published's, opens ready to edit and saves into the draft. */
 export const ModelCodeView: FC<{
     projectUuid: string;
     modelName: string;
     fieldName: string | null;
     /** Why the code is read and not edited, as a sentence; null when it can be edited. */
     readOnlyReason: string | null;
-}> = ({ projectUuid, modelName, fieldName, readOnlyReason }) => {
+    /** Skips the marked view and opens straight into editing, as the overview's pencil asks. */
+    startsEditing: boolean;
+}> = ({ projectUuid, modelName, fieldName, readOnlyReason, startsEditing }) => {
     const colorScheme = useComputedColorScheme('light');
     const { data: model, isLoading } = useSemanticLayerModel(
         projectUuid,
@@ -102,7 +134,51 @@ export const ModelCodeView: FC<{
     const isShowingSaved = justSaved !== null && justSaved.over === content;
     const shownContent = isShowingSaved ? justSaved.content : content;
     // Pierre owns the document while editing: it starts from `startedFrom` and reports each change into `text`.
-    const [isEditing, setIsEditing] = useState(false);
+    const [isEditing, setIsEditing] = useState(startsEditing);
+    const editorInstance = useRef<Attached | null>(null);
+    // Editing asked for by a click or the overview's pencil, so the caret lands where the person pointed.
+    const openAt = useRef<{ point: CodePoint | null; word: boolean } | null>(
+        startsEditing ? { point: null, word: false } : null,
+    );
+    const [history, setHistory] = useState({ canUndo: false, canRedo: false });
+    const addToStudioChat = useAddToStudioChat();
+    const addToChat = () => {
+        const picked = readSelection(editorInstance.current);
+        if (!picked || !addToStudioChat) return false;
+        addToStudioChat({
+            modelName,
+            fieldName: null,
+            modelLabel: `${modelName}.yml`,
+            fieldLabel: null,
+            fieldKind: null,
+            fieldType: null,
+            code: { path: `${modelName}.yml`, ...picked },
+        });
+        return true;
+    };
+    // Pierre keeps the first options it is given, so the chip reads the latest through a ref.
+    const addToChatRef = useRef(addToChat);
+    addToChatRef.current = addToChat;
+    const editorOptions = useMemo(
+        () =>
+            editorOptionsFor<'file'>(
+                (attached) => {
+                    editorInstance.current = attached;
+                    setHistory({ canUndo: false, canRedo: false });
+                    const asked = openAt.current;
+                    openAt.current = null;
+                    if (asked)
+                        requestAnimationFrame(() => {
+                            if (editorInstance.current !== attached) return;
+                            attached.focus(asked.point ?? undefined);
+                            if (asked.word && asked.point)
+                                selectWordAt(attached, asked.point);
+                        });
+                },
+                () => addToChatRef.current(),
+            ),
+        [],
+    );
     const [startedFrom, setStartedFrom] = useState<string | null>(null);
     const [text, setText] = useState<string | null>(null);
     const [revision, setRevision] = useState(0);
@@ -110,27 +186,28 @@ export const ModelCodeView: FC<{
     const canEdit =
         readOnlyReason === null && shown !== null && shownContent !== null;
     const isDirty = text !== null && text !== startedFrom;
-    const editing = canEdit && (isEditing || isDirty);
+    const fieldBlock =
+        fieldName && shownContent
+            ? findFieldBlock(shownContent, fieldName)
+            : null;
+    // A field asked for, or the draft's marked lines, read first; clicking the code edits it.
+    const hasReadView =
+        fieldBlock !== null ||
+        (drafted !== null && drafted.contentBefore !== null && !isShowingSaved);
+    const editing = canEdit && (isEditing || isDirty || !hasReadView);
     // Unsaved text stays when the model changes under it; saving it then is refused.
     const changedUnder = isDirty && startedFrom !== shownContent;
     // With nothing typed yet, editing follows the model as it changes.
     useEffect(() => {
-        if (!isEditing || isDirty || startedFrom === shownContent) return;
+        if (!editing || isDirty || startedFrom === shownContent) return;
         setStartedFrom(shownContent);
         setText(null);
         setRevision((current) => current + 1);
-    }, [isEditing, isDirty, startedFrom, shownContent]);
-    const block =
-        fieldName && shownContent && !editing
-            ? findFieldBlock(shownContent, fieldName)
-            : null;
+    }, [editing, isDirty, startedFrom, shownContent]);
+    const block = editing ? null : fieldBlock;
     const line = block?.start ?? null;
     // A changed file shows the draft's lines marked; a new one would be marked whole, and a field asked for is shown alone.
-    const marksDraft =
-        drafted !== null &&
-        drafted.contentBefore !== null &&
-        block === null &&
-        !isShowingSaved;
+    const marksDraft = !editing && hasReadView && block === null;
     const editor = useRef<HTMLDivElement>(null);
     // The viewer marks the line but does not bring it into view, and it renders after this does.
     useEffect(() => {
@@ -151,6 +228,13 @@ export const ModelCodeView: FC<{
         return () => cancelAnimationFrame(frame);
     }, [line, modelName]);
 
+    const startEditing = (event: MouseEvent) => {
+        if (!canEdit) return;
+        openAt.current = { point: pointInCode(event), word: false };
+        setStartedFrom(shownContent);
+        setIsEditing(true);
+        setRevision((current) => current + 1);
+    };
     const stopEditing = () => {
         setIsEditing(false);
         setStartedFrom(null);
@@ -175,7 +259,13 @@ export const ModelCodeView: FC<{
                         return;
                     }
                     setJustSaved({ over: content, content: result.content });
-                    setNotice(null);
+                    const savedTo = shown?.workspace?.name;
+                    setNotice({
+                        tone: 'info',
+                        text: savedTo
+                            ? `Saved to ${savedTo}.`
+                            : 'Saved as a new draft.',
+                    });
                     stopEditing();
                 },
                 onError: (error) =>
@@ -194,64 +284,64 @@ export const ModelCodeView: FC<{
     }
     const where = shown?.workspace?.name ?? null;
     const options = {
-        theme: colorScheme === 'dark' ? 'pierre-dark' : 'pierre-light',
+        ...pierreThemeFor(colorScheme),
         overflow: 'wrap',
         disableFileHeader: true,
     } as const;
     return (
         <Box className={classes.codePane}>
-            <Group
-                className={classes.codeToolbar}
-                justify="flex-end"
-                wrap="nowrap"
-                gap="xs"
-            >
+            <Group className={classes.codeToolbar} wrap="nowrap" gap="xs">
+                <MantineIcon icon={IconFileCode} color="dimmed" />
+                <Text fz="sm" fw={500} truncate flex={1} miw={0}>
+                    {modelName}.yml
+                </Text>
                 {shownContent === null ? null : !canEdit ? (
                     readOnlyReason ? (
-                        <Text fz="xs" c="dimmed" truncate maw={320}>
-                            {readOnlyReason}
-                        </Text>
+                        <Group gap={4} wrap="nowrap" miw={0}>
+                            <MantineIcon
+                                icon={IconLock}
+                                size={14}
+                                color="dimmed"
+                            />
+                            <Text
+                                fz="xs"
+                                c="dimmed"
+                                truncate
+                                maw={320}
+                                title={readOnlyReason}
+                            >
+                                {readOnlyReason}
+                            </Text>
+                        </Group>
                     ) : null
-                ) : editing ? null : (
-                    <Tooltip
-                        label={
-                            where
-                                ? `Saves to ${where}`
-                                : 'Saving starts a draft. Published stays as it is.'
-                        }
-                    >
-                        <Button
-                            size="compact-xs"
-                            variant="default"
-                            leftSection={
-                                <MantineIcon icon={IconPencil} size={12} />
-                            }
-                            onClick={() => {
-                                track({
-                                    name: EventName.SEMANTIC_STUDIO_EDIT_STARTED,
-                                    properties: {
-                                        projectId: projectUuid,
-                                        kind: 'model',
-                                    },
-                                });
-                                setStartedFrom(shownContent);
-                                setIsEditing(true);
-                                setRevision((current) => current + 1);
-                            }}
-                        >
-                            Edit
-                        </Button>
-                    </Tooltip>
-                )}
-                {editing && !isDirty ? (
-                    <Button
-                        size="compact-xs"
-                        variant="subtle"
-                        color="gray"
-                        onClick={stopEditing}
-                    >
-                        Done
-                    </Button>
+                ) : !isDirty ? (
+                    <Text fz="xs" c="dimmed" truncate maw={240}>
+                        {where ? `Saves to ${where}` : 'Saving starts a draft'}
+                    </Text>
+                ) : null}
+                {editing ? (
+                    <>
+                        <Tooltip label={`Undo (${MOD_KEY}Z)`}>
+                            <ActionIcon
+                                aria-label="Undo"
+                                className={classes.history}
+                                disabled={!history.canUndo}
+                                onClick={() => editorInstance.current?.undo()}
+                            >
+                                <MantineIcon icon={IconArrowBackUp} />
+                            </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label={`Redo (${REDO_KEYS})`}>
+                            <ActionIcon
+                                aria-label="Redo"
+                                className={classes.history}
+                                disabled={!history.canRedo}
+                                onClick={() => editorInstance.current?.redo()}
+                            >
+                                <MantineIcon icon={IconArrowForwardUp} />
+                            </ActionIcon>
+                        </Tooltip>
+                    </>
                 ) : null}
                 {editing && isDirty ? (
                     <>
@@ -262,7 +352,16 @@ export const ModelCodeView: FC<{
                             disabled={save.isLoading}
                             onClick={() => {
                                 setNotice(null);
-                                stopEditing();
+                                // As an edit, so undo brings the discarded text back.
+                                if (
+                                    editorInstance.current &&
+                                    startedFrom !== null
+                                )
+                                    replaceText(
+                                        editorInstance.current,
+                                        startedFrom,
+                                    );
+                                else stopEditing();
                             }}
                         >
                             Discard
@@ -273,7 +372,7 @@ export const ModelCodeView: FC<{
                                     {where
                                         ? `Saves to ${where}`
                                         : 'Starts a draft'}
-                                    <Kbd size="xs">⌘S</Kbd>
+                                    <Kbd size="xs">{`${MOD_KEY}S`}</Kbd>
                                 </Group>
                             }
                         >
@@ -286,12 +385,6 @@ export const ModelCodeView: FC<{
                             </Button>
                         </Tooltip>
                     </>
-                ) : null}
-                {shownContent !== null ? (
-                    <CopyActionIcon
-                        value={text ?? shownContent}
-                        copyLabel="Copy YAML"
-                    />
                 ) : null}
             </Group>
             {changedUnder ? (
@@ -319,13 +412,24 @@ export const ModelCodeView: FC<{
             <Box
                 className={classes.codeEditor}
                 ref={editor}
+                onDoubleClick={(event) => {
+                    // The first click opened the editor, which then missed the double-click.
+                    const point = pointInCode(event.nativeEvent);
+                    const code = editorInstance.current;
+                    if (!point) return;
+                    if (openAt.current) openAt.current = { point, word: true };
+                    else if (code && !hasSelection(code))
+                        selectWordAt(code, point);
+                }}
                 onKeyDownCapture={(event) => {
-                    if (
-                        (event.metaKey || event.ctrlKey) &&
-                        event.key.toLowerCase() === 's'
-                    ) {
+                    leaveOnEscape(event.nativeEvent, editorInstance.current);
+                    if (!(event.metaKey || event.ctrlKey)) return;
+                    const key = event.key.toLowerCase();
+                    if (key === 's') {
                         event.preventDefault();
                         submit();
+                    } else if (key === 'l' && addToChat()) {
+                        event.preventDefault();
                     }
                 }}
             >
@@ -341,48 +445,73 @@ export const ModelCodeView: FC<{
                         <EditProvider createEditor={createEditor}>
                             <File
                                 key={`${modelName}:${revision}`}
-                                className={classes.codeHost}
                                 file={{
                                     name: `${modelName}.yml`,
                                     contents: startedFrom ?? shownContent,
                                 }}
                                 options={options}
+                                editorOptions={editorOptions}
                                 edit={!save.isLoading}
-                                onEditChange={(event) =>
-                                    setText(event.file.contents)
-                                }
+                                onEditChange={(event) => {
+                                    if (notice?.tone === 'info')
+                                        setNotice(null);
+                                    if (text === null) {
+                                        track({
+                                            name: EventName.SEMANTIC_STUDIO_EDIT_STARTED,
+                                            properties: {
+                                                projectId: projectUuid,
+                                                kind: 'model',
+                                            },
+                                        });
+                                    }
+                                    setText(event.file.contents);
+                                    setHistory({
+                                        canUndo: event.editor.canUndo,
+                                        canRedo: event.editor.canRedo,
+                                    });
+                                }}
                                 onEditComplete={() => 'accept'}
                             />
                         </EditProvider>
                     </WorkerPoolContextProvider>
-                ) : marksDraft ? (
-                    <WorkerPoolContextProvider
-                        poolOptions={PIERRE_POOL_OPTIONS}
-                        highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                ) : marksDraft && drafted ? (
+                    <Box
+                        className={canEdit ? classes.clickToEdit : undefined}
+                        onClick={(event) => startEditing(event.nativeEvent)}
                     >
-                        <ChangeDiff
-                            modelName={modelName}
-                            change={drafted}
-                            variant="whole"
-                        />
-                    </WorkerPoolContextProvider>
+                        <WorkerPoolContextProvider
+                            poolOptions={PIERRE_POOL_OPTIONS}
+                            highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                        >
+                            <ChangeDiff
+                                modelName={modelName}
+                                change={drafted}
+                                variant="whole"
+                            />
+                        </WorkerPoolContextProvider>
+                    </Box>
                 ) : (
-                    <WorkerPoolContextProvider
-                        poolOptions={PIERRE_POOL_OPTIONS}
-                        highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                    <Box
+                        className={canEdit ? classes.clickToEdit : undefined}
+                        onClick={(event) => startEditing(event.nativeEvent)}
                     >
-                        <File
-                            file={{
-                                name: `${modelName}.yml`,
-                                contents: shownContent,
-                            }}
-                            selectedLines={block}
-                            options={{
-                                ...options,
-                                unsafeCSS: block ? ISOLATE_BLOCK_CSS : '',
-                            }}
-                        />
-                    </WorkerPoolContextProvider>
+                        <WorkerPoolContextProvider
+                            poolOptions={PIERRE_POOL_OPTIONS}
+                            highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                        >
+                            <File
+                                file={{
+                                    name: `${modelName}.yml`,
+                                    contents: shownContent,
+                                }}
+                                selectedLines={block}
+                                options={{
+                                    ...options,
+                                    unsafeCSS: block ? ISOLATE_BLOCK_CSS : '',
+                                }}
+                            />
+                        </WorkerPoolContextProvider>
+                    </Box>
                 )}
             </Box>
         </Box>
@@ -424,8 +553,8 @@ const HistoryPane: FC<{
                         <Box miw={0}>
                             <Text fz="sm">In your draft</Text>
                             <Text fz="xs" c="dimmed">
-                                Not live. Only you see them until you publish;
-                                everything below is live.
+                                Not live until you publish, and only you can
+                                change them. Everything below is live.
                             </Text>
                         </Box>
                         <Button
@@ -533,6 +662,8 @@ export const ModelTabs: FC<{
     lineage?: ReactNode;
     /** Only modelled (dbt) explores have pre-aggregates; live and external sources do not. */
     isModelled: boolean;
+    /** The source's own settings, for a live data source with this one explore. */
+    settings?: ReactNode;
 }> = ({
     projectUuid,
     modelName,
@@ -540,6 +671,7 @@ export const ModelTabs: FC<{
     fields,
     lineage = null,
     isModelled,
+    settings = null,
 }) => {
     const { data: model } = useSemanticLayerModel(projectUuid, modelName);
     // A repository keeps its own history.
@@ -549,32 +681,37 @@ export const ModelTabs: FC<{
     const preAggregatesEnabled =
         useHealth().data?.preAggregates.enabled === true;
     const hasPreAggregates = isModelled && preAggregatesEnabled;
+    const hasSettings = settings !== null;
     const [searchParams, setSearchParams] = useSearchParams();
     const requested = searchParams.get(VIEW_PARAM);
-    const view =
+    const view: ModelTab =
         hasHistory && requested === 'history'
             ? 'history'
             : hasLineage && requested === 'lineage'
               ? 'lineage'
               : hasPreAggregates && requested === 'pre-aggregates'
                 ? 'pre-aggregates'
-                : 'fields';
+                : hasSettings && requested === 'settings'
+                  ? 'settings'
+                  : 'fields';
     return (
         <Tabs
             className={classes.root}
-            value={view}
-            onChange={(next) =>
-                setSearchParams(
-                    next === 'history' ||
-                        next === 'lineage' ||
-                        next === 'pre-aggregates'
-                        ? { [VIEW_PARAM]: next }
-                        : {},
-                    { replace: true },
-                )
+            // Fields and settings are as tall as they are; the page scrolls
+            // them, and the field list virtualises against that scroll
+            data-fit-content={
+                view === 'fields' || view === 'settings' || undefined
             }
+            value={view}
+            onChange={(next) => {
+                const tab = MODEL_TABS.find((item) => item === next);
+                setSearchParams(
+                    tab && tab !== 'fields' ? { [VIEW_PARAM]: tab } : {},
+                    { replace: true },
+                );
+            }}
         >
-            {hasHistory || hasLineage || hasPreAggregates ? (
+            {hasHistory || hasLineage || hasPreAggregates || hasSettings ? (
                 <Tabs.List mb="md">
                     <Tabs.Tab value="fields">Fields</Tabs.Tab>
                     {hasLineage ? (
@@ -587,6 +724,9 @@ export const ModelTabs: FC<{
                     ) : null}
                     {hasHistory ? (
                         <Tabs.Tab value="history">History</Tabs.Tab>
+                    ) : null}
+                    {hasSettings ? (
+                        <Tabs.Tab value="settings">Settings</Tabs.Tab>
                     ) : null}
                 </Tabs.List>
             ) : null}
@@ -615,6 +755,40 @@ export const ModelTabs: FC<{
                     />
                 </Tabs.Panel>
             ) : null}
+            {view === 'settings' ? (
+                <Tabs.Panel value="settings" className={classes.panel}>
+                    {settings}
+                </Tabs.Panel>
+            ) : null}
         </Tabs>
+    );
+};
+
+/**
+ * A live data source on one page: its explores (or, with one explore, its
+ * fields), then its settings. A settings link scrolls to them.
+ */
+export const LiveSourceFlow: FC<{
+    main: ReactNode;
+    settings: ReactNode;
+}> = ({ main, settings }) => {
+    const [searchParams] = useSearchParams();
+    const wantsSettings = searchParams.get(VIEW_PARAM) === 'settings';
+    const settingsRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!wantsSettings) return undefined;
+        // After the explores or fields above have laid out
+        const frame = requestAnimationFrame(() =>
+            settingsRef.current?.scrollIntoView({ block: 'start' }),
+        );
+        return () => cancelAnimationFrame(frame);
+    }, [wantsSettings]);
+    return (
+        <Box className={classes.root} data-fit-content>
+            <Stack gap="lg">
+                {main}
+                <Box ref={settingsRef}>{settings}</Box>
+            </Stack>
+        </Box>
     );
 };

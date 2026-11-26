@@ -16587,7 +16587,11 @@
                     "github",
                     "pylon",
                     "attio",
-                    "hubspot"
+                    "hubspot",
+                    "salesforce",
+                    "amplitude",
+                    "mixpanel",
+                    "hydra"
                 ],
                 "type": "string"
             },
@@ -16798,16 +16802,13 @@
             },
             "AttioApiSource": {
                 "properties": {
-                    "object": {
-                        "type": "string",
-                        "description": "The slug of the Attio object the source reads, e.g. companies or deals."
-                    },
                     "connector": {
                         "$ref": "#/components/schemas/ApiConnectorType.ATTIO"
                     }
                 },
-                "required": ["object", "connector"],
-                "type": "object"
+                "required": ["connector"],
+                "type": "object",
+                "description": "The access token picks the Attio workspace, so nothing else is set."
             },
             "ApiConnectorType.HUBSPOT": {
                 "enum": ["hubspot"],
@@ -16822,6 +16823,218 @@
                 "required": ["connector"],
                 "type": "object",
                 "description": "The private app's token picks the HubSpot account, so nothing else is set."
+            },
+            "ApiConnectorType.SALESFORCE": {
+                "enum": ["salesforce"],
+                "type": "string"
+            },
+            "SalesforceApiSource": {
+                "properties": {
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.SALESFORCE"
+                    }
+                },
+                "required": ["connector"],
+                "type": "object",
+                "description": "One sign-in reads every object in SALESFORCE_OBJECTS, so nothing else is set."
+            },
+            "ApiConnectorType.AMPLITUDE": {
+                "enum": ["amplitude"],
+                "type": "string"
+            },
+            "AmplitudeApiSource": {
+                "properties": {
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.AMPLITUDE"
+                    }
+                },
+                "required": ["connector"],
+                "type": "object",
+                "description": "An Amplitude project; its API key and secret key pick it, and the\nconnection's origin says whether its data lives in the US or the EU."
+            },
+            "ApiConnectorType.MIXPANEL": {
+                "enum": ["mixpanel"],
+                "type": "string"
+            },
+            "MixpanelApiSource": {
+                "properties": {
+                    "projectId": {
+                        "type": "string",
+                        "description": "The Mixpanel project id, the number after /project/ in its URL."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.MIXPANEL"
+                    }
+                },
+                "required": ["projectId", "connector"],
+                "type": "object",
+                "description": "A Mixpanel project, read with a service account; the connection's origin\nsays whether its data lives in the US, the EU or India."
+            },
+            "ApiConnectorType.HYDRA": {
+                "enum": ["hydra"],
+                "type": "string"
+            },
+            "HydraRateLimits": {
+                "properties": {
+                    "buckets": {
+                        "items": {
+                            "properties": {
+                                "capacity": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "windowMs": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "id": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["capacity", "windowMs", "id"],
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "description": "Fixed windows of calls, like a minute or an hour: up to 5, unique ids, \"second\" kept for `callsPerSecond`."
+                    },
+                    "callsPerSecond": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "concurrentCalls": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Calls in flight at once; null for no cap."
+                    }
+                },
+                "required": ["buckets", "callsPerSecond", "concurrentCalls"],
+                "type": "object",
+                "description": "Rate limits, in the shape the rate-limit gate reads."
+            },
+            "HydraOnLimit": {
+                "properties": {
+                    "body": {
+                        "$ref": "#/components/schemas/Record_string.unknown_",
+                        "description": "The body Hydra answers; `{\"code\": \"rate_limited\"}` marks a throttle in a non-429."
+                    },
+                    "retryAfterFormat": {
+                        "type": "string",
+                        "enum": ["seconds", "date", "none"],
+                        "description": "How Retry-After is written: as seconds, as an HTTP date, or left out."
+                    },
+                    "status": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["retryAfterFormat", "status"],
+                "type": "object"
+            },
+            "HydraMockResponse": {
+                "properties": {
+                    "body": {
+                        "$ref": "#/components/schemas/Record_string.unknown_",
+                        "description": "The error body; error statuses only."
+                    },
+                    "retryAfterSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Sent as Retry-After; error statuses only."
+                    },
+                    "status": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "toCall": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fromCall": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "call": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["status"],
+                "type": "object",
+                "description": "A fake answer a test sets for one call (`call`) or a range (`fromCall`, and `toCall`\nor every call after). Status 200 answers as usual, skipping `errorRate`;\n400 to 599 is answered as given."
+            },
+            "HydraApiSource": {
+                "properties": {
+                    "mockResponses": {
+                        "items": {
+                            "$ref": "#/components/schemas/HydraMockResponse"
+                        },
+                        "type": "array",
+                        "description": "Fake answers a test sets for given calls, counted per source from 1; the first match wins."
+                    },
+                    "declaredLimits": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/HydraRateLimits"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["vendor"]
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The limits Lightdash keeps the source's calls under: \"vendor\" copies\n`vendorLimits`, and null declares none."
+                    },
+                    "onLimit": {
+                        "$ref": "#/components/schemas/HydraOnLimit",
+                        "description": "How Hydra refuses a call past `vendorLimits`."
+                    },
+                    "vendorLimits": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/HydraRateLimits"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The limits Hydra's API enforces, refusing calls past them; null enforces none."
+                    },
+                    "failAuth": {
+                        "type": "boolean",
+                        "description": "Every call answers 401, as a revoked sign-in would."
+                    },
+                    "errorRate": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Share of calls, 0 to 1, that fail with a 500."
+                    },
+                    "jitterMs": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Up to this many milliseconds more, at random, per call."
+                    },
+                    "latencyMs": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Milliseconds each call waits before answering."
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Rows per call, 10 or more; a bigger report takes several calls. 0 never pages."
+                    },
+                    "rowCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Events seeded per sign-in token, over the last 90 days."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.HYDRA"
+                    }
+                },
+                "required": ["connector"],
+                "type": "object",
+                "description": "Hydra, the test integration: its rows are seeded from the sign-in token,\nand these settings make its fake API slow, fail, page or rate limit.\nEvery setting is optional; one left out takes its default\n(`HYDRA_DEFAULT_SETTINGS`)."
             },
             "ExternalConnectionApiSource": {
                 "anyOf": [
@@ -16857,9 +17070,74 @@
                     },
                     {
                         "$ref": "#/components/schemas/HubspotApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SalesforceApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AmplitudeApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MixpanelApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HydraApiSource"
                     }
                 ],
                 "description": "Connector settings of a live source; the server fixes its access rules."
+            },
+            "Record_string.string-Array_": {
+                "properties": {},
+                "additionalProperties": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "LiveSourceAccessRule": {
+                "properties": {
+                    "any": {
+                        "$ref": "#/components/schemas/Record_string.string-Array_",
+                        "description": "At least one attribute must match one of its values."
+                    },
+                    "required": {
+                        "$ref": "#/components/schemas/Record_string.string-Array_",
+                        "description": "Every attribute must match one of its values."
+                    }
+                },
+                "required": ["any", "required"],
+                "type": "object",
+                "description": "Who can query a live data source, as user attribute conditions. The rule is\ncopied onto each of the source's explores (`required_attributes` and\n`any_attributes` on the base table), so every explore check applies it.\nEmpty conditions mean everyone who can query the project can query it."
+            },
+            "LiveSourceRateLimitSettings": {
+                "properties": {
+                    "concurrentCalls": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Calls in flight at once."
+                    },
+                    "callsPerSecond": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "buckets": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "type": "object",
+                        "description": "Calls allowed in a time window, by bucket id."
+                    }
+                },
+                "required": ["concurrentCalls", "callsPerSecond", "buckets"],
+                "type": "object",
+                "description": "The limits an admin set on one live data source. Each lowers the\nintegration's own limit; a window left out of `buckets`, or a null value,\nkeeps it."
             },
             "ExternalConnection": {
                 "properties": {
@@ -16882,6 +17160,24 @@
                     "hasSecret": {
                         "type": "boolean"
                     },
+                    "adminRateLimits": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LiveSourceRateLimitSettings"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Live sources: the lower rate limits an admin set; null when none are set."
+                    },
+                    "accessRule": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LiveSourceAccessRule"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Live sources: who can query it, as user attribute conditions; null when\neveryone in the project can. Returned only to those who manage it."
+                    },
                     "cachePurgedAt": {
                         "type": "string",
                         "format": "date-time",
@@ -16898,6 +17194,14 @@
                         "type": "string",
                         "nullable": true,
                         "description": "The name the connection picker showed for the source's target."
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Live sources: tags its explores carry, so an AI agent limited to tags\ncan use the source when they share one."
                     },
                     "aiHint": {
                         "type": "string",
@@ -17608,6 +17912,16 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "queries": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Logged queries on the source, whether or not a stored result answered them."
+                    },
+                    "windowDays": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "How many days back the usage goes: the query history retention window."
+                    },
                     "externalConnectionUuid": {
                         "type": "string"
                     }
@@ -17617,10 +17931,12 @@
                     "responseBytes",
                     "cacheHits",
                     "apiCalls",
+                    "queries",
+                    "windowDays",
                     "externalConnectionUuid"
                 ],
                 "type": "object",
-                "description": "What a live source has sent its integration across every logged query."
+                "description": "What a live source has sent its integration across the logged queries in the usage window."
             },
             "ApiExternalConnectionApiUsageResponse": {
                 "properties": {
@@ -17744,6 +18060,133 @@
                         ],
                         "nullable": true,
                         "description": "Null when the connection was never scanned."
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ExternalConnectionRateLimitBucket": {
+                "properties": {
+                    "resetsAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "When the current window ends, ISO; null when no window is open."
+                    },
+                    "used": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Calls in the current window; 0 when no window is open."
+                    },
+                    "defaultCapacity": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "The integration's own limit; null for a daily limit only an admin set."
+                    },
+                    "capacity": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "The limit in force: the integration's, or an admin's lower one."
+                    },
+                    "windowMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "As declared, such as \"per hour\"."
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "resetsAt",
+                    "used",
+                    "defaultCapacity",
+                    "capacity",
+                    "windowMs",
+                    "label",
+                    "id"
+                ],
+                "type": "object",
+                "description": "One limit on calls in a time window, with Lightdash's calls in its current window."
+            },
+            "ExternalConnectionRateLimitUsage": {
+                "properties": {
+                    "note": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "What admins are told alongside the limits they can lower."
+                    },
+                    "runningCalls": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Calls in flight, never above the concurrency limit now in force."
+                    },
+                    "defaultConcurrentCalls": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "The integration's own limit on calls in flight at once."
+                    },
+                    "defaultCallsPerSecond": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "The integration's own limit; null when it has no per-second limit."
+                    },
+                    "adminRateLimits": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LiveSourceRateLimitSettings"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "What an admin set, as saved; null when nothing is set."
+                    },
+                    "limitedUntil": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "When the vendor's pause ends, ISO; null when it hasn't paused the integration."
+                    },
+                    "buckets": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionRateLimitBucket"
+                        },
+                        "type": "array",
+                        "description": "Shortest window first."
+                    },
+                    "checkedAt": {
+                        "type": "string"
+                    },
+                    "integrationLabel": {
+                        "type": "string",
+                        "description": "The integration's name, such as HubSpot."
+                    }
+                },
+                "required": [
+                    "note",
+                    "runningCalls",
+                    "defaultConcurrentCalls",
+                    "defaultCallsPerSecond",
+                    "adminRateLimits",
+                    "limitedUntil",
+                    "buckets",
+                    "checkedAt",
+                    "integrationLabel"
+                ],
+                "type": "object",
+                "description": "A live data source's rate limits, with Lightdash's own calls against them as\nof `checkedAt`. Other apps on the same vendor account aren't counted."
+            },
+            "ApiExternalConnectionRateLimitUsageResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalConnectionRateLimitUsage"
                     },
                     "status": {
                         "type": "string",
@@ -17953,6 +18396,14 @@
                     },
                     {
                         "properties": {
+                            "tags": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "nullable": true,
+                                "description": "Live sources only. Empty or null clears them."
+                            },
                             "aiHint": {
                                 "type": "string",
                                 "nullable": true,
@@ -17974,6 +18425,48 @@
                 "required": ["ttlSeconds"],
                 "type": "object",
                 "description": "Null puts the source back on its integration's default."
+            },
+            "LiveSourceAccess": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/LiveSourceAccessRule"
+                    },
+                    {
+                        "properties": {
+                            "yourAttributes": {
+                                "$ref": "#/components/schemas/Record_string.string-Array_",
+                                "description": "The caller's own attribute values, to warn before a rule locks them out."
+                            },
+                            "attributeNames": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "The organization's user attributes, which conditions can name."
+                            }
+                        },
+                        "required": ["yourAttributes", "attributeNames"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A live data source's access rule, with what the people who manage it need to edit it."
+            },
+            "ApiLiveSourceAccessResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LiveSourceAccess"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUpdateLiveSourceRateLimitsRequest": {
+                "$ref": "#/components/schemas/LiveSourceRateLimitSettings"
             },
             "LiveSourceFieldEditor": {
                 "properties": {
@@ -18078,6 +18571,34 @@
                         },
                         "type": "array"
                     },
+                    "canEditFields": {
+                        "type": "boolean",
+                        "description": "False for an explore scans add no fields to; its `fields` is then empty."
+                    },
+                    "lastEdit": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LiveSourceFieldEditor"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "usedByChartCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Saved charts on the explore."
+                    },
+                    "inUse": {
+                        "type": "boolean",
+                        "description": "Off, the explore isn't built, so charts, dashboards and agents can't use it."
+                    },
+                    "aiHint": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string"
+                    },
                     "label": {
                         "type": "string"
                     },
@@ -18085,9 +18606,19 @@
                         "type": "string"
                     }
                 },
-                "required": ["fields", "label", "exploreName"],
+                "required": [
+                    "fields",
+                    "canEditFields",
+                    "lastEdit",
+                    "usedByChartCount",
+                    "inUse",
+                    "aiHint",
+                    "description",
+                    "label",
+                    "exploreName"
+                ],
                 "type": "object",
-                "description": "The fields of one explore of a live data source."
+                "description": "One explore of a live data source, with its fields when they can be curated."
             },
             "LiveSourceFields": {
                 "properties": {
@@ -18096,7 +18627,7 @@
                             "$ref": "#/components/schemas/LiveSourceExploreFields"
                         },
                         "type": "array",
-                        "description": "Every explore whose fields can be curated, the first one included."
+                        "description": "Every explore of the source, in use or not, the first one included."
                     },
                     "fields": {
                         "items": {
@@ -18142,6 +18673,73 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "LiveSourceContentUsage": {
+                "properties": {
+                    "hiddenDashboardCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dashboards": {
+                        "items": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name", "uuid"],
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "description": "Dashboards showing any of the charts, or holding one of them."
+                    },
+                    "hiddenChartCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Charts in spaces the caller can't open, counted but not named."
+                    },
+                    "charts": {
+                        "items": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name", "uuid"],
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "description": "The charts the caller can open."
+                    }
+                },
+                "required": [
+                    "hiddenDashboardCount",
+                    "dashboards",
+                    "hiddenChartCount",
+                    "charts"
+                ],
+                "type": "object",
+                "description": "Saved content one item of a live data source is used by."
+            },
+            "ApiLiveSourceContentUsageResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LiveSourceContentUsage"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "LiveSourceFieldChange": {
                 "properties": {
                     "group": {
@@ -18175,8 +18773,39 @@
                 "type": "object",
                 "description": "One field change; unset keys stay as they are, null clears an override."
             },
+            "LiveSourceExploreChange": {
+                "properties": {
+                    "aiHint": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "inUse": {
+                        "type": "boolean"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["exploreName"],
+                "type": "object",
+                "description": "One explore change; unset keys stay as they are, null clears an override."
+            },
             "ApiUpdateLiveSourceFieldsRequest": {
                 "properties": {
+                    "exploreChanges": {
+                        "items": {
+                            "$ref": "#/components/schemas/LiveSourceExploreChange"
+                        },
+                        "type": "array"
+                    },
                     "changes": {
                         "items": {
                             "$ref": "#/components/schemas/LiveSourceFieldChange"
@@ -21713,17 +22342,6 @@
             "PreAggregateSort": {
                 "$ref": "#/components/schemas/Pick_SortField.fieldId-or-descending_"
             },
-            "Record_string.string-Array_": {
-                "properties": {},
-                "additionalProperties": {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "UserAttributeValueMap": {
                 "$ref": "#/components/schemas/Record_string.string-Array_"
             },
@@ -21832,6 +22450,10 @@
             },
             "ApiSourceFieldRule": {
                 "properties": {
+                    "valueLabels": {
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Display labels by the API's internal value, for fields that show an\noption's label: filters on the field turn labels back into values."
+                    },
                     "filterOperators": {
                         "items": {
                             "$ref": "#/components/schemas/FilterOperator"
@@ -25987,7 +26609,7 @@
                 },
                 "required": ["text", "endMs", "startMs"],
                 "type": "object",
-                "description": "One spoken word from a Voice Design recording, timed from the start of its audio."
+                "description": "One spoken word from a Design Mode recording, timed from the start of its audio."
             },
             "ApiSuccess__words-CaptureTranscriptWord-Array__": {
                 "properties": {
@@ -29530,313 +30152,6 @@
                     }
                 },
                 "required": ["projectUuid", "prompt"],
-                "type": "object"
-            },
-            "CaptureLayoutOp": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "y": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "x": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "tileUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["move"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["y", "x", "tileUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "h": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "w": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "tileUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["resize"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["h", "w", "tileUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "withTileUuid": {
-                                "type": "string"
-                            },
-                            "tileUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["swap"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["withTileUuid", "tileUuid", "type"],
-                        "type": "object"
-                    }
-                ],
-                "description": "A layout change the page applies itself, without an agent."
-            },
-            "CaptureQuestion": {
-                "properties": {
-                    "tileUuids": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "text": {
-                        "type": "string"
-                    }
-                },
-                "required": ["tileUuids", "text"],
-                "type": "object",
-                "description": "A question to hand to the AI agent, with the tiles it is about."
-            },
-            "CaptureEdit": {
-                "properties": {
-                    "tileUuids": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "text": {
-                        "type": "string"
-                    }
-                },
-                "required": ["tileUuids", "text"],
-                "type": "object",
-                "description": "A change to the dashboard that an agent carries out (a filter, a new chart, a rename)."
-            },
-            "CaptureRoute": {
-                "properties": {
-                    "edits": {
-                        "items": {
-                            "$ref": "#/components/schemas/CaptureEdit"
-                        },
-                        "type": "array"
-                    },
-                    "questions": {
-                        "items": {
-                            "$ref": "#/components/schemas/CaptureQuestion"
-                        },
-                        "type": "array"
-                    },
-                    "layout": {
-                        "items": {
-                            "$ref": "#/components/schemas/CaptureLayoutOp"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["edits", "questions", "layout"],
-                "type": "object"
-            },
-            "ApiSuccess_CaptureRoute_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/CaptureRoute"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiCaptureRouteResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_CaptureRoute_"
-            },
-            "CaptureRouteTile": {
-                "properties": {
-                    "h": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "w": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "y": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "x": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "title": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["h", "w", "y", "x", "title", "uuid"],
-                "type": "object",
-                "description": "A dashboard tile as the capture router sees it, in grid units."
-            },
-            "CaptureRoutePlace": {
-                "properties": {
-                    "cell": {
-                        "properties": {
-                            "y": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "x": {
-                                "type": "number",
-                                "format": "double"
-                            }
-                        },
-                        "required": ["y", "x"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "tileUuid": {
-                        "type": "string",
-                        "nullable": true
-                    }
-                },
-                "required": ["cell", "tileUuid"],
-                "type": "object",
-                "description": "Where a mark points: a tile, an empty grid cell, or nothing known."
-            },
-            "CaptureRouteMark": {
-                "properties": {
-                    "speech": {
-                        "type": "string"
-                    },
-                    "inside": {
-                        "items": {
-                            "properties": {
-                                "share": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "tileUuid": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["share", "tileUuid"],
-                            "type": "object"
-                        },
-                        "type": "array",
-                        "description": "Tiles under the area the mark encloses, with the percent of that area on each."
-                    },
-                    "path": {
-                        "items": {
-                            "$ref": "#/components/schemas/CaptureRoutePlace"
-                        },
-                        "type": "array",
-                        "description": "Everything the stroke passed over, in the order it was drawn."
-                    },
-                    "arrowTo": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/CaptureRoutePlace"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Where an arrow ends. Null for marks that are not arrows."
-                    },
-                    "at": {
-                        "$ref": "#/components/schemas/CaptureRoutePlace"
-                    },
-                    "shape": {
-                        "type": "string"
-                    },
-                    "image": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Which attached screenshot shows this mark, from 1. Zero when none."
-                    },
-                    "number": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": [
-                    "speech",
-                    "inside",
-                    "path",
-                    "arrowTo",
-                    "at",
-                    "shape",
-                    "image",
-                    "number"
-                ],
-                "type": "object",
-                "description": "One drawn mark from a Voice Design recording and the words said with it."
-            },
-            "ApiCaptureRouteRequest": {
-                "properties": {
-                    "images": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "Screenshots with the marks drawn on, as base64 JPEG, in order."
-                    },
-                    "looseSpeech": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "Things said that were not attached to any mark."
-                    },
-                    "marks": {
-                        "items": {
-                            "$ref": "#/components/schemas/CaptureRouteMark"
-                        },
-                        "type": "array"
-                    },
-                    "tiles": {
-                        "items": {
-                            "$ref": "#/components/schemas/CaptureRouteTile"
-                        },
-                        "type": "array"
-                    },
-                    "gridColumns": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "dashboardName": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "images",
-                    "looseSpeech",
-                    "marks",
-                    "tiles",
-                    "gridColumns",
-                    "dashboardName"
-                ],
                 "type": "object"
             },
             "ApiAiRouterDecisionCommitResponse": {
@@ -34384,8 +34699,12 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
+            "Pick_AiAgent.uuid-or-name-or-kind-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": ["user", "semantic_studio"]
+                    },
                     "description": {
                         "type": "string",
                         "nullable": true
@@ -34542,6 +34861,7 @@
                     }
                 },
                 "required": [
+                    "kind",
                     "description",
                     "imageUrl",
                     "name",
@@ -34575,7 +34895,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-kind-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -35187,13 +35507,13 @@
                 "type": "string",
                 "enum": [
                     "data_app",
+                    "semantic_studio",
                     "slack",
                     "web_app",
                     "api",
                     "evals",
                     "scheduler",
-                    "dashboard_analysis",
-                    "semantic_studio"
+                    "dashboard_analysis"
                 ]
             },
             "AiAgentBattleProfile": {
@@ -35303,8 +35623,21 @@
                 ],
                 "description": "A thread binding as read back, with the resource name. `displayName` is null once the resource is deleted."
             },
+            "AiThreadMetadata": {
+                "$ref": "#/components/schemas/Record_string.string_",
+                "description": "Caller-defined labels on a thread. They never change what the request can access."
+            },
             "AiAgentThreadSummary_AiAgentUser_": {
                 "properties": {
+                    "metadata": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiThreadMetadata"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Caller-supplied labels set at creation; null when none were sent."
+                    },
                     "threadContext": {
                         "type": "string",
                         "nullable": true,
@@ -35372,6 +35705,7 @@
                     }
                 },
                 "required": [
+                    "metadata",
                     "threadContext",
                     "binding",
                     "liveStatus",
@@ -35484,8 +35818,12 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-kind-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": ["user", "semantic_studio"]
+                    },
                     "description": {
                         "type": "string",
                         "nullable": true
@@ -35642,6 +35980,7 @@
                     }
                 },
                 "required": [
+                    "kind",
                     "description",
                     "imageUrl",
                     "name",
@@ -35675,7 +36014,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-kind-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -36275,150 +36614,6 @@
             "ApiAgentReadinessScoreResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ReadinessScore_"
             },
-            "AiAgentVerifiedArtifact": {
-                "properties": {
-                    "promptUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "threadUuid": {
-                        "type": "string"
-                    },
-                    "referenceCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "verifiedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "userUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "userUuid"],
-                        "type": "object"
-                    },
-                    "verifiedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "title": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "artifactType": {
-                        "type": "string",
-                        "enum": ["chart", "dashboard"]
-                    },
-                    "versionUuid": {
-                        "type": "string"
-                    },
-                    "artifactUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "promptUuid",
-                    "threadUuid",
-                    "referenceCount",
-                    "verifiedBy",
-                    "verifiedAt",
-                    "description",
-                    "title",
-                    "artifactType",
-                    "versionUuid",
-                    "artifactUuid"
-                ],
-                "type": "object"
-            },
-            "KnexPaginatedData_AiAgentVerifiedArtifact-Array_": {
-                "properties": {
-                    "pagination": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/KnexPaginateArgs"
-                            },
-                            {
-                                "properties": {
-                                    "totalResults": {
-                                        "type": "number",
-                                        "format": "double"
-                                    },
-                                    "totalPageCount": {
-                                        "type": "number",
-                                        "format": "double"
-                                    }
-                                },
-                                "required": ["totalResults", "totalPageCount"],
-                                "type": "object"
-                            }
-                        ]
-                    },
-                    "data": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiAgentVerifiedArtifact"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["data"],
-                "type": "object"
-            },
-            "ApiSuccess_KnexPaginatedData_AiAgentVerifiedArtifact-Array__": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/KnexPaginatedData_AiAgentVerifiedArtifact-Array_"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiAgentVerifiedArtifactsResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentVerifiedArtifact-Array__"
-            },
-            "ApiSuccess__question-string--uuid-string_-Array_": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "properties": {
-                                "uuid": {
-                                    "type": "string"
-                                },
-                                "question": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["uuid", "question"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiAgentVerifiedQuestionsResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__question-string--uuid-string_-Array_"
-            },
             "ApiCreateAiAgentResponse": {
                 "properties": {
                     "results": {
@@ -36737,6 +36932,15 @@
             },
             "AiAgentThreadSummary": {
                 "properties": {
+                    "metadata": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiThreadMetadata"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Caller-supplied labels set at creation; null when none were sent."
+                    },
                     "threadContext": {
                         "type": "string",
                         "nullable": true,
@@ -36804,6 +37008,7 @@
                     }
                 },
                 "required": [
+                    "metadata",
                     "threadContext",
                     "binding",
                     "liveStatus",
@@ -38267,6 +38472,7 @@
                     "describeWarehouseTable",
                     "discoverFields",
                     "discoverRepos",
+                    "draftProjectContext",
                     "editContent",
                     "editDbtProject",
                     "editProjectContext",
@@ -38300,6 +38506,7 @@
                     "loadProjectContext",
                     "loadSkill",
                     "proposeSemanticLayerChange",
+                    "read",
                     "readAttachments",
                     "readContent",
                     "readPinnedThread",
@@ -38316,7 +38523,9 @@
                     "submitWorkerFindings",
                     "syncDbtProject",
                     "updateUserName",
-                    "visualize"
+                    "verify",
+                    "visualize",
+                    "write"
                 ],
                 "description": "Exclude from T those types that are assignable to U"
             },
@@ -39872,9 +40081,9 @@
                                                                             "type": "string",
                                                                             "enum": [
                                                                                 "stage",
+                                                                                "read",
                                                                                 "compile",
                                                                                 "edit",
-                                                                                "read",
                                                                                 "search"
                                                                             ]
                                                                         }
@@ -41290,13 +41499,6 @@
                         ],
                         "nullable": true
                     },
-                    "referencedArtifacts": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiAgentMessageAssistantArtifact"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
                     "artifacts": {
                         "items": {
                             "$ref": "#/components/schemas/AiAgentMessageAssistantArtifact"
@@ -41371,7 +41573,6 @@
                     "responseTiming",
                     "tokenUsage",
                     "modelConfig",
-                    "referencedArtifacts",
                     "artifacts",
                     "savedQueryUuid",
                     "reasoning",
@@ -41644,6 +41845,10 @@
                         "$ref": "#/components/schemas/Extract_AiThreadCreatedFrom.semantic_studio_",
                         "description": "Starts a Semantic Studio thread, whose agent drafts model changes for the person to apply. Only the app may set it."
                     },
+                    "metadata": {
+                        "$ref": "#/components/schemas/AiThreadMetadata",
+                        "description": "Labels saved on the thread, such as an end user id or environment. At most 20 keys,\nkeys up to 255 characters, values up to 4,000 characters. Cannot be changed after creation."
+                    },
                     "threadContext": {
                         "type": "string",
                         "description": "Initial context for the agent, up to 10,000 characters. Cannot be changed after creation."
@@ -41660,7 +41865,8 @@
                         "type": "string"
                     },
                     "modelConfig": {
-                        "$ref": "#/components/schemas/AiAgentModelConfig"
+                        "$ref": "#/components/schemas/AiAgentModelConfig",
+                        "description": "Model and reasoning settings for the first prompt. The thread keeps its first recorded configuration."
                     },
                     "context": {
                         "$ref": "#/components/schemas/AiPromptContextInput"
@@ -41699,7 +41905,8 @@
                         "type": "string"
                     },
                     "modelConfig": {
-                        "$ref": "#/components/schemas/AiAgentModelConfig"
+                        "$ref": "#/components/schemas/AiAgentModelConfig",
+                        "description": "Must match the thread's recorded model and reasoning settings, otherwise returns HTTP 400. Omit to reuse them; start a new thread to change them. If no configuration is recorded yet, selects it for this prompt."
                     },
                     "context": {
                         "$ref": "#/components/schemas/AiPromptContextInput"
@@ -42462,15 +42669,6 @@
                     "versionCreatedAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "verifiedByUserUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "verifiedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
                     }
                 },
                 "required": [
@@ -42488,9 +42686,7 @@
                     "savedDashboardUuid",
                     "savedComposerChartUuid",
                     "savedComposerChartDashboardUuid",
-                    "versionCreatedAt",
-                    "verifiedByUserUuid",
-                    "verifiedAt"
+                    "versionCreatedAt"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -43618,6 +43814,14 @@
             },
             "SemanticStudioBranchCompile": {
                 "properties": {
+                    "requestedByAgent": {
+                        "type": "boolean",
+                        "description": "Whether an agent's save asked for it, so a failure can go back to the agent."
+                    },
+                    "compileRequestUuid": {
+                        "type": "string",
+                        "description": "The compile this describes; a newer request replaces it."
+                    },
                     "compiledAt": {
                         "type": "string",
                         "format": "date-time",
@@ -43646,6 +43850,8 @@
                     }
                 },
                 "required": [
+                    "requestedByAgent",
+                    "compileRequestUuid",
                     "compiledAt",
                     "requestedAt",
                     "hasExplores",
@@ -43708,6 +43914,57 @@
             "ApiSemanticStudioCheckoutResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticStudioCheckout-or-null_",
                 "description": "Null when the person is on what is published."
+            },
+            "SemanticStudioBranchCompileFollowUp": {
+                "properties": {
+                    "prompt": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prompt", "threadUuid", "agentUuid"],
+                "type": "object",
+                "description": "A hidden prompt that sends an agent's failed compile back to it."
+            },
+            "ApiSuccess_SemanticStudioBranchCompileFollowUp-or-null_": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticStudioBranchCompileFollowUp"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioBranchCompileFollowUpResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioBranchCompileFollowUp-or-null_"
+            },
+            "SemanticStudioBranchCompileFollowUpBody": {
+                "properties": {
+                    "threadUuid": {
+                        "type": "string",
+                        "description": "The Studio chat asking; only the chat of the checked-out change gets the follow-up."
+                    },
+                    "compileRequestUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["threadUuid", "compileRequestUuid"],
+                "type": "object"
             },
             "MergePullRequestResult": {
                 "properties": {
@@ -43969,10 +44226,10 @@
                 "type": "string",
                 "enum": [
                     "access",
+                    "not_found",
                     "name_taken",
                     "incomplete",
-                    "invalid_filter",
-                    "not_found"
+                    "invalid_filter"
                 ]
             },
             "ModelFragmentRefusal": {
@@ -43989,6 +44246,13 @@
             },
             "SemanticLayerDraftChange": {
                 "properties": {
+                    "projectContextEntries": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Ids of the project context entries this change adds or replaces."
+                    },
                     "models": {
                         "items": {
                             "properties": {
@@ -44037,6 +44301,7 @@
                     }
                 },
                 "required": [
+                    "projectContextEntries",
                     "models",
                     "createdAt",
                     "question",
@@ -44103,6 +44368,19 @@
             },
             "SemanticLayerDrafter": {
                 "properties": {
+                    "canDiscard": {
+                        "type": "boolean",
+                        "description": "Whether the viewer may discard this model's part of their draft: a project admin, once it is stale."
+                    },
+                    "isStale": {
+                        "type": "boolean",
+                        "description": "No activity for a week or more."
+                    },
+                    "lastActiveAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "When they last added to their draft."
+                    },
                     "paths": {
                         "items": {
                             "type": "string"
@@ -44111,9 +44389,19 @@
                     },
                     "name": {
                         "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
                     }
                 },
-                "required": ["paths", "name"],
+                "required": [
+                    "canDiscard",
+                    "isStale",
+                    "lastActiveAt",
+                    "paths",
+                    "name",
+                    "userUuid"
+                ],
                 "type": "object",
                 "description": "Someone else with a draft of a model, and the parts of it they are changing."
             },
@@ -44189,8 +44477,38 @@
                 "type": "object",
                 "description": "A model as the draft leaves it, against what is live."
             },
+            "SemanticLayerDraftProjectContext": {
+                "properties": {
+                    "contentAfter": {
+                        "type": "string"
+                    },
+                    "contentBefore": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when the project has no context yet."
+                    }
+                },
+                "required": ["contentAfter", "contentBefore"],
+                "type": "object",
+                "description": "What the draft does to the project's context, as its file; publishing makes it what agents read."
+            },
             "SemanticLayerSettledDraftChange": {
                 "properties": {
+                    "discardedBy": {
+                        "properties": {
+                            "at": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["at", "name"],
+                        "type": "object",
+                        "nullable": true,
+                        "description": "A project admin who discarded it as stale; null when its owner settled it."
+                    },
                     "models": {
                         "items": {
                             "type": "string"
@@ -44212,6 +44530,7 @@
                     }
                 },
                 "required": [
+                    "discardedBy",
                     "models",
                     "pullRequestUrl",
                     "status",
@@ -44304,6 +44623,15 @@
                         "type": "array",
                         "description": "Models the draft leaves unable to compile."
                     },
+                    "projectContext": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticLayerDraftProjectContext"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Null when the draft leaves the project context as it is."
+                    },
                     "models": {
                         "items": {
                             "$ref": "#/components/schemas/SemanticLayerDraftModel"
@@ -44323,6 +44651,7 @@
                     "inReview",
                     "settled",
                     "errors",
+                    "projectContext",
                     "models",
                     "changes"
                 ],
@@ -44794,6 +45123,43 @@
             },
             "ApiSemanticLayerDraftApplyResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftApplyResult_"
+            },
+            "SemanticLayerOthersDraftModel": {
+                "properties": {
+                    "contentAfter": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when their draft removes the model."
+                    },
+                    "contentBefore": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when their draft creates the model."
+                    },
+                    "model": {
+                        "type": "string"
+                    }
+                },
+                "required": ["contentAfter", "contentBefore", "model"],
+                "type": "object",
+                "description": "One model as someone else's draft leaves it, against what is live; read-only."
+            },
+            "ApiSuccess_SemanticLayerOthersDraftModel_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerOthersDraftModel"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerOthersDraftModelResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerOthersDraftModel_"
             },
             "SemanticLayerDraftMoveDirection": {
                 "type": "string",
@@ -50060,11 +50426,20 @@
             "ApiTriggerAiAgentMemoryDistillResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__jobId-string__"
             },
-            "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
+            "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid-or-metadata_": {
                 "properties": {
                     "title": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "metadata": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiThreadMetadata"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Caller-supplied labels set at creation; null when none were sent."
                     },
                     "uuid": {
                         "type": "string"
@@ -50097,18 +50472,19 @@
                         "type": "string",
                         "enum": [
                             "data_app",
+                            "semantic_studio",
                             "slack",
                             "web_app",
                             "api",
                             "evals",
                             "scheduler",
-                            "dashboard_analysis",
-                            "semantic_studio"
+                            "dashboard_analysis"
                         ]
                     }
                 },
                 "required": [
                     "title",
+                    "metadata",
                     "uuid",
                     "createdAt",
                     "user",
@@ -50118,7 +50494,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ThreadSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_"
+                "$ref": "#/components/schemas/Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid-or-metadata_"
             },
             "Pick_AiAgentSummary.uuid-or-name-or-imageUrl_": {
                 "properties": {
@@ -58471,9 +58847,16 @@
                     },
                     "dashboardEditTour": {
                         "type": "boolean"
+                    },
+                    "composerLineageTour": {
+                        "type": "boolean"
                     }
                 },
-                "required": ["memoryTour", "dashboardEditTour"],
+                "required": [
+                    "memoryTour",
+                    "dashboardEditTour",
+                    "composerLineageTour"
+                ],
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
@@ -58502,7 +58885,11 @@
             },
             "UserOnboardingTour": {
                 "type": "string",
-                "enum": ["memoryTour", "dashboardEditTour"]
+                "enum": [
+                    "memoryTour",
+                    "dashboardEditTour",
+                    "composerLineageTour"
+                ]
             },
             "ApiCompleteUserOnboardingTourRequest": {
                 "properties": {
@@ -62030,8 +62417,6 @@
                     "sendContentReviewNotification",
                     "createReviewJiraIssue",
                     "createReviewLinearIssue",
-                    "embedArtifactVersion",
-                    "generateArtifactQuestion",
                     "appGeneratePipeline",
                     "appBuildFromSource",
                     "appCaptureThumbnail",
@@ -62050,6 +62435,7 @@
                     "consolidateAiAgentMemoryPartition",
                     "cleanMcpToolCalls",
                     "cleanRateCounters",
+                    "cleanApiSourceRateLimits",
                     "rebuildOutdatedApiSourceExplores",
                     "cleanDataAppAnalyses",
                     "cleanAiAgentThreads",
@@ -62367,6 +62753,10 @@
             },
             "SchedulerDetails": {
                 "properties": {
+                    "superseded": {
+                        "type": "boolean",
+                        "description": "Set on a Google Sheets sync run that stopped because a newer run of the same sync took over the tab. Not a failure."
+                    },
                     "thresholdStatus": {
                         "$ref": "#/components/schemas/ThresholdStatus",
                         "description": "Set when a threshold-alert scheduler completed without sending a notification because the threshold was not met."
@@ -81115,10 +81505,6 @@
             },
             "AgentCapabilityPolicyOverview": {
                 "properties": {
-                    "mode": {
-                        "type": "string",
-                        "enum": ["legacy", "managed"]
-                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -81128,7 +81514,8 @@
                             "$ref": "#/components/schemas/AgentCapability"
                         },
                         "type": "array",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Null means agents have no restrictions."
                     },
                     "allowedGroupUuids": {
                         "items": {
@@ -81142,7 +81529,6 @@
                     }
                 },
                 "required": [
-                    "mode",
                     "version",
                     "allowedCapabilities",
                     "allowedGroupUuids",
@@ -81180,10 +81566,6 @@
             },
             "AgentCapabilityPolicy": {
                 "properties": {
-                    "mode": {
-                        "type": "string",
-                        "enum": ["legacy", "managed"]
-                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -81193,7 +81575,8 @@
                             "$ref": "#/components/schemas/AgentCapability"
                         },
                         "type": "array",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Null means agents have no restrictions."
                     },
                     "allowedGroupUuids": {
                         "items": {
@@ -81204,7 +81587,6 @@
                     }
                 },
                 "required": [
-                    "mode",
                     "version",
                     "allowedCapabilities",
                     "allowedGroupUuids"
@@ -81233,16 +81615,13 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "mode": {
-                        "type": "string",
-                        "enum": ["legacy", "managed"]
-                    },
                     "allowedCapabilities": {
                         "items": {
                             "$ref": "#/components/schemas/AgentCapability"
                         },
                         "type": "array",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Null removes the restrictions. Leave it out to keep the saved list."
                     },
                     "allowedGroupUuids": {
                         "items": {
@@ -81264,6 +81643,73 @@
                 },
                 "type": "object",
                 "additionalProperties": true
+            },
+            "AgentProjectCapabilityPolicy": {
+                "description": "A project's own agent restrictions. When a project has one, it replaces the\norganization's restrictions for that project.",
+                "properties": {
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "allowedCapabilities": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Null means agents have no restrictions in this project."
+                    }
+                },
+                "required": ["projectUuid", "allowedCapabilities"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentProjectPoliciesResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentProjectCapabilityPolicy"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["status", "results"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentProjectPolicyResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {
+                        "$ref": "#/components/schemas/AgentProjectCapabilityPolicy"
+                    }
+                },
+                "required": ["status", "results"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentProjectCapabilityPolicySave": {
+                "properties": {
+                    "allowedCapabilities": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Null means agents have no restrictions in this project."
+                    }
+                },
+                "required": ["allowedCapabilities"],
+                "type": "object",
+                "additionalProperties": true
             }
         },
         "securitySchemes": {
@@ -81282,7 +81728,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.359.1",
+        "version": "3.415.5",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -88402,56 +88848,6 @@
                 }
             }
         },
-        "/api/v1/org/aiRouter/capture/{projectUuid}": {
-            "post": {
-                "operationId": "routeDashboardCapture",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiCaptureRouteResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Sort a Voice Design recording made on a dashboard into layout changes\nand questions for an agent.",
-                "summary": "Route dashboard capture",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ApiCaptureRouteRequest"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/org/aiRouter/decisions/{decisionUuid}/commit": {
             "post": {
                 "operationId": "commitAiRouterDecision",
@@ -92417,116 +92813,6 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-artifacts": {
-            "get": {
-                "operationId": "getVerifiedArtifacts",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentVerifiedArtifactsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "agentUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "page",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "pageSize",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-questions": {
-            "get": {
-                "operationId": "getVerifiedQuestions",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentVerifiedQuestionsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "agentUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/avatar": {
             "post": {
                 "operationId": "uploadAgentAvatar",
@@ -93089,6 +93375,16 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "modelConfig differs from the thread configuration",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    },
                     "default": {
                         "description": "Error",
                         "content": {
@@ -93100,6 +93396,8 @@
                         }
                     }
                 },
+                "description": "Adds a message using the thread's recorded model and reasoning settings.\nA different modelConfig returns HTTP 400; start a new thread to change it.",
+                "summary": "Create AI agent thread message",
                 "security": [],
                 "parameters": [
                     {
@@ -94859,84 +95157,6 @@
                 }
             }
         },
-        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/verified": {
-            "patch": {
-                "operationId": "setArtifactVersionVerified",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "agentUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "artifactUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "versionUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "verified": {
-                                        "type": "boolean"
-                                    }
-                                },
-                                "required": ["verified"],
-                                "type": "object"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/viz-config": {
             "patch": {
                 "operationId": "updateArtifactVersionVizConfig",
@@ -95626,6 +95846,47 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/semantic-studio/agent": {
+            "post": {
+                "operationId": "getSemanticStudioAgent",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The built-in agent behind this project's Semantic Studio chat, created on first use.",
+                "summary": "Get the Semantic Studio agent",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/semantic-studio/models": {
             "get": {
                 "operationId": "getSemanticLayerStoredModels",
@@ -95878,6 +96139,57 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/checkout/compile/follow-up": {
+            "post": {
+                "operationId": "claimSemanticStudioCompileFollowUp",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioBranchCompileFollowUpResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Claims the hidden prompt that sends a failed compile of the agent's last save back to the agent; null when there is none to send.",
+                "summary": "Claim a Semantic Studio compile follow-up",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SemanticStudioBranchCompileFollowUpBody"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/semantic-studio/checkout/publish": {
@@ -96871,6 +97183,118 @@
                     {
                         "in": "path",
                         "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "model",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/drafts/{ownerUuid}/models/{model}": {
+            "get": {
+                "operationId": "getOthersSemanticLayerDraftModel",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerOthersDraftModelResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "One model as someone else's draft leaves it, read-only.",
+                "summary": "Get another person's semantic layer draft of a model",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "ownerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "model",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "discardOthersSemanticLayerDraftModel",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Takes one model out of someone else's draft; only a project admin, once the draft has had no activity for 7 days.",
+                "summary": "Discard one model from another person's stale semantic layer draft",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "ownerUuid",
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
@@ -101039,6 +101463,22 @@
                     {
                         "in": "query",
                         "name": "search",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "metadataKey",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "metadataValue",
                         "required": false,
                         "schema": {
                             "type": "string"
@@ -108744,7 +109184,7 @@
                         }
                     }
                 },
-                "description": "Get chart version history from last 30 days",
+                "description": "Get all stored versions of a chart, oldest first",
                 "summary": "Get chart version history",
                 "tags": ["Charts"],
                 "security": [],
@@ -115195,7 +115635,7 @@
                         }
                     }
                 },
-                "description": "Return the organization's existing project or provision its sample-data\nplayground when the new onboarding flow is available.",
+                "description": "Return the organization's existing project or provision its sample-data\nplayground on a licensed instance.",
                 "summary": "Ensure playground project",
                 "tags": ["Organizations"],
                 "security": [],
@@ -128889,6 +129329,128 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v2/org/agent-permissions/projects": {
+            "get": {
+                "operationId": "getProjectAgentCapabilityPolicies",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentProjectPoliciesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the projects that have their own agent restrictions",
+                "summary": "List project agent restrictions",
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v2/org/agent-permissions/projects/{projectUuid}": {
+            "put": {
+                "operationId": "saveProjectAgentCapabilityPolicy",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentProjectPolicyResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Give a project its own agent restrictions, replacing the organization's for that project",
+                "summary": "Save project agent restrictions",
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AgentProjectCapabilityPolicySave"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteProjectAgentCapabilityPolicy",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove a project's own agent restrictions so it follows the organization again",
+                "summary": "Remove project agent restrictions",
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         }
     },

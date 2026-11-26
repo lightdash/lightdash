@@ -109,6 +109,7 @@ const selectedAgent: AiAgentWithContext = {
     projectUuid,
     organizationUuid,
     name: 'Finance',
+    kind: 'user',
     description: 'Finance specialist',
     imageUrl: null,
     imageUrlSource: null,
@@ -139,7 +140,6 @@ const selectedAgent: AiAgentWithContext = {
         name: 'Finance',
         description: 'Finance specialist',
         explores: ['orders'],
-        verifiedQuestions: ['What is monthly revenue?'],
         instruction: 'Prioritize revenue metrics.',
     },
 };
@@ -698,13 +698,16 @@ describe('every agent-scoped tool re-authorizes the agent it runs as', () => {
             makeMcpServerOptions({
                 mcpContentWritesEnabled: true,
                 scheduledDeliveryEnabled: true,
-                runSqlEnabled: true,
-                runMetricQueryEnabled: true,
+                queryPath: {
+                    type: 'classic',
+                    sqlRunnerEnabled: true,
+                    filterExpressionsEnabled: flags.filterExpressionsEnabled,
+                },
                 dataAppBuildsEnabled: true,
                 chartTypeBuildsEnabled: true,
                 customChartTypesEnabled: true,
                 agentIdentityEnabled: true,
-                ...flags,
+                documentsEnabled: flags.documentsEnabled,
             }),
         );
         const agentScopedTools = vi
@@ -872,7 +875,7 @@ describe('organization MCP project allow-list', () => {
         async (authentication) => {
             const { service, aiOrganizationSettingsService } = makeMcpService();
             await service.createServer(
-                makeMcpServerOptions({ runSqlEnabled: true }),
+                makeMcpServerOptions({ queryPath: { type: 'sqlOnly' } }),
             );
             aiOrganizationSettingsService.getMcpProjectAccess.mockResolvedValue(
                 { mode: 'selected', projectUuids: [] },
@@ -937,8 +940,11 @@ describe('organization MCP project allow-list', () => {
             makeMcpService();
         await service.createServer(
             makeMcpServerOptions({
-                runMetricQueryEnabled: true,
-                runSqlEnabled: true,
+                queryPath: {
+                    type: 'classic',
+                    sqlRunnerEnabled: true,
+                    filterExpressionsEnabled: false,
+                },
                 dataAppBuildsEnabled: true,
                 chartTypeBuildsEnabled: true,
                 customChartTypesEnabled: true,

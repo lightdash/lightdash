@@ -5,18 +5,23 @@ import {
     FilterOperator,
     getDefaultExplorePrefix,
     getItemMap,
+    getLegacyLiveSourceName,
+    MetricType,
     UnexpectedServerError,
     type Explore,
+    type ItemsMap,
     type MetricQuery,
 } from '@lightdash/common';
+import { HYDRA_USERS_EXPLORE } from '../integrations/hydra/explores';
 import { compileSearchConsoleQuery } from '../integrations/searchConsole/compile';
+import { SEARCH_CONSOLE_PERFORMANCE_EXPLORE } from '../integrations/searchConsole/explores';
 import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from '../integrations/searchConsole/run';
 import { type LiveScanResult } from '../types';
 import {
     buildLiveExplores,
     compileLiveMetricQuery,
     describeLiveTarget,
-    getLegacyLiveSourceName,
+    findSwitchedOffLiveExplore,
     getLiveDefinitionHashes,
     getLiveExploreNames,
     getLostLiveFieldIds,
@@ -25,7 +30,10 @@ import {
     toScannedLiveSourceFields,
 } from './build';
 import { assertLiveQuery, getLiveDefinitionName } from './definition';
-import { getInitialLiveSourceFieldEdits } from './fields';
+import {
+    getInitialLiveSourceFieldEdits,
+    type LiveSourceExploreEdits,
+} from './fields';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
 
@@ -130,12 +138,13 @@ describe('buildLiveExplores', () => {
         ).toEqual(['report', 'performance']);
     });
 
-    test('names each explore after its integration and connection', () => {
+    test('names each explore after its model, under its source', () => {
         expect(
             [ga4(), searchConsole(), posthog()].map(
-                ({ name, label, type, apiSource }) => ({
+                ({ name, label, groupLabel, type, apiSource }) => ({
                     name,
                     label,
+                    groupLabel,
                     type,
                     connectionUuid: apiSource?.connectionUuid,
                 }),
@@ -143,19 +152,22 @@ describe('buildLiveExplores', () => {
         ).toEqual([
             {
                 name: 'ga4_03386598_report',
-                label: 'Marketing site',
+                label: 'Report',
+                groupLabel: 'Marketing site',
                 type: ExploreType.API_SOURCE,
                 connectionUuid: CONNECTION_UUID,
             },
             {
                 name: 'search_console_03386598_performance',
-                label: 'Marketing site',
+                label: 'Search performance',
+                groupLabel: 'Marketing site',
                 type: ExploreType.API_SOURCE,
                 connectionUuid: CONNECTION_UUID,
             },
             {
                 name: 'posthog_03386598_events',
-                label: 'Marketing site',
+                label: 'Events',
+                groupLabel: 'Marketing site',
                 type: ExploreType.API_SOURCE,
                 connectionUuid: CONNECTION_UUID,
             },
@@ -198,6 +210,97 @@ describe('buildLiveExplores', () => {
         );
         expect(Object.keys(posthog().apiSource?.fields ?? {})).not.toContain(
             'posthog_03386598_events_property_plan',
+        );
+    });
+});
+
+describe('switching explores off and editing them', () => {
+    const hydra = (exploreEdits: LiveSourceExploreEdits) =>
+        buildLiveExplores({
+            connectionUuid: CONNECTION_UUID,
+            sourceName: 'hydra',
+            name: 'Hydra',
+            apiSource: { connector: ApiConnectorType.HYDRA },
+            scannedFields: [],
+            edits: {},
+            exploreEdits,
+            aiHint: ['Hydra target', 'Source hint'],
+        });
+
+    it('builds every explore unless it is switched off', () => {
+        expect(hydra({}).map(({ name }) => name)).toEqual([
+            'hydra_events',
+            'hydra_users',
+        ]);
+        expect(
+            hydra({ events: { inUse: false } }).map(({ name }) => name),
+        ).toEqual(['hydra_users']);
+        expect(
+            hydra({ events: { inUse: false }, users: { inUse: false } }),
+        ).toEqual([]);
+    });
+
+    it('adds the built-in explore hint after the source hints', () => {
+        const [, users] = hydra({});
+        expect(users.aiHint).toEqual([
+            'Hydra target',
+            'Source hint',
+            HYDRA_USERS_EXPLORE.aiHint,
+        ]);
+    });
+
+    it("applies label and description overrides, and replaces the built-in hint with the admin's", () => {
+        const [, users] = hydra({
+            users: {
+                label: 'Customers',
+                description: 'Paying users',
+                aiHint: 'Seats are per workspace',
+            },
+        });
+        expect(users.label).toBe('Customers');
+        expect(users.tables[users.baseTable].description).toBe('Paying users');
+        expect(users.aiHint).toEqual([
+            'Hydra target',
+            'Source hint',
+            'Seats are per workspace',
+        ]);
+        expect(users.apiSource?.definitionHash).toBe(
+            hydra({}).at(1)?.apiSource?.definitionHash,
+        );
+    });
+});
+
+describe('findSwitchedOffLiveExplore', () => {
+    const source = (exploreEdits: LiveSourceExploreEdits) => ({
+        name: 'Product Hydra',
+        sourceName: 'hydra',
+        connector: ApiConnectorType.HYDRA,
+        exploreEdits,
+    });
+
+    it('names the source and explore of a switched-off explore', () => {
+        expect(
+            findSwitchedOffLiveExplore(
+                [source({ events: { inUse: false } })],
+                'hydra_events',
+            ),
+        ).toEqual({ sourceName: 'Product Hydra', exploreLabel: 'Events' });
+        expect(
+            findSwitchedOffLiveExplore(
+                [source({ events: { inUse: false, label: 'Activity' } })],
+                'hydra_events',
+            ),
+        ).toEqual({ sourceName: 'Product Hydra', exploreLabel: 'Activity' });
+    });
+
+    it('finds nothing for an explore that is on, or not a live explore', () => {
+        const sources = [source({ events: { inUse: false } })];
+        expect(findSwitchedOffLiveExplore(sources, 'hydra_users')).toBe(
+            undefined,
+        );
+        expect(findSwitchedOffLiveExplore(sources, 'orders')).toBe(undefined);
+        expect(findSwitchedOffLiveExplore([source({})], 'hydra_events')).toBe(
+            undefined,
         );
     });
 });
@@ -442,6 +545,70 @@ describe('toLiveResult', () => {
     });
 });
 
+describe('toLiveResult metric types', () => {
+    test('types a minimum or maximum of a date as that date type', () => {
+        const explore = ga4();
+        const date = `${explore.name}_date`;
+        const latest = `${explore.name}_latest_date`;
+        const fields = {
+            ...getItemMap(explore),
+            [latest]: {
+                ...getItemMap(explore)[`${explore.name}_sessions`],
+                name: 'latest_date',
+                type: MetricType.MAX,
+                dimensionReference: date,
+            },
+        } as ItemsMap;
+        const { columns } = toLiveResult({
+            compiled: {
+                query: '{}',
+                requestLimit: 10,
+                limit: 10,
+                fieldIdsByColumn: {
+                    latest,
+                    sessions: `${explore.name}_sessions`,
+                },
+                localSorts: [],
+            },
+            rows: [{ latest: '2026-11-01', sessions: 3 }],
+            fields,
+        });
+        expect(columns[latest].type).toBe(
+            (fields[date] as { type: DimensionType }).type,
+        );
+        expect(columns[`${explore.name}_sessions`].type).toBe(
+            DimensionType.NUMBER,
+        );
+    });
+
+    test('types a custom maximum of a timestamp as a timestamp', () => {
+        const explore = ga4();
+        const sessions = `${explore.name}_sessions`;
+        const lastSeen = `${explore.name}_last_seen`;
+        const fields = {
+            ...getItemMap(explore),
+            [lastSeen]: {
+                ...getItemMap(explore)[sessions],
+                name: 'last_seen',
+                type: MetricType.MAX,
+                baseDimensionType: DimensionType.TIMESTAMP,
+            },
+        } as ItemsMap;
+        const { columns } = toLiveResult({
+            compiled: {
+                query: '{}',
+                requestLimit: 10,
+                limit: 10,
+                fieldIdsByColumn: { lastSeen },
+                localSorts: [],
+            },
+            rows: [{ lastSeen: '2026-11-01T10:00:00Z' }],
+            fields,
+        });
+        expect(columns[lastSeen].type).toBe(DimensionType.TIMESTAMP);
+    });
+});
+
 describe('toPeriodStart', () => {
     test.each([
         ['2026', 'year', '2026-01-01'],
@@ -496,6 +663,22 @@ describe('definition hashes', () => {
                 getLiveDefinitionHashes(ApiConnectorType.SEARCH_CONSOLE),
             )[0],
         );
+    });
+
+    it('changes the hash when a built-in explore hint changes', () => {
+        const hashOf = () => {
+            getLiveDefinitionHashes.cache.clear?.();
+            return getLiveDefinitionHashes(ApiConnectorType.HYDRA).users;
+        };
+        const { aiHint } = HYDRA_USERS_EXPLORE;
+        const before = hashOf();
+        try {
+            HYDRA_USERS_EXPLORE.aiHint = `${aiHint} Count seats per workspace.`;
+            expect(hashOf()).not.toBe(before);
+        } finally {
+            HYDRA_USERS_EXPLORE.aiHint = aiHint;
+            getLiveDefinitionHashes.cache.clear?.();
+        }
     });
 
     it('stores the same hash when a field edit changes the explore', () => {
@@ -612,13 +795,18 @@ describe('explore AI hints', () => {
         expect(hinted.aiHint).toEqual([
             'Search Console site https://example.com/',
             'EU store',
+            SEARCH_CONSOLE_PERFORMANCE_EXPLORE.aiHint,
         ]);
         expect(hinted.apiSource?.definitionHash).toBe(
             plain.apiSource?.definitionHash,
         );
         // A source hint must not leak onto the fields
         Object.values(hinted.tables.site_performance.dimensions).forEach(
-            (dimension) => expect(dimension.aiHint).toBeUndefined(),
+            (dimension) =>
+                expect(dimension.aiHint).toBe(
+                    plain.tables.site_performance.dimensions[dimension.name]
+                        .aiHint,
+                ),
         );
     });
 });
@@ -641,6 +829,7 @@ describe('getLostLiveFieldIds', () => {
                 rebuilt,
                 edits: {},
                 sourceName: 'site',
+                firstModel: 'performance',
             }),
         ).toEqual(['site_performance_custom']);
     });
@@ -652,6 +841,7 @@ describe('getLostLiveFieldIds', () => {
                 rebuilt,
                 edits: { custom: { inUse: false, lastEdit: null } },
                 sourceName: 'site',
+                firstModel: 'performance',
             }),
         ).toEqual([]);
     });
@@ -663,7 +853,27 @@ describe('getLostLiveFieldIds', () => {
                 rebuilt,
                 edits: { 'contacts.email': { inUse: false, lastEdit: null } },
                 sourceName: 'site',
+                firstModel: 'performance',
             }),
         ).toEqual(['site_contacts_phone']);
+    });
+
+    it('allows dropping every field of a switched-off explore, the first one included', () => {
+        expect(
+            getLostLiveFieldIds({
+                storedFieldIds: [
+                    'site_performance_clicks',
+                    'site_contacts_email',
+                ],
+                rebuilt: [],
+                edits: {},
+                exploreEdits: {
+                    performance: { inUse: false },
+                    contacts: { inUse: false },
+                },
+                sourceName: 'site',
+                firstModel: 'performance',
+            }),
+        ).toEqual([]);
     });
 });

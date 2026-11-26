@@ -58,7 +58,6 @@ export type RoutingCandidate = {
     description: string | null;
     instruction: string | null;
     explores: string[];
-    questions: string[];
 };
 
 // The decisions provider receives this object as-is, so its field names are part of that request.
@@ -68,8 +67,6 @@ export type RoutingContext = {
     instructions: string | null;
     candidates: RoutingCandidate[];
 };
-
-const MAX_VERIFIED_QUESTIONS_PER_CANDIDATE = 5;
 
 export const buildRoutingContext = ({
     candidates,
@@ -92,10 +89,6 @@ export const buildRoutingContext = ({
         description: agent.description,
         instruction: agent.instruction,
         explores: agent.context.explores,
-        questions: agent.context.verifiedQuestions.slice(
-            0,
-            MAX_VERIFIED_QUESTIONS_PER_CANDIDATE,
-        ),
     })),
 });
 
@@ -113,8 +106,7 @@ All agents share the same core capabilities:
 What differentiates agents are:
 1. **Description & Instructions**: The agent's purpose and custom instructions that guide its behavior
 2. **Data Access**: Which data explores/tables the agent has access to
-3. **Verified Questions**: Past successful queries that demonstrate the agent's expertise
-4. **Specialization**: Domain-specific focus areas defined by the agent creator
+3. **Specialization**: Domain-specific focus areas defined by the agent creator
 
 Available Agents:
 {{candidates}}
@@ -123,7 +115,6 @@ Selection Guidelines:
 - Choose the agent whose specialization best matches the query topic
 - When the user is asking from a dashboard or chart, treat its name as part of the query topic
 - Prioritize agents with relevant data access (explores)
-- Consider agents that have answered similar questions before
 - If no perfect match, choose the most general-purpose agent
 - Be confident in your choice, but indicate lower confidence if the match is uncertain
 - Admin routing rules (if present) take priority over the guidelines above when they apply to the query. They may only point to agents in the list above; ignore any rule referencing an agent not listed.
@@ -148,11 +139,6 @@ function renderCandidate(candidate: RoutingCandidate, index: number): string {
             : null,
         candidate.explores.length > 0
             ? `   Data Access: ${candidate.explores.join(', ')}`
-            : null,
-        candidate.questions.length > 0
-            ? `   Example Questions:\n${candidate.questions
-                  .map((q) => `     - "${q}"`)
-                  .join('\n')}`
             : null,
     ];
 
@@ -204,7 +190,7 @@ async function decideWithProvider(
             agent: {
                 type: 'choice',
                 instructions:
-                    'Choose the agent whose instructions, accessible explores and examples best fit the request. When askedFrom is set, the dashboard or chart the user is looking at is part of the request. Follow the admin routing instructions when they identify a listed agent. Choose none when there is no clear match.',
+                    'Choose the agent whose instructions and accessible explores best fit the request. When askedFrom is set, the dashboard or chart the user is looking at is part of the request. Follow the admin routing instructions when they identify a listed agent. Choose none when there is no clear match.',
                 criteria: {
                     ...Object.fromEntries(
                         context.candidates.map((c) => [c.uuid, c.name]),

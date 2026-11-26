@@ -275,6 +275,79 @@ describe('query history backfill scheduling', () => {
     });
 });
 
+describe('stuck job release', () => {
+    const clientWithQuery = (query: ReturnType<typeof vi.fn>) => {
+        const client = makeClient(false);
+        client.graphileUtils = Promise.resolve({
+            withPgClient: async (
+                callback: (pg: { query: typeof query }) => unknown,
+            ) => callback({ query }),
+        } as unknown as Awaited<typeof client.graphileUtils>);
+        return client;
+    };
+
+    it('still finds jobs locked past the detection window once they reach graphile job expiry', async () => {
+        const query = vi.fn().mockResolvedValue({ rows: [] });
+        await clientWithQuery(query).getRecentRunningJobs();
+        const [sql, params] = query.mock.calls[0];
+        expect(sql).toContain('locked_at > now() - $1::interval');
+        expect(sql).toContain('OR locked_at < now() - $2::interval');
+        expect(params).toEqual(['1.5 hours', '4 hours']);
+    });
+
+    it('releases with fail_job using each stored worker id, then permanently fails only the released jobs', async () => {
+        const query = vi.fn(async (sql: string, _params?: unknown[]) =>
+            sql.includes('fail_job(')
+                ? { rows: [{ id: '1' }, { id: null }] }
+                : { rows: [] },
+        );
+        const released = await clientWithQuery(query).failJobs(
+            [
+                { id: '1', lockedBy: 'worker-a' },
+                { id: '2', lockedBy: 'worker-b' },
+            ],
+            'stuck',
+        );
+        expect(released).toEqual(['1']);
+        expect(query.mock.calls.map(([sql]) => sql.trim())).toEqual([
+            'BEGIN',
+            expect.stringContaining(
+                'graphile_worker.fail_job(jobs.locked_by, jobs.id, $3)',
+            ),
+            expect.stringContaining('graphile_worker.permanently_fail_jobs'),
+            'COMMIT',
+        ]);
+        expect(query.mock.calls[1][0]).toContain(
+            'stuck.locked_by = jobs.locked_by',
+        );
+        expect(query.mock.calls[1][0]).toContain(
+            'jobs.locked_at < now() - $4::interval',
+        );
+        expect(query.mock.calls[1][1]).toEqual([
+            ['1', '2'],
+            ['worker-a', 'worker-b'],
+            'stuck',
+            '4 hours',
+        ]);
+        expect(query.mock.calls[2][1]).toEqual([['1'], 'stuck']);
+    });
+
+    it('rolls back when the release fails and skips empty batches', async () => {
+        const query = vi.fn(async (sql: string) => {
+            if (sql.includes('fail_job(')) throw new Error('db down');
+            return { rows: [] };
+        });
+        const client = clientWithQuery(query);
+        await expect(
+            client.failJobs([{ id: '1', lockedBy: 'worker-a' }], 'stuck'),
+        ).rejects.toThrow('db down');
+        expect(query.mock.calls.at(-1)?.[0]).toBe('ROLLBACK');
+        query.mockClear();
+        await expect(client.failJobs([], 'stuck')).resolves.toEqual([]);
+        expect(query).not.toHaveBeenCalled();
+    });
+});
+
 describe('SchedulerClient per-org delivery queue', () => {
     afterEach(() => {
         vi.clearAllMocks();
@@ -733,6 +806,35 @@ describe('scheduled notification payload parity', () => {
         expect(graphileAddJob.mock.calls[0][1]).not.toHaveProperty(
             'aiSummaryOriginalMessage',
         );
+    });
+
+    // The claim on the tab keeps two runs apart. A named queue would stay
+    // locked for hours after a worker crash and block later syncs.
+    test('does not put Google Sheets syncs in a named queue', async () => {
+        const client = makeClient(false);
+        await client.generateJobsForSchedulerTargets(
+            startingDateTime,
+            {
+                ...scheduler,
+                format: SchedulerFormat.GSHEETS,
+                options: {
+                    gdriveId: 'spreadsheet-1',
+                    gdriveName: 'Sheet',
+                    gdriveOrganizationName: '',
+                    url: 'https://docs.google.com/spreadsheets/d/spreadsheet-1',
+                },
+            },
+            undefined,
+            'parent',
+            traceProperties,
+        );
+
+        expect(
+            graphileAddJob.mock.calls.map(([kind, , options]) => [
+                kind,
+                options.queueName,
+            ]),
+        ).toEqual([['uploadGsheets', undefined]]);
     });
 
     test('keeps query exports to Google Sheets unmarked', async () => {

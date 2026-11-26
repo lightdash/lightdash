@@ -103,12 +103,14 @@ export class MergeQuerySource implements QuerySourceClient {
         sourceType: QuerySourceType.MERGE,
         label: 'Merge',
         description:
-            'Joins two or more semanticLayer nodes of the same submission on shared dimensions, without SQL. Each source must select its join keys and return fewer rows than its limit. Result columns are named <nodeId>_<fieldId>, and merge_<name> for join keys and table calculations, and keep the label and format of the field they come from.',
+            'Joins two or more semanticLayer nodes of the same submission on shared dimensions, without SQL, including nodes on live data source explores. Each source must select its join keys and return fewer rows than its limit. Result columns are named <nodeId>_<fieldId>, and merge_<name> for join keys and table calculations, and keep the label and format of the field they come from.',
     };
 
     readonly supportsPivot = false;
 
     readonly requiredFeatureFlags: FeatureFlags[] = [];
+
+    readonly unavailableReason: string | null = null;
 
     private readonly asyncQueryService: MergeQuerySourceArguments['asyncQueryService'];
 

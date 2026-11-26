@@ -105,6 +105,7 @@ import {
     type ChartConfig,
     type ChartReference,
     type ChartRegistryEntry,
+    type ChartRegistryIndex,
     type ChartSampleData,
     type ChartTypeIcon,
     type CompiledExploreJoin,
@@ -278,7 +279,10 @@ import {
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
 import { type AiCreditService } from '../AiCreditService';
-import { getExternalConnectionSubject } from '../ExternalConnectionService/externalConnectionAuthz';
+import {
+    getConnectionKind,
+    getExternalConnectionSubject,
+} from '../ExternalConnectionService/externalConnectionAuthz';
 import {
     createSandboxManager,
     S3SnapshotStore,
@@ -1977,6 +1981,12 @@ export class AppGenerateService extends BaseService {
                     'Alias must contain only letters, numbers, hyphens, and underscores (max 64 chars)',
                 );
             }
+            // Data app linking never applies to live data sources
+            if (getConnectionKind(connection) === 'live_source') {
+                throw new ParameterError(
+                    'Live data sources cannot be linked to data apps',
+                );
+            }
             if (
                 ability.cannot('view', getExternalConnectionSubject(connection))
             ) {
@@ -2059,6 +2069,13 @@ export class AppGenerateService extends BaseService {
                         `Skipped linking external connection alias "${link.alias}": no connection with slug "${link.connectionSlug}" exists in the target project. Upload it first ('lightdash upload --external-connections ${link.connectionSlug}') or fix connectionSlug in lightdash-app.yml.`,
                     );
                     break;
+                case 'live_source':
+                    // Manifests downloaded before integrations got their own
+                    // permission can still name one: skip it so re-upload works.
+                    linkWarnings.push(
+                        `Skipped linking external connection alias "${link.alias}": "${link.connectionSlug}" is a live data source, which data apps can't use. Remove it from lightdash-app.yml.`,
+                    );
+                    break;
                 case 'not_linkable':
                     throw new ForbiddenError(
                         'You do not have permission to link this external connection',
@@ -2097,6 +2114,9 @@ export class AppGenerateService extends BaseService {
                         slug,
                     );
                 if (!connection) return { slug, status: 'not_found' };
+                if (getConnectionKind(connection) === 'live_source') {
+                    return { slug, status: 'live_source' };
+                }
                 if (
                     ability.cannot(
                         'view',
@@ -2572,8 +2592,8 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    /** Voice Design is behind its feature flags on every surface that uses it. */
-    private async assertVoiceDesignEnabled(user: SessionUser): Promise<void> {
+    /** Design Mode is behind its feature flags on every surface that uses it. */
+    private async assertDesignModeEnabled(user: SessionUser): Promise<void> {
         const flags = await Promise.all(
             [FeatureFlags.DataAppCapture, FeatureFlags.DashboardCapture].map(
                 (featureFlagId) =>
@@ -2581,12 +2601,33 @@ export class AppGenerateService extends BaseService {
             ),
         );
         if (!flags.some(({ enabled }) => enabled)) {
-            throw new ForbiddenError('Voice Design is not enabled');
+            throw new ForbiddenError('Design Mode is not enabled');
         }
     }
 
     /**
-     * Transcribes the audio of a Voice Design recording into timed words.
+     * A dashboard's recording goes to an agent, not to a data app build, so
+     * it asks for what a message to an agent asks for.
+     */
+    private async canTranscribeDashboardCapture(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.DashboardCapture,
+        });
+        if (!enabled) return false;
+        const { organizationUuid } =
+            await this.getDataAppProjectContext(projectUuid);
+        return this.createAuditedAbility(user).can(
+            'create',
+            subject('AiAgentThread', { organizationUuid, projectUuid }),
+        );
+    }
+
+    /**
+     * Transcribes the audio of a Design Mode recording into timed words.
      * The audio is sent to the transcription provider and not stored.
      */
     async transcribeCapture(
@@ -2597,15 +2638,18 @@ export class AppGenerateService extends BaseService {
         contentLength: number,
         locale?: string,
     ): Promise<CaptureTranscriptWord[]> {
-        await this.assertAnyAppsEnabled(user);
-        const { organizationUuid } = await this.assertDataAppAbility(
-            user,
-            'create',
-            projectUuid,
-            'Insufficient permissions to transcribe a capture',
-        );
-        await this.assertDataAppCapturesEnabled(organizationUuid);
-        await this.assertVoiceDesignEnabled(user);
+        // Otherwise the recording is for a data app: its rules apply.
+        if (!(await this.canTranscribeDashboardCapture(user, projectUuid))) {
+            await this.assertAnyAppsEnabled(user);
+            const { organizationUuid } = await this.assertDataAppAbility(
+                user,
+                'create',
+                projectUuid,
+                'Insufficient permissions to transcribe a capture',
+            );
+            await this.assertDataAppCapturesEnabled(organizationUuid);
+            await this.assertDesignModeEnabled(user);
+        }
 
         const filename = audioFilenameForMimeType(declaredMimeType);
         if (!filename) {
@@ -10855,6 +10899,198 @@ export class AppGenerateService extends BaseService {
         return { installedSlugs: newSlugs };
     }
 
+    // Installs missing types and upgrades ones below minVersion; returns every installed, renderable
+    // type with its app slug, schema and registry version. A failure omits the type, never throws.
+    async ensureRegistryChartTypes(
+        user: SessionUser,
+        projectUuid: string,
+        requirements: { slug: string; minVersion: string }[],
+    ): Promise<
+        Map<
+            string,
+            {
+                appSlug: string;
+                vizSchema: DataAppVizSchema;
+                registryVersion: string;
+            }
+        >
+    > {
+        type InstalledApp = {
+            app_id: string;
+            slug: string;
+            registryVersion: string;
+        };
+        if (requirements.length === 0) return new Map();
+
+        const isCurrent = (version: string, minVersion: string): boolean => {
+            try {
+                return compareSemverVersions(version, minVersion) >= 0;
+            } catch {
+                return false;
+            }
+        };
+
+        const installedIn = async () => {
+            const apps =
+                await this.appModel.listRegistryInstalledApps(projectUuid);
+            const found = new Map<string, InstalledApp>();
+            requirements.forEach(({ slug }) => {
+                const app = apps.find((a) => a.registry_slug === slug);
+                if (app && app.latest_ready_registry_version !== null) {
+                    found.set(slug, {
+                        app_id: app.app_id,
+                        slug: app.slug,
+                        registryVersion: app.latest_ready_registry_version,
+                    });
+                }
+            });
+            return found;
+        };
+        const meetsRequirement = (
+            installed: Map<string, InstalledApp>,
+            requirement: { slug: string; minVersion: string },
+        ): boolean => {
+            const app = installed.get(requirement.slug);
+            return (
+                app !== undefined &&
+                isCurrent(app.registryVersion, requirement.minVersion)
+            );
+        };
+
+        const installed = await installedIn();
+        const pending = requirements.filter(
+            (requirement) => !meetsRequirement(installed, requirement),
+        );
+        if (pending.length === 0 || !this.chartRegistryClient.isEnabled()) {
+            return this.withRenderableSchemas(projectUuid, installed);
+        }
+
+        let organizationUuid: string;
+        try {
+            ({ organizationUuid } = await this.assertDataAppAbility(
+                user,
+                'create',
+                projectUuid,
+                'Insufficient permissions to install chart types',
+            ));
+        } catch (e) {
+            this.logger.warn(
+                `Cannot install chart types in project ${projectUuid}: ${getErrorMessage(e)}`,
+            );
+            return this.withRenderableSchemas(projectUuid, installed);
+        }
+        let index: ChartRegistryIndex;
+        try {
+            index = await this.chartRegistryClient.getIndex();
+        } catch (e) {
+            this.logger.warn(
+                `Chart type index unavailable for project ${projectUuid}: ${getErrorMessage(e)}`,
+            );
+            return this.withRenderableSchemas(projectUuid, installed);
+        }
+
+        let attempted = false;
+        const reportedInstalled = new Set<string>();
+        // Sequential: each install downloads and copies a bundle
+        for (const requirement of pending) {
+            const entry = index.charts.find((c) => c.slug === requirement.slug);
+            if (
+                entry &&
+                !AppGenerateService.isRegistryEntryIncompatible(entry) &&
+                isCurrent(entry.version, requirement.minVersion)
+            ) {
+                attempted = true;
+                try {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.installRegistryEntry(
+                        user,
+                        projectUuid,
+                        organizationUuid,
+                        entry,
+                        {},
+                    );
+                    reportedInstalled.add(requirement.slug);
+                } catch (e) {
+                    this.logger.warn(
+                        `Chart type "${requirement.slug}" failed to install in project ${projectUuid}: ${getErrorMessage(e)}`,
+                    );
+                }
+            }
+        }
+        if (!attempted) {
+            return this.withRenderableSchemas(projectUuid, installed);
+        }
+
+        // Re-read so a concurrent install counts and a reported success is checked.
+        const after = await installedIn();
+        pending
+            .filter(
+                (requirement) =>
+                    reportedInstalled.has(requirement.slug) &&
+                    !meetsRequirement(after, requirement),
+            )
+            .forEach(({ slug }) => {
+                this.logger.warn(
+                    `Chart type "${slug}" installed in project ${projectUuid} but is not usable after re-reading the project's chart types`,
+                );
+            });
+        return this.withRenderableSchemas(projectUuid, after);
+    }
+
+    // Keeps the types that have a renderable version, with that version's schema.
+    private async withRenderableSchemas(
+        projectUuid: string,
+        apps: Map<
+            string,
+            { app_id: string; slug: string; registryVersion: string }
+        >,
+    ): Promise<
+        Map<
+            string,
+            {
+                appSlug: string;
+                vizSchema: DataAppVizSchema;
+                registryVersion: string;
+            }
+        >
+    > {
+        const versions = await Promise.all(
+            [...apps].map(async ([registrySlug, app]) => ({
+                registrySlug,
+                appSlug: app.slug,
+                registryVersion: app.registryVersion,
+                version:
+                    await this.appModel.getLatestRenderableDataAppVizVersion(
+                        app.app_id,
+                    ),
+            })),
+        );
+        const result = new Map<
+            string,
+            {
+                appSlug: string;
+                vizSchema: DataAppVizSchema;
+                registryVersion: string;
+            }
+        >();
+        versions.forEach(
+            ({ registrySlug, appSlug, registryVersion, version }) => {
+                if (version?.viz_schema) {
+                    result.set(registrySlug, {
+                        appSlug,
+                        vizSchema: version.viz_schema,
+                        registryVersion,
+                    });
+                } else {
+                    this.logger.warn(
+                        `Chart type "${registrySlug}" has no renderable version in project ${projectUuid}`,
+                    );
+                }
+            },
+        );
+        return result;
+    }
+
     /** Digest mismatches keep their own error; transport failures get a library-facing one. */
     private static registryUnreachableError(
         entry: Pick<ChartRegistryEntry, 'slug' | 'version'>,
@@ -12957,11 +13193,13 @@ export class AppGenerateService extends BaseService {
         return lines;
     }
 
-    private static readonly DESCRIPTION_MAX_LEN = 200;
+    // A safety limit, not a context budget: model files are read on demand.
+    // Metrics cannot be split across files, so this bounds a model's header.
+    private static readonly DESCRIPTION_MAX_LEN = 4_000;
 
     private static truncateDescription(s: string): string {
         return s.length > AppGenerateService.DESCRIPTION_MAX_LEN
-            ? `${s.slice(0, AppGenerateService.DESCRIPTION_MAX_LEN - 1)}…`
+            ? `${s.slice(0, AppGenerateService.DESCRIPTION_MAX_LEN)}… [truncated]`
             : s;
     }
 
@@ -13020,8 +13258,8 @@ export class AppGenerateService extends BaseService {
      * model-level parameters, and model-level filters (`sql_filter`,
      * `required_filters`, `default_filters`). Joins, parameters, and filters
      * are explore-scoped rather than table-scoped, so they're passed in
-     * explicitly. Hidden fields are skipped; descriptions are truncated to
-     * keep the output bounded.
+     * explicitly. Hidden fields are skipped; descriptions are written whole
+     * up to a high safety limit.
      */
     private static renderTableModel(
         modelName: string,

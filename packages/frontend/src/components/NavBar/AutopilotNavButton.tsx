@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import {
     ManagedAgentActionType,
     ManagedAgentRunStatus,
@@ -15,11 +14,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { type LightdashApi } from '../../api';
-import { useIsCopilotEnabled } from '../../ee/features/aiCopilot/hooks/useIsCopilotEnabled';
-import { useManagedAgentLatestRun } from '../../ee/features/managedAgent/hooks/useManagedAgentLatestRun';
-import { useManagedAgentSettings } from '../../ee/features/managedAgent/hooks/useManagedAgentSettings';
+import {
+    formatAutopilotActionCount,
+    useAutopilotNavState,
+} from '../../ee/features/managedAgent/hooks/useAutopilotNavState';
 import { ManagedAgentSetupModal } from '../../ee/features/managedAgent/ManagedAgentSetupModal';
-import useApp from '../../providers/App/useApp';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { BarChartIcon } from '../common/ContentIcons';
 import MantineIcon from '../common/MantineIcon';
@@ -87,23 +86,12 @@ export const AutopilotNavButton = ({
     const portalTarget = useNavBarPortalTarget();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const { user } = useApp();
-    const canManage =
-        user.data?.ability?.can(
-            'manage',
-            subject('AiAgent', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            }),
-        ) ?? false;
-    const { isCopilotEnabled } = useIsCopilotEnabled();
-    const active = isCopilotEnabled && canManage;
-
-    const { data: settings } = useManagedAgentSettings({ enabled: active });
-    const isEnabled = settings?.enabled ?? false;
-    const { data: latestRun } = useManagedAgentLatestRun({
-        enabled: active && isEnabled,
-    });
+    const {
+        isAvailable: active,
+        isEnabled,
+        settings,
+        latestRun,
+    } = useAutopilotNavState(projectUuid);
 
     const [setupOpen, setSetupOpen] = useState(false);
 
@@ -225,8 +213,7 @@ export const AutopilotNavButton = ({
     } else if (failed) {
         statusText = 'Last run failed';
     } else if (latestRun) {
-        const count = latestRun.actionCount;
-        statusText = `${count} action${count === 1 ? '' : 's'} · ${formatRelative(
+        statusText = `${formatAutopilotActionCount(latestRun.actionCount)} · ${formatRelative(
             latestRun.finishedAt ?? latestRun.startedAt,
         )}`;
     } else {

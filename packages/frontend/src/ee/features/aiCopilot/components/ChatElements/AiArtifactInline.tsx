@@ -7,7 +7,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import classes from './AiArtifactInline.module.css';
 import { AiArtifactPanel } from './AiArtifactPanel';
-import { QuietCardsContext } from './ToolCalls/quietCards';
+import { InStudioChatContext } from './ToolCalls/studioChatContext';
 
 type AiArtifactInlineProps = {
     artifact: NonNullable<AiAgentMessageAssistant['artifacts']>[0];
@@ -19,7 +19,7 @@ type AiArtifactInlineProps = {
 export const AiArtifactInline: FC<AiArtifactInlineProps> = memo(
     ({ artifact, message, projectUuid, agentUuid }) => {
         // A narrow panel keeps results to one line until opened, so they do not crowd the conversation.
-        const quiet = useContext(QuietCardsContext);
+        const quiet = useContext(InStudioChatContext);
         const [isOpen, setIsOpen] = useState(!quiet);
         const artifactRef = useMemo(
             () => ({

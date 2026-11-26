@@ -2,6 +2,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    InlineErrorType,
     isExploreError,
     type WeekDay,
 } from '@lightdash/common';
@@ -36,6 +37,22 @@ export const enhanceExploresForPreAggregates = ({
             explore.type === ExploreType.PRE_AGGREGATE
         ) {
             return [explore];
+        }
+
+        if (explore.type === ExploreType.API_SOURCE) {
+            return [
+                {
+                    ...explore,
+                    preAggregates: [],
+                    warnings: [
+                        ...(explore.warnings ?? []),
+                        {
+                            type: InlineErrorType.FIELD_ERROR,
+                            message: `Pre-aggregates aren't supported on live explores; "${explore.name}" queries its API directly.`,
+                        },
+                    ],
+                },
+            ];
         }
 
         const generatedExplores = generatePreAggregateExplores({

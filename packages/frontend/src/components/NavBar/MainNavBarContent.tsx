@@ -139,7 +139,10 @@ export const MainNavBarContent: FC<Props> = ({
                             />
                         </NavGroup>
                         {!compact && (
-                            <Omnibar projectUuid={activeProjectUuid} />
+                            <Omnibar
+                                projectUuid={activeProjectUuid}
+                                renderTarget={null}
+                            />
                         )}
                     </>
                 )}
@@ -216,7 +219,10 @@ export const MainNavBarContent: FC<Props> = ({
                 <Group className={classes.compactActions} gap={0} wrap="nowrap">
                     {activeProjectUuid && (
                         <>
-                            <Omnibar projectUuid={activeProjectUuid} />
+                            <Omnibar
+                                projectUuid={activeProjectUuid}
+                                renderTarget={null}
+                            />
                             <Suspense fallback={null}>
                                 <Box className={classes.compactAiButton}>
                                     <AiAgentsButton

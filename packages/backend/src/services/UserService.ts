@@ -102,7 +102,6 @@ import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
 import {
     LightdashAnalytics,
-    type OnboardingFlow,
     type OneTimePasscodeFailureReason,
     type OneTimePasscodePurpose,
 } from '../analytics/LightdashAnalytics';
@@ -458,16 +457,6 @@ export class UserService extends BaseService {
         }
     }
 
-    private async getOnboardingFlow(
-        user?: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<OnboardingFlow> {
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.NewOnboarding,
-        });
-        return enabled ? 'new' : 'legacy';
-    }
-
     private async tryVerifyUserEmail(
         user: LightdashUser,
         email: string,
@@ -478,7 +467,6 @@ export class UserService extends BaseService {
             email,
         );
         if (updatedEmails.length > 0) {
-            const onboardingFlow = await this.getOnboardingFlow(user);
             const location = user.isSetupComplete ? 'settings' : 'onboarding';
             this.analytics.track({
                 userId: user.userUuid,
@@ -488,7 +476,7 @@ export class UserService extends BaseService {
                     location,
                     isTrackingAnonymized: user.isTrackingAnonymized,
                     method,
-                    onboardingFlow,
+                    onboardingFlow: 'new',
                 },
             });
             if (location === 'onboarding') {
@@ -498,7 +486,7 @@ export class UserService extends BaseService {
                     properties: {
                         step: 'verified',
                         stepIndex: 2,
-                        onboardingFlow,
+                        onboardingFlow: 'new',
                         organizationId: user.organizationUuid,
                     },
                 });
@@ -649,7 +637,6 @@ export class UserService extends BaseService {
         } else {
             userConnectionType = 'password';
         }
-        const onboardingFlow = await this.getOnboardingFlow(user);
         this.analytics.track({
             event: 'user.created',
             userId: user.userUuid,
@@ -658,7 +645,7 @@ export class UserService extends BaseService {
                 createdUserId: user.userUuid,
                 organizationId: user.organizationUuid,
                 userConnectionType,
-                onboardingFlow,
+                onboardingFlow: 'new',
                 isOrganizationCreator: false,
             },
         });
@@ -679,7 +666,7 @@ export class UserService extends BaseService {
                 properties: {
                     organizationId: inviteLink.organizationUuid,
                     invitePurpose: InviteLinkPurpose.Setup,
-                    onboardingFlow,
+                    onboardingFlow: 'new',
                     invitedByUserId: invitedByUserUuid,
                 },
             });
@@ -914,7 +901,6 @@ export class UserService extends BaseService {
         }
 
         if (!existingUserWithEmail) {
-            const onboardingFlow = await this.getOnboardingFlow(user);
             const pendingUser = await this.userModel.createPendingUser(
                 organizationUuid,
                 {
@@ -924,7 +910,7 @@ export class UserService extends BaseService {
                     role: userRole,
                 },
                 true,
-                onboardingFlow === 'new' ? false : undefined,
+                false,
             );
             userUuid = pendingUser.userUuid;
         } else {
@@ -1569,10 +1555,7 @@ export class UserService extends BaseService {
             );
             return this.userModel.findSessionUserByUUID(user.userUuid);
         }
-        const user = await this.registerUser(
-            openIdUser,
-            await this.getOnboardingFlow(),
-        );
+        const user = await this.registerUser(openIdUser);
         this.analytics.track({
             userId: user.userUuid,
             event: 'user.logged_in',
@@ -1737,13 +1720,12 @@ export class UserService extends BaseService {
         );
 
         if (answer !== undefined) {
-            const onboardingFlow = await this.getOnboardingFlow(user);
             this.analytics.track({
                 event: 'hear_about_us.submitted',
                 userId: completeUser.userUuid,
                 properties: {
                     organizationId: user.organizationUuid,
-                    onboardingFlow,
+                    onboardingFlow: 'new',
                     answered: answer.length > 0,
                     answer: answer.length > 0 ? answer : null,
                 },
@@ -2174,23 +2156,15 @@ export class UserService extends BaseService {
                 password: user.password,
             });
         } else if ('password' in user) {
-            const onboardingFlow = await this.getOnboardingFlow();
             await this.checkNewUserRegistrationAllowed(undefined, user.email);
 
-            lightdashUser = await this.registerUser(
-                {
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    email: user.email,
-                    password: user.password,
-                },
-                onboardingFlow,
-            );
+            lightdashUser = await this.registerUser({
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                password: user.password,
+            });
         } else {
-            const onboardingFlow = await this.getOnboardingFlow();
-            if (onboardingFlow !== 'new') {
-                throw new ForbiddenError('Email-only signup is not enabled');
-            }
             if (!this.lightdashConfig.smtp) {
                 throw new ForbiddenError(
                     'Email-only signup requires an email server to be configured',
@@ -2199,14 +2173,11 @@ export class UserService extends BaseService {
 
             await this.checkNewUserRegistrationAllowed(undefined, user.email);
 
-            lightdashUser = await this.registerUser(
-                {
-                    firstName: '',
-                    lastName: '',
-                    email: user.email,
-                },
-                onboardingFlow,
-            );
+            lightdashUser = await this.registerUser({
+                firstName: '',
+                lastName: '',
+                email: user.email,
+            });
             // The register endpoint calls req.login on the returned session
             // user, so signup establishes the first (passwordless) session.
             this.analytics.track({
@@ -2223,7 +2194,6 @@ export class UserService extends BaseService {
 
     private async registerUser(
         createUser: CreateUserArgs | CreatePasswordlessUserArgs | OpenIdUser,
-        onboardingFlow: OnboardingFlow,
     ) {
         if (isOpenIdUser(createUser)) {
             if (
@@ -2259,11 +2229,7 @@ export class UserService extends BaseService {
             userConnectionType = 'email_only';
         }
 
-        const user = await this.userModel.createUser(
-            createUser,
-            true,
-            onboardingFlow === 'new' ? false : undefined,
-        );
+        const user = await this.userModel.createUser(createUser, true, false);
         this.identifyUser({
             ...user,
             isMarketingOptedIn: user.isMarketingOptedIn,
@@ -2276,7 +2242,7 @@ export class UserService extends BaseService {
                 createdUserId: user.userUuid,
                 organizationId: user.organizationUuid,
                 userConnectionType,
-                onboardingFlow,
+                onboardingFlow: 'new',
                 isOrganizationCreator: true,
             },
         });
@@ -2286,7 +2252,7 @@ export class UserService extends BaseService {
             properties: {
                 step: 'signup',
                 stepIndex: 1,
-                onboardingFlow,
+                onboardingFlow: 'new',
                 organizationId: user.organizationUuid,
             },
         });
@@ -2402,7 +2368,7 @@ export class UserService extends BaseService {
             throw new AuthorizationError();
         }
         const {
-            data: { user, personalAccessToken },
+            data: { user, personalAccessToken, cliOAuthPatCompat },
             cacheHit,
         } = results;
         if (!user.isActive) {
@@ -2433,7 +2399,11 @@ export class UserService extends BaseService {
             user.userUuid,
             LocalIssuerTypes.API_TOKEN,
         );
-        const userWithOrganization: SessionUser = { ...user, ...organization };
+        const userWithOrganization: SessionUser = {
+            ...user,
+            ...organization,
+            personalAccessToken: { cliOAuthPatCompat },
+        };
 
         const now = new Date();
         if (
@@ -2552,14 +2522,13 @@ export class UserService extends BaseService {
             recipient: emailStatus.email,
             passcode,
         });
-        const onboardingFlow = await this.getOnboardingFlow(user);
         this.analytics.track({
             event: 'one_time_passcode.sent',
             userId: user.userUuid,
             properties: {
                 purpose,
                 isResend,
-                onboardingFlow,
+                onboardingFlow: 'new',
             },
         });
         return {
@@ -2580,14 +2549,13 @@ export class UserService extends BaseService {
         purpose: OneTimePasscodePurpose,
         reason: OneTimePasscodeFailureReason,
     ): Promise<void> {
-        const onboardingFlow = await this.getOnboardingFlow(user);
         this.analytics.track({
             event: 'one_time_passcode.failed',
             userId: user.userUuid,
             properties: {
                 purpose,
                 reason,
-                onboardingFlow,
+                onboardingFlow: 'new',
             },
         });
     }
@@ -2636,9 +2604,6 @@ export class UserService extends BaseService {
         return `An account for ${email} already exists but hasn't been activated. Ask your admin for an invite link. After that, SSO sign-in will be enabled.`;
     }
 
-    // OTP login is deliberately NOT gated on the NewOnboarding flag: accounts
-    // enrolled as strictly passwordless have no other way to sign in, so a
-    // flag rollback must not strand them. The flag gates enrollment only.
     async requestEmailOtpLogin(email: string): Promise<void> {
         const normalizedEmail = email.toLowerCase();
         const user = await this.userModel.findUserByEmail(normalizedEmail);
@@ -4552,8 +4517,6 @@ export class UserService extends BaseService {
 
         const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
         const hasPassword = await this.userModel.hasPasswordByEmail(email);
-        // Not gated on the NewOnboarding flag: an enrolled passwordless
-        // account must keep its only sign-in path across a flag rollback.
         let shouldShowEmailOtp = false;
         if (existingUser && !hasPassword) {
             const [hasPasswordLogin, hasOpenIdIdentity, isEmailLoginAllowed] =

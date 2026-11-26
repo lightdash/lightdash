@@ -30,21 +30,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import {
-    IconArrowLeft,
-    IconCamera,
-    IconMicrophone,
-    IconCheck,
-    IconDatabase,
-    IconDatabasePlus,
-    IconFileDescription,
-    IconLink,
-    IconPhoto,
-    IconPlugConnected,
-    IconPlus,
-    IconSearch,
-    IconX,
-} from '@tabler/icons-react';
+import { IconArrowLeft, IconCamera, IconCheck, IconDatabase, IconDatabasePlus, IconFileDescription, IconLink, IconPhoto, IconPlugConnected, IconPlus, IconSearch, IconX } from '@tabler/icons-react';
 import { uniqBy } from 'es-toolkit/compat';
 import {
     useCallback,
@@ -53,19 +39,11 @@ import {
     type ClipboardEvent,
     type FC,
 } from 'react';
-import {
-    BarChartIcon,
-    DashboardIcon,
-} from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
 import { ChartIcon, ContentIcon } from '../../components/common/ResourceIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
-import {
-    VOICE_DESIGN_BUTTON_TOUR_ID,
-    VoiceDesignTour,
-} from '../../ee/features/capture/onboarding';
 import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
 import { useInfiniteContent } from '../../hooks/useContent';
 import { useProject } from '../../hooks/useProject';
@@ -81,6 +59,7 @@ import {
     type AttachableResourceType,
     type AttachLinkOutcome,
 } from './hooks/useAttachResourceLink';
+import { BarChartIcon, DashboardIcon } from '../../components/common/ContentIcons';
 
 type AttachFromLink = (
     input: string,
@@ -132,27 +111,6 @@ export const ScreenshotButton: FC<{
             <MantineIcon icon={IconCamera} size={16} />
         </ActionIcon>
     </Tooltip>
-);
-
-/** Starts a Voice Design recording: draw on the preview while talking. */
-export const CaptureButton: FC<{
-    onClick: () => void;
-    disabled: boolean;
-}> = ({ onClick, disabled }) => (
-    <>
-        <Tooltip label="Voice Design" position="bottom">
-            <ActionIcon
-                size="md"
-                onClick={onClick}
-                disabled={disabled}
-                aria-label="Voice Design"
-                data-tour={VOICE_DESIGN_BUTTON_TOUR_ID}
-            >
-                <MantineIcon icon={IconMicrophone} size={16} />
-            </ActionIcon>
-        </Tooltip>
-        <VoiceDesignTour surface="builder" />
-    </>
 );
 
 type ModelOption = {

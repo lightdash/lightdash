@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    AgentCapability,
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AiOrganizationSettings,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
@@ -164,11 +165,9 @@ describe('findBaseUrlRemovalsBlockedByInstanceGateway', () => {
         threadDumpEnabled: false,
         debugLoggingEnabled: false,
         askAiButtonEnabled: false,
-        embeddingEnabled: false,
         maxQueryLimit: 100,
         runSqlMaxLimit: 100,
         defaultProvider: 'openai',
-        defaultEmbeddingModelProvider: 'openai',
         providers: {
             anthropic: {
                 apiKey: 'instance-anthropic-key',
@@ -733,9 +732,8 @@ describe('upsertSettings model validation', () => {
             .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
             .mockResolvedValue({
                 allowedGroupUuids: null,
-                mode: 'managed',
                 version: 1,
-                allowedCapabilities: null,
+                allowedCapabilities: Object.values(AgentCapability),
             });
         const account = fromOauth(toSessionUser(user), {
             accessToken: 'token',

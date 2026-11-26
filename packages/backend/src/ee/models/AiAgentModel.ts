@@ -71,7 +71,6 @@ import {
     assertUnreachable,
     ChartKind,
     COMPOSER_QUERY_TOOL_NAMES,
-    ContentType,
     CreateLlmAssessment,
     CreateSlackPrompt,
     CreateSlackThread,
@@ -92,6 +91,7 @@ import {
     isAiAppThreadCreatedFrom,
     isAiComposerChartArtifactConfig,
     isAiWritebackRunInProgress,
+    isDbtWriteToolName,
     isSameComposerNodeDefinition,
     isThreadPrompt,
     isToolDataAppBuildResult,
@@ -123,11 +123,11 @@ import {
     type AiDashboardRuntimeOverrides,
     type AiPromptThreadImageSnapshot,
     type ComposerNodeColumn,
+    type DbtWriteToolName,
     type ServedSkillMetadata,
     type ThreadComposerQueryNode,
     type ToolEditDbtProjectOutput,
     type ToolGenerateDataAppOutput,
-    type VerifiedContentListItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import moment from 'moment';
@@ -174,13 +174,11 @@ import {
     SavedSqlTableName,
     SavedSqlVersionsTableName,
 } from '../../database/entities/savedSql';
-import { SpaceTableName } from '../../database/entities/spaces';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import { isUniqueConstraintViolation } from '../../database/errors';
 import KnexPaginate from '../../database/pagination';
 import Logger from '../../logging/logger';
 import { AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE } from '../../models/ContentAsCodeSnapshotModel';
-import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     AI_PROMPT_TURN_DECISION_OPERATIONS,
@@ -266,8 +264,6 @@ import {
     AiArtifactsTableName,
     AiArtifactVersionsTable,
     AiArtifactVersionsTableName,
-    AiPromptArtifactReferencesTable,
-    AiPromptArtifactReferencesTableName,
     DbAiArtifact,
     DbAiArtifactVersion,
 } from '../database/entities/aiArtifacts';
@@ -550,6 +546,7 @@ type AiThreadSummaryRow = Pick<
     | 'bound_entity_type'
     | 'bound_entity_uuid'
     | 'thread_context'
+    | 'thread_metadata'
 > & {
     prompt: DbAiPrompt['prompt'] | null;
     ai_prompt_uuid: DbAiPrompt['ai_prompt_uuid'] | null;
@@ -623,7 +620,7 @@ const getWritebackResultKey = (promptUuid: string, toolCallId: string) =>
 
 type EditDbtProjectToolResult = AiAgentToolResult & {
     toolType: 'built-in';
-    toolName: 'editDbtProject';
+    toolName: DbtWriteToolName;
     metadata: ToolEditDbtProjectOutput['metadata'];
 };
 
@@ -777,10 +774,13 @@ export class AiAgentModel {
         organizationUuid,
         agentUuid,
         projectUuid,
+        agentKind,
     }: {
         organizationUuid: string;
         agentUuid: string;
         projectUuid?: string;
+        /** Finds the agent only if it is of this kind; any kind when left out. */
+        agentKind?: DbAiAgent['agent_kind'];
     }): Promise<AiAgentSummary> {
         const integrations = this.database
             .from(AiAgentIntegrationTableName)
@@ -841,6 +841,7 @@ export class AiAgentModel {
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
                 projectUuid: `${AiAgentTableName}.project_uuid`,
                 name: `${AiAgentTableName}.name`,
+                kind: `${AiAgentTableName}.agent_kind`,
                 description: `${AiAgentTableName}.description`,
                 tags: `${AiAgentTableName}.tags`,
                 integrations: this.database.raw(`
@@ -923,6 +924,9 @@ export class AiAgentModel {
         if (projectUuid) {
             void query.where(`${AiAgentTableName}.project_uuid`, projectUuid);
         }
+        if (agentKind) {
+            void query.where(`${AiAgentTableName}.agent_kind`, agentKind);
+        }
 
         const agent = await query;
 
@@ -1004,6 +1008,7 @@ export class AiAgentModel {
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
                 projectUuid: `${AiAgentTableName}.project_uuid`,
                 name: `${AiAgentTableName}.name`,
+                kind: `${AiAgentTableName}.agent_kind`,
                 description: `${AiAgentTableName}.description`,
                 tags: `${AiAgentTableName}.tags`,
                 integrations: this.database.raw(`
@@ -1083,6 +1088,7 @@ export class AiAgentModel {
             // TODO: drop with the is_system column once no release that writes
             // system agents (<= 3.60) can still be running during an upgrade.
             .where(`${AiAgentTableName}.is_system`, false)
+            .where(`${AiAgentTableName}.agent_kind`, 'user')
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`);
 
         if (filter?.projectType) {
@@ -1184,6 +1190,7 @@ export class AiAgentModel {
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
             .where(`${AiAgentTableName}.project_uuid`, projectUuid)
             .where(`${AiAgentTableName}.is_system`, false)
+            .where(`${AiAgentTableName}.agent_kind`, 'user')
             .orderBy(`${AiAgentTableName}.slug`, 'asc');
 
         if ((slugs?.length ?? 0) > 0 || (agentUuids?.length ?? 0) > 0) {
@@ -2492,6 +2499,7 @@ export class AiAgentModel {
             organizationUuid: string;
             slug?: string;
             imageUrl?: string | null;
+            agentKind?: DbAiAgent['agent_kind'];
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
@@ -2532,6 +2540,7 @@ export class AiAgentModel {
                         args.providerCredentialUuid ?? null,
                     version: args.version,
                     thread_retention_hours: args.threadRetentionHours ?? null,
+                    agent_kind: args.agentKind ?? 'user',
                 })
                 .returning('*');
 
@@ -2624,6 +2633,7 @@ export class AiAgentModel {
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
+                kind: agent.agent_kind,
                 description: agent.description,
                 projectUuid: agent.project_uuid,
                 organizationUuid: agent.organization_uuid,
@@ -2653,6 +2663,61 @@ export class AiAgentModel {
                 threadRetentionHours: agent.thread_retention_hours,
             };
         });
+    }
+
+    /** The project's built-in Semantic Studio agent, created on first use; a partial unique index keeps it to one. */
+    async getOrCreateSemanticStudioAgent({
+        organizationUuid,
+        projectUuid,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<AiAgentSummary> {
+        const findUuid = async (): Promise<string | null> =>
+            (
+                await this.database(AiAgentTableName)
+                    .select('ai_agent_uuid')
+                    .where('organization_uuid', organizationUuid)
+                    .where('project_uuid', projectUuid)
+                    .where('agent_kind', 'semantic_studio')
+                    .first()
+            )?.ai_agent_uuid ?? null;
+        const create = async (): Promise<string> => {
+            try {
+                const { uuid } = await this.createAgent({
+                    name: 'Semantic Studio',
+                    description: null,
+                    projectUuid,
+                    organizationUuid,
+                    tags: null,
+                    integrations: [],
+                    instruction: null,
+                    groupAccess: [],
+                    userAccess: [],
+                    spaceAccess: [],
+                    enableDataAccess: true,
+                    enableSelfImprovement: false,
+                    enableContentTools: false,
+                    enableUserContext: true,
+                    enableSqlMode: true,
+                    modelConfig: null,
+                    version: 2,
+                    mcpServerUuids: [],
+                    agentKind: 'semantic_studio',
+                });
+                return uuid;
+            } catch (error) {
+                // A concurrent first request won the race, on this agent's index or its slug; use its agent.
+                const winner = isUniqueConstraintViolation(error)
+                    ? await findUuid()
+                    : null;
+                if (winner) return winner;
+                throw error;
+            }
+        };
+
+        const agentUuid = (await findUuid()) ?? (await create());
+        return this.getAgent({ organizationUuid, agentUuid });
     }
 
     /**
@@ -2943,6 +3008,7 @@ export class AiAgentModel {
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
+                kind: agent.agent_kind,
                 description: agent.description,
                 projectUuid: agent.project_uuid,
                 organizationUuid: agent.organization_uuid,
@@ -3671,6 +3737,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.bound_entity_type`,
                 `${AiThreadTableName}.bound_entity_uuid`,
                 `${AiThreadTableName}.thread_context`,
+                `${AiThreadTableName}.thread_metadata`,
                 'first_prompt.prompt',
                 'first_prompt.ai_prompt_uuid',
                 `${UserTableName}.user_uuid`,
@@ -3758,6 +3825,7 @@ export class AiAgentModel {
             liveStatus: null,
             binding: AiAgentModel.toThreadBindingSummary(row),
             threadContext: row.thread_context,
+            metadata: row.thread_metadata,
         };
     }
 
@@ -3861,7 +3929,7 @@ export class AiAgentModel {
                         ON writeback_run.ai_writeback_run_uuid::text = tool_result.metadata->>'aiWritebackRunUuid'
                         AND writeback_run.tool_call_id = tool_result.tool_call_id
                     WHERE tool_result.ai_prompt_uuid = latest_prompt.ai_prompt_uuid
-                        AND tool_result.tool_name IN ('editDbtProject', 'proposeWriteback')
+                        AND tool_result.tool_name IN ('editDbtProject', 'write', 'proposeWriteback')
                         AND tool_result.metadata->>'status' = 'pending'
                         AND writeback_run.status NOT IN (${writebackTerminalStatusPlaceholders})
                     ORDER BY tool_result.created_at DESC
@@ -4197,6 +4265,7 @@ export class AiAgentModel {
                     project_name: DbProject['name'];
                     organization_uuid: DbAiThread['organization_uuid'];
                     project_uuid: DbAiThread['project_uuid'];
+                    thread_metadata: DbAiThread['thread_metadata'];
                 }[]
             >([
                 // Original thread fields
@@ -4206,6 +4275,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.created_from`,
                 `${AiThreadTableName}.title`,
                 `${AiThreadTableName}.title_generated_at`,
+                `${AiThreadTableName}.thread_metadata`,
                 'first_thread_prompt.prompt as first_prompt',
                 `${UserTableName}.user_uuid`,
                 this.database.raw(
@@ -4331,6 +4401,20 @@ export class AiAgentModel {
                     `%${filters.search}%`,
                 );
             }
+            if (filters.metadata) {
+                const { key, value } = filters.metadata;
+                if (value !== null) {
+                    void finalQuery.whereRaw(
+                        `${AiThreadTableName}.thread_metadata @> ?::jsonb`,
+                        [JSON.stringify({ [key]: value })],
+                    );
+                } else {
+                    void finalQuery.whereRaw(
+                        `${AiThreadTableName}.thread_metadata -> ? IS NOT NULL`,
+                        [key],
+                    );
+                }
+            }
         }
 
         if (sort) {
@@ -4427,6 +4511,7 @@ export class AiAgentModel {
                     promptCount: stats?.prompt_count ?? 0,
                     slackChannelId: row.slack_channel_id || null,
                     slackThreadTs: row.slack_thread_ts || null,
+                    metadata: row.thread_metadata,
                 };
             },
         );
@@ -5099,9 +5184,6 @@ export class AiAgentModel {
         const promptUuids = promptRows.map((row) => row.ai_prompt_uuid);
 
         const artifactsMap = await this.findThreadArtifacts({ promptUuids });
-        const referencedArtifactsMap = await this.findThreadReferencedArtifacts(
-            { promptUuids },
-        );
         const contextMap = await this.getContextForPromptUuids(promptUuids);
         const steersMap = await this.findPromptSteers(promptUuids);
         const decisionsMap = await this.findPromptDecisions(promptUuids);
@@ -5143,9 +5225,6 @@ export class AiAgentModel {
             );
 
             const artifacts = artifactsMap.get(row.ai_prompt_uuid);
-            const referencedArtifacts = referencedArtifactsMap.get(
-                row.ai_prompt_uuid,
-            );
 
             if (
                 !AiAgentModel.hasAssistantMessage({
@@ -5177,7 +5256,6 @@ export class AiAgentModel {
                 humanScore: row.human_score,
                 humanFeedback: row.human_feedback,
                 artifacts: artifacts ?? null,
-                referencedArtifacts: referencedArtifacts ?? null,
                 modelConfig: row.model_config,
                 tokenUsage: row.token_usage,
                 responseTiming: row.response_timing,
@@ -5323,338 +5401,6 @@ export class AiAgentModel {
         }
 
         return artifactsMap;
-    }
-
-    async findThreadReferencedArtifacts({
-        promptUuids,
-    }: {
-        promptUuids: string[];
-    }): Promise<Map<string, AiAgentMessageAssistantArtifact[]>> {
-        const referencedArtifactsMap = new Map<
-            string,
-            AiAgentMessageAssistantArtifact[]
-        >();
-
-        if (promptUuids.length === 0) {
-            return referencedArtifactsMap;
-        }
-
-        const referencedArtifactRows = await this.database(
-            AiPromptArtifactReferencesTableName,
-        )
-            .join(
-                AiArtifactVersionsTableName,
-                `${AiPromptArtifactReferencesTableName}.ai_artifact_version_uuid`,
-                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-            )
-            .join(
-                AiArtifactsTableName,
-                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-            )
-            .select(
-                `${AiPromptArtifactReferencesTableName}.ai_prompt_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-                `${AiArtifactVersionsTableName}.version_number`,
-                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                `${AiArtifactVersionsTableName}.title`,
-                `${AiArtifactVersionsTableName}.description`,
-                `${AiArtifactsTableName}.artifact_type`,
-            )
-            .whereIn(
-                `${AiPromptArtifactReferencesTableName}.ai_prompt_uuid`,
-                promptUuids,
-            )
-            .orderBy(
-                `${AiPromptArtifactReferencesTableName}.created_at`,
-                'desc',
-            );
-
-        for (const artifactRow of referencedArtifactRows) {
-            const promptUuid = artifactRow.ai_prompt_uuid;
-            if (!referencedArtifactsMap.has(promptUuid)) {
-                referencedArtifactsMap.set(promptUuid, []);
-            }
-            referencedArtifactsMap.get(promptUuid)!.push({
-                artifactUuid: artifactRow.ai_artifact_uuid,
-                versionNumber: artifactRow.version_number ?? 1,
-                versionUuid: artifactRow.ai_artifact_version_uuid,
-                title: artifactRow.title,
-                description: artifactRow.description,
-                artifactType: artifactRow.artifact_type as
-                    | 'chart'
-                    | 'dashboard',
-            });
-        }
-
-        return referencedArtifactsMap;
-    }
-
-    async searchArtifactsBySimilarity({
-        organizationUuid,
-        projectUuid,
-        agentUuid,
-        queryEmbedding,
-        embeddingModelProvider,
-        embeddingModel,
-        limit = 3,
-        semanticCandidates = false,
-    }: {
-        organizationUuid: string;
-        projectUuid: string;
-        agentUuid: string;
-        queryEmbedding: number[];
-        embeddingModelProvider: string;
-        embeddingModel: string;
-        limit?: number;
-        semanticCandidates?: boolean;
-    }): Promise<
-        {
-            artifactVersionUuid: string;
-            chartConfig: Record<string, unknown>;
-            artifactType: 'chart' | 'dashboard';
-            verifiedQuestion: string | null;
-            title: string | null;
-            description: string | null;
-            similarity: number;
-        }[]
-    > {
-        return wrapSentryTransaction(
-            'searchArtifactsBySimilarity',
-            { organizationUuid, projectUuid, limit },
-            async () => {
-                if (!queryEmbedding || queryEmbedding.length === 0) {
-                    return [];
-                }
-
-                const embeddingJson = JSON.stringify(queryEmbedding);
-                const similarityThreshold =
-                    this.lightdashConfig.ai.copilot
-                        .verifiedAnswerSimilarityThreshold;
-
-                const query = this.database(AiArtifactVersionsTableName)
-                    .select(
-                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                        `${AiArtifactVersionsTableName}.chart_config`,
-                        `${AiArtifactVersionsTableName}.verified_question`,
-                        `${AiArtifactVersionsTableName}.title`,
-                        `${AiArtifactVersionsTableName}.description`,
-                        `${AiArtifactsTableName}.artifact_type`,
-                        this.database.raw(
-                            `1 - (${AiArtifactVersionsTableName}.embedding_vector <=> ?::vector) AS similarity`,
-                            [embeddingJson],
-                        ),
-                    )
-                    .join(
-                        AiArtifactsTableName,
-                        `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                        `${AiArtifactsTableName}.ai_artifact_uuid`,
-                    )
-                    .join(
-                        AiThreadTableName,
-                        `${AiArtifactsTableName}.ai_thread_uuid`,
-                        `${AiThreadTableName}.ai_thread_uuid`,
-                    )
-                    .whereNotNull(
-                        `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
-                    )
-                    .whereNotNull(`${AiArtifactVersionsTableName}.chart_config`)
-                    .whereNotNull(
-                        `${AiArtifactVersionsTableName}.embedding_vector`,
-                    )
-                    .where(
-                        `${AiThreadTableName}.organization_uuid`,
-                        organizationUuid,
-                    )
-                    .where(`${AiThreadTableName}.agent_uuid`, agentUuid)
-                    .where(`${AiThreadTableName}.project_uuid`, projectUuid)
-                    .where(
-                        `${AiArtifactVersionsTableName}.embedding_model_provider`,
-                        embeddingModelProvider,
-                    )
-                    .where(
-                        `${AiArtifactVersionsTableName}.embedding_model`,
-                        embeddingModel,
-                    )
-                    .orderByRaw(
-                        `${AiArtifactVersionsTableName}.embedding_vector <=> ?::vector`,
-                        [embeddingJson],
-                    )
-                    .limit(limit);
-
-                if (!semanticCandidates)
-                    query.whereRaw(
-                        `1 - (${AiArtifactVersionsTableName}.embedding_vector <=> ?::vector) > ?`,
-                        [embeddingJson, similarityThreshold],
-                    );
-                const results = await query;
-                return results.map((row) => ({
-                    artifactVersionUuid: row.ai_artifact_version_uuid,
-                    chartConfig: row.chart_config,
-                    artifactType: row.artifact_type,
-                    verifiedQuestion: row.verified_question,
-                    title: row.title,
-                    description: row.description,
-                    similarity: row.similarity,
-                }));
-            },
-        );
-    }
-
-    async recordArtifactReferences({
-        promptUuid,
-        projectUuid,
-        artifactReferences,
-    }: {
-        promptUuid: string;
-        projectUuid: string;
-        artifactReferences: Array<{
-            artifactVersionUuid: string;
-            similarityScore?: number;
-        }>;
-    }): Promise<void> {
-        if (artifactReferences.length === 0) {
-            return;
-        }
-
-        await Promise.all(
-            artifactReferences.map((ref) =>
-                this.database<AiPromptArtifactReferencesTable>(
-                    AiPromptArtifactReferencesTableName,
-                ).insert({
-                    ai_prompt_uuid: promptUuid,
-                    ai_artifact_version_uuid: ref.artifactVersionUuid,
-                    project_uuid: projectUuid,
-                    similarity_score: ref.similarityScore ?? null,
-                }),
-            ),
-        );
-    }
-
-    async getVerifiedArtifactsForAgent({
-        organizationUuid,
-        projectUuid,
-        agentUuid,
-        paginateArgs,
-    }: {
-        organizationUuid: string;
-        projectUuid: string;
-        agentUuid: string;
-        paginateArgs?: KnexPaginateArgs;
-    }): Promise<
-        KnexPaginatedData<
-            Array<{
-                artifactUuid: string;
-                versionUuid: string;
-                artifactType: 'chart' | 'dashboard';
-                title: string | null;
-                description: string | null;
-                verifiedAt: Date;
-                verifiedByUserUuid: string;
-                referenceCount: number;
-                threadUuid: string;
-                promptUuid: string | null;
-            }>
-        >
-    > {
-        return wrapSentryTransaction(
-            'getVerifiedArtifactsForAgent',
-            { organizationUuid, projectUuid, agentUuid },
-            async () => {
-                const query = this.database(AiArtifactVersionsTableName)
-                    .select(
-                        `${AiArtifactsTableName}.ai_artifact_uuid as artifactUuid`,
-                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid as versionUuid`,
-                        `${AiArtifactsTableName}.artifact_type as artifactType`,
-                        `${AiArtifactVersionsTableName}.title`,
-                        `${AiArtifactVersionsTableName}.description`,
-                        `${AiArtifactVersionsTableName}.verified_at as verifiedAt`,
-                        `${AiArtifactVersionsTableName}.verified_by_user_uuid as verifiedByUserUuid`,
-                        `${AiArtifactsTableName}.ai_thread_uuid as threadUuid`,
-                        `${AiArtifactVersionsTableName}.ai_prompt_uuid as promptUuid`,
-                    )
-                    .countDistinct(
-                        `${AiPromptArtifactReferencesTableName}.ai_prompt_uuid as referenceCount`,
-                    )
-                    .join(
-                        AiArtifactsTableName,
-                        `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                        `${AiArtifactsTableName}.ai_artifact_uuid`,
-                    )
-                    .join(
-                        AiThreadTableName,
-                        `${AiArtifactsTableName}.ai_thread_uuid`,
-                        `${AiThreadTableName}.ai_thread_uuid`,
-                    )
-                    .leftJoin(
-                        AiPromptArtifactReferencesTableName,
-                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                        `${AiPromptArtifactReferencesTableName}.ai_artifact_version_uuid`,
-                    )
-                    .whereNotNull(
-                        `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
-                    )
-                    .where(
-                        `${AiThreadTableName}.organization_uuid`,
-                        organizationUuid,
-                    )
-                    .where(`${AiThreadTableName}.agent_uuid`, agentUuid)
-                    .where(`${AiThreadTableName}.project_uuid`, projectUuid)
-                    .groupBy(
-                        `${AiArtifactsTableName}.ai_artifact_uuid`,
-                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                        `${AiArtifactsTableName}.artifact_type`,
-                        `${AiArtifactVersionsTableName}.title`,
-                        `${AiArtifactVersionsTableName}.description`,
-                        `${AiArtifactVersionsTableName}.verified_at`,
-                        `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
-                        `${AiArtifactsTableName}.ai_thread_uuid`,
-                        `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
-                    )
-                    .orderByRaw(
-                        `COUNT(DISTINCT ${AiPromptArtifactReferencesTableName}.ai_prompt_uuid) DESC`,
-                    );
-
-                const { pagination, data } = await KnexPaginate.paginate(
-                    query,
-                    paginateArgs,
-                );
-
-                return {
-                    pagination,
-                    data: (data as Array<Record<string, unknown>>).map(
-                        (row) => ({
-                            artifactUuid: row.artifactUuid as string,
-                            versionUuid: row.versionUuid as string,
-                            artifactType: row.artifactType as
-                                | 'chart'
-                                | 'dashboard',
-                            title: (row.title as string | null) ?? null,
-                            description:
-                                (row.description as string | null) ?? null,
-                            verifiedAt: row.verifiedAt as Date,
-                            verifiedByUserUuid:
-                                row.verifiedByUserUuid as string,
-                            referenceCount: Number(row.referenceCount),
-                            threadUuid: row.threadUuid as string,
-                            promptUuid:
-                                (row.promptUuid as string | null) ?? null,
-                        }),
-                    ),
-                };
-            },
-        );
-    }
-
-    async findArtifactReferencesByPromptUuid(
-        promptUuid: string,
-    ): Promise<string[]> {
-        const refs = await this.database(AiPromptArtifactReferencesTableName)
-            .select('ai_artifact_version_uuid')
-            .where('ai_prompt_uuid', promptUuid)
-            .orderBy('created_at', 'asc');
-
-        return refs.map((r) => r.ai_artifact_version_uuid);
     }
 
     async getArtifactVersionsByUuids(artifactVersionUuids: string[]): Promise<
@@ -5930,13 +5676,6 @@ export class AiAgentModel {
             artifactType: artifactRow.artifact_type as 'chart' | 'dashboard',
         }));
 
-        const referencedArtifactsMap = await this.findThreadReferencedArtifacts(
-            {
-                promptUuids: [row.ai_prompt_uuid],
-            },
-        );
-        const referencedArtifacts =
-            referencedArtifactsMap.get(row.ai_prompt_uuid) ?? null;
         const steers =
             (await this.findPromptSteers([row.ai_prompt_uuid])).get(
                 row.ai_prompt_uuid,
@@ -5990,7 +5729,6 @@ export class AiAgentModel {
                     humanScore: row.human_score,
                     humanFeedback: row.human_feedback,
                     artifacts: artifacts.length > 0 ? artifacts : null,
-                    referencedArtifacts,
                     modelConfig: row.model_config,
                     tokenUsage: row.token_usage,
                     responseTiming: row.response_timing,
@@ -6839,14 +6577,6 @@ export class AiAgentModel {
             });
     }
 
-    async findPromptSavedQueryUuid(promptUuid: string): Promise<string | null> {
-        const row = await this.database(AiPromptTableName)
-            .select('saved_query_uuid')
-            .where({ ai_prompt_uuid: promptUuid })
-            .first<{ saved_query_uuid: string | null }>();
-        return row?.saved_query_uuid ?? null;
-    }
-
     async updateMessageSavedQuery(data: {
         messageUuid: string;
         savedQueryUuid: string | null;
@@ -6942,320 +6672,6 @@ export class AiAgentModel {
             .whereNull('deleted_at')
             .first();
         return row !== undefined;
-    }
-
-    async setArtifactVersionVerified(
-        artifactVersionUuid: string,
-        verified: boolean,
-        userUuid: string,
-    ): Promise<void> {
-        await this.database(AiArtifactVersionsTableName)
-            .update({
-                verified_by_user_uuid: verified ? userUuid : null,
-                verified_at: verified
-                    ? (this.database.fn.now() as unknown as Date)
-                    : null,
-            } satisfies Partial<DbAiArtifactVersion>)
-            .where({
-                ai_artifact_version_uuid: artifactVersionUuid,
-            });
-    }
-
-    async getVerifiedSavedArtifactContent(
-        projectUuid: string,
-    ): Promise<VerifiedContentListItem[]> {
-        const chartRows = await this.database(AiArtifactVersionsTableName)
-            .leftJoin(
-                AiPromptTableName,
-                `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
-                `${AiPromptTableName}.ai_prompt_uuid`,
-            )
-            // Charts saved from the web app link to the prompt, not the artifact version
-            .innerJoin(
-                SavedChartsTableName,
-                `${SavedChartsTableName}.saved_query_uuid`,
-                this.database.raw(
-                    `coalesce(${AiArtifactVersionsTableName}.saved_query_uuid, ${AiPromptTableName}.saved_query_uuid)`,
-                ),
-            )
-            .innerJoin(
-                SpaceTableName,
-                `${SavedChartsTableName}.space_id`,
-                `${SpaceTableName}.space_id`,
-            )
-            .innerJoin(
-                ProjectTableName,
-                `${SpaceTableName}.project_id`,
-                `${ProjectTableName}.project_id`,
-            )
-            .leftJoin(
-                UserTableName,
-                `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
-                `${UserTableName}.user_uuid`,
-            )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .whereNotNull(`${AiArtifactVersionsTableName}.verified_at`)
-            .whereNull(`${SavedChartsTableName}.deleted_at`)
-            .whereNull(`${SpaceTableName}.deleted_at`)
-            .distinctOn(`${SavedChartsTableName}.saved_query_uuid`)
-            .orderBy([
-                { column: `${SavedChartsTableName}.saved_query_uuid` },
-                {
-                    column: `${AiArtifactVersionsTableName}.verified_at`,
-                    order: 'desc',
-                },
-            ])
-            .select(
-                this.database
-                    .ref(
-                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                    )
-                    .as('verification_uuid'),
-                this.database
-                    .ref(`${SavedChartsTableName}.saved_query_uuid`)
-                    .as('content_uuid'),
-                `${SavedChartsTableName}.name`,
-                `${SavedChartsTableName}.slug`,
-                `${SavedChartsTableName}.description`,
-                `${SavedChartsTableName}.views_count`,
-                `${SavedChartsTableName}.last_version_chart_kind`,
-                this.database
-                    .ref(`${SavedChartsTableName}.last_version_updated_at`)
-                    .as('last_updated_at'),
-                this.database(SavedChartVersionsTableName)
-                    .select('explore_name')
-                    .whereRaw(
-                        `${SavedChartVersionsTableName}.saved_query_id = ${SavedChartsTableName}.saved_query_id`,
-                    )
-                    .orderBy('created_at', 'desc')
-                    .limit(1)
-                    .as('explore_name'),
-                `${SpaceTableName}.space_uuid`,
-                this.database.ref(`${SpaceTableName}.name`).as('space_name'),
-                `${UserTableName}.user_uuid`,
-                `${UserTableName}.first_name`,
-                `${UserTableName}.last_name`,
-                `${AiArtifactVersionsTableName}.verified_at`,
-            );
-
-        const dashboardRows = await this.database(AiArtifactVersionsTableName)
-            .innerJoin(
-                DashboardsTableName,
-                `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
-                `${DashboardsTableName}.dashboard_uuid`,
-            )
-            .innerJoin(
-                SpaceTableName,
-                `${DashboardsTableName}.space_id`,
-                `${SpaceTableName}.space_id`,
-            )
-            .innerJoin(
-                ProjectTableName,
-                `${SpaceTableName}.project_id`,
-                `${ProjectTableName}.project_id`,
-            )
-            .leftJoin(
-                UserTableName,
-                `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
-                `${UserTableName}.user_uuid`,
-            )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .whereNotNull(`${AiArtifactVersionsTableName}.verified_at`)
-            .whereNull(`${DashboardsTableName}.deleted_at`)
-            .whereNull(`${SpaceTableName}.deleted_at`)
-            .distinctOn(`${DashboardsTableName}.dashboard_uuid`)
-            .orderBy([
-                { column: `${DashboardsTableName}.dashboard_uuid` },
-                {
-                    column: `${AiArtifactVersionsTableName}.verified_at`,
-                    order: 'desc',
-                },
-            ])
-            .select(
-                this.database
-                    .ref(
-                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                    )
-                    .as('verification_uuid'),
-                this.database
-                    .ref(`${DashboardsTableName}.dashboard_uuid`)
-                    .as('content_uuid'),
-                `${DashboardsTableName}.name`,
-                `${DashboardsTableName}.slug`,
-                `${DashboardsTableName}.description`,
-                `${DashboardsTableName}.views_count`,
-                this.database(DashboardVersionsTableName)
-                    .select('created_at')
-                    .whereRaw(
-                        `${DashboardVersionsTableName}.dashboard_id = ${DashboardsTableName}.dashboard_id`,
-                    )
-                    .orderBy('created_at', 'desc')
-                    .limit(1)
-                    .as('last_updated_at'),
-                `${SpaceTableName}.space_uuid`,
-                this.database.ref(`${SpaceTableName}.name`).as('space_name'),
-                `${UserTableName}.user_uuid`,
-                `${UserTableName}.first_name`,
-                `${UserTableName}.last_name`,
-                `${AiArtifactVersionsTableName}.verified_at`,
-            );
-
-        const toBaseItem = (row: {
-            verification_uuid: string;
-            content_uuid: string;
-            name: string;
-            description: string | null;
-            views_count: number;
-            last_updated_at: Date | null;
-            space_uuid: string;
-            space_name: string;
-            user_uuid: string;
-            first_name: string;
-            last_name: string;
-            verified_at: Date;
-        }) => ({
-            uuid: row.verification_uuid,
-            contentUuid: row.content_uuid,
-            name: row.name,
-            description: row.description ?? null,
-            spaceUuid: row.space_uuid,
-            spaceName: row.space_name,
-            views: row.views_count,
-            lastUpdatedAt: row.last_updated_at,
-            verifiedBy: {
-                userUuid: row.user_uuid,
-                firstName: row.first_name,
-                lastName: row.last_name,
-            },
-            verifiedAt: row.verified_at,
-        });
-
-        const charts: VerifiedContentListItem[] = chartRows.map((row) => ({
-            ...toBaseItem(row),
-            contentType: ContentType.CHART,
-            slug: row.slug,
-            chartKind: row.last_version_chart_kind,
-            exploreName: row.explore_name ?? null,
-        }));
-
-        const dashboards: VerifiedContentListItem[] = dashboardRows.map(
-            (row) => ({
-                ...toBaseItem(row),
-                contentType: ContentType.DASHBOARD,
-                slug: row.slug,
-            }),
-        );
-
-        return [...charts, ...dashboards];
-    }
-
-    async updateArtifactEmbedding(
-        artifactVersionUuid: string,
-        embedding: number[],
-        embeddingModelProvider: string,
-        embeddingModel: string,
-    ): Promise<void> {
-        await this.database(AiArtifactVersionsTableName)
-            .where({ ai_artifact_version_uuid: artifactVersionUuid })
-            .update({
-                embedding_vector: this.database.raw('?::vector', [
-                    JSON.stringify(embedding),
-                ]) as unknown as number[],
-                embedding_model_provider: embeddingModelProvider,
-                embedding_model: embeddingModel,
-            });
-    }
-
-    async getArtifactEmbedding(artifactVersionUuid: string): Promise<{
-        embedding: number[];
-        provider: string;
-        model: string;
-    } | null> {
-        const result = await this.database(AiArtifactVersionsTableName)
-            .select(
-                'embedding_vector',
-                'embedding_model_provider',
-                'embedding_model',
-            )
-            .where({ ai_artifact_version_uuid: artifactVersionUuid })
-            .first();
-
-        if (!result) {
-            throw new NotFoundError(
-                `Artifact version ${artifactVersionUuid} not found`,
-            );
-        }
-
-        // Return null if embedding hasn't been generated yet
-        if (
-            !result.embedding_vector ||
-            !result.embedding_model_provider ||
-            !result.embedding_model
-        ) {
-            return null;
-        }
-
-        return {
-            embedding: result.embedding_vector,
-            provider: result.embedding_model_provider,
-            model: result.embedding_model,
-        };
-    }
-
-    async updateArtifactQuestion(
-        artifactVersionUuid: string,
-        question: string,
-    ): Promise<void> {
-        await this.database(AiArtifactVersionsTableName)
-            .update({ verified_question: question })
-            .where({ ai_artifact_version_uuid: artifactVersionUuid });
-    }
-
-    async getArtifactQuestion(
-        artifactVersionUuid: string,
-    ): Promise<string | null> {
-        const result = await this.database(AiArtifactVersionsTableName)
-            .select('verified_question')
-            .where({ ai_artifact_version_uuid: artifactVersionUuid })
-            .first();
-
-        if (!result) {
-            throw new NotFoundError(
-                `Artifact version ${artifactVersionUuid} not found`,
-            );
-        }
-
-        return result.verified_question;
-    }
-
-    async getVerifiedQuestions(agentUuid: string): Promise<
-        {
-            question: string;
-            uuid: string;
-        }[]
-    > {
-        const rows = await this.database(AiArtifactVersionsTableName)
-            .join(
-                AiArtifactsTableName,
-                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-            )
-            .join(
-                AiThreadTableName,
-                `${AiArtifactsTableName}.ai_thread_uuid`,
-                `${AiThreadTableName}.ai_thread_uuid`,
-            )
-            .where(`${AiThreadTableName}.agent_uuid`, agentUuid)
-            .whereNotNull(`${AiArtifactVersionsTableName}.verified_at`)
-            .whereNotNull(`${AiArtifactVersionsTableName}.verified_question`)
-            .select(
-                `${AiArtifactVersionsTableName}.verified_question as question`,
-                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid as uuid`,
-            )
-            .orderBy(`${AiArtifactVersionsTableName}.verified_at`, 'desc')
-            .limit(40);
-
-        return rows;
     }
 
     async findAgentEvalsForCode(agentUuids: string[]): Promise<
@@ -7412,6 +6828,7 @@ export class AiAgentModel {
                         ? AiAgentModel.getThreadBindingEntityUuid(data.binding)
                         : null,
                     thread_context: data.threadContext ?? null,
+                    thread_metadata: data.metadata ?? null,
                 })
                 .returning('ai_thread_uuid');
             if (row === undefined) {
@@ -10246,8 +9663,6 @@ export class AiAgentModel {
                     version.dashboard_config as AiArtifact['dashboardConfig'],
                 promptUuid: version.ai_prompt_uuid,
                 versionCreatedAt: version.created_at,
-                verifiedByUserUuid: version.verified_by_user_uuid,
-                verifiedAt: version.verified_at,
             } as AiArtifact;
         });
     }
@@ -10334,8 +9749,6 @@ export class AiAgentModel {
                     version.dashboard_config as AiArtifact['dashboardConfig'],
                 promptUuid: version.ai_prompt_uuid,
                 versionCreatedAt: version.created_at,
-                verifiedByUserUuid: version.verified_by_user_uuid,
-                verifiedAt: version.verified_at,
             } as AiArtifact;
         });
     }
@@ -10415,8 +9828,6 @@ export class AiAgentModel {
                 dashboardConfig: `${AiArtifactVersionsTableName}.dashboard_config`,
                 promptUuid: `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
                 versionCreatedAt: `${AiArtifactVersionsTableName}.created_at`,
-                verifiedByUserUuid: `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
-                verifiedAt: `${AiArtifactVersionsTableName}.verified_at`,
             } satisfies Record<keyof AiArtifact, string>)
             .from(AiArtifactsTableName)
             .join(
@@ -10488,8 +9899,6 @@ export class AiAgentModel {
                 dashboardConfig: `${AiArtifactVersionsTableName}.dashboard_config`,
                 promptUuid: `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
                 versionCreatedAt: `${AiArtifactVersionsTableName}.created_at`,
-                verifiedByUserUuid: `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
-                verifiedAt: `${AiArtifactVersionsTableName}.verified_at`,
             } satisfies Record<keyof AiArtifact, string>)
             .from(AiArtifactsTableName)
             .join(
@@ -10540,8 +9949,6 @@ export class AiAgentModel {
                     dashboardConfig: `${AiArtifactVersionsTableName}.dashboard_config`,
                     promptUuid: `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
                     versionCreatedAt: `${AiArtifactVersionsTableName}.created_at`,
-                    verifiedByUserUuid: `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
-                    verifiedAt: `${AiArtifactVersionsTableName}.verified_at`,
                 } satisfies Record<keyof AiArtifact, string>)
                 .from(AiArtifactsTableName)
                 .join(
@@ -10734,8 +10141,6 @@ export class AiAgentModel {
                 dashboardConfig: `${AiArtifactVersionsTableName}.dashboard_config`,
                 promptUuid: `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
                 versionCreatedAt: `${AiArtifactVersionsTableName}.created_at`,
-                verifiedByUserUuid: `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
-                verifiedAt: `${AiArtifactVersionsTableName}.verified_at`,
             } satisfies Record<keyof AiArtifact, string>)
             .join(
                 AiArtifactsTableName,
@@ -11826,7 +11231,7 @@ export class AiAgentModel {
 
                 const toolResultUpdates = toolResults.map((toolResult) => {
                     const preservePendingStartedAt =
-                        toolResult.tool_name === 'editDbtProject' &&
+                        isDbtWriteToolName(toolResult.tool_name) &&
                         toolResult.metadata !== null &&
                         'status' in toolResult.metadata &&
                         toolResult.metadata.status === 'pending';

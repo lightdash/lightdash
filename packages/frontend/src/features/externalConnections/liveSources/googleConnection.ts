@@ -1,4 +1,7 @@
-import { ApiConnectorType, LIVE_INTEGRATION_CATALOG } from '@lightdash/common';
+import {
+    LIVE_INTEGRATION_CATALOG,
+    type ApiConnectorType,
+} from '@lightdash/common';
 import {
     setLiveSourceReturnTo,
     type LiveSourceReturnTo,
@@ -10,54 +13,14 @@ export type GoogleConnector =
     | ApiConnectorType.GOOGLE_ADS
     | ApiConnectorType.YOUTUBE_ANALYTICS;
 
-const GOOGLE_SOURCES: {
-    connector: GoogleConnector;
-    label: string;
-    defaultName: string;
-    description: string;
-}[] = [
-    {
-        connector: ApiConnectorType.SEARCH_CONSOLE,
-        label: 'Google Search Console',
-        defaultName: 'Search Console',
-        description:
-            'AI agents read search clicks, impressions, CTR and position for one Search Console site.',
-    },
-    {
-        connector: ApiConnectorType.GA4,
-        label: 'Google Analytics 4',
-        defaultName: 'Google Analytics',
-        description:
-            'AI agents run reports on users, sessions, events and revenue for one GA4 property.',
-    },
-    {
-        connector: ApiConnectorType.GOOGLE_ADS,
-        label: 'Google Ads',
-        defaultName: 'Google Ads',
-        description:
-            'AI agents read cost, clicks, impressions and conversions for one Google Ads account.',
-    },
-    {
-        connector: ApiConnectorType.YOUTUBE_ANALYTICS,
-        label: 'YouTube Analytics',
-        defaultName: 'YouTube Analytics',
-        description:
-            'AI agents read views, watch time and subscribers for one YouTube channel.',
-    },
-];
-
 export const isGoogleConnector = (
     connector: ApiConnectorType,
 ): connector is GoogleConnector =>
     LIVE_INTEGRATION_CATALOG[connector].setup === 'google';
 
-export const getGoogleSource = (connector: GoogleConnector) => {
-    const source = GOOGLE_SOURCES.find(
-        (candidate) => candidate.connector === connector,
-    );
-    if (!source) throw new Error(`Unknown Google source ${connector}`);
-    return source;
-};
+/** The catalog entry of a Google source. */
+export const getGoogleSource = (connector: GoogleConnector) =>
+    LIVE_INTEGRATION_CATALOG[connector];
 
 /** Opens Google's consent screen; reconnecting keeps the source's uuid. */
 export const getGoogleSignInUrl = (

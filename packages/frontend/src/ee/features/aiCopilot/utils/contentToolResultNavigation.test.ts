@@ -36,7 +36,7 @@ describe('getDashboardNavigationUrlFromContentToolResult', () => {
     it('does not navigate when already on the same dashboard tab by uuid', () => {
         expect(
             getDashboardNavigationUrlFromContentToolResult(
-                'project-uuid',
+                { projectUuid: 'project-uuid', projectSlug: null },
                 dashboardEditResult,
                 {
                     pathname:
@@ -50,7 +50,7 @@ describe('getDashboardNavigationUrlFromContentToolResult', () => {
     it('navigates when on a different dashboard', () => {
         expect(
             getDashboardNavigationUrlFromContentToolResult(
-                'project-uuid',
+                { projectUuid: 'project-uuid', projectSlug: null },
                 dashboardEditResult,
                 {
                     pathname: '/projects/project-uuid/dashboards/other',
@@ -63,7 +63,7 @@ describe('getDashboardNavigationUrlFromContentToolResult', () => {
     it('navigates when on the same dashboard identifier in a different project', () => {
         expect(
             getDashboardNavigationUrlFromContentToolResult(
-                'project-uuid',
+                { projectUuid: 'project-uuid', projectSlug: null },
                 dashboardEditResult,
                 {
                     pathname:
@@ -72,6 +72,20 @@ describe('getDashboardNavigationUrlFromContentToolResult', () => {
                 },
             ),
         ).toBe('/projects/project-uuid/dashboards/jaffle-dashboard');
+    });
+
+    it('does not navigate when the page names the project by its slug', () => {
+        expect(
+            getDashboardNavigationUrlFromContentToolResult(
+                { projectUuid: 'project-uuid', projectSlug: 'jaffle-shop' },
+                dashboardEditResult,
+                {
+                    pathname:
+                        '/projects/jaffle-shop/dashboards/jaffle-dashboard/view',
+                    search: '',
+                },
+            ),
+        ).toBeNull();
     });
 });
 

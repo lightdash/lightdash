@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     isRolePresetAvailableAtLevel,
     isScopeAssignableAtLevel,
     type RoleLevel,
@@ -28,15 +27,10 @@ import {
 } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { Link } from 'react-router';
-import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SettingsSection } from '../../../../../components/common/Settings/SettingLayout';
 import { SettingsCard } from '../../../../../components/common/Settings/SettingsCard';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
-import {
-    getNewRoleAgentScopes,
-    getRolePresetScopes,
-} from '../../utils/rolePresetUtils';
+import { getRolePresetScopes } from '../../utils/rolePresetUtils';
 import { validateRoleName, validateScopes } from '../../utils/roleValidation';
 import {
     getScopeDependencyStatusCounts,
@@ -114,7 +108,7 @@ const roleLevelOptions = [
 /**
  * Allows admins to create and edit roles. Includes a selectable list of scopes to assign to the role.
  */
-const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
+export const RoleBuilder: FC<Props> = ({
     initialValues,
     onSubmit,
     isWorking,
@@ -123,19 +117,11 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
     levelLockedHint,
     rederiveScopesOnLevelChange = false,
     presets,
-    agentCapabilitiesEnabled,
 }) => {
     // Convert array of scopes to object format, keeping only scopes assignable
     // at the initial level — duplicated roles (e.g. system Admin) can carry
     // scopes from both levels, and the hidden ones must not leak into submit.
-    const initialScopeNames =
-        mode === 'create' &&
-        initialValues.scopes.length === 0 &&
-        !levelLocked &&
-        !rederiveScopesOnLevelChange
-            ? getNewRoleAgentScopes(agentCapabilitiesEnabled)
-            : initialValues.scopes;
-    const initialScopesObject = initialScopeNames.reduce(
+    const initialScopesObject = initialValues.scopes.reduce(
         (acc, scope) => ({
             ...acc,
             [scope]: isScopeAssignableAtLevel(scope, initialValues.level),
@@ -223,11 +209,7 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
                 ...form.values,
                 name: '',
                 description: '',
-                scopes: Object.fromEntries(
-                    getNewRoleAgentScopes(agentCapabilitiesEnabled).map(
-                        (scope) => [scope, true],
-                    ),
-                ),
+                scopes: {},
             });
             return;
         }
@@ -245,11 +227,10 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
             name: preset.title,
             description: preset.description,
             scopes: Object.fromEntries(
-                getRolePresetScopes(
-                    preset,
-                    form.values.level,
-                    agentCapabilitiesEnabled,
-                ).map((scope) => [scope, true]),
+                getRolePresetScopes(preset, form.values.level).map((scope) => [
+                    scope,
+                    true,
+                ]),
             ),
         });
     };
@@ -263,7 +244,6 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
               : "Choose where this role can be assigned. This can't be changed after the role is created.";
 
     const dependencyStatusCounts = getScopeDependencyStatusCounts({
-        agentCapabilitiesEnabled,
         level: form.values.level,
         scopes: form.values.scopes || {},
     });
@@ -422,9 +402,6 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
                             <SettingsCard className={styles.permissionsCard}>
                                 <Box className={styles.permissionsContent}>
                                     <ScopeSelector
-                                        agentCapabilitiesEnabled={
-                                            agentCapabilitiesEnabled
-                                        }
                                         form={form}
                                         level={form.values.level}
                                         dependencyStatus={dependencyStatus}
@@ -510,18 +487,5 @@ const RoleBuilderForm: FC<Props & { agentCapabilitiesEnabled: boolean }> = ({
                 </Stack>
             </Box>
         </form>
-    );
-};
-
-export const RoleBuilder: FC<Props> = (props) => {
-    const { data: flag, isLoading } = useServerFeatureFlag(
-        FeatureFlags.AgentIdentity,
-    );
-    if (isLoading) return <EmptyStateLoader />;
-    return (
-        <RoleBuilderForm
-            {...props}
-            agentCapabilitiesEnabled={flag?.enabled === true}
-        />
     );
 };

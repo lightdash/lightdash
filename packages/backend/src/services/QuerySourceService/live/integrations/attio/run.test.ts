@@ -21,10 +21,7 @@ const response = (
 
 const page = (records: unknown[]) => response({ data: records });
 
-const SETTINGS = {
-    connector: ApiConnectorType.ATTIO,
-    object: 'deals',
-} as const;
+const SETTINGS = { connector: ApiConnectorType.ATTIO } as const;
 
 const connect = (...responses: LiveHttpResponse[]) => {
     const send = vi.fn();
@@ -35,11 +32,31 @@ const connect = (...responses: LiveHttpResponse[]) => {
     };
 };
 
+/** Answers records and members calls by path, whichever starts first. */
+const connectWithMembers = (
+    records: LiveHttpResponse,
+    members: LiveHttpResponse,
+) => {
+    const send = vi.fn((call: { path: string }) =>
+        Promise.resolve(
+            call.path === '/v2/workspace_members' ? members : records,
+        ),
+    );
+    return {
+        send,
+        source: connectLiveSource(attioIntegration, SETTINGS, send),
+    };
+};
+
 const run = (
     source: ReturnType<typeof connect>['source'],
     request: Record<string, unknown>,
     limit = 10,
-) => source.run({ query: JSON.stringify(request), limit });
+) =>
+    source.run({
+        query: JSON.stringify({ object: 'deals', ...request }),
+        limit,
+    });
 
 const deals = (count: number, from = 0) =>
     Array.from({ length: count }, (_, index) => attioDeal(`d${from + index}`));
@@ -70,6 +87,8 @@ describe('attioIntegration listing', () => {
             sorts: [{ attribute: 'name', direction: 'asc' }],
         });
 
+        // No owner name selected, so no members call
+        expect(send).toHaveBeenCalledTimes(1);
         expect(send).toHaveBeenCalledWith({
             method: 'POST',
             path: '/v2/objects/deals/records/query',
@@ -114,6 +133,72 @@ describe('attioIntegration listing', () => {
         });
     });
 
+    it("reads when the stage was entered, and the owner's name with one members call", async () => {
+        const { source, send } = connectWithMembers(
+            page([attioDeal('d1'), attioDeal('d2')]),
+            response({
+                data: [
+                    {
+                        id: { workspace_member_id: 'member-1' },
+                        first_name: 'Grace',
+                        last_name: 'Hopper',
+                    },
+                ],
+            }),
+        );
+
+        const result = await run(source, {
+            columns: ['stage.active_from', 'owner.member_name'],
+        });
+
+        expect(send).toHaveBeenCalledTimes(2);
+        expect(send).toHaveBeenCalledWith({
+            method: 'GET',
+            path: '/v2/workspace_members',
+            body: undefined,
+        });
+        expect(result.rows).toEqual([
+            {
+                'stage.active_from': '2026-01-01T00:00:00.000000000Z',
+                'owner.member_name': 'Grace Hopper',
+            },
+            {
+                'stage.active_from': '2026-01-01T00:00:00.000000000Z',
+                'owner.member_name': 'Grace Hopper',
+            },
+        ]);
+        expect(result.columns).toContainEqual({
+            name: 'stage.active_from',
+            type: 'timestamp',
+        });
+    });
+
+    it('leaves owner names empty when the token cannot read members', async () => {
+        const { source } = connectWithMembers(
+            page([attioDeal('d1')]),
+            response({ message: 'Missing scope user_management:read' }, 403),
+        );
+
+        const result = await run(source, {
+            columns: ['name', 'owner.member_name'],
+        });
+
+        expect(result.rows).toEqual([
+            { name: 'Deal d1', 'owner.member_name': null },
+        ]);
+    });
+
+    it('still fails when the members call is throttled', async () => {
+        const { source } = connectWithMembers(
+            page([attioDeal('d1')]),
+            response({ message: 'Slow down' }, 429),
+        );
+
+        await expect(
+            run(source, { columns: ['owner.member_name'] }),
+        ).rejects.toBeInstanceOf(TooManyRequestsError);
+    });
+
     it('pages with offsets and reports rows past the limit', async () => {
         const { source, send } = connect(
             page(deals(ATTIO_PAGE_SIZE)),
@@ -154,17 +239,81 @@ describe('attioIntegration listing', () => {
 });
 
 describe('attioIntegration scan', () => {
-    it('reads the attributes of the source object', async () => {
-        const { source, send } = connect(response(ATTIO_DEAL_ATTRIBUTES));
+    const ATTRIBUTES_PATHS = [
+        '/v2/objects/companies/attributes',
+        '/v2/objects/people/attributes',
+        '/v2/objects/deals/attributes',
+        '/v2/objects/users/attributes',
+        '/v2/objects/workspaces/attributes',
+    ];
+
+    it("reads every standard object's attributes", async () => {
+        const { source, send } = connect(
+            ...ATTRIBUTES_PATHS.map(() => response(ATTIO_DEAL_ATTRIBUTES)),
+        );
 
         const scan = await source.scan();
 
-        expect(send).toHaveBeenCalledWith({
-            method: 'GET',
-            path: '/v2/objects/deals/attributes',
-            body: undefined,
+        expect(send.mock.calls.map(([call]) => call.path)).toEqual(
+            ATTRIBUTES_PATHS,
+        );
+        expect(scan).toEqual({
+            attioAttributes: {
+                companies: ATTIO_DEAL_ATTRIBUTES,
+                people: ATTIO_DEAL_ATTRIBUTES,
+                deals: ATTIO_DEAL_ATTRIBUTES,
+                users: ATTIO_DEAL_ATTRIBUTES,
+                workspaces: ATTIO_DEAL_ATTRIBUTES,
+            },
         });
-        expect(scan).toEqual({ attioAttributes: ATTIO_DEAL_ATTRIBUTES });
+    });
+
+    it("skips objects the workspace lacks or the token can't read", async () => {
+        const { source } = connect(
+            response(ATTIO_DEAL_ATTRIBUTES),
+            response(ATTIO_DEAL_ATTRIBUTES),
+            response(ATTIO_DEAL_ATTRIBUTES),
+            response(
+                {
+                    code: 'standard_object_disabled',
+                    message: 'Must be enabled by a Workspace admin',
+                },
+                400,
+            ),
+            response({ message: 'Forbidden' }, 403),
+        );
+
+        const scan = await source.scan();
+
+        expect(Object.keys(scan.attioAttributes as object)).toEqual([
+            'companies',
+            'people',
+            'deals',
+        ]);
+    });
+
+    it('fails on a throttled call, so the last good scan stays', async () => {
+        const { source } = connect(
+            response(ATTIO_DEAL_ATTRIBUTES),
+            response({ message: 'Slow down' }, 429),
+            response(ATTIO_DEAL_ATTRIBUTES),
+            response(ATTIO_DEAL_ATTRIBUTES),
+            response(ATTIO_DEAL_ATTRIBUTES),
+        );
+
+        await expect(source.scan()).rejects.toBeInstanceOf(
+            TooManyRequestsError,
+        );
+    });
+
+    it('fails when it can read no object', async () => {
+        const { source } = connect(
+            ...ATTRIBUTES_PATHS.map(() =>
+                response({ message: 'Forbidden' }, 403),
+            ),
+        );
+
+        await expect(source.scan()).rejects.toThrow('record_permission:read');
     });
 });
 
@@ -176,7 +325,6 @@ describe('toAttioError', () => {
                 status,
                 headers,
             ),
-            SETTINGS,
             new Date('2026-11-17T12:00:00Z'),
         );
 
@@ -192,7 +340,9 @@ describe('toAttioError', () => {
         expect(error(401)).toBeInstanceOf(WarehouseConnectionError);
         expect(error(401).message).toContain('Create a new token');
         expect(error(403).message).toContain('record_permission:read');
-        expect(error(404).message).toContain('Attio has no object "deals"');
+        expect(error(404).message).toContain(
+            "This Attio workspace doesn't have this object turned on",
+        );
     });
 
     it('explains a rejected query and an Attio outage', () => {

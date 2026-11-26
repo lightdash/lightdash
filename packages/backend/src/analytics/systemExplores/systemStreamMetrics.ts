@@ -230,6 +230,13 @@ export const systemStreamMetrics: Record<
             column: 'warehouse_execution_time_ms',
         },
         {
+            name: 'total_warehouse_execution_time_ms',
+            description:
+                'Warehouse execution time added up over the queries, in milliseconds. Queries with no reported time add nothing.',
+            type: MetricType.SUM,
+            column: 'warehouse_execution_time_ms',
+        },
+        {
             name: 'p90_warehouse_execution_time_ms',
             description:
                 '90th percentile warehouse execution time in milliseconds',

@@ -16,6 +16,7 @@ import {
     run as runGraphileWorker,
     Runner,
     type CronItem,
+    type Worker,
     type WorkerEvents,
     type WorkerPool,
 } from 'graphile-worker';
@@ -29,7 +30,10 @@ import { UsageHistoryBackfill } from '../analytics/eventStream/UsageHistoryBackf
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
 import { type AgentActionLogModel } from '../models/AgentActionLogModel';
-import { type RetentionCleanupOptions } from '../models/retentionCleanup';
+import {
+    type RetentionCleanupOptions,
+    type RetentionCleanupResult,
+} from '../models/retentionCleanup';
 import type { UsageDimensionsModel } from '../models/UsageDimensionsModel';
 import type { UsageHistoryModel } from '../models/UsageHistoryModel';
 import type { UsageProcessingModel } from '../models/UsageProcessingModel';
@@ -59,8 +63,17 @@ import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
 import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
 
+/** The live data source call log, which only commercial builds have. */
+type ApiSourceCallLog = {
+    cleanupApiSourceCalls: (
+        cutoffDate: Date,
+        options: RetentionCleanupOptions,
+    ) => Promise<RetentionCleanupResult>;
+};
+
 export type SchedulerWorkerArguments = SchedulerTaskArguments & {
     agentActionLogModel: AgentActionLogModel;
+    apiSourceCallLog?: ApiSourceCallLog;
     usageDimensionsModel: UsageDimensionsModel;
     usageHistoryModel: UsageHistoryModel;
     usageProcessingModel?: UsageProcessingModel;
@@ -150,6 +163,7 @@ const PG_PING_QUERY = `SELECT pg_notify('jobs:insert', '')`;
 type ManagedRunner = {
     runner: Runner;
     workerPool: WorkerPool | null;
+    workers: Set<Worker>;
     stopPromise: Promise<void> | null;
     releaseErrors: unknown[];
 };
@@ -213,11 +227,14 @@ export class SchedulerWorker extends SchedulerTask {
 
     private readonly agentActionLogModel: AgentActionLogModel;
 
+    private readonly apiSourceCallLog: ApiSourceCallLog | undefined;
+
     private readonly approvalRequestCleanupMaxBatches: number;
 
     constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
         super(schedulerWorkerArgs);
         this.agentActionLogModel = schedulerWorkerArgs.agentActionLogModel;
+        this.apiSourceCallLog = schedulerWorkerArgs.apiSourceCallLog;
         this.approvalRequestCleanupMaxBatches =
             schedulerWorkerArgs.approvalRequestCleanupMaxBatches ?? 50;
         if (
@@ -543,6 +560,39 @@ export class SchedulerWorker extends SchedulerTask {
         );
     }
 
+    logInFlightJobs(reason: string): void {
+        const jobs = [...this.managedRunners].flatMap(({ workers }) =>
+            [...workers].flatMap((worker) => {
+                const job = worker.getActiveJob();
+                if (!job) return [];
+                const payload = job.payload as
+                    | { organizationUuid?: unknown }
+                    | null
+                    | undefined;
+                return [
+                    {
+                        taskIdentifier: job.task_identifier,
+                        graphileJobId: job.id,
+                        organizationUuid:
+                            typeof payload?.organizationUuid === 'string'
+                                ? payload.organizationUuid
+                                : null,
+                    },
+                ];
+            }),
+        );
+        if (jobs.length === 0) return;
+        Logger.warn(
+            `Scheduler worker ${reason} with ${jobs.length} in-flight jobs: ${jobs
+                .map(
+                    ({ taskIdentifier, graphileJobId }) =>
+                        `${taskIdentifier}#${graphileJobId}`,
+                )
+                .join(', ')}`,
+            { reason, jobs },
+        );
+    }
+
     async stop() {
         this.isStopping = true;
         this.migrationQuiesce?.stop();
@@ -623,10 +673,12 @@ export class SchedulerWorker extends SchedulerTask {
         ) as WorkerEvents;
         let workerPool: WorkerPool | null = null;
         const releaseErrors: unknown[] = [];
+        const workers = new Set<Worker>();
         events.once('pool:create', ({ workerPool: createdWorkerPool }) => {
             workerPool = createdWorkerPool;
         });
         events.on('worker:create', ({ worker }) => {
+            workers.add(worker);
             const graphileWorker = worker;
             const release = graphileWorker.release.bind(graphileWorker);
             // Graphile 0.13 uses Promise.all for release, so one rejected
@@ -666,6 +718,7 @@ export class SchedulerWorker extends SchedulerTask {
         const managedRunner: ManagedRunner = {
             runner,
             workerPool,
+            workers,
             stopPromise: null,
             releaseErrors,
         };
@@ -2163,6 +2216,23 @@ export class SchedulerWorker extends SchedulerTask {
                     `Agent action log cleanup completed. Total records deleted: ${actionCleanup.totalDeleted} in ${actionCleanup.batchCount} batches`,
                 );
 
+                // Live data source calls expire with the queries they belong to
+                if (this.apiSourceCallLog) {
+                    const callCleanup =
+                        await this.apiSourceCallLog.cleanupApiSourceCalls(
+                            cutoffDate,
+                            cleanupOptions,
+                        );
+                    Logger.info(
+                        `Live data source call log cleanup completed. Total records deleted: ${callCleanup.totalDeleted} in ${callCleanup.batchCount} batches`,
+                    );
+                    if (!callCleanup.completed) {
+                        Logger.warn(
+                            `Live data source call log cleanup stopped before clearing the retention backlog; the rest older than ${cutoffDate.toISOString()} goes in later runs`,
+                        );
+                    }
+                }
+
                 // Also clean up pre-aggregate daily stats (3-day retention)
                 try {
                     const preAggDeleted =
@@ -2273,7 +2343,7 @@ export class SchedulerWorker extends SchedulerTask {
                 const result =
                     await this.projectService.reconcilePlaygroundBundles();
                 Logger.info(
-                    `Playground bundle ${result.version}: moved ${result.adopted} projects, ${result.waiting} waiting, ${result.failed} failed`,
+                    `Playground bundle ${result.version}: untagged ${result.untagged} repointed projects, moved ${result.adopted} projects, ${result.waiting} waiting, ${result.failed} failed`,
                 );
             },
             [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: async () => {

@@ -1,6 +1,7 @@
 import {
     CartesianSeriesType,
     ChartType,
+    Compact,
     CustomFormatType,
     DashboardTileTypes,
     FilterOperator,
@@ -10,8 +11,17 @@ import {
     type DashboardAsCode,
 } from '@lightdash/common';
 import { adoptionChartSpecs, adoptionDashboardSpec } from './adoptionDashboard';
+import { agentEvaluationsChartSpecs } from './agentEvaluationsDashboard';
+import { analyticsColorPalette } from './analyticsColorPalette';
+import { SPARKLINE_CARD_ROWS } from './chartBuilders';
+import { contentChartSpecs, contentDashboardSpec } from './contentDashboard';
+import { dataAppsChartSpecs, dataAppsDashboardSpec } from './dataAppsDashboard';
 import { embedChartSpecs, embedDashboardSpec } from './embedDashboard';
+import { homeChartSpecs, homeDashboardSpec } from './homeDashboard';
+import type { LibraryChartBinding } from './libraryCharts';
+import { noteRows, titledNote } from './noteLayout';
 import { peopleNoActivityChartSpecs } from './peopleNoActivityCharts';
+import { toolsChartSpecs, toolsDashboardSpec } from './toolsDashboard';
 import { usageActivityOriginSql } from './usageActivityOrigin';
 import { usageChartSpecs } from './usageDashboardCharts';
 import { usageDashboardSpecs } from './usageDashboardDefinitions';
@@ -20,6 +30,7 @@ import type {
     AnalyticsContentBundle,
     UsageChartSpec,
 } from './usageDashboardTypes';
+import { usageFieldLabels } from './usageFieldLabels';
 
 const withContentLinks = (chart: ChartAsCode): ChartAsCode => {
     if (chart.chartConfig.type !== ChartType.TABLE) return chart;
@@ -135,7 +146,6 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
     const originField = `${tableName}_${originName}`;
     return {
         ...chart,
-        description: `${chart.description} Primary email is shown when no display name is available. User <ID> means neither a display name nor primary email is available; No user recorded means no user identifier was captured. Activity source lists captured origins within each row; older summaries cannot recover missing embed context.`,
         metricQuery: {
             ...chart.metricQuery,
             dimensions: [
@@ -192,13 +202,31 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
     };
 };
 
+export const topCategoryRank = 'top_category_rank';
+const topCategoryTotal = 'top_category_total';
+
+// A chart's own labels, over the shared plain names for the fields it uses.
+const fieldLabelsOf = (spec: UsageChartSpec): Record<string, string> => ({
+    ...Object.fromEntries(
+        [...spec.dimensions, ...spec.metrics].flatMap((field) =>
+            usageFieldLabels[field] ? [[field, usageFieldLabels[field]]] : [],
+        ),
+    ),
+    ...spec.fieldLabels,
+});
+
 const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
+    const labels = fieldLabelsOf(spec);
     const [metric] = spec.metrics;
     const [dimension] = spec.dimensions;
     if (spec.visualization === 'number') {
         return {
             type: ChartType.BIG_NUMBER,
-            config: { selectedField: metric, showBigNumberLabel: false },
+            // A number can show a table calculation, named as its one y field
+            config: {
+                selectedField: spec.yFields?.[0] ?? metric,
+                showBigNumberLabel: false,
+            },
         };
     }
     if (spec.visualization === 'donut') {
@@ -233,12 +261,17 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
                 },
                 eChartsConfig: {
                     showAxisTicks: false,
+                    // An unnamed axis falls back to the raw field label.
+                    ...(labels[xField]
+                        ? { xAxis: [{ name: labels[xField] }] }
+                        : {}),
+                    ...(yFields.length === 1 && labels[yFields[0]]
+                        ? { yAxis: [{ name: labels[yFields[0]] }] }
+                        : {}),
                     series: yFields.map((field, index) => ({
-                        ...(spec.fieldLabels?.[field]
-                            ? { name: spec.fieldLabels[field] }
-                            : {}),
+                        ...(labels[field] ? { name: labels[field] } : {}),
                         type: seriesType,
-                        color: ['#5C7CFA', '#12B886'][index % 2],
+                        color: analyticsColorPalette.colors[index % 2],
                         showSymbol: true,
                         smooth: false,
                         yAxisIndex: 0,
@@ -255,19 +288,118 @@ const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
             hideRowNumbers: true,
             columns: {
                 ...Object.fromEntries(
-                    spec.dimensions
-                        .filter((field) => field.endsWith('_id'))
-                        .map((field) => [field, { visible: false }]),
+                    Object.entries(labels).map(([field, name]) => [
+                        field,
+                        { name },
+                    ]),
                 ),
+                // After the names, so a hidden column that also has a name stays hidden
                 ...Object.fromEntries(
-                    Object.entries(spec.fieldLabels ?? {}).map(
-                        ([field, name]) => [field, { name }],
-                    ),
+                    [
+                        ...spec.dimensions.filter((field) =>
+                            field.endsWith('_id'),
+                        ),
+                        ...(spec.hiddenColumns ?? []),
+                    ].map((field) => [
+                        field,
+                        {
+                            ...(labels[field] ? { name: labels[field] } : {}),
+                            visible: false,
+                        },
+                    ]),
                 ),
+                // The ranking behind a top-categories filter is not something to read
+                ...(spec.topCategories
+                    ? {
+                          [topCategoryTotal]: { visible: false },
+                          [topCategoryRank]: { visible: false },
+                      }
+                    : {}),
             },
         },
     };
 };
+
+// Models named differently from the table their fields belong to
+const tableOfExplore: Record<string, string> = {
+    content_inventory: 'content_health',
+    content_created: 'content_health',
+    agent_request_starts: 'agent_requests',
+};
+
+// Ranks each category by its total over the whole result, so a filter can keep the largest ones.
+const topCategoryCalculations = (
+    spec: UsageChartSpec,
+): NonNullable<UsageChartSpec['tableCalculations']> => {
+    if (!spec.topCategories) return [];
+    const table = tableOfExplore[spec.explore] ?? spec.explore;
+    const ref = (field: string) =>
+        `\${${table}.${field.slice(table.length + 1)}}`;
+    const { category, metric } = spec.topCategories;
+    return [
+        {
+            name: topCategoryTotal,
+            displayName: 'Category total',
+            type: TableCalculationType.NUMBER,
+            sql: `SUM(${ref(metric)}) OVER (PARTITION BY ${ref(category)})`,
+        },
+        {
+            name: topCategoryRank,
+            displayName: 'Category rank',
+            type: TableCalculationType.NUMBER,
+            sql: `DENSE_RANK() OVER (ORDER BY \${${topCategoryTotal}} DESC, ${ref(category)})`,
+        },
+    ];
+};
+
+// Counts on a chart axis read 10K and 10M, not 10,000 and 10,000,000. Rates and durations keep their
+// own formats.
+export const compactAxisOverrides = (metrics: string[]) =>
+    Object.fromEntries(
+        metrics
+            .filter(
+                (field) =>
+                    !['_ms', '_s', '_rate', '_coverage', '_share'].some(
+                        (suffix) => field.endsWith(suffix),
+                    ),
+            )
+            .map((field) => [
+                field,
+                {
+                    formatOptions: {
+                        type: CustomFormatType.NUMBER,
+                        compact: Compact.AUTO,
+                    },
+                },
+            ]),
+    );
+
+/** Millisecond metrics show as whole numbers: decimals add noise, not signal. */
+export const wholeMillisecondOverrides = (metrics: string[]) =>
+    Object.fromEntries(
+        metrics
+            .filter((field) => field.endsWith('_ms'))
+            .map((field) => [
+                field,
+                {
+                    formatOptions: {
+                        type: CustomFormatType.NUMBER,
+                        round: 0,
+                    },
+                },
+            ]),
+    );
+
+// Every tile about viewed content is about content the organization made, so views of Lightdash's own
+// analytics dashboards are left out. They still count in tiles about people's activity.
+const filtersOf = (
+    spec: UsageChartSpec,
+): NonNullable<UsageChartSpec['filters']> => [
+    ...(spec.filters ?? []),
+    ...(spec.explore === 'content_reach'
+        ? [{ field: 'content_reach_in_analytics_project', values: [false] }]
+        : []),
+];
 
 const buildChart = (
     spec: UsageChartSpec,
@@ -285,47 +417,82 @@ const buildChart = (
         exploreName: spec.explore,
         dimensions: spec.dimensions,
         metrics: spec.metrics,
-        metricOverrides: Object.fromEntries(
-            spec.metrics
-                .filter((field) =>
-                    ['_rate', '_coverage', '_share'].some((suffix) =>
-                        field.endsWith(suffix),
-                    ),
-                )
-                .map((field) => [
-                    field,
-                    {
-                        formatOptions: {
-                            type: CustomFormatType.PERCENT,
-                            round: 1,
+        metricOverrides: {
+            ...(spec.compactCounts ||
+            (spec.visualization &&
+                ['line', 'bar', 'scatter'].includes(spec.visualization))
+                ? compactAxisOverrides(spec.metrics)
+                : {}),
+            ...Object.fromEntries(
+                spec.metrics
+                    .filter((field) =>
+                        ['_rate', '_coverage', '_share'].some((suffix) =>
+                            field.endsWith(suffix),
+                        ),
+                    )
+                    .map((field) => [
+                        field,
+                        {
+                            formatOptions: {
+                                type: CustomFormatType.PERCENT,
+                                // An axis reads 80%, not 80.0%. A table keeps the decimal.
+                                round:
+                                    spec.visualization &&
+                                    ['line', 'bar', 'scatter'].includes(
+                                        spec.visualization,
+                                    )
+                                        ? 0
+                                        : 1,
+                            },
                         },
-                    },
-                ]),
-        ),
-        filters: spec.filters
-            ? {
-                  dimensions: {
-                      id: `${spec.key}-filters`,
-                      and: spec.filters.map(
-                          ({ field, values, operator, settings }) => ({
-                              id: `${spec.key}-${field}`,
-                              target: { fieldId: field },
-                              operator: operator ?? FilterOperator.EQUALS,
-                              values,
-                              ...(settings ? { settings } : {}),
-                          }),
-                      ),
-                  },
-              }
-            : {},
+                    ]),
+            ),
+            ...wholeMillisecondOverrides(spec.metrics),
+        },
+        filters: {
+            ...(spec.topCategories
+                ? {
+                      tableCalculations: {
+                          id: `${spec.key}-top-categories`,
+                          and: [
+                              {
+                                  id: `${spec.key}-${topCategoryRank}`,
+                                  target: { fieldId: topCategoryRank },
+                                  operator: FilterOperator.LESS_THAN_OR_EQUAL,
+                                  values: [spec.topCategories.count],
+                              },
+                          ],
+                      },
+                  }
+                : {}),
+            ...(filtersOf(spec).length > 0
+                ? {
+                      dimensions: {
+                          id: `${spec.key}-filters`,
+                          and: filtersOf(spec).map(
+                              ({ field, values, operator, settings }) => ({
+                                  id: `${spec.key}-${field}`,
+                                  target: { fieldId: field },
+                                  operator: operator ?? FilterOperator.EQUALS,
+                                  values,
+                                  ...(settings ? { settings } : {}),
+                              }),
+                          ),
+                      },
+                  }
+                : {}),
+        },
         sorts: spec.sorts,
         limit: spec.limit,
-        tableCalculations: spec.tableCalculations ?? [],
+        tableCalculations: [
+            ...(spec.tableCalculations ?? []),
+            ...topCategoryCalculations(spec),
+        ],
         ...(spec.timezone ? { timezone: spec.timezone } : {}),
     },
     chartConfig: chartConfig(spec),
     tableConfig: {
-        columnOrder: [
+        columnOrder: spec.columnOrder ?? [
             ...spec.dimensions,
             ...spec.metrics,
             ...(spec.tableCalculations ?? []).map(({ name }) => name),
@@ -333,7 +500,7 @@ const buildChart = (
     },
 });
 
-const note = (
+export const note = (
     tabSlug: string,
     y: number,
     h: number,
@@ -352,9 +519,49 @@ const note = (
 
 const dashboardSpecs = [
     ...usageDashboardSpecs,
+    contentDashboardSpec,
+    dataAppsDashboardSpec,
+    toolsDashboardSpec,
     adoptionDashboardSpec,
     embedDashboardSpec,
+    homeDashboardSpec,
 ];
+
+const allChartSpecs: UsageChartSpec[] = [
+    ...homeChartSpecs,
+    ...usageChartSpecs,
+    ...contentChartSpecs,
+    ...dataAppsChartSpecs,
+    ...toolsChartSpecs,
+    ...agentEvaluationsChartSpecs,
+    ...adoptionChartSpecs,
+    ...embedChartSpecs,
+    ...peopleNoActivityChartSpecs,
+];
+
+// A chart is found by its key alone, so two charts with one key would silently share a definition
+const duplicateKey = allChartSpecs
+    .map(({ key }) => key)
+    .find((key, index, keys) => keys.indexOf(key) !== index);
+if (duplicateKey)
+    throw new Error(`Duplicate built-in chart key: ${duplicateKey}`);
+
+export const usageLibraryChartBindings: ReadonlyMap<
+    string,
+    LibraryChartBinding
+> = new Map(
+    dashboardSpecs.flatMap((dashboard) =>
+        dashboard.tabs
+            .flatMap((tab) => tab.sections)
+            .flatMap((section) => section.charts)
+            .flatMap((key): [string, LibraryChartBinding][] => {
+                const binding = allChartSpecs.find(
+                    (item) => item.key === key,
+                )?.libraryChart;
+                return binding ? [[`${dashboard.key}-${key}`, binding]] : [];
+            }),
+    ),
+);
 
 export const buildUsageDashboards = (
     existingBundles: AnalyticsContentBundle[],
@@ -364,6 +571,10 @@ export const buildUsageDashboards = (
             ({ dashboard }) => dashboard.slug === spec.key,
         );
         const spaceSlug = existing?.dashboard.spaceSlug ?? spec.key;
+        const existingTab = spec.existingTab ?? {
+            key: 'overview',
+            name: 'Overview',
+        };
         const charts = [...(existing?.charts ?? [])];
         const dashboard: DashboardAsCode = {
             version: 1,
@@ -377,38 +588,39 @@ export const buildUsageDashboards = (
                 tableCalculations: [],
             },
             tabs: existing
-                ? [{ slug: 'overview', name: 'Overview', order: 0 }]
+                ? [{ slug: existingTab.key, name: existingTab.name, order: 0 }]
                 : [],
             tiles: (existing?.dashboard.tiles ?? []).map((tile) => ({
                 ...tile,
-                tabSlug: 'overview',
+                tabSlug: existingTab.key,
             })),
         };
         for (const tab of spec.tabs) {
-            dashboard.tabs.push({
-                slug: tab.key,
-                name: tab.name,
-                order: dashboard.tabs.length,
-            });
-            let y = 0;
+            // A tab with the key of the older bundle's tab carries on under its tiles
+            const continues = existing && tab.key === existingTab.key;
+            if (!continues)
+                dashboard.tabs.push({
+                    slug: tab.key,
+                    name: tab.name,
+                    order: dashboard.tabs.length,
+                });
+            let y = continues
+                ? Math.max(0, ...dashboard.tiles.map((tile) => tile.y + tile.h))
+                : 0;
             for (const section of tab.sections) {
-                const noteHeight = section.noteHeight ?? 2;
-                dashboard.tiles.push(
-                    note(
-                        tab.key,
-                        y,
-                        noteHeight,
-                        `### ${section.title}\n\n${section.description}`,
-                    ),
-                );
-                y += noteHeight;
+                if (section.note !== false) {
+                    const content = section.caption
+                        ? section.description
+                        : titledNote(section.title, section.description);
+                    // As tall as its text and no taller
+                    const noteHeight = noteRows(content);
+                    dashboard.tiles.push(note(tab.key, y, noteHeight, content));
+                    y += noteHeight;
+                }
                 const sectionCharts = section.charts.map((key) => {
-                    const definition = [
-                        ...usageChartSpecs,
-                        ...adoptionChartSpecs,
-                        ...embedChartSpecs,
-                        ...peopleNoActivityChartSpecs,
-                    ].find((item) => item.key === key);
+                    const definition = allChartSpecs.find(
+                        (item) => item.key === key,
+                    );
                     if (!definition)
                         throw new Error(`Unknown built-in chart: ${key}`);
                     const definitionChart = withPeopleDisplayName(
@@ -426,6 +638,7 @@ export const buildUsageDashboards = (
                     (item) => item.chartConfig.type === ChartType.BIG_NUMBER,
                 );
                 const sectionY = y;
+                const isRow = section.layout === 'row';
                 const hasSummaryTrend =
                     sectionCharts[0]?.chartConfig.type ===
                         ChartType.BIG_NUMBER &&
@@ -441,7 +654,8 @@ export const buildUsageDashboards = (
                 sectionCharts.forEach((item, index) => {
                     const summary = hasSummaryTrend && index < 2;
                     let h = 7;
-                    if (isKpiRow) h = 3;
+                    if (isRow) h = section.rowHeight ?? 7;
+                    else if (isKpiRow) h = SPARKLINE_CARD_ROWS;
                     // Compact breakdowns keep a short viewport; longer results
                     // remain available through the table's existing scroll.
                     else if (
@@ -454,7 +668,16 @@ export const buildUsageDashboards = (
                     let w = 36;
                     let x = 0;
                     let tileY = nextY;
-                    if (isKpiRow) {
+                    if (isRow) {
+                        const widths =
+                            section.widths ??
+                            sectionCharts.map(() => 36 / sectionCharts.length);
+                        w = widths[index];
+                        x = widths
+                            .slice(0, index)
+                            .reduce((total, width) => total + width, 0);
+                        tileY = sectionY;
+                    } else if (isKpiRow) {
                         w = 36 / sectionCharts.length;
                         x = index * w;
                         tileY = sectionY;
@@ -478,20 +701,22 @@ export const buildUsageDashboards = (
                         h,
                         properties: { chartSlug: item.slug },
                     });
-                    if (!isKpiRow && !isVisualPair && (!summary || index === 1))
+                    if (
+                        !isRow &&
+                        !isKpiRow &&
+                        !isVisualPair &&
+                        (!summary || index === 1)
+                    )
                         nextY += h;
                 });
-                if (isKpiRow) y = sectionY + 3;
+                if (isRow) y = sectionY + (section.rowHeight ?? 7);
+                else if (isKpiRow) y = sectionY + SPARKLINE_CARD_ROWS;
                 else if (isVisualPair) y = sectionY + 7;
                 else y = nextY;
             }
         }
         return {
-            // Adoption's filters are set by hand for its two outcome charts only
-            dashboard:
-                spec === adoptionDashboardSpec
-                    ? dashboard
-                    : withUsageDashboardFilters(dashboard, charts),
+            dashboard: withUsageDashboardFilters(dashboard, charts),
             charts: charts.map((chart) =>
                 withContentLinks(withUserActivityLabels(chart)),
             ),

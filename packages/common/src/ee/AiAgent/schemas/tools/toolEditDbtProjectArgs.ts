@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { structuredToolOutputSchema } from '../outputMetadata';
-import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
+import { studioMoreToDoSchema } from './toolSemanticStudioArgs';
 
 export const AI_WRITEBACK_PENDING_GRACE_MS = 5 * 60 * 1000;
 
@@ -8,6 +8,11 @@ export const TOOL_EDIT_DBT_PROJECT_DESCRIPTION = [
     "Open or update a pull request that changes this project's semantic layer (dbt or Lightdash YAML): it edits the repository in an isolated sandbox, validates the semantic layer and opens the pull request on your behalf, so report it as your own work.",
     'Call it, in the same turn you decide to make the change, when the user asks for one in the repository (add or rename a metric, edit a dimension or model, update YAML metadata) or accepts one you offered. It is not for questions about data or code, nor for changes that can be made inside Lightdash, such as to saved charts and dashboards.',
     'It returns status "pending" once the run starts, and the pull request opens in the background a few minutes later: do not call it again to check on it. Until it opens, listWorkstreams shows the change as still being opened.',
+].join(' ');
+
+export const TOOL_WRITE_DESCRIPTION = [
+    "Save a change to this project's semantic layer on this conversation's pull request, its draft: one call per change, in the same turn the person asks for it or accepts one you offered. The first save opens the pull request and later ones join it.",
+    'It returns status "pending" once the save starts and finishes in the background: do not call it again to check on it. Until it is saved, pr.list in read shows it as a change still being saved. Check a save that adds a model or changes SQL with verify.',
 ].join(' ');
 
 export const toolEditDbtProjectArgsSchema = z.object({
@@ -35,37 +40,47 @@ export const toolEditDbtProjectArgsSchema = z.object({
         ),
 });
 
-/** Semantic Studio's variant: the change can come as a script, saved in seconds without a sandbox. */
-export const toolEditDbtProjectCodeModeArgsSchema =
-    toolEditDbtProjectArgsSchema.extend({
-        script: z
-            .string()
-            .nullable()
-            .describe(
-                [
-                    'JavaScript that makes the change, run against the repository before the pull request is opened. Paths are relative to the dbt project. Nothing is written unless the whole script succeeds and every changed YAML file passes the semantic layer schema; on failure the tool returns the error, so fix the script and call again.',
-                    'API (synchronous, values are plain JSON): dbt.model(name) -> { yml, sql, keys } | null, where keys is the YAML path of that model;',
-                    'yaml.get(path, keys), yaml.set(path, keys, value), yaml.push(path, keys, value) to append to a list, yaml.remove(path, keys);',
-                    "keys is a list of mapping keys, list indexes, or { name } to pick the list item with that name, e.g. [...m.keys, 'columns', { name: 'amount' }, 'config', 'meta', 'metrics', 'total_amount'];",
-                    'set creates missing mappings, and edits keep comments and the rest of the file as it is;',
-                    'repo.list(prefix?), repo.read(path), repo.write(path, text), repo.remove(path) for whole files such as a new model SQL; console.log(...) is returned with errors.',
-                    'Follow where the file already keeps things (e.g. config.meta rather than meta when it uses that). Null when the change needs dbt to run, such as checking new SQL against the warehouse.',
-                    'With a script, start prompt with a one-line summary under 72 characters, like a commit subject: it becomes the pull request title.',
-                ].join(' '),
-            ),
-        note: z
-            .string()
-            .nullable()
-            .describe(
-                'The one thing about this change most worth checking, under 15 words, shown on its card; null when nothing is.',
-            ),
-        options: z
-            .array(z.string().trim().min(1))
-            .max(2)
-            .describe(
-                'At most two things the person might ask for next instead, each written as they would say it in under 8 words. Each shows as a button that sends it. Empty for none.',
-            ),
-    });
+/** Semantic Studio's save: a script saved in seconds, or the sandbox when the script is null. */
+export const toolWriteArgsSchema = z.object({
+    prompt: z
+        .string()
+        .describe(
+            'The change in words: a one-line summary under 72 characters, like a commit subject, then the models and fields and what each becomes. With a script, the first line becomes the pull request title. With a null script the sandbox makes the change from this alone, so include every detail.',
+        ),
+    script: z
+        .string()
+        .nullable()
+        .describe(
+            [
+                'JavaScript that makes the change, run against the repository before the pull request is opened. Paths are relative to the dbt project. Nothing is written unless the whole script succeeds and every changed YAML file passes the semantic layer schema; on failure the tool returns the error, so fix the script and call again.',
+                'API (synchronous, values are plain JSON): dbt.model(name) -> { yml, sql, keys } | null, where keys is the YAML path of that model;',
+                'yaml.get(path, keys), yaml.set(path, keys, value), yaml.push(path, keys, value) to append to a list, yaml.remove(path, keys);',
+                "keys is a list of mapping keys, list indexes, or { name } to pick the list item with that name, e.g. [...m.keys, 'columns', { name: '<column>' }, 'config', 'meta', 'metrics', '<metric>'];",
+                'set creates missing mappings, and edits keep comments and the rest of the file as it is;',
+                'repo.list(prefix?), repo.read(path), repo.write(path, text), repo.remove(path) for whole files such as a new model SQL; console.log(...) is returned with errors.',
+                'Follow where the file already keeps things (e.g. config.meta rather than meta when it uses that). Null when the change needs dbt to run, such as checking new SQL against the warehouse.',
+            ].join(' '),
+        ),
+    note: z
+        .string()
+        .nullable()
+        .describe(
+            'The one thing about this change most worth checking, under 15 words, shown on its card; null when nothing is.',
+        ),
+    options: z
+        .array(z.string().trim().min(1))
+        .max(2)
+        .describe(
+            'At most two things the person might ask for next instead, each written as they would say it in under 8 words. Each shows as a button that sends it. Empty for none.',
+        ),
+    moreToDo: studioMoreToDoSchema,
+});
+
+/** Whether a Studio save was called with the person's request still going; false on a call made before it said. */
+export const hasMoreToDo = (toolArgs: unknown): boolean => {
+    const parsed = z.object({ moreToDo: z.boolean() }).safeParse(toolArgs);
+    return parsed.success && parsed.data.moreToDo;
+};
 
 /** The line kept as the reply when a Studio save ends its turn on the card with nothing written. */
 export const DBT_SAVE_CARD_REPLY = 'Saved the change to the draft.';
@@ -194,7 +209,24 @@ export type ToolEditDbtProjectStructuredContent = z.infer<
     typeof toolEditDbtProjectStructuredContentSchema
 >;
 
-export const isToolEditDbtProjectResult = makeBuiltInToolResultGuard(
-    'editDbtProject',
-    toolEditDbtProjectMetadataSchema,
-);
+/** The dbt save tool's names: editDbtProject, and write in Semantic Studio's builder. */
+export const DBT_WRITE_TOOL_NAMES = ['editDbtProject', 'write'] as const;
+
+export type DbtWriteToolName = (typeof DBT_WRITE_TOOL_NAMES)[number];
+
+export const isDbtWriteToolName = (name: string): name is DbtWriteToolName =>
+    DBT_WRITE_TOOL_NAMES.some((toolName) => toolName === name);
+
+// Persisted metadata comes from the DB, so the schema check is a safeParse.
+export const isToolEditDbtProjectResult = <
+    T extends { toolType: string; toolName: string; metadata: unknown },
+>(
+    result: T,
+): result is T & {
+    toolType: 'built-in';
+    toolName: DbtWriteToolName;
+    metadata: z.infer<typeof toolEditDbtProjectMetadataSchema>;
+} =>
+    result.toolType === 'built-in' &&
+    isDbtWriteToolName(result.toolName) &&
+    toolEditDbtProjectMetadataSchema.safeParse(result.metadata).success;

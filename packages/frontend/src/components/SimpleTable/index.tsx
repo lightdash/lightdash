@@ -5,6 +5,7 @@ import {
     isChunkLoadError,
     triggerChunkErrorReload,
 } from '../../features/chunkErrorHandler';
+import { tableNeedsAllRows } from '../../hooks/resultsFirstPage';
 import { computeLimitedRowCount, sliceRows } from '../../utils/sliceRows';
 import { TableIcon } from '../common/ContentIcons';
 import LoadingChart from '../common/LoadingChart';
@@ -27,6 +28,7 @@ import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
 import ExplorerPivotTable from './ExplorerPivotTable';
 import MinimalCellContextMenu from './MinimalCellContextMenu';
 import PivotRerunState from './PivotRerunState';
+import RowsExpansionRetry from './RowsExpansionRetry';
 
 const noop = () => undefined;
 
@@ -72,21 +74,16 @@ const SimpleTable: FC<SimpleTableProps> = ({
         ? visualizationConfig.chartConfig.rowLimit
         : undefined;
 
-    const needsAllRows =
-        rowLimit != null &&
-        rowLimit.count > 0 &&
-        (rowLimit.direction === 'last' || rowLimit.mode === 'hide');
-
     const shouldPaginateResults = useMemo(() => {
-        if (needsAllRows) return false;
-        return Boolean(
-            !resultsData ||
-            !isTableVisualizationConfig(visualizationConfig) ||
-            // When subtotals are disable and there is no pivot table data, we don't need to load all the rows
-            (!visualizationConfig.chartConfig.showSubtotals &&
-                !visualizationConfig.chartConfig.pivotTableData?.data),
+        if (!resultsData || !isTableVisualizationConfig(visualizationConfig))
+            return true;
+        const { showSubtotals, pivotTableData } =
+            visualizationConfig.chartConfig;
+        return (
+            !tableNeedsAllRows({ showSubtotals, rowLimit }) &&
+            !pivotTableData?.data
         );
-    }, [needsAllRows, resultsData, visualizationConfig]);
+    }, [rowLimit, resultsData, visualizationConfig]);
 
     const loadResultsStatus = useMemo(() => {
         if (!resultsData) {
@@ -131,7 +128,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
             isCalculatingGrandTotals ||
             isCalculatingSubtotals;
 
-        if (pivotTableData.error) {
+        if (pivotTableData.error || resultsData?.rowsExpansionError) {
             onScreenshotError?.();
             hasSignaledScreenshotReady.current = true;
             return;
@@ -150,6 +147,8 @@ const SimpleTable: FC<SimpleTableProps> = ({
             return;
         }
 
+        if (resultsData?.isExpandingFirstPage) return;
+
         // Signal ready for both success and idle (idle = no data to fetch)
         if (loadResultsStatus === 'success' || loadResultsStatus === 'idle') {
             onScreenshotReady?.();
@@ -159,6 +158,8 @@ const SimpleTable: FC<SimpleTableProps> = ({
         visualizationConfig,
         loadResultsStatus,
         resultsData?.hasFetchedAllRows,
+        resultsData?.isExpandingFirstPage,
+        resultsData?.rowsExpansionError,
         onScreenshotReady,
         onScreenshotError,
     ]);
@@ -332,6 +333,30 @@ const SimpleTable: FC<SimpleTableProps> = ({
         return <PivotRerunState />;
     }
 
+    if (
+        !shouldPaginateResults &&
+        resultsData?.rowsExpansionError &&
+        resultsData.retryFetchRows
+    ) {
+        return (
+            <SuboptimalState
+                icon={IconAlertCircle}
+                title="The rest of the rows did not load"
+                description="This table needs every row to show its results."
+                action={
+                    <Button
+                        variant="default"
+                        size="xs"
+                        leftSection={<IconRefresh size={16} />}
+                        onClick={resultsData.retryFetchRows}
+                    >
+                        Retry
+                    </Button>
+                }
+            />
+        );
+    }
+
     if (pivotTableData.loading || pivotTableData.data) {
         return (
             <Box
@@ -477,6 +502,14 @@ const SimpleTable: FC<SimpleTableProps> = ({
                     enableContextMenu ? cellContextMenu : undefined
                 }
                 pagination={{ showResultsTotal }}
+                notice={
+                    resultsData?.rowsExpansionError &&
+                    resultsData.retryFetchRows ? (
+                        <RowsExpansionRetry
+                            onRetry={resultsData.retryFetchRows}
+                        />
+                    ) : undefined
+                }
                 {...rest}
             />
         </Box>

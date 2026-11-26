@@ -2,6 +2,7 @@ import { SSOClient } from '@aws-sdk/client-sso';
 import { SSOOIDCClient } from '@aws-sdk/client-sso-oidc';
 import { Ability } from '@casl/ability';
 import {
+    AgentCapability,
     AnyType,
     AuthorizationError,
     CommercialFeatureFlags,
@@ -343,12 +344,9 @@ const createUserService = (
                 get: vi.fn<FeatureFlagModel['get']>(
                     async ({ featureFlagId }) => ({
                         id: featureFlagId,
-                        // Default to unflagged (main) behavior for the two
-                        // opt-out-shaped flags; every other flag defaults on.
                         enabled:
-                            featureFlagId !== FeatureFlags.NewOnboarding &&
                             featureFlagId !==
-                                CommercialFeatureFlags.PatScopeAuthoritative,
+                            CommercialFeatureFlags.PatScopeAuthoritative,
                     }),
                 ),
             } as unknown as FeatureFlagModel),
@@ -955,7 +953,7 @@ describe('UserService', () => {
                 userId: sessionUser.userUuid,
                 properties: {
                     organizationId: sessionUser.organizationUuid,
-                    onboardingFlow: 'legacy',
+                    onboardingFlow: 'new',
                     answered: true,
                     answer: 'A podcast',
                 },
@@ -986,7 +984,7 @@ describe('UserService', () => {
                 userId: sessionUser.userUuid,
                 properties: {
                     organizationId: sessionUser.organizationUuid,
-                    onboardingFlow: 'legacy',
+                    onboardingFlow: 'new',
                     answered: false,
                     answer: null,
                 },
@@ -1213,13 +1211,6 @@ describe('UserService', () => {
     });
 
     describe('registerOrActivateUser', () => {
-        const createFeatureFlagModel = (enabled: boolean) => ({
-            get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
-                id: featureFlagId,
-                enabled,
-            })),
-        });
-
         test('rejects HTML in a user name before registration', async () => {
             await expect(
                 userService.registerOrActivateUser({
@@ -1236,33 +1227,27 @@ describe('UserService', () => {
             expect(userModel.createUser).not.toHaveBeenCalled();
         });
 
-        test('registers an email-only user when the feature is enabled', async () => {
-            const featureFlagModel = createFeatureFlagModel(true);
-            const service = createUserService(
-                {
-                    ...lightdashConfigMock,
-                    smtp: {
-                        host: 'localhost',
-                        port: 587,
-                        secure: false,
-                        allowInvalidCertificate: false,
-                        useAuth: false,
-                        auth: {
-                            user: '',
-                            pass: undefined,
-                            accessToken: undefined,
-                        },
-                        sender: {
-                            name: 'Lightdash',
-                            email: 'lightdash@example.com',
-                        },
-                        inlineImageCid: false,
+        test('registers an email-only user', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                smtp: {
+                    host: 'localhost',
+                    port: 587,
+                    secure: false,
+                    allowInvalidCertificate: false,
+                    useAuth: false,
+                    auth: {
+                        user: '',
+                        pass: undefined,
+                        accessToken: undefined,
                     },
+                    sender: {
+                        name: 'Lightdash',
+                        email: 'lightdash@example.com',
+                    },
+                    inlineImageCid: false,
                 },
-                {
-                    featureFlagModel,
-                },
-            );
+            });
             const loginMethodAllowedSpy = vi
                 .spyOn(service, 'isLoginMethodAllowed')
                 .mockResolvedValue(true);
@@ -1277,10 +1262,6 @@ describe('UserService', () => {
                 email: 'email-only@example.com',
             });
 
-            expect(featureFlagModel.get).toHaveBeenCalledWith({
-                user: undefined,
-                featureFlagId: FeatureFlags.NewOnboarding,
-            });
             expect(vi.mocked(userModel.createUser)).toHaveBeenCalledWith(
                 {
                     firstName: '',
@@ -1313,13 +1294,10 @@ describe('UserService', () => {
         });
 
         test('rejects an email-only user without an email server', async () => {
-            const featureFlagModel = createFeatureFlagModel(true);
-            const service = createUserService(
-                { ...lightdashConfigMock, smtp: undefined },
-                {
-                    featureFlagModel,
-                },
-            );
+            const service = createUserService({
+                ...lightdashConfigMock,
+                smtp: undefined,
+            });
 
             await expect(
                 service.registerOrActivateUser({
@@ -1334,29 +1312,8 @@ describe('UserService', () => {
             expect(userModel.createUser).not.toHaveBeenCalled();
         });
 
-        test('rejects an email-only user when the feature is disabled', async () => {
-            const featureFlagModel = createFeatureFlagModel(false);
-            const service = createUserService(lightdashConfigMock, {
-                featureFlagModel,
-            });
-
-            await expect(
-                service.registerOrActivateUser({
-                    email: 'email-only@example.com',
-                }),
-            ).rejects.toThrow(
-                new ForbiddenError('Email-only signup is not enabled'),
-            );
-
-            expect(userModel.hasUsers).not.toHaveBeenCalled();
-            expect(userModel.createUser).not.toHaveBeenCalled();
-        });
-
-        test('keeps full registration independent of the email-only feature', async () => {
-            const featureFlagModel = createFeatureFlagModel(false);
-            const service = createUserService(lightdashConfigMock, {
-                featureFlagModel,
-            });
+        test('registers a user with a password', async () => {
+            const service = createUserService(lightdashConfigMock);
             vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
             const sendOneTimePasscodeSpy = vi
                 .spyOn(service, 'sendOneTimePasscodeToPrimaryEmail')
@@ -1372,10 +1329,6 @@ describe('UserService', () => {
                 password: 'password1!',
             });
 
-            expect(featureFlagModel.get).toHaveBeenCalledWith({
-                user: undefined,
-                featureFlagId: FeatureFlags.NewOnboarding,
-            });
             expect(vi.mocked(userModel.createUser)).toHaveBeenCalledWith(
                 {
                     firstName: 'Full',
@@ -1384,7 +1337,7 @@ describe('UserService', () => {
                     password: 'password1!',
                 },
                 true,
-                undefined,
+                false,
             );
             expect(sendOneTimePasscodeSpy).toHaveBeenCalledWith(
                 sessionUser,
@@ -1449,7 +1402,7 @@ describe('UserService', () => {
                     createdUserId: memberUser.userUuid,
                     organizationId: memberUser.organizationUuid,
                     userConnectionType: 'email_only',
-                    onboardingFlow: 'legacy',
+                    onboardingFlow: 'new',
                     isOrganizationCreator: false,
                 },
             });
@@ -1683,7 +1636,7 @@ describe('UserService', () => {
                 createdUserId: sessionUser.userUuid,
                 organizationId: sessionUser.organizationUuid,
                 userConnectionType: 'password',
-                onboardingFlow: 'legacy',
+                onboardingFlow: 'new',
                 isOrganizationCreator: false,
             },
         });
@@ -1725,12 +1678,6 @@ describe('UserService', () => {
     });
 
     describe('email OTP login', () => {
-        const createFeatureFlagModel = (enabled: boolean) => ({
-            get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
-                id: featureFlagId,
-                enabled,
-            })),
-        });
         const activeOtp = (
             numberOfAttempts = 0,
             createdAt = new Date(),
@@ -1746,10 +1693,8 @@ describe('UserService', () => {
         };
 
         describe('requestEmailOtpLogin', () => {
-            test('sends an OTP for a passwordless account even when the feature flag is disabled', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(false),
-                });
+            test('sends an OTP for a passwordless account', async () => {
+                const service = createUserService(lightdashConfigMock);
                 userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
                 userModel.hasPassword.mockResolvedValueOnce(false);
                 userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
@@ -1761,9 +1706,7 @@ describe('UserService', () => {
             });
 
             test('does not create or send an OTP for a passworded account', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(true),
-                });
+                const service = createUserService(lightdashConfigMock);
                 userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
                 userModel.hasPassword.mockResolvedValueOnce(true);
 
@@ -1778,9 +1721,7 @@ describe('UserService', () => {
             });
 
             test('does not create or send an OTP for a nonexistent account', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(true),
-                });
+                const service = createUserService(lightdashConfigMock);
                 userModel.findUserByEmail.mockResolvedValueOnce(undefined);
 
                 await expect(
@@ -1794,9 +1735,7 @@ describe('UserService', () => {
             });
 
             test('creates and emails an OTP for a passwordless account', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(true),
-                });
+                const service = createUserService(lightdashConfigMock);
                 userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
                 userModel.hasPassword.mockResolvedValueOnce(false);
                 userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
@@ -1826,9 +1765,7 @@ describe('UserService', () => {
             });
 
             test('marks an unexpired OTP replacement as a resend', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(true),
-                });
+                const service = createUserService(lightdashConfigMock);
                 userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
                 userModel.hasPassword.mockResolvedValueOnce(false);
                 userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
@@ -1851,9 +1788,7 @@ describe('UserService', () => {
             });
 
             test('does not re-issue an OTP within the resend interval', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(true),
-                });
+                const service = createUserService(lightdashConfigMock);
                 userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
                 userModel.hasPassword.mockResolvedValueOnce(false);
                 userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
@@ -1874,9 +1809,7 @@ describe('UserService', () => {
 
         describe('loginWithEmailOtp', () => {
             test('verifies the email, consumes the OTP, and returns the session user', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(true),
-                });
+                const service = createUserService(lightdashConfigMock);
                 const emailStatus = activeOtp();
                 userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
                 userModel.hasPassword.mockResolvedValueOnce(false);
@@ -1930,9 +1863,7 @@ describe('UserService', () => {
             });
 
             test('increments attempts for a wrong code', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(true),
-                });
+                const service = createUserService(lightdashConfigMock);
                 userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
                 emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
                     activeOtp(),
@@ -1960,9 +1891,7 @@ describe('UserService', () => {
             });
 
             test('rejects OTP login for a user in multiple organizations', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(true),
-                });
+                const service = createUserService(lightdashConfigMock);
                 const emailStatus = activeOtp();
                 userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
                 userModel.hasPassword.mockResolvedValueOnce(false);
@@ -2002,9 +1931,7 @@ describe('UserService', () => {
             });
 
             test('rejects a sixth attempt without comparing the code', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(true),
-                });
+                const service = createUserService(lightdashConfigMock);
                 userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
                 emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
                     activeOtp(5),
@@ -2032,9 +1959,7 @@ describe('UserService', () => {
             });
 
             test('rejects an expired OTP', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(true),
-                });
+                const service = createUserService(lightdashConfigMock);
                 userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
                 emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
                     activeOtp(0, new Date(Date.now() - 16 * 60 * 1000)),
@@ -2059,9 +1984,7 @@ describe('UserService', () => {
             });
 
             test('rejects a passworded account with the generic error', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(true),
-                });
+                const service = createUserService(lightdashConfigMock);
                 userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
                 userModel.hasPassword.mockResolvedValueOnce(true);
 
@@ -2073,9 +1996,7 @@ describe('UserService', () => {
             });
 
             test('uses the generic error for a nonexistent account', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(true),
-                });
+                const service = createUserService(lightdashConfigMock);
                 userModel.findUserByEmail.mockResolvedValueOnce(undefined);
 
                 await expectInvalidCode(
@@ -2083,10 +2004,8 @@ describe('UserService', () => {
                 );
             });
 
-            test('signs in a passwordless account even when the feature is disabled', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(false),
-                });
+            test('signs in a passwordless account', async () => {
+                const service = createUserService(lightdashConfigMock);
                 const emailStatus = activeOtp();
                 userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
                 userModel.hasPassword.mockResolvedValueOnce(false);
@@ -2120,9 +2039,7 @@ describe('UserService', () => {
             ])(
                 'tracks $reason verification failures',
                 async ({ status, reason }) => {
-                    const service = createUserService(lightdashConfigMock, {
-                        featureFlagModel: createFeatureFlagModel(true),
-                    });
+                    const service = createUserService(lightdashConfigMock);
                     emailModel.getPrimaryEmailStatusByUserAndOtp.mockResolvedValueOnce(
                         status,
                     );
@@ -2145,9 +2062,7 @@ describe('UserService', () => {
             );
 
             test('tracks an invalid verification passcode', async () => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(true),
-                });
+                const service = createUserService(lightdashConfigMock);
                 emailModel.getPrimaryEmailStatusByUserAndOtp.mockRejectedValueOnce(
                     new NotFoundError('No matching OTP'),
                 );
@@ -2168,9 +2083,7 @@ describe('UserService', () => {
 
         describe('onboarding step gating', () => {
             const verifyEmailAs = async (user: SessionUser) => {
-                const service = createUserService(lightdashConfigMock, {
-                    featureFlagModel: createFeatureFlagModel(true),
-                });
+                const service = createUserService(lightdashConfigMock);
                 const emailStatus = activeOtp();
                 emailModel.getPrimaryEmailStatusByUserAndOtp.mockResolvedValueOnce(
                     emailStatus,
@@ -2282,33 +2195,8 @@ describe('UserService', () => {
     });
 
     describe('getLoginOptions email OTP', () => {
-        const createFeatureFlagModel = (enabled: boolean) => ({
-            get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
-                id: featureFlagId,
-                enabled,
-            })),
-        });
-
-        test('replaces email with email OTP for a passwordless user when enabled', async () => {
-            const featureFlagModel = createFeatureFlagModel(true);
-            const service = createUserService(lightdashConfigMock, {
-                featureFlagModel,
-            });
-            userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
-            userModel.hasPassword.mockResolvedValueOnce(false);
-            userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
-
-            await expect(service.getLoginOptions('email')).resolves.toEqual({
-                forceRedirect: false,
-                redirectUri: undefined,
-                showOptions: ['emailOtp'],
-            });
-        });
-
-        test('still shows email OTP for a passwordless user when the feature is disabled', async () => {
-            const service = createUserService(lightdashConfigMock, {
-                featureFlagModel: createFeatureFlagModel(false),
-            });
+        test('replaces email with email OTP for a passwordless user', async () => {
+            const service = createUserService(lightdashConfigMock);
             userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
             userModel.hasPassword.mockResolvedValueOnce(false);
             userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
@@ -2321,9 +2209,7 @@ describe('UserService', () => {
         });
 
         test('keeps email unchanged for a passworded user', async () => {
-            const service = createUserService(lightdashConfigMock, {
-                featureFlagModel: createFeatureFlagModel(true),
-            });
+            const service = createUserService(lightdashConfigMock);
             userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
             userModel.hasPassword.mockResolvedValueOnce(true);
 
@@ -2335,20 +2221,17 @@ describe('UserService', () => {
         });
 
         test('keeps SSO options unchanged for an OpenID user', async () => {
-            const service = createUserService(
-                {
-                    ...lightdashConfigMock,
-                    auth: {
-                        ...lightdashConfigMock.auth,
-                        okta: {
-                            ...lightdashConfigMock.auth.okta,
-                            oauth2ClientId: 'client-id',
-                            loginPath: '/login/okta',
-                        },
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    okta: {
+                        ...lightdashConfigMock.auth.okta,
+                        oauth2ClientId: 'client-id',
+                        loginPath: '/login/okta',
                     },
                 },
-                { featureFlagModel: createFeatureFlagModel(true) },
-            );
+            });
             userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
             userModel.hasPassword.mockResolvedValueOnce(false);
             userModel.hasOpenIdIdentity.mockResolvedValueOnce(true);
@@ -4361,7 +4244,7 @@ describe('UserService', () => {
             expect(vi.mocked(userModel.createUser)).toBeCalledWith(
                 openIdUser,
                 true,
-                undefined,
+                false,
             );
             expect(
                 userModel.activateUser as import('vitest').Mock,
@@ -5272,9 +5155,11 @@ describe('UserService', () => {
                     .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
                     .mockResolvedValue({
                         allowedGroupUuids: null,
-                        mode: mode === 'legacy' ? 'legacy' : 'managed',
                         version: 1,
-                        allowedCapabilities: null,
+                        allowedCapabilities:
+                            mode === 'legacy'
+                                ? null
+                                : Object.values(AgentCapability),
                     });
                 const actor = { ...sessionUser };
                 if (mode !== 'pat' && mode !== 'session')
@@ -5334,9 +5219,8 @@ describe('UserService', () => {
                     .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
                     .mockResolvedValue({
                         allowedGroupUuids: null,
-                        mode: 'managed',
                         version: 1,
-                        allowedCapabilities: null,
+                        allowedCapabilities: Object.values(AgentCapability),
                     });
                 const originalFind =
                     userModel.findUserByEmail.getMockImplementation();
@@ -5401,7 +5285,7 @@ describe('UserService', () => {
                     role: OrganizationMemberRole.MEMBER,
                 },
                 true,
-                undefined,
+                false,
             );
             expect(
                 inviteLinkModel.upsert as import('vitest').Mock,
@@ -5561,7 +5445,7 @@ describe('UserService', () => {
                     role: OrganizationMemberRole.ADMIN,
                 },
                 true,
-                undefined,
+                false,
             );
             expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenCalledWith(
                 expect.any(String),
@@ -5666,8 +5550,7 @@ describe('UserService', () => {
                                         featureFlagId ===
                                         CommercialFeatureFlags.PatScopeAuthoritative
                                             ? patScopeAuthoritative
-                                            : featureFlagId !==
-                                              FeatureFlags.NewOnboarding,
+                                            : true,
                                 }),
                             ),
                         },
@@ -5730,7 +5613,7 @@ describe('UserService', () => {
                         role: OrganizationMemberRole.MEMBER,
                     },
                     true,
-                    undefined,
+                    false,
                 );
             });
 
@@ -5757,7 +5640,7 @@ describe('UserService', () => {
                         role: OrganizationMemberRole.MEMBER,
                     },
                     true,
-                    undefined,
+                    false,
                 );
             });
 
@@ -5795,7 +5678,7 @@ describe('UserService', () => {
                         role: OrganizationMemberRole.ADMIN,
                     },
                     true,
-                    undefined,
+                    false,
                 );
             });
 

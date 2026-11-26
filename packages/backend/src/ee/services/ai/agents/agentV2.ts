@@ -4,12 +4,9 @@ import {
     AiAccessRefusedError,
     AnyType,
     assertUnreachable,
-    DBT_SAVE_CARD_REPLY,
-    describeSemanticLayerProposals,
     Explore,
     getErrorMessage,
     isSqlApprovalToolCall,
-    toolProposeSemanticLayerChangeOutputSchema,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
     type CustomChartTypeLibrary,
@@ -72,6 +69,7 @@ import { queryErrorOverride } from '../decisions/queryErrors';
 import { createQueryReviewer } from '../decisions/queryReview';
 import {
     getAvailableSkills,
+    getStudioAbilities,
     hasDecisionsInStandardMode,
     resolveLoadout,
     type AgentToolName,
@@ -90,6 +88,7 @@ import {
     includesDocumentOffer,
     MIN_CHARTS_FOR_DOCUMENT_OFFER,
 } from '../prompts/systemV2ContentTools';
+import { getSemanticStudioTurn } from '../prompts/systemV2SemanticStudio';
 import {
     accumulatePromptTokenUsage,
     completedPromptTokenUsage,
@@ -109,7 +108,7 @@ import { getDelegateResearchTask } from '../tools/delegateResearchTask';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
-import { getEditDbtProject } from '../tools/editDbtProject';
+import { getEditDbtProject, getWrite } from '../tools/editDbtProject';
 import { getEditProjectContext } from '../tools/editProjectContext';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getExportChartAsCode } from '../tools/exportChartAsCode';
@@ -145,8 +144,10 @@ import { getLoadMcpTools } from '../tools/loadMcpTools';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadedSkillKeys, getLoadSkill } from '../tools/loadSkill';
 import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
+import { getRead } from '../tools/read';
 import { getReadAttachments } from '../tools/readAttachments';
 import { getReadContent } from '../tools/readContent';
+import { buildReadLibraries } from '../tools/readLibraries';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
 import { getRunComposerQueries } from '../tools/runComposerQueries';
@@ -161,6 +162,7 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import {
+    getDraftProjectContext,
     getListChanges,
     getProposeSemanticLayerChange,
     getReadSemanticModel,
@@ -174,11 +176,14 @@ import { type SqlChartSaving } from '../tools/sqlChartApproval';
 import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
+import { getVerify } from '../tools/verify';
 import { getVisualize } from '../tools/visualize';
 import type {
+    AgentTurnStep,
     AiAgentArgs,
     AiAgentDependencies,
     AiStreamAgentResponseArgs,
+    TurnCard,
     UnavailableMcpServer,
 } from '../types/aiAgent';
 import { toAbsoluteHref } from '../utils/absoluteHref';
@@ -631,7 +636,7 @@ const previousReplyOfferedDocument = (
     return false;
 };
 
-const savedDocument = (steps: ReadonlyArray<FastChartStep>): boolean => {
+const savedDocument = (steps: ReadonlyArray<AgentTurnStep>): boolean => {
     const documentCallIds = new Set(
         steps
             .flatMap((step) => step.toolCalls)
@@ -652,7 +657,7 @@ const savedDocument = (steps: ReadonlyArray<FastChartStep>): boolean => {
 /** Document nudge analytics for one turn: whether nudges applied, the offer was shown, or an earlier offer was taken up. */
 export const getDocumentNudgeOutcome = (
     args: AiAgentArgs,
-    steps: ReadonlyArray<FastChartStep>,
+    steps: ReadonlyArray<AgentTurnStep>,
     response: string,
 ) => {
     const documentNudgesEnabled = areDocumentNudgesEnabled(args);
@@ -1167,21 +1172,8 @@ const recordExternalMcpToolCall = (
         });
 };
 
-type FastChartStep = {
-    toolCalls: ReadonlyArray<{
-        toolCallId: string;
-        toolName: string;
-        input: unknown;
-    }>;
-    toolResults: ReadonlyArray<{
-        toolCallId: string;
-        toolName: string;
-        output: unknown;
-    }>;
-};
-
 export const getChartFollowupFastResponse = (
-    steps: ReadonlyArray<FastChartStep>,
+    steps: ReadonlyArray<AgentTurnStep>,
 ): string | null => {
     const successfulCallIds = new Set(
         steps.flatMap((step) =>
@@ -1223,7 +1215,7 @@ export const getChartFollowupFastResponse = (
 };
 
 export const getChartExportFastResponse = (
-    steps: ReadonlyArray<FastChartStep>,
+    steps: ReadonlyArray<AgentTurnStep>,
 ): string | null => {
     const output = steps
         .flatMap((step) => step.toolResults)
@@ -1245,7 +1237,7 @@ export const getChartExportFastResponse = (
 };
 
 export const getDataAppBuildFastResponse = (
-    steps: ReadonlyArray<FastChartStep>,
+    steps: ReadonlyArray<AgentTurnStep>,
 ): string | null => {
     const output = steps
         .flatMap((step) => step.toolResults)
@@ -1269,7 +1261,7 @@ export const getDataAppBuildFastResponse = (
 };
 
 export const getDataAnswerFastResponse = (
-    steps: ReadonlyArray<FastChartStep>,
+    steps: ReadonlyArray<AgentTurnStep>,
 ): string | null => {
     const results = steps.flatMap((step) => step.toolResults);
     if (
@@ -1302,7 +1294,7 @@ export const getDataAnswerFastResponse = (
 
 /** Ends a document write-up once the document saved without warnings. */
 export const getDocumentWriteFastResponse = (
-    steps: ReadonlyArray<FastChartStep>,
+    steps: ReadonlyArray<AgentTurnStep>,
     siteUrl: string,
 ): string | null => {
     const documentCallIds = new Set(
@@ -1347,83 +1339,19 @@ export const getDocumentWriteFastResponse = (
     return `Saved [${name || 'the document'}](${toAbsoluteHref(siteUrl, metadata.href)}).`;
 };
 
-/** A Studio turn that ends on its card with nothing written keeps one line saying what changed, so the reply is never blank. */
-export const withStudioCardReply = (
-    reply: string,
-    steps: ReadonlyArray<FastChartStep>,
-): string => {
-    if (reply.trim()) return reply;
-    const proposals = steps
-        .flatMap((step) => step.toolResults)
-        .flatMap(({ toolName, output }) => {
-            if (toolName !== 'proposeSemanticLayerChange') return [];
-            const parsed =
-                toolProposeSemanticLayerChangeOutputSchema.safeParse(output);
-            return parsed.success &&
-                parsed.data.metadata.status === 'success' &&
-                parsed.data.metadata.draftChangeUuid !== null
-                ? [parsed.data.metadata]
-                : [];
-        });
-    return proposals.length > 0
-        ? describeSemanticLayerProposals(proposals)
-        : reply;
-};
-
-/** A Studio turn ends on its card: once a change joined the draft cleanly, or a save started, there is nothing left to say. */
-export const getStudioCardResponse = (
-    steps: ReadonlyArray<FastChartStep>,
-): string | null => {
-    const last = steps.at(-1);
-    if (!last) return null;
-    const proposals = last.toolResults.flatMap(({ toolName, output }) => {
-        if (toolName !== 'proposeSemanticLayerChange') return [];
-        const parsed =
-            toolProposeSemanticLayerChangeOutputSchema.safeParse(output);
-        return parsed.success && parsed.data.metadata.status === 'success'
-            ? [parsed.data.metadata]
-            : [];
-    });
-    if (proposals.length > 0) {
-        // A failed model or advice means the agent still has work to do this turn.
-        const isClean = proposals.every(
-            ({ draftChangeUuid, models, needsFollowUp }) =>
-                draftChangeUuid !== null &&
-                !needsFollowUp &&
-                models.every(({ status }) => status !== 'failed'),
-        );
-        return isClean ? describeSemanticLayerProposals(proposals) : null;
-    }
-    // Only Studio's save takes a script; the main chat's keeps its own reply.
-    const studioSaves = new Set(
-        last.toolCalls
-            .filter(
-                ({ toolName, input }) =>
-                    toolName === 'editDbtProject' &&
-                    !!input &&
-                    typeof input === 'object' &&
-                    'script' in input,
-            )
-            .map(({ toolCallId }) => toolCallId),
-    );
-    const isSaving = last.toolResults.some(
-        ({ toolCallId, output }) =>
-            studioSaves.has(toolCallId) && !isErrorToolResult(output),
-    );
-    return isSaving ? DBT_SAVE_CARD_REPLY : null;
-};
-
-const getTurnFastResponse = (
+export const getTurnFastResponse = (
     enableDataAnswerFastResponse: boolean,
     turnIntent: TurnIntent | null | undefined,
-    steps: ReadonlyArray<FastChartStep>,
+    steps: ReadonlyArray<AgentTurnStep>,
     siteUrl: string,
+    turnCard: TurnCard | null,
 ) => {
     // Asking ends the turn on any intent; the questions are its reply.
     const askUserResponse = getAskUserResponse(steps);
     if (askUserResponse !== null) return askUserResponse;
-    const studioCardResponse = getStudioCardResponse(steps);
-    if (studioCardResponse !== null) return studioCardResponse;
+    // The main chat's save keeps its own reply.
+    const cardResponse = turnCard?.getResponse(steps) ?? null;
+    if (cardResponse !== null) return cardResponse;
     if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
         return getDataAnswerFastResponse(steps);
     if (turnIntent === 'chart_from_previous')
@@ -2257,8 +2185,8 @@ export const getAgentTools = (
         editDbtProject: () =>
             getEditDbtProject({
                 editDbtProject: dependencies.editDbtProject,
-                acceptsScript: args.semanticStudioCodeMode,
             }),
+        write: () => getWrite({ editDbtProject: dependencies.editDbtProject }),
         editProjectContext: () =>
             getEditProjectContext({
                 editProjectContext: dependencies.editProjectContext,
@@ -2267,12 +2195,39 @@ export const getAgentTools = (
             getProposeSemanticLayerChange({
                 proposeSemanticLayerChange:
                     dependencies.proposeSemanticLayerChange,
-                canRunMetrics: loadout.toolNames.has('runMetricQuery'),
+                describeWarehouseTable: dependencies.describeWarehouseTable,
+                readSemanticModel: dependencies.readSemanticModel,
+                canRunMetrics: getStudioAbilities(loadout).canRunMetrics,
+                metricViewCheck:
+                    getStudioAbilities(loadout).canRunMetrics &&
+                    loadout.toolNames.has('runSql')
+                        ? {
+                              runDraftQuery: dependencies.runDraftQuery,
+                              runSqlJob: queryDependencies.runSqlJob,
+                          }
+                        : null,
             }),
         listChanges: () => getListChanges(dependencies.listChanges),
         readSemanticModel: () =>
             getReadSemanticModel({
                 readSemanticModel: dependencies.readSemanticModel,
+            }),
+        draftProjectContext: () =>
+            getDraftProjectContext({
+                draftProjectContext: dependencies.draftProjectContext,
+            }),
+        read: () =>
+            getRead({
+                read: dependencies.read,
+                libraries: buildReadLibraries((name) =>
+                    loadout.withheldToolNames.has(name)
+                        ? toolBuilders[name]()
+                        : null,
+                ),
+            }),
+        verify: () =>
+            getVerify({
+                verify: dependencies.verify,
             }),
         runMetricQuery: () =>
             getRunMetricQuery({
@@ -2301,6 +2256,7 @@ export const getAgentTools = (
         listWorkstreams: () =>
             getListWorkstreams({
                 listWorkstreams: dependencies.listWorkstreams,
+                savesWithWrite: loadout.toolNames.has('write'),
             }),
         closePullRequest: () =>
             getClosePullRequest({
@@ -2376,7 +2332,7 @@ export const getAgentTools = (
                 maxQueryLimit: args.runSqlMaxLimit,
                 enableDataAccess: args.enableDataAccess,
                 canRunSql: args.canRunSql,
-                enablePythonNodes: args.enableComposerQueries,
+                enablePythonNodes: args.enableComposerPythonNodes,
                 autoApproveSql: args.autoApproveSql,
                 autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
                 useSlackStreamCard: args.useSlackStreamCard,
@@ -2814,10 +2770,17 @@ export const getAgentMessages = (
         canRunSql: args.canRunSql,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-        semanticStudioCodeMode: args.semanticStudioCodeMode,
-        semanticStudioQueriesDraft: loadout.toolNames.has('runMetricQuery'),
+        studio: loadout.promptSections.has('semanticStudio')
+            ? getSemanticStudioTurn(loadout, {
+                  drafts: args.studio?.drafts ?? false,
+                  projectMap: args.studio?.projectMap ?? null,
+                  repoFsRoot: args.repoFsRoot,
+                  repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
+              })
+            : undefined,
+        projectContextInRead: getStudioAbilities(loadout).builder,
         slackLinksOnly: args.slackLinksOnly,
-        enableComposerPythonNodes: args.enableComposerQueries,
+        enableComposerPythonNodes: args.enableComposerPythonNodes,
         liveSources: args.liveSources,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,
@@ -3232,6 +3195,7 @@ const runGenerateAgentResponse = async ({
                         preparedContext?.turnIntent,
                         steps,
                         args.siteUrl,
+                        args.turnCard,
                     ) !== null,
             ],
             abortSignal,
@@ -3490,6 +3454,7 @@ const runGenerateAgentResponse = async ({
                       preparedContext?.turnIntent,
                       result.steps,
                       args.siteUrl,
+                      args.turnCard,
                   ) ?? result.text),
             result.steps,
         );
@@ -3676,9 +3641,9 @@ const runStreamAgentResponse = async ({
             });
         const fastToolCalls = new Map<
             string,
-            FastChartStep['toolCalls'][number]
+            AgentTurnStep['toolCalls'][number]
         >();
-        const fastToolResults: FastChartStep['toolResults'][number][] = [];
+        const fastToolResults: AgentTurnStep['toolResults'][number][] = [];
         let fastStreamResponse: string | null = null;
         timing.recordPreparationFinished();
         const result = streamText({
@@ -3694,6 +3659,7 @@ const runStreamAgentResponse = async ({
                         preparedContext?.turnIntent,
                         steps,
                         args.siteUrl,
+                        args.turnCard,
                     ) !== null,
             ],
             providerOptions: args.providerOptions,
@@ -3865,6 +3831,7 @@ const runStreamAgentResponse = async ({
                                     },
                                 ],
                                 args.siteUrl,
+                                args.turnCard,
                             );
                         }
                         logger(
@@ -4063,13 +4030,15 @@ const runStreamAgentResponse = async ({
                               preparedContext?.turnIntent,
                               steps,
                               args.siteUrl,
+                              args.turnCard,
                           ) ?? modelResponse),
                     steps,
                 );
-                const completeResponse = withStudioCardReply(
-                    agentContext.responseBlocks.render(responseText),
-                    steps,
-                );
+                const renderedResponse =
+                    agentContext.responseBlocks.render(responseText);
+                const completeResponse =
+                    args.turnCard?.withReply(renderedResponse, steps) ??
+                    renderedResponse;
 
                 const stepCapReached = steps.length >= args.execution.maxSteps;
 

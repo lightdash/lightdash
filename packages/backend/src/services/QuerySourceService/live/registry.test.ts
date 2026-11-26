@@ -1,5 +1,7 @@
 import {
     ApiConnectorType,
+    HYDRA_DEFAULT_SOURCE,
+    HYDRA_ENABLED_ENV,
     ParameterError,
     type ExternalConnectionApiSource,
     type MetricQuery,
@@ -7,7 +9,11 @@ import {
 import { buildLiveExplores, compileLiveMetricQuery } from './explores/build';
 import { getInitialLiveSourceFieldEdits } from './explores/fields';
 import { connectLiveSource } from './liveSource.mock';
-import { getLiveIntegration } from './registry';
+import {
+    getLiveIntegration,
+    isLiveIntegrationRegistered,
+    parseStoredApiSource,
+} from './registry';
 import { type LiveHttpResponse } from './types';
 
 /**
@@ -54,14 +60,20 @@ const SAMPLE_SETTINGS: {
         owner: 'lightdash',
         repo: 'lightdash',
     },
+    [ApiConnectorType.AMPLITUDE]: {
+        connector: ApiConnectorType.AMPLITUDE,
+    },
+    [ApiConnectorType.MIXPANEL]: {
+        connector: ApiConnectorType.MIXPANEL,
+        projectId: '12345',
+    },
     [ApiConnectorType.PYLON]: {
         connector: ApiConnectorType.PYLON,
     },
-    [ApiConnectorType.ATTIO]: {
-        connector: ApiConnectorType.ATTIO,
-        object: 'companies',
-    },
+    [ApiConnectorType.ATTIO]: { connector: ApiConnectorType.ATTIO },
     [ApiConnectorType.HUBSPOT]: { connector: ApiConnectorType.HUBSPOT },
+    [ApiConnectorType.SALESFORCE]: { connector: ApiConnectorType.SALESFORCE },
+    [ApiConnectorType.HYDRA]: HYDRA_DEFAULT_SOURCE,
 };
 
 const SERVER_ERROR: LiveHttpResponse = {
@@ -87,6 +99,19 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
 
         test('stores its settings as they are', () => {
             expect(integration.settings.parse(settings)).toEqual(settings);
+        });
+
+        test('reads a stored source that carries the engine keys too', () => {
+            vi.stubEnv(HYDRA_ENABLED_ENV, 'true');
+            expect(
+                parseStoredApiSource({
+                    ...settings,
+                    sourceName: 'source',
+                    fields: {},
+                    lastScan: { fields: [], scannedAt: '2026-11-23' },
+                }),
+            ).toEqual(settings);
+            vi.unstubAllEnvs();
         });
 
         test('scans only explores it has, besides its first', () => {
@@ -165,3 +190,26 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         });
     },
 );
+
+describe('Hydra, the test integration', () => {
+    afterEach(() => {
+        vi.unstubAllEnvs();
+    });
+
+    test('is absent from the registry unless turned on', () => {
+        vi.stubEnv(HYDRA_ENABLED_ENV, '');
+        expect(isLiveIntegrationRegistered(ApiConnectorType.HYDRA)).toBe(false);
+        expect(() => getLiveIntegration(ApiConnectorType.HYDRA)).toThrow(
+            ParameterError,
+        );
+        // A source saved while it was on reads as no live source
+        expect(parseStoredApiSource(HYDRA_DEFAULT_SOURCE)).toBeNull();
+        expect(isLiveIntegrationRegistered(ApiConnectorType.PYLON)).toBe(true);
+
+        vi.stubEnv(HYDRA_ENABLED_ENV, 'true');
+        expect(isLiveIntegrationRegistered(ApiConnectorType.HYDRA)).toBe(true);
+        expect(parseStoredApiSource(HYDRA_DEFAULT_SOURCE)).toEqual(
+            HYDRA_DEFAULT_SOURCE,
+        );
+    });
+});

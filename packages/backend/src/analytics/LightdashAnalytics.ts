@@ -27,10 +27,9 @@ import {
     LightdashPage,
     LightdashRequestMethodHeader,
     LightdashUser,
+    LiveSourceErrorCode,
     LiveSourceErrorOrigin,
-    LiveSourceInternalErrorCode,
     LiveSourceRefusalCode,
-    LiveSourceUpstreamErrorCode,
     MergeJoinType,
     MergeQueryErrorKind,
     MobileAppPlatform,
@@ -136,7 +135,8 @@ type Identify = {
 };
 export type BaseTrack = Omit<AnalyticsTrack, 'context'>;
 export const ANONYMOUS_TRACKING_UUID = '00000000-0000-0000-0000-000000000000';
-export type OnboardingFlow = 'new' | 'legacy';
+// Every flow is the new onboarding; the property stays so events keep their shape
+export type OnboardingFlow = 'new';
 export type OneTimePasscodePurpose =
     | 'signup_verification'
     | 'login'
@@ -835,7 +835,7 @@ export type QueryCompletedEvent = BaseTrack & {
         integration?: ApiConnectorType;
         apiQueryOutcome?: LiveQueryOutcome;
         /** Set only when a live_source query failed. */
-        errorCode?: LiveSourceInternalErrorCode | LiveSourceUpstreamErrorCode;
+        errorCode?: LiveSourceErrorCode;
         errorOrigin?: LiveSourceErrorOrigin;
         truncated?: boolean;
     };
@@ -1582,7 +1582,6 @@ type PlaygroundProjectProvisionedEvent = BaseTrack & {
 };
 
 export type PlaygroundProjectSkippedReason =
-    | 'new_onboarding_flag_disabled'
     | 'playground_already_exists'
     | 'organization_has_project'
     | 'no_project_access'
@@ -3052,7 +3051,7 @@ export type SemanticStudioActivity =
       }
     | {
           event: 'semantic_studio.draft_discarded';
-          properties: { scope: 'draft' | 'change' | 'model' };
+          properties: { scope: 'draft' | 'change' | 'model' | 'stale_model' };
       };
 
 export type SemanticStudioEvent = BaseTrack & {
@@ -4196,7 +4195,6 @@ export type ContentVerificationEvent = BaseTrack & {
         projectId: string;
         contentType: ContentType;
         contentId: string;
-        source?: 'ai_artifact';
     };
 };
 
@@ -4307,31 +4305,6 @@ export type AiAgentArtifactVizQueryEvent = BaseTrack & {
     };
 };
 
-export type AiAgentArtifactVersionVerifiedEvent = BaseTrack & {
-    event: 'ai_agent.artifact_version_verified';
-    userId: string;
-    properties: {
-        organizationId: string;
-        projectId: string;
-        agentId: string;
-        artifactId: string;
-        versionId: string;
-        verified: boolean;
-    };
-};
-
-export type AiAgentArtifactsRetrievedEvent = BaseTrack & {
-    event: 'ai_agent.artifacts_retrieved';
-    properties: {
-        organizationId: string;
-        projectId: string;
-        agentId: string;
-        promptId: string;
-        artifactCount: number;
-        averageSimilarity: number;
-    };
-};
-
 export type AiAgentFindContentCoverage = {
     searchQuery: string;
     totalResultCount: number;
@@ -4362,7 +4335,6 @@ export type AiAgentSuggestionsGeneratedEvent = BaseTrack & {
         agentId: string;
         chipCount: number;
         exploreCount: number;
-        verifiedQuestionsCount: number;
         latencyMs: number;
         modelId: string;
         usingFallback: boolean;
@@ -5343,8 +5315,6 @@ type TypedEvent =
     | AiAgentToolCallFailedEvent
     | AiAgentStepCompletedEvent
     | AiAgentArtifactVizQueryEvent
-    | AiAgentArtifactVersionVerifiedEvent
-    | AiAgentArtifactsRetrievedEvent
     | AiAgentFindContentCoverageEvent
     | AiAgentSuggestionsGeneratedEvent
     | AiAgentSuggestionImpressionEvent

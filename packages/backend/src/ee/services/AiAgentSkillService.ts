@@ -517,6 +517,7 @@ export class AiAgentSkillService extends BaseService {
             toSessionUser(account),
             args.agentUuid,
             args.projectUuid,
+            { includeBuiltIn: true },
         );
         const enabled = await this.isEnabled(account);
         const [skills, builtIns] = await Promise.all([

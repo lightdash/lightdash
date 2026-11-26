@@ -1,4 +1,4 @@
-import { AgentCapability, OrganizationMemberRole } from '@lightdash/common';
+import { AgentCapability } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
 import { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import { McpService, McpToolName } from './McpService';
@@ -188,9 +188,9 @@ describe.each(['off', 'legacy', 'managed'] as const)(
         let permissions: AgentPermissionService;
         beforeEach(() => {
             const policy = {
-                mode: mode === 'off' ? ('managed' as const) : mode,
                 version: 1,
-                allowedCapabilities: Object.values(AgentCapability),
+                allowedCapabilities:
+                    mode === 'legacy' ? null : Object.values(AgentCapability),
                 storedAllowedGroupUuids: null,
                 hasExistingAllowedGroup: null,
             };
@@ -202,16 +202,12 @@ describe.each(['off', 'legacy', 'managed'] as const)(
                     get: vi.fn(),
                     getForEnforcement: vi.fn().mockResolvedValue(policy),
                     save: vi.fn(),
+                    getProjectPolicies: vi.fn().mockResolvedValue([]),
+                    saveProjectPolicy: vi.fn(),
+                    deleteProjectPolicy: vi.fn(),
                 },
                 groupsModel: { findUserInGroups: vi.fn() },
                 areGroupsAvailable: vi.fn(),
-                isCustomRolesLicensed: () => false,
-                userModel: {
-                    getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                        systemRoles: [OrganizationMemberRole.VIEWER],
-                        customRoles: [],
-                    }),
-                },
                 projectModel: {
                     getSummary: vi.fn().mockResolvedValue({ organizationUuid }),
                 },

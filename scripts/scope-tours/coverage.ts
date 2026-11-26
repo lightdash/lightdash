@@ -57,18 +57,6 @@ export const SCOPE_DISPOSITIONS: Readonly<Record<string, ScopeDisposition>> = {
     'manage:SemanticViewer': excluded(
         'Catalogue records no product surface for this permission.',
     ),
-    'view:AgentReadDiscover': excluded(
-        'Agent capability ceiling; it limits AI agents, not the learner.',
-    ),
-    'view:AgentQuery': excluded(
-        'Agent capability ceiling; it limits AI agents, not the learner.',
-    ),
-    'view:AgentExport': excluded(
-        'Agent capability ceiling; it limits AI agents, not the learner.',
-    ),
-    'view:AgentRawSql': excluded(
-        'Agent capability ceiling; it limits AI agents, not the learner.',
-    ),
     'manage:ComposerChart': excluded(
         'Composer charts have no product surface yet; they are created through the API until the AI answer Save action ships.',
     ),

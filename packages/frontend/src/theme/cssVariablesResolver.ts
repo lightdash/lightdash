@@ -15,6 +15,7 @@ import {
 } from '../components/common/Dashboard/dashboard.constants';
 import { CELL_HEIGHT as LIGHT_TABLE_CELL_HEIGHT } from '../components/common/LightTable/constants';
 import {
+    APP_SIDEBAR_RAIL_WIDTH,
     BANNER_HEIGHT,
     FOOTER_HEIGHT,
     NAVBAR_HEIGHT,
@@ -25,6 +26,8 @@ import {
     SIDEBAR_MIN_WIDTH,
     SIDEBAR_RESIZE_HANDLE_WIDTH,
     SIDEBAR_TOGGLE_RESERVE,
+    Z_INDEX_DESIGN_BUBBLE,
+    Z_INDEX_DESIGN_MARKS,
     Z_INDEX_FLOATING,
     Z_INDEX_STICKY,
     Z_INDEX_STICKY_HEADER,
@@ -69,6 +72,7 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
         '--lt-cell-height': `${LIGHT_TABLE_CELL_HEIGHT}px`,
         '--navbar-height': `${NAVBAR_HEIGHT}px`,
         '--banner-height': `${BANNER_HEIGHT}px`,
+        '--app-sidebar-rail-width': `${APP_SIDEBAR_RAIL_WIDTH}px`,
         '--page-header-height': `${PAGE_HEADER_HEIGHT}px`,
         '--footer-height': `${FOOTER_HEIGHT}px`,
         '--page-content-width': `${PAGE_CONTENT_WIDTH}px`,
@@ -79,6 +83,8 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
         '--sidebar-resize-handle-width': `${SIDEBAR_RESIZE_HANDLE_WIDTH}px`,
         '--ld-z-sticky': `${Z_INDEX_STICKY}`,
         '--ld-z-sticky-header': `${Z_INDEX_STICKY_HEADER}`,
+        '--ld-z-design-marks': `${Z_INDEX_DESIGN_MARKS}`,
+        '--ld-z-design-bubble': `${Z_INDEX_DESIGN_BUBBLE}`,
         '--ld-z-floating': `${Z_INDEX_FLOATING}`,
         '--ld-z-tour': `${Z_INDEX_TOUR}`,
         '--ld-z-tour-card': `${Z_INDEX_TOUR_CARD}`,
@@ -118,6 +124,7 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
         '--mantine-color-disabled-border': 'var(--mantine-color-gray-2)',
         '--ld-color-page': 'var(--mantine-color-gray-0)',
         '--ld-color-tile': 'var(--mantine-color-background-0)',
+        '--ld-color-sidebar': '#f2f2f4',
     },
     dark: {
         ...darkLightVariantTints(theme),
@@ -131,5 +138,6 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
         '--mantine-color-default-hover': 'var(--mantine-color-dark-5)',
         '--ld-color-page': '#0b0c0c',
         '--ld-color-tile': '#101112',
+        '--ld-color-sidebar': '#151517',
     },
 });

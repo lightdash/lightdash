@@ -16,7 +16,6 @@ const policy: ResolvedAgentPolicy = {
     allowedCapabilities: null,
     allowedGroupUuids: null,
     version: 1,
-    editableCustomRoleUuid: null,
 };
 const operation: AgentPolicyEvaluation = {
     requiredCapabilities: [AgentCapability.RawSql],
@@ -89,14 +88,13 @@ test('an empty list refuses a turn before mapping with the organization remedy',
     });
 });
 
-test('the organization list takes precedence over a custom role grant and its remedy', () => {
+test('the organization list takes precedence over the resolved capabilities', () => {
     expect(
         evaluate(
             {
                 ...policy,
                 allowedCapabilities: [AgentCapability.Query],
                 capabilities: new Set([AgentCapability.RawSql]),
-                editableCustomRoleUuid: 'custom',
             },
             operation,
         ),
@@ -106,19 +104,6 @@ test('the organization list takes precedence over a custom role grant and its re
         policyLayer: 'organization_setting',
         settingsUrl: '/generalSettings/agentIdentity',
     });
-});
-
-test('a missing role grant within the list retains the custom role remedy', () => {
-    expect(
-        evaluate(
-            {
-                ...policy,
-                allowedCapabilities: [AgentCapability.RawSql],
-                editableCustomRoleUuid: 'custom',
-            },
-            operation,
-        )?.settingsUrl,
-    ).toBe('/generalSettings/customRoles/custom');
 });
 
 test('legacy restriction evaluates only admission, even for unmapped human-only operations', () => {

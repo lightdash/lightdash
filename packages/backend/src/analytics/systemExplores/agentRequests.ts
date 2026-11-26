@@ -186,4 +186,19 @@ export const agentRequestsMetrics: SystemMetricDefinition[] = [
         type: MetricType.SUM,
         column: 'total_tokens',
     },
+    {
+        name: 'failed_or_cancelled_request_tokens',
+        description:
+            'Sum of reported token totals from model calls linked to prompts whose latest state is error or cancelled. Pending and clarification requests are excluded; missing token usage is not estimated.',
+        type: MetricType.SUM,
+        column: 'total_tokens',
+        filters: [
+            {
+                id: 'failed_or_cancelled_request_tokens',
+                target: { fieldRef: 'status' },
+                operator: FilterOperator.EQUALS,
+                values: ['error', 'cancelled'],
+            },
+        ],
+    },
 ];

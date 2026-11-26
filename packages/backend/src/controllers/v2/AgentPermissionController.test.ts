@@ -24,7 +24,6 @@ const setup = () => {
         { action: 'manage', subject: 'all' },
     ]);
     const policy: AgentCapabilityPolicy = {
-        mode: 'legacy' as const,
         version: 0,
         allowedCapabilities: null,
         allowedGroupUuids: null,
@@ -33,7 +32,6 @@ const setup = () => {
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
         groupsModel: { findUserInGroups: vi.fn().mockResolvedValue([]) },
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
-        isCustomRolesLicensed: vi.fn().mockReturnValue(true),
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         agentCapabilityPolicyModel: {
             get: vi.fn().mockResolvedValue(policy),
@@ -46,8 +44,10 @@ const setup = () => {
                         : policy.allowedGroupUuids.length > 0,
             })),
             save: vi.fn().mockResolvedValue(policy),
+            getProjectPolicies: vi.fn().mockResolvedValue([]),
+            saveProjectPolicy: vi.fn(),
+            deleteProjectPolicy: vi.fn(),
         },
-        userModel: { getAgentRoleAssignments: vi.fn() },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({
                 organizationUuid: account.organization.organizationUuid,
@@ -73,6 +73,11 @@ const operations = [
         }),
     (c: AgentPermissionController, req: Request) =>
         c.resetToLegacy(req, { version: 0 }),
+    (c: AgentPermissionController, req: Request) => c.getProjectPolicies(req),
+    (c: AgentPermissionController, req: Request) =>
+        c.saveProjectPolicy(req, 'project', { allowedCapabilities: [] }),
+    (c: AgentPermissionController, req: Request) =>
+        c.deleteProjectPolicy(req, 'project'),
 ];
 
 test.each(operations)('rejects non-admin callers', async (operation) => {
@@ -161,8 +166,16 @@ test('ignores old people and project fields instead of storing them', async () =
     expect(deps.projectModel.getSummary).not.toHaveBeenCalled();
 });
 
-test.each([null, ['invalid'], 'query'])(
-    'rejects an invalid managed list %j',
+test('a null capability list removes the restrictions', async () => {
+    const { controller, req, deps } = setup();
+    await controller.saveCeiling(req, { allowedCapabilities: null });
+    expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
+        expect.objectContaining({ allowedCapabilities: null }),
+    );
+});
+
+test.each([['invalid'], 'query'])(
+    'rejects an invalid capability list %j',
     async (allowedCapabilities) => {
         const { controller, req, deps } = setup();
         await expect(
@@ -187,23 +200,12 @@ test.each([-1, 1.5, NaN])(
     },
 );
 
-test('legacy cannot retain an inactive capability list', async () => {
-    const { controller, req } = setup();
-    await expect(
-        controller.saveCeiling(req, {
-            mode: 'legacy',
-            allowedCapabilities: [],
-        }),
-    ).rejects.toMatchObject({ name: 'ParameterError' });
-});
-
 test('reset clears the capability list and omits groups without a role matrix', async () => {
     const { controller, req, deps } = setup();
     await controller.resetToLegacy(req, { version: 7 });
     expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
         expect.objectContaining({
             version: 7,
-            mode: 'legacy',
             allowedCapabilities: null,
             allowedGroupUuids: undefined,
         }),
@@ -240,7 +242,6 @@ test('save accepts a legacy role matrix and does not store it', async () => {
         [OrganizationMemberRole.ADMIN]: Object.values(AgentCapability),
     };
     const legacyCeiling = {
-        mode: 'managed' as const,
         allowedCapabilities,
         systemRoleMatrix,
     };
@@ -250,7 +251,8 @@ test('save accepts a legacy role matrix and does not store it', async () => {
     expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledOnce();
     const [saved] = deps.agentCapabilityPolicyModel.save.mock.calls[0];
     expect(saved).not.toHaveProperty('systemRoleMatrix');
-    expect(saved).toMatchObject({ mode: 'managed', allowedCapabilities });
+    expect(saved).not.toHaveProperty('mode');
+    expect(saved).toMatchObject({ allowedCapabilities });
 });
 
 test.each([true, false])(
@@ -259,7 +261,6 @@ test.each([true, false])(
         const { controller, req, deps } = setup();
         deps.areGroupsAvailable.mockResolvedValue(available);
         deps.agentCapabilityPolicyModel.get.mockResolvedValue({
-            mode: 'legacy',
             version: 2,
             allowedGroupUuids: ['group'],
             allowedCapabilities: null,
@@ -274,15 +275,13 @@ test.each([true, false])(
     },
 );
 
-test('legacy PUT stores the group restriction but preserves the stored ceiling', async () => {
+test('a PUT with only groups stores the group restriction and keeps the saved capability list', async () => {
     const { controller, req, deps } = setup();
     await controller.saveCeiling(req, {
-        mode: 'legacy',
         allowedGroupUuids: ['group'],
     });
     expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
         expect.objectContaining({
-            mode: 'legacy',
             allowedCapabilities: undefined,
             allowedGroupUuids: ['group'],
         }),
@@ -304,18 +303,18 @@ test('PUT rejects a new restriction when groups are unavailable but permits clea
     expect(
         deps.agentCapabilityPolicyModel.save.mock.calls[1][0].allowedGroupUuids,
     ).toBeUndefined();
-    expect(deps.agentCapabilityPolicyModel.save.mock.calls[1][0].mode).toBe(
-        'managed',
-    );
+    expect(
+        deps.agentCapabilityPolicyModel.save.mock.calls[1][0]
+            .allowedCapabilities,
+    ).toBeUndefined();
 });
 
 test('reset omits the group column so even an all-deleted restriction is preserved', async () => {
     const { controller, req, deps } = setup();
     deps.agentCapabilityPolicyModel.get.mockResolvedValue({
-        mode: 'managed',
         version: 2,
         allowedGroupUuids: [],
-        allowedCapabilities: null,
+        allowedCapabilities: Object.values(AgentCapability),
     });
     await controller.resetToLegacy(req, { version: 2 });
     expect(
@@ -329,4 +328,76 @@ test.each([
     'deleteWarehouseConfirmation',
 ])('does not expose %s', (method) => {
     expect(AgentPermissionController.prototype).not.toHaveProperty(method);
+});
+
+describe('project restrictions', () => {
+    test('saves a project list in capability order', async () => {
+        const { controller, req, account, deps } = setup();
+        deps.agentCapabilityPolicyModel.saveProjectPolicy.mockImplementation(
+            async (policy) => policy,
+        );
+        await controller.saveProjectPolicy(req, 'project', {
+            allowedCapabilities: [
+                AgentCapability.Export,
+                AgentCapability.Query,
+            ],
+        });
+        expect(
+            deps.agentCapabilityPolicyModel.saveProjectPolicy,
+        ).toHaveBeenCalledWith({
+            projectUuid: 'project',
+            allowedCapabilities: [
+                AgentCapability.Query,
+                AgentCapability.Export,
+            ],
+            updatedByUserUuid: account.user.id,
+        });
+    });
+
+    test('saves no restrictions for a project as null', async () => {
+        const { controller, req, deps } = setup();
+        await controller.saveProjectPolicy(req, 'project', {
+            allowedCapabilities: null,
+        });
+        expect(
+            deps.agentCapabilityPolicyModel.saveProjectPolicy,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ allowedCapabilities: null }),
+        );
+    });
+
+    test('rejects an unknown capability', async () => {
+        const { controller, req, deps } = setup();
+        await expect(
+            controller.saveProjectPolicy(req, 'project', {
+                allowedCapabilities: ['everything' as AgentCapability],
+            }),
+        ).rejects.toThrow('Provide a valid capability list');
+        expect(
+            deps.agentCapabilityPolicyModel.saveProjectPolicy,
+        ).not.toHaveBeenCalled();
+    });
+
+    test.each(['save', 'delete'] as const)(
+        "cannot %s restrictions for another organization's project",
+        async (action) => {
+            const { controller, req, deps } = setup();
+            deps.projectModel.getSummary.mockResolvedValue({
+                organizationUuid: 'another-organization',
+            });
+            await expect(
+                action === 'save'
+                    ? controller.saveProjectPolicy(req, 'project', {
+                          allowedCapabilities: [],
+                      })
+                    : controller.deleteProjectPolicy(req, 'project'),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(
+                deps.agentCapabilityPolicyModel.saveProjectPolicy,
+            ).not.toHaveBeenCalled();
+            expect(
+                deps.agentCapabilityPolicyModel.deleteProjectPolicy,
+            ).not.toHaveBeenCalled();
+        },
+    );
 });

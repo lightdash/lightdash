@@ -72,6 +72,11 @@ it.each(clients)(
             isSecurityStrict: vi.fn().mockResolvedValue(true),
             isMobileAppAccessDenied: vi.fn().mockResolvedValue(false),
             getClientDisplayName: vi.fn().mockResolvedValue(client.name),
+            resolveAuthorizationScope: vi
+                .fn()
+                .mockImplementation(async (_clientId, scope: string[]) =>
+                    scope.length > 0 ? scope : ['read', 'write'],
+                ),
             validateRedirectUri: vi
                 .fn()
                 .mockImplementation(

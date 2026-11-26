@@ -1,13 +1,14 @@
 import {
     FilterOperator,
+    flattenFilterGroup,
     ParameterError,
     type Explore,
+    type FilterGroup,
     type FilterRule,
     type MetricQuery,
     type SortField,
 } from '@lightdash/common';
 import {
-    getActiveFilterRules,
     getApiName,
     getLiveDefinitionName,
     getLiveExplore,
@@ -21,6 +22,7 @@ import {
 import {
     type PylonFilter,
     type PylonFilterLeaf,
+    type PylonLocalFilter,
     type PylonRequest,
 } from './run';
 
@@ -36,7 +38,6 @@ const FILTER_FIELDS: Record<PylonKind, Record<string, string>> = {
         type: 'issue_type',
         assignee_email: 'assignee_email',
         resolved_at: 'resolved_at',
-        first_response_minutes: 'time_to_first_response',
         touches: 'number_of_touches',
     },
     accounts: {
@@ -174,27 +175,92 @@ const toPylonFilter = (
                         : 'is_set',
             };
         case FilterOperator.GREATER_THAN:
-        case FilterOperator.LESS_THAN: {
-            const [value] = values;
-            const number =
-                apiName === 'first_response_minutes'
-                    ? Math.round(toNumber(value, 'First response') * 60)
-                    : toNumber(value, 'Touches');
+        case FilterOperator.LESS_THAN:
             return {
                 field,
                 operator:
                     rule.operator === FilterOperator.GREATER_THAN
                         ? 'greater_than'
                         : 'less_than',
-                value: String(number),
+                value: String(toNumber(values[0], 'Touches')),
             };
-        }
         default:
             throw new ParameterError(
                 `"${rule.target.fieldId}" can't use "${rule.operator}" on Pylon.`,
             );
     }
 };
+
+/**
+ * Filtered here on the rows read: Pylon's first-response search filter
+ * measures business hours, not the calendar minutes the column reports.
+ */
+const FIRST_RESPONSE = 'first_response_minutes';
+
+/**
+ * Null checks Pylon's search accepts without applying, so they are also
+ * applied here; by the ID Pylon stores.
+ */
+const LOCAL_NULL_COLUMNS: Record<
+    string,
+    Extract<PylonLocalFilter, { operator: 'is_null' | 'is_not_null' }>['column']
+> = {
+    account_id: 'account_id',
+    assignee_email: 'assignee_id',
+};
+
+const toFirstResponseFilter = (rule: FilterRule): PylonLocalFilter => {
+    if (
+        rule.operator !== FilterOperator.GREATER_THAN &&
+        rule.operator !== FilterOperator.LESS_THAN
+    ) {
+        throw new ParameterError(
+            `"${rule.target.fieldId}" can't use "${rule.operator}" on Pylon.`,
+        );
+    }
+    return {
+        column: FIRST_RESPONSE,
+        operator:
+            rule.operator === FilterOperator.GREATER_THAN
+                ? 'greater_than'
+                : 'less_than',
+        value: toNumber(rule.values?.[0], 'First response'),
+    };
+};
+
+/** The filter a rule needs on the rows read, if any. */
+const toLocalFilter = (
+    apiName: string,
+    rule: FilterRule,
+): PylonLocalFilter | null => {
+    if (apiName === FIRST_RESPONSE) return toFirstResponseFilter(rule);
+    const nullColumn = LOCAL_NULL_COLUMNS[apiName];
+    if (
+        nullColumn &&
+        (rule.operator === FilterOperator.NULL ||
+            rule.operator === FilterOperator.NOT_NULL)
+    ) {
+        return {
+            column: nullColumn,
+            operator:
+                rule.operator === FilterOperator.NULL
+                    ? 'is_null'
+                    : 'is_not_null',
+        };
+    }
+    return null;
+};
+
+const NO_VALUE_OPERATORS = [FilterOperator.NULL, FilterOperator.NOT_NULL];
+
+/** Rules that filter: enabled, with values unless they check for empty. */
+const getFilteringRules = (group: FilterGroup | undefined): FilterRule[] =>
+    (group ? flattenFilterGroup(group) : []).filter(
+        (rule) =>
+            !rule.disabled &&
+            (NO_VALUE_OPERATORS.includes(rule.operator) ||
+                (rule.values ?? []).length > 0),
+    );
 
 /** Pylon sorts by one field it knows; any other order is ours. */
 const toSort = (
@@ -252,6 +318,12 @@ export const compilePylonQuery = ({
               dateRange.fieldId,
           )
         : { dateRule: null, otherFilters: metricQuery.filters.dimensions };
+    const rules = getFilteringRules(otherFilters);
+    const isFirstResponse = (rule: FilterRule) =>
+        apiName(rule.target.fieldId) === FIRST_RESPONSE;
+    const localFilters = rules.flatMap(
+        (rule) => toLocalFilter(apiName(rule.target.fieldId), rule) ?? [],
+    );
     const filters: PylonFilter[] = [
         ...(dateRange
             ? [
@@ -261,15 +333,19 @@ export const compilePylonQuery = ({
                   }),
               ]
             : []),
-        ...getActiveFilterRules(otherFilters).map((rule) =>
-            toPylonFilter(kind, apiName(rule.target.fieldId), rule, today),
-        ),
+        // Null checks go to Pylon too, to read fewer rows if it applies them
+        ...rules
+            .filter((rule) => !isFirstResponse(rule))
+            .map((rule) =>
+                toPylonFilter(kind, apiName(rule.target.fieldId), rule, today),
+            ),
     ];
     const { localSorts, ...sort } = toSort(kind, metricQuery.sorts, apiName);
     const request: PylonRequest = {
         kind,
         filters,
         columns: metricQuery.dimensions.map(apiName),
+        ...(localFilters.length > 0 ? { localFilters } : {}),
         ...sort,
     };
     return { query: JSON.stringify(request), localSorts };

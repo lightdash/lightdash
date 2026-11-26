@@ -41,6 +41,8 @@ export const useServerFeatureFlag = (
             retry: options?.retry ?? false,
             enabled: options?.enabled ?? true,
             refetchOnMount: false,
+            // A flag switched on in the Console reaches open tabs when they regain focus.
+            refetchOnWindowFocus: true,
         },
     );
 };

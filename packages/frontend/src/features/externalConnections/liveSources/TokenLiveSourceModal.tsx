@@ -1,33 +1,34 @@
-import { type ExternalConnection } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    PasswordInput,
-    Stack,
-    Text,
-    TextInput,
-} from '@mantine/core';
+/**
+ * Adds a live data source that reads with an API token, laid out like its
+ * settings: how it reaches the integration first, then what it is called.
+ */
+import { LIVE_INTEGRATION_CATALOG } from '@lightdash/common';
+import { PasswordInput, Stack, TextInput } from '@mantine/core';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
-import { ConnectionTestResult } from '../components/ConnectionTestResult';
 import { useCreateExternalConnection } from '../hooks/useCreateExternalConnection';
-import { useTestConnection } from '../hooks/useTestConnection';
+import { useNewSourceId } from '../hooks/useNewSourceId';
 import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
-import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
+import { LiveSourceTitle } from './LiveSourceIcon';
+import { SettingsCard, SettingsRow } from './LiveSourceSettingsRows';
+import { LiveSourceSetupCard } from './LiveSourceSetupCard';
+import { LiveSourceTestRow } from './LiveSourceTestRow';
+import { NewLiveSourceDetails } from './NewLiveSourceDetails';
 import {
     normalizeAccountId,
     toTokenLiveSourceCreatePayload,
-    toTokenLiveSourceUpdatePayload,
     useTokenLiveSourceForm,
     type TokenLiveSourceForm,
 } from './tokenLiveSource';
+
+/** Matches the fields of the Details card below. */
+const FIELD_WIDTH = 240;
 
 type Props = {
     form: TokenLiveSourceForm;
     opened: boolean;
     onClose: () => void;
     projectUuid: string;
-    connection: ExternalConnection | null;
     onCreated: (connectionUuid: string) => void;
 };
 
@@ -36,56 +37,40 @@ export const TokenLiveSourceModal: FC<Props> = ({
     opened,
     onClose,
     projectUuid,
-    connection,
     onCreated,
 }) => {
-    const form = useTokenLiveSourceForm(definition, connection);
+    const { connector } = definition.toApiSource('');
+    const form = useTokenLiveSourceForm(definition, null);
     const createMutation = useCreateExternalConnection();
-    const updateMutation = useUpdateExternalConnection();
-    const testConfigMutation = useTestConnectionConfig();
-    const testSavedMutation = useTestConnection();
-    // A saved source left with a blank token tests with its stored one
-    const testsStoredToken = !!connection && form.values.token.trim() === '';
-    const testMutation = testsStoredToken
-        ? testSavedMutation
-        : testConfigMutation;
-    const isSaving = createMutation.isLoading || updateMutation.isLoading;
-    const isEditing = !!connection;
+    const testMutation = useTestConnectionConfig({ showErrorToast: false });
+    const sourceId = useNewSourceId({
+        projectUuid,
+        connector,
+        name: form.values.name,
+        enabled: opened,
+    });
+    const isSaving = createMutation.isLoading;
+    const { account } = definition;
 
     const handleTest = () => {
         if (form.validate().hasErrors) return;
-        const testRequest = definition.getTestRequest(
-            normalizeAccountId(definition, form.values.accountId),
-        );
-        if (connection && testsStoredToken) {
-            testSavedMutation.mutate({
-                projectUuid,
-                connectionUuid: connection.externalConnectionUuid,
-                config: toTokenLiveSourceUpdatePayload(definition, form.values),
-                ...testRequest,
-            });
-            return;
-        }
-        testConfigMutation.mutate({
+        testMutation.mutate({
             projectUuid,
             config: toTokenLiveSourceCreatePayload(definition, form.values),
-            ...testRequest,
+            ...definition.getTestRequest(
+                normalizeAccountId(definition, form.values.accountId),
+            ),
         });
     };
 
     const handleSave = form.onSubmit(async (values) => {
-        if (connection) {
-            await updateMutation.mutateAsync({
-                projectUuid,
-                connectionUuid: connection.externalConnectionUuid,
-                data: toTokenLiveSourceUpdatePayload(definition, values),
-            });
-            onClose();
-            return;
-        }
+        if (sourceId.isBlocked) return;
         const created = await createMutation.mutateAsync({
             projectUuid,
-            data: toTokenLiveSourceCreatePayload(definition, values),
+            data: {
+                ...toTokenLiveSourceCreatePayload(definition, values),
+                explorePrefix: sourceId.value,
+            },
         });
         onCreated(created.externalConnectionUuid);
     });
@@ -94,54 +79,61 @@ export const TokenLiveSourceModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={`${isEditing ? 'Edit' : 'Add'} ${definition.label} source`}
-            confirmLabel={isEditing ? 'Save' : 'Add source'}
+            size="xl"
+            title={
+                <LiveSourceTitle connector={connector}>
+                    Add {LIVE_INTEGRATION_CATALOG[connector].label} source
+                </LiveSourceTitle>
+            }
+            confirmLabel="Add source"
             onConfirm={() => handleSave()}
             confirmLoading={isSaving}
+            confirmDisabled={sourceId.isBlocked}
             cancelDisabled={isSaving}
         >
-            <Stack gap="sm">
-                <Text c="dimmed" fz="sm">
-                    {definition.description}
-                </Text>
-                <TextInput
-                    required
-                    label="Name"
-                    data-autofocus
-                    {...form.getInputProps('name')}
-                />
-                {definition.account && (
-                    <TextInput
-                        required
-                        label={definition.account.label}
-                        description={definition.account.description}
-                        placeholder={definition.account.placeholder}
-                        {...form.getInputProps('accountId')}
-                    />
-                )}
-                <PasswordInput
-                    required={!isEditing}
-                    label={definition.tokenLabel}
-                    description={
-                        isEditing
-                            ? 'Leave blank to keep the current token'
-                            : null
-                    }
-                    {...form.getInputProps('token')}
-                />
-                <Group>
-                    <Button
-                        type="button"
-                        variant="default"
-                        onClick={handleTest}
-                        loading={testMutation.isLoading}
+            <Stack gap="lg">
+                <LiveSourceSetupCard connector={connector} />
+                <SettingsCard title="Authentication" titleOutside>
+                    {account ? (
+                        <SettingsRow
+                            label={account.label}
+                            hint={account.description}
+                        >
+                            <TextInput
+                                w={FIELD_WIDTH}
+                                size="xs"
+                                aria-label={account.label}
+                                placeholder={account.placeholder}
+                                autoComplete="off"
+                                data-autofocus
+                                {...form.getInputProps('accountId')}
+                            />
+                        </SettingsRow>
+                    ) : null}
+                    <SettingsRow
+                        label={definition.tokenLabel}
+                        hint={definition.tokenHint ?? 'Read access is enough'}
                     >
-                        Test access
-                    </Button>
-                </Group>
-                {testMutation.data && (
-                    <ConnectionTestResult response={testMutation.data} />
-                )}
+                        <PasswordInput
+                            w={FIELD_WIDTH}
+                            size="xs"
+                            aria-label={definition.tokenLabel}
+                            data-autofocus={account ? undefined : true}
+                            {...form.getInputProps('token')}
+                        />
+                    </SettingsRow>
+                    <LiveSourceTestRow
+                        hint="Checks the details above, without saving"
+                        test={testMutation}
+                        onTest={handleTest}
+                        inputs={[form.values.accountId, form.values.token]}
+                    />
+                </SettingsCard>
+
+                <NewLiveSourceDetails
+                    nameProps={form.getInputProps('name')}
+                    sourceId={sourceId}
+                />
             </Stack>
         </MantineModal>
     );

@@ -40,6 +40,10 @@ lightdash deploy --ignore-errors
 # Skip dbt compilation (use existing manifest)
 lightdash deploy --skip-dbt-compile
 
+# Deploy only the selected models and remove every other explore
+# (not available on projects with more than one dbt source)
+lightdash deploy --select tag:finance --prune
+
 # Pure Lightdash YAML (no dbt)
 lightdash deploy --no-warehouse-credentials
 ```

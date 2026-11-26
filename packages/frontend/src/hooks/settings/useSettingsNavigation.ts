@@ -106,7 +106,7 @@ export const useSettingsNavigation = (
         embeddingEnabled,
         dataAppsFlag,
         isChartStudioAvailable,
-        isApiQuerySourcesEnabled,
+        isLiveSourcesAvailable,
         isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,
@@ -662,7 +662,7 @@ export const useSettingsNavigation = (
 
         if (isAgentIdentityEnabled && ability?.can('manage', 'Organization')) {
             organizationItems.push({
-                label: 'Agents',
+                label: 'Agent Identity',
                 to: AGENT_IDENTITY_SETTINGS_PATH,
                 icon: IconIdBadge2,
                 keywords: [
@@ -685,7 +685,7 @@ export const useSettingsNavigation = (
                         ],
                     },
                     {
-                        title: 'Permissions',
+                        title: 'Restrictions',
                         keywords: [
                             'limit what agents can do',
                             'who can use agents',
@@ -1175,7 +1175,15 @@ export const useSettingsNavigation = (
                 });
             }
 
-            if (isApiQuerySourcesEnabled && canManageProjectConnections) {
+            const canManageLiveSources = ability?.can(
+                'manage',
+                subject('LiveSource', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            );
+
+            if (isLiveSourcesAvailable && canManageLiveSources) {
                 // Managed on the Semantic Layer page; still listed here so
                 // people who look for it in settings find their way.
                 projectItems.push({
@@ -1419,7 +1427,7 @@ export const useSettingsNavigation = (
         isEmbeddingEnabled,
         isDataAppsEnabled,
         isChartStudioAvailable,
-        isApiQuerySourcesEnabled,
+        isLiveSourcesAvailable,
         isExternalSourcesEnabled,
         isResultsCacheAvailable,
         isGitProject,

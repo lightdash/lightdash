@@ -435,6 +435,70 @@ export const getWarehouseTableType = (rawType: unknown): WarehouseTableType => {
     }
 };
 
+export const METRIC_VIEW_TABLE_TYPE = 'metric_view';
+
+// Built from named fields only, so owner, storage location and table properties never reach it
+export type WarehouseTableMetadata = {
+    tableType: WarehouseTableType | typeof METRIC_VIEW_TABLE_TYPE;
+    comment: string | null;
+    /** Top-level columns in warehouse order; `isMeasure` marks a metric view's measures. */
+    columns: {
+        name: string;
+        type: DimensionType;
+        comment: string | null;
+        isMeasure: boolean;
+    }[];
+    /** View or metric-view source, cut to `TABLE_DEFINITION_MAX_LENGTH` characters plus a marker. */
+    definition: { text: string; truncated: boolean } | null;
+    /** A metric view's definition as data, read from its whole source; null when it is not one or does not parse. */
+    metricView: WarehouseMetricViewDefinition | null;
+};
+
+export type WarehouseMetricViewField = {
+    name: string;
+    expr: string;
+    label: string | null;
+    comment: string | null;
+    synonyms: string[];
+};
+
+export type WarehouseMetricViewWindow = {
+    order: string;
+    range: string;
+    semiAdditive: 'first' | 'last' | null;
+    offset: string | null;
+};
+
+export type WarehouseMetricViewDefinition = {
+    source: string | null;
+    filter: string | null;
+    /** A parameterized metric view is queried as a table function, not as a table. */
+    parameterized: boolean;
+    dimensions: WarehouseMetricViewField[];
+    measures: (WarehouseMetricViewField & {
+        window: WarehouseMetricViewWindow[];
+    })[];
+    /** Nested joins are flattened; `name` is the dotted path used to reference the join's columns. */
+    joins: {
+        name: string;
+        source: string;
+        on: string | null;
+        using: string[];
+    }[];
+};
+
+export const TABLE_DEFINITION_MAX_LENGTH = 10_000;
+
+export const truncateTableDefinition = (
+    text: string,
+): { text: string; truncated: boolean } =>
+    text.length <= TABLE_DEFINITION_MAX_LENGTH
+        ? { text, truncated: false }
+        : {
+              text: `${text.slice(0, TABLE_DEFINITION_MAX_LENGTH)}\n[definition truncated: showing ${TABLE_DEFINITION_MAX_LENGTH} of ${text.length} characters]`,
+              truncated: true,
+          };
+
 export type WarehouseTablesCatalog = {
     [database: string]: {
         [schema: string]: {
@@ -697,6 +761,13 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
     getSchemaColumns?(
         schemas: { database: string; schema: string }[],
     ): Promise<WarehouseCatalog>;
+
+    // Absent where the adapter cannot describe tables; null when this table or runtime gives no description
+    getTableMetadata?(
+        tableName: string,
+        schema: string,
+        database: string,
+    ): Promise<WarehouseTableMetadata | null>;
 
     // null when the table has no partitions or the warehouse does not report them
     getTablePartitioning(

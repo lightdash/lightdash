@@ -5,6 +5,7 @@ import {
     type StreamPart,
 } from '../store/aiAgentThreadStreamSlice';
 import { useAiAgentStoreSelector } from '../store/hooks';
+import { isAgentThreadQuiet } from './quietAgentThreads';
 
 export const useAiAgentThreadStreamQuery = (threadUuid: string) => {
     const threadStream = useAiAgentStoreSelector((state) =>
@@ -59,6 +60,24 @@ export const useAiAgentProjectStreamParts = (
                 threadStream.projectUuid === projectUuid
                     ? threadStream.parts
                     : [],
+            ),
+        shallowEqual,
+    );
+
+/** Tool calls made in threads that must not move the page. */
+export const useAiAgentQuietToolCallIds = (
+    projectUuid: string | undefined,
+): string[] =>
+    useAiAgentStoreSelector(
+        (state) =>
+            Object.entries(state.aiAgentThreadStream).flatMap(
+                ([threadUuid, threadStream]) =>
+                    threadStream.projectUuid === projectUuid &&
+                    isAgentThreadQuiet(threadUuid)
+                        ? threadStream.parts.flatMap((part) =>
+                              part.type === 'toolCall' ? [part.toolCallId] : [],
+                          )
+                        : [],
             ),
         shallowEqual,
     );

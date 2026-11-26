@@ -18,6 +18,7 @@ const visibleAgent: AiAgent = {
     integrations: [],
     tags: null,
     name: 'Agent',
+    kind: 'user',
     description: null,
     createdAt: new Date('2026-08-26T10:00:00.000Z'),
     updatedAt: new Date('2026-08-26T10:00:00.000Z'),

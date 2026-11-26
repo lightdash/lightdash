@@ -37,6 +37,21 @@
             "reason": "The graduated WriteBackCustomBinDimensions member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this temporary rollout flag must remove it when upgrading; supported custom-bin write-back is now available without a flag.",
             "requiredStop": false
         },
+        "ai-agent-verified-answers-endpoints-removed": {
+            "reason": "Removes AI agent verified answers: GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-artifacts and PATCH .../artifacts/{artifactUuid}/versions/{versionUuid}/verified are deleted. Only the Lightdash web app's agent settings Verified answers tab and chart verify toggle called them; both are removed in the same change. During a rolling update an old browser tab gets a 404 from that tab or toggle until refresh; nothing else is affected.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The Lightdash web app's agent settings Verified answers tab and the chart verify toggle are the only callers. Old tabs see a 404 on those controls until refresh.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-artifacts",
+                        "PATCH /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/verified"
+                    ],
+                    "mcp": []
+                }
+            }
+        },
         "mobile-push-installation-uuid-path-params": {
             "reason": "PUT and DELETE /api/v1/mobile/push-notifications/installations/{installationUuid} now validate installationUuid as a UUID and reject other strings with a 400. Installation identifiers are server-generated UUIDs, and only the Lightdash mobile apps call these endpoints with the identifier they received, so no existing caller is affected.",
             "requiredStop": false
@@ -65,6 +80,20 @@
             "reason": "Drops the never-populated ai_credit_entitlements table and the unused ai_credit_holds.ai_credit_entitlement_uuid column with its partial unique index. Releases from 2.388.0 onward neither read nor write them, so a rolling upgrade from 2.388.0 or later is unaffected. An instance upgrading straight from 2.381.0 through 2.387.x must use the Recreate strategy: those releases still query ai_credit_entitlements from the AI usage sink, so their pods would fail to record AI usage once the table is gone.",
             "requiredStop": false,
             "migration": "packages/backend/src/ee/database/migrations/20261009100000_drop_ai_credit_entitlements.ts"
+        },
+        "ai-agent-verified-questions-endpoint-removed": {
+            "reason": "Removes AI agent verified questions: GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-questions is deleted. Only the Lightdash web app and its embedded agent UI called it, to show suggested-question chips on a new thread; the chips are removed in the same change. During a rolling update an old tab's request fails and the chips do not show until refresh. Hosts embedding the agent with an already-published SDK in native render mode keep calling it and get a non-fatal 404 in their onError on each new thread until they upgrade the SDK; iframe embeds are unaffected. Asking questions still works everywhere.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The Lightdash new-thread page, in the app and in embedded agents, is the only caller. Old tabs show no suggested questions until refresh; native-mode SDK hosts on an older SDK version see a non-fatal 404 in onError until they upgrade.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/verified-questions"
+                    ],
+                    "mcp": []
+                }
+            }
         },
         "agent-identity-test-access-endpoint-removed": {
             "reason": "Agent identity (beta, agent-identity feature flag) removes POST /api/v2/projects/{projectUuid}/ai-access/service-account/test-access and the exported AgentAccessReport, AgentAccessTestRequest and BigqueryAgentAccessProbe types. API clients that called the per-table access check get a 404 and must use POST .../ai-access/service-account/test instead, which still checks the AI service account key. Only the Lightdash frontend called the removed endpoint, so no rolling upgrade is affected.",
@@ -138,6 +167,20 @@
         "mcp-deprecated-context-tools-removed": {
             "reason": "The deprecated MCP tools set_project, get_current_project, set_agent, clear_agent and get_current_agent are removed. MCP clients discover tools from tools/list, so agents pick up the change on their next session; only scripted callers that hard-code one of these names get an unknown-tool error. get_context reports the stored project and agent, route_agent selects an agent, and every project-scoped tool takes projectUuid (and optionally agentUuid) explicitly. Stored context written by older clients or route_agent is still honoured.",
             "requiredStop": false
+        },
+        "ai-agent-referenced-artifacts-field-removed": {
+            "reason": "Removes AI agent referenced answers: assistant messages in GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} no longer carry referencedArtifacts. The field listed the verified answers a reply drew on; verified answers are removed and no new references have been recorded since retrieval stopped. Only the Lightdash web app's chat bubble read it, to append Referenced answers links, and it stops reading it in the same change. An old tab treats the missing field like null and shows no links.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The Lightdash web app's agent chat bubble was the only reader of referencedArtifacts. An old tab handles the missing field as null and simply shows no Referenced answers links.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}"
+                    ],
+                    "mcp": []
+                }
+            }
         },
         "ai-agent-thread-binding-chart": {
             "reason": "AI agent thread responses (thread create, get and list, thread share clone, and the SDK binding type) can now return binding as { type: 'chart', chartUuid } as well as { type: 'dashboard', dashboardUuid }. Only threads created with the new chart binding return it; existing threads and dashboard-bound threads are unchanged. API clients and SDK hosts that read binding.dashboardUuid must check binding.type first. During a rolling update an old UI pod cannot render the header of a chart-bound thread until refresh.",
@@ -213,6 +256,21 @@
         "results-cache-enabled-flag-removed": {
             "reason": "The ResultsCacheEnabled member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this rollout flag must remove it when upgrading; results caching is now a per-project setting, and the migration copies each organization's flag value into its projects.",
             "requiredStop": false
+        },
+        "ai-agent-artifact-verified-fields-removed": {
+            "reason": "Removes AI agent verified answers: AI artifact responses from GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid} and .../versions/{versionUuid} no longer carry verifiedByUserUuid and verifiedAt. They marked an answer verified for the chart verify toggle, which is removed together with verified answers. Only that toggle in the Lightdash web app read them. An old tab reads the missing fields as verified and shows a stale verified icon until refresh; clicking it already gets a 404.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The chart verify toggle in the Lightdash web app was the only reader of verifiedByUserUuid and verifiedAt on AI artifacts. An old tab shows a stale verified icon until refresh.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}",
+                        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}"
+                    ],
+                    "mcp": []
+                }
+            }
         },
         "agent-permissions-per-role-fields-removed": {
             "reason": "The per-role agent limits are removed. GET /api/v2/org/agent-permissions no longer returns results.defaults or results.systemRoleMatrix. PUT and POST /api/v2/org/agent-permissions/reset no longer return results.systemRoleMatrix. PUT no longer takes systemRoleMatrix; a request that still sends it gets no error and the server ignores it. The agent-identity feature flag is off by default on Cloud and on self-hosted instances and is set per organization. With the flag off, agent enforcement does not change. For organizations with the flag on and agent limits on, a person with a built-in role gets every agent capability that the organization setting allows, and per-role limits saved earlier no longer apply. The stored per-role rows stay in the database, unread and unchanged. During a rolling update an old settings page tab or an old UI pod reads the missing matrix and shows an error until refresh, and a save from the new page that reaches an old API pod is refused until the rollout ends. This is accepted because the settings page is the only client and a refresh or retry after the rollout fixes both.",
@@ -303,6 +361,38 @@
                         "GET /api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}",
                         "PATCH /api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}",
                         "POST /api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}/activate"
+                    ],
+                    "mcp": []
+                }
+            }
+        },
+        "dashboard-capture-router-removed": {
+            "reason": "The dashboard capture router is removed: Design Mode sends a dashboard's marks straight to an AI agent, so nothing sorts a recording into layout changes any more. POST /api/v1/org/aiRouter/capture/{projectUuid} now returns 404, and @lightdash/common no longer exports ApiCaptureRouteRequest, ApiCaptureRouteResponse or the capture routing types. The route served only dashboard Voice Design, which was behind the dashboard-capture feature flag; the flag is off by default on Cloud and on self-hosted, and the web app's dashboard page was the only caller. During a rolling update an old dashboard tab with the flag on fails to sort a recording until refresh; nothing is written or lost.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "dashboard-capture",
+                "covers": {
+                    "rest": ["POST /api/v1/org/aiRouter/capture/{projectUuid}"],
+                    "mcp": []
+                }
+            }
+        },
+        "oauth-scopes-always-enforced-cli-browser-login-needs-personal-oauth": {
+            "reason": "OAuth bearer tokens are now limited to their granted scopes on every request, with no feature flag. OAuth tokens can no longer create or rotate personal access tokens, service accounts or SCIM tokens, or manage OAuth clients. One temporary exception keeps browser login with lightdash login in CLI releases before 3.88.0 working until 15 March 2027: those releases create a personal access token from their OAuth token. That token expires after 8 hours at most, cannot be rotated, and cannot create or rotate credentials. This exception does not apply in organizations with the agent-identity feature on. After 15 March 2027, old CLI browser login fails with \"Failed to create PAT: 403 Forbidden\". Upgrade the CLI to 3.88.0 or later, or log in with lightdash login --token and a personal access token. An authorize request without a scope now receives the scopes registered for the client; if the client has none, the request fails with invalid_scope. Unknown scope names are ignored and the token gets only the known scopes; a request with only unknown names fails with invalid_scope. Existing access tokens without scopes are refused until they are refreshed or the user signs in again. A data migration registers read, write, mcp:read and mcp:write on admin-created OAuth clients that have no registered scopes, and new admin-created clients get the same scopes, so their integrations keep working when they send no scope. Older releases treat these four scopes the same as an empty list. Other personal access tokens, service accounts, sessions, token login and email login are unchanged. A new personal_access_tokens column records which tokens the old CLI created. The column defaults to false, so older releases keep creating and reading personal access tokens during a rolling deploy. There is no required stop.",
+            "requiredStop": false
+        },
+        "prod-13447-agent-policy-mode-removed-from-api": {
+            "reason": "The organization agent policy no longer has a mode. GET, PUT and POST reset on /api/v2/org/agent-permissions stop returning mode, PUT stops reading it, and @lightdash/common drops it from AgentCapabilityPolicy, AgentCapabilityCeiling and AgentCapabilityPolicySave. A saved capability list now means agents are restricted and null means they are not. The agent-identity flag is off by default on Cloud and on self-hosted, the endpoints refuse callers when it is off, and only the organization and project Agent identity settings pages call them. During a rolling update an old settings tab shows an unrestricted organization as Restrict with every capability on until refresh, and saving from it stores that full list; a new tab cannot save No restrictions through an old pod until the rollout finishes. A PUT without allowedCapabilities now keeps the saved list instead of turning restrictions on.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "agent-identity",
+                "covers": {
+                    "rest": [
+                        "GET /api/v2/org/agent-permissions",
+                        "PUT /api/v2/org/agent-permissions",
+                        "POST /api/v2/org/agent-permissions/reset"
                     ],
                     "mcp": []
                 }

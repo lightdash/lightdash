@@ -200,6 +200,9 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
             .oauth-message strong {
                 font-weight: 600;
             }
+            .oauth-redirect {
+                overflow-wrap: anywhere;
+            }
             .oauth-account {
                 border: 1px solid #e9ecef;
                 border-radius: 8px;
@@ -353,6 +356,9 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
                 <p class="oauth-message">
                     <strong>{{client_name}}</strong> wants to access your Lightdash account
                 </p>
+                <p class="oauth-message oauth-redirect">
+                    You will be redirected to <strong>{{redirectDestination}}</strong> after you authorize.
+                </p>
 
                 <div class="oauth-account">
                     <div class="oauth-account-user">
@@ -473,6 +479,7 @@ export interface OAuthAuthorizeParams {
     action: string;
     client_id: string;
     client_name: string;
+    redirect_uri: string;
     scope: string;
     scopes: OAuthScopeDescription[];
     user: OAuthUser;
@@ -542,6 +549,15 @@ export const parseScopeString = (
     return scopes
         .map((scope) => SCOPE_DESCRIPTIONS[scope])
         .filter((scope): scope is OAuthScopeDescription => scope !== undefined);
+};
+
+export const getOAuthRedirectDestination = (redirectUri: string): string => {
+    try {
+        const url = new URL(redirectUri);
+        return url.host ? `${url.protocol}//${url.host}` : url.protocol;
+    } catch {
+        return redirectUri;
+    }
 };
 
 /**
@@ -635,6 +651,7 @@ export const generateOAuthAuthorizePage = (
         styles: oauthPageStyles,
         logo: LIGHTDASH_LOGO_SVG,
         ...params,
+        redirectDestination: getOAuthRedirectDestination(params.redirect_uri),
         agentConnect: params.agentConnect
             ? {
                   ...params.agentConnect,

@@ -1,53 +1,75 @@
-import { FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, type AiAgent, type ApiError } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
-import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import {
-    useKeepsSemanticLayerDraft,
+    useStoredStudioThread,
+    type StoredThread,
+} from '../../../../../features/semanticStudio/studioChange';
+import {
     useCanEditSemanticLayer,
+    useClaimCompileFollowUp,
+    useDraftCheckout,
 } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import {
+    findThreadWorkspace,
     useActiveStudioWorkspace,
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
-import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
+import {
+    useAiAgentThread,
+    useCreateAgentThreadMessageMutation,
+} from '../../hooks/useProjectAiAgents';
+import { isAiAgentThreadStreamActive } from '../../store/aiAgentThreadStreamSlice';
+import { useAiAgentStoreSelector } from '../../store/hooks';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
-export type StoredThread = { threadUuid: string; agentUuid: string };
+const useStudioChatEnabled = (projectUuid: string): boolean => {
+    const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
+    const canEdit = useCanEditSemanticLayer(projectUuid);
+    return flag.data?.enabled === true && canEdit;
+};
 
-/** The chat this browser has open; it follows the active workspace, see useSyncStudioWorkspace. */
-export const useStoredStudioThread = (projectUuid: string) =>
-    useLocalStorage<StoredThread | null>({
-        key: `semantic-studio-agent-thread-${projectUuid}`,
-        defaultValue: null,
-        getInitialValueInEffect: false,
-    });
-
-/** Whether the chat is open on the change you are on; closing it is remembered per change. */
-export const useChatOpen = (projectUuid: string) => {
-    const [stored] = useStoredStudioThread(projectUuid);
-    const [closed, setClosed] = useLocalStorage<string[]>({
-        key: 'semantic-studio-chat-closed',
-        defaultValue: [],
-        getInitialValueInEffect: false,
-    });
-    const newChat = `new-${projectUuid}`;
-    const change = stored?.threadUuid ?? newChat;
-    const setIsOpen = useCallback(
-        (isOpen: boolean) =>
-            setClosed((current) => {
-                // Opening also reopens a blank new change, which starting one asks for before it has a thread.
-                const others = current.filter(
-                    (key) => key !== change && !(isOpen && key === newChat),
-                );
-                return isOpen ? others : [...others, change].slice(-50);
+/** The project's built-in Studio agent, which the server creates the first time it is asked for. */
+const useBuiltInStudioAgent = (projectUuid: string, enabled: boolean) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AiAgent, ApiError>({
+        queryKey: ['semantic-studio-agent', projectUuid],
+        queryFn: () =>
+            lightdashApi<AiAgent>({
+                url: `/projects/${projectUuid}/semantic-studio/agent`,
+                method: 'POST',
+                body: undefined,
             }),
-        [change, newChat, setClosed],
-    );
-    return [!closed.includes(change), setIsOpen] as const;
+        enabled: enabled && projectUuid !== '',
+        staleTime: Infinity,
+        retry: false,
+    });
+};
+
+/** The built-in agent plus the project's own, which chats started before the built-in one still belong to. */
+const useKnownStudioAgents = (projectUuid: string) => {
+    const isEnabled = useStudioChatEnabled(projectUuid);
+    const builtIn = useBuiltInStudioAgent(projectUuid, isEnabled);
+    const { agents, isLoadingAgents } = useDefaultAiAgent(projectUuid);
+    return {
+        isEnabled,
+        agent: builtIn.data,
+        agents: builtIn.data ? [builtIn.data, ...agents] : agents,
+        isLoadingAgents: builtIn.isInitialLoading || isLoadingAgents,
+        // Why there is no chat, in the server's words, when the built-in agent was refused.
+        chatRefusal: builtIn.error?.error.message ?? null,
+    };
+};
+
+/** Asks for the Studio agent with the page, so the chat loads alongside the explores and not after them. */
+export const usePrefetchStudioAgent = (projectUuid: string | undefined) => {
+    useKnownStudioAgents(projectUuid ?? '');
 };
 
 /** A Studio chat's thread; one that no longer exists is forgotten instead of failing on every load. */
@@ -90,16 +112,52 @@ export const useFinishDiscardedWork = (projectUuid: string) => {
     };
 };
 
+/** The agent and thread of the chat this browser has open. */
 export const useStudioAgent = (projectUuid: string) => {
-    const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
-    const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
-    const canEdit = useCanEditSemanticLayer(projectUuid);
-    const isEnabled = flag.data?.enabled === true && canEdit;
-    const {
-        agent: defaultAgent,
-        agents,
+    const { isEnabled, agent, agents, isLoadingAgents, chatRefusal } =
+        useKnownStudioAgents(projectUuid);
+    const [stored, setStored] = useStoredStudioThread(projectUuid);
+    const storedAgent = agents.find(({ uuid }) => uuid === stored?.agentUuid);
+    return {
         isLoadingAgents,
-    } = useDefaultAiAgent(projectUuid);
+        isEnabled,
+        chatRefusal,
+        // New chats always start on the built-in agent.
+        agent,
+        thread:
+            storedAgent && stored
+                ? { agent: storedAgent, threadUuid: stored.threadUuid }
+                : null,
+        setStored,
+    };
+};
+
+export const AGENT_WORKING_HINT = 'The agent is still working on this change.';
+
+/** Whether the agent of this browser's open Studio chat is still mid-turn, so its change is not ready to publish. */
+export const useStudioAgentWorking = (projectUuid: string): boolean => {
+    const [stored] = useStoredStudioThread(projectUuid);
+    const threadUuid = stored?.threadUuid ?? null;
+    return useAiAgentStoreSelector((state) => {
+        const stream =
+            threadUuid === null
+                ? undefined
+                : state.aiAgentThreadStream[threadUuid];
+        // A finished turn is ready even if its connection has not closed yet.
+        return (
+            stream !== undefined &&
+            isAiAgentThreadStreamActive(stream.connection) &&
+            stream.timing.finishedAt === null
+        );
+    });
+};
+
+/** Starts a new chat or goes back to the previous one; with `chatFollowsWorkspace`, the active workspace moves with it. */
+export const useStudioThreadSwitch = (
+    projectUuid: string,
+    { chatFollowsWorkspace }: { chatFollowsWorkspace: boolean },
+) => {
+    const { agents } = useKnownStudioAgents(projectUuid);
     const [stored, setStored] = useStoredStudioThread(projectUuid);
     // One chat back, not a history; the workspaces list holds the rest.
     const [previous, setPrevious] = useLocalStorage<StoredThread | null>({
@@ -111,28 +169,18 @@ export const useStudioAgent = (projectUuid: string) => {
     const workspaceAction = useStudioWorkspaceAction(projectUuid);
     // Switching chats switches workspaces: the one you talk in is the one your changes go to.
     const follow = (next: StoredThread | null) => {
-        if (keepsDraft) return;
-        const workspace = next
-            ? workspaces?.mine.find(
-                  ({ threadUuid }) => threadUuid === next.threadUuid,
-              )
-            : undefined;
+        if (!chatFollowsWorkspace) return;
+        const workspace = findThreadWorkspace(
+            workspaces?.mine ?? [],
+            next?.threadUuid ?? null,
+        );
         workspaceAction.mutate(
             workspace
                 ? { kind: 'activate', workspaceUuid: workspace.workspaceUuid }
                 : { kind: 'leave' },
         );
     };
-    const storedAgent = agents.find(({ uuid }) => uuid === stored?.agentUuid);
     return {
-        isLoadingAgents,
-        isEnabled,
-        agent: storedAgent ?? defaultAgent ?? agents.at(0),
-        thread:
-            storedAgent && stored
-                ? { agent: storedAgent, threadUuid: stored.threadUuid }
-                : null,
-        setStored,
         startNewThread: () => {
             if (stored) setPrevious(stored);
             setStored(null);
@@ -149,4 +197,60 @@ export const useStudioAgent = (projectUuid: string) => {
             follow(previous);
         },
     };
+};
+
+/** Sends the agent the failed compile of its last save as a hidden prompt, once per compile, while this chat is open and idle. */
+export const useCompileFollowUp = ({
+    projectUuid,
+    agentUuid,
+    threadUuid,
+    isBusy,
+    enableSqlMode,
+}: {
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+    isBusy: boolean;
+    enableSqlMode: boolean;
+}) => {
+    const { data: checkout } = useDraftCheckout(projectUuid);
+    const { mutateAsync: claim } = useClaimCompileFollowUp(projectUuid);
+    const { mutate: sendMessage } = useCreateAgentThreadMessageMutation(
+        projectUuid,
+        agentUuid,
+        threadUuid,
+    );
+    const asking = useRef<string | null>(null);
+    const compile = checkout?.branchCompile ?? null;
+    const failedRequest =
+        compile?.status === 'failed' && compile.requestedByAgent
+            ? compile.compileRequestUuid
+            : null;
+    useEffect(() => {
+        if (
+            isBusy ||
+            failedRequest === null ||
+            asking.current === failedRequest
+        )
+            return;
+        asking.current = failedRequest;
+        claim({ compileRequestUuid: failedRequest, threadUuid })
+            .then((followUp) => {
+                if (followUp === null) {
+                    // Not sendable yet, such as while the agent still answers; asked again once idle.
+                    asking.current = null;
+                    return;
+                }
+                sendMessage({
+                    prompt: followUp.prompt,
+                    hidden: true,
+                    enableSqlMode,
+                    // Nobody typed this prompt, so any query still needs the person's approval.
+                    autoApproveSql: false,
+                });
+            })
+            .catch(() => {
+                asking.current = null;
+            });
+    }, [claim, enableSqlMode, failedRequest, isBusy, sendMessage, threadUuid]);
 };

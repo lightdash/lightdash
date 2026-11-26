@@ -538,6 +538,36 @@ describe('OAuthService edge cases', () => {
                 });
             },
         );
+
+        it('registers every known scope on admin-created clients', async () => {
+            await register['admin-create'](['https://app.example.com/cb']);
+            expect(mockOAuthModel.createClient).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    scopes: ['read', 'write', 'mcp:read', 'mcp:write'],
+                    organizationUuid: account.organization.organizationUuid,
+                }),
+            );
+        });
+
+        it('keeps the scopes sent with dynamic registration', async () => {
+            await oauthService.registerClient({
+                clientName: 'Client',
+                redirectUris: ['https://app.example.com/cb'],
+            });
+            await oauthService.registerClient({
+                clientName: 'Client',
+                redirectUris: ['https://app.example.com/cb'],
+                scopes: ['mcp:read'],
+            });
+            expect(mockOAuthModel.createClient).toHaveBeenNthCalledWith(
+                1,
+                expect.objectContaining({ scopes: undefined }),
+            );
+            expect(mockOAuthModel.createClient).toHaveBeenNthCalledWith(
+                2,
+                expect.objectContaining({ scopes: ['mcp:read'] }),
+            );
+        });
     });
 
     describe('registerClient', () => {

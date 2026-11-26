@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 
 export const agentSettingsPolicyMock = (): AgentCapabilityPolicyOverview => ({
-    mode: 'legacy',
     version: 1,
     allowedCapabilities: null,
     allowedGroupUuids: null,

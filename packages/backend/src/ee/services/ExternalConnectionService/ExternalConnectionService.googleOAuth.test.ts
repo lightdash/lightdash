@@ -133,21 +133,36 @@ const buildService = ({
             ) => searchConsoleConnection({ apiSource: config.apiSource }),
         ),
         update: vi.fn(async () => connection),
-        tryAcquireApiSourceCallLease: vi.fn().mockResolvedValue(true),
-        tryCountApiSourceCall: vi.fn().mockResolvedValue(true),
-        releaseApiSourceCallLease: vi.fn().mockResolvedValue(undefined),
+        chargeApiSourceRateBuckets: vi.fn().mockResolvedValue({
+            charged: true,
+            now: new Date(),
+            windows: [],
+        }),
+        refundApiSourceRateBuckets: vi.fn().mockResolvedValue(undefined),
+        holdApiSourceRateBuckets: vi.fn().mockResolvedValue(undefined),
+        bookApiSourceRateTurn: vi.fn().mockImplementation(async () => ({
+            booked: true,
+            turnAt: new Date(),
+            now: new Date(),
+        })),
+        tryTakeApiSourceRateSlot: vi.fn().mockResolvedValue(true),
+        releaseApiSourceRateSlot: vi.fn().mockResolvedValue(undefined),
     };
     const fetchToken = vi.fn().mockResolvedValue(tokenResponse);
     const service = new ExternalConnectionService({
+        userAttributesModel: {
+            getAttributeValuesForOrgMember: vi.fn().mockResolvedValue({}),
+            find: vi.fn().mockResolvedValue([]),
+        },
         projectModel: {
             replaceApiSourceExplores: vi.fn(),
             deleteApiSourceExplores: vi.fn(),
             findExploreNamesTakenByOthers: vi.fn(async () => []),
+            getApiSourceExploreNames: vi.fn(async () => []),
         },
         allowedPrivateHostCidrs: {},
         externalConnectionModel,
         analytics: { track: vi.fn() },
-        featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         oauthAuthorizationCodeTokenClient:
             new OAuthAuthorizationCodeTokenClient({
                 allowedPrivateHostCidrs: {},
@@ -166,6 +181,10 @@ const buildService = ({
                     oauthClientSecret: undefined,
                 },
                 linkedinAds: {
+                    oauthClientId: undefined,
+                    oauthClientSecret: undefined,
+                },
+                salesforce: {
                     oauthClientId: undefined,
                     oauthClientSecret: undefined,
                 },
@@ -481,7 +500,12 @@ describe('Google sign-in for live sources', () => {
             }),
         );
 
-        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+        const source = await service.getLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            60_000,
+        );
         const result = await runLiveRequest(source, {
             query: JSON.stringify({
                 startDate: '2026-10-01',

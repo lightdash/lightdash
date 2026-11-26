@@ -97,7 +97,7 @@ const CirclesLayer = memo<{
         {circles.map((circle) => (
             <circle
                 key={circle.id}
-                className="ad-circle"
+                className="adoption-circle"
                 data-circle={circle.id}
                 data-no-team={teams.get(circle.id)?.isNoTeam || undefined}
                 data-highlighted={circle.id === selectedId || undefined}
@@ -148,7 +148,7 @@ const SharedRingsLayer = memo<{ dots: MapDot[] }>(({ dots }) => (
             return (
                 <circle
                     key={dot.key}
-                    className="ad-shared"
+                    className="adoption-shared"
                     cx={dot.x}
                     cy={dot.y}
                     r={ring.radius}
@@ -168,7 +168,7 @@ const LabelsLayer = memo<{ labels: CircleLabel[]; zoomLevel: number }>(
                 getLabelLines(label, zoomLevel).map((line) => (
                     <text
                         key={`${label.id}:${line.role}`}
-                        className={`ad-label ${line.role === 'name' ? 'ad-label-name' : 'ad-label-detail'}`}
+                        className={`adoption-label ${line.role === 'name' ? 'adoption-label-name' : 'adoption-label-detail'}`}
                         x={line.x}
                         y={line.y}
                         textAnchor="middle"
@@ -377,7 +377,7 @@ export const PeopleMap = ({
         <>
             <svg
                 ref={svgRef}
-                className="ad-svg"
+                className="adoption-svg"
                 width={width}
                 height={height}
                 role="img"
@@ -386,7 +386,7 @@ export const PeopleMap = ({
                 onPointerDown={handlePointerDown}
             >
                 <g
-                    className="ad-viewport"
+                    className="adoption-viewport"
                     data-animated={view.isAnimated || undefined}
                     transform={view.transform.toString()}
                     onPointerMove={handlePointerMove}
@@ -395,7 +395,7 @@ export const PeopleMap = ({
                 >
                     <CirclesLayer circles={circles} teams={teamsById} selectedId={selectedId} isStatic={isFocused} />
                     <SharedRingsLayer dots={dots} />
-                    <g ref={dotsRef} className="ad-dots">
+                    <g ref={dotsRef} className="adoption-dots">
                         <DotsLayer dots={dots} />
                     </g>
                     <LabelsLayer labels={shownRestLabels} zoomLevel={k} />
@@ -403,8 +403,8 @@ export const PeopleMap = ({
                 </g>
             </svg>
             {/* Empty but for the band that crosses the map while its colouring changes */}
-            <div ref={sweepLayerRef} className="ad-sweep-layer" />
-            <div className="ad-controls">
+            <div ref={sweepLayerRef} className="adoption-sweep-layer" />
+            <div className="adoption-controls">
                 <Button variant="outline" size="icon" className="h-7 w-7 bg-background" aria-label="Zoom in" title="Zoom in" onClick={() => zoomBy(ZOOM_STEP)}>
                     <Plus />
                 </Button>
@@ -416,7 +416,7 @@ export const PeopleMap = ({
                 </Button>
             </div>
             {tip && (
-                <div className="ad-tip" style={{ left: tip.x, top: tip.y }}>
+                <div className="adoption-tip" style={{ left: tip.x, top: tip.y }}>
                     {tip.text}
                 </div>
             )}

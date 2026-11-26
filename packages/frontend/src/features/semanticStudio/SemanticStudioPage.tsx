@@ -4,7 +4,6 @@
  * and what they can change follows their role (see permissions.ts). The rest
  * of the path is the page you are on; see urls.ts.
  */
-import { FeatureFlags } from '@lightdash/common';
 import { useCallback, useMemo, type FC } from 'react';
 import {
     Navigate,
@@ -16,18 +15,19 @@ import {
 import ErrorState from '../../components/common/ErrorState';
 import Page from '../../components/common/Page/Page';
 import ForbiddenPanel from '../../components/ForbiddenPanel';
-import { useDefaultAiAgent } from '../../ee/features/aiCopilot/components/Launcher/useDefaultAiAgent';
+import { usePrefetchStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import { useExplores } from '../../hooks/useExplores';
 import { useProject } from '../../hooks/useProject';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
+import { useLiveSourcesAvailability } from '../externalConnections/hooks/useLiveSourcesAvailability';
 import { useExternalSources } from '../externalSources/hooks/useExternalSources';
 import {
     canListLiveSources,
     canOpenProjectSettings,
     canOpenSemanticStudio,
     getStudioPermissions,
+    type StudioPermissions,
 } from './permissions';
 import { buildRealProject } from './realProject';
 import { StudioPageSkeleton } from './StudioPageSkeleton';
@@ -38,10 +38,10 @@ import {
     type StudioRoute,
 } from './urls';
 import {
+    keepsSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerStatus,
 } from './useSemanticLayerModel';
-import { type StudioPermissions } from './useSemanticStudio';
 import {
     foldDraftExplores,
     usePublishedExplores,
@@ -64,7 +64,7 @@ const SemanticStudioPage: FC = () => {
         [navigate, projectUuid],
     );
     const { user } = useApp();
-    const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
+    const liveSources = useLiveSourcesAvailability();
     const {
         data: project,
         isInitialLoading: isProjectLoading,
@@ -72,8 +72,7 @@ const SemanticStudioPage: FC = () => {
     } = useProject(projectUuid);
     // A draft kept in the app is laid over the published list, which is then the same on and off the draft.
     const status = useSemanticLayerStatus(projectUuid ?? '');
-    const readsPublished =
-        !!status?.enabled && status.appliesAs !== 'dbt_pull_request';
+    const readsPublished = !!status?.enabled && keepsSemanticLayerDraft(status);
     const viewExplores = useExplores(projectUuid, true, false, {
         enabled: !!projectUuid && !readsPublished,
     });
@@ -89,8 +88,8 @@ const SemanticStudioPage: FC = () => {
     };
     const ability = user.data?.ability;
     const organizationUuid = user.data?.organizationUuid;
-    const isLiveSourcesEnabled = !!liveSourcesFlag.data?.enabled;
-    // A kind whose feature flag is off can't be added or managed, matching
+    const isLiveSourcesEnabled = liveSources.isAvailable;
+    // A kind that is unavailable can't be added or managed, matching
     // project settings.
     const permissions = useMemo((): StudioPermissions | null => {
         if (!ability || !organizationUuid || !projectUuid) return null;
@@ -133,23 +132,19 @@ const SemanticStudioPage: FC = () => {
     // Asked for now, so the change and its chat load alongside the explores and not after them.
     const checkout = useStudioCheckoutState(projectUuid ?? '');
     // A draft just read as empty has nothing to lay over the list, even while the checkout still holds it.
+    // WorkbenchView's marks follow the checkout itself.
     const ownDraft = useSemanticLayerDraft(projectUuid ?? '', !!projectUuid);
     const isDraftGone =
         ownDraft.data?.changes.length === 0 && !ownDraft.isFetching;
-    const checkedOutDraft = isDraftGone
-        ? null
-        : (checkout.shown?.draft ?? null);
-    useDefaultAiAgent(projectUuid);
+    const listedDraft = isDraftGone ? null : (checkout.shown?.draft ?? null);
+    usePrefetchStudioAgent(projectUuid);
 
     const realProject = useMemo(
         () =>
             project && explores.data
                 ? buildRealProject({
                       project,
-                      explores: foldDraftExplores(
-                          explores.data,
-                          checkedOutDraft,
-                      ),
+                      explores: foldDraftExplores(explores.data, listedDraft),
                       externalSources: externalSources.data ?? [],
                       liveConnections: liveConnections.data ?? [],
                   })
@@ -157,14 +152,14 @@ const SemanticStudioPage: FC = () => {
         [
             project,
             explores.data,
-            checkedOutDraft,
+            listedDraft,
             externalSources.data,
             liveConnections.data,
         ],
     );
 
     if (
-        liveSourcesFlag.isInitialLoading ||
+        liveSources.isLoading ||
         isProjectLoading ||
         explores.isInitialLoading ||
         externalSources.isInitialLoading ||

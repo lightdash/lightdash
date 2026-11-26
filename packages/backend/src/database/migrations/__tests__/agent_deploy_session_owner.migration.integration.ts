@@ -1,5 +1,4 @@
 import {
-    AGENT_CAPABILITY_SCOPES,
     AgentCapability,
     DeploySessionStatus,
     ProjectMemberRole,
@@ -911,13 +910,7 @@ it('refuses a connection finalize when its person loses the deploy role without 
         .database('project_memberships')
         .where('user_id', f.user.user_id)
         .update({
-            role_uuid: await customRole(
-                'project',
-                'Agent deployer',
-                capabilities.map(
-                    (capability) => AGENT_CAPABILITY_SCOPES[capability],
-                ),
-            ),
+            role_uuid: await customRole('project', 'Project deployer', []),
         });
     await f.savePolicy({ allowedCapabilities: capabilities });
     const connection = await f.createConnection(capabilities);
@@ -942,56 +935,28 @@ it('refuses a connection finalize when its person loses the deploy role without 
     const before = await deployRows(f.database);
     const visibleBefore = await databaseRows(f.database);
     const queuedBefore = [...server.queued];
-    const finalize = vi.spyOn(
-        server.services.getDeployService(),
-        'finalizeDeploy',
+    const response = await httpRequest(
+        server.base,
+        `${f.route}/${uuid}/finalize`,
+        headers,
+        'POST',
+        {},
     );
-    try {
-        const response = await httpRequest(
-            server.base,
-            `${f.route}/${uuid}/finalize`,
-            headers,
-            'POST',
-            {},
-        );
-        expect(response).toMatchObject({
-            status: 403,
-            body: {
-                status: 'error',
-                error: {
-                    statusCode: 403,
-                    name: 'ForbiddenError',
-                    message:
-                        "Your organization's agent permissions do not allow Deploy and upload. Ask an admin to change Permissions on the Agents page.",
-                    data: {
-                        reason: 'agent_capability_denied',
-                        policyLayer: 'org_ceiling',
-                        capability: 'deploy_upload',
-                    },
-                },
-            },
-        });
-        expect(finalize).not.toHaveBeenCalled();
-        expect(await deployRows(f.database)).toEqual(before);
-        expect(await databaseRows(f.database)).toEqual({
-            ...visibleBefore,
-            agent_action_log: expect.any(Array),
-            agent_connection_grants: expect.any(Array),
-        });
-        expect(
-            await f
-                .database('agent_action_log')
-                .where('organization_uuid', f.organizationUuid),
-        ).toEqual([
-            expect.objectContaining({
-                outcome: 'denied',
-                policy_layer: 'org_ceiling',
-                reason_code: 'agent_capability_denied',
-                capability: 'deploy_upload',
-            }),
-        ]);
-        expect(server.queued).toEqual(queuedBefore);
-    } finally {
-        finalize.mockRestore();
-    }
+    // The policy still allows deploys, so the person's own permissions
+    // refuse this.
+    expect(response).toEqual(
+        refused('User does not have permission to deploy to this project'),
+    );
+    expect(await deployRows(f.database)).toEqual(before);
+    expect(await databaseRows(f.database)).toEqual({
+        ...visibleBefore,
+        agent_action_log: expect.any(Array),
+        agent_connection_grants: expect.any(Array),
+    });
+    expect(
+        await f
+            .database('agent_action_log')
+            .where('organization_uuid', f.organizationUuid),
+    ).toEqual([]);
+    expect(server.queued).toEqual(queuedBefore);
 });

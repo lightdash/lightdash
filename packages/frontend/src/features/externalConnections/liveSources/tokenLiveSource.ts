@@ -1,4 +1,5 @@
 import {
+    LIVE_INTEGRATION_CATALOG,
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionApiSource,
@@ -11,9 +12,6 @@ import { useForm } from '@mantine/form';
  * integration of this kind is a form definition and shares the dialog.
  */
 export type TokenLiveSourceForm = {
-    label: string;
-    defaultName: string;
-    description: string;
     origin: string;
     /** Null when the token alone decides what the source reads. */
     account: {
@@ -26,6 +24,8 @@ export type TokenLiveSourceForm = {
         isValid: (normalizedValue: string) => boolean;
     } | null;
     tokenLabel: string;
+    /** Shown under the token field; defaults to "Read access is enough". */
+    tokenHint?: string;
     toApiSource: (accountId: string) => ExternalConnectionApiSource;
     /** The account id of a saved source, or blank for another integration's. */
     getAccountId: (connection: ExternalConnection) => string;
@@ -62,10 +62,15 @@ export const useTokenLiveSourceForm = (
                   accountId: form.getAccountId(connection),
                   token: '',
               }
-            : { name: form.defaultName, accountId: '', token: '' },
+            : {
+                  name: LIVE_INTEGRATION_CATALOG[form.toApiSource('').connector]
+                      .defaultName,
+                  accountId: '',
+                  token: '',
+              },
         validate: {
             name: (value) =>
-                value.trim().length === 0 ? 'Name is required' : null,
+                value.trim().length === 0 ? 'Give it a name' : null,
             accountId: (value) =>
                 !form.account ||
                 form.account.isValid(form.account.normalize(value))
@@ -73,7 +78,7 @@ export const useTokenLiveSourceForm = (
                     : form.account.invalidMessage,
             token: (value) =>
                 !connection && value.trim().length === 0
-                    ? `${form.tokenLabel} is required`
+                    ? `Paste the ${form.tokenLabel.toLowerCase()}`
                     : null,
         },
     });

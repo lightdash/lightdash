@@ -1,6 +1,16 @@
 import { subject, type AnyAbility } from '@casl/ability';
-import { type NodeRef } from './model';
-import { type StudioPermissions } from './useSemanticStudio';
+import { type Kind, type NodeRef } from './model';
+
+/**
+ * Who can edit what, from the project CASL abilities (the same checks the
+ * backend runs for each writer):
+ * - modelled: manage SourceCode (developer+)
+ * - sqlViews: manage VirtualView (developer+)
+ * - files: manage ExternalSource (editor+)
+ * - live: manage ExternalConnection (admin); the only role that can read a
+ *   live source's fields that are not in use
+ */
+export type StudioPermissions = Record<Kind, boolean>;
 
 /**
  * What the person can change in Semantic Layer, per kind of source, from the
@@ -22,7 +32,7 @@ export const getStudioPermissions = (
         ),
         sqlViews: ability.can('manage', subject('VirtualView', scope())),
         files: ability.can('manage', subject('ExternalSource', scope())),
-        live: ability.can('manage', subject('ExternalConnection', scope())),
+        live: ability.can('manage', subject('LiveSource', scope())),
     };
 };
 
@@ -68,9 +78,9 @@ export const canOpenProjectSettings = (
     );
 
 /**
- * Whether the live data sources list answers for this person: admins see
- * every source, other members only those an admin opened up for linking.
- * Without it, live explores still show, named after themselves.
+ * Whether the live data sources list answers for this person: only those who
+ * manage live data sources see them. Without it, live explores still show,
+ * named after themselves.
  */
 export const canListLiveSources = (
     ability: AnyAbility,
@@ -78,12 +88,8 @@ export const canListLiveSources = (
     projectUuid: string,
 ) =>
     ability.can(
-        'view',
-        subject('ExternalConnection', {
-            organizationUuid,
-            projectUuid,
-            allowDataAppBuilderLinking: true,
-        }),
+        'manage',
+        subject('LiveSource', { organizationUuid, projectUuid }),
     );
 
 /**

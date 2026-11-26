@@ -11,7 +11,6 @@ export enum FeatureFlags {
      * Snowflake agent sign-in. Off by default; organization scope; no handler.
      */
     AgentIdentity = 'agent-identity',
-    OAuthScopeEnforcement = 'oauth-scope-enforcement',
 
     MultiConnectionProjects = 'multi-connection-projects',
     /**
@@ -81,16 +80,17 @@ export enum FeatureFlags {
     EnableDataApps = 'enable-data-apps',
 
     /**
-     * Voice Design in the data app builder: the user draws on the preview
-     * while talking, and the marked-up screenshots and what they said land
-     * in the prompt box. Off by default; per user or organization.
+     * Design Mode on data apps, in the builder and on published apps: the
+     * user marks the app and says what to change. In the builder the marked
+     * screenshots and words go out as one prompt; on a published app they go
+     * to an AI agent. Off by default; per user or organization.
      */
     DataAppCapture = 'data-app-capture',
 
     /**
-     * Voice Design on dashboards in view mode: layout changes the user asks
-     * for are applied as an unsaved preview, and questions or other changes
-     * go to an AI agent thread. Off by default; per user or organization.
+     * Design Mode on dashboards in view mode: the user marks the dashboard
+     * and says what to change, and each bubble of marks becomes an AI agent
+     * conversation. Off by default; per user or organization.
      */
     DashboardCapture = 'dashboard-capture',
 
@@ -156,18 +156,6 @@ export enum FeatureFlags {
     AiMcpGithubPat = 'ai-mcp-github-pat',
 
     /**
-     * Gate the whole new onboarding experience as one unit: email-only
-     * signup (register collects only an email; ownership proven via email
-     * OTP), the full-page organization setup experience shown after
-     * registration, and the dbt-less "connect to your warehouse" onboarding
-     * path including the Snowflake "connect via CLI (SSO)" auth method in
-     * project creation. Off by default. Note: the register page evaluates
-     * this flag anonymously, so per-org overrides do not apply there —
-     * enable instance-wide (or for everyone in posthog) to turn on signup.
-     */
-    NewOnboarding = 'new-onboarding',
-
-    /**
      * Cloud-only: let an organization send report/notification emails from
      * their own verified domain (email whitelabelling) instead of the
      * Lightdash address. Gates both the setup UI and the admin API. Requires a
@@ -201,27 +189,12 @@ export enum FeatureFlags {
     ComposeSqlRunner = 'compose-sql-runner',
 
     /**
-     * Enable api query sources: queries sent live to an external API (HogQL
-     * to PostHog) through a project connection, and the Live data sources
-     * project settings page. Off by default; enable per org. Also on wherever
-     * NewOnboarding is on, unless a user or org override turns it off.
-     */
-    ApiQuerySources = 'api-query-sources',
-
-    /**
      * Keeps the models of a project that has no dbt connection on the server,
      * and lets the Semantic Studio agent draft changes to them for a person to
      * apply. On a GitHub dbt project it also saves changes with a script
      * committed through the GitHub API. Off by default; organization-scoped.
      */
     SemanticStudioEditing = 'semantic-studio-editing',
-
-    /**
-     * Undo and redo for the chart being built in the Explorer: the header
-     * buttons and their keyboard shortcuts. Off by default; resolves per user
-     * or organization. It gates the browser only, there is no backend action.
-     */
-    ExplorerUndoRedo = 'explorer-undo-redo',
 
     /**
      * Configurable retention for AI agent threads. Off by default; enabled
@@ -316,6 +289,11 @@ export enum FeatureFlags {
      * @lightdash/sdk < 3.245.0 (first with PR #32548): older SDKs crash the whole embed.
      */
     ComposerCharts = 'composer-charts',
+    /**
+     * Off by default: the top navbar is replaced by a left sidebar. Frontend
+     * only, so user and organization overrides both apply.
+     */
+    LeftNavigation = 'left-navigation',
 }
 
 export type FeatureFlag = {

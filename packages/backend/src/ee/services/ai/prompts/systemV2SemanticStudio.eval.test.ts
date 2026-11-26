@@ -3,10 +3,12 @@ import {
     buildAgentRunSqlDescription,
     DEFAULT_RUN_SQL_LIMIT,
     DEFAULT_RUN_SQL_MAX_LIMIT,
+    ExploreType,
     GET_METADATA_DESCRIPTION,
     getMetadataInputSchema,
     GREP_FIELDS_DESCRIPTION,
     grepFieldsInputSchema,
+    SupportedDbtAdapter,
     TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION,
     TOOL_EXPLORE_REPO_DESCRIPTION,
     TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION,
@@ -14,13 +16,23 @@ import {
     toolExploreRepoArgsSchema,
     toolListWarehouseTablesArgsSchema,
     toolRunSqlArgsSchema,
+    WarehouseTypes,
+    type Explore,
 } from '@lightdash/common';
-import { generateText, tool } from 'ai';
+import { generateText, tool, type Tool } from 'ai';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { aiCopilotConfigSchema } from '../../../../config/aiConfigSchema';
 import { getAiConfig } from '../../../../config/parseConfig';
+import {
+    getStudioAbilities,
+    resolveLoadout,
+    type AgentToolName,
+    type LoadoutInput,
+} from '../loadout';
 import { getModel } from '../models';
-import { getSemanticStudioSystemPrompt } from './systemV2SemanticStudio';
+import { type StudioProjectMode } from '../types/aiAgent';
+import { getSystemPromptV2 } from './systemV2';
+import { getSemanticStudioTurn } from './systemV2SemanticStudio';
 
 // Live model eval, opt in: SEMANTIC_STUDIO_EVAL=1 plus a provider key. Repository tools are stubs and runSql reads an in-memory table.
 const describeEval =
@@ -75,6 +87,17 @@ select
     case when i % 7 = 0 then null else (i % 90) + 1 end as handling_minutes
 from range(5000) t(i)`;
 
+const TICKETS_EXPLORE: Explore = {
+    name: 'tickets',
+    label: 'Tickets',
+    tags: [],
+    baseTable: 'tickets',
+    joinedTables: [],
+    tables: {},
+    targetDatabase: SupportedDbtAdapter.DUCKDB,
+    type: ExploreType.DEFAULT,
+};
+
 let warehouse: DuckDBConnection;
 
 const runSeededSql = async (sql: string, limit: number): Promise<string> => {
@@ -86,6 +109,42 @@ const runSeededSql = async (sql: string, limit: number): Promise<string> => {
     }
 };
 
+// A dbt project's Studio thread without writeback, which proposes a diff.
+const studioMode: StudioProjectMode = {
+    enabled: true,
+    drafts: false,
+    keepsContext: false,
+    projectMap: null,
+};
+
+const studioInput = (canRunSql: boolean): LoadoutInput => ({
+    execution: { mode: 'standard', maxSteps: 15 },
+    decisions: undefined,
+    enableDataAccess: true,
+    enableComposerQueries: false,
+    canRunSql,
+    canCreateDashboards: false,
+    canCreateScheduledDeliveries: false,
+    enableContentReads: false,
+    enableContentTools: false,
+    enableDocuments: false,
+    enableGenerateDataApp: false,
+    enableAiWriteback: false,
+    enableRepoDiscovery: true,
+    enableEditProjectContext: false,
+    studio: studioMode,
+    enableReadAttachments: false,
+    enableReadPinnedThread: false,
+    enableAskUser: false,
+    customSkills: [],
+    projectContextEnabled: false,
+    aiAgentMemoryEnabled: false,
+    requestingUser: null,
+    mcpToolNames: [],
+    attachedMcpServerCount: 0,
+    customChartTypeCount: 0,
+});
+
 const runAsk = async (prompt: string, canRunSql: boolean) => {
     const { model, callOptions, providerOptions } = getModel(
         aiCopilotConfigSchema.parse(getAiConfig()),
@@ -96,7 +155,7 @@ const runAsk = async (prompt: string, canRunSql: boolean) => {
         return output;
     };
     const context = { runtime: 'agent' as const };
-    const warehouseTools = {
+    const stubs: Partial<Record<AgentToolName, Tool>> = {
         runSql: tool({
             description: buildAgentRunSqlDescription(
                 DEFAULT_RUN_SQL_LIMIT,
@@ -121,56 +180,70 @@ const runAsk = async (prompt: string, canRunSql: boolean) => {
                 'ticket_id varchar, status varchar, channel varchar, resolved_at timestamp, handling_minutes bigint',
             ),
         }),
+        exploreRepo: tool({
+            description: TOOL_EXPLORE_REPO_DESCRIPTION,
+            inputSchema: toolExploreRepoArgsSchema,
+            execute: stub(
+                'exploreRepo',
+                `==> /dbt/models/tickets.yml <==\n${MODEL_YAML}\n==> /dbt/models/tickets.sql <==\n${MODEL_SQL}`,
+            ),
+        }),
+        grepFields: tool({
+            description: GREP_FIELDS_DESCRIPTION({
+                ...context,
+                toolName: 'grepFields',
+            }),
+            inputSchema: grepFieldsInputSchema,
+            execute: stub(
+                'grepFields',
+                'tickets/tickets_ticket_id [dimension string]\ntickets/tickets_status [dimension string]\ntickets/tickets_channel [dimension string]\ntickets/tickets_resolved_at [dimension timestamp]\ntickets/tickets_handling_minutes [dimension number]\ntickets/tickets_total_handling_minutes [metric sum]',
+            ),
+        }),
+        getMetadata: tool({
+            description: GET_METADATA_DESCRIPTION({
+                ...context,
+                toolName: 'getMetadata',
+            }),
+            inputSchema: getMetadataInputSchema,
+            execute: stub(
+                'getMetadata',
+                'explore tickets (table public.tickets): dimensions ticket_id, status, channel, resolved_at, handling_minutes; metrics total_handling_minutes (sum of handling_minutes)',
+            ),
+        }),
     };
+    // Only the tools the Studio loadout offers; its other tools have no stub here.
+    const loadout = resolveLoadout(studioInput(canRunSql));
+    const { builder } = getStudioAbilities(loadout);
+    const tools = Object.fromEntries(
+        [...loadout.toolNames].flatMap((name) => {
+            const stubbed = stubs[name];
+            return stubbed ? [[name, stubbed] as const] : [];
+        }),
+    );
     const { text } = await generateText({
         ...callOptions,
         providerOptions,
         model,
         stopWhen: ({ steps }) => steps.length >= 15,
-        instructions: getSemanticStudioSystemPrompt({
+        instructions: getSystemPromptV2({
             agentName: 'Agent',
             date: '2026-01-01',
-            instructions: undefined,
-            availableExplores: '- tickets: Tickets',
-            projectContext: null,
-            warehouse: canRunSql ? { type: 'duckdb', schema: 'public' } : null,
-            dbt: { saves: false, codeMode: false, sections: [] },
-            canQueryDraft: false,
-        }),
+            availableExplores: [TICKETS_EXPLORE],
+            promptSections: loadout.promptSections,
+            canRunSql: loadout.toolNames.has('runSql'),
+            warehouseType: WarehouseTypes.DUCKDB,
+            warehouseSchema: 'public',
+            repoFsRoot: '.',
+            studio: getSemanticStudioTurn(loadout, {
+                drafts: false,
+                projectMap: null,
+                repoFsRoot: '.',
+                repoFsSupportsCodeSearch: true,
+            }),
+            projectContextInRead: builder,
+        }).content,
         prompt,
-        tools: {
-            exploreRepo: tool({
-                description: TOOL_EXPLORE_REPO_DESCRIPTION,
-                inputSchema: toolExploreRepoArgsSchema,
-                execute: stub(
-                    'exploreRepo',
-                    `==> /dbt/models/tickets.yml <==\n${MODEL_YAML}\n==> /dbt/models/tickets.sql <==\n${MODEL_SQL}`,
-                ),
-            }),
-            grepFields: tool({
-                description: GREP_FIELDS_DESCRIPTION({
-                    ...context,
-                    toolName: 'grepFields',
-                }),
-                inputSchema: grepFieldsInputSchema,
-                execute: stub(
-                    'grepFields',
-                    'tickets/tickets_ticket_id [dimension string]\ntickets/tickets_status [dimension string]\ntickets/tickets_channel [dimension string]\ntickets/tickets_resolved_at [dimension timestamp]\ntickets/tickets_handling_minutes [dimension number]\ntickets/tickets_total_handling_minutes [metric sum]',
-                ),
-            }),
-            getMetadata: tool({
-                description: GET_METADATA_DESCRIPTION({
-                    ...context,
-                    toolName: 'getMetadata',
-                }),
-                inputSchema: getMetadataInputSchema,
-                execute: stub(
-                    'getMetadata',
-                    'explore tickets (table public.tickets): dimensions ticket_id, status, channel, resolved_at, handling_minutes; metrics total_handling_minutes (sum of handling_minutes)',
-                ),
-            }),
-            ...(canRunSql ? warehouseTools : {}),
-        },
+        tools,
     });
     const sqlCalls = called.flatMap(({ name, input }) =>
         name === 'runSql' ? [toolRunSqlArgsSchema.parse(input)] : [],

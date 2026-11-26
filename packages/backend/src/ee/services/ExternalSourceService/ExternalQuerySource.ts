@@ -11,7 +11,9 @@ import {
     type QuerySourceTableName,
     type SourceQuery,
 } from '@lightdash/common';
+import type { LightdashConfig } from '../../../config/parseConfig';
 import type { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { COMPOSE_ENGINE_MISSING_EXTERNAL_SOURCES_STORAGE_MESSAGE } from '../../../services/AsyncQueryService/ComposeEngineClient';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type {
     QuerySourceClient,
@@ -24,6 +26,7 @@ type ExternalQuerySourceArguments = {
     asyncQueryService: AsyncQueryService;
     projectService: ProjectService;
     externalSourceModel: ExternalSourceModel;
+    lightdashConfig: Pick<LightdashConfig, 'preAggregates'>;
 };
 
 /** Durable external tables exposed as a DuckDB query source. */
@@ -45,10 +48,15 @@ export class ExternalQuerySource implements QuerySourceClient {
 
     private readonly externalSourceModel: ExternalSourceModel;
 
+    readonly unavailableReason: string | null;
+
     constructor(args: ExternalQuerySourceArguments) {
         this.asyncQueryService = args.asyncQueryService;
         this.projectService = args.projectService;
         this.externalSourceModel = args.externalSourceModel;
+        this.unavailableReason = args.lightdashConfig.preAggregates.s3
+            ? null
+            : COMPOSE_ENGINE_MISSING_EXTERNAL_SOURCES_STORAGE_MESSAGE;
     }
 
     private static assertSourceQuery(query: SourceQuery): ExternalSourceQuery {

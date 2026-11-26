@@ -1,5 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+import {
+    focusManager,
+    QueryClient,
+    QueryClientProvider,
+} from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import {
@@ -60,5 +64,33 @@ describe('refetchFeatureFlags', () => {
             expect(second.result.current.data?.enabled).toBe(true),
         );
         expect(mockApi).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('useServerFeatureFlag', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('picks up a flag changed on the server when the window regains focus', async () => {
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: { retry: false, staleTime: 0 },
+            },
+        });
+        mockApi.mockResolvedValueOnce({ id: 'a-flag', enabled: false });
+        const { result } = renderHook(() => useServerFeatureFlag('a-flag'), {
+            wrapper: createWrapper(queryClient),
+        });
+        await waitFor(() => expect(result.current.data?.enabled).toBe(false));
+
+        mockApi.mockResolvedValueOnce({ id: 'a-flag', enabled: true });
+        act(() => {
+            focusManager.setFocused(false);
+            focusManager.setFocused(true);
+        });
+
+        await waitFor(() => expect(result.current.data?.enabled).toBe(true));
+        focusManager.setFocused(undefined);
     });
 });

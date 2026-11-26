@@ -184,6 +184,7 @@ export const lightdashConfigMock: LightdashConfig = {
     maxPayloadSize: '',
     httpServer: {
         keepAliveTimeoutMs: 620_000,
+        responseCompressionEnabled: true,
     },
     pivotTable: { maxColumnLimit: 0 },
     enableImprovedExcelDates: false,
@@ -341,24 +342,20 @@ export const lightdashConfigMock: LightdashConfig = {
             threadDumpEnabled: false,
             requiresFeatureFlag: false,
             askAiButtonEnabled: false,
-            embeddingEnabled: true,
             defaultProvider: 'openai',
             lightdashManagedProviders: [],
             providers: {
                 openai: {
                     apiKey: 'mock_api_key',
                     modelName: 'gpt-5.4',
-                    embeddingModelName: 'text-embedding-3-small',
                     useChatCompletions: false,
                     customHeaders: {},
                     supportsStreaming: true,
                 },
             },
-            verifiedAnswerSimilarityThreshold: 0.6,
             mcpConnectionTimeoutMs: 20_000,
             mcpAllowPrivateAddresses: false,
             toolDescriptionMaxChars: 600,
-            defaultEmbeddingModelProvider: 'openai',
         },
         agentMemory: {
             consolidationDryRun: false,
@@ -401,6 +398,10 @@ export const lightdashConfigMock: LightdashConfig = {
             oauthClientSecret: undefined,
         },
         linkedinAds: {
+            oauthClientId: undefined,
+            oauthClientSecret: undefined,
+        },
+        salesforce: {
             oauthClientId: undefined,
             oauthClientSecret: undefined,
         },

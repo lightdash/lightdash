@@ -13,11 +13,21 @@ type Props = {
     dashboardUuid?: string | null;
     dashboardSlug?: string | null;
     dashboardName?: string | null;
+    /** Matches the size of the title the crumbs sit beside. */
+    size?: 'sm' | 'md';
 };
 
 const MAX_WIDTH_TITLE_PX = 160;
 
-const SlashDivider = () => <Text span>/</Text>;
+const SlashDivider: FC<{ size: 'sm' | 'md' }> = ({ size }) => (
+    <Text
+        span
+        fz={size === 'sm' ? 'sm' : undefined}
+        c={size === 'sm' ? 'dimmed' : undefined}
+    >
+        /
+    </Text>
+);
 
 export const TitleBreadCrumbs: FC<Props> = ({
     projectUuid,
@@ -26,6 +36,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
     dashboardUuid,
     dashboardSlug,
     dashboardName,
+    size = 'md',
 }) => {
     const projectRoute = useOptionalProjectRoute();
     const spacesQuery = useSpaceSummaries(projectUuid, true);
@@ -65,7 +76,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                             ) : canAccessSpace ? (
                                 <Anchor
                                     fw={500}
-                                    fz="md"
+                                    fz={size}
                                     c="dimmed"
                                     component={Link}
                                     to={`/projects/${projectUrlIdentifier}/spaces/${spaceUuid}`}
@@ -78,7 +89,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                             ) : (
                                 <Text
                                     fw={500}
-                                    fz="md"
+                                    fz={size}
                                     c="dimmed"
                                     truncate
                                     maw={MAX_WIDTH_TITLE_PX}
@@ -88,7 +99,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                             )}
                         </Tooltip>
                     </Group>
-                    <SlashDivider />
+                    <SlashDivider size={size} />
                 </>
             ) : null}
             {isChartWithinDashboard ? (
@@ -108,7 +119,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                         <Anchor
                             fw={500}
                             c="dimmed"
-                            fz="md"
+                            fz={size}
                             component={Link}
                             to={`/projects/${projectUrlIdentifier}/dashboards/${dashboardSlug ?? dashboardUuid}`}
                             truncate
@@ -119,7 +130,7 @@ export const TitleBreadCrumbs: FC<Props> = ({
                         </Anchor>
                     </Tooltip>
 
-                    <SlashDivider />
+                    <SlashDivider size={size} />
                 </>
             ) : null}
         </>

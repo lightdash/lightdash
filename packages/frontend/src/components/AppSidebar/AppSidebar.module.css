@@ -1,0 +1,501 @@
+.sidebar {
+    /* The stock hover fill is an opaque gray that vanishes on this background. */
+    --mantine-color-default-hover: light-dark(
+        rgb(24 24 27 / 0.05),
+        rgb(236 236 238 / 0.07)
+    );
+
+    background-color: var(--ld-color-sidebar);
+}
+
+/* In dark mode the page and the sidebar are nearly the same gray, so the
+   page's edges get a hairline where the two meet. */
+.shell {
+    --app-page-hairline: light-dark(transparent, rgb(236 236 238 / 0.07));
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+    height: 100%;
+    /* The header row shares a centre line with the gutter beside it. */
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-xs);
+    overflow: hidden;
+}
+
+/* Only the navigation scrolls, so a long list never pushes the header or
+   the footer out of view. */
+.scroll {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+    min-height: 0;
+    margin-inline: calc(var(--mantine-spacing-xs) * -1);
+    padding-inline: var(--mantine-spacing-xs);
+    overflow: hidden auto;
+    scrollbar-width: thin;
+}
+
+/* A rail of identical icons says nothing about which favorite is which. */
+.sidebar[data-collapsed='true'] .favorites {
+    display: none;
+}
+
+.top {
+    display: flex;
+    flex-direction: column;
+    gap: rem(4px);
+    /* The first rows belong to the header more than to the sections below. */
+    margin-bottom: rem(-6px);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+}
+
+.searchTrigger {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: rem(28px);
+    height: rem(28px);
+    border-radius: var(--mantine-radius-md);
+    color: var(--mantine-color-dimmed);
+
+    &:hover {
+        background-color: var(--mantine-color-default-hover);
+        color: var(--mantine-color-text);
+    }
+}
+
+.logo {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: rem(32px);
+    height: rem(28px);
+
+    & :is(svg, img) {
+        width: rem(22px);
+        height: rem(22px);
+        border-radius: rem(6px);
+        object-fit: contain;
+    }
+
+    & svg {
+        & rect {
+            fill: var(--mantine-color-black);
+        }
+
+        /* A black tile has no edge on a dark sidebar, so it gets a lit one. */
+        @mixin dark {
+            box-shadow:
+                0 0 0 1px rgb(255 255 255 / 10%),
+                0 0 rem(6px) rgb(255 255 255 / 4%);
+        }
+    }
+}
+
+/* The rail is one control wide, so the header stacks. */
+.sidebar[data-collapsed='true'] .header {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.searchRow {
+    margin-top: rem(4px);
+}
+
+.sectionLabel {
+    padding-inline: var(--mantine-spacing-xs);
+    margin-bottom: rem(4px);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--mantine-color-dimmed);
+}
+
+.sectionToggle {
+    display: flex;
+    align-items: center;
+    gap: rem(4px);
+    width: 100%;
+
+    &:hover {
+        color: var(--mantine-color-text);
+    }
+}
+
+/* The chevron stays out of the way until the label is pointed at, and
+   stays on a folded section to say there is more inside. */
+.sectionChevron {
+    margin-left: auto;
+    opacity: 0;
+    transition:
+        opacity 120ms ease,
+        transform 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.sectionToggle:is(:hover, :focus-visible, [data-folded='true'])
+    .sectionChevron {
+    opacity: 1;
+}
+
+.sectionToggle[data-folded='true'] .sectionChevron {
+    transform: rotate(-90deg);
+}
+
+.sidebar[data-collapsed='true'] .sectionToggle {
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sectionChevron {
+        transition: none;
+    }
+}
+
+.itemStatus {
+    font-size: rem(11px);
+    color: var(--mantine-color-dimmed);
+    white-space: nowrap;
+}
+
+/* A row with nothing on the right would still reserve that slot's margin. */
+.itemSection:empty {
+    display: none;
+}
+
+.footer {
+    flex: none;
+}
+
+.learnCard {
+    display: flex;
+    flex-direction: column;
+    gap: rem(10px);
+    padding: var(--mantine-spacing-sm);
+    margin-bottom: var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-body);
+}
+
+.learnHeader {
+    display: flex;
+    align-items: center;
+    gap: rem(4px);
+}
+
+.learnCount {
+    margin-left: auto;
+}
+
+/* Hiding the card is rare, so its control waits for the pointer. */
+.learnHide {
+    display: none;
+    margin-left: auto;
+}
+
+.learnCard:is(:hover, :focus-within) .learnHide {
+    display: flex;
+}
+
+.learnCard:is(:hover, :focus-within) .learnCount {
+    display: none;
+}
+
+.learnNext {
+    display: flex;
+    align-items: center;
+    gap: rem(6px);
+    color: var(--mantine-color-dimmed);
+
+    &:hover:not(:disabled) {
+        color: var(--mantine-color-text);
+    }
+}
+
+.learnNextText {
+    flex: 1;
+    min-width: 0;
+}
+
+.learnRing {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: rem(32px);
+    height: rem(35px);
+    border-radius: var(--mantine-radius-md);
+
+    &:hover {
+        background-color: var(--mantine-color-default-hover);
+    }
+}
+
+.account {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: rem(4px);
+}
+
+.account .item {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.account .itemLabel {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.triggerIcon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* An avatar is wider than an icon; this keeps every label on one line. */
+    width: rem(16px);
+}
+
+/* The What's new count shrinks to the same dot the bell uses. */
+.footer .triggerIcon :global(#headway-badge) {
+    top: 0;
+    left: 0;
+}
+
+.footer .triggerIcon :global(.HW_badge) {
+    top: rem(-2px);
+    left: rem(10px);
+    width: rem(8px);
+    height: rem(8px);
+    font-size: 0;
+    background: var(--mantine-color-red-filled);
+}
+
+.iconTrigger {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: rem(35px);
+    height: rem(35px);
+    border-radius: var(--mantine-radius-md);
+
+    &:hover,
+    &[aria-expanded='true'] {
+        background-color: var(--mantine-color-default-hover);
+    }
+}
+
+/* The rail is one control wide, so the bell sits under the account. */
+.sidebar[data-collapsed='true'] .account {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.sidebar[data-collapsed='true'] .iconTrigger {
+    width: rem(32px);
+}
+
+.dot {
+    width: rem(6px);
+    height: rem(6px);
+    border-radius: 50%;
+    background-color: var(--mantine-color-blue-filled);
+}
+
+/* Labels fade in when the sidebar opens; closing clips them, so they just go. */
+.itemLabel,
+.sectionLabel {
+    transition: opacity 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .itemLabel,
+    .sectionLabel {
+        transition: none;
+    }
+}
+
+/* The rail clips the labels, so they are hidden rather than cut mid-letter. */
+.sidebar[data-collapsed='true']
+    :is(.sectionLabel, .itemLabel, .itemSection[data-position='right']) {
+    opacity: 0;
+    transition: none;
+}
+
+.sidebar[data-collapsed='true'] .item {
+    width: rem(32px);
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* The page reads as a card set into the sidebar's gray. It scrolls with the
+   window, so its rounded corners are painted over it in the sidebar color
+   and stay put. Dark mode adds a hairline along the edge, where the two
+   grays are too close to separate the surfaces on their own. */
+.shell[data-rounded-page='true'] {
+    --app-page-radius: rem(12px);
+}
+
+.shell[data-rounded-page='true']::before {
+    --app-page-border: var(--app-page-hairline);
+    --app-page-corner-stops:
+        transparent calc(var(--app-page-radius) - 1px),
+        var(--app-page-border) calc(var(--app-page-radius) - 1px),
+        var(--app-page-border) var(--app-page-radius),
+        var(--ld-color-sidebar) var(--app-page-radius);
+
+    content: '';
+    position: fixed;
+    top: var(--app-shell-header-offset, 0rem);
+    bottom: 0;
+    left: var(--app-shell-navbar-offset, 0rem);
+    z-index: calc(var(--mantine-z-index-app) + 20);
+    width: var(--app-page-radius);
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 100% 100%, var(--app-page-corner-stops)) top /
+            100% var(--app-page-radius) no-repeat,
+        radial-gradient(circle at 100% 0%, var(--app-page-corner-stops))
+            bottom / 100% var(--app-page-radius) no-repeat,
+        linear-gradient(var(--app-page-border), var(--app-page-border)) left
+            center / 1px calc(100% - 2 * var(--app-page-radius)) no-repeat;
+}
+
+/* While the edge is dragged, the shell previews the dragged width inline. Once
+   the drag has collapsed the sidebar, the rail's width has to win over it. */
+.shell[data-sidebar-collapsed='true'][data-rounded-page='true'] {
+    --app-shell-navbar-width: var(--app-sidebar-rail-width) !important;
+    --app-shell-navbar-offset: var(--app-sidebar-rail-width) !important;
+}
+
+/* The sidebar has no border: its edge only shows as a line while the pointer
+   is on it, it is being dragged, or it has keyboard focus. */
+.resizeHandle {
+    outline: none;
+}
+
+.resizeHandle::after {
+    content: '';
+    position: absolute;
+    /* Fades out well before the page's rounded corners. */
+    inset-block: rem(48px);
+    left: calc(50% - rem(1px));
+    width: rem(2px);
+    background: linear-gradient(
+        to bottom,
+        transparent,
+        var(--mantine-color-ldGray-3) 35%,
+        var(--mantine-color-ldGray-3) 65%,
+        transparent
+    );
+    opacity: 0;
+    transform: scaleY(0.9);
+    transition:
+        opacity 100ms ease,
+        transform 100ms ease;
+}
+
+.resizeHandle:is([data-active], :focus-visible)::after {
+    opacity: 1;
+    transform: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .resizeHandle:hover::after {
+        opacity: 1;
+        transform: none;
+        /* The delay keeps the line from flashing when the pointer only
+           crosses the edge. */
+        transition:
+            opacity 160ms ease 80ms,
+            transform 200ms cubic-bezier(0.23, 1, 0.32, 1) 80ms;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .resizeHandle::after {
+        transform: none;
+    }
+}
+
+/* Pages and portalled overlays size themselves from the navbar height, and
+   with the sidebar in place of the navbar that height is zero. */
+:global(body):has(.shell) {
+    --navbar-height: 0px;
+}
+
+.gutter {
+    background-color: var(--ld-color-sidebar);
+}
+
+/* In dark mode the page and the strip above it are nearly the same gray, so
+   the page's top edge gets the same hairline as its side. It starts past the
+   rounded corner, which draws its own. */
+.gutter::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: var(--app-page-radius, 0rem);
+    height: 1px;
+    background-color: var(--app-page-hairline);
+    pointer-events: none;
+}
+
+/* Some notices outline the page in their own color. The outline is drawn
+   over the page so nothing inside shifts. */
+.shell[data-page-outline='impersonation'] {
+    --app-page-outline: var(--mantine-color-orange-filled);
+    /* The notch sits in the middle of the strip, so each side stops short
+       of it. */
+    --app-gutter-side-max-width: calc(50% - rem(92px));
+}
+
+.shell[data-page-outline='sample-data'] {
+    --app-page-outline: var(--mantine-color-indigo-light-color);
+}
+
+.shell:is(
+        [data-page-outline='impersonation'],
+        [data-page-outline='sample-data']
+    )::after {
+    content: '';
+    position: fixed;
+    top: var(--app-shell-header-offset, 0rem);
+    right: rem(-2px);
+    bottom: 0;
+    left: var(--app-shell-navbar-offset, 0rem);
+    z-index: calc(var(--mantine-z-index-app) + 21);
+    border: rem(2px) solid var(--app-page-outline);
+    border-radius: var(--app-page-radius, 0rem) 0 0 var(--app-page-radius, 0rem);
+    pointer-events: none;
+}
+
+/* The page scrolls inside its own card, so the scrollbar stops at the card's
+   edges instead of running the height of the window. */
+.main {
+    /* Sticky offsets inside the page are measured from the card's top, which
+       already sits below any banner. */
+    --banner-height: 0px;
+
+    /* Without this, absolutely positioned content escapes the card and makes
+       the window scroll too. */
+    position: relative;
+    height: calc(100dvh - var(--app-shell-header-offset, 0rem));
+    min-height: 0;
+    margin-top: var(--app-shell-header-offset, 0rem);
+    padding-top: 0;
+    overflow: auto;
+}

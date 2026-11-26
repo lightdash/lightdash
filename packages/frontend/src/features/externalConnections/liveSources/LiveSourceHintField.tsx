@@ -5,8 +5,8 @@ import { type FC } from 'react';
 /** What an admin tells the AI agent about a source, on its edit form. */
 export const LiveSourceHintField: FC<TextareaProps> = (props) => (
     <Textarea
-        label="What is this source used for?"
-        description="Helps the AI agent pick the right source. It already knows what the source connects to."
+        label="AI hint"
+        description="Helps AI agents pick this source"
         placeholder="For example: EU storefront, used for checkout questions"
         autosize
         minRows={2}

@@ -6,8 +6,8 @@ import {
     type SemanticLayerDraft,
     type SemanticLayerDraftModel,
 } from '@lightdash/common';
-import { isEqual, omit } from 'es-toolkit/compat';
 import { type ChangeKind } from './modelCode';
+import { changedAttributes } from './modelFieldDiff';
 
 const itemsOf = (explore: Explore) =>
     new Map(
@@ -16,8 +16,7 @@ const itemsOf = (explore: Explore) =>
                 ...Object.values(table.dimensions),
                 ...Object.values(table.metrics),
             ])
-            // A field's position shifts when another one comes or goes.
-            .map((item) => [getItemId(item), omit(item, 'index')]),
+            .map((item) => [getItemId(item), item]),
     );
 
 /** How the fields of a drafted explore differ from the live one; a null draft removes the model. */
@@ -26,11 +25,13 @@ export const diffDraftFields = (
     draft: Explore | null,
 ): Map<string, ChangeKind> => {
     const before = itemsOf(live);
-    const after = draft ? itemsOf(draft) : new Map<string, unknown>();
+    const after = draft ? itemsOf(draft) : new Map<string, object>();
     const states = new Map<string, ChangeKind>();
     before.forEach((item, id) => {
-        if (!after.has(id)) states.set(id, 'removed');
-        else if (!isEqual(item, after.get(id))) states.set(id, 'changed');
+        const next = after.get(id);
+        if (!next) states.set(id, 'removed');
+        else if (changedAttributes(item, next).length > 0)
+            states.set(id, 'changed');
     });
     after.forEach((_item, id) => {
         if (!before.has(id)) states.set(id, 'new');
@@ -41,21 +42,17 @@ export const diffDraftFields = (
 /** How a draft's notices name whoever put a change live under it; another of the reader's own changes reads as theirs. */
 export const describePublisher = (
     published: SemanticLayerDraftModel['publishedSince'],
-): { subject: string; where: string; option: string; keepLabel: string } => {
+): { subject: string; where: string } => {
     if (published?.isYours) {
         return {
             subject: 'You',
             where: ' from another change',
-            option: 'You, in another change',
-            keepLabel: 'Keep the published version',
         };
     }
     const by = published?.by ?? null;
     return {
         subject: by ?? 'Someone',
         where: '',
-        option: by ?? 'Someone else',
-        keepLabel: by ? `Keep ${by}'s version` : 'Keep their version',
     };
 };
 

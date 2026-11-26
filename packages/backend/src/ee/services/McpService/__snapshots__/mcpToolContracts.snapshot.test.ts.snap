@@ -310,7 +310,7 @@ When no field matches literally, the result lists the closest catalog matches (f
             "type": "string",
           },
           "patterns": {
-            "description": "Up to 5 case-insensitive keyword patterns, not full regexes, matched against field names, labels, descriptions, hints and tags. Use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status"). Use short keywords: long natural-language phrases do not match. The patterns run together, so cover every angle of the question in one call (e.g. ["revenue|sales", "country|region", "segment|tier"]).",
+            "description": "Up to 5 case-insensitive keyword patterns, not full regexes, matched against field names, labels, descriptions, hints and tags. Use \`|\` to OR synonyms ("<term>|<synonym>") and a space or \`.*\` between words to require all of them ("<word>.*<word>"). Use short keywords: long natural-language phrases do not match. The patterns run together, so cover every angle of the question in one call (e.g. ["<measure>|<synonym>", "<dimension>|<synonym>", "<filter>|<synonym>"]).",
             "items": {
               "minLength": 1,
               "type": "string",
@@ -632,62 +632,6 @@ When no field matches literally, the result lists the closest catalog matches (f
             },
             "type": "array",
           },
-          "relevantVerifiedAnswers": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "artifactType": {
-                  "enum": [
-                    "chart",
-                    "dashboard",
-                  ],
-                  "type": "string",
-                },
-                "artifactVersionUuid": {
-                  "type": "string",
-                },
-                "chartConfig": {
-                  "additionalProperties": {},
-                  "propertyNames": {
-                    "type": "string",
-                  },
-                  "type": "object",
-                },
-                "description": {
-                  "type": [
-                    "string",
-                    "null",
-                  ],
-                },
-                "similarity": {
-                  "type": "number",
-                },
-                "title": {
-                  "type": [
-                    "string",
-                    "null",
-                  ],
-                },
-                "verifiedQuestion": {
-                  "type": [
-                    "string",
-                    "null",
-                  ],
-                },
-              },
-              "required": [
-                "artifactVersionUuid",
-                "chartConfig",
-                "artifactType",
-                "verifiedQuestion",
-                "title",
-                "description",
-                "similarity",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
         },
         "required": [
           "description",
@@ -718,8 +662,8 @@ Call this for the explores and fields you intend to use whose full detail you do
 
 Inputs:
 Each entry in \`requests\` is one of:
-- \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` for whole explores.
-- \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` for specific fields.
+- \`{ "type": "explore", "exploreIds": ["<explore>", "<other explore>"] }\` for whole explores.
+- \`{ "type": "field", "fields": [{ "exploreId": "<explore>", "fieldId": "<table>_<field>" }] }\` for specific fields.
 
 Applying the result:
 Use a metric's default time dimension unless the user asks for a different one.
@@ -777,7 +721,7 @@ Use a metric's default time dimension unless the user asks for a different one.
                             "type": "string",
                           },
                           "fieldId": {
-                            "description": "The fieldId, e.g. \`orders_status\`.",
+                            "description": "The fieldId, e.g. \`<table>_<field>\`.",
                             "minLength": 1,
                             "type": "string",
                           },
@@ -2480,7 +2424,7 @@ A custom chart type is chosen the same way: by its own description first, then a
         "readOnlyHint": true,
         "title": "List agents",
       },
-      "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
+      "description": "List accessible AI agents for the required projectUuid. Each agent is pre-configured with specific explores, tags, and instructions that define its domain expertise. Prefer route_agent for automatic selection.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -2616,12 +2560,6 @@ A custom chart type is chosen the same way: by its own description first, then a
           "reasoning": {
             "type": "string",
           },
-          "verifiedQuestions": {
-            "items": {
-              "type": "string",
-            },
-            "type": "array",
-          },
         },
         "required": [
           "agentUuid",
@@ -2631,7 +2569,6 @@ A custom chart type is chosen the same way: by its own description first, then a
           "agentSpaceAccess",
           "agentProjectUuid",
           "explores",
-          "verifiedQuestions",
           "instruction",
           "confidence",
           "reasoning",
@@ -7785,7 +7722,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
       "description": "Tool: search_field_values
 
 Purpose:
-Validate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.
+Validate or disambiguate a candidate value for a specific dimension (e.g. a name or status) before filtering on it. Returns up to 100 unique values matching the query.
 
 Usage Tips:
 - Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly
@@ -10901,12 +10838,13 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "readOnlyHint": true,
         "title": "Run composer queries",
       },
-      "description": "Run a pipeline: up to 25 nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
+      "description": "Run one query, or a pipeline of up to 25 nodes submitted together, where duckdb and python nodes join or transform other nodes' results.
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
-- "sql": raw SQL against the project warehouse; available only when run_sql is.
+- "sql": raw SQL against the project warehouse; needs SQL Runner access.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
+- "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice. Prefer it to a duckdb join of semanticLayer nodes.
 - "duckdb": DuckDB SQL over other results declared in "references".
 - "python": pandas code over other results declared in "references".
 
@@ -10914,11 +10852,11 @@ A node reads only the rows its references returned, so a referenced result that 
 
 A duckdb node that only reshapes another duckdb node's result (adds a column, filters, renames, re-sorts) belongs in that node's SQL: write one duckdb node over the original's references, under a new node id if the original is from an earlier call. Each duckdb step waits for the one it reads.
 
-A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "filters" are flat expression strings; each field documents its contract.
+A python node's "code" defines \`def run(inputs, params)\`; semanticLayer "filters" are flat expression strings.
 
-Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes bring everything they read and are served from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
+Reuse earlier nodes: if a node succeeds before query returns, the result has a sessionId that saves finished nodes. On a follow-up, pass it and read saved nodes by node id in "references" or merge "sources", submitting only the new nodes; they bring what they read, cached when possible. A saved node id names one node for the whole session, so give a changed node a new node id; resubmit a failed or unfinished node under the same id.
 
-Returns every row of the terminal node, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on each queryUuid it names; it also fetches every row of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
+A result holds every row of the terminal node. While it is running, call get_query_result on each queryUuid it names, which also fetches every row of any node by its queryUuid. query computes data only; it saves and charts nothing.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -11403,7 +11341,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                       "type": "string",
                     },
                     "joinKey": {
-                      "description": "The dimensions the sources share, one entry per key.",
+                      "description": "The dimensions the sources share, one entry per key. Sources that share them at the same grain belong in a merge; a key that has to be computed or truncated to a shared grain needs a duckdb join instead.",
                       "items": {
                         "properties": {
                           "fields": {
@@ -11498,7 +11436,7 @@ Returns every row of the terminal node, other submitted nodes' columns and first
                       "type": "string",
                     },
                     "sources": {
-                      "description": "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused.",
+                      "description": "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused. Fix a refused merge by narrowing a source with a filter, raising its limit or adding the missing join key, rather than joining the same nodes in a duckdb node.",
                       "items": {
                         "properties": {
                           "nodeId": {
@@ -11702,7 +11640,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
             "type": "array",
           },
           "sessionId": {
-            "description": "The sessionId of an earlier query result: pass it to reuse that session's nodes by node id in "references". Omit it to start a new session.",
+            "description": "The sessionId of an earlier query result: pass it to reuse that session's nodes by node id in "references" or merge "sources". Omit it to start a new session.",
             "type": "string",
           },
           "terminalNodeId": {
@@ -14905,7 +14843,7 @@ exports[`MCP tool contracts > matches the filter-expression search_field_values 
   "description": "Tool: search_field_values
 
 Purpose:
-Validate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.
+Validate or disambiguate a candidate value for a specific dimension (e.g. a name or status) before filtering on it. Returns up to 100 unique values matching the query.
 
 Usage Tips:
 - Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly

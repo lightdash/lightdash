@@ -6,6 +6,7 @@ import { useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
 import { useChartGalleryRightSidebar } from '../components/Explorer/ChartGallery/useChartGalleryRightSidebar';
+import { DashboardChangesLeaveGuard } from '../components/Explorer/DashboardChangesLeaveGuard';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import {
@@ -69,6 +70,7 @@ const ExplorerContent = memo(() => {
             withFullHeight
             noContentPadding
         >
+            <DashboardChangesLeaveGuard />
             <Explorer />
         </Page>
     );

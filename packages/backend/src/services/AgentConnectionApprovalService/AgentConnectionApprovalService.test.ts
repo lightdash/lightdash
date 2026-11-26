@@ -34,7 +34,6 @@ const fixture = () => {
             }),
         },
         userModel: {
-            getAgentRoleAssignmentsForProjects: vi.fn(),
             findSessionUserAndOrgByUuid: vi
                 .fn()
                 .mockResolvedValue(defaultSessionUser),

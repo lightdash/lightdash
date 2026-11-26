@@ -333,6 +333,10 @@ interface AgentChatInputProps {
     composerTray?: ReactNode;
     // Off where files make no sense: hides the attach menu and ignores dropped files.
     allowAttachments?: boolean;
+    // Off where taking focus on mount would pull it from somewhere else on the page.
+    autoFocus?: boolean;
+    // Off where the reply bar must not resize as the thread scrolls: chips stay.
+    hideSuggestionsWhenScrolledUp?: boolean;
     // Thread model shown in the status row under the inline composer.
     threadModelName?: string | null;
     threadModelWarning?: string | null;
@@ -374,6 +378,19 @@ const deepResearchTourAction = {
     'data-tour-docs': 'agents/deep-research.mdx#how-it-works:p2:1',
 };
 
+// Indented lines read as code, so pasted YAML, JSON or SQL keeps its shape.
+const looksLikeCode = (text: string) => {
+    const lines = text.trim().split(/\r?\n/);
+    return lines.length >= 3 && lines.some((line) => /^\s+\S/.test(line));
+};
+
+const getComposerText = (editor: Editor) =>
+    editor.getText({
+        textSerializers: {
+            codeBlock: ({ node }) => `\`\`\`\n${node.textContent}\n\`\`\``,
+        },
+    });
+
 export const AgentChatInput = ({
     onSubmit,
     onStartDeepResearch,
@@ -410,6 +427,8 @@ export const AgentChatInput = ({
     toolbarStart,
     composerTray,
     allowAttachments = true,
+    autoFocus = true,
+    hideSuggestionsWhenScrolledUp = true,
     composerRef,
     threadModelName,
     threadModelWarning = null,
@@ -643,7 +662,7 @@ export const AgentChatInput = ({
     const steerMutation = useCreateAiAgentThreadMessageSteerMutation();
     useEffect(() => {
         const el = rootRef.current;
-        if (!el) return undefined;
+        if (!el || !hideSuggestionsWhenScrolledUp) return undefined;
         let scrollEl: HTMLElement | null = el.parentElement;
         while (scrollEl) {
             const overflow = window.getComputedStyle(scrollEl).overflowY;
@@ -687,7 +706,7 @@ export const AgentChatInput = ({
             scrollEl?.removeEventListener('scroll', onScroll);
             resizeObserver.disconnect();
         };
-    }, []);
+    }, [hideSuggestionsWhenScrolledUp]);
 
     const { track } = useTracking();
 
@@ -1159,7 +1178,7 @@ export const AgentChatInput = ({
             showToastError,
         ],
     );
-    const handleImagePaste = useCallback(
+    const handlePaste = useCallback(
         (event: ClipboardEvent) => {
             const images = Array.from(event.clipboardData.items).flatMap(
                 (item) => {
@@ -1169,10 +1188,26 @@ export const AgentChatInput = ({
                     return file ? [file] : [];
                 },
             );
+            const text = event.clipboardData.getData('text/plain');
+            if (images.length === 0 && looksLikeCode(text)) {
+                event.preventDefault();
+                editorRef.current
+                    ?.chain()
+                    .focus()
+                    .insertContent([
+                        {
+                            type: 'codeBlock',
+                            content: [{ type: 'text', text: text.trimEnd() }],
+                        },
+                        { type: 'paragraph' },
+                    ])
+                    .run();
+                return;
+            }
             if (images.length === 0 || !imagesEnabled || !allowAttachments)
                 return;
             // Office apps put a bitmap beside the text the user means to paste.
-            if (event.clipboardData.getData('text/plain').trim()) return;
+            if (text.trim()) return;
             event.preventDefault();
             if (canUseAttachControl) void attachThreadImages(images);
             else
@@ -1223,7 +1258,7 @@ export const AgentChatInput = ({
 
     const handleStartDeepResearch = async () => {
         const ed = editorRef.current;
-        const question = ed?.getText().trim() ?? '';
+        const question = ed ? getComposerText(ed).trim() : '';
         if (!question) {
             return;
         }
@@ -1246,7 +1281,7 @@ export const AgentChatInput = ({
     const handleSubmit = () => {
         const ed = editorRef.current;
         if (!ed) return;
-        const text = ed.getText().trim();
+        const text = getComposerText(ed).trim();
         if (!text || disabled || isPreparingAttachments) return;
         if (composerMode === 'deep_research' && canStartDeepResearch) {
             void handleStartDeepResearch();
@@ -1932,14 +1967,15 @@ export const AgentChatInput = ({
         ariaLabel: uiStrings('aiAgent.chatInput.label'),
         placeholder,
         defaultValue,
-        autoFocus: true,
+        autoFocus,
         disabled,
         submitDisabled:
             disabled || isPreparingAttachments || (loading && !canSteer),
         extensions: composerExtensions,
         onEditorReady: setEditor,
         onValueChange: handleComposerValueChange,
-        onPaste: handleImagePaste,
+        onPaste: handlePaste,
+        codeBlocks: true,
         shouldBlockSubmit,
         onSubmit: handleSubmit,
     };

@@ -10,6 +10,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../../components/common/ResizableSplitter';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import {
+    hasActiveEvaluationRun,
     useAiAgentEvaluation,
     useAiAgentEvaluationRuns,
     useRunEvaluation,
@@ -52,9 +53,7 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
     const runEvaluationMutation = useRunEvaluation(projectUuid!, agentUuid!);
 
     // Check if there's an active evaluation running
-    const hasActiveRun = runsData?.data?.runs?.some(
-        (run) => run.status === 'pending' || run.status === 'running',
-    );
+    const hasActiveRun = hasActiveEvaluationRun(runsData?.data?.runs);
 
     const handleCloseSidebar = () => {
         clearThread();

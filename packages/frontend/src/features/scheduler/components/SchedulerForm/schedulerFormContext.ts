@@ -10,6 +10,7 @@ import {
     NotificationFrequency,
     SchedulerFormat,
     ThresholdOperator,
+    XlsxExportContent,
     type CreateSchedulerAndTargetsWithoutIds,
     type CreateSchedulerTarget,
     type Dashboard,
@@ -42,6 +43,7 @@ export interface SchedulerFormValues {
         asAttachment: boolean;
         exportPivotedData: boolean;
         xlsxFileLayout: NonNullable<SchedulerCsvOptions['xlsxFileLayout']>;
+        xlsxContent: XlsxExportContent;
     };
     emailTargets: string[];
     slackTargets: string[];
@@ -87,6 +89,7 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
         asAttachment: false,
         exportPivotedData: true,
         xlsxFileLayout: 'zip',
+        xlsxContent: XlsxExportContent.DATA,
     },
     emailTargets: [],
     slackTargets: [],
@@ -164,6 +167,7 @@ export const getFormValuesFromScheduler = (
         formOptions.asAttachment = options.asAttachment || false;
         formOptions.exportPivotedData = options.exportPivotedData !== false;
         formOptions.xlsxFileLayout = options.xlsxFileLayout ?? 'zip';
+        formOptions.xlsxContent = options.xlsxContent ?? XlsxExportContent.DATA;
     } else if (isSchedulerImageOptions(options)) {
         formOptions.withPdf = options.withPdf || false;
         formOptions.pagePerTab = options.pagePerTab || false;
@@ -251,6 +255,13 @@ export const transformFormValues = (
             xlsxFileLayout:
                 values.format === SchedulerFormat.XLSX
                     ? values.options.xlsxFileLayout
+                    : undefined,
+            // Only chart and dashboard deliveries can render charts as images
+            xlsxContent:
+                values.format === SchedulerFormat.XLSX &&
+                resourceType !== 'app' &&
+                values.options.xlsxContent === XlsxExportContent.CHART_IMAGE
+                    ? XlsxExportContent.CHART_IMAGE
                     : undefined,
         } satisfies SchedulerCsvOptions;
     } else if (values.format === SchedulerFormat.IMAGE) {

@@ -234,6 +234,8 @@ interface ServiceManifest {
     aiAgentMemoryService: unknown;
     homepageRecommendedActionSkipsService: unknown;
     semanticStudioService: unknown;
+    semanticStudioCheckoutService: unknown;
+    incrementalDbtCompileService: unknown;
     aiAgentReviewNotificationService: unknown;
     writebackPreviewService: unknown;
     appGenerateService: unknown;
@@ -1011,6 +1013,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     personalAccessTokenModel:
                         this.models.getPersonalAccessTokenModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -1159,12 +1162,9 @@ export class ServiceRepository
                                     .valid,
                         }),
                     groupsModel: this.models.getGroupsModel(),
-                    isCustomRolesLicensed: () =>
-                        this.getLicenseService().getLicenseStatus().valid,
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     agentCapabilityPolicyModel:
                         this.models.getAgentCapabilityPolicyModel(),
-                    userModel: this.models.getUserModel(),
                     projectModel: this.models.getProjectModel(),
                     agentActionLogModel: this.models.getAgentActionLogModel(),
                 }),
@@ -1488,6 +1488,7 @@ export class ServiceRepository
             const registry = QuerySourceRegistry.withBuiltInSources({
                 asyncQueryService: this.getAsyncQueryService(),
                 projectService: this.getProjectService(),
+                lightdashConfig: this.context.lightdashConfig,
             });
 
             return new QuerySourceService({
@@ -2261,6 +2262,18 @@ export class ServiceRepository
         SemanticStudioServiceImplT,
     >(): SemanticStudioServiceImplT {
         return this.getService('semanticStudioService');
+    }
+
+    public getSemanticStudioCheckoutService<
+        SemanticStudioCheckoutServiceImplT,
+    >(): SemanticStudioCheckoutServiceImplT {
+        return this.getService('semanticStudioCheckoutService');
+    }
+
+    public getIncrementalDbtCompileService<
+        IncrementalDbtCompileServiceImplT,
+    >(): IncrementalDbtCompileServiceImplT {
+        return this.getService('incrementalDbtCompileService');
     }
 
     public getAiAgentCoderService<

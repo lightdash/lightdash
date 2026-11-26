@@ -56,6 +56,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                         placeholder="Your first name"
                         disabled={isLoading}
                         required
+                        autoFocus
                         {...form.getInputProps('firstName')}
                     />
                     <TextInput

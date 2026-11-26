@@ -1,14 +1,5 @@
 import { type SqlChart } from '@lightdash/common';
-import {
-    Group,
-    Stack,
-    Title,
-    Button,
-    ActionIcon,
-    HoverCard,
-    Menu,
-    Tooltip,
-} from '@mantine/core';
+import { Button, ActionIcon, HoverCard, Menu, Tooltip } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
 import {
     IconArrowBack,
@@ -21,9 +12,15 @@ import { isEqual } from 'es-toolkit/compat';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { editorName } from '../../../../components/common/Page/editorName';
+import { HeaderInfoPopover } from '../../../../components/common/Page/HeaderInfoPopover';
+import {
+    HeaderActions,
+    HeaderHeading,
+    HeaderMain,
+    HeaderTitle,
+} from '../../../../components/common/Page/HeaderSlots';
 import PageHeader from '../../../../components/common/Page/PageHeader';
-import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
-import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
 import {
     cartesianChartSelectors,
     selectCompleteConfigByKind,
@@ -202,113 +199,112 @@ export const HeaderEdit: FC = () => {
 
     return (
         <>
-            <PageHeader variant="query">
-                <Group justify="space-between" flex={1} wrap="nowrap">
-                    <Stack gap={0} miw={0}>
-                        <Group gap={4} wrap="nowrap">
-                            <TitleBreadCrumbs
-                                projectUuid={savedSqlChart.project.projectUuid}
-                                spaceUuid={savedSqlChart.space.uuid}
-                                spaceName={savedSqlChart.space.name}
-                            />
-                            <Title order={5} maw={500} lineClamp={1}>
-                                {savedSqlChart.name}
-                            </Title>
+            <PageHeader variant="dashboard">
+                <HeaderMain miw={0} mr="sm">
+                    <HeaderTitle gap="xs" wrap="nowrap">
+                        <TitleBreadCrumbs
+                            size="sm"
+                            projectUuid={savedSqlChart.project.projectUuid}
+                            spaceUuid={savedSqlChart.space.uuid}
+                            spaceName={savedSqlChart.space.name}
+                        />
+                        <HeaderHeading order={6} lineClamp={1}>
+                            {savedSqlChart.name}
+                        </HeaderHeading>
+                        <HeaderInfoPopover
+                            label="Chart information"
+                            info={{
+                                resourceUuid: savedSqlChart.savedSqlUuid,
+                                projectUuid: savedSqlChart.project.projectUuid,
+                                description:
+                                    savedSqlChart.description ?? undefined,
+                                updatedAt: savedSqlChart.lastUpdatedAt,
+                                updatedBy: editorName(
+                                    savedSqlChart.lastUpdatedBy,
+                                ),
+                                viewStats: savedSqlChart.views,
+                                firstViewedAt: savedSqlChart.firstViewedAt,
+                                withChartData: false,
+                            }}
+                        />
+                        <Tooltip label="Edit details" position="bottom">
                             <ActionIcon
-                                size="xs"
+                                size="md"
+                                aria-label="Edit details"
                                 onClick={() => {
                                     dispatch(toggleModal('updateChartModal'));
                                 }}
                             >
                                 <MantineIcon icon={IconPencil} />
                             </ActionIcon>
-                        </Group>
-                        <Group gap="xs">
-                            <UpdatedInfo
-                                updatedAt={savedSqlChart.lastUpdatedAt}
-                                user={savedSqlChart.lastUpdatedBy}
-                                partiallyBold={false}
-                            />
-                            <ResourceInfoPopup
-                                resourceUuid={savedSqlChart.savedSqlUuid}
-                                projectUuid={savedSqlChart.project.projectUuid}
-                                description={
-                                    savedSqlChart.description ?? undefined
-                                }
-                                viewStats={savedSqlChart.views}
-                                firstViewedAt={savedSqlChart.firstViewedAt}
-                                withChartData={false}
-                            />
-                        </Group>
-                    </Stack>
+                        </Tooltip>
+                    </HeaderTitle>
+                </HeaderMain>
 
-                    <Group gap="xs">
-                        <HoverCard disabled={!hasUnrunChanges} withArrow>
-                            <HoverCard.Target>
-                                <Button
-                                    size="xs"
-                                    color={'green.7'}
-                                    disabled={!config || !sql || !hasChanges}
-                                    loading={isLoading}
-                                    onClick={onSaveClick}
-                                >
-                                    Save
-                                </Button>
-                            </HoverCard.Target>
-                            <HoverCard.Dropdown p={0} bg="yellow.0">
-                                <SqlQueryBeforeSaveAlert />
-                            </HoverCard.Dropdown>
-                        </HoverCard>
-
-                        {hasChanges ? (
+                <HeaderActions gap="xs" wrap="nowrap">
+                    <HoverCard disabled={!hasUnrunChanges} withArrow>
+                        <HoverCard.Target>
                             <Button
                                 size="xs"
+                                color={'green.7'}
+                                disabled={!config || !sql || !hasChanges}
+                                loading={isLoading}
+                                onClick={onSaveClick}
+                            >
+                                Save
+                            </Button>
+                        </HoverCard.Target>
+                        <HoverCard.Dropdown p={0} bg="yellow.0">
+                            <SqlQueryBeforeSaveAlert />
+                        </HoverCard.Dropdown>
+                    </HoverCard>
+
+                    {hasChanges ? (
+                        <Button
+                            size="xs"
+                            variant="default"
+                            onClick={handleGoBackToViewPage}
+                        >
+                            Cancel
+                        </Button>
+                    ) : (
+                        <Tooltip label="Back to view page" position="bottom">
+                            <ActionIcon
+                                data-testid="back-to-view-page-button"
+                                aria-label="Back to view page"
                                 variant="default"
+                                size="md"
                                 onClick={handleGoBackToViewPage}
                             >
-                                Cancel
-                            </Button>
-                        ) : (
-                            <Tooltip
-                                label="Back to view page"
-                                position="bottom"
+                                <MantineIcon icon={IconArrowBack} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                    <Menu position="bottom" withArrow width={200}>
+                        <Menu.Target>
+                            <ActionIcon
+                                variant="default"
+                                size="md"
+                                aria-label="Chart actions"
                             >
-                                <ActionIcon
-                                    data-testid="back-to-view-page-button"
-                                    variant="default"
-                                    size="md"
-                                    onClick={handleGoBackToViewPage}
-                                >
-                                    <MantineIcon icon={IconArrowBack} />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                        <Menu position="bottom" withArrow width={200}>
-                            <Menu.Target>
-                                <ActionIcon>
-                                    <MantineIcon icon={IconDots} />
-                                </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                <Menu.Label>Manage</Menu.Label>
-                                <Menu.Item
-                                    disabled={!config || !sql}
-                                    leftSection={
-                                        <MantineIcon icon={IconTrash} />
-                                    }
-                                    color="red"
-                                    onClick={() =>
-                                        dispatch(
-                                            toggleModal('deleteChartModal'),
-                                        )
-                                    }
-                                >
-                                    Delete
-                                </Menu.Item>
-                            </Menu.Dropdown>
-                        </Menu>
-                    </Group>
-                </Group>
+                                <MantineIcon icon={IconDots} />
+                            </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Label>Manage</Menu.Label>
+                            <Menu.Item
+                                disabled={!config || !sql}
+                                leftSection={<MantineIcon icon={IconTrash} />}
+                                color="red"
+                                onClick={() =>
+                                    dispatch(toggleModal('deleteChartModal'))
+                                }
+                            >
+                                Delete
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
+                </HeaderActions>
             </PageHeader>
             <SaveSqlChartModal
                 key={`${isSaveModalOpen}-saveChartModal`}

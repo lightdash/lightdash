@@ -7,6 +7,7 @@ import { useOrganizationGroups } from '../../hooks/useOrganizationGroups';
 import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import { AgentPermissionsSection } from './AgentPermissionsSection';
+import { AgentProjectExceptions } from './AgentProjectExceptions';
 import { type AgentSettingsAccess } from './agentSettingsAccess';
 import {
     useAgentCapabilityPolicy,
@@ -99,6 +100,7 @@ const AgentSettingsContent = ({ access }: { access: AgentSettingsAccess }) => {
                 loadError={hasError}
                 mcpSettings={access.agentsMcp ? (settings.data ?? null) : null}
             />
+            <AgentProjectExceptions projects={projects.data} />
         </>
     );
 };
@@ -110,9 +112,9 @@ export const AgentIdentitySettingsPage = ({
     if (!access.agentsPage) return null;
     return (
         <SettingsPage
-            title="Agents"
+            title="Agent Identity"
             breadcrumbs={[{ title: 'Organization settings' }]}
-            description="These rules apply to every project in this organization. Agents are Ask AI, the Slack agent, MCP clients and the CLI. Each project's shared agent account is in that project's settings."
+            description="Agents in Lightdash can take actions on behalf of a user, such as querying data or creating charts. Agents never gain permissions their user doesn't have. These settings let you restrict agents further, for example to stop agents from ever running raw SQL, even if the user can run it manually. Agent identity applies to Ask AI, the Slack agent, the CLI and MCP clients."
         >
             <AgentSettingsContent access={access} />
         </SettingsPage>
