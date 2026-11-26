@@ -3526,6 +3526,10 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         agent: AiAgent,
     ): Promise<boolean> {
+        // The Studio builder follows Studio's permission, not Ask AI's, on the reads Studio still makes here.
+        if (agent.kind === 'semantic_studio') {
+            return this.canUseStudio(user, agent.projectUuid);
+        }
         return canAccessAiAgent(user, agent, {
             auditedAbility: this.createAuditedAbility(user),
             groupsModel: this.groupsModel,
@@ -3741,6 +3745,20 @@ export class AiAgentService extends BaseService {
         agent: AiAgent,
         threadUserUuid: string,
     ): Promise<boolean> {
+        // A Studio chat is its owner's, or anyone's who manages agents, as other chats are.
+        if (agent.kind === 'semantic_studio') {
+            return (
+                (await this.canUseStudio(user, agent.projectUuid)) &&
+                (threadUserUuid === user.userUuid ||
+                    this.createAuditedAbility(user).can(
+                        'manage',
+                        subject('AiAgent', {
+                            organizationUuid: agent.organizationUuid,
+                            projectUuid: agent.projectUuid,
+                        }),
+                    ))
+            );
+        }
         return canAccessAiAgentThread(user, agent, threadUserUuid, {
             auditedAbility: this.createAuditedAbility(user),
             groupsModel: this.groupsModel,
@@ -6001,6 +6019,7 @@ export class AiAgentService extends BaseService {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
 
+        AiAgentService.assertNotStudioOnAgentRoute(agent, body.createdFrom);
         const hasAccess = await this.checkAgentAccess(user, agent);
         if (!hasAccess) {
             throw new ForbiddenError(
@@ -6306,6 +6325,7 @@ export class AiAgentService extends BaseService {
         await this.assertDataAppThreadContinuable(thread, organizationUuid);
 
         // Check if user has access to create messages for this agent's thread
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -8546,6 +8566,29 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    private async canUseStudio(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        return (await this.semanticStudioService.getStatus(user, projectUuid))
+            .enabled;
+    }
+
+    // Studio's conversations run through Studio's own routes; to an agent's thread routes they do not exist.
+    private static assertNotStudioOnAgentRoute(
+        agent: Pick<AiAgent, 'uuid' | 'kind'>,
+        createdFrom: AiThreadCreatedFrom | undefined,
+    ): void {
+        if (
+            agent.kind === 'semantic_studio' ||
+            isSemanticStudioThread(createdFrom)
+        ) {
+            throw new AiAgentNotFoundError(
+                `AI agent not found for uuid: ${agent.uuid}`,
+            );
+        }
+    }
+
     private async getManageableAgentOrThrow(
         user: SessionUser,
         agentUuid: string,
@@ -8964,6 +9007,7 @@ export class AiAgentService extends BaseService {
             throw new NotFoundError(`Agent not found`);
         }
 
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -9747,6 +9791,7 @@ export class AiAgentService extends BaseService {
         if (!thread) {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -9856,6 +9901,7 @@ export class AiAgentService extends BaseService {
             thread,
             user.organizationUuid,
         );
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
