@@ -1,3 +1,11 @@
+# [3.416.0](https://github.com/lightdash/lightdash/compare/3.415.5...3.416.0) (2026-11-26)
+
+
+### Features
+
+* **semantic-studio:** give the builder chat its own thread routes ([#33492](https://github.com/lightdash/lightdash/issues/33492)) ([08eb62e](https://github.com/lightdash/lightdash/commit/08eb62e87262f05e5f067e665162e2bd20996d72))
+* **semantic-studio:** the builder chat calls its own thread routes ([#33493](https://github.com/lightdash/lightdash/issues/33493)) ([658371c](https://github.com/lightdash/lightdash/commit/658371cb7074b3cbee978f575e95ac96c74156c8))
+
 ## [3.415.5](https://github.com/lightdash/lightdash/compare/3.415.4...3.415.5) (2026-11-26)
 
 
