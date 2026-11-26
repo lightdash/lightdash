@@ -183,7 +183,7 @@ const AnalyticsOverview = ({
     status?: ReactNode;
     actions: ReactNode;
 }) => {
-    const [days, setDays] = useState('7');
+    const [days, setDays] = useState('30');
     const [selectedProject, setSelectedProject] = useState<string | null>(null);
     const [searchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState(() =>
@@ -264,8 +264,9 @@ const AnalyticsOverview = ({
         !isAdoption && !isDashboard && !isWaitingForDashboard;
     const charts = showsOwnCharts ? tab.charts : [];
     const summary = showsOwnCharts ? tab.summary : null;
-    // The headline numbers summarise the whole instance, so they sit on the first tab only
-    const showHeadlines = tab.id === 'overview';
+    // The headline numbers summarise the whole instance, so they sit on the first tab only, and only while
+    // that tab draws its own charts: the Overview dashboard has its own headline cards
+    const showHeadlines = tab.id === 'overview' && showsOwnCharts;
     const headlineSpecs = showHeadlines
         ? analyticsHeadlineMetrics.map(({ query }) => query)
         : [];
@@ -290,11 +291,18 @@ const AnalyticsOverview = ({
     );
     const lastDay = new Date(`${filters.end}T00:00:00Z`);
     lastDay.setUTCDate(lastDay.getUTCDate() - 1);
-    const dateLabel = `${new Date(`${filters.start}T00:00:00Z`).toLocaleDateString(undefined, { dateStyle: 'medium', timeZone: 'UTC' })} – ${lastDay.toLocaleDateString(undefined, { dateStyle: 'medium', timeZone: 'UTC' })} (UTC)`;
+    // One range, so a year the two days share is written once: "Oct 26 – Nov 24, 2026"
+    const dateLabel = `${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeZone: 'UTC' }).formatRange(new Date(`${filters.start}T00:00:00Z`), lastDay)} (UTC)`;
 
     const dateNote = (
         <Tooltip label="Excludes today so every day in the range is complete.">
-            <Text fz="xs" c="dimmed" ta="right" tabIndex={0}>
+            <Text
+                fz="xs"
+                c="dimmed"
+                ta="right"
+                tabIndex={0}
+                className={classes.dateNote}
+            >
                 {dateLabel}
             </Text>
         </Tooltip>
@@ -341,7 +349,7 @@ const AnalyticsOverview = ({
             onChange={setDays}
             data={analyticsDateRangeDays.map((range) => ({
                 value: String(range),
-                label: `Last ${range} days`,
+                label: `${range} days`,
             }))}
         />
     );
@@ -511,6 +519,16 @@ const AnalyticsOverview = ({
                         }
                         aria-hidden={!isAdoption || undefined}
                     >
+                        {/* The same form as the text above a section of a dashboard: a bold title, one line under it */}
+                        <Box mb="sm">
+                            <Text fz="sm" fw={600}>
+                                Adoption by team
+                            </Text>
+                            <Text fz="sm">
+                                Usage and feature adoption across your
+                                organization, team by team.
+                            </Text>
+                        </Box>
                         <AnalyticsAdoptionPreview
                             projectUuid={projectUuid}
                             app={adoptionApp}

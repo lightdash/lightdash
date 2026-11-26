@@ -21,6 +21,7 @@ const create = (
         mode,
         scopes,
         clientId: 'client',
+        user: { userUuid: 'user-uuid', organizationUuid: 'organization-uuid' },
         getRequest: () => request,
     });
 
@@ -117,12 +118,36 @@ describe.each(['log', 'enforce'] as const)(
                     mode,
                     clientId: 'client',
                     scopes: ['read'],
+                    userUuid: 'user-uuid',
+                    organizationUuid: 'organization-uuid',
                     method: 'POST',
                     routeTemplate: '/projects/:projectUuid/charts',
                     toolName: null,
                     action: 'create',
                     subjectType: 'SavedChart',
                 },
+            );
+        });
+
+        it('logs a URL client id without its query and no identity when none is given', () => {
+            createOAuthScopedAbility(
+                new Ability<PossibleAbilities>([
+                    { action: 'manage', subject: 'all' },
+                ]),
+                {
+                    mode,
+                    scopes: [],
+                    clientId: 'https://client.example/metadata.json?token=x',
+                    getRequest: () => request,
+                },
+            ).can('create', 'SavedChart');
+            expect(Logger.warn).toHaveBeenCalledWith(
+                'oauth_scope_refusal',
+                expect.objectContaining({
+                    clientId: 'https://client.example/metadata.json',
+                    userUuid: null,
+                    organizationUuid: null,
+                }),
             );
         });
 

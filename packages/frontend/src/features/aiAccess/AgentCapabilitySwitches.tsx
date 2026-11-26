@@ -58,10 +58,12 @@ export const AgentCapabilitySwitches = ({
     draft,
     onChange,
     disabled,
+    scope = 'organization',
 }: {
     draft: AgentPermissionDraft;
     onChange: (draft: AgentPermissionDraft) => void;
     disabled: boolean;
+    scope?: 'organization' | 'project';
 }) => {
     const allowed = new Set(draft.allowedCapabilities);
     const developerCount = developer.filter((cap) => allowed.has(cap)).length;
@@ -117,26 +119,32 @@ export const AgentCapabilitySwitches = ({
                     </Accordion.Panel>
                 </Accordion.Item>
             </Accordion>
-            <Callout variant="info">
-                <Stack gap="xs">
-                    <Text size="sm">
-                        These permissions apply to every role, custom roles
-                        included.
-                    </Text>
-                    <Text size="sm">
-                        Custom roles keep their own agent permissions.{' '}
-                        <Anchor
-                            component={Link}
-                            to="/generalSettings/customRoles"
-                            size="sm"
-                        >
-                            Custom roles
-                        </Anchor>
-                    </Text>
-                </Stack>
-            </Callout>
+            {scope === 'organization' && (
+                <Callout variant="info">
+                    <Stack gap="xs">
+                        <Text size="sm">
+                            These permissions apply to every role, custom roles
+                            included.
+                        </Text>
+                        <Text size="sm">
+                            Custom roles keep their own agent permissions.{' '}
+                            <Anchor
+                                component={Link}
+                                to="/generalSettings/customRoles"
+                                size="sm"
+                            >
+                                Custom roles
+                            </Anchor>
+                        </Text>
+                    </Stack>
+                </Callout>
+            )}
             {draft.allowedCapabilities.length === 0 && (
-                <Text size="sm">Agents are turned off for everyone.</Text>
+                <Text size="sm">
+                    {scope === 'organization'
+                        ? 'Agents are turned off for everyone.'
+                        : 'Agents are turned off in this project.'}
+                </Text>
             )}
         </Stack>
     );

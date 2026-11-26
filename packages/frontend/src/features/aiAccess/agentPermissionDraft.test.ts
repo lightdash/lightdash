@@ -83,20 +83,18 @@ describe('agent permission draft', () => {
         expect(draft).not.toHaveProperty('systemRoleMatrix');
         expect(count(baseline, draft)).toBe(1);
     });
-    it('recognises Read and query only with the exact list', () => {
-        const draft = chooseAgentPermission(
-            policyToDraft(policy()),
-            'read',
-            policyToDraft(policy()),
+    it('chooses Restrict for every managed list and No restrictions for legacy', () => {
+        const draft = policyToDraft(
+            policy({ mode: 'managed', allowedCapabilities: read }),
         );
         expect(draft.allowedCapabilities).toEqual(read);
-        expect(getAgentPermissionChoice(draft)).toBe('read');
+        expect(getAgentPermissionChoice(draft)).toBe('custom');
         expect(
             getAgentPermissionChoice({
                 ...draft,
                 allowedCapabilities: [...read].reverse(),
             }),
-        ).toBe('read');
+        ).toBe('custom');
         expect(
             getAgentPermissionChoice({
                 ...draft,
@@ -110,28 +108,12 @@ describe('agent permission draft', () => {
             'person',
         );
     });
-    it('starts Custom fully enabled after the Read choice', () => {
-        const draft = chooseAgentPermission(
-            policyToDraft(policy()),
-            'read',
-            policyToDraft(policy()),
-        );
-        const custom = chooseAgentPermission(
-            draft,
-            'custom',
-            policyToDraft(policy()),
-        );
-        expect(custom.allowedCapabilities).toEqual(all);
-    });
-    it('counts named choices once and group changes separately', () => {
+    it('counts No restrictions once and group changes separately', () => {
         const base = policyToDraft(policy());
-        const readDraft = chooseAgentPermission(base, 'read', base);
-        expect(count(base, readDraft)).toBe(1);
-        expect(count(base, { ...readDraft, allowedGroupUuids: ['a'] })).toBe(2);
         const custom = chooseAgentPermission(base, 'custom', base);
-        expect(
-            count(custom, chooseAgentPermission(custom, 'person', custom)),
-        ).toBe(1);
+        const person = chooseAgentPermission(custom, 'person', custom);
+        expect(count(custom, person)).toBe(1);
+        expect(count(custom, { ...person, allowedGroupUuids: ['a'] })).toBe(2);
         expect(
             count(
                 base,
@@ -141,11 +123,11 @@ describe('agent permission draft', () => {
                 ),
             ),
         ).toBe(3);
+        const readDraft = policyToDraft(
+            policy({ mode: 'managed', allowedCapabilities: read }),
+        );
         expect(
-            count(
-                readDraft,
-                chooseAgentPermission(readDraft, 'custom', readDraft),
-            ),
+            count(readDraft, { ...readDraft, allowedCapabilities: all }),
         ).toBe(7);
     });
     it('restores saved Custom capabilities', () => {
@@ -157,8 +139,9 @@ describe('agent permission draft', () => {
         const base = policyToDraft(
             policy({ mode: 'managed', allowedCapabilities: nine }),
         );
-        const readDraft = chooseAgentPermission(base, 'read', base);
-        const restored = chooseAgentPermission(readDraft, 'custom', base);
+        const person = chooseAgentPermission(base, 'person', base);
+        expect(person.allowedCapabilities).toEqual(all);
+        const restored = chooseAgentPermission(person, 'custom', base);
         expect(restored).toEqual(base);
         expect(count(base, restored)).toBe(0);
         expect(chooseAgentPermission(base, 'custom', base)).toBe(base);

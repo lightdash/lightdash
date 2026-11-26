@@ -440,28 +440,43 @@ its stored deadline has passed. Non-agent Snowflake authentication is unchanged.
 
 ### OAuth scope enforcement
 
-`agent-identity` also enables OAuth scope checks. With that flag off, OAuth
-permissions and scope validation keep their existing behaviour. With it on,
-checks log refusals but preserve existing decisions by default.
-
-`oauth-scope-enforcement` changes those checks from log mode to enforcement.
-It is off by default, has no custom handler and is only resolved when
-`agent-identity` is enabled. Enforcement limits OAuth tokens to their scopes,
-filters MCP tools and rejects invalid requested scopes at grant issuance.
+OAuth scope enforcement has no feature flag. Every OAuth bearer token is
+limited to its granted scopes on every request: `read` and `mcp:read` allow
+read operations, `write` and `mcp:write` also allow writes, and MCP tools
+need `mcp:read` or `mcp:write`. A token with no scopes has no access.
 Personal access tokens, sessions and service accounts keep their permissions.
 
-When `agent-identity` is on, OAuth callers cannot create or rotate personal
-access tokens or service accounts, manage OAuth clients, or rotate SCIM tokens.
-This separate credential guard refuses requests in both log and enforce mode.
-Authentication failures also keep their existing refusal behaviour in both modes.
+At grant issuance, an authorize request without a scope receives the scopes
+registered for the client. Unknown scope names, such as `openid` or
+`offline_access`, are ignored: the token gets only the known scopes, the token
+response lists the granted scopes, and each request that drops names logs
+`oauth_scope_ignored`. The request fails with `invalid_scope` when the client
+has no registered scopes or when every requested name is unknown.
+Admin-created clients can only request scopes they registered. Self-registered
+and URL-identified clients can request any known scope, because their
+registration is not authenticated. The same rules apply on refresh. The
+consent page lists the resolved scopes.
+Refreshing a token that has no scopes gives it the client's registered scopes.
+Each use of the registered scopes logs `oauth_scope_defaulted`. Admin-created
+OAuth clients are registered with `read`, `write`, `mcp:read` and `mcp:write`.
 
-Both checks use the authenticated user's organisation and user UUID. Console
-organisation and user overrides apply through the standard resolver. Generic
-ENV enable/disable lists keep the precedence described above. There is no
-separate OAuth-scope ENV setting. Console changes apply to the next request or
-grant validation; ENV changes require a process restart. Disabling enforcement
-restores log mode. Disabling agent identity restores the previous behaviour
-without scope-refusal records. Neither change revokes issued tokens.
+OAuth tokens cannot create or rotate personal access tokens, service accounts
+or SCIM tokens, manage OAuth clients, or run Learn sandbox commands. Each
+refusal logs `oauth_credential_mint_refused` with the operation, client id,
+scopes, user, organization and the CLI version from the user agent when
+present.
+
+One temporary exception keeps browser login in CLI releases before 3.88.0
+working until 15 March 2027 (`CLI_OAUTH_PAT_COMPAT_UNTIL` in
+`auth/oauthScopes/credentials.ts`). A token for the `lightdash-cli` client
+with the `write` scope, not bound to an agent connection, in an organization
+without `agent-identity`, can create a personal access token. That token
+expires after at most 8 hours. Each use logs `oauth_cli_pat_compat_used`.
+Rotation and every other credential operation stay refused. The personal
+access token itself cannot be rotated and cannot create or rotate credentials,
+and each refusal logs `oauth_cli_pat_credential_refused`. After that date, old
+CLI browser login fails with `Failed to create PAT: 403 Forbidden`; upgrade the
+CLI to 3.88.0 or later, or use `lightdash login --token`.
 
 ### Personal credential overlay
 

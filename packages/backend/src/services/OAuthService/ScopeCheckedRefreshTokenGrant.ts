@@ -1,7 +1,8 @@
 import OAuth2Server from '@node-oauth/oauth2-server';
 import RefreshTokenGrantType from '@node-oauth/oauth2-server/lib/grant-types/refresh-token-grant-type';
+import { parseScope } from '@node-oauth/oauth2-server/lib/utils/scope-util';
 import { randomUUID } from 'node:crypto';
-import { OAuthScopeMode } from '../../auth/oauthScopes/mode';
+import { splitOAuthScopes } from '../../auth/oauthScopes/mode';
 import { resolveGrantedOAuthResource } from '../../auth/oauthScopes/oauthResources';
 import {
     OAuthTokenBinding,
@@ -9,12 +10,17 @@ import {
 } from '../../auth/oauthScopes/oauthTokenBinding';
 
 export const createScopeCheckedRefreshTokenGrant = (
-    resolveMode: (user: OAuth2Server.User) => Promise<OAuthScopeMode | null>,
     resolveStrict: (user: OAuth2Server.User) => Promise<boolean>,
     siteUrl: string,
     assertMobileAppAccess: (
         client: OAuth2Server.Client,
         user: OAuth2Server.User,
+    ) => Promise<void>,
+    recordScopeResolution: (
+        client: OAuth2Server.Client,
+        user: OAuth2Server.User,
+        requested: string[],
+        resolved: string[],
     ) => Promise<void>,
 ) =>
     class ScopeCheckedRefreshTokenGrant extends RefreshTokenGrantType {
@@ -90,8 +96,6 @@ export const createScopeCheckedRefreshTokenGrant = (
                     token.resource ?? null,
                 );
             }
-            const mode = await resolveMode(token.user);
-            if (mode === null) return token;
             const scope = this.getScope(request, token);
             const validated = await this.validateScope(
                 token.user,
@@ -103,6 +107,32 @@ export const createScopeCheckedRefreshTokenGrant = (
                     'Invalid scope: requested scope is invalid',
                 );
             }
-            return token;
+            await recordScopeResolution(
+                client,
+                token.user,
+                parseScope(request.body.scope) ?? token.scope ?? [],
+                validated,
+            );
+            return { ...token, scope: validated };
+        }
+
+        getScope(
+            request: OAuth2Server.Request,
+            token: OAuth2Server.Token,
+        ): string[] | undefined {
+            const requested = parseScope(request.body.scope);
+            if (requested === undefined) return super.getScope(request, token);
+            const { known } = splitOAuthScopes(requested);
+            if (known.length === 0)
+                throw new OAuth2Server.InvalidScopeError(
+                    'Invalid scope: requested scope is invalid',
+                );
+            return super.getScope(
+                {
+                    ...request,
+                    body: { ...request.body, scope: known.join(' ') },
+                } as OAuth2Server.Request,
+                token,
+            );
         }
     };

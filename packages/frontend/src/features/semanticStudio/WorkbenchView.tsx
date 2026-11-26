@@ -773,11 +773,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             };
     const [attached, setAttached] = useState<StudioChatRef[]>([]);
     const attachToChat = (ref: StudioChatRef) => {
-        setAttached((current) =>
-            current.some((item) => sameStudioChatRef(item, ref))
-                ? current
-                : [...current, ref],
-        );
+        // The same lines again replace what was attached, since they may have been edited since.
+        setAttached((current) => [
+            ...current.filter((item) => !sameStudioChatRef(item, ref)),
+            ref,
+        ]);
         setIsChatOpen(true);
     };
     const askAgent = (prompt: string) => {
@@ -1036,7 +1036,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                 icon: null,
                                 title: 'Pick a file',
                                 description:
-                                    'Open one from the list to read it. Editing a file starts a draft.',
+                                    'Open one from the list to read or edit it. Saving a change starts a draft.',
                             };
                     return (
                         <EmptyState

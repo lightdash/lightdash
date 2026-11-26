@@ -17086,6 +17086,59 @@
                 ],
                 "description": "Connector settings of a live source; the server fixes its access rules."
             },
+            "Record_string.string-Array_": {
+                "properties": {},
+                "additionalProperties": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "LiveSourceAccessRule": {
+                "properties": {
+                    "any": {
+                        "$ref": "#/components/schemas/Record_string.string-Array_",
+                        "description": "At least one attribute must match one of its values."
+                    },
+                    "required": {
+                        "$ref": "#/components/schemas/Record_string.string-Array_",
+                        "description": "Every attribute must match one of its values."
+                    }
+                },
+                "required": ["any", "required"],
+                "type": "object",
+                "description": "Who can query a live data source, as user attribute conditions. The rule is\ncopied onto each of the source's explores (`required_attributes` and\n`any_attributes` on the base table), so every explore check applies it.\nEmpty conditions mean everyone who can query the project can query it."
+            },
+            "LiveSourceRateLimitSettings": {
+                "properties": {
+                    "concurrentCalls": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Calls in flight at once."
+                    },
+                    "callsPerSecond": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "buckets": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "type": "object",
+                        "description": "Calls allowed in a time window, by bucket id."
+                    }
+                },
+                "required": ["concurrentCalls", "callsPerSecond", "buckets"],
+                "type": "object",
+                "description": "The limits an admin set on one live data source. Each lowers the\nintegration's own limit; a window left out of `buckets`, or a null value,\nkeeps it."
+            },
             "ExternalConnection": {
                 "properties": {
                     "updatedAt": {
@@ -17107,6 +17160,24 @@
                     "hasSecret": {
                         "type": "boolean"
                     },
+                    "adminRateLimits": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LiveSourceRateLimitSettings"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Live sources: the lower rate limits an admin set; null when none are set."
+                    },
+                    "accessRule": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LiveSourceAccessRule"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Live sources: who can query it, as user attribute conditions; null when\neveryone in the project can. Returned only to those who manage it."
+                    },
                     "cachePurgedAt": {
                         "type": "string",
                         "format": "date-time",
@@ -17123,6 +17194,14 @@
                         "type": "string",
                         "nullable": true,
                         "description": "The name the connection picker showed for the source's target."
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Live sources: tags its explores carry, so an AI agent limited to tags\ncan use the source when they share one."
                     },
                     "aiHint": {
                         "type": "string",
@@ -17833,6 +17912,11 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "queries": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Logged queries on the source, whether or not a stored result answered them."
+                    },
                     "windowDays": {
                         "type": "number",
                         "format": "double",
@@ -17847,6 +17931,7 @@
                     "responseBytes",
                     "cacheHits",
                     "apiCalls",
+                    "queries",
                     "windowDays",
                     "externalConnectionUuid"
                 ],
@@ -17997,9 +18082,16 @@
                         "format": "double",
                         "description": "Calls in the current window; 0 when no window is open."
                     },
+                    "defaultCapacity": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "The integration's own limit; null for a daily limit only an admin set."
+                    },
                     "capacity": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "The limit in force: the integration's, or an admin's lower one."
                     },
                     "windowMs": {
                         "type": "number",
@@ -18016,16 +18108,47 @@
                 "required": [
                     "resetsAt",
                     "used",
+                    "defaultCapacity",
                     "capacity",
                     "windowMs",
                     "label",
                     "id"
                 ],
                 "type": "object",
-                "description": "One of an integration's declared limits, with Lightdash's calls in its current window."
+                "description": "One limit on calls in a time window, with Lightdash's calls in its current window."
             },
             "ExternalConnectionRateLimitUsage": {
                 "properties": {
+                    "note": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "What admins are told alongside the limits they can lower."
+                    },
+                    "runningCalls": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Calls in flight, never above the concurrency limit now in force."
+                    },
+                    "defaultConcurrentCalls": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "The integration's own limit on calls in flight at once."
+                    },
+                    "defaultCallsPerSecond": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "The integration's own limit; null when it has no per-second limit."
+                    },
+                    "adminRateLimits": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LiveSourceRateLimitSettings"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "What an admin set, as saved; null when nothing is set."
+                    },
                     "limitedUntil": {
                         "type": "string",
                         "nullable": true,
@@ -18047,13 +18170,18 @@
                     }
                 },
                 "required": [
+                    "note",
+                    "runningCalls",
+                    "defaultConcurrentCalls",
+                    "defaultCallsPerSecond",
+                    "adminRateLimits",
                     "limitedUntil",
                     "buckets",
                     "checkedAt",
                     "integrationLabel"
                 ],
                 "type": "object",
-                "description": "Lightdash's own calls against an integration's declared rate limits, as of\n`checkedAt`. Other apps on the same vendor account aren't counted."
+                "description": "A live data source's rate limits, with Lightdash's own calls against them as\nof `checkedAt`. Other apps on the same vendor account aren't counted."
             },
             "ApiExternalConnectionRateLimitUsageResponse": {
                 "properties": {
@@ -18268,6 +18396,14 @@
                     },
                     {
                         "properties": {
+                            "tags": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "nullable": true,
+                                "description": "Live sources only. Empty or null clears them."
+                            },
                             "aiHint": {
                                 "type": "string",
                                 "nullable": true,
@@ -18289,6 +18425,48 @@
                 "required": ["ttlSeconds"],
                 "type": "object",
                 "description": "Null puts the source back on its integration's default."
+            },
+            "LiveSourceAccess": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/LiveSourceAccessRule"
+                    },
+                    {
+                        "properties": {
+                            "yourAttributes": {
+                                "$ref": "#/components/schemas/Record_string.string-Array_",
+                                "description": "The caller's own attribute values, to warn before a rule locks them out."
+                            },
+                            "attributeNames": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "The organization's user attributes, which conditions can name."
+                            }
+                        },
+                        "required": ["yourAttributes", "attributeNames"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A live data source's access rule, with what the people who manage it need to edit it."
+            },
+            "ApiLiveSourceAccessResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LiveSourceAccess"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUpdateLiveSourceRateLimitsRequest": {
+                "$ref": "#/components/schemas/LiveSourceRateLimitSettings"
             },
             "LiveSourceFieldEditor": {
                 "properties": {
@@ -22163,17 +22341,6 @@
             },
             "PreAggregateSort": {
                 "$ref": "#/components/schemas/Pick_SortField.fieldId-or-descending_"
-            },
-            "Record_string.string-Array_": {
-                "properties": {},
-                "additionalProperties": {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
             },
             "UserAttributeValueMap": {
                 "$ref": "#/components/schemas/Record_string.string-Array_"
@@ -26442,7 +26609,7 @@
                 },
                 "required": ["text", "endMs", "startMs"],
                 "type": "object",
-                "description": "One spoken word from a Voice Design recording, timed from the start of its audio."
+                "description": "One spoken word from a Design Mode recording, timed from the start of its audio."
             },
             "ApiSuccess__words-CaptureTranscriptWord-Array__": {
                 "properties": {
@@ -29985,313 +30152,6 @@
                     }
                 },
                 "required": ["projectUuid", "prompt"],
-                "type": "object"
-            },
-            "CaptureLayoutOp": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "y": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "x": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "tileUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["move"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["y", "x", "tileUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "h": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "w": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "tileUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["resize"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["h", "w", "tileUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "withTileUuid": {
-                                "type": "string"
-                            },
-                            "tileUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["swap"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["withTileUuid", "tileUuid", "type"],
-                        "type": "object"
-                    }
-                ],
-                "description": "A layout change the page applies itself, without an agent."
-            },
-            "CaptureQuestion": {
-                "properties": {
-                    "tileUuids": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "text": {
-                        "type": "string"
-                    }
-                },
-                "required": ["tileUuids", "text"],
-                "type": "object",
-                "description": "A question to hand to the AI agent, with the tiles it is about."
-            },
-            "CaptureEdit": {
-                "properties": {
-                    "tileUuids": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "text": {
-                        "type": "string"
-                    }
-                },
-                "required": ["tileUuids", "text"],
-                "type": "object",
-                "description": "A change to the dashboard that an agent carries out (a filter, a new chart, a rename)."
-            },
-            "CaptureRoute": {
-                "properties": {
-                    "edits": {
-                        "items": {
-                            "$ref": "#/components/schemas/CaptureEdit"
-                        },
-                        "type": "array"
-                    },
-                    "questions": {
-                        "items": {
-                            "$ref": "#/components/schemas/CaptureQuestion"
-                        },
-                        "type": "array"
-                    },
-                    "layout": {
-                        "items": {
-                            "$ref": "#/components/schemas/CaptureLayoutOp"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["edits", "questions", "layout"],
-                "type": "object"
-            },
-            "ApiSuccess_CaptureRoute_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/CaptureRoute"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiCaptureRouteResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_CaptureRoute_"
-            },
-            "CaptureRouteTile": {
-                "properties": {
-                    "h": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "w": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "y": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "x": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "title": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["h", "w", "y", "x", "title", "uuid"],
-                "type": "object",
-                "description": "A dashboard tile as the capture router sees it, in grid units."
-            },
-            "CaptureRoutePlace": {
-                "properties": {
-                    "cell": {
-                        "properties": {
-                            "y": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "x": {
-                                "type": "number",
-                                "format": "double"
-                            }
-                        },
-                        "required": ["y", "x"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "tileUuid": {
-                        "type": "string",
-                        "nullable": true
-                    }
-                },
-                "required": ["cell", "tileUuid"],
-                "type": "object",
-                "description": "Where a mark points: a tile, an empty grid cell, or nothing known."
-            },
-            "CaptureRouteMark": {
-                "properties": {
-                    "speech": {
-                        "type": "string"
-                    },
-                    "inside": {
-                        "items": {
-                            "properties": {
-                                "share": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "tileUuid": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["share", "tileUuid"],
-                            "type": "object"
-                        },
-                        "type": "array",
-                        "description": "Tiles under the area the mark encloses, with the percent of that area on each."
-                    },
-                    "path": {
-                        "items": {
-                            "$ref": "#/components/schemas/CaptureRoutePlace"
-                        },
-                        "type": "array",
-                        "description": "Everything the stroke passed over, in the order it was drawn."
-                    },
-                    "arrowTo": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/CaptureRoutePlace"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Where an arrow ends. Null for marks that are not arrows."
-                    },
-                    "at": {
-                        "$ref": "#/components/schemas/CaptureRoutePlace"
-                    },
-                    "shape": {
-                        "type": "string"
-                    },
-                    "image": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Which attached screenshot shows this mark, from 1. Zero when none."
-                    },
-                    "number": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": [
-                    "speech",
-                    "inside",
-                    "path",
-                    "arrowTo",
-                    "at",
-                    "shape",
-                    "image",
-                    "number"
-                ],
-                "type": "object",
-                "description": "One drawn mark from a Voice Design recording and the words said with it."
-            },
-            "ApiCaptureRouteRequest": {
-                "properties": {
-                    "images": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "Screenshots with the marks drawn on, as base64 JPEG, in order."
-                    },
-                    "looseSpeech": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "Things said that were not attached to any mark."
-                    },
-                    "marks": {
-                        "items": {
-                            "$ref": "#/components/schemas/CaptureRouteMark"
-                        },
-                        "type": "array"
-                    },
-                    "tiles": {
-                        "items": {
-                            "$ref": "#/components/schemas/CaptureRouteTile"
-                        },
-                        "type": "array"
-                    },
-                    "gridColumns": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "dashboardName": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "images",
-                    "looseSpeech",
-                    "marks",
-                    "tiles",
-                    "gridColumns",
-                    "dashboardName"
-                ],
                 "type": "object"
             },
             "ApiAiRouterDecisionCommitResponse": {
@@ -62883,6 +62743,10 @@
             },
             "SchedulerDetails": {
                 "properties": {
+                    "superseded": {
+                        "type": "boolean",
+                        "description": "Set on a Google Sheets sync run that stopped because a newer run of the same sync took over the tab. Not a failure."
+                    },
                     "thresholdStatus": {
                         "$ref": "#/components/schemas/ThresholdStatus",
                         "description": "Set when a threshold-alert scheduler completed without sending a notification because the threshold was not met."
@@ -81780,6 +81644,73 @@
                 },
                 "type": "object",
                 "additionalProperties": true
+            },
+            "AgentProjectCapabilityPolicy": {
+                "description": "A project's own agent restrictions. When a project has one, it replaces the\norganization's restrictions for that project.",
+                "properties": {
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "allowedCapabilities": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Null means agents have no restrictions in this project."
+                    }
+                },
+                "required": ["projectUuid", "allowedCapabilities"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentProjectPoliciesResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentProjectCapabilityPolicy"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["status", "results"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentProjectPolicyResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {
+                        "$ref": "#/components/schemas/AgentProjectCapabilityPolicy"
+                    }
+                },
+                "required": ["status", "results"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentProjectCapabilityPolicySave": {
+                "properties": {
+                    "allowedCapabilities": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Null means agents have no restrictions in this project."
+                    }
+                },
+                "required": ["allowedCapabilities"],
+                "type": "object",
+                "additionalProperties": true
             }
         },
         "securitySchemes": {
@@ -81798,7 +81729,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.402.0",
+        "version": "3.411.6",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -88912,56 +88843,6 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/AiRouterRouteRequest"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/org/aiRouter/capture/{projectUuid}": {
-            "post": {
-                "operationId": "routeDashboardCapture",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiCaptureRouteResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Sort a Voice Design recording made on a dashboard into layout changes\nand questions for an agent.",
-                "summary": "Route dashboard capture",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ApiCaptureRouteRequest"
                             }
                         }
                     }
@@ -129408,6 +129289,128 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v2/org/agent-permissions/projects": {
+            "get": {
+                "operationId": "getProjectAgentCapabilityPolicies",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentProjectPoliciesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the projects that have their own agent restrictions",
+                "summary": "List project agent restrictions",
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v2/org/agent-permissions/projects/{projectUuid}": {
+            "put": {
+                "operationId": "saveProjectAgentCapabilityPolicy",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentProjectPolicyResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Give a project its own agent restrictions, replacing the organization's for that project",
+                "summary": "Save project agent restrictions",
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AgentProjectCapabilityPolicySave"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteProjectAgentCapabilityPolicy",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove a project's own agent restrictions so it follows the organization again",
+                "summary": "Remove project agent restrictions",
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         }
     },

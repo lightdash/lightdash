@@ -9,7 +9,12 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconInfoCircle, IconPlus, IconSettings } from '@tabler/icons-react';
+import {
+    IconInfoCircle,
+    IconLock,
+    IconPlus,
+    IconSettings,
+} from '@tabler/icons-react';
 import {
     type FC,
     type KeyboardEvent,
@@ -18,13 +23,10 @@ import {
 } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import tableClasses from '../../../components/common/sourceTable.module.css';
-import { useResultsCacheStatus } from '../../../hooks/useProjectResultsCacheSettings';
 import { useExternalConnectionApiUsage } from '../hooks/useExternalConnectionApiUsage';
-import { useExternalConnectionRateLimitUsage } from '../hooks/useExternalConnectionRateLimitUsage';
 import { useExternalConnections } from '../hooks/useExternalConnections';
 import { useLiveSourceFields } from '../hooks/useLiveSourceFields';
 import { useLiveSourceActions } from './liveSourceActions';
-import { formatChartCount } from './liveSourceCatalog';
 /**
  * Live data sources on the Semantic Layer page, for the admins who manage
  * them: the list with each source's usage, and above a source's fields what
@@ -32,18 +34,35 @@ import { formatChartCount } from './liveSourceCatalog';
  */
 import { LiveSourceIcon } from './LiveSourceIcon';
 import {
-    formatFreshness,
-    getLiveSourceFreshness,
+    describeLiveSourceAccessRule,
     toLiveSourceRow,
     toLiveSourceRows,
     type LiveSourceConnection,
 } from './liveSourceRows';
 import classes from './LiveSources.module.css';
-import { getRateLimitStat } from './rateLimitFormat';
 
 const stopPropagation = (event: MouseEvent) => event.stopPropagation();
 
 /** Opens one source's settings, in the table: an icon. */
+/** A lock beside a source that only some people can query, with its rule as a tooltip. */
+const AccessRuleBadge: FC<{ connection: LiveSourceConnection }> = ({
+    connection,
+}) => {
+    const rule = describeLiveSourceAccessRule(connection.accessRule);
+    if (!rule) return null;
+    const label = `Only people whose ${rule} can query it`;
+    return (
+        <Tooltip label={label} withinPortal multiline maw={320}>
+            <MantineIcon
+                icon={IconLock}
+                size={14}
+                color="dimmed"
+                aria-label={label}
+            />
+        </Tooltip>
+    );
+};
+
 const LiveSourceSettingsIcon: FC<{
     connection: LiveSourceConnection;
     onOpenSettings: (connectionUuid: string) => void;
@@ -153,6 +172,9 @@ export const LiveSourcesTable: FC<{
                     API calls
                     <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
                 </span>
+                <span role="columnheader" className={tableClasses.number}>
+                    Median latency
+                </span>
                 <span />
             </Box>
             {rows.map(({ connection, integration, target, usage: used }) => (
@@ -172,34 +194,38 @@ export const LiveSourcesTable: FC<{
                             {integration}
                         </Text>
                     </Group>
-                    <Text
+                    <Group role="cell" gap={6} wrap="nowrap" miw={0}>
+                        <Text
+                            className={tableClasses.name}
+                            miw={0}
+                            truncate
+                            title={target}
+                        >
+                            {connection.name}
+                        </Text>
+                        <AccessRuleBadge connection={connection} />
+                    </Group>
+                    {/* A dash until it has been called, as its own page shows */}
+                    <span
                         role="cell"
-                        className={tableClasses.name}
-                        miw={0}
-                        truncate
-                        title={target}
+                        className={tableClasses.number}
+                        data-empty={!used.isUsed || undefined}
                     >
-                        {connection.name}
-                    </Text>
-                    <span role="cell" className={tableClasses.number}>
                         {used.dataRead}
                     </span>
                     <span
                         role="cell"
                         className={tableClasses.number}
-                        title={
-                            used.medianLatency
-                                ? `${used.apiCalls} calls, median latency ${used.medianLatency}`
-                                : undefined
-                        }
+                        data-empty={!used.isUsed || undefined}
                     >
                         {used.apiCalls}
-                        {used.medianLatency ? (
-                            <span className={tableClasses.statDetail}>
-                                {' '}
-                                ({used.medianLatency})
-                            </span>
-                        ) : null}
+                    </span>
+                    <span
+                        role="cell"
+                        className={tableClasses.number}
+                        data-empty={!used.medianLatency || undefined}
+                    >
+                        {used.medianLatency ?? '—'}
                     </span>
                     <Box role="cell">
                         {canManage ? (
@@ -254,83 +280,39 @@ export const LiveSourceSummary: FC<{
         projectUuid,
         connectionUuid: connection.externalConnectionUuid,
     });
-    const { data: projectCache } = useResultsCacheStatus(projectUuid);
-    const { data: rateLimits } = useExternalConnectionRateLimitUsage({
-        projectUuid,
-        connectionUuid: connection.externalConnectionUuid,
-    });
-    const rateLimit = getRateLimitStat(rateLimits);
-    const isProjectCacheOff = projectCache?.enabled === false;
     const row = toLiveSourceRow(connection, usage);
     const explores = fields?.explores;
     const exploresInUse = explores?.filter((explore) => explore.inUse).length;
-    const freshness = getLiveSourceFreshness(connection);
-    const cachingTitle =
-        freshness === 0
-            ? 'Every query calls the integration'
-            : `A result answers the same query for everyone for ${formatFreshness(freshness)}`;
     return (
-        <Box
-            className={tableClasses.summary}
-            aria-label="Live data source"
-            data-status
-        >
+        <Box className={tableClasses.summary} aria-label="Live data source">
             <Stat label="Integration" value={row.integration} />
             <Stat
-                label="Explore prefix"
-                value={connection.liveSourceName ?? '—'}
-            />
-            <Stat
-                label="Explores in use"
-                value={
-                    explores && exploresInUse !== undefined
-                        ? `${exploresInUse.toLocaleString()} of ${explores.length.toLocaleString()}`
-                        : '—'
-                }
-            />
-            <Stat
-                label="Used by"
-                value={fields ? formatChartCount(fields.usedByChartCount) : '—'}
-            />
-            <Stat
-                label="Data read"
-                value={row.usage.dataRead}
+                label="Queries"
+                value={row.usage.queries}
                 labelExtra={
                     <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
                 }
             />
             <Stat
-                label="API calls"
-                value={row.usage.apiCalls}
-                labelExtra={
-                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
-                }
-                detail={row.usage.medianLatency}
+                label="Explores"
+                value={exploresInUse?.toLocaleString() ?? '—'}
                 title={
-                    row.usage.medianLatency
-                        ? `${row.usage.apiCalls} calls, median latency ${row.usage.medianLatency}`
+                    explores && exploresInUse !== undefined
+                        ? `${exploresInUse.toLocaleString()} of ${explores.length.toLocaleString()} in use`
                         : undefined
                 }
             />
             <Stat
-                label="Caching"
+                label="Access"
                 value={
-                    isProjectCacheOff ? 'Disabled' : formatFreshness(freshness)
+                    describeLiveSourceAccessRule(connection.accessRule)
+                        ? 'Restricted'
+                        : 'Everyone'
                 }
-                detail={isProjectCacheOff ? null : row.usage.cacheHitsLabel}
                 title={
-                    isProjectCacheOff
-                        ? 'Results caching is off for this project'
-                        : cachingTitle
+                    describeLiveSourceAccessRule(connection.accessRule) ??
+                    'Everyone in the project can query it'
                 }
-                tone={isProjectCacheOff ? 'warning' : undefined}
-            />
-            <Stat
-                label="Rate limit"
-                value={rateLimit.value}
-                detail={rateLimit.detail}
-                title={rateLimit.title}
-                tone={rateLimit.limitReached ? 'danger' : undefined}
             />
         </Box>
     );

@@ -171,7 +171,17 @@ describe.each(['log', 'enforce'] as const)(
                 expect(write).not.toHaveBeenCalled();
                 expect(read).not.toHaveBeenCalled();
                 expect(analytics.track).not.toHaveBeenCalled();
-                expect(Logger.warn).toHaveBeenCalledTimes(1);
+                expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
+                    'oauth_credential_mint_refused',
+                    {
+                        operation,
+                        clientId: 'client',
+                        scopes: ['write', 'mcp:write'],
+                        userUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid,
+                        cliVersion: null,
+                    },
+                );
             },
         );
     },

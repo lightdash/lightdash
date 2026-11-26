@@ -1013,6 +1013,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     personalAccessTokenModel:
                         this.models.getPersonalAccessTokenModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -1161,12 +1162,9 @@ export class ServiceRepository
                                     .valid,
                         }),
                     groupsModel: this.models.getGroupsModel(),
-                    isCustomRolesLicensed: () =>
-                        this.getLicenseService().getLicenseStatus().valid,
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     agentCapabilityPolicyModel:
                         this.models.getAgentCapabilityPolicyModel(),
-                    userModel: this.models.getUserModel(),
                     projectModel: this.models.getProjectModel(),
                     agentActionLogModel: this.models.getAgentActionLogModel(),
                 }),

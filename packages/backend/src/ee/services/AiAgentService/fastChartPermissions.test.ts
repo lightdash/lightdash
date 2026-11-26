@@ -1,7 +1,6 @@
 import {
     AgentCapability,
     AiAccessRefusalReason,
-    OrganizationMemberRole,
     type AgentCapabilityPolicy,
 } from '@lightdash/common';
 import { toSessionUser } from '../../../auth/account/account';
@@ -44,7 +43,6 @@ const setup = () => {
         resolveResourceProjectUuid: vi.fn(),
         groupsModel,
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
-        isCustomRolesLicensed: () => false,
         featureFlagModel,
         agentCapabilityPolicyModel: {
             get: vi.fn().mockResolvedValue(policy),
@@ -57,12 +55,9 @@ const setup = () => {
                         : policy.allowedGroupUuids.length > 0,
             })),
             save: vi.fn(),
-        },
-        userModel: {
-            getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                systemRoles: [OrganizationMemberRole.VIEWER],
-                customRoles: [],
-            }),
+            getProjectPolicies: vi.fn().mockResolvedValue([]),
+            saveProjectPolicy: vi.fn(),
+            deleteProjectPolicy: vi.fn(),
         },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({ organizationUuid }),

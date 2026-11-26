@@ -241,10 +241,8 @@ test('departed allowed members do not block a policy edit or reset to legacy', a
         agentCapabilityPolicyModel: model,
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         resolveResourceProjectUuid: vi.fn(),
-        isCustomRolesLicensed: () => true,
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
         groupsModel: { findUserInGroups: vi.fn().mockResolvedValue([]) },
-        userModel: { getAgentRoleAssignments: vi.fn() },
         projectModel: { getSummary: vi.fn() },
 
         agentActionLogModel: { insert: vi.fn() },

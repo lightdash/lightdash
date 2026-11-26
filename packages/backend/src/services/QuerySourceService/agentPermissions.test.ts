@@ -3,7 +3,6 @@ import {
     AgentCapability,
     AiAccessRefusalReason,
     FeatureFlags,
-    OrganizationMemberRole,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
@@ -92,16 +91,12 @@ const setup = (
                         : policy.allowedGroupUuids.length > 0,
             })),
             save: vi.fn(),
-        },
-        userModel: {
-            getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                systemRoles: [OrganizationMemberRole.DEVELOPER],
-                customRoles: [],
-            }),
+            getProjectPolicies: vi.fn().mockResolvedValue([]),
+            saveProjectPolicy: vi.fn(),
+            deleteProjectPolicy: vi.fn(),
         },
         groupsModel,
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
-        isCustomRolesLicensed: () => false,
 
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(projectUuid),
         agentActionLogModel: { insert: vi.fn() },

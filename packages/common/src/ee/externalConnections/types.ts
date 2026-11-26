@@ -1,5 +1,7 @@
 import { type UUID } from '../../types/api/uuid';
 import { type ApiConnectorType } from '../../types/querySources';
+import { type LiveSourceAccessRule } from './liveSourceAccess';
+import { type LiveSourceRateLimitSettings } from './liveSourceRateLimits';
 
 export type ExternalConnectionAuthType =
     | 'none'
@@ -522,12 +524,24 @@ export type ExternalConnection = {
     liveSourceName?: string | null;
     /** What an admin says this live source is for. Reaches the AI agent. */
     aiHint?: string | null;
+    /**
+     * Live sources: tags its explores carry, so an AI agent limited to tags
+     * can use the source when they share one.
+     */
+    tags?: string[] | null;
     /** The name the connection picker showed for the source's target. */
     targetLabel?: string | null;
     /** Live sources: the admin's freshness window; null uses the integration's default. */
     cacheTtlSeconds?: number | null;
     /** Live sources: results fetched before this are never reused. */
     cachePurgedAt?: Date | null;
+    /**
+     * Live sources: who can query it, as user attribute conditions; null when
+     * everyone in the project can. Returned only to those who manage it.
+     */
+    accessRule?: LiveSourceAccessRule | null;
+    /** Live sources: the lower rate limits an admin set; null when none are set. */
+    adminRateLimits?: LiveSourceRateLimitSettings | null;
     hasSecret: boolean;
     createdByUserUuid: string | null;
     updatedByUserUuid: string | null;
@@ -600,11 +614,16 @@ export type CreateExternalConnection = {
 /** Omitted/blank `secret` means the stored secret is left unchanged. */
 export const LIVE_SOURCE_AI_HINT_MAX_LENGTH = 500;
 
+export const LIVE_SOURCE_MAX_TAGS = 20;
+export const LIVE_SOURCE_TAG_MAX_LENGTH = 100;
+
 export type UpdateExternalConnection = Partial<
     Omit<CreateExternalConnection, 'explorePrefix'>
 > & {
     /** Live sources only. Empty or null clears it. */
     aiHint?: string | null;
+    /** Live sources only. Empty or null clears them. */
+    tags?: string[] | null;
 };
 
 /** Whether a new live source can use an explore prefix. */
@@ -839,6 +858,8 @@ export type ExternalConnectionApiUsage = {
     externalConnectionUuid: string;
     /** How many days back the usage goes: the query history retention window. */
     windowDays: number;
+    /** Logged queries on the source, whether or not a stored result answered them. */
+    queries: number;
     apiCalls: number;
     /** Queries a stored result answered without calling the integration. */
     cacheHits: number;
@@ -852,13 +873,16 @@ export type ApiExternalConnectionApiUsageResponse = {
     results: ExternalConnectionApiUsage[];
 };
 
-/** One of an integration's declared limits, with Lightdash's calls in its current window. */
+/** One limit on calls in a time window, with Lightdash's calls in its current window. */
 export type ExternalConnectionRateLimitBucket = {
     id: string;
     /** As declared, such as "per hour". */
     label: string;
     windowMs: number;
+    /** The limit in force: the integration's, or an admin's lower one. */
     capacity: number;
+    /** The integration's own limit; null for a daily limit only an admin set. */
+    defaultCapacity: number | null;
     /** Calls in the current window; 0 when no window is open. */
     used: number;
     /** When the current window ends, ISO; null when no window is open. */
@@ -866,8 +890,8 @@ export type ExternalConnectionRateLimitBucket = {
 };
 
 /**
- * Lightdash's own calls against an integration's declared rate limits, as of
- * `checkedAt`. Other apps on the same vendor account aren't counted.
+ * A live data source's rate limits, with Lightdash's own calls against them as
+ * of `checkedAt`. Other apps on the same vendor account aren't counted.
  */
 export type ExternalConnectionRateLimitUsage = {
     /** The integration's name, such as HubSpot. */
@@ -877,6 +901,16 @@ export type ExternalConnectionRateLimitUsage = {
     buckets: ExternalConnectionRateLimitBucket[];
     /** When the vendor's pause ends, ISO; null when it hasn't paused the integration. */
     limitedUntil: string | null;
+    /** What an admin set, as saved; null when nothing is set. */
+    adminRateLimits: LiveSourceRateLimitSettings | null;
+    /** The integration's own limit; null when it has no per-second limit. */
+    defaultCallsPerSecond: number | null;
+    /** The integration's own limit on calls in flight at once. */
+    defaultConcurrentCalls: number;
+    /** Calls in flight, never above the concurrency limit now in force. */
+    runningCalls: number;
+    /** What admins are told alongside the limits they can lower. */
+    note: string | null;
 };
 
 export type ApiExternalConnectionRateLimitUsageResponse = {

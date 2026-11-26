@@ -6,11 +6,13 @@ type PatSessionCacheModule = typeof import('./PatSessionCache');
 const fixture: CachedPatSessionUser = {
     user: { userUuid: 'user-1' } as SessionUser,
     personalAccessToken: { uuid: 'pat-1' } as PersonalAccessToken,
+    cliOAuthPatCompat: false,
 };
 
 const otherFixture: CachedPatSessionUser = {
     user: { userUuid: 'user-2' } as SessionUser,
     personalAccessToken: { uuid: 'pat-2' } as PersonalAccessToken,
+    cliOAuthPatCompat: false,
 };
 
 const loadCache = async (): Promise<PatSessionCacheModule> => {

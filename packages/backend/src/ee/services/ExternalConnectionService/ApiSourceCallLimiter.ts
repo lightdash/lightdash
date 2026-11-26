@@ -9,9 +9,10 @@ import type {
     LiveRateLimits,
 } from '../../../services/QuerySourceService/live/spec/types';
 import type {
-    ApiSourceRateWindow,
+    ApiSourceRateChargedWindow,
     ExternalConnectionModel,
 } from '../../models/ExternalConnectionModel';
+import type { AdminSetLimits } from './rateLimitSettings';
 
 type RateGateModel = Pick<
     ExternalConnectionModel,
@@ -37,6 +38,7 @@ export type RateLimitTarget = {
     /** The integration's label, e.g. "HubSpot", for messages and metrics. */
     label: string;
     rateLimits: LiveRateLimits;
+    setByAdmin: AdminSetLimits;
     /** How long one call may run; a slot outlives it by a margin. */
     timeoutMs: number;
 };
@@ -49,6 +51,12 @@ export type RateLimitTurn = {
     waitedMs: number;
 };
 
+/** A limit that a call has just filled. */
+export type ReachedRateLimit = {
+    bucket: LiveRateLimitBucket;
+    isSetByAdmin: boolean;
+};
+
 /** The integration said to slow down; `resumesAt` is null when it didn't say until when. */
 export type VendorRateLimit = { resumesAt: Date | null };
 
@@ -57,6 +65,9 @@ export const DEFAULT_RATE_LIMIT_DEADLINE_MS = 60_000;
 
 // Retries after the integration says to slow down, within the deadline.
 const MAX_VENDOR_RETRIES = 2;
+
+// Shorter windows fill too often for each filling to be worth recording.
+const MIN_REPORTED_WINDOW_MS = 60 * 60 * 1_000;
 
 const SLOT_POLL_MS = 250;
 // A crashed server's slot frees itself once the call could no longer be running.
@@ -123,6 +134,25 @@ const getBucketsToHold = (
     return [shortest];
 };
 
+/** The long-window limits that the charged call used the last of. */
+const getReachedLimits = (
+    { rateLimits, setByAdmin }: RateLimitTarget,
+    windows: ApiSourceRateChargedWindow[],
+): ReachedRateLimit[] =>
+    rateLimits.buckets
+        .filter(
+            ({ id, windowMs, capacity }) =>
+                windowMs >= MIN_REPORTED_WINDOW_MS &&
+                windows.some(
+                    ({ bucketId, used }) =>
+                        bucketId === id && used === capacity,
+                ),
+        )
+        .map((bucket) => ({
+            bucket,
+            isSetByAdmin: setByAdmin.bucketIds.includes(bucket.id),
+        }));
+
 /**
  * Keeps calls to an integration inside its rate limits, across every backend
  * server. A call charges the buckets, then takes its paced turn, then a slot,
@@ -163,6 +193,8 @@ export class ApiSourceCallLimiter {
      * answered "slow down", the charged buckets are held (`getBucketsToHold`), and
      * the call is retried in a new turn, up to twice within the deadline.
      * Other calls on those buckets wait for the hold instead of calling.
+     * `onLimitReached` hears of each limit of an hour or longer as a call that
+     * gets through fills it.
      */
     async run<T>(
         target: RateLimitTarget,
@@ -170,17 +202,23 @@ export class ApiSourceCallLimiter {
         {
             deadlineMs = DEFAULT_RATE_LIMIT_DEADLINE_MS,
             readRateLimit,
+            onLimitReached,
         }: {
             deadlineMs?: number;
             readRateLimit?: (result: T) => VendorRateLimit | null;
+            onLimitReached?: (reached: ReachedRateLimit) => void;
         } = {},
     ): Promise<T> {
         const giveUpAt = this.now().getTime() + deadlineMs;
         for (let attempt = 0; ; attempt += 1) {
             // eslint-disable-next-line no-await-in-loop
-            const { turn, release } = await this.admit(target, giveUpAt);
+            const { turn, release, reached } = await this.admit(
+                target,
+                giveUpAt,
+            );
             let result: T;
             try {
+                reached.forEach((limit) => onLimitReached?.(limit));
                 // eslint-disable-next-line no-await-in-loop
                 result = await call(turn);
             } finally {
@@ -202,7 +240,11 @@ export class ApiSourceCallLimiter {
     private async admit(
         target: RateLimitTarget,
         giveUpAt: number,
-    ): Promise<{ turn: RateLimitTurn; release: () => Promise<void> }> {
+    ): Promise<{
+        turn: RateLimitTurn;
+        release: () => Promise<void>;
+        reached: ReachedRateLimit[];
+    }> {
         const startedAt = this.now().getTime();
         try {
             const windows = await this.chargeBuckets(target, giveUpAt);
@@ -228,6 +270,7 @@ export class ApiSourceCallLimiter {
                     buckets: windows.map(({ bucketId }) => bucketId),
                     waitedMs,
                 },
+                reached: getReachedLimits(target, windows),
                 // Best effort: a slot left held frees itself when its lease expires
                 release: () =>
                     this.model
@@ -247,9 +290,9 @@ export class ApiSourceCallLimiter {
 
     /** Charges every bucket, waiting for a full one to reset while that comes in time. */
     private async chargeBuckets(
-        { limitKey, label, rateLimits }: RateLimitTarget,
+        { limitKey, label, rateLimits, setByAdmin }: RateLimitTarget,
         giveUpAt: number,
-    ): Promise<ApiSourceRateWindow[]> {
+    ): Promise<ApiSourceRateChargedWindow[]> {
         const { buckets } = rateLimits;
         if (buckets.length === 0) return [];
         for (;;) {
@@ -267,11 +310,16 @@ export class ApiSourceCallLimiter {
                     charge.resumesAt,
                     waitMs < 60_000,
                 )}.`;
+                // A limit lowered mid-window can already be passed
+                const used = Math.min(charge.used, bucket.capacity);
+                const reached = setByAdmin.bucketIds.includes(bucket.id)
+                    ? 'limit set by your admin reached'
+                    : 'limit reached';
                 throw refuse({
                     message: charge.isHeldByVendor
                         ? `${label} asked Lightdash to slow down. ${resumes}`
-                        : `${label} limit reached (${formatCount(
-                              charge.used,
+                        : `${label} ${reached} (${formatCount(
+                              used,
                           )}/${formatCount(bucket.capacity)} calls ${
                               bucket.label
                           }). ${resumes}`,
@@ -279,7 +327,7 @@ export class ApiSourceCallLimiter {
                     resumesAt: charge.resumesAt,
                     now: charge.now,
                     bucket: { id: bucket.id, label: bucket.label },
-                    used: charge.used,
+                    used,
                     limit: bucket.capacity,
                 });
             }
@@ -290,7 +338,7 @@ export class ApiSourceCallLimiter {
 
     /** Waits for an evenly spaced turn when the integration limits calls a second. */
     private async takePacedTurn(
-        { limitKey, label, rateLimits }: RateLimitTarget,
+        { limitKey, label, rateLimits, setByAdmin }: RateLimitTarget,
         giveUpAt: number,
     ): Promise<void> {
         const { callsPerSecond } = rateLimits;
@@ -301,10 +349,13 @@ export class ApiSourceCallLimiter {
             Math.max(0, giveUpAt - this.now().getTime()),
         );
         if (!turn.booked) {
+            const allowed = setByAdmin.callsPerSecond
+                ? 'allowed by your admin'
+                : 'allowed';
             throw refuse({
                 message: `Too many ${label} calls are queued (${formatCount(
                     callsPerSecond,
-                )} a second allowed). Resumes at ${formatUtcTime(
+                )} a second ${allowed}). Resumes at ${formatUtcTime(
                     turn.turnAt,
                     true,
                 )}.`,
@@ -322,7 +373,7 @@ export class ApiSourceCallLimiter {
      * in arrival order; across servers, whoever polls first after a release.
      */
     private async takeSlot(
-        { limitKey, label, rateLimits, timeoutMs }: RateLimitTarget,
+        { limitKey, label, rateLimits, setByAdmin, timeoutMs }: RateLimitTarget,
         giveUpAt: number,
     ): Promise<string> {
         const leaseUuid = randomUUID();
@@ -344,10 +395,13 @@ export class ApiSourceCallLimiter {
                 }
                 const now = this.now();
                 if (now.getTime() >= giveUpAt) {
+                    const running = `${label} is already running`;
+                    const atOnce = formatCount(rateLimits.concurrentCalls);
+                    const busy = setByAdmin.concurrentCalls
+                        ? `${running} as many concurrent requests as your admin allows (${atOnce})`
+                        : `${running} ${atOnce} concurrent requests`;
                     throw refuse({
-                        message: `${label} is already running ${formatCount(
-                            rateLimits.concurrentCalls,
-                        )} calls at once. Retry in ${BUSY_RETRY_AFTER_SECONDS} seconds.`,
+                        message: `${busy}. Retry in ${BUSY_RETRY_AFTER_SECONDS} seconds.`,
                         code: CONCURRENCY_LIMIT,
                         resumesAt: new Date(
                             now.getTime() + BUSY_RETRY_AFTER_SECONDS * 1_000,

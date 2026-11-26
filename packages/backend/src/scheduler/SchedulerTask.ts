@@ -58,6 +58,7 @@ import {
     getShowSubtotalsFromChartConfig,
     getSourceSchedulerUuid,
     GoogleSheetsQuotaError,
+    GoogleSheetsSupersededError,
     GoogleSheetsTransientError,
     GsheetsNotificationPayload,
     isAppCreateScheduler,
@@ -414,14 +415,42 @@ export const GSHEET_UPLOAD_MAX_ATTEMPTS =
 export const GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS = [
     2000, 4000, 8000, 16000, 35000,
 ];
-// googleapis/gaxios only retries when a request opts in via `retry`/
-// `retryConfig` (see gaxios's getRetryConfig) — we never set either, so
-// nothing below us retries automatically; this bounded wait is genuinely
-// the only backoff a Google Sheets write gets. Caps how long a single
-// honored Retry-After can make us wait, so a large server-suggested delay
-// still hands off to the task's own retry/notify-and-disable path instead
-// of stalling the job.
+// googleapis-common turns gaxios retries on by default, so a GET or PUT
+// is retried up to 3 times on a 429 or 5xx. GoogleDriveClient turns that
+// off for sheet writes (`retry: false`) and retries each write request
+// with its own bounded backoff. This wraps the whole write once more. Caps
+// how long a single honored Retry-After can make us wait, so a large
+// server-suggested delay still hands off to the task's own
+// retry/notify-and-disable path instead of stalling the job.
 const GSHEET_UPLOAD_RETRY_AFTER_CEILING_MS = 30000;
+
+// A newer run of the same sync took over this tab and writes it. The other
+// tabs of this run still go on.
+export async function writeGsheetsTabUnlessSuperseded(
+    write: () => Promise<unknown>,
+    tabName: string,
+): Promise<void> {
+    try {
+        await write();
+    } catch (e) {
+        if (!(e instanceof GoogleSheetsSupersededError)) throw e;
+        Logger.info(`Skipped the Google Sheets tab "${tabName}": ${e.message}`);
+    }
+}
+
+// The metadata tab is written after the data is in. If it fails, the data
+// is still good: log a warning, do not fail or turn off the sync.
+export async function writeGsheetsMetadataAfterData(
+    write: () => Promise<unknown>,
+): Promise<void> {
+    try {
+        await write();
+    } catch (e) {
+        Logger.warn(
+            `Google Sheets data was written, but the metadata tab was not updated: ${getErrorMessage(e)}`,
+        );
+    }
+}
 
 export async function retryTransientGoogleSheetsWrite(
     write: () => Promise<void>,
@@ -529,10 +558,12 @@ export function captureKeyTabSuffix(captureKey: string): string {
     return createHash('sha256').update(captureKey).digest('hex').slice(0, 4);
 }
 
-// Sheets write cost of one app-delivered query in the app gsheets branch:
-// createNewTab (called once, inside appendCsvToSheet), clearTabName, and the
-// values.update.
-export const GSHEETS_WRITES_PER_APP_ITEM = 3;
+// Sheets write cost of one app-delivered query in the app gsheets branch
+// when its rows fit in one write request, all inside appendCsvToSheet: the
+// batchUpdate that adds the hidden staging tab, the values.update, the
+// batchUpdate that claims the tab, and the batchUpdate that swaps the data
+// into the tab. A dashboard chart costs one more write (createNewTab).
+export const GSHEETS_WRITES_PER_APP_ITEM = 4;
 // Google's Sheets API write-requests-per-user-per-minute quota is 60
 // (developers.google.com/sheets/api/limits) — stay a safety margin under it
 // so the fixed metadata-tab writes and any concurrent activity on the same
@@ -1651,6 +1682,12 @@ export default class SchedulerTask {
                             exportPivotedData: effectiveExportPivotedData,
                         } = getDownloadPivotOptions(chart, exportPivotedData);
                         const shouldPivotResults = !!downloadPivotConfig;
+                        // Table charts always export their rows
+                        const exportChartAsImage =
+                            format === SchedulerFormat.XLSX &&
+                            csvOptions?.xlsxContent ===
+                                XlsxExportContent.CHART_IMAGE &&
+                            chart.chartConfig.type !== ChartType.TABLE;
                         const query =
                             await this.asyncQueryService.executeAsyncSavedChartQuery(
                                 {
@@ -1699,6 +1736,14 @@ export default class SchedulerTask {
                                             chart.chartConfig.config,
                                         ),
                                     expirationSecondsOverride,
+                                    ...(exportChartAsImage
+                                        ? {
+                                              xlsxContent:
+                                                  XlsxExportContent.CHART_IMAGE,
+                                              chartImageSchedulerFilters:
+                                                  chartSchedulerFilters,
+                                          }
+                                        : {}),
                                 },
                                 this.schedulerPollingOptions,
                             );
@@ -4857,16 +4902,6 @@ export default class SchedulerTask {
                     'scheduler_uuid',
                     schedulerUuid,
                 );
-                await this.googleDriveClient.uploadMetadata(
-                    refreshToken,
-                    gdriveId,
-                    getHumanReadableCronExpression(
-                        scheduler.cron,
-                        scheduler.timezone || defaultSchedulerTimezone,
-                    ),
-                    undefined,
-                    reportUrl,
-                );
                 const pivotConfig = getPivotConfig(chart);
                 const filterSummaryRows = showFilters
                     ? buildGoogleSheetsFilterSummaryRows(
@@ -4923,6 +4958,21 @@ export default class SchedulerTask {
                         filterSummaryRows,
                     );
                 }
+                // Only after the data is in: a failed run must not show a
+                // new "Time of last sync".
+                const updateFrequency = getHumanReadableCronExpression(
+                    scheduler.cron,
+                    scheduler.timezone || defaultSchedulerTimezone,
+                );
+                await writeGsheetsMetadataAfterData(() =>
+                    this.googleDriveClient.uploadMetadata(
+                        refreshToken,
+                        gdriveId,
+                        updateFrequency,
+                        undefined,
+                        reportUrl,
+                    ),
+                );
             } else if (dashboardUuid) {
                 const dashboard = await this.dashboardService.getByIdOrSlug(
                     sessionUser,
@@ -4959,16 +5009,6 @@ export default class SchedulerTask {
                         };
                     },
                     {},
-                );
-
-                await this.googleDriveClient.uploadMetadata(
-                    refreshToken,
-                    gdriveId,
-                    getHumanReadableCronExpression(
-                        scheduler.cron,
-                        scheduler.timezone ?? defaultSchedulerTimezone,
-                    ),
-                    Object.values(chartNames),
                 );
 
                 Logger.debug(
@@ -5100,24 +5140,32 @@ export default class SchedulerTask {
                                 timezone: displayTimezone ?? undefined,
                             });
 
-                            await this.googleDriveClient.appendCsvToSheet(
-                                refreshToken,
-                                gdriveId,
-                                pivotedResults,
+                            await writeGsheetsTabUnlessSuperseded(
+                                () =>
+                                    this.googleDriveClient.appendCsvToSheet(
+                                        refreshToken,
+                                        gdriveId,
+                                        pivotedResults,
+                                        chartTabName,
+                                    ),
                                 chartTabName,
                             );
                         } else {
-                            await this.googleDriveClient.appendToSheet(
-                                refreshToken,
-                                gdriveId,
-                                rows,
-                                itemMap,
-                                showTableNames,
+                            await writeGsheetsTabUnlessSuperseded(
+                                () =>
+                                    this.googleDriveClient.appendToSheet(
+                                        refreshToken,
+                                        gdriveId,
+                                        rows,
+                                        itemMap,
+                                        showTableNames,
+                                        chartTabName,
+                                        chart.tableConfig.columnOrder,
+                                        customLabels,
+                                        getHiddenTableFields(chart.chartConfig),
+                                        displayTimezone ?? undefined,
+                                    ),
                                 chartTabName,
-                                chart.tableConfig.columnOrder,
-                                customLabels,
-                                getHiddenTableFields(chart.chartConfig),
-                                displayTimezone ?? undefined,
                             );
                         }
                     }, Promise.resolve())
@@ -5125,6 +5173,18 @@ export default class SchedulerTask {
                         Logger.debug('Error processing charts:', error);
                         throw error;
                     });
+                const updateFrequency = getHumanReadableCronExpression(
+                    scheduler.cron,
+                    scheduler.timezone ?? defaultSchedulerTimezone,
+                );
+                await writeGsheetsMetadataAfterData(() =>
+                    this.googleDriveClient.uploadMetadata(
+                        refreshToken,
+                        gdriveId,
+                        updateFrequency,
+                        Object.values(chartNames),
+                    ),
+                );
             } else if (scheduler.savedSqlUuid) {
                 const sqlChart =
                     await this.asyncQueryService.savedSqlModel.getByUuid(
@@ -5161,17 +5221,6 @@ export default class SchedulerTask {
                         this.schedulerPollingOptions,
                     );
 
-                await this.googleDriveClient.uploadMetadata(
-                    refreshToken,
-                    gdriveId,
-                    getHumanReadableCronExpression(
-                        scheduler.cron,
-                        scheduler.timezone || defaultSchedulerTimezone,
-                    ),
-                    undefined,
-                    deliveryUrl,
-                );
-
                 // Preserve numeric and boolean cell types for Sheets' RAW writes.
                 const columnNames = rows.length > 0 ? Object.keys(rows[0]) : [];
                 const headerRow = columnNames;
@@ -5196,6 +5245,19 @@ export default class SchedulerTask {
                     gdriveId,
                     csvData,
                     tabName,
+                );
+                const updateFrequency = getHumanReadableCronExpression(
+                    scheduler.cron,
+                    scheduler.timezone || defaultSchedulerTimezone,
+                );
+                await writeGsheetsMetadataAfterData(() =>
+                    this.googleDriveClient.uploadMetadata(
+                        refreshToken,
+                        gdriveId,
+                        updateFrequency,
+                        undefined,
+                        deliveryUrl,
+                    ),
                 );
             } else if (appUuid) {
                 const { url: appUrl, projectUuid: appProjectUuid } =
@@ -5319,9 +5381,9 @@ export default class SchedulerTask {
                 // Write-quota invariant (Sheets API: 60 write requests per
                 // user per minute — developers.google.com/sheets/api/limits).
                 // Each ready item costs GSHEETS_WRITES_PER_APP_ITEM (3)
-                // writes below: createNewTab (called once, inside
-                // appendCsvToSheet), clearTabName, and the values.update —
-                // plus a fixed 3 writes for this one-off metadata tab.
+                // writes below when it fits in one write request (see the
+                // constant) — plus a fixed 3 writes for this one-off
+                // metadata tab.
                 // writes(N) = 3N + 3 scales past the quota well within
                 // MAX_DELIVERY_QUERIES (50 -> 153 writes), so a manifest of
                 // any size up to that cap is proactively paced (below) to
@@ -5345,19 +5407,6 @@ export default class SchedulerTask {
                     scheduler.cron,
                     scheduler.timezone ?? defaultSchedulerTimezone,
                 );
-                await retryTransientGoogleSheetsWrite(
-                    () =>
-                        this.googleDriveClient.uploadMetadata(
-                            refreshToken,
-                            gdriveId,
-                            humanReadableCron,
-                            readyItemTabNames,
-                            deliveryUrl,
-                        ),
-                    undefined,
-                    GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
-                );
-
                 Logger.debug(
                     `Uploading app with ${readyItems.length} queries to Google Sheets`,
                 );
@@ -5402,26 +5451,44 @@ export default class SchedulerTask {
                         // branch's chartTabName pattern) would just be a
                         // second identical write request against the quota
                         // budget above for no benefit.
-                        await retryTransientGoogleSheetsWrite(
+                        await writeGsheetsTabUnlessSuperseded(
                             () =>
-                                this.googleDriveClient.appendCsvToSheet(
-                                    refreshToken,
-                                    gdriveId,
-                                    [
-                                        ...filterSummaryRows,
-                                        columnNames,
-                                        ...dataRows,
-                                    ],
-                                    itemTabName,
+                                retryTransientGoogleSheetsWrite(
+                                    () =>
+                                        this.googleDriveClient.appendCsvToSheet(
+                                            refreshToken,
+                                            gdriveId,
+                                            [
+                                                ...filterSummaryRows,
+                                                columnNames,
+                                                ...dataRows,
+                                            ],
+                                            itemTabName,
+                                        ),
+                                    undefined,
+                                    GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
                                 ),
-                            undefined,
-                            GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
+                            itemTabName,
                         );
                     },
                 ).catch((error) => {
                     Logger.debug('Error processing app queries:', error);
                     throw error;
                 });
+                await writeGsheetsMetadataAfterData(() =>
+                    retryTransientGoogleSheetsWrite(
+                        () =>
+                            this.googleDriveClient.uploadMetadata(
+                                refreshToken,
+                                gdriveId,
+                                humanReadableCron,
+                                readyItemTabNames,
+                                deliveryUrl,
+                            ),
+                        undefined,
+                        GSHEET_UPLOAD_QUOTA_BRIDGE_SCHEDULE_MS,
+                    ),
+                );
             } else {
                 throw new UnexpectedServerError('Not implemented');
             }
@@ -5459,6 +5526,31 @@ export default class SchedulerTask {
                 },
             });
         } catch (e) {
+            if (e instanceof GoogleSheetsSupersededError) {
+                // A newer run of this sync writes the tab. This run did not
+                // complete, but it is not a failure: no retry, no email, and
+                // the sync stays on.
+                Logger.info(
+                    `Google Sheets sync ${schedulerUuid} job ${jobId} superseded: ${e.message}`,
+                );
+                await this.schedulerService.logSchedulerJob({
+                    task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
+                    schedulerUuid,
+                    jobId,
+                    jobGroup: notification.jobGroup,
+                    scheduledTime,
+                    targetType: 'gsheets',
+                    status: SchedulerJobStatus.ERROR,
+                    details: {
+                        error: e.message,
+                        superseded: true,
+                        projectUuid: notification.projectUuid,
+                        organizationUuid: notification.organizationUuid,
+                        createdByUserUuid: notification.userUuid,
+                    },
+                });
+                return;
+            }
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
@@ -6706,7 +6798,7 @@ export default class SchedulerTask {
             {
                 filename: args.workbookNameBase,
                 path: workbookResult.url,
-                localPath: workbookResult.url,
+                localPath: workbookResult.s3FileUrl,
                 truncated: false,
             },
         ];
@@ -6742,6 +6834,7 @@ export default class SchedulerTask {
 
         const workbookPath = `/tmp/${nanoid()}.xlsx`;
         let workbookFileName: string;
+        let s3FileUrl: string;
         let workbookResult: Awaited<
             ReturnType<typeof WorkbookExportHelper.createWorkbookFile>
         >;
@@ -6770,7 +6863,7 @@ export default class SchedulerTask {
                 workbookNameBase,
             )}-${new Date().toISOString().replace(/[:.]/g, '-')}.xlsx`;
 
-            await this.fileStorageClient.uploadExcel(
+            s3FileUrl = await this.fileStorageClient.uploadExcel(
                 fsSync.createReadStream(workbookPath),
                 workbookFileName,
                 `${workbookNameBase}.xlsx`,
@@ -6790,6 +6883,7 @@ export default class SchedulerTask {
                 expirationSeconds: expirationSecondsOverride,
                 source: 'scheduler',
             }),
+            s3FileUrl,
             numFileFailures: workbookResult.failedFileCount,
         };
     }

@@ -99,6 +99,7 @@ export type CaslSubjectNames =
     | 'ComposerChart'
     | 'ExternalConnection'
     | 'ExternalSource'
+    | 'LiveSource'
     | 'ExportCsv'
     | 'GitIntegration'
     | 'GoogleSheets'

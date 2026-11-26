@@ -121,16 +121,19 @@ describe('Analytics settings overview', () => {
             'ai_usage',
         );
         await userEvent.click(
-            screen.getByRole('button', { name: 'View ai agent requests' }),
+            screen.getByRole('button', { name: 'View agent requests' }),
+        );
+        expect(screen.getByRole('tab', { name: 'Agents' })).toHaveAttribute(
+            'aria-selected',
+            'true',
         );
         expect(
-            screen.getByRole('tab', { name: 'Agents & AI' }),
-        ).toHaveAttribute('aria-selected', 'true');
-        expect(
-            screen.getByRole('region', { name: 'AI calls by day' }),
+            screen.getByRole('region', { name: 'Agent requests by day' }),
         ).toBeVisible();
         expect(
-            screen.queryByRole('region', { name: 'Most active users' }),
+            screen.queryByRole('region', {
+                name: 'Most active people (top 10)',
+            }),
         ).not.toBeInTheDocument();
     });
 
@@ -147,7 +150,7 @@ describe('Analytics settings overview', () => {
             screen.queryByRole('option', { name: 'Preview' }),
         ).not.toBeInTheDocument();
         await userEvent.click(screen.getByRole('option', { name: 'Sales' }));
-        await userEvent.click(screen.getByText('Last 7 days'));
+        await userEvent.click(screen.getByText('7 days'));
         await waitFor(() =>
             expect(
                 launched.some(
@@ -191,11 +194,11 @@ describe('Analytics settings overview', () => {
             );
         });
         renderOverview();
-        await userEvent.click(screen.getByText('Last 90 days'));
+        await userEvent.click(screen.getByText('90 days'));
 
         expect(
             await within(
-                screen.getByRole('button', { name: 'View ai agent requests' }),
+                screen.getByRole('button', { name: 'View agent requests' }),
             ).findByText('900'),
         ).toBeVisible();
         const ninetyDayQueries = () =>
@@ -243,13 +246,14 @@ describe('Analytics settings overview', () => {
                 (Date.parse(String(filterValue(query, 'end'))) -
                     Date.parse(String(filterValue(query, 'start')))) /
                 86_400_000;
-            if (days === 30 && query.metrics.includes('ai_usage_unique_users'))
+            if (days === 90 && query.metrics.includes('ai_usage_unique_users'))
                 return finishSummary.promise;
             return ready();
         });
         renderOverview();
-        await userEvent.click(screen.getByRole('tab', { name: 'Agents & AI' }));
-        await userEvent.click(screen.getByText('Last 30 days'));
+        await userEvent.click(screen.getByRole('tab', { name: 'Agents' }));
+        await userEvent.click(screen.getByText('90 days'));
+        // Thirty days is the range the page opens on, so the test moves to one it has not loaded
         const monthlyQueries = () =>
             launched
                 .map(({ query }) => query)
@@ -257,7 +261,7 @@ describe('Analytics settings overview', () => {
                     (query) =>
                         Date.parse(String(filterValue(query, 'end'))) -
                             Date.parse(String(filterValue(query, 'start'))) ===
-                        30 * 86_400_000,
+                        90 * 86_400_000,
                 );
         // The headline numbers and their previous-period comparisons belong to Overview alone
         await waitFor(() => expect(monthlyQueries()).toHaveLength(3));
@@ -302,15 +306,128 @@ describe('Analytics settings overview', () => {
             'src',
             '/minimal/projects/analytics-slug/dashboards/lightdash-analytics-query-activity?hideTabs=true',
         );
-        expect(screen.queryByText('Last 30 days')).not.toBeInTheDocument();
+        expect(screen.queryByText('30 days')).not.toBeInTheDocument();
         expect(
             screen.queryByRole('region', {
                 name: 'How often are queries served from cache?',
             }),
         ).not.toBeInTheDocument();
         // A tab with no dashboard still draws its own charts
-        await userEvent.click(screen.getByRole('tab', { name: 'Users' }));
-        expect(screen.getByText('Last 30 days')).toBeVisible();
+        await userEvent.click(screen.getByRole('tab', { name: 'Content' }));
+        expect(screen.getByText('30 days')).toBeVisible();
+    });
+
+    it('opens on the Overview dashboard once it has synced, with no charts or queries of its own', async () => {
+        const launched = mockQueries();
+        renderOverview([
+            {
+                slug: 'lightdash-analytics-home',
+                name: 'Overview',
+                verification: {},
+            } as DashboardBasicDetails,
+        ]);
+        expect(await screen.findByTitle('Overview dashboard')).toHaveAttribute(
+            'src',
+            '/minimal/projects/analytics-slug/dashboards/lightdash-analytics-home?hideTabs=true',
+        );
+        expect(
+            screen.getByRole('link', { name: 'Open full dashboard' }),
+        ).toHaveAttribute(
+            'href',
+            '/projects/analytics-slug/dashboards/lightdash-analytics-home/view',
+        );
+        expect(
+            screen.queryByRole('button', { name: 'View agent requests' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('region', { name: 'Queries by day' }),
+        ).not.toBeInTheDocument();
+        expect(launched).toEqual([]);
+    });
+
+    it('draws its own Overview where the dashboard is missing or not verified', async () => {
+        mockQueries();
+        renderOverview([
+            {
+                slug: 'lightdash-analytics-home',
+                name: 'Overview',
+                verification: null,
+            } as DashboardBasicDetails,
+        ]);
+        expect(
+            screen.getByRole('button', { name: 'View active people' }),
+        ).toBeVisible();
+        expect(
+            screen.getByRole('region', { name: 'Queries by day' }),
+        ).toBeVisible();
+        expect(
+            screen.queryByTitle('Overview dashboard'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Open full dashboard' }),
+        ).toBeDisabled();
+    });
+
+    it('waits for the list of dashboards before choosing what Overview shows', () => {
+        const launched = mockQueries();
+        renderWithProviders(
+            <MemoryRouter>
+                <AnalyticsOverview
+                    projectUuid="analytics"
+                    projectUrlIdentifier="analytics-slug"
+                    dashboards={[]}
+                    areDashboardsLoading
+                    heading={null}
+                    actions={null}
+                />
+            </MemoryRouter>,
+        );
+        expect(
+            screen.getByRole('status', { name: 'Loading dashboard' }),
+        ).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: 'View active people' }),
+        ).not.toBeInTheDocument();
+        expect(launched).toEqual([]);
+    });
+
+    it('leaves the date range out where no chart follows the Date filter', async () => {
+        mockQueries();
+        const otherRequests = mockedLightdashApi.getMockImplementation()!;
+        mockedLightdashApi.mockImplementation(
+            async (request: LightdashApiProps) =>
+                request.url.includes('/dashboards/')
+                    ? {
+                          tabs: [],
+                          tiles: [{ uuid: 'tile', type: 'saved_chart' }],
+                          filters: {
+                              dimensions: [
+                                  {
+                                      id: 'date',
+                                      label: 'Date',
+                                      target: {
+                                          fieldId: 'ai_usage_event_ts_day',
+                                          tableName: 'ai_usage',
+                                      },
+                                      operator: FilterOperator.IN_THE_PAST,
+                                      values: [30],
+                                      tileTargets: { tile: false },
+                                  },
+                              ],
+                          },
+                      }
+                    : otherRequests(request),
+        );
+        renderOverview([
+            {
+                slug: 'lightdash-analytics-query-activity',
+                name: 'Queries',
+                verification: {},
+            } as DashboardBasicDetails,
+        ]);
+        await userEvent.click(screen.getByRole('tab', { name: 'Queries' }));
+        await screen.findByTitle('Queries dashboard');
+        expect(screen.queryByText('90 days')).not.toBeInTheDocument();
     });
 
     it('hands the chosen date range and project to a dashboard that has those filters', async () => {
@@ -322,6 +439,7 @@ describe('Analytics settings overview', () => {
                 request.url.includes('/dashboards/')
                     ? {
                           tabs: [],
+                          tiles: [{ uuid: 'tile', type: 'saved_chart' }],
                           filters: {
                               dimensions: [
                                   {
@@ -373,10 +491,10 @@ describe('Analytics settings overview', () => {
             expect.objectContaining({
                 id: 'date',
                 operator: FilterOperator.IN_BETWEEN,
-                values: ['2026-07-16', '2026-07-22'],
+                values: ['2026-06-23', '2026-07-22'],
             }),
         ]);
-        await userEvent.click(screen.getByText('Last 30 days'));
+        await userEvent.click(screen.getByText('90 days'));
         await userEvent.click(
             screen.getByRole('combobox', { name: 'Project' }),
         );
@@ -387,7 +505,7 @@ describe('Analytics settings overview', () => {
             expect(await sent()).toEqual([
                 expect.objectContaining({
                     id: 'date',
-                    values: ['2026-06-23', '2026-07-22'],
+                    values: ['2026-04-24', '2026-07-22'],
                 }),
                 expect.objectContaining({
                     id: 'project',
@@ -407,7 +525,7 @@ describe('Analytics settings overview', () => {
         expect(
             await screen.findByRole('region', { name: 'Dashboard audiences' }),
         ).toBeVisible();
-        expect(screen.getByText('Last 30 days')).toBeVisible();
+        expect(screen.getByText('30 days')).toBeVisible();
         expect(
             screen.queryByRole('status', { name: 'Loading Adoption app' }),
         ).not.toBeInTheDocument();

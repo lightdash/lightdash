@@ -1941,6 +1941,50 @@ describe('AiAgentToolsService', () => {
         ]);
     });
 
+    describe('live data source explores', () => {
+        const liveExplore = (
+            name: string,
+            connectionUuid: string,
+            tags: string[] = [],
+        ) => ({
+            ...makeExplore({ name, tags }),
+            type: ExploreType.API_SOURCE,
+            apiSource: { connectionUuid } as Explore['apiSource'],
+        });
+        const listNames = async (availableTags: string[] | null) =>
+            (
+                await makeService({
+                    explores: {
+                        orders: makeExplore({ name: 'orders', tags: ['ai'] }),
+                        ga4_sessions: liveExplore('ga4_sessions', 'ga4-uuid', [
+                            'ai',
+                        ]),
+                        hubspot_deals: liveExplore(
+                            'hubspot_deals',
+                            'hubspot-uuid',
+                        ),
+                    },
+                }).getAvailableExplores({ user, projectUuid, availableTags })
+            )
+                .map((explore) => explore.name)
+                .sort();
+
+        it("keeps only the live explores that share an agent's tag", async () => {
+            await expect(listNames(['ai'])).resolves.toEqual([
+                'ga4_sessions',
+                'orders',
+            ]);
+        });
+
+        it('keeps every live explore for an agent without tags', async () => {
+            await expect(listNames(null)).resolves.toEqual([
+                'ga4_sessions',
+                'hubspot_deals',
+                'orders',
+            ]);
+        });
+    });
+
     describe('project Tables configuration', () => {
         const makeSelectionService = (
             tableSelection: TablesConfiguration['tableSelection'],
@@ -3773,6 +3817,112 @@ describe('AiAgentToolsService', () => {
             expect(run).not.toHaveBeenCalled();
         });
 
+        it.each([
+            [
+                'runs one on an integration sharing a tag',
+                'ga4_sessions',
+                'ga4_sessions_date',
+                true,
+            ],
+            [
+                'refuses one selecting a field its explore hides',
+                'ga4_sessions',
+                'ga4_sessions_margin',
+                false,
+            ],
+            [
+                'refuses one on an integration without the tag',
+                'hubspot_deals',
+                'hubspot_deals_date',
+                false,
+            ],
+        ])(
+            '%s for an agent limited to tags',
+            async (_case, exploreName, fieldId, runs) => {
+                const run = vi.fn().mockResolvedValue({
+                    queries: [{ nodeId: 'joined', queryUuid: 'joined-query' }],
+                });
+                const liveExplore = (
+                    name: string,
+                    connectionUuid: string,
+                    tags: string[],
+                ) => ({
+                    ...makeExplore({
+                        name,
+                        tags,
+                        dimensions: {
+                            date: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'date',
+                                table: name,
+                            },
+                        },
+                    }),
+                    type: ExploreType.API_SOURCE,
+                    apiSource: { connectionUuid } as Explore['apiSource'],
+                });
+                const runtime = makeService({
+                    explores: {
+                        ga4_sessions: liveExplore('ga4_sessions', 'ga4-uuid', [
+                            'ai',
+                        ]),
+                        hubspot_deals: liveExplore(
+                            'hubspot_deals',
+                            'hubspot-uuid',
+                            [],
+                        ),
+                    },
+                    dashboardService: {
+                        getByIdOrSlug: vi
+                            .fn()
+                            .mockResolvedValue(salesDashboard),
+                    },
+                    composerChartService: {
+                        get: vi.fn().mockResolvedValue({
+                            ...storedComposerChart,
+                            pipeline: {
+                                terminalNodeId: 'joined',
+                                nodes: [
+                                    {
+                                        nodeId: 'joined',
+                                        sourceType:
+                                            QuerySourceType.SEMANTIC_LAYER,
+                                        exploreName,
+                                        dimensions: [fieldId],
+                                        metrics: [],
+                                    },
+                                ],
+                            },
+                        }),
+                        isEnabled: vi.fn().mockResolvedValue(true),
+                        runWithSavedDashboardState: run,
+                    },
+                    asyncQueryService: {
+                        getAsyncQueryResults: vi.fn().mockResolvedValue({
+                            status: QueryHistoryStatus.READY,
+                            columns: {},
+                            rows: [],
+                        }),
+                        getQueryExecutionStats: vi.fn().mockResolvedValue(null),
+                    },
+                }).createRuntime(makeRuntimeContext({ tags: ['ai'] }));
+
+                const query = runtime.runComposerChartQuery({
+                    chartSlug: 'revenue-vs-target',
+                    dashboardSlug: 'sales',
+                });
+
+                if (runs) {
+                    await expect(query).resolves.toMatchObject({ rows: [] });
+                    expect(run).toHaveBeenCalledOnce();
+                } else {
+                    await expect(query).rejects.toThrow(NotFoundError);
+                    expect(run).not.toHaveBeenCalled();
+                }
+            },
+        );
+
         it('refuses to run a composer chart on a dashboard outside the agent spaces', async () => {
             const { service, run } = makeComposerService();
 
@@ -5480,6 +5630,78 @@ describe('AiAgentToolsService runComposerQueries', () => {
             rowCount: 1,
         });
     });
+
+    it.each([
+        ['runs', 'ga4-uuid', true],
+        ['refuses', 'hubspot-uuid', false],
+    ])(
+        '%s an integration node for an agent limited to tags by its explores tags',
+        async (_case, connectionUuid, runs) => {
+            const executeSourceQueries = vi
+                .fn()
+                .mockResolvedValue({ queries: submissions });
+            const liveExplore = (
+                name: string,
+                uuid: string,
+                tags: string[],
+            ) => ({
+                ...makeExplore({ name, tags }),
+                type: ExploreType.API_SOURCE,
+                apiSource: { connectionUuid: uuid } as Explore['apiSource'],
+            });
+            const service = makeService({
+                explores: {
+                    ga4_sessions: liveExplore('ga4_sessions', 'ga4-uuid', [
+                        'ai',
+                    ]),
+                    hubspot_deals: liveExplore(
+                        'hubspot_deals',
+                        'hubspot-uuid',
+                        [],
+                    ),
+                },
+                querySourceService: {
+                    executeSourceQueries,
+                    getSourceQueryStatuses: vi
+                        .fn()
+                        .mockResolvedValue(readyStatuses),
+                },
+                asyncQueryService: {
+                    getAsyncQueryResults: vi
+                        .fn()
+                        .mockResolvedValue(readyResults),
+                },
+            });
+
+            const result = service
+                .createRuntime(makeRuntimeContext({ tags: ['ai'] }))
+                .runComposerQueries({
+                    queries: [
+                        {
+                            sourceType: QuerySourceType.API,
+                            nodeId: 'orders',
+                            connectionUuid,
+                            payload: {},
+                        },
+                        composerQueries[1],
+                    ] as SourceQuery[],
+                    terminalNodeId: 'joined',
+                    otherUnreadNodeIds: [],
+                    sampleNodeIds: [],
+                });
+
+            if (runs) {
+                await expect(result).resolves.toMatchObject({
+                    status: 'success',
+                });
+            } else {
+                await expect(result).rejects.toThrow(
+                    'Integration "hubspot-uuid" is not available to this agent',
+                );
+                expect(executeSourceQueries).not.toHaveBeenCalled();
+            }
+        },
+    );
 
     it("reads every node's status once the terminal is ready", async () => {
         const getSourceQueryStatuses = vi.fn().mockResolvedValue({

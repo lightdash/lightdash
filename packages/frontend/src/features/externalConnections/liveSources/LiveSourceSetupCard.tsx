@@ -16,7 +16,7 @@ export const LiveSourceSetupCard: FC<{ connector: ApiConnectorType }> = ({
     const { scopes } = LIVE_INTEGRATION_CATALOG[connector];
     if (!scopes || scopes.length === 0) return null;
     return (
-        <SettingsCard title="Scopes">
+        <SettingsCard title="Scopes" titleOutside>
             <Group gap={6} className={classes.setup}>
                 {scopes.map((scope) => (
                     <CopyButton key={scope} value={scope}>

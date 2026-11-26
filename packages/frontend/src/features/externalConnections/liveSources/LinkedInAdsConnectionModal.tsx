@@ -78,7 +78,7 @@ export const LinkedInAdsConnectionModal: FC<Props> = ({
             confirmDisabled={sourceId.isBlocked}
         >
             <Stack gap="lg">
-                <SettingsCard title="Access">
+                <SettingsCard title="Authentication" titleOutside>
                     <SettingsRow
                         label={LINKEDIN_AD_ACCOUNT_FIELD.label}
                         hint={LINKEDIN_AD_ACCOUNT_FIELD.description}

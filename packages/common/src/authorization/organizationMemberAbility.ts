@@ -355,6 +355,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'VirtualView', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'LiveSource', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'CustomSql', {
             organizationUuid: member.organizationUuid,
         });

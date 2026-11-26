@@ -356,7 +356,7 @@ it('status makes the same number of database reads for 1, 10 and 50 projects', a
             expect.soft(result.sample.rows).toBeLessThanOrEqual(32 + 5 * size);
             reads.push(result.sample.reads);
         }
-        expect(reads).toEqual([23, 23, 23]);
+        expect(reads).toEqual([19, 19, 19]);
     } finally {
         await f.close();
     }

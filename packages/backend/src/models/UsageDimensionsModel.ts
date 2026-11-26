@@ -424,15 +424,16 @@ export class UsageDimensionsModel {
                             true,
                         );
                     })
+                    // Deactivated members stay in: their past activity still needs their name. Whether
+                    // they are active travels with the row instead.
                     .where('m.organization_id', orgId)
-                    .where('u.is_active', true)
                     .where('u.is_internal', false)
                     .select(
                         this.database.raw(
                             `json_build_object(
                         'org_id', ?::text, 'user_id', u.user_uuid,
                         'name', NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''),
-                        'email', e.email
+                        'email', e.email, 'is_active', u.is_active
                     )::text AS json`,
                             [orgUuid],
                         ),

@@ -102,7 +102,8 @@ export const McpGeneralSettingsPage = ({
                                                     to="/generalSettings/agentIdentity"
                                                     fz="xs"
                                                 >
-                                                    Change on the Agents page
+                                                    Change on the Agent Identity
+                                                    page
                                                 </Anchor>
                                             </Stack>
                                         ) : (

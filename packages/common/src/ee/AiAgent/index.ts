@@ -66,7 +66,6 @@ export * from './composerMergeChart';
 export * from './composerSemanticArtifact';
 export * from './composerViz';
 export * from './composerVizPanel';
-export * from './captureRouting';
 export * from './dashboardContext';
 export * from './dashboardLayout';
 export * from './aiAgentReviewClassifierTypes';

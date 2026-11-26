@@ -2678,7 +2678,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                             allowedCapabilities: null,
                             allowedGroupUuids: null,
                             version: 1,
-                            editableCustomRoleUuid: null,
                         },
                         {
                             requiredCapabilities: [

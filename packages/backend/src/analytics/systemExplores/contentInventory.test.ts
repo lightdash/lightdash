@@ -17,15 +17,15 @@ import { createAnalyticsExplores } from '../../services/ProjectService/analytics
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
 import { contentInventoryColumns } from '../eventStream/contentInventory';
 import { compactedStreamSchemas } from '../eventStream/registry';
-import { analyticsContentAsCode } from './sampleContent';
+import { contentCreatedByDaySql, customerContentSql } from './contentInventory';
+import {
+    analyticsContentAsCode,
+    analyticsLibraryChartBindings,
+} from './sampleContent';
 
 const charts = analyticsContentAsCode
     .flatMap((bundle) => bundle.charts)
-    .filter(({ slug }) =>
-        /-(content-creation-by-month|content-ownership-current-snapshot)$/.test(
-            slug,
-        ),
-    );
+    .filter(({ slug }) => /-content-ownership-current-snapshot$/.test(slug));
 
 const compile = (metricQuery: MetricQuery) => {
     const explore = createAnalyticsExplores().find(
@@ -170,10 +170,10 @@ describe('Content inventory charts', () => {
 
     it('preserves legacy field IDs and existing chart filters', async () => {
         const chart = charts.find(({ slug }) =>
-            slug.endsWith('-content-creation-by-month'),
+            slug.endsWith('-content-ownership-current-snapshot'),
         )!;
         expect(chart.metricQuery.dimensions).toEqual([
-            'content_health_created_at_month',
+            'content_health_owner_status_name',
         ]);
         expect(chart.metricQuery.metrics).toEqual([
             'content_health_total_content',
@@ -228,7 +228,9 @@ describe('Content inventory charts', () => {
     it.each(charts)('preserves the results of $slug', async (chart) => {
         expect(chart.tableName).toBe('content_inventory');
         const creation = chart.slug.endsWith('-content-creation-by-month');
-        const legacyDimension = creation ? 'created_at_month' : 'owner_status';
+        const legacyDimension = creation
+            ? 'created_at_month'
+            : 'owner_status_name';
         for (const scenario of ['all', 'active', 'project', 'empty']) {
             if (scenario === 'empty')
                 await db.run('DELETE FROM lightdash_content');
@@ -292,20 +294,131 @@ describe('Content inventory charts', () => {
         }
     });
 
-    it('runs both built-in queries without any event or user tables', async () => {
+    it("leaves Lightdash's own analytics content out of every count and list of content", async () => {
+        const count = async (table: string) =>
+            Number(
+                (
+                    await db.runAndReadAll(
+                        `SELECT COUNT(content_id) AS items FROM ${table}`,
+                    )
+                ).getRowObjectsJS()[0].items,
+            );
+        const { contentHealthSql } = await import('./contentHealth');
+        const before = {
+            inventory: await count(customerContentSql),
+            created: await count(contentCreatedByDaySql),
+            health: await count(contentHealthSql),
+        };
+        await db.run(
+            `INSERT INTO lightdash_content (org_id, project_id, project_type, content_type, content_id, content_name, created_at, is_deleted)
+             VALUES ('org', 'analytics-project', 'ANALYTICS', 'dashboard', 'managed', 'Queries', '2026-03-01', false),
+                    ('org', 'analytics-project', 'ANALYTICS', 'saved_chart', 'managed-chart', 'Active people', '2026-03-01', false)`,
+        );
+        expect({
+            inventory: await count(customerContentSql),
+            created: await count(contentCreatedByDaySql),
+            health: await count(contentHealthSql),
+        }).toEqual(before);
+        expect(before.inventory).toBeGreaterThan(0);
+    });
+
+    it('lists what to clean up and which dashboards need an owner, one row for each item in plain words', async () => {
+        await db.run(
+            `INSERT INTO lightdash_content (org_id, project_id, project_name, project_type, content_type, content_id, content_name, space_name, created_at, is_deleted, owner_status, owner_name, enabled_schedules, dashboard_references)
+             VALUES ('org', 'p2', 'Sales', 'DEFAULT', 'saved_chart', 'old-chart', 'Pipeline by stage', 'Forecasts', '2026-06-03', false, 'Not recorded', NULL, 0, 0),
+                    ('org', 'p2', 'Sales', 'DEFAULT', 'saved_chart', 'used-chart', 'Win rate', 'Forecasts', '2026-02-10', false, 'Not recorded', NULL, 1, 2),
+                    ('org', 'p2', 'Sales', 'DEFAULT', 'dashboard', 'left-dash', 'Quarterly review', 'Board', '2026-01-15', false, 'Deactivated', 'Dana Whitcombe', 0, 0)`,
+        );
+        const rowsOf = async (key: string) => {
+            const chart = analyticsContentAsCode
+                .flatMap((bundle) => bundle.charts)
+                .find(({ slug }) => slug.endsWith(`-${key}`))!;
+            expect(chart.chartConfig.type).toBe(ChartType.TABLE);
+            // A plain table in both versions: text columns, no grouping
+            expect(analyticsLibraryChartBindings.has(chart.slug)).toBe(false);
+            return (
+                await db.runAndReadAll(
+                    compile({
+                        ...chart.metricQuery,
+                        filters: chart.metricQuery.filters as Filters,
+                    } as MetricQuery).query,
+                )
+            ).getRowObjectsJS();
+        };
+        const review = await rowsOf(
+            'review-candidates-activity-and-known-dependencies',
+        );
+        const shown = (row: Record<string, unknown>) => [
+            row.content_health_content_name,
+            row.content_health_content_type_name,
+            row.where_it_lives,
+            row.created_on,
+            row.linked_from,
+        ];
+        // Items nothing points at come first. The column says what points at an item, never who
+        // viewed it, and a dashboard is never said to be on no dashboard.
+        expect(String(review[0].linked_from)).toMatch(/^No /);
+        review
+            .filter((row) => row.content_health_content_type === 'dashboard')
+            .forEach((row) =>
+                expect(String(row.linked_from)).toMatch(
+                    /^(No schedule|\d+ schedules?)$/,
+                ),
+            );
+        expect(
+            review.some(
+                (row) => row.content_health_content_type === 'dashboard',
+            ),
+        ).toBe(true);
+        expect(Object.keys(review[0])).not.toContain('review_status');
+        expect(review.map(shown)).toContainEqual([
+            'Pipeline by stage',
+            'Chart',
+            'Sales / Forecasts',
+            'Jun 3, 2026',
+            'No dashboard or schedule',
+        ]);
+        expect(review.map(shown)).toContainEqual([
+            'Win rate',
+            'Chart',
+            'Sales / Forecasts',
+            'Feb 10, 2026',
+            '2 dashboards, 1 schedule',
+        ]);
+        const owners = await rowsOf('content-owners-needing-review');
+        expect(
+            owners.map((row) => [
+                row.content_health_content_name,
+                row.where_it_lives,
+                row.owner_shown,
+                row.last_viewed,
+                Number(row.content_health_total_observed_views),
+            ]),
+        ).toContainEqual([
+            'Quarterly review',
+            'Sales / Board',
+            'Dana Whitcombe (deactivated)',
+            'Never',
+            0,
+        ]);
+    });
+
+    it('runs the built-in query without any event or user tables', async () => {
         for (const table of [
             'content_views',
             'query_events',
             'data_app_events',
         ])
             await db.run(`DROP TABLE ${table}`);
-        expect(charts).toHaveLength(2);
+        expect(charts).toHaveLength(1);
         for (const chart of charts) {
             const { query } = compile({
                 ...chart.metricQuery,
                 filters: chart.metricQuery.filters as Filters,
             });
-            expect(query).toContain('"lightdash_content"');
+            expect(query).toContain(
+                "FROM lightdash_content WHERE (project_type IS NULL OR project_type <> 'ANALYTICS')",
+            );
             expect(query).not.toMatch(
                 /content_views|query_events|data_app_events|lightdash_users/,
             );
@@ -322,10 +435,161 @@ describe('Content inventory charts', () => {
         expect(ownership.chartConfig.type).toBe(ChartType.PIE);
         if (ownership.chartConfig.type === ChartType.PIE) {
             expect(ownership.chartConfig.config).toMatchObject({
-                groupFieldIds: ['content_health_owner_status'],
+                groupFieldIds: ['content_health_owner_status_name'],
                 metricId: 'content_health_total_content',
                 isDonut: true,
             });
         }
+    });
+    it('gives the Content created card a point for every day, with the same total as the plain number', async () => {
+        const card = analyticsContentAsCode
+            .flatMap((bundle) => bundle.charts)
+            .find(
+                ({ slug }) =>
+                    slug === 'lightdash-analytics-home-content-created',
+            )!;
+        const binding = analyticsLibraryChartBindings.get(card.slug)!;
+        const run = async (metricQuery: MetricQuery) =>
+            (
+                await db.runAndReadAll(compile(metricQuery).query)
+            ).getRowObjectsJS();
+        const plainQuery = {
+            ...card.metricQuery,
+            filters: card.metricQuery.filters as Filters,
+        } as MetricQuery;
+        const [plain] = await run(plainQuery);
+        const byDay = await run({
+            ...plainQuery,
+            dimensions: binding.query!.dimensions,
+            sorts: binding.query!.sorts,
+            limit: binding.query!.limit,
+        });
+        const total = Number(plain.content_health_total_content);
+        expect(total).toBeGreaterThan(0);
+        expect(
+            byDay.reduce(
+                (sum, row) => sum + Number(row.content_health_total_content),
+                0,
+            ),
+        ).toBe(total);
+        // One row for each day since the first item was created, most of them zero
+        // (an item with no creation date has no day; the Date filter leaves it out)
+        const days = byDay
+            .filter((row) => row.content_health_created_at_day !== null)
+            .map((row) =>
+                new Date(row.content_health_created_at_day as Date).getTime(),
+            );
+        expect(days.length).toBeGreaterThan(30);
+        expect(
+            days.slice(1).every((day, index) => day - days[index] === 86400000),
+        ).toBe(true);
+        expect(
+            byDay.filter(
+                (row) => Number(row.content_health_total_content) === 0,
+            ).length,
+        ).toBeGreaterThan(days.length - 5);
+        // Every other inventory chart still reads the inventory as it is
+        expect(
+            analyticsContentAsCode
+                .flatMap((bundle) => bundle.charts)
+                .filter(({ tableName }) => tableName === 'content_created')
+                .map(({ slug }) => slug),
+        ).toEqual([
+            // Each needs a row for every day: the two running totals by week, this card, and the same
+            // card on Content
+            'lightdash-analytics-content-content-created-in-period',
+            'lightdash-analytics-content-content-creation-by-month',
+            'lightdash-analytics-apps-apps-running-total-by-week',
+            card.slug,
+        ]);
+    });
+
+    it('adds data apps up week by week from the first content to today, leaving out chart types', async () => {
+        await db.run(
+            `INSERT INTO lightdash_content (org_id, project_id, project_type, content_type, content_id, created_at, is_deleted)
+             VALUES ('org', 'project', '${ProjectType.DEFAULT}', 'chart_type', 'heatmap', '2026-03-01', false)`,
+        );
+        const chart = analyticsContentAsCode
+            .flatMap((bundle) => bundle.charts)
+            .find(({ slug }) => slug.endsWith('-apps-running-total-by-week'))!;
+        const rows = (
+            await db.runAndReadAll(
+                compile({
+                    ...chart.metricQuery,
+                    filters: chart.metricQuery.filters as Filters,
+                } as MetricQuery).query,
+            )
+        ).getRowObjectsJS();
+        const totals = rows.map((row) => Number(row.data_apps_running_total));
+        // Nothing before the one data app of 1 February, one from then to this week
+        expect(totals[0]).toBe(0);
+        expect(totals.at(-1)).toBe(1);
+        expect(new Set(totals)).toEqual(new Set([0, 1]));
+        const weeks = rows.map((row) =>
+            new Date(row.content_health_created_at_week as Date).getTime(),
+        );
+        expect(Date.now() - weeks.at(-1)!).toBeLessThan(8 * 86400000);
+        expect(
+            weeks
+                .slice(1)
+                .every((week, index) => week - weeks[index] === 7 * 86400000),
+        ).toBe(true);
+    });
+
+    it('adds content up week by week into a running total, in total and by type', async () => {
+        const chart = analyticsContentAsCode
+            .flatMap((bundle) => bundle.charts)
+            .find(({ slug }) => slug.endsWith('-content-creation-by-month'))!;
+        const binding = analyticsLibraryChartBindings.get(chart.slug)!;
+        const run = async (metricQuery: MetricQuery) =>
+            (
+                await db.runAndReadAll(compile(metricQuery).query)
+            ).getRowObjectsJS();
+        const plainQuery = {
+            ...chart.metricQuery,
+            filters: chart.metricQuery.filters as Filters,
+        } as MetricQuery;
+        const [{ dated }] = (
+            await db.runAndReadAll(
+                'SELECT COUNT(content_id) AS dated FROM lightdash_content WHERE created_at IS NOT NULL',
+            )
+        ).getRowObjectsJS();
+        const total = await run(plainQuery);
+        // A point for every week since the first item, never falling, ending on everything dated
+        const totals = total.map((row) => Number(row.content_running_total));
+        expect(totals.length).toBeGreaterThan(8);
+        expect(
+            totals.every(
+                (value, index) => index === 0 || value >= totals[index - 1],
+            ),
+        ).toBe(true);
+        expect(totals.at(-1)).toBe(Number(dated));
+        const weeks = total.map((row) =>
+            new Date(row.content_health_created_at_week as Date).getTime(),
+        );
+        expect(
+            weeks
+                .slice(1)
+                .every((week, index) => week - weeks[index] === 7 * 86400000),
+        ).toBe(true);
+        // By type, each type has every week and the types add up to the same total
+        const byType = await run({
+            ...plainQuery,
+            dimensions: binding.query!.dimensions,
+            sorts: binding.query!.sorts,
+            limit: binding.query!.limit,
+            tableCalculations: binding.query!.tableCalculations!,
+        });
+        const latest = new Map<unknown, number>();
+        byType.forEach((row) =>
+            latest.set(
+                row.content_health_content_type_name,
+                Number(row.content_running_total),
+            ),
+        );
+        expect(
+            [...latest.values()].reduce((sum, value) => sum + value, 0),
+        ).toBe(Number(dated));
+        expect(byType.length).toBe(weeks.length * latest.size);
     });
 });

@@ -7,6 +7,8 @@ import {
     AgentCapabilityPoliciesTableName,
     AgentSystemRoleCapabilitiesTable,
     AgentSystemRoleCapabilitiesTableName,
+    ProjectAgentCapabilityPoliciesTable,
+    ProjectAgentCapabilityPoliciesTableName,
 } from '../database/entities/agentCapabilityPolicies';
 import {
     AgentConnectionApprovalRequestsTable,
@@ -862,6 +864,7 @@ declare module 'knex/types/tables' {
         [DbtSourceRefCatalogsTableName]: DbtSourceRefCatalogsTable;
         [ReleaseHighlightsTableName]: ReleaseHighlightsTable;
         [AgentCapabilityPoliciesTableName]: AgentCapabilityPoliciesTable;
+        [ProjectAgentCapabilityPoliciesTableName]: ProjectAgentCapabilityPoliciesTable;
         [AgentConnectionGrantsTableName]: AgentConnectionGrantsTable;
         [AgentConnectionApprovalRequestsTableName]: AgentConnectionApprovalRequestsTable;
         [AgentSystemRoleCapabilitiesTableName]: AgentSystemRoleCapabilitiesTable;

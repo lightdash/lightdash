@@ -1,4 +1,8 @@
-import { ConflictError, ParameterError } from '@lightdash/common';
+import {
+    ApiConnectorType,
+    ConflictError,
+    ParameterError,
+} from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -14,6 +18,7 @@ import {
     ExternalConnectionModel,
     parseApiSourceSchemaScan,
     readLiveSourceCacheSettings,
+    readLiveSourceRateLimits,
 } from './ExternalConnectionModel';
 
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000001';
@@ -406,6 +411,7 @@ describe('ExternalConnectionModel', () => {
             tracker.on.select(ApiSourceCallsTableName).responseOnce([
                 {
                     external_connection_uuid: CONNECTION_UUID,
+                    queries: '15',
                     api_calls: '12',
                     cache_hits: '3',
                     response_bytes: '4096',
@@ -413,6 +419,7 @@ describe('ExternalConnectionModel', () => {
                 },
                 {
                     external_connection_uuid: 'conn-reused-only',
+                    queries: '5',
                     api_calls: '0',
                     cache_hits: '5',
                     response_bytes: null,
@@ -432,11 +439,15 @@ describe('ExternalConnectionModel', () => {
                 'percentile_cont(0.5) within group (order by duration_ms) filter (where api_calls > 0)',
             );
             expect(tracker.history.select[0].sql).toContain(
+                'count(*) as queries',
+            );
+            expect(tracker.history.select[0].sql).toContain(
                 'count(*) filter (where cache_hit) as cache_hits',
             );
             expect(usage).toEqual([
                 {
                     externalConnectionUuid: CONNECTION_UUID,
+                    queries: 15,
                     apiCalls: 12,
                     cacheHits: 3,
                     responseBytes: 4096,
@@ -444,6 +455,7 @@ describe('ExternalConnectionModel', () => {
                 },
                 {
                     externalConnectionUuid: 'conn-reused-only',
+                    queries: 5,
                     apiCalls: 0,
                     cacheHits: 5,
                     responseBytes: 0,
@@ -633,6 +645,23 @@ describe('ExternalConnectionModel', () => {
                 query.sql.includes(ExternalConnectionSecretsTableName),
             );
             expect(secretWrites).toHaveLength(0);
+        });
+
+        it("keeps the admin's rate limits when an integration's settings are replaced", async () => {
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .response([makeDbConnection()]);
+            tracker.on.update(ExternalConnectionsTableName).response(1);
+
+            await model.update(CONNECTION_UUID, USER_UUID, {
+                apiSource: { connector: ApiConnectorType.AMPLITUDE },
+            });
+
+            const [write] = tracker.history.update;
+            expect(write.sql).toContain('jsonb_each');
+            expect(write.bindings).toContainEqual(
+                expect.arrayContaining(['rateLimits']),
+            );
         });
 
         it('leaves the stored secret unchanged when secret is blank', async () => {
@@ -1137,6 +1166,27 @@ describe('parseApiSourceSchemaScan', () => {
             scannedAt: requestedAt,
             error: 'The schema scan did not finish',
         });
+    });
+});
+
+describe('readLiveSourceRateLimits', () => {
+    const rateLimits = {
+        buckets: { hour: 100 },
+        callsPerSecond: null,
+        concurrentCalls: 2,
+    };
+
+    it('reads the limits an admin set', () => {
+        expect(readLiveSourceRateLimits({ rateLimits })).toEqual(rateLimits);
+    });
+
+    it.each([
+        {},
+        { rateLimits: null },
+        { rateLimits: { ...rateLimits, buckets: { hour: 0 } } },
+        { rateLimits: { ...rateLimits, concurrentCalls: 'two' } },
+    ])('reads nothing from %j', (value) => {
+        expect(readLiveSourceRateLimits(value)).toBeNull();
     });
 });
 

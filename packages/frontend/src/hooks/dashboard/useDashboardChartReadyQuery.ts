@@ -14,7 +14,7 @@ import {
     type ExecuteAsyncDashboardChartRequestParams,
     type SavedChart,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { type LightdashApi } from '../../api';
 import {
@@ -43,6 +43,7 @@ import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import { useSessionTimezone } from '../useSessionTimezone';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
+import { sendTileRequest } from './useDashboardRefresh';
 import { useTileVirtualViewSavedParameters } from './useTileVirtualViewSavedParameters';
 
 const executeAsyncDashboardChartQuery = async (
@@ -102,6 +103,7 @@ export const useDashboardChartReadyQuery = (
     const lightdashApi = useLightdashApi();
     const retryConfig = useQueryRetryConfig();
     const tileQueryQueue = useTileQueryQueue();
+    const queryClient = useQueryClient();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardSelector(selectInvalidateCache);
     const refreshCounter = useDashboardSelector(selectRefreshCounter);
@@ -419,12 +421,15 @@ export const useDashboardChartReadyQuery = (
                           },
                       );
 
-            const executeQueryResponse = await executeTileQuery().catch(
-                (error: unknown) => {
-                    releaseSlot?.();
-                    throw error;
-                },
-            );
+            const executeQueryResponse = await sendTileRequest(
+                queryClient,
+                queryContext.queryKey,
+                executeTileQuery(),
+                tileQueryQueue ? queryContext.signal : undefined,
+            ).catch((error: unknown) => {
+                releaseSlot?.();
+                throw error;
+            });
             if (releaseSlot) {
                 // The query keeps running on the backend after this request
                 // returns, and after the tile moves on to newer filters, so the

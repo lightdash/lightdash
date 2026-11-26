@@ -333,6 +333,10 @@ interface AgentChatInputProps {
     composerTray?: ReactNode;
     // Off where files make no sense: hides the attach menu and ignores dropped files.
     allowAttachments?: boolean;
+    // Off where taking focus on mount would pull it from somewhere else on the page.
+    autoFocus?: boolean;
+    // Off where the reply bar must not resize as the thread scrolls: chips stay.
+    hideSuggestionsWhenScrolledUp?: boolean;
     // Thread model shown in the status row under the inline composer.
     threadModelName?: string | null;
     threadModelWarning?: string | null;
@@ -423,6 +427,8 @@ export const AgentChatInput = ({
     toolbarStart,
     composerTray,
     allowAttachments = true,
+    autoFocus = true,
+    hideSuggestionsWhenScrolledUp = true,
     composerRef,
     threadModelName,
     threadModelWarning = null,
@@ -656,7 +662,7 @@ export const AgentChatInput = ({
     const steerMutation = useCreateAiAgentThreadMessageSteerMutation();
     useEffect(() => {
         const el = rootRef.current;
-        if (!el) return undefined;
+        if (!el || !hideSuggestionsWhenScrolledUp) return undefined;
         let scrollEl: HTMLElement | null = el.parentElement;
         while (scrollEl) {
             const overflow = window.getComputedStyle(scrollEl).overflowY;
@@ -700,7 +706,7 @@ export const AgentChatInput = ({
             scrollEl?.removeEventListener('scroll', onScroll);
             resizeObserver.disconnect();
         };
-    }, []);
+    }, [hideSuggestionsWhenScrolledUp]);
 
     const { track } = useTracking();
 
@@ -1961,7 +1967,7 @@ export const AgentChatInput = ({
         ariaLabel: uiStrings('aiAgent.chatInput.label'),
         placeholder,
         defaultValue,
-        autoFocus: true,
+        autoFocus,
         disabled,
         submitDisabled:
             disabled || isPreparingAttachments || (loading && !canSteer),

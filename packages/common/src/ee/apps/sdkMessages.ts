@@ -39,3 +39,22 @@ export const APP_SDK_VIZ_RENDERED_MESSAGE = 'lightdash:sdk:viz-rendered';
 // inside the app, where the host page cannot see key presses. It is the only
 // key combination the SDK forwards, and it carries no payload.
 export const APP_SDK_CAPTURE_HOTKEY_MESSAGE = 'lightdash:sdk:capture-hotkey';
+
+// Iframe → host: Design Mode's hold key (Option/Alt, on its own) went down
+// or came up inside the app. Carries only the phase.
+export const APP_SDK_CAPTURE_HOLD_MESSAGE = 'lightdash:sdk:capture-hold';
+
+// Iframe → host: how far the app has scrolled, in pixels, so Design Mode's
+// marks stay on what they were drawn on. Carries only the two offsets.
+export const APP_SDK_CAPTURE_SCROLL_MESSAGE = 'lightdash:sdk:capture-scroll';
+
+export type AppSdkCaptureHold = { phase: 'down' | 'up' };
+
+// Host → iframe: which element is at a point (iframe viewport pixels)? The
+// SDK answers with the label and rect its element picker gives for a click.
+export const APP_SDK_INSPECT_AT_MESSAGE = 'lightdash:sdk:inspect-at';
+export const APP_SDK_INSPECT_AT_RESPONSE_MESSAGE =
+    'lightdash:sdk:inspect-at-response';
+// Iframe → host: the SDK answers inspect-at. Older bundles never send it.
+export const APP_SDK_INSPECT_AT_AVAILABLE_MESSAGE =
+    'lightdash:sdk:inspect-at-available';

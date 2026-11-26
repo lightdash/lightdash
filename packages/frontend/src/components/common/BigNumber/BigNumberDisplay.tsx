@@ -136,6 +136,7 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
             fw={600}
             isHeading
             data-testid="big-number-value"
+            data-big-number-part="value"
             style={{ '--big-number-color': valueColor }}
             className={clsx(
                 styles.bigNumberText,
@@ -215,6 +216,7 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
 
             {comparison && (
                 <Flex
+                    data-big-number-part="comparison"
                     justify="center"
                     align="center"
                     display="inline-flex"

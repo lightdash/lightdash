@@ -1,5 +1,5 @@
 import { ApiConnectorType, POSTHOG_REGION_ORIGINS } from '@lightdash/common';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -40,6 +40,9 @@ vi.mock('../hooks/useTestConnectionConfig', () => ({
 vi.mock('../../../hooks/useProjectResultsCacheSettings', () => ({
     useResultsCacheStatus: () => ({ data: undefined }),
 }));
+vi.mock('../hooks/useExternalConnectionApiUsage', () => ({
+    useExternalConnectionApiUsage: () => ({ data: undefined }),
+}));
 vi.mock('./LiveSourceRateLimits', () => ({
     LiveSourceRateLimitsCard: () => null,
 }));
@@ -54,13 +57,6 @@ const euKeySource = {
     apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '42' },
 } as unknown as LiveSourceConnection;
 
-/** The Access card's own Save changes; the Details card has one too. */
-const saveAccess = () => {
-    const card = screen.getByText('US Cloud').closest('form');
-    if (!card) throw new Error('The Access card is not a form');
-    return within(card).getByRole('button', { name: 'Save changes' });
-};
-
 const renderSettings = () =>
     renderWithProviders(
         <LiveSourceSettings
@@ -71,25 +67,56 @@ const renderSettings = () =>
         />,
     );
 
-describe('LiveSourceSettings PostHog access', () => {
+/** Opens the dialog that edits Authentication, and returns it. */
+const editAuthentication = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(
+        screen.getByRole('button', { name: 'Edit Authentication' }),
+    );
+    return within(await screen.findByRole('dialog'));
+};
+
+describe('LiveSourceSettings PostHog authentication', () => {
     beforeEach(() => {
         update.mockReset();
         update.mockResolvedValue({});
     });
 
-    it('saves a new region, project and key in one request', async () => {
+    it('reads on the page, and edits in a dialog that Cancel reverts', async () => {
         const user = userEvent.setup();
         renderSettings();
 
-        await user.click(screen.getByText('US Cloud'));
-        const project = screen.getByRole('textbox', { name: 'Project ID' });
+        expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+        const dialog = await editAuthentication(user);
+        const project = dialog.getByRole('textbox', { name: 'Project ID' });
+        expect(
+            dialog.getByRole('button', { name: 'Save changes' }),
+        ).toBeDisabled();
+        await user.type(project, '9');
+        expect(
+            dialog.getByRole('button', { name: 'Save changes' }),
+        ).toBeEnabled();
+        await user.click(dialog.getByRole('button', { name: 'Cancel' }));
+
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(screen.getByText('42')).toBeInTheDocument();
+    });
+
+    it('saves a new region, project and key in one request', async () => {
+        const user = userEvent.setup();
+        renderSettings();
+        const dialog = await editAuthentication(user);
+
+        await user.click(dialog.getByText('US Cloud'));
+        const project = dialog.getByRole('textbox', { name: 'Project ID' });
         await user.clear(project);
         await user.type(project, '99');
         await user.type(
-            screen.getByLabelText('New Personal API key'),
+            dialog.getByLabelText('New Personal API key'),
             'phx_us',
         );
-        await user.click(saveAccess());
+        await user.click(dialog.getByRole('button', { name: 'Save changes' }));
 
         expect(update).toHaveBeenCalledExactlyOnceWith({
             projectUuid: 'project-1',
@@ -108,24 +135,26 @@ describe('LiveSourceSettings PostHog access', () => {
     it('asks for a new key instead of moving the saved one to another region', async () => {
         const user = userEvent.setup();
         renderSettings();
+        const dialog = await editAuthentication(user);
 
-        await user.click(screen.getByText('US Cloud'));
-        await user.click(saveAccess());
+        await user.click(dialog.getByText('US Cloud'));
+        await user.click(dialog.getByRole('button', { name: 'Save changes' }));
 
         expect(update).not.toHaveBeenCalled();
         expect(
-            screen.getByText('Enter a key for the new region'),
+            dialog.getByText('Enter a key for the new region'),
         ).toBeInTheDocument();
     });
 
     it('keeps the saved key when its field is left empty', async () => {
         const user = userEvent.setup();
         renderSettings();
+        const dialog = await editAuthentication(user);
 
-        const project = screen.getByRole('textbox', { name: 'Project ID' });
+        const project = dialog.getByRole('textbox', { name: 'Project ID' });
         await user.clear(project);
         await user.type(project, '99');
-        await user.click(saveAccess());
+        await user.click(dialog.getByRole('button', { name: 'Save changes' }));
 
         expect(update).toHaveBeenCalledOnce();
         expect(update.mock.calls[0][0].data).not.toHaveProperty('secret');

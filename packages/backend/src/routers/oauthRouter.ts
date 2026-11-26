@@ -299,8 +299,38 @@ oauthRouter.get('/authorize', async (req, res, next) => {
             );
         }
 
+        const requestedScope = String(
+            (Array.isArray(scope) ? scope.join(' ') : scope) ?? '',
+        ).trim();
+        const resolvedScope = await getOAuthService(
+            req,
+        ).resolveAuthorizationScope(
+            String(client_id),
+            requestedScope ? requestedScope.split(/\s+/) : [],
+            {
+                userUuid: req.user.userUuid ?? null,
+                organizationUuid: identity.organizationUuid,
+            },
+        );
+        if (resolvedScope === false) {
+            const redirectUrl = await getValidatedRedirectUrl(req, {
+                clientId: client_id,
+                redirectUri: redirect_uri,
+            });
+            if (!redirectUrl) return sendInvalidRedirectResponse(res);
+            redirectUrl.searchParams.set('error', 'invalid_scope');
+            if (typeof state === 'string' && state !== '')
+                redirectUrl.searchParams.set('state', state);
+            return await sendOAuthRedirectResponse(
+                req,
+                res,
+                redirectUrl,
+                'The requested permissions are not valid for this application. Redirecting you back to your application...',
+            );
+        }
+
         // Render authorize page using Handlebars template
-        const scopeString = (scope as string) || '';
+        const scopeString = resolvedScope.join(' ');
         const clientName = await getOAuthService(req).getClientDisplayName(
             client_id as string,
         );
@@ -460,6 +490,7 @@ oauthRouter.post('/authorize', async (req, res, next) => {
                 oauthRes,
                 {
                     userId: identity.userId,
+                    userUuid: req.user.userUuid,
                     organizationUuid: identity.organizationUuid,
                 },
             );

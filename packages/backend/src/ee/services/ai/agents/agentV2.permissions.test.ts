@@ -2,7 +2,6 @@ import {
     AgentActorSurface,
     AgentCapability,
     AiAccessRefusalReason,
-    OrganizationMemberRole,
     type AgentCapabilityPolicy,
 } from '@lightdash/common';
 import { type ToolSet } from 'ai';
@@ -33,7 +32,6 @@ const setup = () => {
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
         groupsModel,
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
-        isCustomRolesLicensed: () => true,
         featureFlagModel,
         agentCapabilityPolicyModel: {
             get: vi.fn().mockResolvedValue(policy),
@@ -46,12 +44,9 @@ const setup = () => {
                         : policy.allowedGroupUuids.length > 0,
             })),
             save: vi.fn(),
-        },
-        userModel: {
-            getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                systemRoles: [OrganizationMemberRole.VIEWER],
-                customRoles: [],
-            }),
+            getProjectPolicies: vi.fn().mockResolvedValue([]),
+            saveProjectPolicy: vi.fn(),
+            deleteProjectPolicy: vi.fn(),
         },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({

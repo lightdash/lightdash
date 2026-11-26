@@ -50,7 +50,7 @@ import Page from '../components/common/Page/Page';
 import DashboardChartEditorModal from '../components/DashboardTiles/DashboardChartEditorModal';
 import { CREATE_SAVED_CHART_VERSION_SEARCH_PARAM } from '../components/DashboardTiles/useDashboardChartEditorUrlSync';
 import PageSpinner from '../components/PageSpinner';
-import DashboardCapture from '../ee/features/dashboardCapture/DashboardCapture';
+import DashboardDesignMode from '../ee/features/dashboardCapture/DashboardDesignMode';
 import { useDashboardCommentsCheck } from '../features/comments';
 import DismissedDraftAlert from '../features/contentAsCode/components/DismissedDraftAlert';
 import DraftOverlayFailureAlert from '../features/contentAsCode/components/DraftOverlayFailureAlert';
@@ -1432,10 +1432,14 @@ const Dashboard: FC = () => {
         dashboardTabs,
     ]);
 
-    // Until the controls flag answers the page could not pick its bar and
-    // would swap it, remounting the grid; the request runs alongside the
-    // dashboard's, so it only waits when the flag is slower
-    if (isDashboardLoading || dashboardControlsFlag.isInitialLoading) {
+    // Until these flags answer the page could not pick its bar or grid wrapper
+    // and would swap them, remounting the grid; the requests run alongside the
+    // dashboard's, so it only waits when a flag is slower
+    if (
+        isDashboardLoading ||
+        dashboardControlsFlag.isInitialLoading ||
+        editErgonomicsFlag.isInitialLoading
+    ) {
         return <PageSpinner />;
     }
 
@@ -1916,7 +1920,7 @@ const DashboardPage: FC = () => {
                 <DashboardAiAgentContextBridge />
             </SentryErrorBoundary>
             <SentryErrorBoundary fallback={() => <></>}>
-                <DashboardCapture />
+                <DashboardDesignMode />
             </SentryErrorBoundary>
             <SentryErrorBoundary fallback={() => <></>}>
                 <DashboardAnalysisAdapterBridge />

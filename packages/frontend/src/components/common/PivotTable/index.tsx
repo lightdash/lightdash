@@ -116,7 +116,14 @@ import {
     PIVOT_CELL_PADDING,
 } from './getPivotColumnWidths';
 import { getPivotColumnWindows } from './getPivotColumnWindow';
-import { getGroupedDimColumnIds, getRowSpanMerges } from './getRowSpanMerges';
+import {
+    canRenderedRowsClipMergedCells,
+    getGroupedDimColumnIds,
+    getMergedValueLineClamp,
+    getRowSpanMerges,
+    getWindowedRowSpanMerge,
+    ROW_OVERSCAN,
+} from './getRowSpanMerges';
 import {
     collectPivotBodyRowValues,
     collectPivotHeaderRowValues,
@@ -128,6 +135,9 @@ import ValueCellMenu from './ValueCellMenu';
 
 const MIN_AUTO_COL_WIDTH = 50;
 const DEFAULT_COLUMN_WIDTH = 100;
+// A merged cell's padding: 8px at the top, none at the bottom
+// (PivotTable.module.css).
+const MERGED_CELL_PADDING_Y_PX = 8;
 const EMPTY_COLUMN_PROPERTIES: Record<string, ColumnProperties> = {};
 
 const getStickyCellProps = (frozen: FrozenColumnEntry | undefined) => {
@@ -961,7 +971,7 @@ const PivotTable: FC<PivotTableProps> = ({
         getScrollElement: () => containerRef.current,
         count: projectedRows.length,
         estimateSize: () => CELL_HEIGHT,
-        overscan: 25,
+        overscan: ROW_OVERSCAN,
     });
     const virtualRows = rowVirtualizer.getVirtualItems();
 
@@ -986,18 +996,15 @@ const PivotTable: FC<PivotTableProps> = ({
         );
     }, [groupingOnlyMode, data.indexValueTypes, columnOrder, tableRows]);
 
-    // In merge mode, render every row (no virtualization) so rowSpans stay
-    // contiguous — a block's first row must never be unmounted while its
-    // absorbed siblings are visible.
-    const renderedBodyRows = groupingOnlyMode
-        ? projectedRows.map((renderRow, renderIndex) => ({
-              renderRow,
-              renderIndex,
-          }))
-        : virtualRows.map((virtualRow) => ({
-              renderRow: projectedRows[virtualRow.index],
-              renderIndex: virtualRow.index,
-          }));
+    const renderedBodyRows = virtualRows.map((virtualRow) => ({
+        renderRow: projectedRows[virtualRow.index],
+        renderIndex: virtualRow.index,
+    }));
+    const firstRenderedRowIndex = virtualRows[0]?.index ?? 0;
+    const canClipMergedCells = canRenderedRowsClipMergedCells(
+        projectedRows.length,
+    );
+    const lastRenderedRowIndex = virtualRows.at(-1)?.index ?? 0;
 
     const getUnderlyingFieldValues = useCallback(
         (row: Row<ResultRow>, dataRowIndex: number, colIndex: number) => {
@@ -1929,7 +1936,7 @@ const PivotTable: FC<PivotTableProps> = ({
             </Table.Head>
 
             <Table.Body>
-                {!groupingOnlyMode && paddingTop > 0 && (
+                {paddingTop > 0 && (
                     <VirtualizedArea
                         cellCount={renderedColumnCount}
                         height={paddingTop}
@@ -2087,19 +2094,32 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 // Grouping-only mode: merge repeated row-index
                                 // dimension values with rowSpan. The block's
-                                // first row renders the value spanning the
-                                // block; absorbed rows render no <td> so the
+                                // first rendered row renders the value spanning
+                                // the rest of the block within the rendered
+                                // rows; absorbed rows render no <td> so the
                                 // span covers their position.
-                                const rowSpanMerge =
+                                const columnSpans =
                                     rowSpanMergesByColumnId?.get(
                                         cell.column.id,
-                                    )?.[renderIndex];
+                                    );
+                                const rowSpanMerge = getWindowedRowSpanMerge(
+                                    columnSpans,
+                                    renderIndex,
+                                    firstRenderedRowIndex,
+                                    lastRenderedRowIndex,
+                                );
                                 if (
                                     rowSpanMerge &&
                                     !rowSpanMerge.isBlockStart
                                 ) {
                                     return null;
                                 }
+                                const blockRowCount =
+                                    rowSpanMerge && columnSpans
+                                        ? columnSpans[
+                                              rowSpanMerge.blockStartRow
+                                          ].rowSpan
+                                        : 1;
 
                                 const meta = cell.column.columnDef.meta;
                                 const isRowTotal = meta?.type === 'rowTotal';
@@ -2438,6 +2458,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 ? rowSpanMerge.rowSpan
                                                 : undefined
                                         }
+                                        selectionId={
+                                            rowSpanMerge
+                                                ? `merged:${cell.column.id}:${rowSpanMerge.blockStartRow}`
+                                                : undefined
+                                        }
                                         className={
                                             // Only top-align cells that actually
                                             // span >1 row; single-row blocks stay
@@ -2476,6 +2501,17 @@ const PivotTable: FC<PivotTableProps> = ({
                                             enableContextMenu &&
                                             !!allowInteractions &&
                                             hasUrlActions
+                                        }
+                                        withLineClamp={
+                                            canClipMergedCells &&
+                                            blockRowCount > 1
+                                                ? getMergedValueLineClamp(
+                                                      rowSpanMerge?.rowSpan ??
+                                                          1,
+                                                      CELL_HEIGHT,
+                                                      MERGED_CELL_PADDING_Y_PX,
+                                                  )
+                                                : undefined
                                         }
                                         {...getPivotCellInteractionProps({
                                             enabled: enableContextMenu,
@@ -2665,7 +2701,7 @@ const PivotTable: FC<PivotTableProps> = ({
                     );
                 })}
 
-                {!groupingOnlyMode && paddingBottom > 0 && (
+                {paddingBottom > 0 && (
                     <VirtualizedArea
                         cellCount={renderedColumnCount}
                         height={paddingBottom}

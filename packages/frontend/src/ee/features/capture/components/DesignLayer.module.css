@@ -1,0 +1,26 @@
+/* In the page's own scrolling content: the browser moves what is in it. */
+.inPage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+}
+
+/* Over a surface that scrolls on its own: shifted by that scroll. */
+.shifted {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    z-index: var(--ld-z-design-bubble);
+    will-change: transform;
+}
+
+/* Keeps hover and clicks off the page until its picture is taken; bubbles sit above. */
+.shield {
+    position: fixed;
+    inset: 0;
+    z-index: var(--ld-z-design-marks);
+}

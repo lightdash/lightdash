@@ -33,7 +33,6 @@ const setup = () => {
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
         groupsModel: { findUserInGroups: vi.fn().mockResolvedValue([]) },
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
-        isCustomRolesLicensed: vi.fn().mockReturnValue(true),
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         agentCapabilityPolicyModel: {
             get: vi.fn().mockResolvedValue(policy),
@@ -46,8 +45,10 @@ const setup = () => {
                         : policy.allowedGroupUuids.length > 0,
             })),
             save: vi.fn().mockResolvedValue(policy),
+            getProjectPolicies: vi.fn().mockResolvedValue([]),
+            saveProjectPolicy: vi.fn(),
+            deleteProjectPolicy: vi.fn(),
         },
-        userModel: { getAgentRoleAssignments: vi.fn() },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({
                 organizationUuid: account.organization.organizationUuid,
@@ -73,6 +74,11 @@ const operations = [
         }),
     (c: AgentPermissionController, req: Request) =>
         c.resetToLegacy(req, { version: 0 }),
+    (c: AgentPermissionController, req: Request) => c.getProjectPolicies(req),
+    (c: AgentPermissionController, req: Request) =>
+        c.saveProjectPolicy(req, 'project', { allowedCapabilities: [] }),
+    (c: AgentPermissionController, req: Request) =>
+        c.deleteProjectPolicy(req, 'project'),
 ];
 
 test.each(operations)('rejects non-admin callers', async (operation) => {
@@ -329,4 +335,76 @@ test.each([
     'deleteWarehouseConfirmation',
 ])('does not expose %s', (method) => {
     expect(AgentPermissionController.prototype).not.toHaveProperty(method);
+});
+
+describe('project restrictions', () => {
+    test('saves a project list in capability order', async () => {
+        const { controller, req, account, deps } = setup();
+        deps.agentCapabilityPolicyModel.saveProjectPolicy.mockImplementation(
+            async (policy) => policy,
+        );
+        await controller.saveProjectPolicy(req, 'project', {
+            allowedCapabilities: [
+                AgentCapability.Export,
+                AgentCapability.Query,
+            ],
+        });
+        expect(
+            deps.agentCapabilityPolicyModel.saveProjectPolicy,
+        ).toHaveBeenCalledWith({
+            projectUuid: 'project',
+            allowedCapabilities: [
+                AgentCapability.Query,
+                AgentCapability.Export,
+            ],
+            updatedByUserUuid: account.user.id,
+        });
+    });
+
+    test('saves no restrictions for a project as null', async () => {
+        const { controller, req, deps } = setup();
+        await controller.saveProjectPolicy(req, 'project', {
+            allowedCapabilities: null,
+        });
+        expect(
+            deps.agentCapabilityPolicyModel.saveProjectPolicy,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ allowedCapabilities: null }),
+        );
+    });
+
+    test('rejects an unknown capability', async () => {
+        const { controller, req, deps } = setup();
+        await expect(
+            controller.saveProjectPolicy(req, 'project', {
+                allowedCapabilities: ['everything' as AgentCapability],
+            }),
+        ).rejects.toThrow('Provide a valid capability list');
+        expect(
+            deps.agentCapabilityPolicyModel.saveProjectPolicy,
+        ).not.toHaveBeenCalled();
+    });
+
+    test.each(['save', 'delete'] as const)(
+        "cannot %s restrictions for another organization's project",
+        async (action) => {
+            const { controller, req, deps } = setup();
+            deps.projectModel.getSummary.mockResolvedValue({
+                organizationUuid: 'another-organization',
+            });
+            await expect(
+                action === 'save'
+                    ? controller.saveProjectPolicy(req, 'project', {
+                          allowedCapabilities: [],
+                      })
+                    : controller.deleteProjectPolicy(req, 'project'),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(
+                deps.agentCapabilityPolicyModel.saveProjectPolicy,
+            ).not.toHaveBeenCalled();
+            expect(
+                deps.agentCapabilityPolicyModel.deleteProjectPolicy,
+            ).not.toHaveBeenCalled();
+        },
+    );
 });

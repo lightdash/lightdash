@@ -35,7 +35,10 @@ export const embedReachSql = `(WITH loads AS (
 SELECT org_id, project_id, event_id, event_ts,
     content_id AS dashboard_id,
     COALESCE(NULLIF(latest_name, ''), 'Untitled dashboard') AS dashboard_name,
-    COALESCE(NULLIF(latest_name, ''), 'Untitled dashboard') || ' · ' || content_id AS dashboard_label,
+    -- The name, with the start of the ID only when two dashboards share the name
+    COALESCE(NULLIF(latest_name, ''), 'Untitled dashboard') || CASE
+        WHEN MIN(content_id) OVER same_name <> MAX(content_id) OVER same_name
+        THEN ' · ' || left(content_id, 8) ELSE '' END AS dashboard_label,
     to_json([org_id, project_id, content_id])::VARCHAR AS dashboard_key,
     CASE WHEN NULLIF(TRIM(external_user_id), '') IS NOT NULL
         THEN external_user_id END AS external_user_id,
@@ -43,7 +46,8 @@ SELECT org_id, project_id, event_id, event_ts,
         THEN to_json([org_id, project_id, external_user_id])::VARCHAR END AS viewer_key,
     CASE WHEN NULLIF(TRIM(external_user_id), '') IS NOT NULL
         THEN 'Identified external viewer' ELSE 'No external viewer ID' END AS identity_coverage
-FROM named)`;
+FROM named
+WINDOW same_name AS (PARTITION BY org_id, project_id, COALESCE(NULLIF(latest_name, ''), 'Untitled dashboard')))`;
 
 export const embedReachMetrics: SystemMetricDefinition[] = [
     {

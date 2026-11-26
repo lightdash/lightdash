@@ -9,11 +9,14 @@ import type * as ReactRouter from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { useCreateAgentThreadMutation } from './useProjectAiAgents';
 
-const { streamMessage, navigate, lightdashApi } = vi.hoisted(() => ({
-    streamMessage: vi.fn(),
-    navigate: vi.fn(),
-    lightdashApi: vi.fn(),
-}));
+const { streamMessage, navigate, lightdashApi, showToastApiError } = vi.hoisted(
+    () => ({
+        streamMessage: vi.fn(),
+        navigate: vi.fn(),
+        lightdashApi: vi.fn(),
+        showToastApiError: vi.fn(),
+    }),
+);
 
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<typeof ReactRouter>()),
@@ -26,7 +29,7 @@ vi.mock('../../../../providers/App/useApp', () => ({
     default: () => ({ user: { data: { userUuid: 'user-1' } } }),
 }));
 vi.mock('../../../../hooks/toaster/useToaster', () => ({
-    default: () => ({ showToastApiError: vi.fn() }),
+    default: () => ({ showToastApiError }),
 }));
 // Embed mode skips title generation and the notification permission prompt
 vi.mock('../../../providers/Embed/useIsEmbedded', () => ({
@@ -84,5 +87,51 @@ describe('useCreateAgentThreadMutation', () => {
             expect.anything(),
         );
         expect(sidebarFetches).toBe(2);
+    });
+
+    const failWith = async (
+        error: unknown,
+        options: { silentErrors: boolean } | undefined,
+    ) => {
+        navigate.mockReset();
+        showToastApiError.mockReset();
+        lightdashApi.mockRejectedValue(error);
+        const queryClient = new QueryClient();
+        const wrapper = ({ children }: { children: ReactNode }) => (
+            <QueryClientProvider client={queryClient}>
+                {children}
+            </QueryClientProvider>
+        );
+        const { result } = renderHook(
+            () => useCreateAgentThreadMutation('project-1', options),
+            { wrapper },
+        );
+        await act(async () => {
+            await result.current
+                .mutateAsync({ agentUuid: 'agent-1', prompt: 'Hi' })
+                .catch(() => {});
+        });
+    };
+    const serverError = {
+        error: { name: 'UnexpectedServerError', statusCode: 500, message: '' },
+    };
+    const forbidden = {
+        error: { name: 'ForbiddenError', statusCode: 403, message: '' },
+    };
+
+    it('reports a failure with a toast, or a redirect when not authorized', async () => {
+        await failWith(serverError, undefined);
+        expect(showToastApiError).toHaveBeenCalledTimes(1);
+        await failWith(forbidden, undefined);
+        expect(navigate).toHaveBeenCalledWith(
+            expect.stringContaining('/not-authorized'),
+        );
+    });
+
+    it('with silentErrors, a failure neither toasts nor redirects', async () => {
+        await failWith(serverError, { silentErrors: true });
+        await failWith(forbidden, { silentErrors: true });
+        expect(showToastApiError).not.toHaveBeenCalled();
+        expect(navigate).not.toHaveBeenCalled();
     });
 });

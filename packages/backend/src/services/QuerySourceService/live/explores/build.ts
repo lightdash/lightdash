@@ -12,6 +12,7 @@ import {
     type Explore,
     type ExternalConnectionApiSource,
     type ItemsMap,
+    type LiveSourceAccessRule,
     type MetricQuery,
     type ResultColumns,
     type SortField,
@@ -182,6 +183,7 @@ const buildDefinitionExplore = (
         | 'connectionUuid'
         | 'definitionHash'
         | 'aiHint'
+        | 'tags'
     >,
 ) => {
     const { baseVersion, capabilities } = getLiveBaseLayer(connector);
@@ -309,6 +311,32 @@ export const describeLiveTarget = (
     });
 
 /**
+ * Puts the source's access rule on the explore's base table, where the
+ * explore checks read `required_attributes` and `any_attributes`.
+ */
+const withAccessRule = (
+    explore: Explore,
+    accessRule: LiveSourceAccessRule | null,
+): Explore => {
+    const baseTable = explore.tables[explore.baseTable];
+    if (!accessRule || !baseTable) return explore;
+    const { required, any } = accessRule;
+    return {
+        ...explore,
+        tables: {
+            ...explore.tables,
+            [explore.baseTable]: {
+                ...baseTable,
+                ...(Object.keys(required).length > 0
+                    ? { requiredAttributes: required }
+                    : {}),
+                ...(Object.keys(any).length > 0 ? { anyAttributes: any } : {}),
+            },
+        },
+    };
+};
+
+/**
  * The explores a live data source answers metric queries with: every
  * explore an admin hasn't switched off, with its label, description and
  * AI hint overrides.
@@ -322,6 +350,8 @@ export const buildLiveExplores = ({
     edits,
     exploreEdits = {},
     aiHint,
+    accessRule = null,
+    tags,
 }: {
     connectionUuid: string;
     sourceName: string;
@@ -332,6 +362,10 @@ export const buildLiveExplores = ({
     exploreEdits?: LiveSourceExploreEdits;
     /** The target first, then the admin's source hint; each explore's own hint follows. */
     aiHint?: string[];
+    /** Who can query the source; copied onto each explore's base table. */
+    accessRule?: LiveSourceAccessRule | null;
+    /** The source's tags, carried by each of its explores. */
+    tags?: string[];
 }): Explore[] => {
     const { definitions } = getLiveBaseLayer(apiSource.connector);
     const scannedModels = getLiveScannedModels(apiSource.connector);
@@ -356,6 +390,7 @@ export const buildLiveExplores = ({
                     (hint): hint is string => Boolean(hint),
                 ),
             ],
+            tags,
         });
     };
     return definitions
@@ -364,17 +399,20 @@ export const buildLiveExplores = ({
             const scanned = scannedModels.find(
                 (candidate) => candidate.definition === definition,
             );
-            return build(
-                scanned
-                    ? applyLiveSourceFieldEdits({
-                          base: definition,
-                          ...getLiveModelFieldInputs({
-                              model: scanned.model,
-                              scannedFields,
-                              edits,
-                          }),
-                      })
-                    : definition,
+            return withAccessRule(
+                build(
+                    scanned
+                        ? applyLiveSourceFieldEdits({
+                              base: definition,
+                              ...getLiveModelFieldInputs({
+                                  model: scanned.model,
+                                  scannedFields,
+                                  edits,
+                              }),
+                          })
+                        : definition,
+                ),
+                accessRule,
             );
         });
 };

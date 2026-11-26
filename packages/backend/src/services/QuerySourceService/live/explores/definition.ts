@@ -97,6 +97,7 @@ export const buildLiveExplore = ({
     capabilities,
     warehouseSqlBuilder,
     aiHint,
+    tags = [],
 }: {
     definition: LiveExploreDefinition;
     exploreName: string;
@@ -110,6 +111,8 @@ export const buildLiveExplore = ({
     capabilities: LiveCapabilities;
     warehouseSqlBuilder: WarehouseSqlBuilder;
     aiHint?: string[];
+    /** The source's tags, which AI agents limited to tags match on. */
+    tags?: string[];
 }): Explore => {
     const quote = warehouseSqlBuilder.getFieldQuoteChar();
     const base = {
@@ -180,7 +183,7 @@ export const buildLiveExplore = ({
         name: exploreName,
         label,
         ...(groupLabel ? { groupLabel } : {}),
-        tags: [],
+        tags,
         baseTable: exploreName,
         joinedTables: [],
         tables: {

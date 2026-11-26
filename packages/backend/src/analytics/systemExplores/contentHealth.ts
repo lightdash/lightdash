@@ -1,6 +1,7 @@
-import { MetricType } from '@lightdash/common';
+import { FilterOperator, MetricType } from '@lightdash/common';
 import { contentInventoryColumns } from '../eventStream/contentInventory';
 import type { CompactedStreamColumn } from '../eventStream/types';
+import { customerContentSql } from './contentInventory';
 import { contentReachSql } from './contentReach';
 import type { SystemMetricDefinition } from './systemStreamMetrics';
 
@@ -89,7 +90,8 @@ export const contentHealthSql = `(WITH views AS (
         q.warehouse_execution_time_ms,
         COALESCE(q.queries_with_execution_time, 0)::BIGINT AS queries_with_execution_time,
         w.first_observed_event_at
-    FROM lightdash_content i
+    -- Lightdash's own analytics content is not the organization's to review
+    FROM ${customerContentSql} i
     LEFT JOIN views v ON i.org_id = v.org_id AND i.project_id = v.project_id AND i.content_id = v.content_id
         AND v.content_type = CASE WHEN i.content_type = 'saved_chart' THEN 'chart' ELSE i.content_type END
     LEFT JOIN content_queries q ON i.org_id = q.org_id AND i.project_id = q.project_id AND i.content_type = q.content_type AND i.content_id = q.content_id
@@ -125,6 +127,46 @@ export const contentHealthMetrics: SystemMetricDefinition[] = [
         column: 'content_id',
         description:
             'Items in the latest inventory snapshot, including zero-event and soft-deleted items. Filter Is deleted to exclude removed content.',
+    },
+    ...(
+        [
+            ['content_with_activity', 'Activity observed'],
+            [
+                'content_in_use_without_activity',
+                'No activity observed; known dependency',
+            ],
+            [
+                'content_without_activity',
+                'No activity observed; coverage incomplete',
+            ],
+        ] as const
+    ).map(([name, status]) => ({
+        name,
+        type: MetricType.COUNT,
+        column: 'content_id',
+        description: `Items whose activity status is "${status}". Divide by Total content for the share of all content.`,
+        filters: [
+            {
+                id: name,
+                target: { fieldRef: 'activity_status' },
+                operator: FilterOperator.EQUALS,
+                values: [status],
+            },
+        ],
+    })),
+    {
+        name: 'total_enabled_schedules',
+        type: MetricType.SUM,
+        column: 'enabled_schedules',
+        description:
+            'Enabled scheduled deliveries that send the selected content. Current state, not history.',
+    },
+    {
+        name: 'total_dashboard_references',
+        type: MetricType.SUM,
+        column: 'dashboard_references',
+        description:
+            'Current dashboard tiles that show the selected content. Current state, not history.',
     },
     {
         name: 'total_observed_views',

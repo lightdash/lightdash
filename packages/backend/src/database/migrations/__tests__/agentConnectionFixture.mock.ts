@@ -167,11 +167,9 @@ export const connectionFixture = async (
         agentCapabilityPolicyModel: policies,
         groupsModel: groups,
         featureFlagModel: flags,
-        userModel: users,
         projectModel: projects,
         agentActionLogModel: new AgentActionLogModel({ database }),
         resolveResourceProjectUuid: unusedDependency,
-        isCustomRolesLicensed: () => false,
         areGroupsAvailable: unusedDependency,
     });
     const connections = new AgentConnectionService({

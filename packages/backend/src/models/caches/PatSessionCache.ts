@@ -5,6 +5,7 @@ import NodeCache from 'node-cache';
 export type CachedPatSessionUser = {
     user: SessionUser;
     personalAccessToken: PersonalAccessToken;
+    cliOAuthPatCompat: boolean;
 };
 
 const cache =

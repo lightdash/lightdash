@@ -1,71 +1,42 @@
+import { type CaptureMark } from './types';
+
 export type Size = { width: number; height: number };
 export type PixelRect = { x: number; y: number; width: number; height: number };
 
-const ASPECT_TOLERANCE = 0.02;
-// Chrome's sharing bar can shrink the viewport after the first frame.
-const LOOSE_ASPECT_TOLERANCE = 0.1;
-const SAME_SCREEN_MAX_DIFF = 4;
-
-// A capture of this tab has the viewport's shape; another window rarely does.
-export const isFrameFromThisTab = (
-    frame: Size,
-    viewport: Size,
-    tolerance: number = ASPECT_TOLERANCE,
-): boolean => {
-    if (frame.width <= 0 || frame.height <= 0) return false;
-    if (viewport.width <= 0 || viewport.height <= 0) return false;
-    const frameAspect = frame.width / frame.height;
-    const viewportAspect = viewport.width / viewport.height;
-    return Math.abs(frameAspect - viewportAspect) / viewportAspect <= tolerance;
+/** What the user is looking at when a mark is made. */
+export type ScreenView = {
+    tabUuid: string | null;
+    scroll: { x: number; y: number };
+    size: Size;
+    /** Counts the times the page's content was replaced. */
+    epoch: number;
 };
 
-// The capture handle identifies this exact tab; shape is only a fallback.
-export const isThisTab = (input: {
-    captureHandle: string | null;
-    expectedHandle: string;
-    displaySurface: string | null;
-    frame: Size;
-    viewport: Size;
-}): boolean => {
-    if (input.captureHandle !== null) {
-        return input.captureHandle === input.expectedHandle;
-    }
-    if (input.displaySurface !== null && input.displaySurface !== 'browser') {
-        return false;
-    }
-    return isFrameFromThisTab(
-        input.frame,
-        input.viewport,
-        LOOSE_ASPECT_TOLERANCE,
-    );
-};
+const SAME_SCREEN_MAX_SCROLL_PX = 4;
 
-export const cropRectForRegion = (
-    region: PixelRect,
-    viewport: Size,
-    frame: Size,
-): PixelRect => {
-    const left = Math.max(0, region.x);
-    const top = Math.max(0, region.y);
-    const right = Math.min(viewport.width, region.x + region.width);
-    const bottom = Math.min(viewport.height, region.y + region.height);
-    const scaleX = frame.width / viewport.width;
-    const scaleY = frame.height / viewport.height;
-    return {
-        x: Math.round(left * scaleX),
-        y: Math.round(top * scaleY),
-        width: Math.round(Math.max(0, right - left) * scaleX),
-        height: Math.round(Math.max(0, bottom - top) * scaleY),
-    };
-};
+/** Marks on the same view share one picture, so no new one is taken. */
+export const sameScreen = (a: ScreenView, b: ScreenView): boolean =>
+    a.tabUuid === b.tabUuid &&
+    a.epoch === b.epoch &&
+    a.size.width === b.size.width &&
+    a.size.height === b.size.height &&
+    Math.abs(a.scroll.x - b.scroll.x) <= SAME_SCREEN_MAX_SCROLL_PX &&
+    Math.abs(a.scroll.y - b.scroll.y) <= SAME_SCREEN_MAX_SCROLL_PX;
 
-// Compares two greyscale thumbnails by mean absolute difference.
-export const sameScreen = (
-    a: Uint8ClampedArray,
-    b: Uint8ClampedArray,
-): boolean => {
-    if (a.length !== b.length || a.length === 0) return false;
-    let total = 0;
-    for (let i = 0; i < a.length; i += 1) total += Math.abs(a[i] - b[i]);
-    return total / a.length < SAME_SCREEN_MAX_DIFF;
-};
+/** Moves marks by a share of the picture, for one taken after the page scrolled. */
+export const shiftMarks = (
+    marks: CaptureMark[],
+    by: { x: number; y: number },
+): CaptureMark[] =>
+    by.x === 0 && by.y === 0
+        ? marks
+        : marks.map((mark) => ({
+              ...mark,
+              box: { ...mark.box, x: mark.box.x + by.x, y: mark.box.y + by.y },
+              strokes: mark.strokes.map((stroke) => ({
+                  points: stroke.points.map((point) => ({
+                      x: point.x + by.x,
+                      y: point.y + by.y,
+                  })),
+              })),
+          }));

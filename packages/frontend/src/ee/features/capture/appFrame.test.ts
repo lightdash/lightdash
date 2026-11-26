@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-    APP_PROBE_TIMEOUT_MS,
     AppFrameTimeoutError,
+    appImageOffset,
     appImageScale,
+    grabAppFrame,
     isAppImage,
-    resolveAppFrameSource,
     withTimeout,
 } from './appFrame';
 
@@ -48,60 +48,6 @@ describe('withTimeout', () => {
         await expect(
             withTimeout(Promise.reject(new Error('boom')), 100),
         ).rejects.toThrow('boom');
-    });
-});
-
-describe('resolveAppFrameSource', () => {
-    beforeEach(() => {
-        vi.useFakeTimers();
-    });
-    afterEach(() => {
-        vi.useRealTimers();
-    });
-
-    it('uses tab capture when the surface has no picture of its own', async () => {
-        await expect(resolveAppFrameSource({ probe: null })).resolves.toBe(
-            'tab',
-        );
-    });
-
-    it('uses the app when it answers with a picture', async () => {
-        await expect(
-            resolveAppFrameSource({ probe: async () => png() }),
-        ).resolves.toBe('app');
-    });
-
-    it('falls back when the app does not answer in time', async () => {
-        const choice = resolveAppFrameSource({
-            probe: () => new Promise(() => {}),
-        });
-        await vi.advanceTimersByTimeAsync(APP_PROBE_TIMEOUT_MS - 1);
-        let settled = false;
-        void choice.then(() => {
-            settled = true;
-        });
-        await Promise.resolve();
-        expect(settled).toBe(false);
-        await vi.advanceTimersByTimeAsync(1);
-        await expect(choice).resolves.toBe('tab');
-    });
-
-    it('falls back when the app answers with an error', async () => {
-        await expect(
-            resolveAppFrameSource({
-                probe: async () => {
-                    throw new Error('Screenshot failed');
-                },
-            }),
-        ).resolves.toBe('tab');
-    });
-
-    it('falls back when the answer is not a picture', async () => {
-        await expect(
-            resolveAppFrameSource({
-                probe: async () => ({ html: '<p>hi</p>' }),
-            }),
-        ).resolves.toBe('tab');
     });
 });
 
@@ -158,5 +104,63 @@ describe('appImageScale', () => {
                 2,
             ),
         ).toBe(1);
+    });
+});
+
+describe('appImageOffset', () => {
+    it('starts the picture where the app has scrolled to, in image pixels', () => {
+        expect(appImageOffset({ x: 0, y: 300 }, 2)).toEqual({ x: 0, y: 600 });
+        expect(appImageOffset({ x: 10.4, y: 0 }, 1)).toEqual({ x: 10, y: 0 });
+    });
+
+    it('never starts above or left of the page', () => {
+        expect(appImageOffset({ x: -5, y: -40 }, 2)).toEqual({ x: 0, y: 0 });
+    });
+});
+
+describe('grabAppFrame', () => {
+    const drawImage = vi.fn();
+    const scope = globalThis as unknown as {
+        createImageBitmap: unknown;
+    };
+    const realCreateImageBitmap = scope.createImageBitmap;
+    beforeEach(() => {
+        drawImage.mockClear();
+        // The app's picture is the whole page: 800 wide, 4000 tall, at 2x.
+        scope.createImageBitmap = vi.fn(async (source: unknown) =>
+            source instanceof Blob
+                ? { width: 1600, height: 8000, close: vi.fn() }
+                : { width: 1600, height: 1200, close: vi.fn() },
+        );
+        vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+            fillStyle: '',
+            fillRect: vi.fn(),
+            drawImage,
+        } as unknown as CanvasRenderingContext2D);
+        vi.stubGlobal('devicePixelRatio', 2);
+    });
+    afterEach(() => {
+        scope.createImageBitmap = realCreateImageBitmap;
+        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
+    });
+
+    it('pictures a scrolled app from where it is scrolled to, so marks line up', async () => {
+        await grabAppFrame(
+            async () => png(),
+            { width: 800, height: 600 },
+            { x: 0, y: 300 },
+        );
+        // 300 CSS pixels down the page is 600 image pixels at 2x.
+        expect(drawImage).toHaveBeenCalledWith(expect.anything(), -0, -600);
+    });
+
+    it('pictures an app that has not scrolled from its top', async () => {
+        await grabAppFrame(
+            async () => png(),
+            { width: 800, height: 600 },
+            { x: 0, y: 0 },
+        );
+        expect(drawImage).toHaveBeenCalledWith(expect.anything(), -0, -0);
     });
 });

@@ -4,14 +4,17 @@ import {
     type AgentCapability,
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicySave,
+    type AgentProjectCapabilityPolicy,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
     AgentCapabilityPoliciesTableName,
+    ProjectAgentCapabilityPoliciesTableName,
     type DbAgentCapabilityPolicy,
 } from '../database/entities/agentCapabilityPolicies';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationTableName } from '../database/entities/organizations';
+import { ProjectTableName } from '../database/entities/projects';
 
 type StoredPolicy = Pick<
     DbAgentCapabilityPolicy,
@@ -221,5 +224,75 @@ export class AgentCapabilityPolicyModel {
                 allowedGroupUuids: policy.allowed_group_uuids,
             };
         });
+    }
+
+    async getProjectPolicies(
+        organizationUuid: string,
+    ): Promise<AgentProjectCapabilityPolicy[]> {
+        const rows = await this.database(
+            ProjectAgentCapabilityPoliciesTableName,
+        )
+            .join(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectAgentCapabilityPoliciesTableName}.project_uuid`,
+            )
+            .join(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .orderBy(`${ProjectTableName}.name`)
+            .select<
+                {
+                    project_uuid: string;
+                    allowed_capabilities: AgentCapability[] | null;
+                }[]
+            >(
+                `${ProjectAgentCapabilityPoliciesTableName}.project_uuid`,
+                `${ProjectAgentCapabilityPoliciesTableName}.allowed_capabilities`,
+            );
+        return rows.map((row) => ({
+            projectUuid: row.project_uuid,
+            allowedCapabilities: row.allowed_capabilities,
+        }));
+    }
+
+    async saveProjectPolicy({
+        projectUuid,
+        allowedCapabilities,
+        updatedByUserUuid,
+    }: AgentProjectCapabilityPolicy & {
+        updatedByUserUuid: string | null;
+    }): Promise<AgentProjectCapabilityPolicy> {
+        const [policy] = await this.database(
+            ProjectAgentCapabilityPoliciesTableName,
+        )
+            .insert({
+                project_uuid: projectUuid,
+                allowed_capabilities: allowedCapabilities,
+                updated_by_user_uuid: updatedByUserUuid,
+            })
+            .onConflict('project_uuid')
+            .merge({
+                allowed_capabilities: allowedCapabilities,
+                updated_by_user_uuid: updatedByUserUuid,
+                updated_at: this.database.fn.now(),
+            })
+            .returning('*');
+        return {
+            projectUuid: policy.project_uuid,
+            allowedCapabilities: policy.allowed_capabilities,
+        };
+    }
+
+    async deleteProjectPolicy(projectUuid: string): Promise<void> {
+        await this.database(ProjectAgentCapabilityPoliciesTableName)
+            .where('project_uuid', projectUuid)
+            .delete();
     }
 }

@@ -11,7 +11,6 @@ export enum FeatureFlags {
      * Snowflake agent sign-in. Off by default; organization scope; no handler.
      */
     AgentIdentity = 'agent-identity',
-    OAuthScopeEnforcement = 'oauth-scope-enforcement',
 
     MultiConnectionProjects = 'multi-connection-projects',
     /**
@@ -81,16 +80,17 @@ export enum FeatureFlags {
     EnableDataApps = 'enable-data-apps',
 
     /**
-     * Voice Design in the data app builder: the user draws on the preview
-     * while talking, and the marked-up screenshots and what they said land
-     * in the prompt box. Off by default; per user or organization.
+     * Design Mode on data apps, in the builder and on published apps: the
+     * user marks the app and says what to change. In the builder the marked
+     * screenshots and words go out as one prompt; on a published app they go
+     * to an AI agent. Off by default; per user or organization.
      */
     DataAppCapture = 'data-app-capture',
 
     /**
-     * Voice Design on dashboards in view mode: layout changes the user asks
-     * for are applied as an unsaved preview, and questions or other changes
-     * go to an AI agent thread. Off by default; per user or organization.
+     * Design Mode on dashboards in view mode: the user marks the dashboard
+     * and says what to change, and each bubble of marks becomes an AI agent
+     * conversation. Off by default; per user or organization.
      */
     DashboardCapture = 'dashboard-capture',
 

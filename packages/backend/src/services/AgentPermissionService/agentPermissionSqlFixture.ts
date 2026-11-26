@@ -1,7 +1,6 @@
 import {
     AgentActorSurface,
     assertIsAccountWithOrg,
-    OrganizationMemberRole,
     type AgentCapabilityPolicy,
     type RegisteredAccount,
 } from '@lightdash/common';
@@ -68,6 +67,11 @@ export const setupPermissionSql = (
                 .filter((uuid) => query.bindings.includes(uuid))
                 .map((user_uuid) => ({ user_uuid, group_uuid: 'live' })),
         );
+    tracker.on
+        .select((query) =>
+            query.sql.includes('from "project_agent_capability_policies"'),
+        )
+        .response([]);
     const deps = {
         agentCapabilityPolicyModel: new AgentCapabilityPolicyModel({
             database,
@@ -76,13 +80,6 @@ export const setupPermissionSql = (
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
         areGroupsAvailable: vi.fn().mockResolvedValue(false),
-        isCustomRolesLicensed: () => false,
-        userModel: {
-            getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                systemRoles: [OrganizationMemberRole.VIEWER],
-                customRoles: [],
-            }),
-        },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({
                 organizationUuid: account.organization.organizationUuid,
@@ -112,7 +109,12 @@ export const expectAdmissionSql = (
         membership: number;
     },
 ) => {
-    const queries = tracker.history.select;
+    // Every policy read is paired with one read of the project restrictions.
+    const queries = tracker.history.select.filter(
+        (query) =>
+            !query.sql.includes('from "project_agent_capability_policies"'),
+    );
+    expect(tracker.history.select).toHaveLength(queries.length + counts.policy);
     expect(queries).toHaveLength(
         Object.values(counts).reduce((sum, n) => sum + n, 0),
     );

@@ -19,6 +19,9 @@ type DisableMessage = { type: 'lightdash:inspect:disable' };
 export type InspectSelectedMessage = {
     type: 'lightdash:inspect:selected';
     label: string;
+    /** The element's bounds in the iframe's viewport, in CSS pixels. Hosts
+     *  built before this field ignore it. */
+    rect: { x: number; y: number; width: number; height: number };
 };
 
 /**
@@ -29,6 +32,28 @@ export type InspectSelectedMessage = {
 export type InspectAvailableMessage = {
     type: 'lightdash:inspect:available';
 };
+
+/** Host → iframe: which element is at this point, in the iframe's viewport pixels? */
+export type InspectAtRequestMessage = {
+    type: 'lightdash:sdk:inspect-at';
+    id: string;
+    x: number;
+    y: number;
+};
+
+/** Iframe → host: the answer, with the same label and rect a click selects; null over nothing. */
+export type InspectAtResponseMessage = {
+    type: 'lightdash:sdk:inspect-at-response';
+    id: string;
+    element: Pick<InspectSelectedMessage, 'label' | 'rect'> | null;
+};
+
+/** Announced on mount so the host knows it can ask; older SDKs never send it. */
+export type InspectAtAvailableMessage = {
+    type: 'lightdash:sdk:inspect-at-available';
+};
+
+const MAX_REQUEST_ID_LENGTH = 100;
 
 const OVERLAY_ID = 'lightdash-inspector-overlay';
 const LABEL_ID = 'lightdash-inspector-label';
@@ -55,17 +80,80 @@ function isOurOwnElement(el: Element | null): boolean {
  * shadcn/Tailwind are utility-heavy and not grep-useful, so we don't
  * bother emitting them.
  */
-function buildLabel(el: Element): string {
-    const tag = el.tagName.toLowerCase();
+// Where an element says in words what it is, when it shows no text itself.
+const NAME_ATTRIBUTES = ['aria-label', 'alt', 'title', 'placeholder', 'name'];
 
-    let text = '';
-    let cur: Element | null = el;
+const squash = (value: string | null | undefined): string =>
+    (value ?? '').replace(/\s+/g, ' ').trim();
+
+/**
+ * The name an element gives itself: an icon button's `aria-label`, an
+ * image's `alt`, a chart bar's `name` or `<title>`. Empty when it has none.
+ */
+function ownName(el: Element): string {
+    for (const attribute of NAME_ATTRIBUTES) {
+        const value = squash(el.getAttribute(attribute));
+        // A chart library writes a missing name out as the word.
+        if (value && value !== 'undefined' && value !== 'null') return value;
+    }
+    const labelledBy = squash(el.getAttribute('aria-labelledby'));
+    if (labelledBy) {
+        const named = squash(
+            labelledBy
+                .split(' ')
+                .map((id) => document.getElementById(id)?.textContent ?? '')
+                .join(' '),
+        );
+        if (named) return named;
+    }
+    // An SVG shape is named by a <title> child, which its text would repeat.
+    for (const child of Array.from(el.children)) {
+        if (child.tagName.toLowerCase() === 'title') {
+            return squash(child.textContent);
+        }
+    }
+    return '';
+}
+
+const BAR = 'recharts-bar-rectangle';
+const AXIS_TICKS = ['recharts-xAxis-tick-labels', 'recharts-yAxis-tick-labels'];
+
+/**
+ * A chart bar carries no name of its own: its place among its series' bars
+ * is the place of its tick on the category axis. Empty unless exactly one
+ * axis has a tick per bar, so a value axis is never taken for the names.
+ */
+function barName(el: Element): string {
+    const bar = el.closest(`.${BAR}`);
+    const svg = el.closest('svg');
+    if (!bar || !bar.parentElement || !svg) return '';
+    const bars = Array.from(bar.parentElement.children).filter((child) =>
+        child.classList.contains(BAR),
+    );
+    const named = AXIS_TICKS.map((axis) =>
+        Array.from(
+            svg.querySelectorAll(`.${axis} .recharts-cartesian-axis-tick-value`),
+        ).map((tick) => squash(tick.textContent)),
+    ).filter((ticks) => ticks.length === bars.length);
+    return named.length === 1 ? (named[0][bars.indexOf(bar)] ?? '') : '';
+}
+
+function buildLabel(el: Element): string {
+    const bar = barName(el);
+    // A role says what the element is for; without one, its tag does.
+    const tag = bar
+        ? 'bar'
+        : squash(el.getAttribute('role')) || el.tagName.toLowerCase();
+
+    let text = bar;
+    let cur: Element | null = bar ? null : el;
     for (let i = 0; i < ANCESTOR_TEXT_LOOKBACK && cur; i += 1) {
-        const raw = (cur.textContent ?? '').replace(/\s+/g, ' ').trim();
+        const raw = ownName(cur) || squash(cur.textContent);
         if (raw) {
-            text = raw.length > MAX_TEXT_LEN
-                ? `${raw.slice(0, MAX_TEXT_LEN)}…`
-                : raw;
+            text =
+                raw.length > MAX_TEXT_LEN
+                    ? `${raw.slice(0, MAX_TEXT_LEN)}…`
+                    : raw;
             break;
         }
         cur = cur.parentElement;
@@ -160,6 +248,56 @@ let parentWindow: Window | null = null;
 let listenersAttached = false;
 let messageListenerAttached = false;
 
+function describeElement(
+    target: Element,
+): Pick<InspectSelectedMessage, 'label' | 'rect'> {
+    const { x, y, width, height } = target.getBoundingClientRect();
+    return { label: buildLabel(target), rect: { x, y, width, height } };
+}
+
+function postSelected(target: Element) {
+    parentWindow?.postMessage(
+        {
+            type: 'lightdash:inspect:selected',
+            ...describeElement(target),
+        } satisfies InspectSelectedMessage,
+        '*',
+    );
+}
+
+// The page background is not an element anyone means to point at.
+function elementAt(x: number, y: number): Element | null {
+    const el = document.elementFromPoint(x, y);
+    if (!el || isOurOwnElement(el)) return null;
+    if (el === document.documentElement || el === document.body) return null;
+    return el;
+}
+
+function answerInspectAt(data: Record<string, unknown>) {
+    const { id, x, y } = data;
+    if (typeof id !== 'string' || id.length === 0) return;
+    if (id.length > MAX_REQUEST_ID_LENGTH) return;
+    if (typeof x !== 'number' || typeof y !== 'number') return;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const el = elementAt(x, y);
+    parentWindow?.postMessage(
+        {
+            type: 'lightdash:sdk:inspect-at-response',
+            id,
+            element: el ? describeElement(el) : null,
+        } satisfies InspectAtResponseMessage,
+        '*',
+    );
+}
+
+function swallow(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof e.stopImmediatePropagation === 'function') {
+        e.stopImmediatePropagation();
+    }
+}
+
 function onPointerMove(e: PointerEvent) {
     if (!enabled) return;
     const target = e.target as Element | null;
@@ -173,19 +311,8 @@ function onClick(e: MouseEvent) {
     if (!enabled) return;
     const target = e.target as Element | null;
     if (!target || isOurOwnElement(target)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (typeof e.stopImmediatePropagation === 'function') {
-        e.stopImmediatePropagation();
-    }
-    const label = buildLabel(target);
-    parentWindow?.postMessage(
-        {
-            type: 'lightdash:inspect:selected',
-            label,
-        } satisfies InspectSelectedMessage,
-        '*',
-    );
+    swallow(e);
+    postSelected(target);
 }
 
 function onScrollOrResize() {
@@ -220,7 +347,8 @@ function attachListeners() {
  * Mounts the inspector. Listens for `lightdash:inspect:enable` /
  * `lightdash:inspect:disable` from the parent window and posts back a
  * `lightdash:inspect:selected` event when the user clicks an element while
- * inspect mode is active. Idempotent — safe to call multiple times.
+ * inspect mode is active. Also answers the host's `lightdash:sdk:inspect-at`
+ * with the element at a point. Idempotent — safe to call multiple times.
  */
 export function mountInspector(parent: Window): void {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
@@ -233,7 +361,16 @@ export function mountInspector(parent: Window): void {
     // SDKs running in resumed sandboxes don't send this, leaving the button
     // hidden — they keep working as before.
     parent.postMessage(
-        { type: 'lightdash:inspect:available' } satisfies InspectAvailableMessage,
+        {
+            type: 'lightdash:inspect:available',
+        } satisfies InspectAvailableMessage,
+        '*',
+    );
+    // Hosts that never ask ignore this.
+    parent.postMessage(
+        {
+            type: 'lightdash:sdk:inspect-at-available',
+        } satisfies InspectAtAvailableMessage,
         '*',
     );
 
@@ -246,6 +383,12 @@ export function mountInspector(parent: Window): void {
             | { type?: unknown }
             | undefined;
         if (!data || typeof data.type !== 'string') return;
+        if (data.type === 'lightdash:sdk:inspect-at') {
+            // Only the host may ask what is on screen.
+            if (event.source !== parentWindow) return;
+            answerInspectAt(data as Record<string, unknown>);
+            return;
+        }
         if (data.type === 'lightdash:inspect:enable') {
             setEnabled(true);
         } else if (data.type === 'lightdash:inspect:disable') {

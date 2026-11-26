@@ -471,6 +471,8 @@ it.each([
 const humanOnlyReadExceptions: Record<string, string> = {
     'AgentPermissionController.getPolicy':
         'Reads or validates settings without changing grants or credentials.',
+    'AgentPermissionController.getProjectPolicies':
+        'Reads or validates settings without changing grants or credentials.',
     'AiServiceAccountController.get':
         'Reads or validates settings without changing grants or credentials.',
     'FeatureFlagController.getFeatureFlag':
@@ -650,7 +652,6 @@ it.each(compositeFixtures)(
             allowedCapabilities: null,
             allowedGroupUuids: null,
             version: 1,
-            editableCustomRoleUuid: null,
         };
         const operation = {
             requiredCapabilities,

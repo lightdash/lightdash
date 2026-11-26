@@ -79,6 +79,17 @@ export type ExternalConnectionEvent = BaseTrack &
               };
           }
         | {
+              /** A limit of an hour or longer filled: sent as it fills, not for each call refused after. */
+              event: 'live_source.rate_limit_reached';
+              properties: ExternalConnectionBaseProperties & {
+                  integration: ApiConnectorType | null;
+                  bucket: string;
+                  windowMs: number;
+                  limit: number;
+                  isSetByAdmin: boolean;
+              };
+          }
+        | {
               event: 'external_connection.fetch';
               properties: {
                   organizationId: string;

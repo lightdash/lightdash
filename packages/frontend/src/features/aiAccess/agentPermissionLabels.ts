@@ -5,9 +5,8 @@ export const agentPermissionChoiceLabels: Record<
     AgentPermissionChoice,
     string
 > = {
-    person: 'Match the person',
-    read: 'Read and query only',
-    custom: 'Custom scope',
+    person: 'No restrictions',
+    custom: 'Restrict',
 };
 
 export const agentGroupName = (uuid: string, groups: OrganizationGroup[]) =>
