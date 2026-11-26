@@ -224,22 +224,17 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
             return () => observer.disconnect();
         }, [containerRef]);
 
-        const scrollPositions = useMemo(() => {
-            if (!containerSize) {
-                return {
-                    isAtTop: false,
-                    isAtBottom: false,
-                };
-            }
-
-            const { clientHeight, scrollHeight } = containerSize;
-            const containerScrollPosY = containerScroll.y;
-
-            return {
-                isAtTop: containerScrollPosY === 0,
-                isAtBottom: containerScrollPosY + clientHeight === scrollHeight,
-            };
-        }, [containerScroll.y, containerSize]);
+        const isAtTop = !!containerSize && containerScroll.y === 0;
+        const isAtBottom =
+            !!containerSize &&
+            containerScroll.y + containerSize.clientHeight ===
+                containerSize.scrollHeight;
+        // Memoized on the two flags, so the context does not change on every
+        // scroll event.
+        const scrollPositions = useMemo(
+            () => ({ isAtTop, isAtBottom }),
+            [isAtTop, isAtBottom],
+        );
 
         return (
             <Box
