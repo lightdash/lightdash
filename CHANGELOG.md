@@ -1,3 +1,10 @@
+# [3.413.0](https://github.com/lightdash/lightdash/compare/3.412.0...3.413.0) (2026-11-26)
+
+
+### Features
+
+* **live-sources:** show a pencil on each card's Edit ([#33477](https://github.com/lightdash/lightdash/issues/33477)) ([4c2ad50](https://github.com/lightdash/lightdash/commit/4c2ad505396da6a6cadef6c372784380d6cfe67d))
+
 # [3.412.0](https://github.com/lightdash/lightdash/compare/3.411.7...3.412.0) (2026-11-26)
 
 
