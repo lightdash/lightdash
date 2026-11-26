@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useRef,
+    useState,
+} from 'react';
 
 export type RegisterCell = (key: string) => () => void;
 
@@ -15,6 +21,11 @@ export type RegisterCell = (key: string) => () => void;
 export const useMountedCellSelection = () => {
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
     const mountedKeys = useRef(new Map<string, number>());
+    // Read by the cells' effect cleanups, which run after layout effects.
+    const selectedKeyRef = useRef<string | null>(null);
+    useLayoutEffect(() => {
+        selectedKeyRef.current = selectedKey;
+    }, [selectedKey]);
 
     const registerCell = useCallback<RegisterCell>((key) => {
         const counts = mountedKeys.current;
@@ -26,11 +37,15 @@ export const useMountedCellSelection = () => {
                 return;
             }
             counts.delete(key);
+            // A wide table unmounts many cells on one scroll. Only the
+            // selected cell needs a check.
+            if (selectedKeyRef.current !== key) return;
             // In the same commit, a cell with the same key can mount on
             // another row. Check after the commit.
             queueMicrotask(() => {
-                if (counts.has(key)) return;
-                setSelectedKey((current) => (current === key ? null : current));
+                if (counts.has(key) || selectedKeyRef.current !== key) return;
+                selectedKeyRef.current = null;
+                setSelectedKey(null);
             });
         };
     }, []);
