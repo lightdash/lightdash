@@ -1,29 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.410.0",
-  "previousVersion": "3.409.3",
-  "releaseDate": "2026-11-25T23:26:37.846Z",
+  "version": "3.411.0",
+  "previousVersion": "3.410.0",
+  "releaseDate": "2026-11-26T00:34:55.824Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261125130000_add_project_agent_capability_policies.ts",
-        "edition": "core",
-        "tables": [
-          "project_agent_capability_policies",
-          "projects",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

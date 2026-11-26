@@ -1,3 +1,10 @@
+# [3.411.0](https://github.com/lightdash/lightdash/compare/3.410.0...3.411.0) (2026-11-26)
+
+
+### Features
+
+* **agent-identity:** agent restrictions settings for organization and projects ([#33396](https://github.com/lightdash/lightdash/issues/33396)) ([341b5c0](https://github.com/lightdash/lightdash/commit/341b5c076b0ebefc67bb685a7b13e63408f6e77d))
+
 # [3.410.0](https://github.com/lightdash/lightdash/compare/3.409.3...3.410.0) (2026-11-25)
 
 
