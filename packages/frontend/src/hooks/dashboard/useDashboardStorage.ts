@@ -16,6 +16,8 @@ const activeTabKey = (dashboardUuid: string) =>
 const hasChangesKey = (dashboardUuid: string) =>
     `hasDashboardChanges:${dashboardUuid}`;
 
+const CHART_KEY = 'dashboardChartUuid';
+
 const getIsEditingDashboardChart = () => {
     return (
         !!sessionStorage.getItem('fromDashboard') ||
@@ -42,6 +44,7 @@ const useDashboardStorage = () => {
         sessionStorage.removeItem('fromDashboard');
         sessionStorage.removeItem('dashboardUuid');
         sessionStorage.removeItem('dashboardSlug');
+        sessionStorage.removeItem(CHART_KEY);
         // Trigger storage event to update NavBar
         window.dispatchEvent(new Event('storage'));
     }, []);
@@ -104,6 +107,7 @@ const useDashboardStorage = () => {
         sessionStorage.removeItem('fromDashboard');
         sessionStorage.removeItem('dashboardUuid');
         sessionStorage.removeItem('dashboardSlug');
+        sessionStorage.removeItem(CHART_KEY);
         if (dashboardUuid) {
             sessionStorage.removeItem(tilesKey(dashboardUuid));
             sessionStorage.removeItem(tabsKey(dashboardUuid));
@@ -113,6 +117,23 @@ const useDashboardStorage = () => {
         }
         // Trigger storage event to update NavBar
         window.dispatchEvent(new Event('storage'));
+    }, []);
+
+    // The hand-over is for one chart; opening another saved chart ends it.
+    const releaseOtherDashboardChart = useCallback(
+        (chartUuid: string) => {
+            const trackedChartUuid = sessionStorage.getItem(CHART_KEY);
+            if (trackedChartUuid !== null && trackedChartUuid !== chartUuid) {
+                clearDashboardStorage();
+            }
+        },
+        [clearDashboardStorage],
+    );
+
+    const trackDashboardChart = useCallback((chartUuid: string) => {
+        if (getIsEditingDashboardChart()) {
+            sessionStorage.setItem(CHART_KEY, chartUuid);
+        }
     }, []);
 
     const storeDashboard = useCallback(
@@ -128,6 +149,7 @@ const useDashboardStorage = () => {
             dashboardSlug?: string,
         ) => {
             if (!dashboardUuid) return;
+            sessionStorage.removeItem(CHART_KEY);
             sessionStorage.setItem('fromDashboard', dashboardName ?? '');
             sessionStorage.setItem('dashboardUuid', dashboardUuid);
             if (dashboardSlug) {
@@ -210,6 +232,8 @@ const useDashboardStorage = () => {
         getUnsavedDashboardTiles,
         setUnsavedDashboardTiles,
         getDashboardActiveTabUuid,
+        releaseOtherDashboardChart,
+        trackDashboardChart,
     };
 };
 

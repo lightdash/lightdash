@@ -1,10 +1,9 @@
 import { type FC } from 'react';
 import { Outlet } from 'react-router';
-import NavBar from './NavBar';
+import { AppNavigationShell } from './AppSidebar/AppNavigationShell';
 
 export const NavBarLayout: FC = () => (
-    <>
-        <NavBar />
+    <AppNavigationShell isNavBarFixed>
         <Outlet />
-    </>
+    </AppNavigationShell>
 );

@@ -1,8 +1,3 @@
-.buttonLabel {
-    /* Revert overflow so badge doesn't get cropped off */
-    overflow: revert;
-}
-
 .dropdown {
     max-height: 400px;
     overflow-y: auto;

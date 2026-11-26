@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import {
     IconBook,
@@ -13,6 +14,7 @@ import {
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
+import { LearnMenuItem } from '../../features/learn/LearnLink';
 import useHealth from '../../hooks/health/useHealth';
 import useApp from '../../providers/App/useApp';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
@@ -20,9 +22,13 @@ import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import { Z_INDEX_FLOATING } from '../common/Page/constants';
 import { useNavBarMenuProps } from './NavBarPortalContext';
+import { useNavLayout, useNavTriggerMenuProps } from './NavLayoutContext';
 
 const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
     const menuProps = useNavBarMenuProps();
+    const triggerMenuProps = useNavTriggerMenuProps();
+    const { layout, Trigger } = useNavLayout();
+    const isInSidebar = layout === 'sidebar';
     const health = useHealth();
     const { user } = useApp();
     const canViewRoadmap = user.data?.ability.can(
@@ -37,9 +43,30 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
     const { show: showIntercom } = useIntercom();
 
     const helpMenuUrl = health.data?.helpMenuUrl;
+    const version = health.data?.version;
+    const clipboard = useClipboard({ timeout: 1500 });
 
     // If helpMenuUrl is set, render a button that opens the URL in a new tab
     if (helpMenuUrl) {
+        if (isInSidebar) {
+            return (
+                <Trigger
+                    variant="row"
+                    withLabel={withLabel}
+                    icon={<MantineIcon icon={IconHelp} />}
+                    label="Help"
+                    hasIndicator={false}
+                    badge={null}
+                    onClick={() =>
+                        window.open(
+                            helpMenuUrl,
+                            '_blank',
+                            'noopener,noreferrer',
+                        )
+                    }
+                />
+            );
+        }
         return (
             <Button
                 aria-label="Help"
@@ -63,15 +90,22 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
             offset={-2}
             zIndex={getDefaultZIndex('max')}
             {...menuProps}
+            {...triggerMenuProps}
         >
             <Menu.Target>
-                <Button aria-label="Help" variant="default" size="xs">
-                    <MantineIcon icon={IconHelp} />
-                    {withLabel && ' Help'}
-                </Button>
+                <Trigger
+                    variant="row"
+                    withLabel={withLabel}
+                    icon={<MantineIcon icon={IconHelp} />}
+                    label="Help"
+                    hasIndicator={false}
+                    badge={null}
+                />
             </Menu.Target>
 
             <Menu.Dropdown>
+                {isInSidebar && <LearnMenuItem />}
+
                 <LargeMenuItem
                     component="a"
                     href="https://docs.lightdash.com/"
@@ -134,6 +168,23 @@ const HelpMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                         description="Share a detailed report with Lightdash support"
                         icon={IconSos}
                     />
+                )}
+
+                {isInSidebar && version && (
+                    <>
+                        <Menu.Divider />
+                        <Menu.Item
+                            closeMenuOnClick={false}
+                            fz="xs"
+                            c="dimmed"
+                            aria-label={`Copy version ${version}`}
+                            onClick={() => clipboard.copy(version)}
+                        >
+                            {clipboard.copied
+                                ? 'Copied to clipboard'
+                                : `Version ${version}`}
+                        </Menu.Item>
+                    </>
                 )}
             </Menu.Dropdown>
         </Menu>

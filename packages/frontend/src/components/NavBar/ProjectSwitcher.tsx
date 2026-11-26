@@ -14,6 +14,7 @@ import {
     Text,
     TextInput,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
@@ -24,9 +25,18 @@ import {
     IconGitBranch,
     IconPlus,
     IconSearch,
+    IconSelector,
     IconX,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { clsx } from 'clsx';
+import {
+    forwardRef,
+    useCallback,
+    useMemo,
+    useState,
+    type ComponentPropsWithoutRef,
+    type FC,
+} from 'react';
 import { matchRoutes, useLocation, useMatch, useNavigate } from 'react-router';
 import { useDraftCheckout } from '../../features/semanticStudio/useSemanticLayerModel';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -45,6 +55,8 @@ import AppColorSchemeScope from './AppColorSchemeScope';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
 import { DraftCheckoutSection } from './DraftCheckoutSection';
 import { getNavBarMenuProps } from './NavBarPortalContext';
+import { useNavLayout } from './NavLayoutContext';
+import { getExpiresInDays } from './previewExpiry';
 import classes from './ProjectSwitcher.module.css';
 import { isPlaygroundProject, splitSwitcherProjects } from './switcherProjects';
 
@@ -52,13 +64,6 @@ const MENU_TEXT_PROPS = {
     c: 'ldGray.9',
     fz: 'xs',
     fw: 500,
-};
-
-const getExpiresInDays = (expiresAt: Date | null): number | null => {
-    if (!expiresAt) return null;
-    const now = new Date();
-    const diffMs = new Date(expiresAt).getTime() - now.getTime();
-    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 };
 
 const CurrentBadge: FC = () => (
@@ -81,8 +86,8 @@ const PlaygroundBadge: FC = () => (
 );
 
 const ExpiryBadge: FC<{ expiresAt: Date | null }> = ({ expiresAt }) => {
+    if (expiresAt === null) return null;
     const expiresInDays = getExpiresInDays(expiresAt);
-    if (expiresInDays === null) return null;
     return (
         <Badge color="orange" size="xs" className={classes.badge}>
             {expiresInDays === 0
@@ -190,6 +195,59 @@ const SwitcherLabel: FC<{
         </Group>
     );
 };
+
+type SidebarTargetProps = ComponentPropsWithoutRef<'button'> & {
+    projectName: string;
+    isOnDraft: boolean;
+};
+
+/** Sidebar trigger: the project name and a selector icon. */
+const SidebarTarget = forwardRef<HTMLButtonElement, SidebarTargetProps>(
+    ({ projectName, isOnDraft, className, ...buttonProps }, ref) => {
+        const { ref: truncatedRef, isTruncated } =
+            useIsTruncated<HTMLDivElement>();
+
+        return (
+            <UnstyledButton
+                ref={ref}
+                {...buttonProps}
+                className={clsx(classes.sidebarTarget, className)}
+            >
+                <Box className={classes.sidebarLabel}>
+                    {isOnDraft && (
+                        <MantineIcon
+                            icon={IconGitBranch}
+                            size="sm"
+                            color="yellow.5"
+                            className={classes.breadcrumbSeparator}
+                        />
+                    )}
+                    <Tooltip
+                        label={projectName}
+                        position="right"
+                        disabled={!isTruncated}
+                    >
+                        <Text
+                            ref={truncatedRef}
+                            truncate
+                            fw={600}
+                            fz="sm"
+                            miw={0}
+                        >
+                            {projectName}
+                        </Text>
+                    </Tooltip>
+                </Box>
+                <MantineIcon
+                    icon={IconSelector}
+                    size="sm"
+                    color="dimmed"
+                    className={classes.sidebarSelector}
+                />
+            </UnstyledButton>
+        );
+    },
+);
 
 const ProjectRow: FC<{
     item: OrganizationProject;
@@ -342,6 +400,7 @@ type ProjectSwitcherProps = {
 };
 
 const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
+    const isInSidebar = useNavLayout().layout === 'sidebar';
     const { showToastSuccess } = useToaster();
     const navigate = useNavigate();
 
@@ -612,13 +671,22 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
         </Box>
     );
 
+    const activeProjectName = activeProject?.name ?? 'Select a project';
+    // In a preview the sidebar names the parent project and the gutter beside
+    // it names the preview. A training copy has no gutter, so it keeps its own.
+    const sidebarProjectName =
+        upstreamProject && upstreamProject.type !== ProjectType.TRAINING
+            ? upstreamProject.name
+            : activeProjectName;
+    const targetLabel = `Switch project, current: ${activeProject?.name ?? 'none'}${draftCheckout ? `, on the draft ${draftCheckout.name}` : ''}`;
+
     return (
         <>
             <Menu
-                position="bottom-end"
+                position={isInSidebar ? 'bottom-start' : 'bottom-end'}
                 shadow="lg"
                 arrowOffset={16}
-                offset={-2}
+                offset={isInSidebar ? 4 : -2}
                 opened={isMenuOpen}
                 closeOnItemClick={false}
                 onChange={(opened) => {
@@ -636,23 +704,32 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                 classNames={{ dropdown: classes.dropdown, item: classes.item }}
                 zIndex={getDefaultZIndex('max')}
                 {...getNavBarMenuProps(portalTarget)}
+                {...(isInSidebar ? { withArrow: false } : {})}
             >
                 <Menu.Target>
-                    <Button
-                        aria-label={`Switch project, current: ${activeProject?.name ?? 'none'}${draftCheckout ? `, on the draft ${draftCheckout.name}` : ''}`}
-                        variant="default"
-                        size="xs"
-                        className={classes.targetButton}
-                        classNames={{ label: classes.targetButtonLabel }}
-                    >
-                        <SwitcherLabel
-                            activeProjectName={
-                                activeProject?.name ?? 'Select a project'
-                            }
-                            upstreamProjectName={upstreamProject?.name ?? null}
-                            draftName={draftCheckout?.name ?? null}
+                    {isInSidebar ? (
+                        <SidebarTarget
+                            aria-label={targetLabel}
+                            projectName={sidebarProjectName}
+                            isOnDraft={draftCheckout != null}
                         />
-                    </Button>
+                    ) : (
+                        <Button
+                            aria-label={targetLabel}
+                            variant="default"
+                            size="xs"
+                            className={classes.targetButton}
+                            classNames={{ label: classes.targetButtonLabel }}
+                        >
+                            <SwitcherLabel
+                                activeProjectName={activeProjectName}
+                                upstreamProjectName={
+                                    upstreamProject?.name ?? null
+                                }
+                                draftName={draftCheckout?.name ?? null}
+                            />
+                        </Button>
+                    )}
                 </Menu.Target>
 
                 <Menu.Dropdown

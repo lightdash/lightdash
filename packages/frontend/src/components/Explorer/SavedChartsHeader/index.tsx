@@ -1,7 +1,6 @@
 import { ContentReviewContentType, ContentType } from '@lightdash/common';
-import { ActionIcon, Badge, Button, Menu, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Menu, Tooltip } from '@mantine/core';
 import {
-    IconAlertCircle,
     IconArrowBack,
     IconCircleCheckFilled,
     IconMaximize,
@@ -39,7 +38,9 @@ import {
 import { useSchedulerDeepLink } from '../../../features/scheduler/hooks/useSchedulerDeepLink';
 import { isLeavingTrainingCopy } from '../../../features/scopeTours/trainingCopy';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
+import { isSavedChartPath } from '../../../hooks/dashboard/dashboardChartPlace';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
+import { useIsDroppingDashboardChanges } from '../../../hooks/dashboard/useIsDroppingDashboardChanges';
 import { useFavoriteToggle } from '../../../hooks/favorites/useFavoriteToggle';
 import { useChartPermissions } from '../../../hooks/useChartPermissions';
 import { useExploreConnectionName } from '../../../hooks/useConnectionBadges';
@@ -81,22 +82,12 @@ import {
 } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
+import { UnsavedChangesLeaveModal } from '../UnsavedChangesLeaveModal';
 import ChartActionsMenu from './ChartActionsMenu';
 import ChartEditActions from './ChartEditActions';
 import classes from './SavedChartsHeader.module.css';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 import { useVerifiedChartSavePending } from './useVerifiedChartSavePending';
-
-const isChartPath = (
-    pathname: string,
-    projectUuid: string | undefined,
-    chartIdentifier: string | undefined,
-) => {
-    if (!projectUuid || !chartIdentifier) return false;
-
-    const chartPath = `/projects/${projectUuid}/saved/${chartIdentifier}`;
-    return pathname.endsWith(chartPath) || pathname.includes(`${chartPath}/`);
-};
 
 type SavedChartNavigationBlockerArgs = {
     currentPathname: string;
@@ -133,8 +124,8 @@ export const shouldBlockSavedChartNavigation = ({
         isEditMode &&
         !isSaveModalOpen &&
         !isLeavingTrainingCopyRoute &&
-        !isChartPath(nextPathname, projectUrlIdentifier, savedChartSlug) &&
-        !isChartPath(nextPathname, projectUrlIdentifier, savedChartUuid) &&
+        !isSavedChartPath(nextPathname, projectUrlIdentifier, savedChartSlug) &&
+        !isSavedChartPath(nextPathname, projectUrlIdentifier, savedChartUuid) &&
         !nextPathname.includes(
             `/projects/${projectUrlIdentifier}/dashboards/${dashboardUuid}`,
         ) &&
@@ -212,6 +203,7 @@ const SavedChartsHeader: FC = () => {
     } = useNativeFullscreenToggle();
 
     const { clearDashboardStorage } = useDashboardStorage();
+    const isDroppingDashboardChanges = useIsDroppingDashboardChanges();
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const contentReview = useContentReviewEligibility({
@@ -247,20 +239,38 @@ const SavedChartsHeader: FC = () => {
     }, [hasUnsavedChanges, isEditMode]);
 
     // Block navigating away if there are unsaved changes
-    const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-        shouldBlockSavedChartNavigation({
-            currentPathname: currentLocation.pathname,
-            nextPathname: nextLocation.pathname,
-            hasUnsavedChanges,
-            isEditMode,
-            isSaveModalOpen,
-            isLeavingTrainingCopyRoute: isLeavingTrainingCopy(nextLocation),
-            projectUrlIdentifier,
-            savedChartSlug: savedChart?.slug,
-            savedChartUuid: savedChart?.uuid,
-            dashboardUuid,
-            dashboardIdentifier,
-        }),
+    const blocker = useBlocker(
+        ({ currentLocation, nextLocation }) =>
+            shouldBlockSavedChartNavigation({
+                currentPathname: currentLocation.pathname,
+                nextPathname: nextLocation.pathname,
+                hasUnsavedChanges,
+                isEditMode,
+                isSaveModalOpen,
+                isLeavingTrainingCopyRoute: isLeavingTrainingCopy(nextLocation),
+                projectUrlIdentifier,
+                savedChartSlug: savedChart?.slug,
+                savedChartUuid: savedChart?.uuid,
+                dashboardUuid,
+                dashboardIdentifier,
+            }) ||
+            // The sidebar stays up here, so the chart is no longer the only way out
+            (!isSaveModalOpen &&
+                isDroppingDashboardChanges({
+                    currentPathname: currentLocation.pathname,
+                    nextPathname: nextLocation.pathname,
+                    isNextTheSameSavedChart:
+                        isSavedChartPath(
+                            nextLocation.pathname,
+                            projectUrlIdentifier,
+                            savedChart?.slug,
+                        ) ||
+                        isSavedChartPath(
+                            nextLocation.pathname,
+                            projectUrlIdentifier,
+                            savedChart?.uuid,
+                        ),
+                })),
     );
 
     const {
@@ -354,31 +364,13 @@ const SavedChartsHeader: FC = () => {
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
             {blocker.state === 'blocked' && (
-                <MantineModal
-                    opened
-                    onClose={() => {
-                        blocker.reset();
-                    }}
-                    role="alertdialog"
-                    title="Unsaved changes"
-                    icon={IconAlertCircle}
-                    cancelLabel="Stay"
-                    actions={
-                        <Button
-                            color="red"
-                            onClick={() => {
-                                blocker.proceed();
-                            }}
-                        >
-                            Leave
-                        </Button>
+                <UnsavedChangesLeaveModal
+                    unsaved={
+                        hasUnsavedChanges && isEditMode ? 'chart' : 'dashboard'
                     }
-                >
-                    <Text fw={500}>
-                        You have unsaved changes to your chart! Are you sure you
-                        want to leave without saving?
-                    </Text>
-                </MantineModal>
+                    onStay={() => blocker.reset()}
+                    onLeave={() => blocker.proceed()}
+                />
             )}
 
             <PageHeader

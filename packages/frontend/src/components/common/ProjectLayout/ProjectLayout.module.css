@@ -1,6 +1,11 @@
 .loading {
     position: fixed;
     inset: 0;
+    /* Inside the app shell, leave its header and sidebar uncovered. */
+    top: var(--app-shell-header-offset, 0rem);
+    left: var(--app-shell-navbar-offset, 0rem);
+    border-start-start-radius: var(--app-page-radius, 0);
+    border-end-start-radius: var(--app-page-radius, 0);
     z-index: var(--mantine-z-index-overlay);
     background-color: var(--ld-color-page);
 }

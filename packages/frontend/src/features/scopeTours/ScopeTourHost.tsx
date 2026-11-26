@@ -20,6 +20,7 @@ import {
     useParams,
     useSearchParams,
 } from 'react-router';
+import { useIsLeftNavigationShown } from '../../components/AppSidebar/useIsLeftNavigationShown';
 import { GuidedTour, type TourPoint } from '../../components/common/GuidedTour';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
@@ -34,7 +35,7 @@ import { libraryPath } from '../learn/libraryFilters';
 import { readLearnOrigin } from '../learn/origin';
 import { useLearnProgress, useLearnProgressActions } from '../learn/progress';
 import { SCOPE_TOUR_PARAM, SCOPE_TOUR_STORAGE_KEY } from './isScopeTourRunning';
-import { tourFor } from './tourFor';
+import { stepsForLeftNavigation, tourFor } from './tourFor';
 import {
     createTrainingPreview,
     tourUrlInCopy,
@@ -487,15 +488,19 @@ const ScopeTourHost: FC = () => {
         organizationUuid,
     ]);
 
+    const isLeftNavigationShown = useIsLeftNavigationShown();
     const steps = useMemo(() => {
         const tour = tourFor(activeScope);
         if (!tour || !projectUuid) return [];
-        return tour.steps.map((step) => ({
+        const tourSteps = isLeftNavigationShown
+            ? stepsForLeftNavigation(tour.steps)
+            : tour.steps;
+        return tourSteps.map((step) => ({
             ...step,
             body: renderDocsText(step.body),
             route: step.route?.replace(':projectUuid', projectUuid),
         }));
-    }, [activeScope, projectUuid]);
+    }, [activeScope, projectUuid, isLeftNavigationShown]);
 
     const handleStepChange = useCallback(
         (stepIndex: number, beacon: TourPoint | null) => {

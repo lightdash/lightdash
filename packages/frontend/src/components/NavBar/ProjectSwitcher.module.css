@@ -127,3 +127,31 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
     color: var(--mantine-color-text);
 }
+
+.sidebarTarget {
+    display: flex;
+    align-items: center;
+    gap: rem(6px);
+    flex: 1;
+    min-width: 0;
+    height: rem(28px);
+    padding-inline: rem(4px) rem(6px);
+    border-radius: var(--mantine-radius-sm);
+
+    &:hover,
+    &[aria-expanded='true'] {
+        background-color: var(--mantine-color-default-hover);
+    }
+}
+
+.sidebarLabel {
+    display: flex;
+    align-items: center;
+    gap: rem(6px);
+    min-width: 0;
+}
+
+.sidebarSelector {
+    flex: none;
+    margin-left: auto;
+}

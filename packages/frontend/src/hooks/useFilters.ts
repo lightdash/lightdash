@@ -21,6 +21,7 @@ import {
     useApiSourceExplore,
 } from '../features/externalConnections/liveSources/apiSourceExplore';
 import { ExplorerSection } from '../providers/Explorer/types';
+import { getPageScroller } from '../utils/pageScroller';
 
 /**
  * Hook that provides ONLY the addFilter function without subscribing to filter state.
@@ -62,7 +63,7 @@ export const useAddFilter = () => {
                 );
             }
 
-            window.scrollTo({
+            getPageScroller().scrollTo({
                 top: 0,
                 behavior: 'smooth',
             });
@@ -122,7 +123,7 @@ export const useFilteredFields = () => {
                 );
             }
 
-            window.scrollTo({
+            getPageScroller().scrollTo({
                 top: 0,
                 behavior: 'smooth',
             });
@@ -191,7 +192,7 @@ export const useFilters = () => {
                 );
             }
 
-            window.scrollTo({
+            getPageScroller().scrollTo({
                 top: 0,
                 behavior: 'smooth',
             });

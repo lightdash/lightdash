@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { useCallback } from 'react';
 import { ExplorerSection } from '../../../providers/Explorer/types';
+import { getPageScroller } from '../../../utils/pageScroller';
 import {
     explorerActions,
     selectFilters,
@@ -89,7 +90,7 @@ export const useMergeSourceFilter = () => {
                     ),
                 );
             }
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            getPageScroller().scrollTo({ top: 0, behavior: 'smooth' });
         },
         [dispatch, merge, store],
     );

@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { useCallback } from 'react';
 import { ExplorerSection } from '../../../providers/Explorer/types';
+import { getPageScroller } from '../../../utils/pageScroller';
 import {
     explorerActions,
     selectFilters,
@@ -175,7 +176,7 @@ export const useMergeQuickFilter = () => {
                     ),
                 );
             }
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            getPageScroller().scrollTo({ top: 0, behavior: 'smooth' });
         },
         [dispatch, handleByName, merge, store],
     );
