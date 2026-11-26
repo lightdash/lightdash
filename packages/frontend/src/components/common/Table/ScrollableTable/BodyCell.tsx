@@ -8,7 +8,6 @@ import {
     type RawResultRow,
     type ResultRow,
 } from '@lightdash/common';
-import { Box } from '@mantine/core';
 import {
     getHotkeyHandler,
     useClipboard,
@@ -28,23 +27,11 @@ import {
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { JsonCellModal } from '../../JsonViewer/JsonCellViewer';
 import { type JsonCellValue } from '../../JsonViewer/utils';
-import {
-    getMergedValueLineClamp,
-    TABLE_LINE_HEIGHT_PX,
-} from '../../PivotTable/getRowSpanMerges';
-import { ROW_HEIGHT_PX } from '../constants';
 import { Td, type CellStyleProps } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';
-import {
-    useRegisterMountedCell,
-    type RegisterCell,
-} from '../useMountedCellSelection';
 import bodyCellStyles from './BodyCell.module.css';
 import CellMenu from './CellMenu';
 import CellTooltip from './CellTooltip';
-
-// A cell's padding is 8.5px. A merged cell has no bottom padding.
-const MERGED_CELL_PADDING_Y_PX = 8.5;
 
 interface CommonBodyCellProps {
     columnIndex?: number;
@@ -63,17 +50,6 @@ interface CommonBodyCellProps {
     minimal?: boolean;
     // Set on a row-grouping block-start cell that vertically merges >1 row.
     rowSpan?: number;
-    // Clamps the value to the lines that fit in the rows the cell covers. Set on
-    // a cell of a row-grouping block of more than one row, also when the
-    // rendered rows clip the cell to one row, if the rendered rows can clip it.
-    clampsMergedValue?: boolean;
-    // Lets the parent own the menu state, so it outlives a remount of the cell.
-    isMenuOpen?: boolean;
-    onToggleMenu?: () => void;
-    // The cell registers its menu key while it is mounted, so the parent can
-    // close a menu whose cell is gone.
-    menuKey?: string;
-    registerMenuCell?: RegisterCell;
 }
 
 const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
@@ -93,29 +69,14 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     tooltipContent,
     minimal = false,
     rowSpan,
-    clampsMergedValue = false,
-    isMenuOpen: isMenuOpenProp,
-    onToggleMenu,
-    menuKey,
-    registerMenuCell,
 }) => {
-    useRegisterMountedCell(registerMenuCell, menuKey);
     const isMerged = !!rowSpan && rowSpan > 1;
-    const mergedLineClamp = clampsMergedValue
-        ? getMergedValueLineClamp(
-              rowSpan ?? 1,
-              ROW_HEIGHT_PX,
-              MERGED_CELL_PADDING_Y_PX,
-          )
-        : undefined;
     const elementRef = useRef<HTMLTableCellElement>(null);
     const { showToastSuccess } = useToaster();
     const { copy } = useClipboard();
 
     const [isCopying, setCopying] = useState(false);
-    const [isOwnMenuOpen, { toggle: toggleOwnMenu }] = useDisclosure(false);
-    const isMenuOpen = isMenuOpenProp ?? isOwnMenuOpen;
-    const toggleMenu = onToggleMenu ?? toggleOwnMenu;
+    const [isMenuOpen, { toggle: toggleMenu }] = useDisclosure(false);
     const [jsonModalValue, setJsonModalValue] = useState<
         JsonCellValue | undefined
     >();
@@ -130,28 +91,24 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         openTooltip,
         500,
     );
-    const { start: startCopyingTimer } = useTimeout(
-        () => setCopying(false),
-        300,
-    );
     const item = cell.column.columnDef.meta?.item;
 
-    const isMenuShown = canHaveMenu && isMenuOpen;
-    const isTooltipShown = canHaveTooltip && isTooltipOpen && !isMenuShown;
+    const shouldRenderMenu = canHaveMenu && isMenuOpen && elementRef.current;
+    const shouldRenderTooltip =
+        canHaveTooltip &&
+        isTooltipOpen &&
+        elementRef.current &&
+        !shouldRenderMenu;
 
-    // Calculate bounds when menu/tooltip opens, not during every render. A cell
-    // can mount with its menu already open, so this runs after mount too.
+    // Calculate bounds when menu/tooltip opens, not during every render
     useEffect(() => {
-        if ((isMenuShown || isTooltipShown) && elementRef.current) {
+        if ((shouldRenderMenu || shouldRenderTooltip) && elementRef.current) {
             setElementBounds(elementRef.current.getBoundingClientRect());
         } else if (!isMenuOpen && !isTooltipOpen) {
             // Clear bounds when closed to free memory
             setElementBounds(null);
         }
-    }, [isMenuShown, isTooltipShown, isMenuOpen, isTooltipOpen]);
-
-    const shouldRenderMenu = isMenuShown && elementBounds !== null;
-    const shouldRenderTooltip = isTooltipShown && elementBounds !== null;
+    }, [shouldRenderMenu, shouldRenderTooltip, isMenuOpen, isTooltipOpen]);
 
     const displayValue = useMemo(() => {
         if (!hasData) return null;
@@ -166,20 +123,6 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
             return null;
         }
     }, [hasData, cell]);
-
-    // The full value of a clamped merged value. A cell with a tooltip would
-    // show two tooltips, and an image or rich-text cell does not show the raw
-    // value.
-    const showsOtherContent =
-        !!item &&
-        (('image' in item && !!item.image) ||
-            ('richText' in item && !!item.richText));
-    const mergedValueTitle =
-        !canHaveTooltip &&
-        !showsOtherContent &&
-        typeof displayValue === 'string'
-            ? displayValue
-            : undefined;
 
     const hasUrls = useMemo(() => {
         if (!canHaveMenu) return false;
@@ -199,9 +142,13 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         copy(displayValue);
         showToastSuccess({ title: 'Copied to clipboard!' });
 
-        setCopying(true);
-        startCopyingTimer();
-    }, [isMenuOpen, displayValue, copy, showToastSuccess, startCopyingTimer]);
+        setCopying((copyingState) => {
+            if (!copyingState) {
+                setTimeout(() => setCopying(false), 300);
+            }
+            return true;
+        });
+    }, [isMenuOpen, displayValue, copy, showToastSuccess]);
 
     useEffect(() => {
         const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
@@ -263,27 +210,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                         : undefined
                 }
             >
-                {mergedLineClamp !== undefined ? (
-                    <Box
-                        component="span"
-                        className={bodyCellStyles.mergedDimValue}
-                        // One line keeps the cell's own line height, so the
-                        // row keeps the height of the rows next to it.
-                        lh={
-                            mergedLineClamp > 1
-                                ? `${TABLE_LINE_HEIGHT_PX}px`
-                                : undefined
-                        }
-                        title={mergedValueTitle}
-                        __vars={{
-                            '--merged-line-clamp': String(mergedLineClamp),
-                        }}
-                    >
-                        {children}
-                    </Box>
-                ) : (
-                    <span>{children}</span>
-                )}
+                <span>{children}</span>
             </Td>
 
             {shouldRenderMenu ? (

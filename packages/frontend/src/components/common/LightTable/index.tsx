@@ -30,12 +30,6 @@ import {
 } from 'react';
 import { useScroll } from 'react-use';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { TABLE_LINE_HEIGHT_PX } from '../PivotTable/getRowSpanMerges';
-import {
-    useMountedCellSelection,
-    useRegisterMountedCell,
-    type RegisterCell,
-} from '../Table/useMountedCellSelection';
 import { CELL_HEIGHT, SMALL_TEXT_LENGTH } from './constants';
 import classes from './styles.module.css';
 import { CellType, SectionType } from './types';
@@ -84,14 +78,6 @@ type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
     withValue?: string;
     /** Hints that the cell menu offers link actions, like the results table's dotted underline. */
     withUrls?: boolean;
-    /**
-     * Shows at most this number of lines, with an ellipsis on the last line.
-     * More than one line uses TABLE_LINE_HEIGHT_PX, the line height the count
-     * assumes.
-     */
-    withLineClamp?: number;
-    /** Keeps the cell selected when it mounts again, e.g. a merged cell that moves to another rendered row. */
-    selectionId?: string;
 };
 
 interface TableCompoundComponents {
@@ -121,7 +107,6 @@ interface TableCompoundComponents {
 type TableContextType = {
     selectedCell: string | null;
     toggleCell: (cellId: string | null) => void;
-    registerCell: RegisterCell;
 
     scrollPositions: {
         isAtTop: boolean;
@@ -144,11 +129,7 @@ const useTableContext = () => {
 const TableProvider: FC<
     React.PropsWithChildren<Pick<TableContextType, 'scrollPositions'>>
 > = ({ children, scrollPositions }) => {
-    const {
-        selectedKey: selectedCell,
-        setSelectedKey: setSelectedCell,
-        registerCell,
-    } = useMountedCellSelection();
+    const [selectedCell, setSelectedCell] = useState<string | null>(null);
 
     const handleToggleCell = useCallback(
         (cellId: string | null) => {
@@ -165,23 +146,16 @@ const TableProvider: FC<
         });
     }, [handleToggleCell]);
 
-    const value = useMemo(
-        () => ({
-            selectedCell,
-            toggleCell: handleDebouncedToggleCell,
-            registerCell,
-            scrollPositions,
-        }),
-        [
-            selectedCell,
-            handleDebouncedToggleCell,
-            registerCell,
-            scrollPositions,
-        ],
-    );
-
     return (
-        <TableContext.Provider value={value}>{children}</TableContext.Provider>
+        <TableContext.Provider
+            value={{
+                selectedCell,
+                toggleCell: handleDebouncedToggleCell,
+                scrollPositions,
+            }}
+        >
+            {children}
+        </TableContext.Provider>
     );
 };
 
@@ -198,48 +172,35 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
     ) => {
         const shouldRemoveBorders = isDashboard;
 
-        const [containerSize, setContainerSize] = useState<{
-            clientHeight: number;
-            scrollHeight: number;
-        } | null>(null);
+        const [isContainerInitialized, setIsContainerInitialized] =
+            useState(false);
         const containerScroll = useScroll(
             containerRef as React.RefObject<HTMLElement>,
         );
 
-        // The scroll height changes without a scroll event, e.g. when a
-        // virtualized body renders its first rows after an empty first render.
         useEffect(() => {
-            const container = containerRef.current;
-            if (!container) return;
-            const updateContainerSize = () => {
-                const { clientHeight, scrollHeight } = container;
-                setContainerSize((current) =>
-                    current?.clientHeight === clientHeight &&
-                    current.scrollHeight === scrollHeight
-                        ? current
-                        : { clientHeight, scrollHeight },
-                );
-            };
-            updateContainerSize();
-            const observer = new ResizeObserver(updateContainerSize);
-            observer.observe(container);
-            if (container.firstElementChild) {
-                observer.observe(container.firstElementChild);
-            }
-            return () => observer.disconnect();
+            if (!containerRef.current) return;
+            setIsContainerInitialized(true);
         }, [containerRef]);
 
-        const isAtTop = !!containerSize && containerScroll.y === 0;
-        const isAtBottom =
-            !!containerSize &&
-            containerScroll.y + containerSize.clientHeight ===
-                containerSize.scrollHeight;
-        // Memoized on the two flags, so the context does not change on every
-        // scroll event.
-        const scrollPositions = useMemo(
-            () => ({ isAtTop, isAtBottom }),
-            [isAtTop, isAtBottom],
-        );
+        const { isAtTop, isAtBottom } = useMemo(() => {
+            if (!isContainerInitialized || !containerRef.current) {
+                return {
+                    isAtTop: false,
+                    isAtBottom: false,
+                };
+            }
+
+            const { clientHeight, scrollHeight } = containerRef.current;
+            const containerScrollPosY = containerScroll.y;
+
+            return {
+                isAtTop: containerScrollPosY === 0,
+                isAtBottom:
+                    containerScrollPosY + clientHeight === scrollHeight ||
+                    containerScrollPosY + clientHeight === scrollHeight,
+            };
+        }, [containerScroll, containerRef, isContainerInitialized]);
 
         return (
             <Box
@@ -256,7 +217,7 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
                     {...rest}
                     className={clsx(classes.table, rest.className)}
                 >
-                    <TableProvider scrollPositions={scrollPositions}>
+                    <TableProvider scrollPositions={{ isAtBottom, isAtTop }}>
                         {children}
                     </TableProvider>
                 </Box>
@@ -277,12 +238,8 @@ const SectionProvider: FC<React.PropsWithChildren<SectionContextType>> = ({
     sectionType,
     withSticky = false,
 }) => {
-    const value = useMemo(
-        () => ({ sectionType, withSticky }),
-        [sectionType, withSticky],
-    );
     return (
-        <SectionContext.Provider value={value}>
+        <SectionContext.Provider value={{ sectionType, withSticky }}>
             {children}
         </SectionContext.Provider>
     );
@@ -306,8 +263,9 @@ const RowProvider: FC<React.PropsWithChildren<RowContextType>> = ({
     children,
     index,
 }) => {
-    const value = useMemo(() => ({ index }), [index]);
-    return <RowContext.Provider value={value}>{children}</RowContext.Provider>;
+    return (
+        <RowContext.Provider value={{ index }}>{children}</RowContext.Provider>
+    );
 };
 
 const useRowContext = () => {
@@ -424,19 +382,14 @@ const BaseCell = (
                 withMenu = false,
                 withValue = undefined,
                 withUrls = false,
-                withLineClamp,
-                selectionId,
                 ...rest
             },
             ref,
         ) => {
-            const generatedCellId = useId();
-            const cellId = selectionId ?? generatedCellId;
+            const cellId = useId();
             const clipboard = useClipboard({ timeout: 200 });
 
-            const { selectedCell, toggleCell, registerCell } =
-                useTableContext();
-            useRegisterMountedCell(registerCell, cellId);
+            const { selectedCell, toggleCell } = useTableContext();
             const { index } = useRowContext();
             const { sectionType, withSticky } = useSectionContext();
 
@@ -505,24 +458,8 @@ const BaseCell = (
                 }
             }, []);
 
-            const cellElement = useMemo(() => {
-                const content =
-                    children && withTooltip ? (
-                        <Tooltip
-                            position="top"
-                            disabled={isSelected}
-                            maw={400}
-                            label={withTooltip}
-                            openDelay={500}
-                        >
-                            <Text span inherit>
-                                {children}
-                            </Text>
-                        </Tooltip>
-                    ) : (
-                        <>{children}</>
-                    );
-                return (
+            const cellElement = useMemo(
+                () => (
                     <Box
                         component={component}
                         ref={ref}
@@ -557,54 +494,47 @@ const BaseCell = (
                                 : undefined
                         }
                     >
-                        {withLineClamp === undefined ? (
-                            content
-                        ) : (
-                            <Box
-                                component="span"
-                                className={classes.withLineClamp}
-                                // One line keeps the cell's own line height.
-                                lh={
-                                    withLineClamp > 1
-                                        ? `${TABLE_LINE_HEIGHT_PX}px`
-                                        : undefined
-                                }
-                                // The full value, unless a tooltip shows on the cell.
-                                title={withTooltip ? undefined : withValue}
-                                __vars={{
-                                    '--lt-line-clamp': String(withLineClamp),
-                                }}
+                        {children && withTooltip ? (
+                            <Tooltip
+                                position="top"
+                                disabled={isSelected}
+                                maw={400}
+                                label={withTooltip}
+                                openDelay={500}
                             >
-                                {content}
-                            </Box>
+                                <Text span inherit>
+                                    {children}
+                                </Text>
+                            </Tooltip>
+                        ) : (
+                            <>{children}</>
                         )}
                     </Box>
-                );
-            }, [
-                component,
-                ref,
-                rest,
-                isSelected,
-                cellStyleVars,
-                withSticky,
-                cellHasLargeContent,
-                isMinimal,
-                withMinimalWidth,
-                withAlignRight,
-                withBoldFont,
-                withColor,
-                withTextStyle,
-                withInteractions,
-                withUrls,
-                withBackground,
-                clipboard.copied,
-                children,
-                withTooltip,
-                toggleCell,
-                cellId,
-                withLineClamp,
-                withValue,
-            ]);
+                ),
+                [
+                    component,
+                    ref,
+                    rest,
+                    isSelected,
+                    cellStyleVars,
+                    withSticky,
+                    cellHasLargeContent,
+                    isMinimal,
+                    withMinimalWidth,
+                    withAlignRight,
+                    withBoldFont,
+                    withColor,
+                    withTextStyle,
+                    withInteractions,
+                    withUrls,
+                    withBackground,
+                    clipboard.copied,
+                    children,
+                    withTooltip,
+                    toggleCell,
+                    cellId,
+                ],
+            );
 
             return withMenu
                 ? withMenu(
