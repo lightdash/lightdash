@@ -1,4 +1,8 @@
-import { assertUnreachable, type AiAgent } from '@lightdash/common';
+import {
+    assertUnreachable,
+    COMPOSER_QUERYING_SKILL_POINTER,
+    type AiAgent,
+} from '@lightdash/common';
 import type { McpQueryPath } from '../../McpService/mcpQueryPath';
 
 const FILTER_EXPRESSION_SKILL_REMINDER =
@@ -20,12 +24,6 @@ const RAW_SQL_WORKFLOW_GUIDANCE = `For a complete raw SQL query, follow step 0, 
 `;
 
 const EXPLORE_CHOICE_RULE = `- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
-`;
-
-const SQL_NODE_RULE = `- Explores are governed and reusable, so use a sql node only when the user points you at a raw table or asks for SQL, or when no explore can produce the result; when no warehouse table holds the data either, tell the user and offer alternatives when there are any
-`;
-
-const NO_EXPLORE_RULE = `- When no explore covers the request, tell the user and offer alternatives when there are any
 `;
 
 const CONTENT_ONLY_PROMPT = `# Lightdash MCP — Saved Content Mode
@@ -93,10 +91,11 @@ ${agentIdentityEnabled ? AGENT_CONNECT_RULE : ''}`;
 };
 
 const buildMcpComposerPrompt = (
-    sqlRunnerEnabled: boolean,
     documentsEnabled: boolean,
     agentIdentityEnabled: boolean,
-): string => `## Query Building Workflow
+): string => `${COMPOSER_QUERYING_SKILL_POINTER}
+
+## Query Building Workflow
 
 0. \`get_context\`: pick the project, and the agent when agent-scoped, per its production/preview and pinned-scope rules.
 1. \`grep_fields\`: find fields and the explores at the right grain.
@@ -108,22 +107,8 @@ const buildMcpComposerPrompt = (
 
 ## Rules
 
-${EXPLORE_CHOICE_RULE}- Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question
-- When a follow-up needs a new query, plan its pipeline as for a first question: the fewest nodes from source to result, counting the earlier nodes it reads, and among such plans the one that reads earlier nodes unchanged
-- For a follow-up that changes an earlier result, change only what the user asked for and keep the rest: metrics, filters, period, grouping, sort and the rows shown, zero and small values included. Claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension
-- Get every field an answer needs from one explore in one semanticLayer node, rather than several nodes over the same explore joined afterwards
-- Combine semanticLayer nodes that meet on dimensions they share at the same grain (both by month, both by customer) with a merge node
-- When a merge is refused, fix the merge: narrow a source with a filter, raise its limit, or add the missing join key. If you answer another way instead, your answer says so and why
-- Combine results any other way with a duckdb node: a join key that has to be computed or truncated to a shared grain, a union, or filtering and aggregating after the join
-- Compute what neither a metric query nor a merge calculation expresses in a duckdb node: over one semanticLayer node's results, arithmetic across metrics, % of total, the change between a metric and its period comparison, running totals, moving averages and ranking; over any node, aggregates of aggregated metrics, top N per group, cohort comparisons and reshaping
-${sqlRunnerEnabled ? SQL_NODE_RULE : NO_EXPLORE_RULE}- Run statistics, forecasts and other algorithms that SQL expresses poorly in a python node
-- When base and joined tables have similar field names, use the one at the node's semantic level
-- Field \`hints\` are written for you and override the field description
-- For date dimensions, pick the granularity the user asked for (\`order_date_month\` over \`order_date\` for "by month")
-- Before writing semanticLayer filters, read the \`filter-expressions\` skill
-${agentIdentityEnabled ? AGENT_CONNECT_RULE : ''}- Compute a metric the explore lacks as a custom metric on its semanticLayer node, with a filter when it covers only some rows (completed orders among all orders), and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row
-- Compute everything over a merge's columns in its table calculations: ratios across sources, year on year, shares of total, lags, conditional labels. They keep the result governed
-`;
+${EXPLORE_CHOICE_RULE}- Before writing semanticLayer filters, read the \`filter-expressions\` skill
+${agentIdentityEnabled ? AGENT_CONNECT_RULE : ''}`;
 
 export const getMcpAnalystPrompt = ({
     queryPath,
@@ -148,7 +133,6 @@ export const getMcpAnalystPrompt = ({
             );
         case 'composer':
             return buildMcpComposerPrompt(
-                queryPath.sqlRunnerEnabled,
                 documentsEnabled,
                 agentIdentityEnabled,
             );

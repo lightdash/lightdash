@@ -1,5 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
+    COMPOSER_QUERYING_SKILL_NAME,
+    COMPOSER_QUERYING_SKILL_POINTER,
     defineUserAbility,
     FeatureFlags,
     mcpToolDefinitions,
@@ -224,9 +226,14 @@ const mcpQueryPathsByType: {
 };
 const mcpQueryPaths: McpQueryPath[] = Object.values(mcpQueryPathsByType).flat();
 
-// Claude Code ≥2.1.296 cuts server instructions and up-front tool descriptions here;
-// not an MCP protocol limit.
-const MCP_CLIENT_TEXT_MAX_CHARS = 4096;
+// Observed in Claude Code 2.1.263; this is not an MCP protocol limit.
+const MCP_CLIENT_TEXT_MAX_CHARS = 2048;
+// The query description carries the core composer rules; Claude Code cuts server instructions at this length.
+const MCP_QUERY_DESCRIPTION_MAX_CHARS = 4096;
+const getMcpToolDescriptionMaxChars = (name: string) =>
+    name === McpToolName.QUERY
+        ? MCP_QUERY_DESCRIPTION_MAX_CHARS
+        : MCP_CLIENT_TEXT_MAX_CHARS;
 
 // Classify new features explicitly: registration-only or text-changing.
 const registrationOnlyFeatures = {
@@ -548,15 +555,7 @@ describe('MCP tool contracts', () => {
             queryPath: classicQueryPath(true, true),
         },
         {
-            name: 'composer with SQL Runner',
-            queryPath: {
-                type: 'composer',
-                sqlRunnerEnabled: true,
-                filterExpressionsEnabled: false,
-            },
-        },
-        {
-            name: 'composer without SQL Runner',
+            name: 'composer',
             queryPath: {
                 type: 'composer',
                 sqlRunnerEnabled: false,
@@ -586,7 +585,7 @@ describe('MCP tool contracts', () => {
     });
 
     it.each(mcpTextConfigurations)(
-        `keeps registered MCP tool descriptions within ${MCP_CLIENT_TEXT_MAX_CHARS} chars: $queryPath docs=$documentsEnabled agent=$agentIdentityEnabled`,
+        `keeps registered MCP tool descriptions within their char budget: $queryPath docs=$documentsEnabled agent=$agentIdentityEnabled`,
         async (options) => {
             const configuration = JSON.stringify(options);
             const mcpService = makeMcpService();
@@ -598,12 +597,13 @@ describe('MCP tool contracts', () => {
             );
             mockRegisteredMcpTools.forEach(({ name, config }) => {
                 const { length } = config.description;
+                const maxChars = getMcpToolDescriptionMaxChars(name);
                 expect
                     .soft(
                         length,
-                        `${configuration}: ${name} is ${length} chars, exceeding ${MCP_CLIENT_TEXT_MAX_CHARS}; shorten the text instead of updating snapshots`,
+                        `${configuration}: ${name} is ${length} chars, exceeding ${maxChars}; shorten the text instead of updating snapshots`,
                     )
-                    .toBeLessThanOrEqual(MCP_CLIENT_TEXT_MAX_CHARS);
+                    .toBeLessThanOrEqual(maxChars);
             });
         },
     );
@@ -1146,6 +1146,33 @@ describe('MCP tool contracts', () => {
             expect(getLatestMcpServerInstructions()).toContain(instructions);
         },
     );
+
+    it('points composer clients to the composer-querying skill first', async () => {
+        const mcpService = makeMcpService();
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer(
+            makeMcpServerOptions({
+                queryPath: {
+                    type: 'composer',
+                    sqlRunnerEnabled: true,
+                    filterExpressionsEnabled: false,
+                },
+            }),
+        );
+        const query = mockRegisteredMcpTools.find(
+            ({ name }) => name === McpToolName.QUERY,
+        );
+        expect(query?.config.description.split('\n')[0]).toBe(
+            COMPOSER_QUERYING_SKILL_POINTER,
+        );
+        expect(getLatestMcpServerInstructions().split('\n')[0]).toBe(
+            COMPOSER_QUERYING_SKILL_POINTER,
+        );
+        expect(
+            (await BuiltInSkills.readSkillTool(COMPOSER_QUERYING_SKILL_NAME))
+                ?.body,
+        ).toContain('# Building query pipelines');
+    });
 
     describe('isRunSqlEnabled', () => {
         const ORG_UUID = 'org-1';

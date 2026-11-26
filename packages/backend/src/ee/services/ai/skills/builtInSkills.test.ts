@@ -1,5 +1,7 @@
+import { COMPOSER_QUERYING_SKILL_NAME } from '@lightdash/common';
 import { parse as parseFormula } from '@lightdash/formula';
 import { BuiltInSkills } from './builtInSkills';
+import { COMPOSER_QUERYING_SKILL } from './composerQueryingSkill';
 import { FILTER_EXPRESSION_SKILL } from './filterExpressionSkill';
 
 describe('BuiltInSkills', () => {
@@ -49,29 +51,37 @@ describe('BuiltInSkills', () => {
         expect(await BuiltInSkills.getAiAgentSkill(name)).toBeUndefined();
     });
 
-    it('serves the generated filter-expression skill identically through native resources and fallback tools', async () => {
-        const name = 'filter-expressions';
-        const uri = `skill://lightdash/${name}/SKILL.md`;
-        expect(
-            (await BuiltInSkills.listSkillToolReferences()).map(
-                (skill) => skill.name,
-            ),
-        ).toContain(name);
-        expect(
-            (await BuiltInSkills.listMcpResources()).map(
-                (resource) => resource.uri,
-            ),
-        ).toContain(uri);
-        expect(
-            await BuiltInSkills.getMcpResourceBody('skill://index.json'),
-        ).toContain(`"name": "${name}"`);
-        const body = await BuiltInSkills.getMcpResourceBody(uri);
-        // Markdown formatting inserts blank lines; every content line must match.
-        expect(body?.split('\n').filter(Boolean)).toEqual(
-            FILTER_EXPRESSION_SKILL.split('\n').filter(Boolean),
-        );
-        expect((await BuiltInSkills.readSkillTool(name))?.body).toBe(body);
-    });
+    it.each([
+        { name: 'filter-expressions', generated: FILTER_EXPRESSION_SKILL },
+        {
+            name: COMPOSER_QUERYING_SKILL_NAME,
+            generated: COMPOSER_QUERYING_SKILL,
+        },
+    ])(
+        'serves the generated $name skill identically through native resources and fallback tools',
+        async ({ name, generated }) => {
+            const uri = `skill://lightdash/${name}/SKILL.md`;
+            expect(
+                (await BuiltInSkills.listSkillToolReferences()).map(
+                    (skill) => skill.name,
+                ),
+            ).toContain(name);
+            expect(
+                (await BuiltInSkills.listMcpResources()).map(
+                    (resource) => resource.uri,
+                ),
+            ).toContain(uri);
+            expect(
+                await BuiltInSkills.getMcpResourceBody('skill://index.json'),
+            ).toContain(`"name": "${name}"`);
+            const body = await BuiltInSkills.getMcpResourceBody(uri);
+            // Markdown formatting inserts blank lines; every content line must match.
+            expect(body?.split('\n').filter(Boolean)).toEqual(
+                generated.split('\n').filter(Boolean),
+            );
+            expect((await BuiltInSkills.readSkillTool(name))?.body).toBe(body);
+        },
+    );
 
     it('serves the table-calculations skill through native resources and fallback tools with valid formula examples', async () => {
         const name = 'table-calculations';
@@ -104,7 +114,7 @@ describe('BuiltInSkills', () => {
         }
     });
 
-    it.each(['filter-expressions', 'table-calculations'])(
+    it.each(['filter-expressions', 'table-calculations', 'composer-querying'])(
         'never advertises the MCP-only %s skill to Agents',
         async (name) => {
             expect(
@@ -120,6 +130,7 @@ describe('BuiltInSkills', () => {
         '  FILTER-EXPRESSIONS  ',
         'table-calculations',
         '  TABLE-CALCULATIONS  ',
+        'composer-querying',
     ])('prevents Agent direct reads of %s', async (name) => {
         expect(await BuiltInSkills.getAiAgentSkill(name)).toBeUndefined();
     });
