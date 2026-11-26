@@ -133,8 +133,9 @@ import ValueCellMenu from './ValueCellMenu';
 
 const MIN_AUTO_COL_WIDTH = 50;
 const DEFAULT_COLUMN_WIDTH = 100;
-// A merged cell's padding: 8px at the top, 1px at the bottom.
-const MERGED_CELL_PADDING_Y_PX = 9;
+// A merged cell's padding: 8px at the top, none at the bottom
+// (PivotTable.module.css).
+const MERGED_CELL_PADDING_Y_PX = 8;
 const EMPTY_COLUMN_PROPERTIES: Record<string, ColumnProperties> = {};
 
 const getStickyCellProps = (frozen: FrozenColumnEntry | undefined) => {
