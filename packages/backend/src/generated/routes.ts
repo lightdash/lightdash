@@ -32814,12 +32814,20 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_':
+    'Pick_AiAgent.uuid-or-name-or-kind-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_':
         {
             dataType: 'refAlias',
             type: {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
+                    kind: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['user'] },
+                            { dataType: 'enum', enums: ['semantic_studio'] },
+                        ],
+                        required: true,
+                    },
                     description: {
                         dataType: 'union',
                         subSchemas: [
@@ -32983,7 +32991,7 @@ const models: TsoaRoute.Models = {
     AiAgentSummary: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_',
+            ref: 'Pick_AiAgent.uuid-or-name-or-kind-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_',
             validators: {},
         },
     },
@@ -33626,13 +33634,13 @@ const models: TsoaRoute.Models = {
             dataType: 'union',
             subSchemas: [
                 { dataType: 'enum', enums: ['data_app'] },
+                { dataType: 'enum', enums: ['semantic_studio'] },
                 { dataType: 'enum', enums: ['slack'] },
                 { dataType: 'enum', enums: ['web_app'] },
                 { dataType: 'enum', enums: ['api'] },
                 { dataType: 'enum', enums: ['evals'] },
                 { dataType: 'enum', enums: ['scheduler'] },
                 { dataType: 'enum', enums: ['dashboard_analysis'] },
-                { dataType: 'enum', enums: ['semantic_studio'] },
             ],
             validators: {},
         },
@@ -33982,12 +33990,20 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_':
+    'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-kind-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_':
         {
             dataType: 'refAlias',
             type: {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
+                    kind: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['user'] },
+                            { dataType: 'enum', enums: ['semantic_studio'] },
+                        ],
+                        required: true,
+                    },
                     description: {
                         dataType: 'union',
                         subSchemas: [
@@ -34151,7 +34167,7 @@ const models: TsoaRoute.Models = {
     AiAgent: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_',
+            ref: 'Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-kind-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_',
             validators: {},
         },
     },
@@ -55480,13 +55496,13 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'enum', enums: ['data_app'] },
+                            { dataType: 'enum', enums: ['semantic_studio'] },
                             { dataType: 'enum', enums: ['slack'] },
                             { dataType: 'enum', enums: ['web_app'] },
                             { dataType: 'enum', enums: ['api'] },
                             { dataType: 'enum', enums: ['evals'] },
                             { dataType: 'enum', enums: ['scheduler'] },
                             { dataType: 'enum', enums: ['dashboard_analysis'] },
-                            { dataType: 'enum', enums: ['semantic_studio'] },
                         ],
                         required: true,
                     },
@@ -116125,6 +116141,67 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getBuilderStatus',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSemanticStudioController_getStudioAgent: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/semantic-studio/agent',
+        ...fetchMiddlewares<RequestHandler>(SemanticStudioController),
+        ...fetchMiddlewares<RequestHandler>(
+            SemanticStudioController.prototype.getStudioAgent,
+        ),
+
+        async function SemanticStudioController_getStudioAgent(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsSemanticStudioController_getStudioAgent,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SemanticStudioController>(
+                        SemanticStudioController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getStudioAgent',
                     controller,
                     response,
                     next,

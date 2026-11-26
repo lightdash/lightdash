@@ -34699,8 +34699,12 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
+            "Pick_AiAgent.uuid-or-name-or-kind-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": ["user", "semantic_studio"]
+                    },
                     "description": {
                         "type": "string",
                         "nullable": true
@@ -34857,6 +34861,7 @@
                     }
                 },
                 "required": [
+                    "kind",
                     "description",
                     "imageUrl",
                     "name",
@@ -34890,7 +34895,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-kind-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -35502,13 +35507,13 @@
                 "type": "string",
                 "enum": [
                     "data_app",
+                    "semantic_studio",
                     "slack",
                     "web_app",
                     "api",
                     "evals",
                     "scheduler",
-                    "dashboard_analysis",
-                    "semantic_studio"
+                    "dashboard_analysis"
                 ]
             },
             "AiAgentBattleProfile": {
@@ -35813,8 +35818,12 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-kind-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": ["user", "semantic_studio"]
+                    },
                     "description": {
                         "type": "string",
                         "nullable": true
@@ -35971,6 +35980,7 @@
                     }
                 },
                 "required": [
+                    "kind",
                     "description",
                     "imageUrl",
                     "name",
@@ -36004,7 +36014,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-kind-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -50462,13 +50472,13 @@
                         "type": "string",
                         "enum": [
                             "data_app",
+                            "semantic_studio",
                             "slack",
                             "web_app",
                             "api",
                             "evals",
                             "scheduler",
-                            "dashboard_analysis",
-                            "semantic_studio"
+                            "dashboard_analysis"
                         ]
                     }
                 },
@@ -81729,7 +81739,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.414.2",
+        "version": "3.415.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -95833,6 +95843,47 @@
                 },
                 "description": "Whether this person can change this project's models from the server.",
                 "summary": "Get Semantic Studio status",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/agent": {
+            "post": {
+                "operationId": "getSemanticStudioAgent",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The built-in agent behind this project's Semantic Studio chat, created on first use.",
+                "summary": "Get the Semantic Studio agent",
                 "tags": ["Semantic Studio"],
                 "security": [],
                 "parameters": [

@@ -1,3 +1,16 @@
+# [3.415.0](https://github.com/lightdash/lightdash/compare/3.414.2...3.415.0) (2026-11-26)
+
+
+### Bug Fixes
+
+* **navigation:** home page fits the left sidebar ([#33481](https://github.com/lightdash/lightdash/issues/33481)) ([2fa2287](https://github.com/lightdash/lightdash/commit/2fa228797af03b71fd6d9e90234cf9bb6a30d594))
+
+
+### Features
+
+* **charts:** chart headers match the dashboard bar ([#33479](https://github.com/lightdash/lightdash/issues/33479)) ([42b5f13](https://github.com/lightdash/lightdash/commit/42b5f135b841ac8252778dd946bb2da54bbfe7fd))
+* **semantic-studio:** give Studio a built-in agent so no Ask AI agent is needed ([#33447](https://github.com/lightdash/lightdash/issues/33447)) ([0e643d9](https://github.com/lightdash/lightdash/commit/0e643d90ae1dd0c742756d3b988e5c7ed92100a3))
+
 ## [3.414.2](https://github.com/lightdash/lightdash/compare/3.414.1...3.414.2) (2026-11-26)
 
 
