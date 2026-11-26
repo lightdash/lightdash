@@ -69,6 +69,7 @@ import {
 } from '../types';
 import { requestSqlApprovalNotificationPermission } from '../utils/sqlApprovalNotification';
 import { getAiAgentApiBase, getAiAgentPageBase } from './aiAgentRouting';
+import { useChatReadsItsAgent, useChatThreadsUrl } from './chatEndpoints';
 import { AI_AGENT_ARTIFACT_KEY } from './useAiAgentArtifacts';
 import {
     AGENT_AI_MCP_SERVERS_KEY,
@@ -153,6 +154,7 @@ export const useProjectAiAgent = (
     agentUuid: string | undefined,
 ) => {
     const lightdashApi = useLightdashApi();
+    const readsItsAgent = useChatReadsItsAgent();
 
     const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
@@ -173,7 +175,7 @@ export const useProjectAiAgent = (
                 });
             }
         },
-        enabled: !!projectUuid && !!agentUuid,
+        enabled: !!projectUuid && !!agentUuid && readsItsAgent,
         retry: (failureCount, error) => {
             // Don't retry permission errors
             if (error.error?.statusCode === 403) {
@@ -457,14 +459,11 @@ export const useDeleteAiAgentMutation = (projectUuid: string) => {
 // Thread-related functionality
 const getAgentThread = async (
     lightdashApi: LightdashApi,
-    projectUuid: string,
-    agentUuid: string,
+    threadsUrl: string,
     threadUuid: string,
 ) =>
     lightdashApi<ApiAiAgentThreadResponse['results']>({
-        url: `${getAiAgentApiBase(
-            projectUuid,
-        )}/${agentUuid}/threads/${threadUuid}`,
+        url: `${threadsUrl}/${threadUuid}`,
         method: 'GET',
         body: undefined,
     });
@@ -890,6 +889,7 @@ export const useAiAgentThread = (
     options?: UseQueryOptions<ApiAiAgentThreadResponse['results'], ApiError>,
 ) => {
     const lightdashApi = useLightdashApi();
+    const getThreadsUrl = useChatThreadsUrl();
 
     const isEmbed = useIsEmbedded();
     const { showToastApiError } = useToaster();
@@ -900,8 +900,7 @@ export const useAiAgentThread = (
         queryFn: () => {
             return getAgentThread(
                 lightdashApi,
-                projectUuid,
-                agentUuid!,
+                getThreadsUrl(projectUuid, agentUuid),
                 threadUuid!,
             );
         },
@@ -1236,18 +1235,18 @@ const markOptimisticAssistantMessageAsErrored = (
 
 const generateAgentThreadTitle = async (
     lightdashApi: LightdashApi,
-    projectUuid: string,
-    agentUuid: string,
+    threadsUrl: string,
     threadUuid: string,
 ) =>
     lightdashApi<ApiAiAgentThreadGenerateTitleResponse['results']>({
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/generate-title`,
+        url: `${threadsUrl}/${threadUuid}/generate-title`,
         method: 'POST',
         body: JSON.stringify({}),
     });
 
 export const useGenerateAgentThreadTitleMutation = (projectUuid: string) => {
     const lightdashApi = useLightdashApi();
+    const getThreadsUrl = useChatThreadsUrl();
 
     const queryClient = useQueryClient();
     return useMutation<
@@ -1258,8 +1257,7 @@ export const useGenerateAgentThreadTitleMutation = (projectUuid: string) => {
         mutationFn: ({ agentUuid, threadUuid }) =>
             generateAgentThreadTitle(
                 lightdashApi,
-                projectUuid,
-                agentUuid,
+                getThreadsUrl(projectUuid, agentUuid),
                 threadUuid,
             ),
         onSuccess: (data, { threadUuid }) => {
@@ -1284,14 +1282,13 @@ type CreatedAgentThread = ApiAiAgentThreadCreateResponse['results'] & {
 
 const createAgentThread = async (
     lightdashApi: LightdashApi,
-    projectUuid: string,
-    agentUuid: string | undefined,
+    threadsUrl: string,
     data: CreateAgentThreadRequest,
 ): Promise<CreatedAgentThread> => {
     const thread = await lightdashApi<
         ApiAiAgentThreadCreateResponse['results']
     >({
-        url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/threads`,
+        url: threadsUrl,
         method: 'POST',
         body: JSON.stringify(data),
     });
@@ -1316,6 +1313,7 @@ export const useCreateAgentThreadMutation = (
     },
 ) => {
     const lightdashApi = useLightdashApi();
+    const getThreadsUrl = useChatThreadsUrl();
 
     const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
@@ -1346,7 +1344,12 @@ export const useCreateAgentThreadMutation = (
             toolHints: _toolHints,
             skipAgentResponse: _skipAgentResponse,
             ...data
-        }) => createAgentThread(lightdashApi, projectUuid, agentUuid, data),
+        }) =>
+            createAgentThread(
+                lightdashApi,
+                getThreadsUrl(projectUuid, agentUuid),
+                data,
+            ),
         onMutate: ({ skipAgentResponse, autoApproveSql }) => {
             if (!isEmbed && !skipAgentResponse && !autoApproveSql) {
                 requestSqlApprovalNotificationPermission();
@@ -1525,15 +1528,12 @@ export const useCreateAgentThreadMutation = (
 
 const createAgentThreadMessage = async (
     lightdashApi: LightdashApi,
-    projectUuid: string,
-    agentUuid: string,
+    threadsUrl: string,
     threadUuid: string,
     data: ApiAiAgentThreadMessageCreateRequest,
 ) =>
     lightdashApi<ApiAiAgentThreadMessageCreateResponse['results']>({
-        url: `${getAiAgentApiBase(
-            projectUuid,
-        )}/${agentUuid}/threads/${threadUuid}/messages`,
+        url: `${threadsUrl}/${threadUuid}/messages`,
         method: 'POST',
         body: JSON.stringify(data),
     });
@@ -1548,6 +1548,7 @@ export const useCreateAgentThreadMessageMutation = (
     },
 ) => {
     const lightdashApi = useLightdashApi();
+    const getThreadsUrl = useChatThreadsUrl();
 
     const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
@@ -1580,8 +1581,7 @@ export const useCreateAgentThreadMessageMutation = (
             agentUuid && threadUuid
                 ? createAgentThreadMessage(
                       lightdashApi,
-                      projectUuid,
-                      agentUuid,
+                      getThreadsUrl(projectUuid, agentUuid),
                       threadUuid,
                       data,
                   )
@@ -1809,6 +1809,7 @@ export const useRetryAiAgentThreadMessageMutation = () => {
 
 export const useInterruptAiAgentThreadMessageMutation = () => {
     const lightdashApi = useLightdashApi();
+    const getThreadsUrl = useChatThreadsUrl();
     return useMutation<
         ApiAiAgentThreadMessageInterruptResponse['results'],
         ApiError,
@@ -1821,9 +1822,7 @@ export const useInterruptAiAgentThreadMessageMutation = () => {
     >({
         mutationFn: ({ projectUuid, agentUuid, threadUuid, messageUuid }) =>
             lightdashApi<ApiAiAgentThreadMessageInterruptResponse['results']>({
-                url: `${getAiAgentApiBase(
-                    projectUuid,
-                )}/${agentUuid}/threads/${threadUuid}/messages/${messageUuid}/interrupt`,
+                url: `${getThreadsUrl(projectUuid, agentUuid)}/${threadUuid}/messages/${messageUuid}/interrupt`,
                 method: 'POST',
                 body: undefined,
             }),
@@ -1832,6 +1831,7 @@ export const useInterruptAiAgentThreadMessageMutation = () => {
 
 export const useCreateAiAgentThreadMessageSteerMutation = () => {
     const lightdashApi = useLightdashApi();
+    const getThreadsUrl = useChatThreadsUrl();
 
     const queryClient = useQueryClient();
 
@@ -1854,9 +1854,7 @@ export const useCreateAiAgentThreadMessageSteerMutation = () => {
             message,
         }) =>
             lightdashApi<ApiAiAgentThreadMessageSteerResponse['results']>({
-                url: `${getAiAgentApiBase(
-                    projectUuid,
-                )}/${agentUuid}/threads/${threadUuid}/messages/${messageUuid}/steers`,
+                url: `${getThreadsUrl(projectUuid, agentUuid)}/${threadUuid}/messages/${messageUuid}/steers`,
                 method: 'POST',
                 body: JSON.stringify({ message }),
             }),

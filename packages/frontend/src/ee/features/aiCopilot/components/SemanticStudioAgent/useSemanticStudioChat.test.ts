@@ -26,6 +26,7 @@ const held = vi.hoisted(() => ({
     } | null,
     claim: vi.fn(),
     send: vi.fn(),
+    seedAgent: vi.fn(),
 }));
 
 vi.mock('../../../../../hooks/toaster/useToaster', () => ({
@@ -43,6 +44,11 @@ vi.mock('../../hooks/useProjectAiAgents', () => ({
         return { data: undefined };
     },
     useCreateAgentThreadMessageMutation: () => ({ mutate: held.send }),
+    getProjectAiAgentQueryKey: (project: string, agent: string) => [
+        'projectAiAgents',
+        project,
+        agent,
+    ],
 }));
 
 vi.mock('../../../../../features/semanticStudio/useStudioWorkspaces', () => ({
@@ -72,6 +78,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
         isInitialLoading: false,
         error: null,
     }),
+    useQueryClient: () => ({ setQueryData: held.seedAgent }),
 }));
 
 // Each read mounts a fresh hook, so a value has to survive a remount to be seen.
@@ -109,11 +116,11 @@ describe('useFinishDiscardedWork', () => {
 });
 
 describe('useStudioThread', () => {
-    const fail = (name: string) =>
+    const fail = (name: string, statusCode = 400) =>
         act(() =>
             held.onError?.({
                 status: 'error',
-                error: { name, statusCode: 400, message: 'm', data: {} },
+                error: { name, statusCode, message: 'm', data: {} },
             }),
         );
 
@@ -127,6 +134,22 @@ describe('useStudioThread', () => {
         fail('AiAgentNotFoundError');
         expect(storedThread()).toBe(null);
         expect(held.toast).not.toHaveBeenCalled();
+    });
+
+    it("forgets it when Studio's own route says the thread is not found", () => {
+        renderHook(() => useStudioThread('project', 'agent', 'thread'));
+        fail('NotFoundError', 404);
+        expect(storedThread()).toBe(null);
+        expect(held.toast).not.toHaveBeenCalled();
+    });
+
+    it('keeps the thread when it is refused, not missing', () => {
+        renderHook(() => useStudioThread('project', 'agent', 'thread'));
+        fail('ForbiddenError', 403);
+        expect(storedThread()).toEqual({
+            threadUuid: 'thread',
+            agentUuid: 'agent',
+        });
     });
 
     it('keeps the thread and says so on any other failure', () => {
@@ -144,6 +167,14 @@ it('starts new chats on the built-in agent, whatever agents the project has', ()
     const { result } = renderHook(() => useStudioAgent('new-project'));
     expect(result.current.agent?.uuid).toBe('studio-agent');
     expect(result.current.thread).toBe(null);
+});
+
+it('hands the built-in agent to the chat, which never asks for it', () => {
+    renderHook(() => useStudioAgent('new-project'));
+    expect(held.seedAgent).toHaveBeenCalledWith(
+        ['projectAiAgents', 'new-project', 'studio-agent'],
+        { uuid: 'studio-agent' },
+    );
 });
 
 it('keeps a chat started on another agent with that agent', () => {

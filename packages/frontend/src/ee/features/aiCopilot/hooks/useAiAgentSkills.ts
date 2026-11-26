@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
+import { useChatReadsItsAgent } from './chatEndpoints';
 
 /** The organization catalogue and skill details. */
 const SKILL_LIBRARY_KEY = 'aiAgentSkillLibrary';
@@ -104,10 +105,11 @@ export const useAgentSkills = (
     enabled: boolean,
 ) => {
     const lightdashApi = useLightdashApi();
+    const readsItsAgent = useChatReadsItsAgent();
     return useQuery<AgentSkillsListing, ApiError>({
         queryKey: [AGENT_SKILLS_KEY, projectUuid, agentUuid],
         queryFn: () => listAgentSkills(lightdashApi, projectUuid!, agentUuid!),
-        enabled: enabled && !!projectUuid && !!agentUuid,
+        enabled: enabled && !!projectUuid && !!agentUuid && readsItsAgent,
         staleTime: 30_000,
     });
 };
