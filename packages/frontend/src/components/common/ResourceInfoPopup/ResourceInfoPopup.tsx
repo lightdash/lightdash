@@ -61,6 +61,8 @@ export type ResourceInfoPopupProps = {
         source: ContentAsCodeRepositorySource;
     };
     updatedAt?: Date | string | null;
+    /** Name of the last editor, shown next to the modified time. */
+    updatedBy?: string;
     spaceName?: string;
     spaceUuid?: string | null;
     projectUuid: string;
@@ -97,6 +99,7 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
     slug,
     managedFromRepository,
     updatedAt,
+    updatedBy,
     spaceName,
     spaceUuid,
     projectUuid,
@@ -161,7 +164,7 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
             <Stack gap={10}>
                 {updatedAt && (
                     <InfoRow icon={IconClock} label="Last modified">
-                        {timeAgo}
+                        {updatedBy ? `${timeAgo} by ${updatedBy}` : timeAgo}
                     </InfoRow>
                 )}
 

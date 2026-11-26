@@ -4,21 +4,14 @@ import {
     DashboardTileTypes,
     DirectAccessResourceType,
 } from '@lightdash/common';
-import {
-    Group,
-    Stack,
-    Title,
-    Button,
-    ActionIcon,
-    Menu,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Menu, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconCirclesRelation,
     IconDatabaseExport,
     IconDots,
     IconLayoutGridAdd,
+    IconPencil,
     IconSend,
     IconTrash,
     IconUsers,
@@ -26,9 +19,15 @@ import {
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { editorName } from '../../../../components/common/Page/editorName';
+import { HeaderInfoPopover } from '../../../../components/common/Page/HeaderInfoPopover';
+import {
+    HeaderActions,
+    HeaderHeading,
+    HeaderMain,
+    HeaderTitle,
+} from '../../../../components/common/Page/HeaderSlots';
 import PageHeader from '../../../../components/common/Page/PageHeader';
-import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
-import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import AddTilesToDashboardModal from '../../../../components/SavedDashboards/AddTilesToDashboardModal';
 import {
@@ -215,199 +214,200 @@ export const HeaderView: FC = () => {
 
     return (
         <>
-            <PageHeader variant="query">
-                <Group justify="space-between" flex={1} wrap="nowrap">
-                    <Stack gap={0} miw={0}>
-                        <Group gap={4} wrap="nowrap">
-                            {space && (
-                                <TitleBreadCrumbs
-                                    projectUuid={projectUuid}
-                                    spaceUuid={space.uuid}
-                                    spaceName={space.name}
-                                />
-                            )}
-                            <Title
-                                order={5}
-                                maw={500}
-                                lineClamp={1}
-                                {...savedChartTourProps}
-                            >
-                                {savedSqlChart.name}
-                            </Title>
-                            {contentReview.pendingRequest && (
-                                <PendingReviewBadge
-                                    request={contentReview.pendingRequest}
-                                />
-                            )}
-                        </Group>
-                        <Group gap="xs">
-                            <UpdatedInfo
-                                updatedAt={savedSqlChart.lastUpdatedAt}
-                                user={savedSqlChart.lastUpdatedBy}
-                                partiallyBold={false}
-                            />
-                            <ResourceInfoPopup
-                                resourceUuid={savedSqlChart.savedSqlUuid}
+            <PageHeader variant="dashboard">
+                <HeaderMain miw={0} mr="sm">
+                    <HeaderTitle gap="xs" wrap="nowrap">
+                        {space && (
+                            <TitleBreadCrumbs
+                                size="sm"
                                 projectUuid={projectUuid}
-                                description={
-                                    savedSqlChart.description ?? undefined
-                                }
-                                viewStats={savedSqlChart.views}
-                                firstViewedAt={savedSqlChart.firstViewedAt}
-                                withChartData={false}
+                                spaceUuid={space.uuid}
+                                spaceName={space.name}
                             />
-                        </Group>
-                    </Stack>
+                        )}
+                        <HeaderHeading
+                            order={6}
+                            lineClamp={1}
+                            {...savedChartTourProps}
+                        >
+                            {savedSqlChart.name}
+                        </HeaderHeading>
+                        <HeaderInfoPopover
+                            label="Chart information"
+                            info={{
+                                resourceUuid: savedSqlChart.savedSqlUuid,
+                                projectUuid,
+                                description:
+                                    savedSqlChart.description ?? undefined,
+                                updatedAt: savedSqlChart.lastUpdatedAt,
+                                updatedBy: editorName(
+                                    savedSqlChart.lastUpdatedBy,
+                                ),
+                                viewStats: savedSqlChart.views,
+                                firstViewedAt: savedSqlChart.firstViewedAt,
+                                withChartData: false,
+                            }}
+                        />
+                        {contentReview.pendingRequest && (
+                            <PendingReviewBadge
+                                request={contentReview.pendingRequest}
+                            />
+                        )}
+                    </HeaderTitle>
+                </HeaderMain>
 
-                    <Group gap="xs">
-                        {canManageSqlRunner && canManageChart && (
-                            <Button
+                <HeaderActions gap="sm" wrap="nowrap">
+                    {canManageSqlRunner && canManageChart && (
+                        <Tooltip label="Edit chart" position="bottom">
+                            <ActionIcon
                                 display={authoringEnabled ? undefined : 'none'}
-                                size="xs"
-                                variant="default"
+                                bg="foreground"
+                                c="background"
+                                size="md"
+                                aria-label="Edit chart"
                                 onClick={() =>
                                     navigate(
                                         `/projects/${projectUuid}/sql-runner/${savedSqlChart.slug}/edit`,
                                     )
                                 }
                             >
-                                Edit chart
-                            </Button>
-                        )}
+                                <MantineIcon icon={IconPencil} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
 
-                        {(canManageChart ||
-                            canSyncWithGoogleSheets ||
-                            contentReview.canRequest) && (
-                            <Menu
-                                position="bottom"
-                                returnFocus={!isDirectAccessModalOpen}
-                                withArrow
-                                width={200}
-                            >
-                                <Menu.Target>
-                                    <ActionIcon>
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
-                                </Menu.Target>
-                                <Menu.Dropdown>
-                                    {canManageChart && (
-                                        <>
-                                            <Menu.Label>Manage</Menu.Label>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconLayoutGridAdd}
-                                                    />
-                                                }
-                                                onClick={() =>
-                                                    dispatch(
-                                                        toggleModal(
-                                                            'addToDashboard',
-                                                        ),
-                                                    )
-                                                }
-                                            >
-                                                Add to dashboard
-                                            </Menu.Item>
-                                        </>
-                                    )}
-                                    {contentReview.canRequest && (
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon icon={IconSend} />
-                                            }
-                                            onClick={
-                                                requestReviewModalHandlers.open
-                                            }
-                                        >
-                                            Request review
-                                        </Menu.Item>
-                                    )}
-                                    {canSyncWithGoogleSheets && (
+                    {(canManageChart ||
+                        canSyncWithGoogleSheets ||
+                        contentReview.canRequest) && (
+                        <Menu
+                            position="bottom"
+                            returnFocus={!isDirectAccessModalOpen}
+                            withArrow
+                            width={200}
+                        >
+                            <Menu.Target>
+                                <ActionIcon
+                                    variant="default"
+                                    size="md"
+                                    aria-label="Chart actions"
+                                >
+                                    <MantineIcon icon={IconDots} />
+                                </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                {canManageChart && (
+                                    <>
+                                        <Menu.Label>Manage</Menu.Label>
                                         <Menu.Item
                                             leftSection={
                                                 <MantineIcon
-                                                    icon={IconCirclesRelation}
+                                                    icon={IconLayoutGridAdd}
                                                 />
                                             }
-                                            onClick={syncModalHandlers.open}
-                                        >
-                                            Google Sheets Sync
-                                        </Menu.Item>
-                                    )}
-                                    {canManageChart && canPromoteChart && (
-                                        <Tooltip
-                                            label="You must enable first an upstream project in settings > Data ops"
-                                            disabled={
-                                                project?.upstreamProjectUuid !==
-                                                undefined
-                                            }
-                                        >
-                                            <div>
-                                                <Menu.Item
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconDatabaseExport
-                                                            }
-                                                        />
-                                                    }
-                                                    disabled={
-                                                        project?.upstreamProjectUuid ===
-                                                        undefined
-                                                    }
-                                                    onClick={() =>
-                                                        getPromoteSqlChartDiff(
-                                                            savedSqlChart.savedSqlUuid,
-                                                        )
-                                                    }
-                                                >
-                                                    Promote chart
-                                                </Menu.Item>
-                                            </div>
-                                        </Tooltip>
-                                    )}
-                                    {directAccessAvailability.isAvailable &&
-                                        canManageSqlChartAccess && (
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconUsers}
-                                                    />
-                                                }
-                                                onClick={
-                                                    directAccessModalHandlers.open
-                                                }
-                                            >
-                                                Share
-                                            </Menu.Item>
-                                        )}
-                                    {canManageChart && (
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconTrash}
-                                                    color="red"
-                                                />
-                                            }
-                                            color="red"
-                                            disabled={!canManageSqlRunner}
                                             onClick={() =>
                                                 dispatch(
                                                     toggleModal(
-                                                        'deleteChartModal',
+                                                        'addToDashboard',
                                                     ),
                                                 )
                                             }
                                         >
-                                            Delete
+                                            Add to dashboard
+                                        </Menu.Item>
+                                    </>
+                                )}
+                                {contentReview.canRequest && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconSend} />
+                                        }
+                                        onClick={
+                                            requestReviewModalHandlers.open
+                                        }
+                                    >
+                                        Request review
+                                    </Menu.Item>
+                                )}
+                                {canSyncWithGoogleSheets && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconCirclesRelation}
+                                            />
+                                        }
+                                        onClick={syncModalHandlers.open}
+                                    >
+                                        Google Sheets Sync
+                                    </Menu.Item>
+                                )}
+                                {canManageChart && canPromoteChart && (
+                                    <Tooltip
+                                        label="You must enable first an upstream project in settings > Data ops"
+                                        disabled={
+                                            project?.upstreamProjectUuid !==
+                                            undefined
+                                        }
+                                    >
+                                        <div>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconDatabaseExport
+                                                        }
+                                                    />
+                                                }
+                                                disabled={
+                                                    project?.upstreamProjectUuid ===
+                                                    undefined
+                                                }
+                                                onClick={() =>
+                                                    getPromoteSqlChartDiff(
+                                                        savedSqlChart.savedSqlUuid,
+                                                    )
+                                                }
+                                            >
+                                                Promote chart
+                                            </Menu.Item>
+                                        </div>
+                                    </Tooltip>
+                                )}
+                                {directAccessAvailability.isAvailable &&
+                                    canManageSqlChartAccess && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconUsers} />
+                                            }
+                                            onClick={
+                                                directAccessModalHandlers.open
+                                            }
+                                        >
+                                            Share
                                         </Menu.Item>
                                     )}
-                                </Menu.Dropdown>
-                            </Menu>
-                        )}
-                    </Group>
-                </Group>
+                                {canManageChart && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconTrash}
+                                                color="red"
+                                            />
+                                        }
+                                        color="red"
+                                        disabled={!canManageSqlRunner}
+                                        onClick={() =>
+                                            dispatch(
+                                                toggleModal('deleteChartModal'),
+                                            )
+                                        }
+                                    >
+                                        Delete
+                                    </Menu.Item>
+                                )}
+                            </Menu.Dropdown>
+                        </Menu>
+                    )}
+                </HeaderActions>
             </PageHeader>
 
             {isDirectAccessModalOpen && savedSqlChart && (

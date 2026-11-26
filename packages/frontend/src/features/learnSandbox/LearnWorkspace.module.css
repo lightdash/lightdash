@@ -19,7 +19,8 @@
 
 .workspaceHeader {
     flex-shrink: 0;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    min-height: var(--dashboard-header-height);
+    padding: 0 var(--mantine-spacing-md);
     border-bottom: 1px solid var(--lu-border);
     background: var(--lu-surface);
 }

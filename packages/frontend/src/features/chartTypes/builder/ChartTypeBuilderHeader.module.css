@@ -4,7 +4,7 @@
     justify-content: space-between;
     gap: 10px;
     padding: 0 16px;
-    height: 52px;
+    height: var(--dashboard-header-height);
     background: var(--mantine-color-background-0);
     border-bottom: 1px solid var(--mantine-color-ldGray-2);
     flex-shrink: 0;
@@ -61,7 +61,7 @@
         flex-wrap: wrap;
         row-gap: var(--mantine-spacing-xs);
         height: auto;
-        min-height: 52px;
+        min-height: var(--dashboard-header-height);
         padding-block: var(--mantine-spacing-xs);
     }
 
