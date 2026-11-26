@@ -26,6 +26,7 @@ import ResizableSplitter from '../../../../../components/common/ResizableSplitte
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import useEmbed from '../../../../providers/Embed/useEmbed';
+import { useChatArtifactsUrl } from '../../hooks/chatEndpoints';
 import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import {
     AI_AGENT_ARTIFACT_KEY,
@@ -114,11 +115,16 @@ export const AiAgentPageLayout: React.FC<Props> = ({
         [threadUuid, threadUuidA, threadUuidB],
     );
     const preview = useAiAgentStoreSelector(selectOnScreenPreview);
+    const getArtifactsUrl = useChatArtifactsUrl();
     // Same key as the artifact panel's fetch, so this adds no request; the
     // panel owns error handling.
     const artifactQuery =
         preview?.type === 'artifact'
-            ? aiAgentArtifactVersionQuery(lightdashApi, preview)
+            ? aiAgentArtifactVersionQuery(
+                  lightdashApi,
+                  preview,
+                  getArtifactsUrl,
+              )
             : null;
     const { data: previewArtifact } = useQuery<AiArtifact, ApiError>({
         queryKey: artifactQuery?.queryKey ?? [AI_AGENT_ARTIFACT_KEY, 'none'],

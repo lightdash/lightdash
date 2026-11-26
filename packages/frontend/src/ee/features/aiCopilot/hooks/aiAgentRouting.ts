@@ -55,6 +55,7 @@ export const getAiAgentArtifactResultsUrl = ({
     versionUuid,
     queryUuid,
     cached,
+    artifactsUrl,
 }: {
     projectUuid: string;
     agentUuid: string;
@@ -62,5 +63,7 @@ export const getAiAgentArtifactResultsUrl = ({
     versionUuid: string;
     queryUuid: string;
     cached: boolean;
+    /** From useChatArtifactsUrl, where the chat may have its own endpoints; the agent's when left out. */
+    artifactsUrl?: string;
 }) =>
-    `${getAiAgentApiBase(projectUuid)}/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/query-results?${new URLSearchParams({ queryUuid, cached: String(cached) })}`;
+    `${artifactsUrl ?? `${getAiAgentApiBase(projectUuid)}/${agentUuid}/artifacts`}/${artifactUuid}/versions/${versionUuid}/query-results?${new URLSearchParams({ queryUuid, cached: String(cached) })}`;

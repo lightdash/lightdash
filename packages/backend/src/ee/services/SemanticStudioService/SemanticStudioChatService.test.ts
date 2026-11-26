@@ -5,6 +5,7 @@ import {
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
+import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { findSemanticStudioPreset } from '../ai/models/modelPreference';
 import {
@@ -15,7 +16,14 @@ import {
 const PROJECT_UUID = 'project-uuid';
 const THREAD_UUID = 'thread-uuid';
 const MESSAGE_UUID = 'message-uuid';
+const ARTIFACT_UUID = 'artifact-uuid';
+const VERSION_UUID = 'version-uuid';
 const ref = { projectUuid: PROJECT_UUID, threadUuid: THREAD_UUID };
+const artifactRef = {
+    projectUuid: PROJECT_UUID,
+    artifactUuid: ARTIFACT_UUID,
+    versionUuid: VERSION_UUID,
+};
 const messageRef = { ...ref, messageUuid: MESSAGE_UUID };
 
 const withAbility = (
@@ -51,12 +59,22 @@ const setup = ({
         interruptMessageForAuthorized: vi.fn(),
         steerMessageForAuthorized: vi.fn(),
         generateTitleForAuthorized: vi.fn(),
+        getArtifactVizQueryForAuthorized: vi.fn(),
+        getArtifactQueryResultsForAuthorized: vi.fn(),
+        updateArtifactVersionForAuthorized: vi.fn(),
     } satisfies SemanticStudioChatServiceArguments['ai'];
     const getBuilderAgent = vi.fn(async () => ({ uuid: 'built-in-agent' }));
     const getAgent = vi.fn();
     getAgent.mockResolvedValue(agent);
     const getThread = vi.fn();
     getThread.mockResolvedValue(thread);
+    const artifact = {
+        artifactUuid: ARTIFACT_UUID,
+        versionUuid: VERSION_UUID,
+        threadUuid: THREAD_UUID,
+    };
+    const getArtifact = vi.fn();
+    getArtifact.mockResolvedValue(artifact);
     const getStatus = vi.fn();
     getStatus.mockResolvedValue({ enabled: canUseStudio });
     const studio = {
@@ -80,13 +98,15 @@ const setup = ({
         checkout,
         studio,
         aiWriteback: { hasRunInProgress },
-        aiAgentModel: { getAgent, getThread },
+        aiAgentModel: { getAgent, getThread, getArtifact },
         workspaceModel: { findStudioThreadAgentUuid },
     });
     return {
         service,
         ai,
         authorized: { agent, thread },
+        artifact,
+        getArtifact,
         getBuilderAgent,
         studio,
         checkout,
@@ -413,6 +433,116 @@ describe('SemanticStudioChatService', () => {
                 MESSAGE_UUID,
                 'Use net revenue',
             );
+        });
+    });
+
+    describe('what a conversation made', () => {
+        it("reads an artifact, runs its query and links its saved chart for the thread's owner", async () => {
+            const { service, ai, authorized, artifact, getArtifact } = setup();
+            const account = fromSession(owner);
+
+            await expect(service.getArtifact(owner, artifactRef)).resolves.toBe(
+                artifact,
+            );
+            await service.getArtifactVizQuery(owner, artifactRef, account);
+            await service.linkArtifactSavedSql(owner, artifactRef, 'sql-uuid');
+            const page = { queryUuid: 'query-uuid', page: null, pageSize: 50 };
+            await service.getArtifactQueryResults(
+                owner,
+                artifactRef,
+                page,
+                account,
+            );
+            expect(
+                ai.getArtifactQueryResultsForAuthorized,
+            ).toHaveBeenCalledWith(owner, authorized, artifact, page, account);
+
+            expect(getArtifact).toHaveBeenCalledWith(
+                ARTIFACT_UUID,
+                VERSION_UUID,
+            );
+            expect(ai.getArtifactVizQueryForAuthorized).toHaveBeenCalledWith(
+                owner,
+                authorized,
+                artifact,
+                account,
+            );
+            expect(ai.updateArtifactVersionForAuthorized).toHaveBeenCalledWith(
+                authorized,
+                VERSION_UUID,
+                { savedSqlUuid: 'sql-uuid' },
+            );
+        });
+
+        it("follows the conversation's rule: Studio permission, and theirs or an agent manager's", async () => {
+            const { service, ai } = setup();
+            await expect(
+                service.getArtifact(someoneElse, artifactRef),
+            ).rejects.toThrow(
+                'Insufficient permissions to access this artifact',
+            );
+            await expect(
+                service.getArtifactVizQuery(
+                    someoneElse,
+                    artifactRef,
+                    fromSession(someoneElse),
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                service.linkArtifactSavedSql(someoneElse, artifactRef, null),
+            ).rejects.toThrow(
+                'Insufficient permissions to update this artifact',
+            );
+            await expect(
+                service.getArtifactQueryResults(
+                    someoneElse,
+                    artifactRef,
+                    { queryUuid: 'query-uuid', page: null, pageSize: null },
+                    fromSession(someoneElse),
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(ai.getArtifactVizQueryForAuthorized).not.toHaveBeenCalled();
+            expect(
+                ai.getArtifactQueryResultsForAuthorized,
+            ).not.toHaveBeenCalled();
+            expect(
+                ai.updateArtifactVersionForAuthorized,
+            ).not.toHaveBeenCalled();
+
+            await expect(
+                service.getArtifact(agentManager, artifactRef),
+            ).resolves.toBeDefined();
+            await expect(
+                setup({ canUseStudio: false }).service.getArtifact(
+                    owner,
+                    artifactRef,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('refuses an artifact of a thread that is not a Studio one in this project, as the agent routes do', async () => {
+            const { service } = setup({ threadAgentUuid: null });
+
+            await expect(
+                service.getArtifact(owner, artifactRef),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('checks AI is on, and leaves a missing artifact to the model', async () => {
+            await expect(
+                setup({ copilotEnabled: false }).service.getArtifact(
+                    owner,
+                    artifactRef,
+                ),
+            ).rejects.toThrow('Copilot is not enabled');
+
+            const { service, getArtifact } = setup();
+            getArtifact.mockRejectedValueOnce(
+                new NotFoundError('Artifact artifact-uuid not found'),
+            );
+            await expect(
+                service.getArtifact(owner, artifactRef),
+            ).rejects.toThrow(NotFoundError);
         });
     });
 });

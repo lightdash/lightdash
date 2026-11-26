@@ -8,7 +8,7 @@ export const useStartStudioThread = (
     projectUuid: string,
 ): StartStudioThread => {
     const lightdashApi = useLightdashApi();
-    return async (agentUuid, threadContext) => {
+    return async (_agentUuid, threadContext) => {
         const created = await lightdashApi<
             ApiAiAgentThreadCreateResponse['results']
         >({
@@ -19,6 +19,7 @@ export const useStartStudioThread = (
                 threadContext,
             }),
         });
-        return { threadUuid: created.uuid, agentUuid };
+        // The server picks the agent the conversation runs on.
+        return { threadUuid: created.uuid, agentUuid: created.agentUuid };
     };
 };

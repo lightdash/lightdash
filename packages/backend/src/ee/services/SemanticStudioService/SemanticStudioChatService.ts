@@ -6,6 +6,7 @@ import {
     type ApiAiAgentThreadCreateRequest,
     type ApiAiAgentThreadMessageCreateRequest,
     type ApiAiAgentThreadStreamRequest,
+    type RegisteredAccount,
     type SessionUser,
 } from '@lightdash/common';
 import { BaseService } from '../../../services/BaseService';
@@ -33,6 +34,9 @@ export type SemanticStudioChatServiceArguments = {
         | 'interruptMessageForAuthorized'
         | 'steerMessageForAuthorized'
         | 'generateTitleForAuthorized'
+        | 'getArtifactVizQueryForAuthorized'
+        | 'getArtifactQueryResultsForAuthorized'
+        | 'updateArtifactVersionForAuthorized'
     >;
     checkout: Pick<
         SemanticStudioCheckoutService,
@@ -53,7 +57,7 @@ export type SemanticStudioChatServiceArguments = {
         | 'readDraftedModel'
     >;
     aiWriteback: Pick<AiWritebackService, 'hasRunInProgress'>;
-    aiAgentModel: Pick<AiAgentModel, 'getAgent' | 'getThread'>;
+    aiAgentModel: Pick<AiAgentModel, 'getAgent' | 'getThread' | 'getArtifact'>;
     workspaceModel: Pick<
         SemanticStudioWorkspaceModel,
         'findStudioThreadAgentUuid'
@@ -62,6 +66,11 @@ export type SemanticStudioChatServiceArguments = {
 
 type ThreadRef = { projectUuid: string; threadUuid: string };
 type MessageRef = ThreadRef & { messageUuid: string };
+type ArtifactRef = {
+    projectUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
+};
 
 /** The Studio chat's own way in: it finds the agent a conversation runs on and decides who may use it. */
 export class SemanticStudioChatService extends BaseService {
@@ -139,6 +148,103 @@ export class SemanticStudioChatService extends BaseService {
             throw new ForbiddenError(refusal);
         }
         return { agent, thread };
+    }
+
+    // An artifact is its thread's: whoever may use the Studio conversation may read what it made.
+    private async authorizeArtifact(
+        user: SessionUser,
+        { projectUuid, artifactUuid, versionUuid }: ArtifactRef,
+        refusal: string,
+    ) {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        await this.assertCopilotEnabled(user);
+        // The model answers not found for a missing artifact, as it does on the agent routes.
+        const artifact = await this.aiAgentModel.getArtifact(
+            artifactUuid,
+            versionUuid,
+        );
+        const authorized = await this.authorizeThread(
+            user,
+            { projectUuid, threadUuid: artifact.threadUuid },
+            { checksCopilot: false, refusal },
+        ).catch((error: unknown) => {
+            // An artifact of some other thread is refused, as the agent routes refuse it.
+            throw error instanceof NotFoundError
+                ? new ForbiddenError(refusal)
+                : error;
+        });
+        return { authorized, artifact };
+    }
+
+    async getArtifact(user: SessionUser, ref: ArtifactRef) {
+        const { artifact } = await this.authorizeArtifact(
+            user,
+            ref,
+            'Insufficient permissions to access this artifact',
+        );
+        return artifact;
+    }
+
+    async getArtifactVizQuery(
+        user: SessionUser,
+        ref: ArtifactRef,
+        account: RegisteredAccount,
+    ) {
+        const { authorized, artifact } = await this.authorizeArtifact(
+            user,
+            ref,
+            'Insufficient permissions to access this artifact',
+        );
+        return this.ai.getArtifactVizQueryForAuthorized(
+            user,
+            authorized,
+            artifact,
+            account,
+        );
+    }
+
+    async getArtifactQueryResults(
+        user: SessionUser,
+        ref: ArtifactRef,
+        page: {
+            queryUuid: string;
+            page: number | null;
+            pageSize: number | null;
+        },
+        account: RegisteredAccount,
+    ) {
+        const { authorized, artifact } = await this.authorizeArtifact(
+            user,
+            ref,
+            'Insufficient permissions to access this artifact',
+        );
+        return this.ai.getArtifactQueryResultsForAuthorized(
+            user,
+            authorized,
+            artifact,
+            page,
+            account,
+        );
+    }
+
+    /** Records the SQL chart a result was saved as. */
+    async linkArtifactSavedSql(
+        user: SessionUser,
+        ref: ArtifactRef,
+        savedSqlUuid: string | null,
+    ) {
+        const { authorized } = await this.authorizeArtifact(
+            user,
+            ref,
+            'Insufficient permissions to update this artifact',
+        );
+        return this.ai.updateArtifactVersionForAuthorized(
+            authorized,
+            ref.versionUuid,
+            { savedSqlUuid },
+        );
     }
 
     // What a Studio conversation brings to each turn: its mode and card, and the builder's own tools.

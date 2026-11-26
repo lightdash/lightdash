@@ -17,8 +17,8 @@ import Page from '../../components/common/Page/Page';
 import ForbiddenPanel from '../../components/ForbiddenPanel';
 import { usePrefetchStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import {
-    ChatThreadsUrlContext,
-    getStudioChatThreadsUrl,
+    ChatOwnEndpointsContext,
+    getStudioChatApiBase,
 } from '../../ee/features/aiCopilot/hooks/chatEndpoints';
 import { useExplores } from '../../hooks/useExplores';
 import { useProject } from '../../hooks/useProject';
@@ -141,7 +141,14 @@ const SemanticStudioPage: FC = () => {
     const isDraftGone =
         ownDraft.data?.changes.length === 0 && !ownDraft.isFetching;
     const listedDraft = isDraftGone ? null : (checkout.shown?.draft ?? null);
-    usePrefetchStudioAgent(projectUuid);
+    const studioAgentUuid = usePrefetchStudioAgent(projectUuid);
+    const chatEndpoints = useMemo(
+        () => ({
+            apiBase: getStudioChatApiBase(projectUuid ?? ''),
+            ownAgentUuid: studioAgentUuid,
+        }),
+        [projectUuid, studioAgentUuid],
+    );
 
     const realProject = useMemo(
         () =>
@@ -203,9 +210,7 @@ const SemanticStudioPage: FC = () => {
     return (
         <Page title="Semantic Layer" withFullHeight noContentPadding>
             <StudioCheckoutProvider value={checkout}>
-                <ChatThreadsUrlContext.Provider
-                    value={getStudioChatThreadsUrl(projectUuid)}
-                >
+                <ChatOwnEndpointsContext.Provider value={chatEndpoints}>
                     <WorkbenchView
                         project={realProject}
                         permissions={permissions}
@@ -213,7 +218,7 @@ const SemanticStudioPage: FC = () => {
                         route={route}
                         onNavigate={onNavigate}
                     />
-                </ChatThreadsUrlContext.Provider>
+                </ChatOwnEndpointsContext.Provider>
             </StudioCheckoutProvider>
         </Page>
     );

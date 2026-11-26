@@ -1160,6 +1160,18 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.DbtWriteback,
     ],
     'SemanticStudioController.steerChatMessage': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getChatArtifactVersion': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.getChatArtifactVizQuery': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.getChatArtifactQueryResults': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.updateChatArtifactSavedSql': [
+        AgentCapability.DbtWriteback,
+    ],
     'SemanticStudioController.undo': [AgentCapability.DbtWriteback],
     'InviteLinksController.createInviteLink': [AgentCapability.Administration],
     'InviteLinksController.revokeAllInviteLinks': [
