@@ -2317,6 +2317,8 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 agentPermissionService,
                 agentActionLogModel,
                 aiWritebackService,
+                // No other kind of thread has a say in this save.
+                findWritebackSetup: async () => null,
                 aiAgentModel: {
                     findWebAppPrompt: vi.fn().mockResolvedValue({
                         threadUuid: 'thread-1',
