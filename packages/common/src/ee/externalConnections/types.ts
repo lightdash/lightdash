@@ -314,6 +314,18 @@ export const isSupabaseTableName = (table: string) =>
  * A project URL: https://<ref>.supabase.co, a custom domain or a self-hosted
  * Supabase. Bare origin only; the proxy still refuses private addresses.
  */
+// Legacy JWT keys sent only as `apikey` run as anon, so RLS hides every row,
+// and publishable keys can't read the table list the scan needs
+export const getSupabaseKeyError = (secret: string): string | undefined => {
+    const key = secret.trim();
+    if (key.startsWith('sb_secret_')) return undefined;
+    if (key.startsWith('sb_publishable_'))
+        return 'Publishable keys cannot read the table columns; use a secret key (sb_secret_)';
+    if (key.startsWith('eyJ'))
+        return 'Legacy JWT keys return no rows; create a secret key (sb_secret_) under API Keys';
+    return 'Paste a secret key; it starts with sb_secret_';
+};
+
 export const isSupabaseOrigin = (origin: string) => {
     try {
         const url = new URL(origin);

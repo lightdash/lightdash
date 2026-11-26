@@ -1,6 +1,7 @@
 import {
     ApiConnectorType,
     getSupabaseTablePath,
+    getSupabaseKeyError,
     isSupabaseOrigin,
     isSupabaseTableName,
     LIVE_INTEGRATION_CATALOG,
@@ -54,8 +55,7 @@ export const useSupabaseConnectionForm = () =>
                 isSupabaseTableName(value.trim())
                     ? null
                     : 'Use the name of one table or view',
-            secret: (value) =>
-                value.trim().length === 0 ? 'Paste a secret key' : null,
+            secret: (value) => getSupabaseKeyError(value) ?? null,
         },
     });
 

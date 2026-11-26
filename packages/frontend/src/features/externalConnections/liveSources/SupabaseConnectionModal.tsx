@@ -115,7 +115,7 @@ export const SupabaseConnectionModal: FC<Props> = ({
                     </SettingsRow>
                     <SettingsRow
                         label="Secret key"
-                        hint="An sb_secret_ key or the service_role key; only GET calls are sent"
+                        hint="An sb_secret_ key from API Keys; only GET calls are sent"
                     >
                         <PasswordInput
                             w={FIELD_WIDTH}

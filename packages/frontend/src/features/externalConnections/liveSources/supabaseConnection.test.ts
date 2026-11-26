@@ -1,4 +1,4 @@
-import { ApiConnectorType } from '@lightdash/common';
+import { ApiConnectorType, getSupabaseKeyError } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     getSupabaseTestRequest,
@@ -7,6 +7,13 @@ import {
 } from './supabaseConnection';
 
 describe('supabaseConnection', () => {
+    it('takes only sb_secret_ keys', () => {
+        expect(getSupabaseKeyError(' sb_secret_x ')).toBeUndefined();
+        expect(getSupabaseKeyError('eyJhbGciOi.x.y')).toMatch(/no rows/);
+        expect(getSupabaseKeyError('sb_publishable_x')).toMatch(/secret key/);
+        expect(getSupabaseKeyError('')).toMatch(/sb_secret_/);
+    });
+
     it('reads the project origin from a URL or a project ref', () => {
         expect(toSupabaseOrigin(' https://abcd.supabase.co/rest/v1/ ')).toBe(
             'https://abcd.supabase.co',

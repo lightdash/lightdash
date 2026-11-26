@@ -1,4 +1,6 @@
 import {
+    ApiConnectorType,
+    getSupabaseKeyError,
     ParameterError,
     type ExternalConnectionApiSource,
     type ExternalConnectionAuthType,
@@ -29,16 +31,28 @@ export const withApiSourceAccessRules = <
           }
         : config;
 
+/** Refuses a Supabase key that would scan nothing or read no rows */
+export const assertSupabaseKey = (
+    apiSource: ExternalConnectionApiSource | null | undefined,
+    secret: string | null | undefined,
+): void => {
+    if (apiSource?.connector !== ApiConnectorType.SUPABASE || !secret) return;
+    const error = getSupabaseKeyError(secret);
+    if (error) throw new ParameterError(error);
+};
+
 export const validateApiSourceConnection = ({
     apiSource,
     type,
     origin,
     oauthTokenUrl,
+    secret,
 }: {
     apiSource?: ExternalConnectionApiSource | null;
     type: ExternalConnectionAuthType;
     origin: string;
     oauthTokenUrl?: string | null;
+    secret?: string | null;
 }): void => {
     if (!apiSource) {
         if (type === 'oauth_authorization_code') {
@@ -54,4 +68,5 @@ export const validateApiSourceConnection = ({
         origin,
         oauthTokenUrl,
     });
+    assertSupabaseKey(apiSource, secret);
 };

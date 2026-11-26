@@ -176,6 +176,7 @@ import {
     type ReachedRateLimit,
 } from './ApiSourceCallLimiter';
 import {
+    assertSupabaseKey,
     validateApiSourceConnection,
     withApiSourceAccessRules,
 } from './apiSourceConnection';
@@ -945,7 +946,7 @@ export class ExternalConnectionService extends BaseService {
         });
 
         validateExternalConnectionConfig(resolved, hasSecretAfter);
-        validateApiSourceConnection(resolved);
+        validateApiSourceConnection({ ...resolved, secret: data.secret });
         // A secret-less same-type update keeps the already-validated stored
         // keyfile; only a replacement keyfile needs parsing again.
         if (resultingType === 'google_service_account' && data.secret) {
@@ -1206,6 +1207,7 @@ export class ExternalConnectionService extends BaseService {
             connectionUuid,
         );
         ExternalConnectionService.assertNotSignInType(existing.type);
+        assertSupabaseKey(existing.apiSource, secret);
         await this.externalConnectionModel.rotateSecret(connectionUuid, secret);
         if (existing.kind === 'live_source') {
             await this.purgeAfterCredentialChange(connectionUuid);
