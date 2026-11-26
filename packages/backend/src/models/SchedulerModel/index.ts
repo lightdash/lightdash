@@ -2262,8 +2262,10 @@ export class SchedulerModel {
                 this.database.raw(
                     `COUNT(CASE WHEN status = '${SchedulerJobStatus.COMPLETED}' THEN 1 END) as completed_count`,
                 ),
+                // A Google Sheets run that a newer run superseded is not a
+                // failure: the newer run writes the tab.
                 this.database.raw(
-                    `COUNT(CASE WHEN status = '${SchedulerJobStatus.ERROR}' THEN 1 END) as error_count`,
+                    `COUNT(CASE WHEN status = '${SchedulerJobStatus.ERROR}' AND COALESCE((details::jsonb->>'superseded')::boolean, false) = false THEN 1 END) as error_count`,
                 ),
                 // Count batch jobs with partial delivery failures (some succeeded, some failed)
                 this.database.raw(

@@ -799,6 +799,24 @@ export class GoogleSheetsTransientError extends LightdashError {
     }
 }
 
+/* A newer run of a Google Sheets sync took over the tab, so this run
+stopped without changing it further. Not a failure: do not retry, turn
+the sync off or email the owner.
+*/
+export class GoogleSheetsSupersededError extends LightdashError {
+    constructor(
+        message = 'A newer run took over this tab, so this run stopped.',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'GoogleSheetsSupersededError',
+            statusCode: 409,
+            data,
+        });
+    }
+}
+
 export class TooManyRequestsError extends LightdashError {
     constructor(
         message = 'Too many requests',

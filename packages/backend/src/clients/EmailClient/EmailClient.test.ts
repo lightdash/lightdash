@@ -115,6 +115,33 @@ describe('EmailClient', () => {
             );
         });
 
+        test('should say why a Google Sheets sync was disabled', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+            const error =
+                'Google Sheets could not write 200,001 rows (including the header, about 29.1 MB) to the tab "Sheet1". The data in the tab was not changed.';
+
+            await client.sendGoogleSheetsErrorNotificationEmail(
+                'recipient@example.com',
+                'Weekly sync',
+                'https://example.com/scheduler',
+                error,
+                true,
+            );
+
+            expect(
+                vi.mocked(client.transporter!.sendMail),
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    context: expect.objectContaining({
+                        description: `There's an error with your Google Sheets "Weekly sync" sync. We've disabled it to prevent further errors. Error: ${error}`,
+                    }),
+                    text: `Your Google Sheets Weekly sync sync has been disabled due to an error: ${error}`,
+                }),
+            );
+        });
+
         test('should sanitize markdown message in notification emails', async () => {
             const client = new EmailClient({
                 lightdashConfig: lightdashConfigWithBasicSMTP,
