@@ -864,19 +864,24 @@ describe('GoogleDriveClient', () => {
             );
         });
 
-        test('keeps the old rows when Google rejects the final swap', async () => {
+        test('keeps the old rows when Google rejects the final swap and the in-place write', async () => {
             const oldRows = makeRows(1_000, 'old');
             const fake = new GoogleSheetsFake([
                 { title: 'Sheet1', rows: oldRows },
             ]);
             useFake(fake);
+            const cellLimitError = () =>
+                googleApiError(
+                    400,
+                    'This action would increase the number of cells in the workbook above the limit of 20000000 cells.',
+                );
             fake.beforeBatchUpdate = (requests) => {
                 if (requests.some((r) => 'copyPaste' in (r as object))) {
-                    throw googleApiError(
-                        400,
-                        'This action would increase the number of cells in the workbook above the limit of 20000000 cells.',
-                    );
+                    throw cellLimitError();
                 }
+            };
+            fake.beforeUpdate = (call) => {
+                if (call.range.startsWith("'Sheet1'")) throw cellLimitError();
             };
 
             const error = await settle(
