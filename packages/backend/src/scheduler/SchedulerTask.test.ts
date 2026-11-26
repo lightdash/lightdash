@@ -713,6 +713,12 @@ describe('retryTransientGoogleSheetsWrite', () => {
 });
 
 describe('computeGsheetsPacingDelayMs', () => {
+    // A small sync makes 4 writes (GoogleDriveClient test "makes 4 write
+    // requests for a small sync").
+    it('counts 4 writes per app item', () => {
+        expect(GSHEETS_WRITES_PER_APP_ITEM).toBe(4);
+    });
+
     it('spreads writesPerItem writes across a minute at the given budget', () => {
         // 60_000 * 3 / 55, rounded up so the sustained rate never exceeds budget.
         expect(computeGsheetsPacingDelayMs(3, 55)).toBe(3273);
@@ -1836,6 +1842,7 @@ describe('uploadGsheets — pivot routing', () => {
         parameterControls,
         dashboardControlsEnabled = false,
         queryPollingTimeout = lightdashConfigMock.scheduler.queryPollingTimeout,
+        tileCount = 1,
     }: {
         source: 'saved-chart' | 'dashboard';
         hasPivotConfig: boolean;
@@ -1846,6 +1853,7 @@ describe('uploadGsheets — pivot routing', () => {
         parameterControls?: DashboardParameterControl[];
         dashboardControlsEnabled?: boolean;
         queryPollingTimeout?: number;
+        tileCount?: number;
     }) => {
         const appendToSheet = vi.fn().mockResolvedValue(undefined);
         const appendCsvToSheet = vi.fn().mockResolvedValue(undefined);
@@ -1923,16 +1931,15 @@ describe('uploadGsheets — pivot routing', () => {
                         metrics: [],
                         tableCalculations: [],
                     },
-                    tiles: [
-                        {
-                            uuid: 'tile-1',
-                            type: DashboardTileTypes.SAVED_CHART,
-                            properties: {
-                                title: 'Chart',
-                                savedChartUuid: chart.uuid,
-                            },
+                    tiles: Array.from({ length: tileCount }, (_, i) => ({
+                        uuid: `tile-${i + 1}`,
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: {
+                            title: tileCount === 1 ? 'Chart' : `Chart ${i + 1}`,
+                            savedChartUuid:
+                                tileCount === 1 ? chart.uuid : `chart-${i + 1}`,
                         },
-                    ],
+                    })),
                     displayTimezone: null,
                     parameters: dashboardParameters,
                     organizationUuid: 'org-1',
@@ -1995,6 +2002,66 @@ describe('uploadGsheets — pivot routing', () => {
             run,
         };
     };
+
+    it('skips a superseded dashboard tab and still writes the other tabs and the metadata tab', async () => {
+        const result = setup({
+            source: 'dashboard',
+            hasPivotConfig: false,
+            pivotDetails: null,
+            tileCount: 3,
+        });
+        let call = 0;
+        result.appendToSheet.mockImplementation(async () => {
+            call += 1;
+            if (call === 2) {
+                throw new GoogleSheetsSupersededError(
+                    'A newer run took over the tab "Chart 2", so this run stopped.',
+                );
+            }
+        });
+
+        await result.run();
+
+        expect(result.appendToSheet).toHaveBeenCalledTimes(3);
+        expect(result.uploadMetadata).toHaveBeenCalledWith(
+            'refresh-token',
+            'sheet-1',
+            expect.any(String),
+            ['Chart 1', 'Chart 2', 'Chart 3'],
+        );
+        expect(result.logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: SchedulerJobStatus.COMPLETED }),
+        );
+    });
+
+    // One tab: a newer run of the same sync took over the tab. Not a
+    // failure, so no retry, no email and the sync stays on, but the run
+    // does not claim to have completed either.
+    it('logs a superseded saved-chart run without failing the delivery', async () => {
+        const result = setup({
+            source: 'saved-chart',
+            hasPivotConfig: false,
+            pivotDetails: null,
+        });
+        result.appendToSheet.mockRejectedValue(
+            new GoogleSheetsSupersededError('A newer run took over the tab'),
+        );
+
+        await expect(result.run()).resolves.toBeUndefined();
+        expect(result.logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                status: SchedulerJobStatus.ERROR,
+                details: expect.objectContaining({
+                    superseded: true,
+                    error: 'A newer run took over the tab',
+                }),
+            }),
+        );
+        expect(result.logSchedulerJob).not.toHaveBeenCalledWith(
+            expect.objectContaining({ status: SchedulerJobStatus.COMPLETED }),
+        );
+        expect(result.uploadMetadata).not.toHaveBeenCalled();
+    });
 
     it.each(['saved-chart', 'dashboard'] as const)(
         'writes the %s metadata tab only after the data write succeeds',
@@ -4142,8 +4209,8 @@ describe('uploadGsheets — app branch', () => {
     // A network-level failure is classified transient by the client; the task
     // must report it as retryable so the worker never disables the sync.
     it('reports a persistent transient Google error as a retryable delivery failure', async () => {
-        const { run, uploadMetadata } = setup();
-        uploadMetadata.mockRejectedValue(
+        const { run, appendCsvToSheet } = setup();
+        appendCsvToSheet.mockRejectedValue(
             new GoogleSheetsTransientError(
                 'request to https://oauth2.googleapis.com/token failed, reason: socket hang up',
             ),
@@ -4172,8 +4239,8 @@ describe('uploadGsheets — app branch', () => {
     });
 
     it('reports an unexpected Google error as a non-retryable delivery failure', async () => {
-        const { run, uploadMetadata } = setup();
-        uploadMetadata.mockRejectedValue(
+        const { run, appendCsvToSheet } = setup();
+        appendCsvToSheet.mockRejectedValue(
             new UnexpectedGoogleSheetsError('Unknown object'),
         );
 
@@ -4183,26 +4250,71 @@ describe('uploadGsheets — app branch', () => {
         } satisfies Partial<SchedulerDeliveryError>);
     });
 
-    // A newer run of the same sync took over the tab: not a failure, so no
-    // retry, no email and the sync stays on, but the run does not claim to
-    // have completed either.
-    it('logs a superseded Google Sheets run without failing the delivery', async () => {
-        const { run, appendCsvToSheet, logSchedulerJob } = setup();
-        appendCsvToSheet.mockRejectedValue(
-            new GoogleSheetsSupersededError('A newer run took over the tab'),
+    // A newer run of the same sync took over one tab and writes it. The other
+    // tabs and the metadata tab still go on.
+    it('skips a superseded app tab and still writes the other tabs and the metadata tab', async () => {
+        const { run, appendCsvToSheet, uploadMetadata, logSchedulerJob } =
+            setup({
+                manifest: manifestOf([
+                    readyItem({
+                        captureKey: 'v1:a',
+                        label: 'Tab 1',
+                        queryUuid: 'query-a',
+                        order: 0,
+                    }),
+                    readyItem({
+                        captureKey: 'v1:b',
+                        label: 'Tab 2',
+                        queryUuid: 'query-b',
+                        order: 1,
+                    }),
+                    readyItem({
+                        captureKey: 'v1:c',
+                        label: 'Tab 3',
+                        queryUuid: 'query-c',
+                        order: 2,
+                    }),
+                ]),
+            });
+        appendCsvToSheet.mockImplementation(
+            async (
+                _token: string,
+                _id: string,
+                _rows: unknown,
+                tab: string,
+            ) => {
+                if (tab === 'Tab 2') {
+                    throw new GoogleSheetsSupersededError(
+                        'A newer run took over the tab "Tab 2", so this run stopped.',
+                    );
+                }
+            },
+        );
+
+        await run();
+
+        expect(appendCsvToSheet.mock.calls.map((call) => call[3])).toEqual([
+            'Tab 1',
+            'Tab 2',
+            'Tab 3',
+        ]);
+        expect(uploadMetadata).toHaveBeenCalledOnce();
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: SchedulerJobStatus.COMPLETED }),
+        );
+    });
+
+    // The data is in; the metadata tab only says when it was synced.
+    it('logs a failed metadata write after the data is in as a warning, and completes', async () => {
+        const { run, appendCsvToSheet, uploadMetadata, logSchedulerJob } =
+            setup();
+        uploadMetadata.mockRejectedValue(
+            new UnexpectedGoogleSheetsError('Unknown object'),
         );
 
         await expect(run()).resolves.toBeUndefined();
+        expect(appendCsvToSheet).toHaveBeenCalledOnce();
         expect(logSchedulerJob).toHaveBeenLastCalledWith(
-            expect.objectContaining({
-                status: SchedulerJobStatus.ERROR,
-                details: expect.objectContaining({
-                    superseded: true,
-                    error: 'A newer run took over the tab',
-                }),
-            }),
-        );
-        expect(logSchedulerJob).not.toHaveBeenCalledWith(
             expect.objectContaining({ status: SchedulerJobStatus.COMPLETED }),
         );
     });

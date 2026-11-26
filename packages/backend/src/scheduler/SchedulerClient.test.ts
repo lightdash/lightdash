@@ -808,28 +808,22 @@ describe('scheduled notification payload parity', () => {
         );
     });
 
-    test('runs the Google Sheets syncs of one spreadsheet in one named queue', async () => {
+    // The claim on the tab keeps two runs apart. A named queue would stay
+    // locked for hours after a worker crash and block later syncs.
+    test('does not put Google Sheets syncs in a named queue', async () => {
         const client = makeClient(false);
-        const gsheetsScheduler = (gdriveId: string) => ({
-            ...scheduler,
-            format: SchedulerFormat.GSHEETS,
-            options: {
-                gdriveId,
-                gdriveName: 'Sheet',
-                gdriveOrganizationName: '',
-                url: `https://docs.google.com/spreadsheets/d/${gdriveId}`,
+        await client.generateJobsForSchedulerTargets(
+            startingDateTime,
+            {
+                ...scheduler,
+                format: SchedulerFormat.GSHEETS,
+                options: {
+                    gdriveId: 'spreadsheet-1',
+                    gdriveName: 'Sheet',
+                    gdriveOrganizationName: '',
+                    url: 'https://docs.google.com/spreadsheets/d/spreadsheet-1',
+                },
             },
-        });
-        await client.generateJobsForSchedulerTargets(
-            startingDateTime,
-            gsheetsScheduler('spreadsheet-1'),
-            undefined,
-            'parent',
-            traceProperties,
-        );
-        await client.generateJobsForSchedulerTargets(
-            startingDateTime,
-            gsheetsScheduler('spreadsheet-2'),
             undefined,
             'parent',
             traceProperties,
@@ -840,10 +834,7 @@ describe('scheduled notification payload parity', () => {
                 kind,
                 options.queueName,
             ]),
-        ).toEqual([
-            ['uploadGsheets', 'gsheets:spreadsheet-1'],
-            ['uploadGsheets', 'gsheets:spreadsheet-2'],
-        ]);
+        ).toEqual([['uploadGsheets', undefined]]);
     });
 
     test('keeps query exports to Google Sheets unmarked', async () => {

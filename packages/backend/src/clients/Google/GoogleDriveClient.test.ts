@@ -1306,6 +1306,130 @@ describe('GoogleDriveClient', () => {
             expect(tabsDuringUpload).not.toContain(legacy);
         });
 
+        const networkError = () =>
+            Object.assign(new Error('socket hang up'), {
+                name: 'FetchError',
+                code: 'ECONNRESET',
+            });
+        const hasRequest = (requests: unknown[], kind: string) =>
+            requests.some((r) => kind in (r as object));
+
+        const setClaim = (fake: GoogleSheetsFake, runId: string) =>
+            fake.applyNow([
+                {
+                    createDeveloperMetadata: {
+                        developerMetadata: {
+                            metadataKey: 'lightdash.sync.claim',
+                            metadataValue: runId,
+                            location: {
+                                sheetId: fake.sheet('Sheet1').sheetId,
+                            },
+                            visibility: 'DOCUMENT',
+                        },
+                    },
+                },
+            ]);
+
+        test('an older run that reaches its claim after a newer run finished stops, and the newer rows stay', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeRows(10, 'old') },
+            ]);
+            useFake(fake);
+            const newerRows = makeRows(10, 'newer');
+            // While this run uploads, a newer run of the same tab completes.
+            // The newer run claimed the tab before this run's staging tab
+            // existed, so this run's staging tab is still there.
+            fake.beforeUpdate = (_call, index) => {
+                if (index === 0) {
+                    fake.sheet('Sheet1').values = newerRows.map((row) => [
+                        ...row,
+                    ]);
+                    setClaim(fake, syncRunId(Date.now() + 60_000));
+                }
+            };
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeRows(10, 'older'),
+                ),
+            );
+
+            expect(error).toBeInstanceOf(GoogleSheetsSupersededError);
+            expect(fake.tabValues('Sheet1')).toEqual(newerRows);
+            expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
+        });
+
+        test("counts a lost last batch as applied only with this run's done marker, not an earlier run's", async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+            const firstRows = makeRows(10, 'first');
+            await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    firstRows,
+                ),
+            );
+            expect(
+                fake
+                    .sheet('Sheet1')
+                    .developerMetadata.some(
+                        (m) => m.metadataKey === 'lightdash.sync.done',
+                    ),
+            ).toBe(true);
+            vi.setSystemTime(Date.now() + 60_000);
+            // The last batch never lands, and its response is lost.
+            fake.beforeBatchUpdate = (requests) => {
+                if (hasRequest(requests, 'copyPaste')) throw networkError();
+            };
+
+            const error = await settle(
+                makeClient().appendCsvToSheet(
+                    'refresh-token',
+                    'file-id',
+                    makeRows(10, 'second'),
+                ),
+            );
+
+            expect(error).toBeInstanceOf(Error);
+            expect(fake.tabValues('Sheet1')).toEqual(firstRows);
+        });
+
+        test('ignores a claim more than 5 minutes in the future, from a worker with a wrong clock', async () => {
+            const fake = new GoogleSheetsFake([
+                { title: 'Sheet1', rows: makeRows(10, 'old') },
+            ]);
+            useFake(fake);
+            setClaim(fake, syncRunId(Date.now() + 60 * 60_000));
+            const rows = makeRows(20);
+
+            const error = await settle(
+                makeClient().appendCsvToSheet('refresh-token', 'file-id', rows),
+            );
+
+            expect(error).toBeUndefined();
+            expect(fake.tabValues('Sheet1')).toEqual(rows);
+        });
+
+        test('deletes a staging tab dated more than 5 minutes in the future', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+            addHiddenTab(
+                fake,
+                stagingTitleFor('Sheet1', syncRunId(Date.now() + 60 * 60_000)),
+            );
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                makeRows(10),
+            );
+
+            expect(fake.sheets.map((s) => s.title)).toEqual(['Sheet1']);
+        });
+
         test('claims the tab: deletes staging tabs of older runs and keeps newer ones', async () => {
             const fake = new GoogleSheetsFake([
                 { title: 'Sheet1', rows: makeRows(10, 'old') },
@@ -1534,14 +1658,6 @@ describe('GoogleDriveClient', () => {
             );
         });
 
-        const networkError = () =>
-            Object.assign(new Error('socket hang up'), {
-                name: 'FetchError',
-                code: 'ECONNRESET',
-            });
-        const hasRequest = (requests: unknown[], kind: string) =>
-            requests.some((r) => kind in (r as object));
-
         test.each([
             ['a 502', () => googleApiError(502, 'Bad Gateway')],
             ['a 504', () => googleApiError(504, 'Gateway Timeout')],
@@ -1691,6 +1807,23 @@ describe('GoogleDriveClient', () => {
 
             expect(error).toBeInstanceOf(GoogleSheetsTransientError);
             expect(fake.updateCalls).toHaveLength(3);
+        });
+
+        // GSHEETS_WRITES_PER_APP_ITEM in SchedulerTask paces app syncs by
+        // this count: setup, upload, claim and swap.
+        test('makes 4 write requests for a small sync', async () => {
+            const fake = new GoogleSheetsFake([{ title: 'Sheet1' }]);
+            useFake(fake);
+
+            await makeClient().appendCsvToSheet(
+                'refresh-token',
+                'file-id',
+                makeRows(100),
+            );
+
+            expect(fake.batchUpdateCalls.length + fake.updateCalls.length).toBe(
+                4,
+            );
         });
 
         test('writes every request as RAW, so text is never parsed', async () => {
