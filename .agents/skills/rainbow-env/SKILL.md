@@ -63,14 +63,10 @@ Done when every claim you report names the env, the commit it served (`list_envs
 
 ## Google Sheets
 
-Google needs an exact redirect URI per host, so Google Sheets sync works only on three fixed env names: `gsheets`, `gsheets-2` and `gsheets-3` (`https://<name>.lightdash.rainbowmachine.dev`). Other envs show the option, and Google refuses the redirect. Pick a free name with `list_envs`.
+When `GOOGLE_SHEETS_TEST_REFRESH_TOKEN` is set, the seeded admin can sync to Sheets on new PR, branch and fork previews without connecting Google. PR and branch previews start from the seeded parent database; forks copy their source's database. The backend start hook applies the injected secret before the app starts, including when Rainbow rotates the secret without running the full seed. An existing preview or a fork of it can still have an old token. Recreate the preview from the current parent if that happens.
 
-Connect only the shared Google test account. Its sign-in, with a one-time code, is in the team password manager's Shared vault. Never connect your own account. The consent screen is in testing with that account as the only test user, so Google refuses every other account. Envs are public, so treat the token as public.
+Use only the shared Google test account from the team password manager's Shared vault. Never connect your own account or share real data with the test account. Previews are public, and anyone who can sign in as the seeded admin can access the test account's Sheets through the integration.
 
-1. `create_env({repo: "lightdash/lightdash", branch, name: "gsheets"})`. The same call serves another branch at the same URL.
-2. Sign in to Lightdash, open a chart's Google Sheets sync and connect Google once per env, as the test account. The env stores the refresh token in its database.
-3. `fork_env` the env for each experiment. A fork keeps the database, so it keeps the token: no new consent. `kill_env` the fork after.
-4. For charts above the default 5,000-row limit, `set_env` `LIGHTDASH_QUERY_MAX_LIMIT` on the fork. Read the sync in `logs` with service `dev`, and check `egress` for refused hosts.
-5. Testing tokens expire after 7 days. When a sync fails with `invalid_grant`, connect Google again on the env.
-
-The OAuth client and the picker key belong to the test account's own Google Cloud project, and are in the same Shared vault. A new pool name needs its redirect URI and JavaScript origin added to that client.
+- **Picker:** In Google Cloud, add `https://*.lightdash.rainbowmachine.dev/*` and `https://docs.google.com/*` to the picker key's [website restrictions](https://developers.google.com/workspace/drive/picker/guides/web-picker#create_an_api_key). The picker receives an access token from Lightdash, so preview hosts do not need OAuth JavaScript origins. The sync API accepts a spreadsheet ID without a picker or API key.
+- **Reconnect and rotate:** Testing-mode refresh tokens expire after seven days. Before expiry, a human reconnects as the shared test account from the seeded admin on `gsheets` and grants only the Sheets flow's permissions. Only `gsheets`, `gsheets-2` and `gsheets-3` have the exact OAuth redirect URIs for connecting. On the Rainbow host, an operator runs `bash scripts/rainbow/refresh-google-grant.sh <gsheets-env-id>` from a checkout with the script, with the same revision deployed in `gsheets`. The script decrypts in the guest and passes the value to `rainbow secrets set` on stdin. Use the operator CLI, not MCP `exec`, `set_env` or a pasted token. Wait for the new parent before recreating affected previews. If Google issues a longer-lived token, use the same script when it needs replacement.
+- **Verify:** Test with a new spreadsheet containing only test data. For charts above 5,000 rows, use `set_env` to raise `LIGHTDASH_QUERY_MAX_LIMIT` on your test preview. Check the `dev` log and `egress` if a sync fails. Delete the test preview when done.

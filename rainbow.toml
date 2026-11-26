@@ -7,10 +7,10 @@
 # supervisor kill it before scheduler jobs release their locks.
 [[app.service]]
 name = "dev"
-command = "cd packages/backend && exec node --import tsx src/index.ts"
+command = "exec bash scripts/rainbow/start-backend.sh"
 port = 8080
 serve = true
-restart_on_inject = true           # re-exec on fork to read the injected SITE_URL (see [origin])
+restart_on_inject = true           # read the fork's SITE_URL and apply rotated secrets without re-seeding the DB
 
 # The Snowflake AI OAuth/SDK stub the API tests drive. Plain node, no deps;
 # it reads only PORT, and the recipe's PORT is the backend's, so the stub's
@@ -238,7 +238,8 @@ run = """
 dbt1.12 deps --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles &&
 dbt1.12 seed --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles --full-refresh &&
 dbt1.12 run --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles --full-refresh --exclude fanouts_sales_targets &&
-pnpm -F backend seed"""
+pnpm -F backend seed &&
+cd packages/backend && node --import tsx src/scripts/rainbow/googleGrant.ts seed"""
 env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }  # loaded by the config; enables nothing
 
 # Readiness, in the app's own frame. http polls during boot; paints drives
@@ -547,11 +548,12 @@ UPLOADS_S3_BUCKET = "config"
 # account (team password manager, Shared vault), and its consent screen is
 # in testing with that account as the only test user, so Google refuses
 # every other account. Envs are public: treat the token as
-# public and never connect your own account. Testing tokens expire after
-# 7 days; reconnect when a sync fails with invalid_grant. Google needs an
-# exact redirect URI per host, so connecting works only on the fixed envs
-# gsheets, gsheets-2 and gsheets-3. Without AUTH_GOOGLE_ENABLED the login
-# page keeps no Google button.
+# public and never connect your own account. Google needs an exact redirect
+# URI to connect, but not to use the seeded grant. Without AUTH_GOOGLE_ENABLED
+# the login page keeps no Google button.
 AUTH_GOOGLE_OAUTH2_CLIENT_ID = "oauth-client"
 AUTH_GOOGLE_OAUTH2_CLIENT_SECRET = "oauth-client"
 GOOGLE_DRIVE_API_KEY = "api-key"
+# The shared test account's grant for the seeded admin. Rotate it every
+# 7 days while the consent screen is in Testing (see the rainbow-env skill).
+GOOGLE_SHEETS_TEST_REFRESH_TOKEN = "oauth-refresh-token"
