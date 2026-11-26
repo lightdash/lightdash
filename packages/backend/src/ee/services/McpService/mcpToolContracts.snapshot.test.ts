@@ -348,7 +348,7 @@ const toCodexSchema = (schema: unknown): unknown => {
 };
 
 const codexStrippedSchemaBytes = (schema: unknown): number =>
-    JSON.stringify(toCodexSchema(schema)).length;
+    Buffer.byteLength(JSON.stringify(toCodexSchema(schema)));
 
 // Classify new features explicitly: registration-only or text-changing.
 const registrationOnlyFeatures = {

@@ -88,9 +88,9 @@ const describeNodeIssue = (
         return `Each node is an object with "sourceType" (${sourceTypes.join(', ')})`;
     }
     const inputKeys = Object.keys(input);
-    const nodeIndex = sourceTypes.indexOf(
-        String((input as Record<string, unknown>).sourceType),
-    );
+    const { sourceType } = input as Record<string, unknown>;
+    const nodeIndex =
+        typeof sourceType === 'string' ? sourceTypes.indexOf(sourceType) : -1;
     if (nodeIndex === -1) {
         const knownKeys = new Set(
             nodes.flatMap((node) => Object.keys(node.shape)),
@@ -107,10 +107,8 @@ const describeNodeIssue = (
     const nodeIssues = issue.errors?.[nodeIndex] ?? [];
     const missingKeys = nodeIssues
         .filter(
-            ({ code, path }) =>
-                code === 'invalid_type' &&
-                path.length === 1 &&
-                !inputKeys.includes(String(path[0])),
+            ({ path }) =>
+                path.length === 1 && !inputKeys.includes(String(path[0])),
         )
         .map(({ path }) => String(path[0]));
     const unknownKeys = inputKeys.filter((key) => !(key in node.shape));
@@ -160,18 +158,25 @@ export const createMcpQueryInputSchema = <TArgs extends McpQueryArgsSchema>(
     // eslint-disable-next-line no-underscore-dangle
     describedQueries._zod.toJSONSchema = () =>
         structuredClone(advertisedQueries);
-    const example = `Minimal valid call: ${JSON.stringify({
-        ...('projectUuid' in argsSchema.shape
-            ? { projectUuid: '<projectUuid>' }
-            : {}),
-        queries: [EXAMPLE_NODE],
-    })}`;
-    return argsSchema
-        .extend({ queries: describedQueries })
-        .superRefine(
-            (_args, ctx) => ctx.addIssue({ code: 'custom', message: example }),
-            {
-                when: (payload) => payload.issues.length > 0,
-            },
-        );
+    const takesProjectUuid = 'projectUuid' in argsSchema.shape;
+    return argsSchema.extend({ queries: describedQueries }).superRefine(
+        (args, ctx) => {
+            const { projectUuid } = args as { projectUuid?: unknown };
+            ctx.addIssue({
+                code: 'custom',
+                message: `Minimal valid call: ${JSON.stringify({
+                    ...(takesProjectUuid
+                        ? {
+                              projectUuid:
+                                  typeof projectUuid === 'string'
+                                      ? projectUuid
+                                      : '<projectUuid>',
+                          }
+                        : {}),
+                    queries: [EXAMPLE_NODE],
+                })}`,
+            });
+        },
+        { when: (payload) => payload.issues.length > 0 },
+    );
 };

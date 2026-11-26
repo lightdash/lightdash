@@ -87,19 +87,31 @@ describe('createMcpQueryInputSchema', () => {
         );
     });
 
+    it('names a missing required key whatever its type', () => {
+        expect(
+            rejection({
+                projectUuid,
+                queries: [
+                    {
+                        ...node,
+                        sourceType: 'duckdb',
+                        sql: 'select 1',
+                    },
+                ],
+            }).split('\n')[0],
+        ).toBe(
+            'Invalid duckdb node; missing required keys "references"; unknown keys "exploreName", "dimensions", "metrics" at queries.0',
+        );
+    });
+
     it('ends every rejection with a valid example call', () => {
         const lastLine = rejection({ projectUuid, queries: [{}] })
             .split('\n')
             .at(-1);
         expect(lastLine).toMatch(/^Minimal valid call: /);
         const example: unknown = JSON.parse(
-            lastLine!.replace('Minimal valid call: ', ''),
+            String(lastLine).replace('Minimal valid call: ', ''),
         );
-        expect(
-            schema.safeParse({
-                ...(example as object),
-                projectUuid,
-            }).success,
-        ).toBe(true);
+        expect(schema.safeParse(example).success).toBe(true);
     });
 });
