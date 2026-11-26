@@ -69,6 +69,16 @@ export type GithubApiSource = {
     repo: string;
 };
 
+/**
+ * One table or view of a Supabase project, read through its Data API
+ * (PostgREST). The project URL is the connection's origin.
+ */
+export type SupabaseApiSource = {
+    connector: ApiConnectorType.SUPABASE;
+    /** The table or view in the exposed schema, as PostgREST names it. */
+    table: string;
+};
+
 /** A Pylon workspace; the API token decides which one. */
 export type PylonApiSource = {
     connector: ApiConnectorType.PYLON;
@@ -237,6 +247,7 @@ export type ExternalConnectionApiSource =
     | SalesforceApiSource
     | AmplitudeApiSource
     | MixpanelApiSource
+    | SupabaseApiSource
     | HydraApiSource;
 
 /** The settings of one integration's sources. */
@@ -286,6 +297,48 @@ export const PYLON_ISSUES_SEARCH_PATH = '/issues/search';
 export const PYLON_ACCOUNTS_SEARCH_PATH = '/accounts/search';
 export const PYLON_CONTACTS_SEARCH_PATH = '/contacts/search';
 export const PYLON_USERS_PATH = '/users';
+
+/** The Data API root; GET returns the OpenAPI description of every table. */
+export const SUPABASE_REST_PATH = '/rest/v1/';
+/** Supabase takes secret keys on this header, not as a bearer token. */
+export const SUPABASE_AUTH_HEADER = 'apikey';
+
+export const getSupabaseTablePath = (table: string) =>
+    `${SUPABASE_REST_PATH}${table}`;
+
+/** A table name PostgREST serves at its own path: no slashes or query characters. */
+export const isSupabaseTableName = (table: string) =>
+    /^[^/?#\\\s.][^/?#\\]{0,62}$/.test(table) && table.trim() === table;
+
+/**
+ * A project URL: https://<ref>.supabase.co, a custom domain or a self-hosted
+ * Supabase. Bare origin only; the proxy still refuses private addresses.
+ */
+// Legacy JWT keys sent only as `apikey` run as anon, so RLS hides every row,
+// and publishable keys can't read the table list the scan needs
+export const getSupabaseKeyError = (secret: string): string | undefined => {
+    const key = secret.trim();
+    if (key.startsWith('sb_secret_')) return undefined;
+    if (key.startsWith('sb_publishable_'))
+        return 'Publishable keys cannot read the table columns; use a secret key (sb_secret_)';
+    if (key.startsWith('eyJ'))
+        return 'Legacy JWT keys return no rows; create a secret key (sb_secret_) under API Keys';
+    return 'Paste a secret key; it starts with sb_secret_';
+};
+
+export const isSupabaseOrigin = (origin: string) => {
+    try {
+        const url = new URL(origin);
+        return (
+            url.protocol === 'https:' &&
+            url.origin === origin.toLowerCase() &&
+            !url.username &&
+            !url.password
+        );
+    } catch {
+        return false;
+    }
+};
 
 /** Never resolves: Hydra answers in-process, so nothing is sent to it. */
 export const HYDRA_ORIGIN = 'https://hydra.invalid';

@@ -32,6 +32,7 @@ import { PostHogConnectionModal } from './PostHogConnectionModal';
 import { ReattachLiveSourceModal } from './ReattachLiveSourceModal';
 import { getSalesforceSignInUrl } from './salesforceConnection';
 import { SalesforceConnectionModal } from './SalesforceConnectionModal';
+import { SupabaseConnectionModal } from './SupabaseConnectionModal';
 import { TokenLiveSourceModal } from './TokenLiveSourceModal';
 import { useLiveSourceSignInResult } from './useLiveSourceSignInResult';
 
@@ -156,6 +157,7 @@ export const LiveSourceManager: FC<{
                     // A new key pair means adding the source again
                     case 'amplitude':
                     case 'mixpanel':
+                    case 'supabase':
                         return null;
                     case 'linkedin_ads': {
                         const { apiSource } = connection;
@@ -292,6 +294,15 @@ const LiveSourceConnectDialog: FC<{
         case 'mixpanel':
             return (
                 <MixpanelConnectionModal
+                    opened
+                    onClose={onClose}
+                    projectUuid={projectUuid}
+                    onCreated={onCreated}
+                />
+            );
+        case 'supabase':
+            return (
+                <SupabaseConnectionModal
                     opened
                     onClose={onClose}
                     projectUuid={projectUuid}

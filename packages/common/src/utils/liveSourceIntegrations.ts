@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
     getHubspotReadScopes,
     HUBSPOT_OBJECTS,
+    isSupabaseTableName,
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';
@@ -16,7 +17,8 @@ export type LiveSourceSetupKind =
     | 'linkedin_ads'
     | 'salesforce'
     | 'amplitude'
-    | 'mixpanel';
+    | 'mixpanel'
+    | 'supabase';
 
 type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
     /** Stable id, sent with analytics events. */
@@ -248,6 +250,22 @@ export const LIVE_INTEGRATION_CATALOG: {
             projectId: z.string(),
         }),
         getTarget: ({ projectId }) => `Project ${projectId}`,
+    },
+    [ApiConnectorType.SUPABASE]: {
+        id: 'supabase',
+        label: 'Supabase',
+        defaultName: 'Supabase',
+        messageLabel: 'Supabase',
+        agentLabel: 'Supabase',
+        description: 'Rows of one table in a Supabase project',
+        setup: 'supabase',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.SUPABASE),
+            table: z.string().refine(isSupabaseTableName, {
+                message: 'Use the name of one table or view',
+            }),
+        }),
+        getTarget: ({ table }) => `Table ${table}`,
     },
     [ApiConnectorType.HYDRA]: {
         id: 'hydra',

@@ -1085,6 +1085,28 @@ describe('ExternalConnectionService live source writes', () => {
             service.update(account, 'proj-1', 'conn-1', { apiSource: null }),
         ).rejects.toThrow(ParameterError);
     });
+
+    it('refuses to point a Supabase source at another table', async () => {
+        const { service } = buildService({
+            connections: [
+                posthogConnection({
+                    origin: 'https://abcdefghijklmnopqrst.supabase.co',
+                    apiSource: {
+                        connector: ApiConnectorType.SUPABASE,
+                        table: 'orders',
+                    },
+                }),
+            ],
+        });
+        await expect(
+            service.update(account, 'proj-1', 'conn-1', {
+                apiSource: {
+                    connector: ApiConnectorType.SUPABASE,
+                    table: 'customers',
+                },
+            }),
+        ).rejects.toThrow('Add a new Supabase source to read another table');
+    });
 });
 
 describe('ExternalConnectionService live source rate limits', () => {

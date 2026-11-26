@@ -26,6 +26,7 @@ import pylonIcon from './icons/pylon.svg';
 import salesforceIcon from './icons/salesforce.svg';
 import shopifyIcon from './icons/shopify.svg';
 import stripeIcon from './icons/stripe.svg';
+import supabaseIcon from './icons/supabase.svg';
 import youtubeAnalyticsIcon from './icons/youtube-analytics.svg';
 import iconClasses from './LiveSourceIcon.module.css';
 import { META_ADS_TOKEN_FORM } from './metaAdsConnection';
@@ -40,7 +41,8 @@ export type LiveSourceSetup =
     | { kind: 'linkedin_ads' }
     | { kind: 'salesforce' }
     | { kind: 'amplitude' }
-    | { kind: 'mixpanel' };
+    | { kind: 'mixpanel' }
+    | { kind: 'supabase' };
 
 export type AvailableLiveSource = Omit<LiveIntegrationCatalogEntry, 'setup'> & {
     status: 'available';
@@ -77,6 +79,7 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.SALESFORCE]: salesforceIcon,
     [ApiConnectorType.AMPLITUDE]: amplitudeIcon,
     [ApiConnectorType.MIXPANEL]: mixpanelIcon,
+    [ApiConnectorType.SUPABASE]: supabaseIcon,
     [ApiConnectorType.HYDRA]: hydraIcon,
     shopify: shopifyIcon,
     stripe: stripeIcon,
@@ -111,6 +114,7 @@ const DISPLAY_ORDER = [
     ApiConnectorType.SALESFORCE,
     ApiConnectorType.AMPLITUDE,
     ApiConnectorType.MIXPANEL,
+    ApiConnectorType.SUPABASE,
     ApiConnectorType.HYDRA,
 ] as const satisfies readonly ApiConnectorType[];
 

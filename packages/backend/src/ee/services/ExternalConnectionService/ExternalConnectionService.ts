@@ -176,6 +176,7 @@ import {
     type ReachedRateLimit,
 } from './ApiSourceCallLimiter';
 import {
+    assertSupabaseKey,
     validateApiSourceConnection,
     withApiSourceAccessRules,
 } from './apiSourceConnection';
@@ -945,7 +946,7 @@ export class ExternalConnectionService extends BaseService {
         });
 
         validateExternalConnectionConfig(resolved, hasSecretAfter);
-        validateApiSourceConnection(resolved);
+        validateApiSourceConnection({ ...resolved, secret: data.secret });
         // A secret-less same-type update keeps the already-validated stored
         // keyfile; only a replacement keyfile needs parsing again.
         if (resultingType === 'google_service_account' && data.secret) {
@@ -1033,6 +1034,16 @@ export class ExternalConnectionService extends BaseService {
         ) {
             throw new ParameterError(
                 'Reconnect this source to change its sign-in, region, project or site',
+            );
+        }
+        // Charts on a Supabase explore would silently lose the old table's fields
+        if (
+            existing.apiSource?.connector === ApiConnectorType.SUPABASE &&
+            data.apiSource?.connector === ApiConnectorType.SUPABASE &&
+            data.apiSource.table !== existing.apiSource.table
+        ) {
+            throw new ParameterError(
+                'Add a new Supabase source to read another table',
             );
         }
         const resolved = ExternalConnectionService.resolveConnectionUpdate(
@@ -1196,6 +1207,7 @@ export class ExternalConnectionService extends BaseService {
             connectionUuid,
         );
         ExternalConnectionService.assertNotSignInType(existing.type);
+        assertSupabaseKey(existing.apiSource, secret);
         await this.externalConnectionModel.rotateSecret(connectionUuid, secret);
         if (existing.kind === 'live_source') {
             await this.purgeAfterCredentialChange(connectionUuid);
@@ -1917,11 +1929,14 @@ export class ExternalConnectionService extends BaseService {
                 externalConnectionUuid,
                 getInitialLiveSourceFieldEdits({
                     scannedFields,
+                    // An explore made only of scanned fields starts with all of them
                     isExistingSource:
-                        await this.projectModel.hasApiSourceExplores(
+                        getLiveIntegration(apiSource.connector).scan
+                            ?.inUseByDefault === true ||
+                        (await this.projectModel.hasApiSourceExplores(
                             projectUuid,
                             externalConnectionUuid,
-                        ),
+                        )),
                 }),
             );
         }
