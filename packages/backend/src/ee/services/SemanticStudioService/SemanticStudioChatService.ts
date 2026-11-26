@@ -11,11 +11,16 @@ import {
 import { BaseService } from '../../../services/BaseService';
 import { type AiAgentModel } from '../../models/AiAgentModel';
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
+import { findSemanticStudioPreset } from '../ai/models/modelPreference';
+import { type AgentTurnInputs } from '../ai/types/agentTurnSetup';
 import {
     type AiAgentService,
     type AuthorizedAgentThread,
 } from '../AiAgentService/AiAgentService';
+import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
+import { type SemanticStudioCheckoutService } from './SemanticStudioCheckoutService';
 import { type SemanticStudioService } from './SemanticStudioService';
+import { getStudioAgentTools } from './studioAgentTools';
 
 export type SemanticStudioChatServiceArguments = {
     ai: Pick<
@@ -29,13 +34,25 @@ export type SemanticStudioChatServiceArguments = {
         | 'steerMessageForAuthorized'
         | 'generateTitleForAuthorized'
     >;
-    checkout: {
+    checkout: Pick<
+        SemanticStudioCheckoutService,
+        'getAgentTurnSetup' | 'findDevelopmentExplores' | 'waitForBranchCompile'
+    > & {
         getBuilderAgent: (
             user: SessionUser,
             projectUuid: string,
         ) => Promise<{ uuid: string }>;
     };
-    studio: Pick<SemanticStudioService, 'getStatus'>;
+    studio: Pick<
+        SemanticStudioService,
+        | 'getStatus'
+        | 'assertCanStartThread'
+        | 'proposeDraftChange'
+        | 'draftProjectContextEntry'
+        | 'listChanges'
+        | 'readDraftedModel'
+    >;
+    aiWriteback: Pick<AiWritebackService, 'hasRunInProgress'>;
     aiAgentModel: Pick<AiAgentModel, 'getAgent' | 'getThread'>;
     workspaceModel: Pick<
         SemanticStudioWorkspaceModel,
@@ -54,6 +71,8 @@ export class SemanticStudioChatService extends BaseService {
 
     private readonly studio: SemanticStudioChatServiceArguments['studio'];
 
+    private readonly aiWriteback: SemanticStudioChatServiceArguments['aiWriteback'];
+
     private readonly aiAgentModel: SemanticStudioChatServiceArguments['aiAgentModel'];
 
     private readonly workspaceModel: SemanticStudioChatServiceArguments['workspaceModel'];
@@ -63,6 +82,7 @@ export class SemanticStudioChatService extends BaseService {
         this.ai = args.ai;
         this.checkout = args.checkout;
         this.studio = args.studio;
+        this.aiWriteback = args.aiWriteback;
         this.aiAgentModel = args.aiAgentModel;
         this.workspaceModel = args.workspaceModel;
     }
@@ -121,6 +141,28 @@ export class SemanticStudioChatService extends BaseService {
         return { agent, thread };
     }
 
+    // What a Studio conversation brings to each turn: its mode and card, and the builder's own tools.
+    private getTurnInputs(
+        user: SessionUser,
+        projectUuid: string,
+    ): AgentTurnInputs {
+        return {
+            getTurnSetup: () =>
+                this.checkout.getAgentTurnSetup(user, projectUuid),
+            buildExtraTools: ({ threadUuid, ...turn }) =>
+                getStudioAgentTools({
+                    ...turn,
+                    threadUuid,
+                    user,
+                    projectUuid,
+                    semanticStudioService: this.studio,
+                    semanticStudioCheckoutService: this.checkout,
+                    isSaving: () =>
+                        this.aiWriteback.hasRunInProgress(threadUuid),
+                }),
+        };
+    }
+
     async createThread(
         user: SessionUser,
         projectUuid: string,
@@ -137,11 +179,14 @@ export class SemanticStudioChatService extends BaseService {
             projectUuid,
         );
         await this.assertCopilotEnabled(user);
+        await this.studio.assertCanStartThread(user, projectUuid, surface);
         return this.ai.createThreadForAgent(
             user,
             await this.aiAgentModel.getAgent({ organizationUuid, agentUuid }),
             { ...body, createdFrom: 'semantic_studio' },
             surface,
+            undefined,
+            findSemanticStudioPreset,
         );
     }
 
@@ -168,6 +213,8 @@ export class SemanticStudioChatService extends BaseService {
                     'Insufficient permissions to create messages for this thread',
             }),
             body,
+            undefined,
+            findSemanticStudioPreset,
         );
     }
 
@@ -189,6 +236,7 @@ export class SemanticStudioChatService extends BaseService {
                 autoApproveSql: body?.autoApproveSql ?? false,
                 toolHints: body?.toolHints ?? [],
             },
+            this.getTurnInputs(user, ref.projectUuid),
         );
     }
 

@@ -6,6 +6,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { findSemanticStudioPreset } from '../ai/models/modelPreference';
 import {
     SemanticStudioChatService,
     type SemanticStudioChatServiceArguments,
@@ -58,11 +59,27 @@ const setup = ({
     getThread.mockResolvedValue(thread);
     const getStatus = vi.fn();
     getStatus.mockResolvedValue({ enabled: canUseStudio });
+    const studio = {
+        getStatus,
+        assertCanStartThread: vi.fn(),
+        proposeDraftChange: vi.fn(),
+        draftProjectContextEntry: vi.fn(),
+        listChanges: vi.fn(),
+        readDraftedModel: vi.fn(),
+    };
+    const checkout = {
+        getBuilderAgent,
+        getAgentTurnSetup: vi.fn(),
+        findDevelopmentExplores: vi.fn(),
+        waitForBranchCompile: vi.fn(),
+    };
+    const hasRunInProgress = vi.fn(async () => false);
     const findStudioThreadAgentUuid = vi.fn(async () => threadAgentUuid);
     const service = new SemanticStudioChatService({
         ai,
-        checkout: { getBuilderAgent },
-        studio: { getStatus },
+        checkout,
+        studio,
+        aiWriteback: { hasRunInProgress },
         aiAgentModel: { getAgent, getThread },
         workspaceModel: { findStudioThreadAgentUuid },
     });
@@ -71,6 +88,9 @@ const setup = ({
         ai,
         authorized: { agent, thread },
         getBuilderAgent,
+        studio,
+        checkout,
+        hasRunInProgress,
         getAgent,
         getThread,
         findStudioThreadAgentUuid,
@@ -80,7 +100,7 @@ const setup = ({
 describe('SemanticStudioChatService', () => {
     describe('starting a conversation', () => {
         it('starts on the built-in agent as a Studio thread', async () => {
-            const { service, ai, getBuilderAgent, getAgent } = setup();
+            const { service, ai, getBuilderAgent, getAgent, studio } = setup();
 
             await service.createThread(
                 owner,
@@ -102,7 +122,31 @@ describe('SemanticStudioChatService', () => {
                     createdFrom: 'semantic_studio',
                 },
                 'web_app',
+                undefined,
+                findSemanticStudioPreset,
             );
+            expect(studio.assertCanStartThread).toHaveBeenCalledWith(
+                owner,
+                PROJECT_UUID,
+                'web_app',
+            );
+        });
+
+        it('starts nothing from a surface Studio does not start threads on', async () => {
+            const { service, ai, studio } = setup();
+            studio.assertCanStartThread.mockRejectedValueOnce(
+                new ForbiddenError(),
+            );
+
+            await expect(
+                service.createThread(
+                    owner,
+                    PROJECT_UUID,
+                    { prompt: 'Hi' },
+                    'api',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(ai.createThreadForAgent).not.toHaveBeenCalled();
         });
 
         it('starts nothing when the built-in agent is refused', async () => {
@@ -274,6 +318,8 @@ describe('SemanticStudioChatService', () => {
                 owner,
                 authorized,
                 { prompt: 'And a margin' },
+                undefined,
+                findSemanticStudioPreset,
             );
             expect(ai.generateTitleForAuthorized).toHaveBeenCalledWith(
                 owner,
@@ -289,6 +335,7 @@ describe('SemanticStudioChatService', () => {
                     autoApproveSql: true,
                     toolHints: [],
                 },
+                expect.anything(),
             );
             expect(ai.streamResponseForAuthorized).toHaveBeenNthCalledWith(
                 2,
@@ -300,7 +347,53 @@ describe('SemanticStudioChatService', () => {
                     autoApproveSql: false,
                     toolHints: [],
                 },
+                expect.anything(),
             );
+        });
+
+        it("brings Studio's setup and the builder's tools to each turn", async () => {
+            const { service, ai, checkout, studio, hasRunInProgress } = setup();
+            const turnSetup = { studio: null };
+            checkout.getAgentTurnSetup.mockResolvedValue(turnSetup);
+
+            await service.streamResponse(owner, ref, undefined);
+            const [, , , turnInputs] =
+                ai.streamResponseForAuthorized.mock.calls[0];
+
+            // Asked for by the turn, not before it.
+            expect(checkout.getAgentTurnSetup).not.toHaveBeenCalled();
+            await expect(turnInputs.getTurnSetup()).resolves.toBe(turnSetup);
+            expect(checkout.getAgentTurnSetup).toHaveBeenCalledWith(
+                owner,
+                PROJECT_UUID,
+            );
+
+            const tools = turnInputs.buildExtraTools({
+                promptUuid: 'prompt-uuid',
+                threadUuid: THREAD_UUID,
+                getExplore: vi.fn(),
+                runAsyncQuery: vi.fn(),
+            });
+            expect(Object.keys(tools).sort()).toEqual([
+                'draftProjectContext',
+                'getDraftExplore',
+                'listChanges',
+                'proposeSemanticLayerChange',
+                'readSemanticModel',
+                'runDraftQuery',
+                'verify',
+            ]);
+            await tools.listChanges();
+            expect(studio.listChanges).toHaveBeenCalledWith(
+                owner,
+                PROJECT_UUID,
+                THREAD_UUID,
+            );
+            await tools.verify({ check: 'compile' });
+            const [, , { isSaving }] =
+                checkout.waitForBranchCompile.mock.calls[0];
+            await isSaving();
+            expect(hasRunInProgress).toHaveBeenCalledWith(THREAD_UUID);
         });
 
         it('interrupts and steers a message of the thread', async () => {

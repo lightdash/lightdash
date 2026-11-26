@@ -534,7 +534,6 @@ import {
     resolveKeyManagement,
     resolveModelConfigForPrompt,
 } from '../ai/models';
-import { findSemanticStudioPreset } from '../ai/models/modelPreference';
 import {
     OrgAiCopilotConfigResolver,
     type AiConfigScope,
@@ -590,6 +589,10 @@ import {
 import {
     DEFAULT_AGENT_TURN_SETUP,
     DEFAULT_AGENT_WRITEBACK_SETUP,
+    NO_AGENT_EXTRA_TOOLS,
+    type AgentModelPreference,
+    type AgentTurnInputs,
+    type BuildAgentExtraTools,
 } from '../ai/types/agentTurnSetup';
 import {
     AiAgentArgs,
@@ -754,7 +757,6 @@ import { saveDbtTryOut } from '../SemanticStudioService/dbtTryOut';
 import { type IncrementalDbtCompileService } from '../SemanticStudioService/IncrementalDbtCompileService';
 import { type SemanticStudioCheckoutService } from '../SemanticStudioService/SemanticStudioCheckoutService';
 import { type SemanticStudioService } from '../SemanticStudioService/SemanticStudioService';
-import { getStudioAgentTools } from '../SemanticStudioService/studioAgentTools';
 import {
     parseAgentSelectionValue,
     resolveAgentSelectionPrompt,
@@ -1601,7 +1603,7 @@ export class AiAgentService extends BaseService {
         threadModelConfig,
         agentModelConfig,
         requestedModelConfig,
-        prefersStudioModel,
+        modelPreference,
     }: {
         organizationUuid: string;
         projectUuid: string;
@@ -1609,8 +1611,8 @@ export class AiAgentService extends BaseService {
         threadModelConfig: AiAgentModelConfig | null;
         agentModelConfig: AiAgentModelConfig | null;
         requestedModelConfig: AiAgentModelConfig | null;
-        /** Whether the thread is a Studio one, which has its own model when nobody chose one. */
-        prefersStudioModel: boolean;
+        /** The thread's own model when nobody chose one; null for an ordinary thread. */
+        modelPreference: AgentModelPreference | null;
     }): Promise<AiAgentModelConfig | null> {
         if (threadModelConfig) {
             if (
@@ -1634,7 +1636,7 @@ export class AiAgentService extends BaseService {
             (await this.aiOrganizationSettingsService.getDefaultModelConfig(
                 organizationUuid,
             ));
-        if (!modelConfig && !prefersStudioModel) return null;
+        if (!modelConfig && !modelPreference) return null;
         const { catalogue, copilotConfig } =
             await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
@@ -1652,8 +1654,8 @@ export class AiAgentService extends BaseService {
             ? reconcileInheritedModelConfig(copilotConfig, resolved)
             : null;
         // A preference only replaces a model nobody chose, among those the org is offered.
-        const preferred = prefersStudioModel
-            ? findSemanticStudioPreset(
+        const preferred = modelPreference
+            ? modelPreference(
                   catalogue,
                   inherited?.modelProvider ??
                       getDefaultModel(copilotConfig)?.provider ??
@@ -6024,17 +6026,10 @@ export class AiAgentService extends BaseService {
         body: ApiAiAgentThreadCreateRequest,
         createdFrom: AiWebAppThreadCreatedFrom,
         runtimeOptions?: EmbedAiAgentRuntimeOptions,
+        modelPreference: AgentModelPreference | null = null,
     ) {
         const { organizationUuid, uuid: agentUuid } = agent;
         AiAgentService.assertAgentServesThread(agent, body.createdFrom);
-
-        if (isSemanticStudioThread(body.createdFrom)) {
-            await this.semanticStudioService.assertCanStartThread(
-                user,
-                agent.projectUuid,
-                createdFrom,
-            );
-        }
 
         const context = body.prompt
             ? await this.validatePromptContextAccess(
@@ -6105,7 +6100,7 @@ export class AiAgentService extends BaseService {
             threadModelConfig: null,
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            prefersStudioModel: isSemanticStudioThread(body.createdFrom),
+            modelPreference,
         });
 
         if (body.prompt) {
@@ -6331,6 +6326,7 @@ export class AiAgentService extends BaseService {
         { agent, thread }: AuthorizedAgentThread,
         body: ApiAiAgentThreadMessageCreateRequest,
         runtimeOptions?: EmbedAiAgentRuntimeOptions,
+        modelPreference: AgentModelPreference | null = null,
     ): Promise<ApiAiAgentThreadMessageCreateResponse['results']> {
         const { organizationUuid, uuid: agentUuid } = agent;
         const threadUuid = thread.uuid;
@@ -6350,7 +6346,7 @@ export class AiAgentService extends BaseService {
                 await this.aiAgentModel.findThreadModelConfig(threadUuid),
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            prefersStudioModel: isSemanticStudioThread(thread.createdFrom),
+            modelPreference,
         });
 
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
@@ -9395,6 +9391,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         authorized: AuthorizedAgentThread,
         options: StreamThreadResponseOptions,
+        turnInputs: AgentTurnInputs,
     ): Promise<AgentResponseStream> {
         return this.streamThreadResponse(
             user,
@@ -9413,6 +9410,7 @@ export class AiAgentService extends BaseService {
                     prepareOptions,
                 ),
             options,
+            turnInputs,
         );
     }
 
@@ -9428,6 +9426,7 @@ export class AiAgentService extends BaseService {
             runtimeOptions,
             redactToolOutputs = false,
         }: StreamThreadResponseOptions,
+        turnInputs?: AgentTurnInputs,
     ): Promise<AgentResponseStream> {
         let isPreparing = false;
         let trackedPromptUuid: string | undefined;
@@ -9522,6 +9521,7 @@ export class AiAgentService extends BaseService {
                         runtimeOptions,
                         redactToolOutputs,
                         aiCreditCheck: null,
+                        turnInputs,
                     },
                 );
             } catch (error) {
@@ -14749,6 +14749,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             enableDocuments: boolean;
             enableRuntimeCache: boolean;
             invalidateQueryCache?: boolean;
+            /** The tools of the caller's own kind of thread; absent for an ordinary chat. */
+            buildExtraTools?: BuildAgentExtraTools;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -15452,18 +15454,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             runDraftQuery,
             readSemanticModel,
             verify,
-        } = getStudioAgentTools({
-            user,
-            projectUuid,
-            promptUuid: prompt.promptUuid,
-            threadUuid: prompt.threadUuid,
-            semanticStudioService: this.semanticStudioService,
-            semanticStudioCheckoutService: this.semanticStudioCheckoutService,
-            getExplore: toolsRuntime.getExplore,
-            runAsyncQuery: toolsRuntime.runAsyncQuery,
-            isSaving: () =>
-                this.aiWritebackService.hasRunInProgress(prompt.threadUuid),
-        });
+        } = options?.buildExtraTools
+            ? options.buildExtraTools({
+                  promptUuid: prompt.promptUuid,
+                  threadUuid: prompt.threadUuid,
+                  getExplore: toolsRuntime.getExplore,
+                  runAsyncQuery: toolsRuntime.runAsyncQuery,
+              })
+            : NO_AGENT_EXTRA_TOOLS;
 
         const read: ReadFn = (script, libraries) =>
             this.aiWritebackService.readWithScript(
@@ -16931,6 +16929,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             ) => void | Promise<void>;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             redactToolOutputs?: boolean;
+            turnInputs?: AgentTurnInputs;
         },
     ): Promise<AgentResponseStream>;
     async generateOrStreamAgentResponse(
@@ -17018,6 +17017,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             redactToolOutputs?: boolean;
             execution?: GenerateAgentExecutionOptions;
+            /** What the caller brings to the turn; absent for an ordinary chat. */
+            turnInputs?: AgentTurnInputs;
         } & (
             | {
                   prompt: AiWebAppPrompt;
@@ -17225,14 +17226,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 const decisionUsage = decisionClient
                     ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
                     : undefined;
-                // A Studio thread's turns are set up by Studio; every other thread is an ordinary one.
-                const turnSetup = isSemanticStudioThread(
-                    prompt.threadCreatedFrom,
-                )
-                    ? await this.semanticStudioCheckoutService.getAgentTurnSetup(
-                          user,
-                          prompt.projectUuid,
-                      )
+                // The caller sets up the turns of its own kind of thread; every other thread is an ordinary one.
+                const turnSetup = options.turnInputs
+                    ? await options.turnInputs.getTurnSetup()
                     : DEFAULT_AGENT_TURN_SETUP;
                 const autoApproveSqlForUser =
                     (options.autoApproveSql ?? false) ||
@@ -18039,6 +18035,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     runtimeOptions: options.runtimeOptions,
                     suppressWritebackPreview: options.suppressWritebackPreview,
                     dbtSourceUuid: options.dbtSourceUuid,
+                    buildExtraTools: options.turnInputs?.buildExtraTools,
                     onWarehouseQuery: responseExecution.onWarehouseQuery,
                     enableDocuments: canUseDocumentTools,
                     enableRuntimeCache: !!decisions,
@@ -19163,7 +19160,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 : null,
             agentModelConfig: agent?.modelConfig ?? null,
             requestedModelConfig: data.modelConfig ?? null,
-            prefersStudioModel: false,
+            modelPreference: null,
         });
 
         if (!threadUuid) {
