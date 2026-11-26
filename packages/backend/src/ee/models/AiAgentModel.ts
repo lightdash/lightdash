@@ -841,6 +841,7 @@ export class AiAgentModel {
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
                 projectUuid: `${AiAgentTableName}.project_uuid`,
                 name: `${AiAgentTableName}.name`,
+                kind: `${AiAgentTableName}.agent_kind`,
                 description: `${AiAgentTableName}.description`,
                 tags: `${AiAgentTableName}.tags`,
                 integrations: this.database.raw(`
@@ -1007,6 +1008,7 @@ export class AiAgentModel {
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
                 projectUuid: `${AiAgentTableName}.project_uuid`,
                 name: `${AiAgentTableName}.name`,
+                kind: `${AiAgentTableName}.agent_kind`,
                 description: `${AiAgentTableName}.description`,
                 tags: `${AiAgentTableName}.tags`,
                 integrations: this.database.raw(`
@@ -2631,6 +2633,7 @@ export class AiAgentModel {
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
+                kind: agent.agent_kind,
                 description: agent.description,
                 projectUuid: agent.project_uuid,
                 organizationUuid: agent.organization_uuid,
@@ -2715,14 +2718,6 @@ export class AiAgentModel {
 
         const agentUuid = (await findUuid()) ?? (await create());
         return this.getAgent({ organizationUuid, agentUuid });
-    }
-
-    async isSemanticStudioAgent(agentUuid: string): Promise<boolean> {
-        const row = await this.database(AiAgentTableName)
-            .select('agent_kind')
-            .where('ai_agent_uuid', agentUuid)
-            .first();
-        return row?.agent_kind === 'semantic_studio';
     }
 
     /**
@@ -3013,6 +3008,7 @@ export class AiAgentModel {
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
+                kind: agent.agent_kind,
                 description: agent.description,
                 projectUuid: agent.project_uuid,
                 organizationUuid: agent.organization_uuid,

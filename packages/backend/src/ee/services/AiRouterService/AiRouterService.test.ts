@@ -107,6 +107,7 @@ const createCandidate = (
     projectUuid,
     organizationUuid,
     name: overrides.name,
+    kind: 'user',
     description: overrides.description ?? null,
     imageUrl: null,
     imageUrlSource: null,
