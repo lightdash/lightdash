@@ -21,6 +21,7 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 import { getAiAgentApiBase, getAiAgentPageBase } from './aiAgentRouting';
+import { useChatArtifactsUrl } from './chatEndpoints';
 
 export const AI_AGENT_ARTIFACT_KEY = 'aiAgentArtifact';
 
@@ -49,16 +50,13 @@ const getAiAgentArtifact = async (
 
 const getAiAgentArtifactVersion = async (
     lightdashApi: LightdashApi,
-    projectUuid: string,
-    agentUuid: string,
+    artifactsUrl: string,
     artifactUuid: string,
     versionUuid: string,
 ): Promise<AiArtifact> => {
     return lightdashApi<AiArtifact>({
         version: 'v1',
-        url: `${getAiAgentApiBase(
-            projectUuid,
-        )}/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}`,
+        url: `${artifactsUrl}/${artifactUuid}/versions/${versionUuid}`,
         method: 'GET',
         body: undefined,
     });
@@ -73,6 +71,8 @@ export const aiAgentArtifactVersionQuery = (
         artifactUuid,
         versionUuid,
     }: AiAgentArtifactVersionRef,
+    // From useChatArtifactsUrl, so a chat with its own endpoints reads its own.
+    getArtifactsUrl: (projectUuid: string, agentUuid: string) => string,
 ) => ({
     queryKey: [
         AI_AGENT_ARTIFACT_KEY,
@@ -85,8 +85,7 @@ export const aiAgentArtifactVersionQuery = (
     queryFn: () =>
         getAiAgentArtifactVersion(
             lightdashApi,
-            projectUuid,
-            agentUuid,
+            getArtifactsUrl(projectUuid, agentUuid),
             artifactUuid,
             versionUuid,
         ),
@@ -108,6 +107,7 @@ export const useAiAgentArtifact = ({
     options,
 }: UseAiAgentArtifactProps) => {
     const lightdashApi = useLightdashApi();
+    const getArtifactsUrl = useChatArtifactsUrl();
 
     const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
@@ -115,12 +115,16 @@ export const useAiAgentArtifact = ({
 
     const { queryKey, queryFn } =
         versionUuid && artifactUuid
-            ? aiAgentArtifactVersionQuery(lightdashApi, {
-                  projectUuid,
-                  agentUuid,
-                  artifactUuid,
-                  versionUuid,
-              })
+            ? aiAgentArtifactVersionQuery(
+                  lightdashApi,
+                  {
+                      projectUuid,
+                      agentUuid,
+                      artifactUuid,
+                      versionUuid,
+                  },
+                  getArtifactsUrl,
+              )
             : {
                   queryKey: [
                       AI_AGENT_ARTIFACT_KEY,

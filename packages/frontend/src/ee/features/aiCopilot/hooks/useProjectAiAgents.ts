@@ -69,7 +69,11 @@ import {
 } from '../types';
 import { requestSqlApprovalNotificationPermission } from '../utils/sqlApprovalNotification';
 import { getAiAgentApiBase, getAiAgentPageBase } from './aiAgentRouting';
-import { useChatReadsItsAgent, useChatThreadsUrl } from './chatEndpoints';
+import {
+    useChatArtifactsUrl,
+    useChatReadsItsAgent,
+    useChatThreadsUrl,
+} from './chatEndpoints';
 import { AI_AGENT_ARTIFACT_KEY } from './useAiAgentArtifacts';
 import {
     AGENT_AI_MCP_SERVERS_KEY,
@@ -2122,21 +2126,19 @@ const updateArtifactVersion = async (
 const updateArtifactVersionSavedSql = async (
     lightdashApi: LightdashApi,
     {
-        projectUuid,
-        agentUuid,
+        artifactsUrl,
         artifactUuid,
         versionUuid,
         savedSqlUuid,
     }: {
-        projectUuid: string;
-        agentUuid: string;
+        artifactsUrl: string;
         artifactUuid: string;
         versionUuid: string;
         savedSqlUuid: string | null;
     },
 ) =>
     lightdashApi<ApiSuccessEmpty>({
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/savedSql`,
+        url: `${artifactsUrl}/${artifactUuid}/versions/${versionUuid}/savedSql`,
         method: `PATCH`,
         body: JSON.stringify({
             savedSqlUuid,
@@ -2203,6 +2205,7 @@ export const useUpdateArtifactVersionSavedSql = (
     versionUuid: string,
 ) => {
     const lightdashApi = useLightdashApi();
+    const getArtifactsUrl = useChatArtifactsUrl();
 
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
@@ -2214,8 +2217,7 @@ export const useUpdateArtifactVersionSavedSql = (
     >({
         mutationFn: ({ savedSqlUuid }) =>
             updateArtifactVersionSavedSql(lightdashApi, {
-                projectUuid,
-                agentUuid,
+                artifactsUrl: getArtifactsUrl(projectUuid, agentUuid),
                 artifactUuid,
                 versionUuid,
                 savedSqlUuid,
@@ -2292,12 +2294,11 @@ const getAiAgentArtifactVizQuery = async (
         artifactUuid: string;
         versionUuid: string;
         cachedQueryUuid?: string;
+        artifactsUrl: string;
     },
 ) =>
     lightdashApi<ApiAiAgentArtifactVizQuery>({
-        url: `${getAiAgentApiBase(args.projectUuid)}/${
-            args.agentUuid
-        }/artifacts/${args.artifactUuid}/versions/${
+        url: `${args.artifactsUrl}/${args.artifactUuid}/versions/${
             args.versionUuid
         }/viz-query${args.cachedQueryUuid === undefined ? '' : `?${new URLSearchParams({ cachedQueryUuid: args.cachedQueryUuid })}`}`,
         method: 'GET',
@@ -2321,6 +2322,7 @@ export const useAiAgentArtifactVizQuery = (
     useQueryOptions?: UseQueryOptions<ApiAiAgentArtifactVizQuery, ApiError>,
 ) => {
     const lightdashApi = useLightdashApi();
+    const getArtifactsUrl = useChatArtifactsUrl();
 
     const navigate = useNavigate();
     const { data: activeProjectUuid } = useActiveProject();
@@ -2352,6 +2354,7 @@ export const useAiAgentArtifactVizQuery = (
                 artifactUuid,
                 versionUuid,
                 cachedQueryUuid,
+                artifactsUrl: getArtifactsUrl(projectUuid, agentUuid),
             });
         },
         onError: (error: ApiError) => {

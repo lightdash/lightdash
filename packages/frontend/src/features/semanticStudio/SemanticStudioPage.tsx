@@ -17,8 +17,8 @@ import Page from '../../components/common/Page/Page';
 import ForbiddenPanel from '../../components/ForbiddenPanel';
 import { usePrefetchStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import {
-    ChatThreadsUrlContext,
-    getStudioChatThreadsUrl,
+    ChatApiBaseContext,
+    getStudioChatApiBase,
 } from '../../ee/features/aiCopilot/hooks/chatEndpoints';
 import { useExplores } from '../../hooks/useExplores';
 import { useProject } from '../../hooks/useProject';
@@ -203,8 +203,8 @@ const SemanticStudioPage: FC = () => {
     return (
         <Page title="Semantic Layer" withFullHeight noContentPadding>
             <StudioCheckoutProvider value={checkout}>
-                <ChatThreadsUrlContext.Provider
-                    value={getStudioChatThreadsUrl(projectUuid)}
+                <ChatApiBaseContext.Provider
+                    value={getStudioChatApiBase(projectUuid)}
                 >
                     <WorkbenchView
                         project={realProject}
@@ -213,7 +213,7 @@ const SemanticStudioPage: FC = () => {
                         route={route}
                         onNavigate={onNavigate}
                     />
-                </ChatThreadsUrlContext.Provider>
+                </ChatApiBaseContext.Provider>
             </StudioCheckoutProvider>
         </Page>
     );

@@ -891,6 +891,10 @@ export type AuthorizedAgentThread = {
     thread: Awaited<ReturnType<AiAgentModel['getThread']>>;
 };
 
+type StoredArtifact = NonNullable<
+    Awaited<ReturnType<AiAgentModel['getArtifact']>>
+>;
+
 type ThreadPrompt = NonNullable<
     Awaited<ReturnType<AiAgentModel['findWebAppPrompt']>>
 >;
@@ -10865,12 +10869,25 @@ export class AiAgentService extends BaseService {
         return 'allowed';
     }
 
+    // An agent route's way of knowing the person may use the agent.
+    private getAccessibleAgent(
+        user: SessionUser,
+        agentUuid: string,
+        projectUuid: string,
+    ): Promise<AiAgent> {
+        return this.getAgent(user, agentUuid, projectUuid, {
+            includeBuiltIn: true,
+        });
+    }
+
     private async getArtifactOwnerResultReader(
         user: SessionUser,
         projectUuid: string,
         agentUuid: string,
         artifact: Pick<AiArtifact, 'threadUuid' | 'promptUuid'>,
         authMethod: QueryResultReader['authMethod'],
+        // The agent, once this person is known to have access to it; the routes differ in how they know.
+        getAccessibleAgent: () => Promise<AiAgent>,
     ): Promise<QueryResultReader> {
         const thread = await this.aiAgentModel.getThread({
             organizationUuid: user.organizationUuid!,
@@ -10882,9 +10899,7 @@ export class AiAgentService extends BaseService {
         const prompt =
             (await this.aiAgentModel.findSlackPrompt(artifact.promptUuid)) ??
             (await this.aiAgentModel.findWebAppPrompt(artifact.promptUuid));
-        const agent = await this.getAgent(user, agentUuid, projectUuid, {
-            includeBuiltIn: true,
-        });
+        const agent = await getAccessibleAgent();
         if (
             prompt?.createdByUserUuid !== user.userUuid ||
             prompt.agentUuid !== agent.uuid ||
@@ -10983,6 +10998,7 @@ export class AiAgentService extends BaseService {
                 agentUuid,
                 artifact,
                 account.authentication.type,
+                () => this.getAccessibleAgent(user, agentUuid, projectUuid),
             );
         }
         const args = {
@@ -11077,10 +11093,13 @@ export class AiAgentService extends BaseService {
             projectUuid,
             agentUuid,
             source,
+            getAccessibleAgent,
         }: {
             projectUuid: string;
             agentUuid: string;
             source: Pick<AiArtifact, 'threadUuid' | 'promptUuid'>;
+            /** Supplied by a caller that has already checked access; absent on the agent routes. */
+            getAccessibleAgent?: () => Promise<AiAgent>;
         },
         execute: () => Promise<T>,
         getQueryUuids: (result: T) => string[],
@@ -11093,6 +11112,8 @@ export class AiAgentService extends BaseService {
             agentUuid,
             source,
             account.authentication.type,
+            getAccessibleAgent ??
+                (() => this.getAccessibleAgent(user, agentUuid, projectUuid)),
         );
         const result =
             reader.kind === 'agent'
@@ -11132,15 +11153,64 @@ export class AiAgentService extends BaseService {
             user,
             options,
             () => this.executeArtifactVizQuery(user, options, account),
-            (vizQuery) =>
-                isAiAgentComposerArtifactVizQuery(vizQuery)
-                    ? [
-                          ...Object.values(vizQuery.nodeQueryUuids),
-                          ...(vizQuery.chartStage?.status === 'ok'
-                              ? [vizQuery.chartStage.queryUuid]
-                              : []),
-                      ]
-                    : [vizQuery.query.queryUuid],
+            AiAgentService.getArtifactVizQueryUuids,
+            account,
+        );
+    }
+
+    private static getArtifactVizQueryUuids(
+        vizQuery: ApiAiAgentArtifactVizQuery,
+    ): string[] {
+        return isAiAgentComposerArtifactVizQuery(vizQuery)
+            ? [
+                  ...Object.values(vizQuery.nodeQueryUuids),
+                  ...(vizQuery.chartStage?.status === 'ok'
+                      ? [vizQuery.chartStage.queryUuid]
+                      : []),
+              ]
+            : [vizQuery.query.queryUuid];
+    }
+
+    /** Runs an artifact's query for a caller that has already checked access to its thread. */
+    async getArtifactVizQueryForAuthorized(
+        user: SessionUser,
+        { agent }: AuthorizedAgentThread,
+        artifact: StoredArtifact,
+        callerAccount?: RegisteredAccount,
+    ): Promise<ApiAiAgentArtifactVizQuery> {
+        const account = getArtifactRunAccount(user, callerAccount);
+        const { projectUuid, uuid: agentUuid } = agent;
+        const { artifactUuid, versionUuid } = artifact;
+        const execute = () =>
+            this.runArtifactVizQuery(
+                user,
+                { agent, artifact },
+                { projectUuid, agentUuid, artifactUuid, versionUuid },
+                account,
+                Date.now(),
+            );
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        if (!enabled) return execute();
+        return this.executeQueriesAsOwner(
+            user,
+            {
+                projectUuid,
+                agentUuid,
+                source: artifact,
+                getAccessibleAgent: async () => agent,
+            },
+            execute,
+            AiAgentService.getArtifactVizQueryUuids,
+            (bindingAccount, queryUuid) =>
+                this.asyncQueryService.bindQueryToArtifact(
+                    bindingAccount,
+                    projectUuid,
+                    queryUuid,
+                    { agentUuid, artifactUuid, versionUuid },
+                ),
             account,
         );
     }
@@ -11247,6 +11317,45 @@ export class AiAgentService extends BaseService {
             runtimeOptions,
         );
 
+        return this.runArtifactVizQuery(
+            user,
+            { agent, artifact },
+            {
+                projectUuid,
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+                runtimeOptions,
+                cachedQueryUuid,
+            },
+            account,
+            vizQueryStartedAt,
+        );
+    }
+
+    // Runs an artifact's query once the caller has settled who may see it.
+    private async runArtifactVizQuery(
+        user: SessionUser,
+        { agent, artifact }: { agent: AiAgent; artifact: StoredArtifact },
+        {
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            runtimeOptions,
+            cachedQueryUuid,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            cachedQueryUuid?: string;
+        },
+        account: RegisteredAccount,
+        vizQueryStartedAt: number,
+    ): Promise<ApiAiAgentArtifactVizQuery> {
+        const { organizationUuid } = agent;
         if (!artifact.chartConfig) {
             throw new ParameterError(
                 'Chart config not found for this artifact',
@@ -12151,6 +12260,12 @@ export class AiAgentService extends BaseService {
                   args.agentUuid,
                   { threadUuid: args.threadUuid, promptUuid: args.messageUuid },
                   account.authentication.type,
+                  () =>
+                      this.getAccessibleAgent(
+                          user,
+                          args.agentUuid,
+                          projectUuid,
+                      ),
               )
             : { kind: 'person', authMethod: account.authentication.type };
         const resultsArgs = {
@@ -12240,6 +12355,22 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        await this.updateArtifactVersionForAuthorized(
+            { agent, thread },
+            versionUuid,
+            update,
+        );
+    }
+
+    /** Links an artifact version to what was saved from it, for a caller that has already checked access to its thread. */
+    async updateArtifactVersionForAuthorized(
+        { agent }: AuthorizedAgentThread,
+        versionUuid: string,
+        update:
+            | { savedDashboardUuid: string | null }
+            | { savedSqlUuid: string | null }
+            | { savedComposerChartUuid: string | null },
+    ): Promise<void> {
         if (
             'savedSqlUuid' in update &&
             update.savedSqlUuid !== null &&
