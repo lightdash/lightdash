@@ -1,8 +1,18 @@
 import { createContext, useCallback, useContext } from 'react';
 import { getAiAgentApiBase } from './aiAgentRouting';
 
-/** Where a chat's threads and artifacts live when it is not an agent's own; null for an ordinary agent chat. */
-export const ChatApiBaseContext = createContext<string | null>(null);
+/** What a chat that is not an agent's own brings with it. */
+export type ChatOwnEndpoints = {
+    /** Where its threads and artifacts live. */
+    apiBase: string;
+    /** The agent the chat already holds and never asks for; null until it has it. */
+    ownAgentUuid: string | null;
+};
+
+/** Null for an ordinary agent chat. */
+export const ChatOwnEndpointsContext = createContext<ChatOwnEndpoints | null>(
+    null,
+);
 
 export const getStudioChatApiBase = (projectUuid: string) =>
     `/projects/${projectUuid}/semantic-studio/chat`;
@@ -12,7 +22,7 @@ export const getStudioChatThreadsUrl = (projectUuid: string) =>
 
 // The surrounding chat's own base, an agent's unless the chat supplies one.
 const useChatApiBase = () => {
-    const ownBase = useContext(ChatApiBaseContext);
+    const ownBase = useContext(ChatOwnEndpointsContext)?.apiBase;
     return useCallback(
         (projectUuid: string, agentUuid: string | undefined) =>
             ownBase ?? `${getAiAgentApiBase(projectUuid)}/${agentUuid}`,
@@ -40,6 +50,12 @@ export const useChatArtifactsUrl = () => {
     );
 };
 
-/** False in a chat with its own endpoints: it has no agent settings, skills or MCP servers to read. */
+/** False in a chat with its own endpoints: it has no skills, MCP servers or deep research to read. */
 export const useChatReadsItsAgent = () =>
-    useContext(ChatApiBaseContext) === null;
+    useContext(ChatOwnEndpointsContext) === null;
+
+/** Whether to ask for this agent: always in an agent's chat, and elsewhere unless the chat already holds it. */
+export const useChatReadsAgent = (agentUuid: string | undefined) => {
+    const own = useContext(ChatOwnEndpointsContext);
+    return own === null || agentUuid !== own.ownAgentUuid;
+};
