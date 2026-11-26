@@ -412,6 +412,15 @@ const userWithoutOrganization = {
     organizationUuid: undefined,
 } as Express.User;
 
+const impersonatedUser = {
+    ...authenticatedUser,
+    impersonation: {
+        adminId: 'admin-uuid',
+        adminEmail: 'admin@lightdash.com',
+        adminRole: 'admin',
+    },
+} as Express.User;
+
 const missingOrganizationMessage =
     'Your account is not a member of an organization on eu1.lightdash.cloud. Sign in to the instance where you were invited.';
 
@@ -1221,6 +1230,41 @@ describe('OAuth authorize redirects', () => {
         );
         expect(location.searchParams.get('state')).toBe('request-state');
         expect(oauthService.authorize).not.toHaveBeenCalled();
+    });
+
+    it('issues no authorization code while an admin impersonates the user', async () => {
+        const oauthService = createOAuthService();
+        oauthService.validateRedirectUri.mockResolvedValue(true);
+
+        const response = await requestAuthorize({
+            body: {
+                approve: 'true',
+                client_id: 'client-id',
+                redirect_uri: 'https://registered.example/callback',
+            },
+            oauthService,
+            user: impersonatedUser,
+        });
+
+        expect(response.status).toBe(403);
+        expect(oauthService.authorize).not.toHaveBeenCalled();
+    });
+
+    it('does not render the approve page while an admin impersonates the user', async () => {
+        const oauthService = createOAuthService();
+        oauthService.validateRedirectUri.mockResolvedValue(true);
+
+        const response = await requestAuthorizePage({
+            query: {
+                client_id: 'client-id',
+                redirect_uri: 'https://registered.example/callback',
+            },
+            oauthService,
+            user: impersonatedUser,
+        });
+
+        expect(response.status).toBe(403);
+        expect(oauthService.validateRedirectUri).not.toHaveBeenCalled();
     });
 
     it('checks authentication before handling a denial', async () => {

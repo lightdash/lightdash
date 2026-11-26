@@ -26,6 +26,7 @@ import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
+    unauthorisedWhileImpersonating,
 } from '../controllers/authentication';
 import Logger from '../logging/logger';
 import {
@@ -214,6 +215,9 @@ const refuseDisabledMobileOrg = async (
     );
     return true;
 };
+
+// An authorization code issued here would belong to the impersonated user.
+oauthRouter.use('/authorize', unauthorisedWhileImpersonating);
 
 // Get authorization - use OAuth2Server
 oauthRouter.get('/authorize', async (req, res, next) => {

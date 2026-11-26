@@ -7,6 +7,7 @@ import {
     assertRegisteredAccount,
     AuthorizationError,
     DeactivatedAccountError,
+    ForbiddenError,
     InvalidUser,
     LightdashMode,
     MobileOrgDisabledError,
@@ -302,6 +303,25 @@ export const unauthorisedInDemo: RequestHandler = (req, res, next) => {
     } else {
         next();
     }
+};
+
+/**
+ * Opts a route out of impersonation. Add it to any route that mints or
+ * changes a credential: one issued while an admin acts as another user would
+ * belong to that user, outlive the impersonation TTL, and carry no
+ * `impersonatedBy` audit trail.
+ */
+export const unauthorisedWhileImpersonating: RequestHandler = (
+    req,
+    res,
+    next,
+) => {
+    if (req.user?.impersonation || req.session?.impersonation) {
+        throw new ForbiddenError(
+            'Action not available while impersonating a user',
+        );
+    }
+    next();
 };
 
 /** Debug routes that exist only on a local development server. */
