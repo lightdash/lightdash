@@ -249,11 +249,24 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
             return () => observer.disconnect();
         }, [containerRef]);
 
-        const isAtTop = !!containerSize && containerScroll.y === 0;
-        const isAtBottom =
-            !!containerSize &&
-            containerScroll.y + containerSize.clientHeight ===
-                containerSize.scrollHeight;
+        // oldRead: read the container size during render on every scroll
+        // update, as the code before #33461 did (forces a layout).
+        const liveFlags = useMemo(() => {
+            if (!exp33461('oldRead') || !containerRef.current) return null;
+            const { clientHeight, scrollHeight } = containerRef.current;
+            return {
+                isAtTop: containerScroll.y === 0,
+                isAtBottom: containerScroll.y + clientHeight === scrollHeight,
+            };
+        }, [containerScroll, containerRef]);
+        const isAtTop = liveFlags
+            ? liveFlags.isAtTop
+            : !!containerSize && containerScroll.y === 0;
+        const isAtBottom = liveFlags
+            ? liveFlags.isAtBottom
+            : !!containerSize &&
+              containerScroll.y + containerSize.clientHeight ===
+                  containerSize.scrollHeight;
         // Memoized on the two flags, so the context does not change on every
         // scroll event.
         const memoScrollPositions = useMemo(
