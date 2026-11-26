@@ -28,7 +28,10 @@ import {
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { JsonCellModal } from '../../JsonViewer/JsonCellViewer';
 import { type JsonCellValue } from '../../JsonViewer/utils';
-import { getMergedValueLineClamp } from '../../PivotTable/getRowSpanMerges';
+import {
+    getMergedValueLineClamp,
+    TABLE_LINE_HEIGHT_PX,
+} from '../../PivotTable/getRowSpanMerges';
 import { ROW_HEIGHT_PX } from '../constants';
 import { Td, type CellStyleProps } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';
@@ -97,6 +100,13 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
 }) => {
     useRegisterMountedCell(registerMenuCell, menuKey);
     const isMerged = !!rowSpan && rowSpan > 1;
+    const mergedLineClamp = isMergedBlock
+        ? getMergedValueLineClamp(
+              rowSpan ?? 1,
+              ROW_HEIGHT_PX,
+              MERGED_CELL_PADDING_Y_PX,
+          )
+        : undefined;
     const elementRef = useRef<HTMLTableCellElement>(null);
     const { showToastSuccess } = useToaster();
     const { copy } = useClipboard();
@@ -238,18 +248,19 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                         : undefined
                 }
             >
-                {isMergedBlock ? (
+                {mergedLineClamp !== undefined ? (
                     <Box
                         component="span"
                         className={bodyCellStyles.mergedDimValue}
+                        // One line keeps the cell's own line height, so the
+                        // row keeps the height of the rows next to it.
+                        lh={
+                            mergedLineClamp > 1
+                                ? `${TABLE_LINE_HEIGHT_PX}px`
+                                : undefined
+                        }
                         __vars={{
-                            '--merged-line-clamp': String(
-                                getMergedValueLineClamp(
-                                    rowSpan ?? 1,
-                                    ROW_HEIGHT_PX,
-                                    MERGED_CELL_PADDING_Y_PX,
-                                ),
-                            ),
+                            '--merged-line-clamp': String(mergedLineClamp),
                         }}
                     >
                         {children}

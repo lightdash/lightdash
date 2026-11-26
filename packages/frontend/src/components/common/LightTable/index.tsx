@@ -30,6 +30,7 @@ import {
 } from 'react';
 import { useScroll } from 'react-use';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { TABLE_LINE_HEIGHT_PX } from '../PivotTable/getRowSpanMerges';
 import {
     useMountedCellSelection,
     useRegisterMountedCell,
@@ -83,7 +84,11 @@ type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
     withValue?: string;
     /** Hints that the cell menu offers link actions, like the results table's dotted underline. */
     withUrls?: boolean;
-    /** Shows at most this number of lines, with an ellipsis on the last line. */
+    /**
+     * Shows at most this number of lines, with an ellipsis on the last line.
+     * More than one line uses TABLE_LINE_HEIGHT_PX, the line height the count
+     * assumes.
+     */
     withLineClamp?: number;
     /** Keeps the cell selected when it mounts again, e.g. a merged cell that moves to another rendered row. */
     selectionId?: string;
@@ -558,6 +563,12 @@ const BaseCell = (
                             <Box
                                 component="span"
                                 className={classes.withLineClamp}
+                                // One line keeps the cell's own line height.
+                                lh={
+                                    withLineClamp > 1
+                                        ? `${TABLE_LINE_HEIGHT_PX}px`
+                                        : undefined
+                                }
                                 __vars={{
                                     '--lt-line-clamp': String(withLineClamp),
                                 }}
