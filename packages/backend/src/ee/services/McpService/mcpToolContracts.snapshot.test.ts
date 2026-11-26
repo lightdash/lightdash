@@ -554,7 +554,15 @@ describe('MCP tool contracts', () => {
             queryPath: classicQueryPath(true, true),
         },
         {
-            name: 'composer',
+            name: 'composer with SQL Runner',
+            queryPath: {
+                type: 'composer',
+                sqlRunnerEnabled: true,
+                filterExpressionsEnabled: false,
+            },
+        },
+        {
+            name: 'composer without SQL Runner',
             queryPath: {
                 type: 'composer',
                 sqlRunnerEnabled: false,

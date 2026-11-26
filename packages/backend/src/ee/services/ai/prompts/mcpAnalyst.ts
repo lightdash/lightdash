@@ -90,14 +90,19 @@ ${EXPLORE_CHOICE_RULE}${runSqlEnabled ? runSqlGuidance : ''}${filterExpressionsE
 ${agentIdentityEnabled ? AGENT_CONNECT_RULE : ''}`;
 };
 
+const COMPOSER_RAW_SQL_WORKFLOW_GUIDANCE = `For raw SQL or a named warehouse table, follow step 0, then skip steps 1–3 and call \`query\` with a sql node. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
+
+`;
+
 const buildMcpComposerPrompt = (
+    sqlRunnerEnabled: boolean,
     documentsEnabled: boolean,
     agentIdentityEnabled: boolean,
 ): string => `${COMPOSER_QUERYING_SKILL_POINTER}
 
 ## Query Building Workflow
 
-0. \`get_context\`: pick the project, and the agent when agent-scoped, per its production/preview and pinned-scope rules.
+${sqlRunnerEnabled ? COMPOSER_RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: pick the project, and the agent when agent-scoped, per its production/preview and pinned-scope rules.
 1. \`grep_fields\`: find fields and the explores at the right grain.
 2. \`get_metadata\`: confirm fields; use only exact field IDs from discovery or your custom metrics.
 3. \`search_field_values\`: find valid filter values.
@@ -133,6 +138,7 @@ export const getMcpAnalystPrompt = ({
             );
         case 'composer':
             return buildMcpComposerPrompt(
+                queryPath.sqlRunnerEnabled,
                 documentsEnabled,
                 agentIdentityEnabled,
             );

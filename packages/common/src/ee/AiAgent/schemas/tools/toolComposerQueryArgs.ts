@@ -107,13 +107,20 @@ const DUCKDB_ALIAS_GUIDANCE =
 const getComposerNodeKindsDescription = ({
     enablePythonNodes,
     sqlNote,
+    statesMergePreference,
 }: ComposerQueriesDescriptionOptions & {
     sqlNote: string;
+    // MCP states the merge preference in its own rule list.
+    statesMergePreference: boolean;
 }) => `Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
 - "sql": raw SQL against the project warehouse; ${sqlNote}.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
-- "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice. Prefer it to a duckdb join of semanticLayer nodes.
+- "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice.${
+    statesMergePreference
+        ? ' Prefer it to a duckdb join of semanticLayer nodes.'
+        : ''
+}
 - "duckdb": DuckDB SQL over other results declared in "references".${
     enablePythonNodes
         ? `
@@ -134,6 +141,7 @@ export const getToolComposerQueriesDescription = ({
 ${getComposerNodeKindsDescription({
     enablePythonNodes,
     sqlNote: 'may need user approval',
+    statesMergePreference: true,
 })}
 
 Earlier nodes: a node id names one node for the whole thread. A node reads a node from an earlier call by its node id in "references", or "sources" for a merge, without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
@@ -145,6 +153,7 @@ Run one query, or a pipeline of up to ${MAX_SOURCE_QUERIES_PER_SUBMISSION} nodes
 ${getComposerNodeKindsDescription({
     enablePythonNodes: true,
     sqlNote: 'needs SQL Runner access',
+    statesMergePreference: false,
 })}
 
 A python node's "code" defines \`def run(inputs, params)\`; semanticLayer "filters" are flat expression strings.

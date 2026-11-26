@@ -131,7 +131,29 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
 }
 `;
 
-exports[`MCP tool contracts > matches the composer MCP server instructions snapshot 1`] = `
+exports[`MCP tool contracts > matches the composer with SQL Runner MCP server instructions snapshot 1`] = `
+"Before your first query call, read the composer query rules: call read_skill with name "composer-querying".
+
+## Query Building Workflow
+
+For raw SQL or a named warehouse table, follow step 0, then skip steps 1–3 and call \`query\` with a sql node. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
+
+0. \`get_context\`: pick the project, and the agent when agent-scoped, per its production/preview and pinned-scope rules.
+1. \`grep_fields\`: find fields and the explores at the right grain.
+2. \`get_metadata\`: confirm fields; use only exact field IDs from discovery or your custom metrics.
+3. \`search_field_values\`: find valid filter values.
+4. \`query\`: query governed metrics, then combine and transform them.
+5. \`get_query_result\`: poll a running query instead of resubmitting it.
+6. \`list_content\` and \`find_content\`: browse and search dashboards, charts, and Data Apps.
+
+## Rules
+
+- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
+- Before writing semanticLayer filters, read the \`filter-expressions\` skill
+"
+`;
+
+exports[`MCP tool contracts > matches the composer without SQL Runner MCP server instructions snapshot 1`] = `
 "Before your first query call, read the composer query rules: call read_skill with name "composer-querying".
 
 ## Query Building Workflow
@@ -165,6 +187,8 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
       "prompt": "Before your first query call, read the composer query rules: call read_skill with name "composer-querying".
 
 ## Query Building Workflow
+
+For raw SQL or a named warehouse table, follow step 0, then skip steps 1–3 and call \`query\` with a sql node. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
 
 0. \`get_context\`: pick the project, and the agent when agent-scoped, per its production/preview and pinned-scope rules.
 1. \`grep_fields\`: find fields and the explores at the right grain.
@@ -10862,7 +10886,7 @@ Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
 - "sql": raw SQL against the project warehouse; needs SQL Runner access.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
-- "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice. Prefer it to a duckdb join of semanticLayer nodes.
+- "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice.
 - "duckdb": DuckDB SQL over other results declared in "references".
 - "python": pandas code over other results declared in "references".
 
