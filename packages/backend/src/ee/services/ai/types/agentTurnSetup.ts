@@ -1,4 +1,10 @@
-import { type StudioProjectMode, type TurnCard } from './aiAgent';
+import { type ModelCatalogue } from '../models';
+import {
+    type AiAgentDependencies,
+    type StudioProjectMode,
+    type TurnCard,
+} from './aiAgent';
+import { type GetExploreFn, type RunAsyncQueryFn } from './aiAgentDependencies';
 
 /** What a kind of thread brings to each of its turns. */
 export type AgentTurnSetup = {
@@ -38,4 +44,52 @@ export const DEFAULT_AGENT_WRITEBACK_SETUP: AgentWritebackSetup = {
     continuesThreadPullRequest: false,
     showsPullRequestBeforePreview: false,
     onSaved: null,
+};
+
+/** The tools only some kinds of thread have. */
+export type AgentExtraTools = Pick<
+    AiAgentDependencies,
+    | 'proposeSemanticLayerChange'
+    | 'draftProjectContext'
+    | 'listChanges'
+    | 'getDraftExplore'
+    | 'runDraftQuery'
+    | 'readSemanticModel'
+    | 'verify'
+>;
+
+/** Builds a kind of thread's own tools for one turn, from what the turn has already made. */
+export type BuildAgentExtraTools = (turn: {
+    promptUuid: string;
+    threadUuid: string;
+    getExplore: GetExploreFn;
+    runAsyncQuery: RunAsyncQueryFn;
+}) => AgentExtraTools;
+
+const unavailable = async (): Promise<never> => {
+    throw new Error('This tool is not available in this conversation');
+};
+
+// A loadout only offers these tools to a thread that brings them.
+export const NO_AGENT_EXTRA_TOOLS: AgentExtraTools = {
+    proposeSemanticLayerChange: unavailable,
+    draftProjectContext: unavailable,
+    listChanges: unavailable,
+    getDraftExplore: unavailable,
+    runDraftQuery: unavailable,
+    readSemanticModel: unavailable,
+    verify: unavailable,
+};
+
+/** Picks the model of a thread nobody chose one for, among those offered; null keeps the default. */
+export type AgentModelPreference = (
+    catalogue: ModelCatalogue,
+    provider: string | null,
+) => { provider: string; name: string } | null;
+
+/** What the caller of a turn brings to it; an ordinary chat brings nothing. */
+export type AgentTurnInputs = {
+    /** Asked for when the turn starts, so a failure is recorded on the turn. */
+    getTurnSetup: () => Promise<AgentTurnSetup>;
+    buildExtraTools: BuildAgentExtraTools;
 };

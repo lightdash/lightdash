@@ -16,8 +16,17 @@ type StudioAgentToolsArgs = {
     projectUuid: string;
     promptUuid: string;
     threadUuid: string;
-    semanticStudioService: SemanticStudioService;
-    semanticStudioCheckoutService: SemanticStudioCheckoutService;
+    semanticStudioService: Pick<
+        SemanticStudioService,
+        | 'proposeDraftChange'
+        | 'draftProjectContextEntry'
+        | 'listChanges'
+        | 'readDraftedModel'
+    >;
+    semanticStudioCheckoutService: Pick<
+        SemanticStudioCheckoutService,
+        'findDevelopmentExplores' | 'waitForBranchCompile'
+    >;
     getExplore: GetExploreFn;
     runAsyncQuery: RunAsyncQueryFn;
     /** Whether the agent is still saving to its pull request. */
