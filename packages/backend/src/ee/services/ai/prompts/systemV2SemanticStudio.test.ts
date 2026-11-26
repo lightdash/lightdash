@@ -7,6 +7,7 @@ import {
     type LoadoutInput,
 } from '../loadout';
 import { READ_LIBRARIES } from '../tools/readLibraries';
+import { type StudioProjectMode } from '../types/aiAgent';
 import { getSystemPromptV2 } from './systemV2';
 import {
     getSemanticStudioSystemPrompt,
@@ -41,6 +42,13 @@ const proposing = {
     mode: 'propose',
 } satisfies SemanticStudioTurn;
 
+const studioMode: StudioProjectMode = {
+    enabled: true,
+    drafts: true,
+    keepsContext: false,
+    projectMap: null,
+};
+
 const studioInput: LoadoutInput = {
     execution: { mode: 'standard', maxSteps: 10 },
     decisions: undefined,
@@ -56,9 +64,7 @@ const studioInput: LoadoutInput = {
     enableAiWriteback: true,
     enableRepoDiscovery: true,
     enableEditProjectContext: false,
-    isSemanticStudioThread: true,
-    semanticStudioDrafts: true,
-    semanticStudioKeepsContext: false,
+    studio: studioMode,
     enableReadAttachments: false,
     enableReadPinnedThread: false,
     enableAskUser: true,
@@ -87,31 +93,34 @@ describe('Semantic Studio prompt names only what its loadout offers', () => {
         ['a draft project', {}],
         [
             'a draft project with no repository',
-            { semanticStudioKeepsContext: true },
+            { studio: { ...studioMode, keepsContext: true } },
         ],
         [
             'a draft project with no repository and project context off',
             {
-                semanticStudioKeepsContext: true,
+                studio: { ...studioMode, keepsContext: true },
                 projectContextEnabled: false,
                 aiAgentMemoryEnabled: true,
             },
         ],
         ['a draft project without data access', { enableDataAccess: false }],
         ['a draft project without SQL', { canRunSql: false }],
-        ['the dbt builder', { semanticStudioDrafts: false }],
+        ['the dbt builder', { studio: { ...studioMode, drafts: false } }],
         [
             'the dbt builder without SQL',
-            { semanticStudioDrafts: false, canRunSql: false },
+            { studio: { ...studioMode, drafts: false }, canRunSql: false },
         ],
         [
             'a dbt project without writeback',
-            { semanticStudioDrafts: false, enableAiWriteback: false },
+            {
+                studio: { ...studioMode, drafts: false },
+                enableAiWriteback: false,
+            },
         ],
         [
             'a dbt project without writeback or repository access',
             {
-                semanticStudioDrafts: false,
+                studio: { ...studioMode, drafts: false },
                 enableAiWriteback: false,
                 enableRepoDiscovery: false,
             },
@@ -127,7 +136,8 @@ describe('Semantic Studio prompt names only what its loadout offers', () => {
             canRunSql: loadout.toolNames.has('runSql'),
             repoFsRoot: '.',
             studio: getSemanticStudioTurn(loadout, {
-                drafts: { ...studioInput, ...overrides }.semanticStudioDrafts,
+                drafts:
+                    { ...studioInput, ...overrides }.studio?.drafts ?? false,
                 projectMap: null,
                 repoFsRoot: '.',
                 repoFsSupportsCodeSearch: true,
@@ -195,7 +205,7 @@ describe('getSemanticStudioSystemPrompt', () => {
         const prompt = (projectContextEnabled: boolean) => {
             const loadout = resolveLoadout({
                 ...studioInput,
-                semanticStudioKeepsContext: true,
+                studio: { ...studioMode, keepsContext: true },
                 projectContextEnabled,
             });
             return getSemanticStudioSystemPrompt({

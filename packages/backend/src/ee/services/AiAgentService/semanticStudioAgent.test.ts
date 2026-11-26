@@ -28,7 +28,9 @@ const buildService = ({ studioEnabled }: { studioEnabled: boolean }) => {
         {
             aiAgentModel,
             semanticStudioService: {
-                getStatus: vi.fn(async () => ({ enabled: studioEnabled })),
+                assertCanUseStudio: vi.fn(async () => {
+                    if (!studioEnabled) throw new ForbiddenError();
+                }),
             },
             getIsCopilotEnabled: vi.fn(async () => true),
             createAuditedAbility: () => ({ cannot: () => false }),

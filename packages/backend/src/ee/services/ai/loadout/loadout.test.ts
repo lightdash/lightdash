@@ -27,6 +27,7 @@ import {
     type SemanticStudioTurn,
 } from '../prompts/systemV2SemanticStudio';
 import { BuiltInSkills } from '../skills/builtInSkills';
+import { type StudioProjectMode } from '../types/aiAgent';
 
 const SKILL = {
     name: 'developing-in-lightdash',
@@ -61,6 +62,13 @@ const listedSkills = (loadout: Loadout, input: LoadoutInput) =>
     );
 
 // Every condition on: each base shows its widest query path.
+const studioMode: StudioProjectMode = {
+    enabled: true,
+    drafts: true,
+    keepsContext: true,
+    projectMap: null,
+};
+
 const fullInput: LoadoutInput = {
     execution: { mode: 'standard', maxSteps: 10 },
     decisions: new AiDecisionClient({
@@ -80,9 +88,7 @@ const fullInput: LoadoutInput = {
     enableAiWriteback: true,
     enableRepoDiscovery: true,
     enableEditProjectContext: true,
-    isSemanticStudioThread: false,
-    semanticStudioDrafts: false,
-    semanticStudioKeepsContext: false,
+    studio: null,
     enableReadAttachments: true,
     enableReadPinnedThread: true,
     enableAskUser: true,
@@ -116,9 +122,7 @@ const minimalInput: LoadoutInput = {
     enableAiWriteback: false,
     enableRepoDiscovery: false,
     enableEditProjectContext: false,
-    isSemanticStudioThread: false,
-    semanticStudioDrafts: false,
-    semanticStudioKeepsContext: false,
+    studio: null,
     enableReadAttachments: false,
     enableReadPinnedThread: false,
     enableAskUser: false,
@@ -158,9 +162,7 @@ const inputs: Record<LoadoutBase, LoadoutInput> = {
     classic: fullInput,
     semantic_studio: {
         ...fullInput,
-        isSemanticStudioThread: true,
-        semanticStudioDrafts: true,
-        semanticStudioKeepsContext: true,
+        studio: studioMode,
     },
     composer: { ...fullInput, enableComposerQueries: true },
     no_data_access: {
@@ -339,7 +341,7 @@ describe('loadout contracts', () => {
     test('semantic studio builder with every add-on renders its prompt', async () => {
         const builder = {
             ...inputs.semantic_studio,
-            semanticStudioDrafts: false,
+            studio: { ...studioMode, drafts: false },
             enableAiWriteback: true,
         };
         const loadout = buildLoadout('semantic_studio', builder, ADD_ON_NAMES);
@@ -371,8 +373,7 @@ describe('resolveLoadout', () => {
 
         const dbt = resolveLoadout({
             ...inputs.semantic_studio,
-            semanticStudioDrafts: false,
-            semanticStudioKeepsContext: false,
+            studio: { ...studioMode, drafts: false, keepsContext: false },
         });
         expect(dbt.base).toBe('semantic_studio');
         expect(dbt.toolNames.has('proposeSemanticLayerChange')).toBe(false);
@@ -390,8 +391,7 @@ describe('resolveLoadout', () => {
         expect(dbt.toolNames.has('generateVisualization')).toBe(false);
         const proposing = resolveLoadout({
             ...inputs.semantic_studio,
-            semanticStudioDrafts: false,
-            semanticStudioKeepsContext: false,
+            studio: { ...studioMode, drafts: false, keepsContext: false },
             enableAiWriteback: false,
         });
         expect(proposing.toolNames.has('verify')).toBe(false);
@@ -643,8 +643,10 @@ describe('loadout structure', () => {
     const baseTools = (base: LoadoutBase) => [
         ...BASES[base](inputs[base]).tools,
         ...(base === 'semantic_studio'
-            ? BASES[base]({ ...inputs[base], semanticStudioDrafts: false })
-                  .tools
+            ? BASES[base]({
+                  ...inputs[base],
+                  studio: { ...studioMode, drafts: false },
+              }).tools
             : []),
     ];
 

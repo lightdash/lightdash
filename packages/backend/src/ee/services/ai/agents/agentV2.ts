@@ -4,14 +4,8 @@ import {
     AiAccessRefusedError,
     AnyType,
     assertUnreachable,
-    DBT_SAVE_CARD_REPLY,
-    endsTurnOnCard,
     Explore,
     getErrorMessage,
-    getRunProposals,
-    getStudioCardReply,
-    hasMoreToDo,
-    isDbtWriteToolName,
     isSqlApprovalToolCall,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
@@ -185,9 +179,11 @@ import { getUpdateUserName } from '../tools/updateUserName';
 import { getVerify } from '../tools/verify';
 import { getVisualize } from '../tools/visualize';
 import type {
+    AgentTurnStep,
     AiAgentArgs,
     AiAgentDependencies,
     AiStreamAgentResponseArgs,
+    TurnCard,
     UnavailableMcpServer,
 } from '../types/aiAgent';
 import { toAbsoluteHref } from '../utils/absoluteHref';
@@ -640,7 +636,7 @@ const previousReplyOfferedDocument = (
     return false;
 };
 
-const savedDocument = (steps: ReadonlyArray<FastChartStep>): boolean => {
+const savedDocument = (steps: ReadonlyArray<AgentTurnStep>): boolean => {
     const documentCallIds = new Set(
         steps
             .flatMap((step) => step.toolCalls)
@@ -661,7 +657,7 @@ const savedDocument = (steps: ReadonlyArray<FastChartStep>): boolean => {
 /** Document nudge analytics for one turn: whether nudges applied, the offer was shown, or an earlier offer was taken up. */
 export const getDocumentNudgeOutcome = (
     args: AiAgentArgs,
-    steps: ReadonlyArray<FastChartStep>,
+    steps: ReadonlyArray<AgentTurnStep>,
     response: string,
 ) => {
     const documentNudgesEnabled = areDocumentNudgesEnabled(args);
@@ -1176,21 +1172,8 @@ const recordExternalMcpToolCall = (
         });
 };
 
-type FastChartStep = {
-    toolCalls: ReadonlyArray<{
-        toolCallId: string;
-        toolName: string;
-        input: unknown;
-    }>;
-    toolResults: ReadonlyArray<{
-        toolCallId: string;
-        toolName: string;
-        output: unknown;
-    }>;
-};
-
 export const getChartFollowupFastResponse = (
-    steps: ReadonlyArray<FastChartStep>,
+    steps: ReadonlyArray<AgentTurnStep>,
 ): string | null => {
     const successfulCallIds = new Set(
         steps.flatMap((step) =>
@@ -1232,7 +1215,7 @@ export const getChartFollowupFastResponse = (
 };
 
 export const getChartExportFastResponse = (
-    steps: ReadonlyArray<FastChartStep>,
+    steps: ReadonlyArray<AgentTurnStep>,
 ): string | null => {
     const output = steps
         .flatMap((step) => step.toolResults)
@@ -1254,7 +1237,7 @@ export const getChartExportFastResponse = (
 };
 
 export const getDataAppBuildFastResponse = (
-    steps: ReadonlyArray<FastChartStep>,
+    steps: ReadonlyArray<AgentTurnStep>,
 ): string | null => {
     const output = steps
         .flatMap((step) => step.toolResults)
@@ -1278,7 +1261,7 @@ export const getDataAppBuildFastResponse = (
 };
 
 export const getDataAnswerFastResponse = (
-    steps: ReadonlyArray<FastChartStep>,
+    steps: ReadonlyArray<AgentTurnStep>,
 ): string | null => {
     const results = steps.flatMap((step) => step.toolResults);
     if (
@@ -1311,7 +1294,7 @@ export const getDataAnswerFastResponse = (
 
 /** Ends a document write-up once the document saved without warnings. */
 export const getDocumentWriteFastResponse = (
-    steps: ReadonlyArray<FastChartStep>,
+    steps: ReadonlyArray<AgentTurnStep>,
     siteUrl: string,
 ): string | null => {
     const documentCallIds = new Set(
@@ -1356,59 +1339,19 @@ export const getDocumentWriteFastResponse = (
     return `Saved [${name || 'the document'}](${toAbsoluteHref(siteUrl, metadata.href)}).`;
 };
 
-/** A Studio turn that ends on its card with nothing written keeps one line saying what changed, so the reply is never blank. */
-export const withStudioCardReply = (
-    reply: string,
-    steps: ReadonlyArray<FastChartStep>,
-): string => {
-    if (reply.trim()) return reply;
-    return (
-        getStudioCardReply(
-            getRunProposals(steps.flatMap((step) => step.toolResults)),
-        ) ?? reply
-    );
-};
-
-/** A Studio turn ends on its card: once a change joined the draft cleanly, or a save started, there is nothing left to say. */
-export const getStudioCardResponse = (
-    steps: ReadonlyArray<FastChartStep>,
-): string | null => {
-    const last = steps.at(-1);
-    if (!last) return null;
-    const proposals = getRunProposals(last.toolResults);
-    if (proposals.length > 0) {
-        return endsTurnOnCard(proposals) ? getStudioCardReply(proposals) : null;
-    }
-    const studioSaves = new Set(
-        last.toolCalls
-            .filter(
-                ({ toolName, input }) =>
-                    isDbtWriteToolName(toolName) && !hasMoreToDo(input),
-            )
-            .map(({ toolCallId }) => toolCallId),
-    );
-    const isSaving = last.toolResults.some(
-        ({ toolCallId, output }) =>
-            studioSaves.has(toolCallId) && !isErrorToolResult(output),
-    );
-    return isSaving ? DBT_SAVE_CARD_REPLY : null;
-};
-
 export const getTurnFastResponse = (
     enableDataAnswerFastResponse: boolean,
     turnIntent: TurnIntent | null | undefined,
-    steps: ReadonlyArray<FastChartStep>,
+    steps: ReadonlyArray<AgentTurnStep>,
     siteUrl: string,
-    isStudioThread: boolean,
+    turnCard: TurnCard | null,
 ) => {
     // Asking ends the turn on any intent; the questions are its reply.
     const askUserResponse = getAskUserResponse(steps);
     if (askUserResponse !== null) return askUserResponse;
     // The main chat's save keeps its own reply.
-    const studioCardResponse = isStudioThread
-        ? getStudioCardResponse(steps)
-        : null;
-    if (studioCardResponse !== null) return studioCardResponse;
+    const cardResponse = turnCard?.getResponse(steps) ?? null;
+    if (cardResponse !== null) return cardResponse;
     if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
         return getDataAnswerFastResponse(steps);
     if (turnIntent === 'chart_from_previous')
@@ -2829,8 +2772,8 @@ export const getAgentMessages = (
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         studio: loadout.promptSections.has('semanticStudio')
             ? getSemanticStudioTurn(loadout, {
-                  drafts: args.semanticStudioDrafts,
-                  projectMap: args.semanticStudioProjectMap,
+                  drafts: args.studio?.drafts ?? false,
+                  projectMap: args.studio?.projectMap ?? null,
                   repoFsRoot: args.repoFsRoot,
                   repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
               })
@@ -3252,7 +3195,7 @@ const runGenerateAgentResponse = async ({
                         preparedContext?.turnIntent,
                         steps,
                         args.siteUrl,
-                        args.isSemanticStudioThread,
+                        args.turnCard,
                     ) !== null,
             ],
             abortSignal,
@@ -3511,7 +3454,7 @@ const runGenerateAgentResponse = async ({
                       preparedContext?.turnIntent,
                       result.steps,
                       args.siteUrl,
-                      args.isSemanticStudioThread,
+                      args.turnCard,
                   ) ?? result.text),
             result.steps,
         );
@@ -3698,9 +3641,9 @@ const runStreamAgentResponse = async ({
             });
         const fastToolCalls = new Map<
             string,
-            FastChartStep['toolCalls'][number]
+            AgentTurnStep['toolCalls'][number]
         >();
-        const fastToolResults: FastChartStep['toolResults'][number][] = [];
+        const fastToolResults: AgentTurnStep['toolResults'][number][] = [];
         let fastStreamResponse: string | null = null;
         timing.recordPreparationFinished();
         const result = streamText({
@@ -3716,7 +3659,7 @@ const runStreamAgentResponse = async ({
                         preparedContext?.turnIntent,
                         steps,
                         args.siteUrl,
-                        args.isSemanticStudioThread,
+                        args.turnCard,
                     ) !== null,
             ],
             providerOptions: args.providerOptions,
@@ -3888,7 +3831,7 @@ const runStreamAgentResponse = async ({
                                     },
                                 ],
                                 args.siteUrl,
-                                args.isSemanticStudioThread,
+                                args.turnCard,
                             );
                         }
                         logger(
@@ -4087,14 +4030,15 @@ const runStreamAgentResponse = async ({
                               preparedContext?.turnIntent,
                               steps,
                               args.siteUrl,
-                              args.isSemanticStudioThread,
+                              args.turnCard,
                           ) ?? modelResponse),
                     steps,
                 );
-                const completeResponse = withStudioCardReply(
-                    agentContext.responseBlocks.render(responseText),
-                    steps,
-                );
+                const renderedResponse =
+                    agentContext.responseBlocks.render(responseText);
+                const completeResponse =
+                    args.turnCard?.withReply(renderedResponse, steps) ??
+                    renderedResponse;
 
                 const stepCapReached = steps.length >= args.execution.maxSteps;
 
