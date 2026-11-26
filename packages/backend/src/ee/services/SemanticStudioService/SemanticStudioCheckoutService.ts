@@ -4,12 +4,14 @@ import {
     getErrorMessage,
     isExploreError,
     isPullRequestOpen,
+    isSemanticStudioThread,
     isUserManagedExplore,
     JobStatusType,
     NotFoundError,
     ParameterError,
     ProjectType,
     type AiAgentSummary,
+    type AiThreadCreatedFrom,
     type CompileSemanticStudioBranchPayload,
     type Explore,
     type ExploreError,
@@ -87,7 +89,6 @@ export type SemanticStudioCheckoutServiceArguments = {
     workspaceModel: Pick<
         SemanticStudioWorkspaceModel,
         | 'findStudioThread'
-        | 'findStudioThreadAgentUuid'
         | 'findInProject'
         | 'find'
         | 'findActive'
@@ -492,18 +493,13 @@ export class SemanticStudioCheckoutService extends BaseService {
     async findAgentWritebackSetup({
         user,
         projectUuid,
-        threadUuid,
+        threadCreatedFrom,
     }: {
         user: SessionUser;
         projectUuid: string;
-        threadUuid: string;
+        threadCreatedFrom: AiThreadCreatedFrom | undefined;
     }): Promise<AgentWritebackSetup | null> {
-        const isStudioThread =
-            (await this.workspaceModel.findStudioThreadAgentUuid(
-                projectUuid,
-                threadUuid,
-            )) !== null;
-        return isStudioThread
+        return isSemanticStudioThread(threadCreatedFrom)
             ? this.getAgentWritebackSetup(user, projectUuid)
             : null;
     }
