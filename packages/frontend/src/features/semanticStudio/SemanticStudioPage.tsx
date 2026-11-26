@@ -16,6 +16,10 @@ import ErrorState from '../../components/common/ErrorState';
 import Page from '../../components/common/Page/Page';
 import ForbiddenPanel from '../../components/ForbiddenPanel';
 import { usePrefetchStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
+import {
+    ChatThreadsUrlContext,
+    getStudioChatThreadsUrl,
+} from '../../ee/features/aiCopilot/hooks/chatEndpoints';
 import { useExplores } from '../../hooks/useExplores';
 import { useProject } from '../../hooks/useProject';
 import useApp from '../../providers/App/useApp';
@@ -199,13 +203,17 @@ const SemanticStudioPage: FC = () => {
     return (
         <Page title="Semantic Layer" withFullHeight noContentPadding>
             <StudioCheckoutProvider value={checkout}>
-                <WorkbenchView
-                    project={realProject}
-                    permissions={permissions}
-                    canOpenSettings={canOpenSettings}
-                    route={route}
-                    onNavigate={onNavigate}
-                />
+                <ChatThreadsUrlContext.Provider
+                    value={getStudioChatThreadsUrl(projectUuid)}
+                >
+                    <WorkbenchView
+                        project={realProject}
+                        permissions={permissions}
+                        canOpenSettings={canOpenSettings}
+                        route={route}
+                        onNavigate={onNavigate}
+                    />
+                </ChatThreadsUrlContext.Provider>
             </StudioCheckoutProvider>
         </Page>
     );

@@ -26,6 +26,7 @@ const held = vi.hoisted(() => ({
     } | null,
     claim: vi.fn(),
     send: vi.fn(),
+    seedAgent: vi.fn(),
 }));
 
 vi.mock('../../../../../hooks/toaster/useToaster', () => ({
@@ -43,6 +44,11 @@ vi.mock('../../hooks/useProjectAiAgents', () => ({
         return { data: undefined };
     },
     useCreateAgentThreadMessageMutation: () => ({ mutate: held.send }),
+    getProjectAiAgentQueryKey: (project: string, agent: string) => [
+        'projectAiAgents',
+        project,
+        agent,
+    ],
 }));
 
 vi.mock('../../../../../features/semanticStudio/useStudioWorkspaces', () => ({
@@ -72,6 +78,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
         isInitialLoading: false,
         error: null,
     }),
+    useQueryClient: () => ({ setQueryData: held.seedAgent }),
 }));
 
 // Each read mounts a fresh hook, so a value has to survive a remount to be seen.
@@ -144,6 +151,14 @@ it('starts new chats on the built-in agent, whatever agents the project has', ()
     const { result } = renderHook(() => useStudioAgent('new-project'));
     expect(result.current.agent?.uuid).toBe('studio-agent');
     expect(result.current.thread).toBe(null);
+});
+
+it('hands the built-in agent to the chat, which never asks for it', () => {
+    renderHook(() => useStudioAgent('new-project'));
+    expect(held.seedAgent).toHaveBeenCalledWith(
+        ['projectAiAgents', 'new-project', 'studio-agent'],
+        { uuid: 'studio-agent' },
+    );
 });
 
 it('keeps a chat started on another agent with that agent', () => {

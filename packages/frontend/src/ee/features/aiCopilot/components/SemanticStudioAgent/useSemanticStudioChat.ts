@@ -1,6 +1,6 @@
 import { FeatureFlags, type AiAgent, type ApiError } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import {
@@ -22,6 +22,7 @@ import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import {
+    getProjectAiAgentQueryKey,
     useAiAgentThread,
     useCreateAgentThreadMessageMutation,
 } from '../../hooks/useProjectAiAgents';
@@ -38,7 +39,8 @@ const useStudioChatEnabled = (projectUuid: string): boolean => {
 /** The project's built-in Studio agent, which the server creates the first time it is asked for. */
 const useBuiltInStudioAgent = (projectUuid: string, enabled: boolean) => {
     const lightdashApi = useLightdashApi();
-    return useQuery<AiAgent, ApiError>({
+    const queryClient = useQueryClient();
+    const query = useQuery<AiAgent, ApiError>({
         queryKey: ['semantic-studio-agent', projectUuid],
         queryFn: () =>
             lightdashApi<AiAgent>({
@@ -50,6 +52,16 @@ const useBuiltInStudioAgent = (projectUuid: string, enabled: boolean) => {
         staleTime: Infinity,
         retry: false,
     });
+    const agent = query.data;
+    // The chat reads its agent from the cache and never asks for it.
+    useEffect(() => {
+        if (!agent) return;
+        queryClient.setQueryData(
+            getProjectAiAgentQueryKey(projectUuid, agent.uuid),
+            agent,
+        );
+    }, [agent, projectUuid, queryClient]);
+    return query;
 };
 
 /** The built-in agent plus the project's own, which chats started before the built-in one still belong to. */
