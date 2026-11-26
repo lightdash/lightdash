@@ -18,7 +18,12 @@ import { generateKeyPairSync, randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type ApiClient, type Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
-import { mcpText, openMcpSession, personalAccessTokens } from '../helpers/mcp';
+import {
+    mcpText,
+    openMcpSession,
+    personalAccessTokens,
+    runMcpSql,
+} from '../helpers/mcp';
 import { pollUntil } from '../helpers/polling';
 import {
     bigqueryWarehouseConfig,
@@ -87,7 +92,7 @@ describe.skipIf(!hasBigqueryCredentials())(
         };
 
         const runAgentSql = () =>
-            callTool('run_sql', { projectUuid, sql, limit: 1 });
+            runMcpSql(callTool, { projectUuid, sql, limit: 1 });
 
         beforeAll(async () => {
             admin = await login();
@@ -269,15 +274,11 @@ describe.skipIf(!hasBigqueryCredentials())(
                 refusal: null,
             });
             callTool = await openMcpSession(admin);
-            const result = await runAgentSql();
+            const { result, rows } = await runAgentSql();
             expect(result.isError).toBeFalsy();
-            expect(result).toMatchObject({
-                structuredContent: {
-                    result: {
-                        rows: [{ principal: keyfileContents.client_email }],
-                    },
-                },
-            });
+            expect(rows).toMatchObject([
+                { principal: keyfileContents.client_email },
+            ]);
         });
 
         it('refuses MCP SQL for a missing AI service account slot while normal SQL still works', async () => {
@@ -288,7 +289,7 @@ describe.skipIf(!hasBigqueryCredentials())(
             expect(me.body.results.refusal?.reason).toBe(
                 AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
             );
-            const refused = await runAgentSql();
+            const { result: refused } = await runAgentSql();
             expect(refused.isError).toBe(true);
             expect(mcpText(refused)).toContain(
                 getAiAccessRefusalMessage(
@@ -362,15 +363,11 @@ describe.skipIf(!hasBigqueryCredentials())(
                 principalKind: 'service_account',
                 refusal: null,
             });
-            const result = await runAgentSql();
+            const { result, rows } = await runAgentSql();
             expect(result.isError).toBeFalsy();
-            expect(result).toMatchObject({
-                structuredContent: {
-                    result: {
-                        rows: [{ principal: keyfileContents.client_email }],
-                    },
-                },
-            });
+            expect(rows).toMatchObject([
+                { principal: keyfileContents.client_email },
+            ]);
         });
 
         it('refuses MCP SQL with an unrelated RSA key and sanitizes the saved-slot test failure', async () => {
@@ -394,7 +391,7 @@ describe.skipIf(!hasBigqueryCredentials())(
             );
             expectNoSecrets(saved.body);
             expect(saved.status).toBe(200);
-            const refused = await runAgentSql();
+            const { result: refused } = await runAgentSql();
             expectNoSecrets(refused);
             expect(refused.isError).toBe(true);
             expect(mcpText(refused)).toContain(
