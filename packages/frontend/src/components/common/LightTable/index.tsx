@@ -569,6 +569,8 @@ const BaseCell = (
                                         ? `${TABLE_LINE_HEIGHT_PX}px`
                                         : undefined
                                 }
+                                // The full value, unless a tooltip shows on the cell.
+                                title={withTooltip ? undefined : withValue}
                                 __vars={{
                                     '--lt-line-clamp': String(withLineClamp),
                                 }}
@@ -601,6 +603,7 @@ const BaseCell = (
                 toggleCell,
                 cellId,
                 withLineClamp,
+                withValue,
             ]);
 
             return withMenu

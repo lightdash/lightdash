@@ -117,10 +117,12 @@ import {
 } from './getPivotColumnWidths';
 import { getPivotColumnWindows } from './getPivotColumnWindow';
 import {
+    canRenderedRowsClipMergedCells,
     getGroupedDimColumnIds,
     getMergedValueLineClamp,
     getRowSpanMerges,
     getWindowedRowSpanMerge,
+    ROW_OVERSCAN,
 } from './getRowSpanMerges';
 import {
     collectPivotBodyRowValues,
@@ -969,7 +971,7 @@ const PivotTable: FC<PivotTableProps> = ({
         getScrollElement: () => containerRef.current,
         count: projectedRows.length,
         estimateSize: () => CELL_HEIGHT,
-        overscan: 25,
+        overscan: ROW_OVERSCAN,
     });
     const virtualRows = rowVirtualizer.getVirtualItems();
 
@@ -999,6 +1001,9 @@ const PivotTable: FC<PivotTableProps> = ({
         renderIndex: virtualRow.index,
     }));
     const firstRenderedRowIndex = virtualRows[0]?.index ?? 0;
+    const canClipMergedCells = canRenderedRowsClipMergedCells(
+        projectedRows.length,
+    );
     const lastRenderedRowIndex = virtualRows.at(-1)?.index ?? 0;
 
     const getUnderlyingFieldValues = useCallback(
@@ -2498,6 +2503,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             hasUrlActions
                                         }
                                         withLineClamp={
+                                            canClipMergedCells &&
                                             blockRowCount > 1
                                                 ? getMergedValueLineClamp(
                                                       rowSpanMerge?.rowSpan ??

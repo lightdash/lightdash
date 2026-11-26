@@ -35,8 +35,10 @@ import {
 import { getConditionalRuleLabelFromItem } from '../../Filters/FilterInputs/utils';
 import MantineIcon from '../../MantineIcon';
 import {
+    canRenderedRowsClipMergedCells,
     getRowSpanMerges,
     getWindowedRowSpanMerge,
+    ROW_OVERSCAN,
     type RowSpanMerge,
 } from '../../PivotTable/getRowSpanMerges';
 import {
@@ -88,6 +90,7 @@ interface TableRowProps {
     openMenuKey: string | null;
     onToggleMenu: (menuKey: string) => void;
     registerMenuCell: RegisterCell;
+    canClipMergedCells: boolean;
 }
 
 const TableRow: FC<TableRowProps> = ({
@@ -106,6 +109,7 @@ const TableRow: FC<TableRowProps> = ({
     openMenuKey,
     onToggleMenu,
     registerMenuCell,
+    canClipMergedCells,
 }) => {
     const colorScheme = useComputedColorScheme();
     const { table } = useTableContext();
@@ -302,7 +306,9 @@ const TableRow: FC<TableRowProps> = ({
                         columnIndex={columnWindow ? columnIndex + 1 : undefined}
                         minimal={minimal}
                         rowSpan={rowSpanMerge?.rowSpan}
-                        isMergedBlock={blockRowCount > 1}
+                        clampsMergedValue={
+                            canClipMergedCells && blockRowCount > 1
+                        }
                         menuKey={menuKey}
                         isMenuOpen={openMenuKey === menuKey}
                         onToggleMenu={() => onToggleMenu(menuKey)}
@@ -460,7 +466,7 @@ const VirtualizedTableBody: FC<{
         getScrollElement: () => tableContainerRef.current,
         count: rows.length,
         estimateSize: (_index) => ROW_HEIGHT_PX,
-        overscan: 25,
+        overscan: ROW_OVERSCAN,
     });
 
     useEffect(() => {
@@ -592,6 +598,9 @@ const VirtualizedTableBody: FC<{
                               openMenuKey={openMenuKey}
                               onToggleMenu={toggleMenu}
                               registerMenuCell={registerMenuCell}
+                              canClipMergedCells={canRenderedRowsClipMergedCells(
+                                  rows.length,
+                              )}
                           />
                       );
                   })}

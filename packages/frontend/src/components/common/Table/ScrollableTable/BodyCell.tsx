@@ -63,9 +63,10 @@ interface CommonBodyCellProps {
     minimal?: boolean;
     // Set on a row-grouping block-start cell that vertically merges >1 row.
     rowSpan?: number;
-    // Set on a cell of a row-grouping block of more than one row, also when the
-    // rendered rows clip the cell to one row.
-    isMergedBlock?: boolean;
+    // Clamps the value to the lines that fit in the rows the cell covers. Set on
+    // a cell of a row-grouping block of more than one row, also when the
+    // rendered rows clip the cell to one row, if the rendered rows can clip it.
+    clampsMergedValue?: boolean;
     // Lets the parent own the menu state, so it outlives a remount of the cell.
     isMenuOpen?: boolean;
     onToggleMenu?: () => void;
@@ -92,7 +93,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     tooltipContent,
     minimal = false,
     rowSpan,
-    isMergedBlock = false,
+    clampsMergedValue = false,
     isMenuOpen: isMenuOpenProp,
     onToggleMenu,
     menuKey,
@@ -100,7 +101,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
 }) => {
     useRegisterMountedCell(registerMenuCell, menuKey);
     const isMerged = !!rowSpan && rowSpan > 1;
-    const mergedLineClamp = isMergedBlock
+    const mergedLineClamp = clampsMergedValue
         ? getMergedValueLineClamp(
               rowSpan ?? 1,
               ROW_HEIGHT_PX,
@@ -257,6 +258,11 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                         lh={
                             mergedLineClamp > 1
                                 ? `${TABLE_LINE_HEIGHT_PX}px`
+                                : undefined
+                        }
+                        title={
+                            typeof displayValue === 'string'
+                                ? displayValue
                                 : undefined
                         }
                         __vars={{

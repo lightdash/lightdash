@@ -77,6 +77,18 @@ export const getRowSpanMerges = (
     return result;
 };
 
+// Rows the table virtualizers render above and below the viewport.
+export const ROW_OVERSCAN = 25;
+
+/**
+ * The rendered rows clip a merged cell only when the table has more rows than
+ * the virtualizer renders around the viewport. In a smaller table every row is
+ * always rendered, so a merged value can show in full, as before row
+ * virtualization.
+ */
+export const canRenderedRowsClipMergedCells = (rowCount: number) =>
+    rowCount > ROW_OVERSCAN;
+
 // Table text is 13px at the theme's 1.4286 line height, 18.57px a line. Rounded
 // up, so the line count below never shows a line too many.
 export const TABLE_LINE_HEIGHT_PX = 18.6;
