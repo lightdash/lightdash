@@ -87,11 +87,11 @@ const EvaluationRunLink: FC<
         );
     }
 
+    const counts = `${run.passedAssessments} passed · ${run.failedAssessments} failed`;
+
     return (
         <Anchor component={Link} to={runPath} size="sm">
-            {run.status === 'completed'
-                ? `${run.passedAssessments} passed · ${run.failedAssessments} failed`
-                : 'Run failed'}
+            {run.status === 'failed' ? `${counts} · errored` : counts}
         </Anchor>
     );
 };
