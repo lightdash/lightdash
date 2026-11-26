@@ -1,3 +1,10 @@
+## [3.419.1](https://github.com/lightdash/lightdash/compare/3.419.0...3.419.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **snowflake:** reuse one connection per schema for catalog fetch ([#33486](https://github.com/lightdash/lightdash/issues/33486)) ([cc73de6](https://github.com/lightdash/lightdash/commit/cc73de6e2ac7ff5b97d1a913f9cda2826165d629))
+
 # [3.419.0](https://github.com/lightdash/lightdash/compare/3.418.1...3.419.0) (2026-11-26)
 
 
