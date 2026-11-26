@@ -238,10 +238,13 @@ export const useAiAgentEvaluationRunResults = (
     agentUuid: string | undefined,
     evalUuid: string | undefined,
     runUuid: string | undefined,
-    options?: UseQueryOptions<
+    {
+        pollWhileActive,
+        ...options
+    }: UseQueryOptions<
         ApiAiAgentEvaluationRunResultsResponse['results'],
         ApiError
-    >,
+    > & { pollWhileActive?: boolean } = {},
 ) => {
     const lightdashApi = useLightdashApi();
     const handleError = useEvaluationErrorHandler(
@@ -278,6 +281,10 @@ export const useAiAgentEvaluationRunResults = (
             !!evalUuid &&
             !!runUuid &&
             options?.enabled !== false,
+        refetchInterval: (run) =>
+            pollWhileActive && (!run || hasActiveEvaluationRun([run]))
+                ? POLLING_INTERVAL
+                : false,
         ...options,
     });
 };

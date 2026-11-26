@@ -5,8 +5,10 @@ import type {
 } from '@lightdash/common';
 import {
     Anchor,
+    Badge,
     Button,
     Group,
+    Loader,
     LoadingOverlay,
     Paper,
     Stack,
@@ -20,6 +22,8 @@ import { Link, useSearchParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { EvalFormModal } from '../../features/aiCopilot/components/Evals/EvalFormModal';
 import {
+    hasActiveEvaluationRun,
+    useAiAgentEvaluationRunResults,
     useAiAgentEvaluationRuns,
     useAiAgentEvaluations,
     useCreateEvaluation,
@@ -31,28 +35,63 @@ type Props = {
     agentUuid: string;
 };
 
-const runStatusLabels: Record<AiAgentEvaluationRunSummary['status'], string> = {
-    pending: 'Queued',
-    running: 'Running',
-    completed: 'Completed',
-    failed: 'Run failed',
-};
+const EvaluationRunLink: FC<
+    Props & {
+        run: AiAgentEvaluationRunSummary | undefined;
+        evaluationPath: string;
+    }
+> = ({ projectUuid, agentUuid, run, evaluationPath }) => {
+    const isActive = !!run && hasActiveEvaluationRun([run]);
+    const { data: runDetails } = useAiAgentEvaluationRunResults(
+        projectUuid,
+        agentUuid,
+        run?.evalUuid,
+        run?.runUuid,
+        { enabled: isActive, pollWhileActive: true },
+    );
 
-const EvaluationRunLink: FC<{
-    run: AiAgentEvaluationRunSummary | undefined;
-    evaluationPath: string;
-}> = ({ run, evaluationPath }) => {
     if (!run) return <Text c="dimmed">—</Text>;
 
+    const prompts = runDetails?.results ?? [];
+    const finished = prompts.filter(
+        ({ status }) => status === 'completed' || status === 'failed',
+    ).length;
+    const hasStarted =
+        run.status === 'running' ||
+        prompts.some(({ status }) => status !== 'pending');
+    const runPath = `${evaluationPath}/run/${run.runUuid}`;
+
+    if (isActive) {
+        const progress =
+            prompts.length > 0
+                ? `${finished} of ${prompts.length} prompts finished`
+                : 'Checking prompt status';
+
+        return (
+            <Stack gap={4}>
+                <Anchor component={Link} to={runPath} size="sm">
+                    <Badge
+                        variant="light"
+                        color={hasStarted ? 'blue' : 'gray'}
+                        leftSection={<Loader size={10} color="currentColor" />}
+                    >
+                        {hasStarted ? 'In progress' : 'Queued'}
+                    </Badge>
+                </Anchor>
+                <Text size="xs" c="dimmed">
+                    {hasStarted || !runDetails
+                        ? progress
+                        : 'Waiting for a worker'}
+                </Text>
+            </Stack>
+        );
+    }
+
     return (
-        <Anchor
-            component={Link}
-            to={`${evaluationPath}/run/${run.runUuid}`}
-            size="sm"
-        >
+        <Anchor component={Link} to={runPath} size="sm">
             {run.status === 'completed'
                 ? `${run.passedAssessments} passed · ${run.failedAssessments} failed`
-                : runStatusLabels[run.status]}
+                : 'Run failed'}
         </Anchor>
     );
 };
@@ -107,12 +146,16 @@ const EvaluationRow: FC<
                 <>
                     <Table.Td>
                         <EvaluationRunLink
+                            projectUuid={projectUuid}
+                            agentUuid={agentUuid}
                             run={latestRun}
                             evaluationPath={evaluationPath}
                         />
                     </Table.Td>
                     <Table.Td>
                         <EvaluationRunLink
+                            projectUuid={projectUuid}
+                            agentUuid={agentUuid}
                             run={previousRun}
                             evaluationPath={evaluationPath}
                         />
@@ -229,8 +272,8 @@ export const EvalsSetup: FC<Props> = ({ projectUuid, agentUuid }) => {
             </Group>
             {runAll.data && (
                 <Text size="sm" c="dimmed" role="status">
-                    {runAll.data.queued} queued · {runAll.data.skipped} already
-                    active
+                    {runAll.data.queued} submitted · {runAll.data.skipped}{' '}
+                    already active
                     {runAll.data.failures.length > 0 &&
                         ` · ${runAll.data.failures.length} unconfirmed`}
                 </Text>
