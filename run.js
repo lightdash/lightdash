@@ -21,6 +21,11 @@ const shapes = {
         sql: `SELECT g AS id, (g + ${off}) * 10 AS value, 'row ' || g AS label FROM generate_series(1,${n}) g ORDER BY g`,
         check: (row, g) => row[0] === g && row[1] === (g + off) * 10,
     }),
+    hash4: (n) => ({
+        cols: 7,
+        sql: `SELECT encode(sha256(('e'||g)::bytea),'hex') AS email_hash, encode(sha256(('p'||g)::bytea),'hex') AS phone_hash, encode(sha256(('f'||g)::bytea),'hex') AS fn_hash, encode(sha256(('l'||g)::bytea),'hex') AS ln_hash, 'FR' AS country, lpad((((g*37)%95000)+1000)::text,5,'0') AS zip, timestamp '2025-01-01 00:00:00' + (g||' seconds')::interval AS added_at FROM generate_series(1,${n}) g ORDER BY g`,
+        check: (row, g) => row[0] === crypto.createHash('sha256').update(`e${g}`).digest('hex') && row[3] === crypto.createHash('sha256').update(`l${g}`).digest('hex'),
+    }),
     n9: (n, off = 0) => ({
         cols: 9,
         sql: `SELECT g AS id, (g + ${off}) * 10 AS value, 'row ' || g AS label, (ARRAY['a','b','c'])[1 + g % 3] AS category, date '2025-01-01' + g AS day, (g % 2 = 0) AS flag, round((g % 100) / 100.0, 2) AS pct, g * 1.25 AS amount, 'note ' || (g + ${off}) AS note FROM generate_series(1,${n}) g ORDER BY g`,
