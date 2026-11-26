@@ -10,6 +10,8 @@ import {
 
 describe('FileDownloadUtils', () => {
     describe('streamJsonlData', () => {
+        afterEach(() => vi.restoreAllMocks());
+
         it('closes the HTTP response behind a checksum-wrapped body when it stops at maxLines', async () => {
             // The response is still mid-flight: more rows than the cap and
             // no end, like a large results file on AWS S3
