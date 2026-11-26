@@ -773,20 +773,20 @@ const Dashboard: FC = () => {
         setHasParameterOrderChanged(false);
         resetControlDrafts(dashboard.config);
 
+        // Slug, not uuid: from a uuid URL this remounts the provider, dropping unsaved toggles and filter overrides
         if (dashboardTabs.length > 0) {
             void navigate(
-                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/view/tabs/${activeTab?.uuid}`,
                 { replace: true },
             );
         } else {
             void navigate(
-                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/view`,
                 { replace: true },
             );
         }
     }, [
         dashboard,
-        dashboardIdentifier,
         navigate,
         projectUrlIdentifier,
         setDashboardTiles,

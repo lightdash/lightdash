@@ -356,6 +356,8 @@ const Probe = () => {
 };
 
 const DASHBOARD_PATH = `/projects/${PROJECT_UUID}/dashboards/${DASHBOARD_UUID}`;
+// Cancel returns to the slug URL, which remounts the provider
+const SLUG_PATH = `/projects/${PROJECT_UUID}/dashboards/payments`;
 
 const renderDashboard = (path: string) => {
     const element = (
@@ -558,7 +560,7 @@ describe('edit lifecycle: cancel', () => {
         expect(tiles()).toHaveLength(3);
 
         await click('Cancel');
-        await waitFor(() => expect(url()).toBe(`${DASHBOARD_PATH}/view`));
+        await waitFor(() => expect(url()).toBe(`${SLUG_PATH}/view`));
         expect(tiles()).toEqual(makeDashboard().tiles);
         expect(changed()).toBe('false');
         expect(patches()).toHaveLength(0);
