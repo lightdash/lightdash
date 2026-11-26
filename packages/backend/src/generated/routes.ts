@@ -68284,6 +68284,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                superseded: { dataType: 'boolean' },
                 thresholdStatus: { ref: 'ThresholdStatus' },
                 partialFailures: {
                     dataType: 'array',

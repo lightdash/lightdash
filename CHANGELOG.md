@@ -1,3 +1,10 @@
+## [3.411.2](https://github.com/lightdash/lightdash/compare/3.411.1...3.411.2) (2026-11-26)
+
+
+### Bug Fixes
+
+* large Google Sheets syncs fail and leave the sheet blank ([#33462](https://github.com/lightdash/lightdash/issues/33462)) ([5dffe3c](https://github.com/lightdash/lightdash/commit/5dffe3cc100658922a5f9349aa71af869643dfca))
+
 ## [3.411.1](https://github.com/lightdash/lightdash/compare/3.411.0...3.411.1) (2026-11-26)
 
 
