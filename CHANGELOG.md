@@ -1,3 +1,10 @@
+# [3.418.0](https://github.com/lightdash/lightdash/compare/3.417.0...3.418.0) (2026-11-26)
+
+
+### Features
+
+* **semantic-studio:** agent routes serve only agents people made ([#33502](https://github.com/lightdash/lightdash/issues/33502)) ([8eed362](https://github.com/lightdash/lightdash/commit/8eed3621a53034fabf7fc254179b3cc36a525ff2))
+
 # [3.417.0](https://github.com/lightdash/lightdash/compare/3.416.0...3.417.0) (2026-11-26)
 
 
