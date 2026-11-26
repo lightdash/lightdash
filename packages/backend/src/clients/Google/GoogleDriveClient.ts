@@ -55,7 +55,8 @@ const TRANSIENT_OAUTH_ERRORS = new Set([
 ]);
 const GOOGLE_OAUTH_TOKEN_URL = 'oauth2.googleapis.com/token';
 
-// The first swap batch failed with a 400 before any row reached the tab.
+// Google refused to set the filter back in the first swap batch, before
+// any row reached the tab.
 class RejectedSwapError extends Error {
     constructor(readonly googleError: unknown) {
         super(getErrorMessage(googleError));
@@ -390,7 +391,9 @@ export class GoogleDriveClient {
         }
 
         if (GoogleDriveClient.isTokenEndpointFailure(err)) {
-            return new GoogleSheetsTransientError(getErrorMessage(err));
+            return new GoogleSheetsTransientError(
+                GoogleDriveClient.tokenFailureMessage(err),
+            );
         }
 
         if (
@@ -460,6 +463,18 @@ export class GoogleDriveClient {
                 typeof status === 'number' &&
                 status >= 500)
         );
+    }
+
+    // The owner sees this message. Name only a known OAuth error code or the
+    // HTTP status, never the body: it can be a whole HTML page.
+    private static tokenFailureMessage(err: AnyType): string {
+        const error = err?.response?.data?.error;
+        const status = err?.response?.status;
+        const code =
+            typeof error === 'string' && TRANSIENT_OAUTH_ERRORS.has(error)
+                ? error
+                : `HTTP ${typeof status === 'number' ? status : 'error'}`;
+        return `Google's sign-in service failed while it refreshed the access to Google Sheets (${code}). This is a temporary Google error, and the sync tries again.`;
     }
 
     // No HTTP response (DNS, reset, refused, timeout — incl. token refresh) is a
@@ -964,10 +979,20 @@ export class GoogleDriveClient {
         const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
 
+        const jobTimeoutMs =
+            this.lightdashConfig.scheduler?.jobTimeout ??
+            DEFAULT_JOB_TIMEOUT_MS;
+        const budget: RetryBudget = {
+            remainingMs:
+                GSHEETS_RETRY_BUDGET_SHARE_OF_JOB_TIMEOUT * jobTimeoutMs,
+        };
         // Also confirms the file is a Google Sheet: an .xlsx file fails here.
-        const existingSheets = await GoogleDriveClient.listSheetProperties(
-            sheets,
-            fileId,
+        // This first call also refreshes the access token, so retry it here
+        // rather than run the whole job, and its query, again.
+        const existingSheets = await GoogleDriveClient.withWriteRetry(
+            () => GoogleDriveClient.listSheetProperties(sheets, fileId),
+            'read of the tabs',
+            budget,
         );
         // The first visible tab is where a write to range "A1" used to go.
         const wantedTitle =
@@ -1003,15 +1028,8 @@ export class GoogleDriveClient {
         // scheduled run, or two schedulers on one tab). So only delete a
         // staging tab that no live run can own: one from a run that started
         // before the job timeout plus a margin, or with an older name.
-        const jobTimeoutMs =
-            this.lightdashConfig.scheduler?.jobTimeout ??
-            DEFAULT_JOB_TIMEOUT_MS;
         const staleBefore =
             Date.now() - (jobTimeoutMs + STAGING_STALE_MARGIN_MS);
-        const budget: RetryBudget = {
-            remainingMs:
-                GSHEETS_RETRY_BUDGET_SHARE_OF_JOB_TIMEOUT * jobTimeoutMs,
-        };
         const staleStagingSheets = existingSheets.filter((sheet) => {
             const id = stagingRunId(sheet);
             if (id === undefined) return false;
@@ -1281,7 +1299,6 @@ export class GoogleDriveClient {
                 // can no longer paste into this tab. This run pastes every
                 // row afterwards, so their earlier pastes do not stay.
                 const freshTarget = await claimTab();
-                const swapStartedAt = Date.now();
                 const grid = {
                     rowCount: Math.max(targetRowCount, freshTarget.rowCount),
                     columnCount: Math.max(
@@ -1292,57 +1309,10 @@ export class GoogleDriveClient {
                 const growGrid =
                     targetRowCount !== freshTarget.rowCount ||
                     targetColumnCount !== freshTarget.columnCount;
-                try {
-                    await GoogleDriveClient.swapStagingTab(sheets, fileId, {
-                        sheetId,
-                        stagingSheetId: ownTab,
-                        runId,
-                        budget,
-                        pieces: planGoogleSheetsSwapBatches(
-                            chunks,
-                            columnCount,
-                        ),
-                        rowCount,
-                        columnCount,
-                        growGrid,
-                        gridRowCount: grid.rowCount,
-                        gridColumnCount: grid.columnCount,
-                        formatRequests,
-                        basicFilter: freshTarget.basicFilter,
-                        onRowsInTab: (rows) => {
-                            context.rowsInTab = rows;
-                        },
-                    });
-                    Logger.info(
-                        `Swapped ${rowCount} rows from the staging tab into the Google Sheets tab in ${Date.now() - swapStartedAt} ms`,
-                    );
-                } catch (e) {
-                    if (!(e instanceof RejectedSwapError)) throw e;
-                    // Google rejected the shape of the swap before any row
-                    // reached the tab, for example a filter or a table that
-                    // it does not let us set back. Write in place instead,
-                    // as syncs did before the swap, unless a newer run took
-                    // over or the staging tab is gone.
-                    const list = await GoogleDriveClient.listSheetProperties(
-                        sheets,
-                        fileId,
-                    );
-                    const fresh = list.find((s) => s.sheetId === sheetId);
-                    if (
-                        !fresh ||
-                        !list.some((s) => s.sheetId === ownTab) ||
-                        isNewerSyncRun(fresh.claim, runId)
-                    ) {
-                        throw GoogleDriveClient.toGoogleSheetsError(
-                            e.googleError,
-                        );
-                    }
-                    Logger.warn(
-                        `Google Sheets rejected the swap into the tab "${tabTitle}" (${e.message}). Writing the tab in place instead`,
-                    );
-                    context.inPlace = true;
-                    // The staging tab only marks this run from now on, so
-                    // free its cells before the tab grows.
+                // From here the staging tab only marks this run, so free its
+                // cells before the tab grows. A newer run that deleted it
+                // makes this batch fail, and the run stops as superseded.
+                const writeInPlaceInstead = async () => {
                     await GoogleDriveClient.withWriteRetry(
                         () =>
                             sheets.spreadsheets.batchUpdate(
@@ -1371,6 +1341,52 @@ export class GoogleDriveClient {
                         budget,
                     );
                     await writeInPlace(grid);
+                };
+                if (
+                    freshTarget.basicFilter?.tableId !== undefined &&
+                    freshTarget.basicFilter?.tableId !== null
+                ) {
+                    // A filter on a Sheets table was set during the upload.
+                    Logger.info(
+                        `Writing the Google Sheets tab "${tabTitle}" in place: a filter on a Sheets table was set during the upload`,
+                    );
+                    await writeInPlaceInstead();
+                } else {
+                    const swapStartedAt = Date.now();
+                    try {
+                        await GoogleDriveClient.swapStagingTab(sheets, fileId, {
+                            sheetId,
+                            stagingSheetId: ownTab,
+                            runId,
+                            budget,
+                            pieces: planGoogleSheetsSwapBatches(
+                                chunks,
+                                columnCount,
+                            ),
+                            rowCount,
+                            columnCount,
+                            growGrid,
+                            gridRowCount: grid.rowCount,
+                            gridColumnCount: grid.columnCount,
+                            formatRequests,
+                            basicFilter: freshTarget.basicFilter,
+                            onRowsInTab: (rows) => {
+                                context.rowsInTab = rows;
+                            },
+                        });
+                        Logger.info(
+                            `Swapped ${rowCount} rows from the staging tab into the Google Sheets tab in ${Date.now() - swapStartedAt} ms`,
+                        );
+                    } catch (e) {
+                        if (!(e instanceof RejectedSwapError)) throw e;
+                        // Google refused to set the filter back before any
+                        // row reached the tab. Write in place instead, as
+                        // syncs did before the swap.
+                        Logger.warn(
+                            `Google Sheets rejected the swap into the tab "${tabTitle}" (${e.message}). Writing the tab in place instead`,
+                        );
+                        await writeInPlaceInstead();
+                    }
                 }
                 ownSheetId = undefined;
             }
@@ -1769,12 +1785,14 @@ export class GoogleDriveClient {
                 ...(isLast ? finishRequests : []),
             ]);
             const rows = piece.end - piece.start;
-            // Before any batch landed, a 400 means Google does not accept
-            // the shape of the swap for this tab, and the tab is unchanged.
+            // Before any batch landed, Google refused to set the filter back,
+            // and the tab is unchanged.
             const noRowsInTab = batchCount === 0;
+            const isRejectedFilter = (raw: AnyType) =>
+                noRowsInTab && GoogleDriveClient.isRejectedFilterRestore(raw);
             const canSplit = rows >= 2 * GSHEETS_SWAP_MIN_SPLIT_ROWS;
             const stopOn = (raw: AnyType) =>
-                (noRowsInTab && GoogleDriveClient.httpStatus(raw) === 400) ||
+                isRejectedFilter(raw) ||
                 (canSplit && GoogleDriveClient.isRejectedPaste(raw));
             const batchStartedAt = Date.now();
             const label = `tab swap of rows ${piece.start + 1}-${piece.end}`;
@@ -1804,9 +1822,7 @@ export class GoogleDriveClient {
                     );
                 }
             } catch (e) {
-                if (noRowsInTab && GoogleDriveClient.httpStatus(e) === 400) {
-                    throw new RejectedSwapError(e);
-                }
+                if (isRejectedFilter(e)) throw new RejectedSwapError(e);
                 if (!stopOn(e)) throw e;
                 const middle = piece.start + Math.floor(rows / 2);
                 Logger.warn(
@@ -2034,6 +2050,14 @@ export class GoogleDriveClient {
         return (
             GoogleDriveClient.isNetworkError(raw) ||
             (status !== undefined && status >= 500 && status <= 599)
+        );
+    }
+
+    // Google refused the setBasicFilter request of a swap batch.
+    private static isRejectedFilterRestore(raw: AnyType) {
+        return (
+            GoogleDriveClient.httpStatus(raw) === 400 &&
+            /requests\[\d+\]\.setBasicFilter/.test(getErrorMessage(raw))
         );
     }
 
