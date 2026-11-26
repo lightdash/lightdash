@@ -32,6 +32,10 @@ import { getMergedValueLineClamp } from '../../PivotTable/getRowSpanMerges';
 import { ROW_HEIGHT_PX } from '../constants';
 import { Td, type CellStyleProps } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';
+import {
+    useRegisterMountedCell,
+    type RegisterCell,
+} from '../useMountedCellSelection';
 import bodyCellStyles from './BodyCell.module.css';
 import CellMenu from './CellMenu';
 import CellTooltip from './CellTooltip';
@@ -62,6 +66,10 @@ interface CommonBodyCellProps {
     // Lets the parent own the menu state, so it outlives a remount of the cell.
     isMenuOpen?: boolean;
     onToggleMenu?: () => void;
+    // The cell registers its menu key while it is mounted, so the parent can
+    // close a menu whose cell is gone.
+    menuKey?: string;
+    registerMenuCell?: RegisterCell;
 }
 
 const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
@@ -84,7 +92,10 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     isMergedBlock = false,
     isMenuOpen: isMenuOpenProp,
     onToggleMenu,
+    menuKey,
+    registerMenuCell,
 }) => {
+    useRegisterMountedCell(registerMenuCell, menuKey);
     const isMerged = !!rowSpan && rowSpan > 1;
     const elementRef = useRef<HTMLTableCellElement>(null);
     const { showToastSuccess } = useToaster();

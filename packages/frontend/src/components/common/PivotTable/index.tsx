@@ -1397,14 +1397,6 @@ const PivotTable: FC<PivotTableProps> = ({
             {...tableProps}
             containerRef={containerRef}
             isDashboard={isDashboard}
-            renderedRows={
-                virtualRows.length > 0
-                    ? {
-                          firstRow: firstRenderedRowIndex,
-                          lastRow: lastRenderedRowIndex,
-                      }
-                    : undefined
-            }
         >
             <ColumnWindowColGroup columnWindow={columnWindow} />
             {!columnWindow && hasCustomWidths && (
@@ -2460,17 +2452,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 ? rowSpanMerge.rowSpan
                                                 : undefined
                                         }
-                                        mergedRows={
+                                        selectionId={
                                             rowSpanMerge
-                                                ? {
-                                                      key: `merged:${cell.column.id}:${rowSpanMerge.blockStartRow}`,
-                                                      firstRow:
-                                                          rowSpanMerge.blockStartRow,
-                                                      lastRow:
-                                                          rowSpanMerge.blockStartRow +
-                                                          blockRowCount -
-                                                          1,
-                                                  }
+                                                ? `merged:${cell.column.id}:${rowSpanMerge.blockStartRow}`
                                                 : undefined
                                         }
                                         className={
