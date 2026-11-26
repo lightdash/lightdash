@@ -1,7 +1,7 @@
 import { type ResultRow } from '@lightdash/common';
 import { type Cell } from '@tanstack/react-table';
 import { fireEvent, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import BodyCell from './BodyCell';
 
@@ -78,24 +78,43 @@ const renderClampedCell = ({
     return screen.getByRole('cell').querySelector(':scope > span')!;
 };
 
+// A rough layout: the value is two lines tall and the clamp shows one.
+const mockCutValue = () => {
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(40);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(20);
+};
+
 describe('BodyCell clamped merged value', () => {
-    it('has the full value in its title', () => {
-        expect(renderClampedCell()).toHaveAttribute(
-            'title',
-            'West\nsecond line',
-        );
+    afterEach(() => vi.restoreAllMocks());
+
+    it('has the full value in its title on hover when the clamp cuts it', () => {
+        mockCutValue();
+        const value = renderClampedCell();
+        expect(value).not.toHaveAttribute('title');
+        fireEvent.mouseEnter(value);
+        expect(value).toHaveAttribute('title', 'West\nsecond line');
+    });
+
+    it('has no title when the clamp cuts nothing', () => {
+        const value = renderClampedCell();
+        fireEvent.mouseEnter(value);
+        expect(value).not.toHaveAttribute('title');
     });
 
     it('has no title when the cell shows a tooltip', () => {
-        expect(
-            renderClampedCell({ tooltipContent: 'Value is West' }),
-        ).not.toHaveAttribute('title');
+        mockCutValue();
+        const value = renderClampedCell({ tooltipContent: 'Value is West' });
+        fireEvent.mouseEnter(value);
+        expect(value).not.toHaveAttribute('title');
     });
 
     it.each([
         ['an image', { item: { image: { url: 'https://example.com/a.png' } } }],
         ['rich text', { item: { richText: '**${value.raw}**' } }],
     ])('has no title when the cell shows %s', (_, meta) => {
-        expect(renderClampedCell({ meta })).not.toHaveAttribute('title');
+        mockCutValue();
+        const value = renderClampedCell({ meta });
+        fireEvent.mouseEnter(value);
+        expect(value).not.toHaveAttribute('title');
     });
 });
