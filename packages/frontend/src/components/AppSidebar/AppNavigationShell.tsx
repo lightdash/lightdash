@@ -5,6 +5,9 @@ import { type FC, type ReactNode } from 'react';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import { PAGE_SCROLLER_ID } from '../../utils/pageScroller';
 import {
+    APP_ASIDE_MAX_WIDTH,
+    APP_ASIDE_MIN_WIDTH,
+    APP_ASIDE_WIDTH,
     APP_PREVIEW_GUTTER_HEIGHT,
     APP_SIDEBAR_COLLAPSE_THRESHOLD,
     APP_SIDEBAR_MAX_WIDTH,
@@ -16,6 +19,7 @@ import NavBar from '../NavBar';
 import { NavBarRoot } from '../NavBar/NavBarRoot';
 import { SharedSignInExpiryListener } from '../NavBar/SharedSignInExpiryListener';
 import { useNavBarState } from '../NavBar/useNavBarState';
+import { APP_ASIDE_HOST_ID, APP_ASIDE_ID, useIsAppAsideOpen } from './appAside';
 import { AppSidebar } from './AppSidebar';
 import classes from './AppSidebar.module.css';
 import { APP_SIDEBAR_ID } from './appSidebarNavigation';
@@ -31,6 +35,14 @@ import { WorkspaceNoticeGutter } from './WorkspaceNoticeGutter';
 
 const APP_SIDEBAR_WIDTH_STORAGE_KEY = 'app-sidebar:width';
 
+const APP_ASIDE_WIDTH_STORAGE_KEY = 'app-aside:width';
+
+const APP_ASIDE_RESIZE_OPTIONS = {
+    min: APP_ASIDE_MIN_WIDTH,
+    max: APP_ASIDE_MAX_WIDTH,
+    label: 'Resize panel',
+};
+
 const APP_SIDEBAR_RESIZE_OPTIONS = {
     min: APP_SIDEBAR_MIN_WIDTH,
     max: APP_SIDEBAR_MAX_WIDTH,
@@ -45,7 +57,7 @@ const blurResizeEdge = () => {
     if (
         focused instanceof HTMLElement &&
         focused.getAttribute('role') === 'separator' &&
-        focused.closest(`#${APP_SIDEBAR_ID}`) !== null
+        focused.closest(`#${APP_SIDEBAR_ID}, #${APP_ASIDE_ID}`) !== null
     ) {
         focused.blur();
     }
@@ -85,14 +97,28 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
         APP_SIDEBAR_MIN_WIDTH,
         APP_SIDEBAR_MAX_WIDTH,
     );
+    const isAsideOpen = useIsAppAsideOpen() && !isFullscreen;
+    const [storedAsideWidth, setStoredAsideWidth] = useLocalStorage<number>({
+        key: APP_ASIDE_WIDTH_STORAGE_KEY,
+        defaultValue: APP_ASIDE_WIDTH,
+        getInitialValueInEffect: false,
+    });
+    const asideWidth = clamp(
+        storedAsideWidth,
+        APP_ASIDE_MIN_WIDTH,
+        APP_ASIDE_MAX_WIDTH,
+    );
     const resize = useAppShellResize({
         navbar: APP_SIDEBAR_RESIZE_OPTIONS,
-        onResizeEnd: ({ navbar }) => {
+        aside: APP_ASIDE_RESIZE_OPTIONS,
+        onResizeEnd: ({ navbar, aside }) => {
             // A drag that ends in the rail keeps the last expanded width.
             if (navbar !== undefined && !isCollapsed) setStoredWidth(navbar);
-            // The width lives in storage; a size kept by the controller
+            if (aside !== undefined) setStoredAsideWidth(aside);
+            // The widths live in storage; a size kept by the controller
             // would override the rail's.
             resize.navbar.reset();
+            resize.aside.reset();
         },
         onCollapseChange: (section, collapsed) => {
             if (section === 'navbar') setIsCollapsed(collapsed);
@@ -117,6 +143,11 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
                 width: isCollapsed ? APP_SIDEBAR_RAIL_WIDTH : expandedWidth,
                 breakpoint: 0,
                 collapsed: { desktop: isFullscreen, mobile: isFullscreen },
+            }}
+            aside={{
+                width: asideWidth,
+                breakpoint: 0,
+                collapsed: { desktop: !isAsideOpen, mobile: !isAsideOpen },
             }}
             header={{ height: hasGutter ? APP_PREVIEW_GUTTER_HEIGHT : 0 }}
             // Animating the offset would re-measure every chart on each frame.
@@ -153,6 +184,14 @@ const SidebarShell: FC<{ children: ReactNode }> = ({ children }) => {
             <AppShell.Main id={PAGE_SCROLLER_ID} className={classes.main}>
                 {children}
             </AppShell.Main>
+            <AppShell.Aside
+                id={APP_ASIDE_ID}
+                className={classes.aside}
+                data-open={isAsideOpen}
+            >
+                {/* Filled from outside the shell; see appAside. */}
+                <div id={APP_ASIDE_HOST_ID} className={classes.asideHost} />
+            </AppShell.Aside>
         </AppShell>
     );
 };

@@ -474,7 +474,7 @@
     content: '';
     position: fixed;
     top: var(--app-shell-header-offset, 0rem);
-    right: rem(-2px);
+    right: calc(var(--app-shell-aside-offset, 0rem) - rem(2px));
     bottom: 0;
     left: var(--app-shell-navbar-offset, 0rem);
     z-index: calc(var(--mantine-z-index-app) + 21);
@@ -496,6 +496,39 @@
     height: calc(100dvh - var(--app-shell-header-offset, 0rem));
     min-height: 0;
     margin-top: var(--app-shell-header-offset, 0rem);
+    /* A margin, not Mantine's padding, so the scrollbar stops at the aside
+       instead of running underneath it. */
+    margin-inline-end: var(--app-shell-aside-offset, 0rem);
     padding-top: 0;
+    padding-inline-end: 0;
     overflow: auto;
+}
+
+/* Only the aside slides: the page snaps to its new width, so charts measure
+   once instead of on every frame. */
+.aside {
+    --app-shell-border-color: var(--mantine-color-default-border);
+    --app-shell-transition-duration: 200ms;
+    --app-shell-transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+
+    background-color: var(--mantine-color-body);
+}
+
+.aside[data-open='true'] {
+    --app-shell-transition-duration: 300ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aside,
+    .aside[data-open='true'] {
+        --app-shell-transition-duration: 0ms;
+    }
+}
+
+.asideHost {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
 }
