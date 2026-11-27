@@ -204,6 +204,8 @@ export type SyncAnalyticsContentPayload = Partial<TraceTaskBase> & {
 export type CompileSemanticStudioBranchPayload = TraceTaskBase & {
     workspaceUuid: string;
     compileRequestUuid: string;
+    /** Whether the person may run SQL on the project, so the SQL their branch changes may be run; absent on jobs queued before it was kept. */
+    canRunSql?: boolean;
 };
 
 export const EE_SCHEDULER_TASKS = {

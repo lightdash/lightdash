@@ -1076,6 +1076,30 @@ describe('SemanticStudioCheckoutService', () => {
             expect(explores?.get(BRANCH_EXPLORE.name)).toEqual(BRANCH_EXPLORE);
         });
 
+        it('lets the compile run the SQL a branch changes only for someone who may run SQL', async () => {
+            const queued = async (asker: SessionUser) => {
+                const context = onChange();
+                await context.service.queueBranchCompile(
+                    asker,
+                    PROJECT_UUID,
+                    OWN_PULL_REQUEST,
+                    'person',
+                );
+                return context.queueBranchCompile.mock.calls[0][0].canRunSql;
+            };
+            expect(await queued(repoWriter)).toBe(false);
+            expect(
+                await queued(
+                    withAbility([
+                        { subject: 'DeployProject', action: 'manage' },
+                        { subject: 'Project', action: 'view' },
+                        { subject: 'SourceCode', action: 'manage' },
+                        { subject: 'SqlRunner', action: 'manage' },
+                    ]),
+                ),
+            ).toBe(true);
+        });
+
         it('queues nothing for a pull request that is not one of your changes, or on a project kept on the server', async () => {
             const other = onChange();
             await other.service.queueBranchCompile(

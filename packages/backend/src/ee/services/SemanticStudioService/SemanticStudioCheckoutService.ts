@@ -314,6 +314,10 @@ export class SemanticStudioCheckoutService extends BaseService {
             userUuid: user.userUuid,
             workspaceUuid,
             compileRequestUuid,
+            canRunSql: this.createAuditedAbility(user).can(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            ),
         });
     }
 
@@ -738,6 +742,7 @@ export class SemanticStudioCheckoutService extends BaseService {
         userUuid,
         workspaceUuid,
         compileRequestUuid,
+        canRunSql,
     }: CompileSemanticStudioBranchPayload): Promise<void> {
         const timings = startStepTimings();
         let outcome: 'ready' | 'failed' | 'no_pull_request' | 'no_branch' =
@@ -791,6 +796,10 @@ export class SemanticStudioCheckoutService extends BaseService {
                         projectUuid,
                         branch,
                         async (branchCompile) => {
+                            // Rendering runs the branch's SQL, and its explores then read it.
+                            if (canRunSql !== true) {
+                                return branchCompile.explores;
+                            }
                             const rendered =
                                 await this.readUnbuiltModelsFromSql(
                                     projectUuid,

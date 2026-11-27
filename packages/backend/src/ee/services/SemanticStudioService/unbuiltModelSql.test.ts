@@ -147,6 +147,27 @@ describe('renderDraftSqlFrom', () => {
             '(\nWITH __draft__model_shop_usage AS (\nwith e as (select 1) select *\n)\nSELECT * FROM __draft__model_shop_usage\n)',
         );
     });
+
+    it('leaves a longer table name that starts with an unbuilt one alone', () => {
+        const unquoted = (name: string, parents: string[] = []): SqlModel => ({
+            ...model(name, 'select 1', parents),
+            relation_name: `db.s.${name}`,
+        });
+        expect(
+            renderDraftSqlFrom(
+                [unquoted('usage'), unquoted('report', ['usage'])],
+                new Map([
+                    ['model.shop.usage', 'select 1 as id'],
+                    [
+                        'model.shop.report',
+                        'select * from db.s.usage join db.s.usage_daily using (id)',
+                    ],
+                ]),
+            ),
+        ).toContain(
+            'select * from __draft__model_shop_usage join db.s.usage_daily using (id)',
+        );
+    });
 });
 
 describe('withDraftSqlFrom', () => {

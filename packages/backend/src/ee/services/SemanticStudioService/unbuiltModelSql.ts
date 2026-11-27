@@ -5,6 +5,7 @@ import {
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
+import { escapeRegExp } from 'es-toolkit/compat';
 
 /** Bounds how much SQL dbt renders for one branch compile. */
 const MAX_RENDERED_MODELS = 25;
@@ -77,6 +78,10 @@ const orderUnbuiltLineage = (
 const cteName = (model: SqlModel) =>
     `__draft__${model.unique_id.replace(/[^A-Za-z0-9_]/g, '_')}`;
 
+/** Matches a table's name where it stands alone, not inside a longer name such as usage_daily. */
+const tableReference = (relationName: string) =>
+    new RegExp(`(?<![\\w$])${escapeRegExp(relationName)}(?![\\w$])`, 'g');
+
 /** A query that reads a model as the branch defines it, with every unbuilt model it reads rendered in place of its table; null when one has no SQL to render. */
 export const renderDraftSqlFrom = (
     lineage: SqlModel[],
@@ -96,7 +101,10 @@ export const renderDraftSqlFrom = (
             (rendered, other) =>
                 other === model || !other.relation_name
                     ? rendered
-                    : rendered.replaceAll(other.relation_name, cteName(other)),
+                    : rendered.replace(
+                          tableReference(other.relation_name),
+                          cteName(other),
+                      ),
             sql.replace(/;\s*$/, ''),
         );
         ctes.push(`${cteName(model)} AS (\n${body}\n)`);
