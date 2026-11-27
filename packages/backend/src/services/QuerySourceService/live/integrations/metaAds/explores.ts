@@ -5,8 +5,8 @@ import {
     metric,
     NON_ADDITIVE,
     ratio,
-} from '../../explores/declare';
-import type { LiveExploreDefinition } from '../../explores/definition';
+    type LiveExploreDefinition,
+} from '../../sdk';
 import { META_ADS_DEFAULT_DAYS } from './api';
 import {
     META_ADS_DATE_FILTERS,

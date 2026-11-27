@@ -1,6 +1,10 @@
 import { DimensionType, MetricType } from '@lightdash/common';
-import { ADDITIVE, dimension, metric } from '../../explores/declare';
-import type { LiveExploreDefinition } from '../../explores/definition';
+import {
+    ADDITIVE,
+    dimension,
+    metric,
+    type LiveExploreDefinition,
+} from '../../sdk';
 import { HUBSPOT_MAX_FILTERS, HUBSPOT_MAX_ROWS } from './api';
 import { HUBSPOT_CHOICE_FILTERS, HUBSPOT_DATE_FILTERS } from './filters';
 

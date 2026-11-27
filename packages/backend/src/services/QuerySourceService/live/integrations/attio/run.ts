@@ -7,15 +7,14 @@ import {
     getAttioRecordsQueryPath,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
-import { readRowsWithinCap } from '../../query/rows';
 import {
-    type LiveCalls,
+    assertMaxRows,
+    readRowsWithinCap,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-    type LiveScanResult,
-} from '../../types';
+    type LiveRuntime,
+} from '../../sdk';
 import { ATTIO_MAX_PAGES, ATTIO_MAX_RECORDS, ATTIO_PAGE_SIZE } from './api';
 import { parseAttioApiName, type AttioValueProperty } from './attributes';
 import { AttioObjectAccessError } from './errors';
@@ -196,7 +195,7 @@ const membersResponseSchema = z.object({
  */
 const readMemberNames = async (
     columns: string[],
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<MemberNames> => {
     const needed = columns.some(
         (column) => parseAttioApiName(column).property === 'member_name',
@@ -205,7 +204,7 @@ const readMemberNames = async (
         return new Map();
     }
     try {
-        const { data } = await calls.fetch(
+        const { data } = await runtime.fetch(
             {
                 method: 'GET',
                 path: ATTIO_WORKSPACE_MEMBERS_PATH,
@@ -256,12 +255,12 @@ const readRecords = async ({
     object,
     request,
     requestedRows,
-    calls,
+    runtime,
 }: {
     object: string;
     request: AttioRequest;
     requestedRows: number;
-    calls: LiveCalls;
+    runtime: LiveRuntime;
 }) => {
     const records: AttioRecord[] = [];
     const { hasMoreRows } = await readRowsWithinCap({
@@ -272,7 +271,7 @@ const readRecords = async ({
         maxPages: ATTIO_MAX_PAGES,
         fetchPage: async ({ limit, cursor }) => {
             const offset = cursor ? Number(cursor) : 0;
-            const { data } = await calls.fetch(
+            const { data } = await runtime.fetch(
                 {
                     method: 'POST',
                     path: getAttioRecordsQueryPath(object),
@@ -303,7 +302,7 @@ const readRecords = async ({
 export const runAttioQuery = async ({
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.ATTIO,
     AttioRequest
@@ -316,9 +315,9 @@ export const runAttioQuery = async ({
             object: request.object,
             request,
             requestedRows: limit,
-            calls,
+            runtime,
         }),
-        readMemberNames(columns, calls),
+        readMemberNames(columns, runtime),
     ]);
     const rows = records.map((record) =>
         Object.fromEntries(
@@ -337,6 +336,9 @@ export const runAttioQuery = async ({
     };
 };
 
+/** Each standard object's attribute list, by slug, as Attio returns it. */
+export type AttioCatalog = { attioAttributes?: unknown };
+
 /**
  * Reads each object's attributes, which become its explore's fields. An
  * object the token can't read, or the workspace lacks, keeps its built-in
@@ -344,13 +346,13 @@ export const runAttioQuery = async ({
  * the last good scan stays.
  */
 export const scanAttioAttributes = async ({
-    calls,
+    runtime,
 }: {
-    calls: LiveCalls;
-}): Promise<LiveScanResult> => {
+    runtime: LiveRuntime;
+}): Promise<AttioCatalog> => {
     const results = await Promise.allSettled(
         ATTIO_OBJECTS.map((object) =>
-            calls.fetch(
+            runtime.fetch(
                 {
                     method: 'GET',
                     path: getAttioAttributesPath(object),

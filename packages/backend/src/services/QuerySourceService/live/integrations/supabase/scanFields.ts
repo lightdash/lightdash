@@ -1,9 +1,9 @@
 import { DimensionType } from '@lightdash/common';
 import { z } from 'zod';
-import type {
-    LiveDimensionDefinition,
-    LiveExploreDefinition,
-} from '../../explores/definition';
+import {
+    type LiveDimensionDefinition,
+    type LiveExploreDefinition,
+} from '../../sdk';
 import {
     SUPABASE_BOOLEAN_FILTERS,
     SUPABASE_DATE_FILTERS,

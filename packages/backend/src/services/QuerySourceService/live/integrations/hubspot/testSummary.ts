@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { formatTestCount } from '../../integration';
-import { type LiveTestSummary } from '../../types';
+import { formatTestCount, type LiveTestSummary } from '../../sdk';
 
 // The setup test lists the object's properties
 const testResponseSchema = z.object({ results: z.array(z.unknown()) });

@@ -93,6 +93,8 @@ export type LiveRateLimits = {
  * into its definition. Prose sections carry a `description`; rate limits
  * are numbers, with a `note` only when the numbers can't say it.
  */
+export type LiveIntegrationKind = 'reports' | 'records' | 'sql';
+
 export type LiveIntegrationSpec = {
     /**
      * How much the API answers by itself: 5 runs SQL, 4 its own query
@@ -100,6 +102,12 @@ export type LiveIntegrationSpec = {
      * totals, 1 only lists records.
      */
     level: { value: LiveIntegrationLevel; description: string };
+    /**
+     * How Integrations 2.0 answers it: `reports` when the API computes
+     * totals at a grain, `records` when it returns rows, `sql` when it runs a
+     * query language. Nothing reads it yet.
+     */
+    kind: LiveIntegrationKind;
     /**
      * How hard access is, for testers and for customers connecting.
      * Token and OAuth are separate ways in.

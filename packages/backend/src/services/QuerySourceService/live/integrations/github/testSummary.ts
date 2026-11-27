@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { formatTestCount } from '../../integration';
-import { type LiveTestSummary } from '../../types';
+import { formatTestCount, type LiveTestSummary } from '../../sdk';
 
 // The setup test searches the repository's pull requests
 const testResponseSchema = z.object({ total_count: z.number() });

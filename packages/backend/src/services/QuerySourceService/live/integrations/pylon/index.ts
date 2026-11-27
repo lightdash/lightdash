@@ -11,9 +11,10 @@ import {
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
+    getIsoDateInTimeZone,
     jsonRequest,
-} from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
+    readRule,
+} from '../../sdk';
 import { compilePylonQuery } from './compile';
 import { toPylonError } from './errors';
 import { PYLON_EXPLORES } from './explores';
@@ -43,13 +44,12 @@ export const pylonIntegration = defineLiveIntegration({
     origins: [PYLON_ORIGIN],
     // Searches are POSTs but only read; nothing else on the API is reachable
     access: () => ({
-        pathPrefixes: [
-            PYLON_ISSUES_SEARCH_PATH,
-            PYLON_ACCOUNTS_SEARCH_PATH,
-            PYLON_CONTACTS_SEARCH_PATH,
-            PYLON_USERS_PATH,
+        rules: [
+            readRule('POST', PYLON_ISSUES_SEARCH_PATH),
+            readRule('POST', PYLON_ACCOUNTS_SEARCH_PATH),
+            readRule('POST', PYLON_CONTACTS_SEARCH_PATH),
+            readRule('GET', PYLON_USERS_PATH),
         ],
-        methods: ['GET', 'POST'],
     }),
     limits: {
         callsPerQuery: PYLON_CALLS_PER_QUERY,
@@ -88,6 +88,7 @@ export const pylonIntegration = defineLiveIntegration({
         value: 2,
         description: 'Filtered search returns records but no totals.',
     },
+    kind: 'records',
     auth: {
         description: 'No vendor review is needed.',
         testWith: 'real_account',

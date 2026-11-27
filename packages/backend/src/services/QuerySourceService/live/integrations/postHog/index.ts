@@ -8,7 +8,12 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { z } from 'zod';
-import { ALL_PUSHDOWN_REFUSED, defineLiveIntegration } from '../../integration';
+import {
+    ALL_PUSHDOWN_REFUSED,
+    defineLiveIntegration,
+    describeExplores,
+    readRule,
+} from '../../sdk';
 import { compilePostHogQuery } from './compile';
 import { POSTHOG_EXPLORES } from './explores';
 import {
@@ -25,6 +30,7 @@ import {
     runPostHogQuery,
     scanPostHogProperties,
     toPostHogError,
+    type PostHogCatalog,
 } from './run';
 import {
     isInternalPostHogProperty,
@@ -49,12 +55,10 @@ export const postHogIntegration = defineLiveIntegration({
     settings: CATALOG.settings,
     origins: [POSTHOG_REGION_ORIGINS.us, POSTHOG_REGION_ORIGINS.eu],
     access: ({ projectId }) => ({
-        pathPrefixes: [
-            getPostHogQueryPath(projectId),
-            getPostHogPropertyDefinitionsPrefix(projectId),
+        rules: [
+            readRule('POST', getPostHogQueryPath(projectId)),
+            readRule('GET', getPostHogPropertyDefinitionsPrefix(projectId)),
         ],
-        // GET reads the property definitions the semantic layer scans
-        methods: ['POST', 'GET'],
     }),
     limits: {
         callsPerQuery: 1,
@@ -97,6 +101,7 @@ export const postHogIntegration = defineLiveIntegration({
         value: 5,
         description: 'HogQL is SQL, so PostHog totals everything itself.',
     },
+    kind: 'sql',
     auth: {
         description: 'No vendor review is needed.',
         testWith: 'test_account',
@@ -169,12 +174,19 @@ export const postHogIntegration = defineLiveIntegration({
     run: runPostHogQuery,
     toError: toPostHogError,
     summarizeTest: summarizePostHogTest,
-    scan: {
-        read: scanPostHogProperties,
-        withScannedFields: (definition, scan) =>
-            scan.posthogProperties
-                ? withPostHogPropertyFields(definition, scan.posthogProperties)
-                : definition,
+    discovery: {
+        discover: scanPostHogProperties,
+        describe: describeExplores(
+            POSTHOG_EXPLORES,
+            [],
+            (definition, catalog: PostHogCatalog) =>
+                catalog.posthogProperties
+                    ? withPostHogPropertyFields(
+                          definition,
+                          catalog.posthogProperties,
+                      )
+                    : definition,
+        ),
         isInternalField: isInternalPostHogProperty,
     },
     warehouseSqlBuilder: POSTHOG_SQL_BUILDER,

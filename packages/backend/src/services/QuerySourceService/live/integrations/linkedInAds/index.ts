@@ -8,9 +8,10 @@ import { z } from 'zod';
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
+    getIsoDateInTimeZone,
     jsonRequest,
-} from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
+    readRule,
+} from '../../sdk';
 import { compileLinkedInAdsQuery } from './compile';
 import { LINKEDIN_ADS_EXPLORES } from './explores';
 import { LINKEDIN_ADS_DATE_FILTERS, LINKEDIN_ADS_ID_FILTERS } from './filters';
@@ -40,11 +41,10 @@ export const linkedInAdsIntegration = defineLiveIntegration({
     settings: CATALOG.settings,
     origins: [LINKEDIN_ADS_ORIGIN],
     access: ({ adAccountId }) => ({
-        pathPrefixes: [
-            LINKEDIN_ADS_ANALYTICS_PATH,
-            getLinkedInAdsAccountPath(adAccountId),
+        rules: [
+            readRule('GET', LINKEDIN_ADS_ANALYTICS_PATH),
+            readRule('GET', getLinkedInAdsAccountPath(adAccountId)),
         ],
-        methods: ['GET'],
         headers: LINKEDIN_ADS_REQUEST_HEADERS,
     }),
     limits: {
@@ -87,6 +87,7 @@ export const linkedInAdsIntegration = defineLiveIntegration({
         value: 3,
         description: 'adAnalytics returns totals per pivot and time grain.',
     },
+    kind: 'reports',
     auth: {
         description:
             "Needs Advertising API approval: Development tier first, then Standard tier to read customers' ad accounts.",

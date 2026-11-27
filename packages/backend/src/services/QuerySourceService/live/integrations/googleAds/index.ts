@@ -5,8 +5,12 @@ import {
     TimeFrames,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { ALL_PUSHDOWN_REFUSED, defineLiveIntegration } from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
+import {
+    ALL_PUSHDOWN_REFUSED,
+    defineLiveIntegration,
+    getIsoDateInTimeZone,
+    readRule,
+} from '../../sdk';
 import { assertGoogleSignIn } from '../google/signIn';
 import { compileGoogleAdsQuery } from './compile';
 import { toGoogleAdsApiError } from './errors';
@@ -37,8 +41,7 @@ export const googleAdsIntegration = defineLiveIntegration({
     // Google's only Ads scope also allows changes, so the source reaches
     // nothing but the read-only report endpoint of its one account.
     access: ({ customerId, loginCustomerId }) => ({
-        pathPrefixes: [getGoogleAdsSearchPath(customerId)],
-        methods: ['POST'],
+        rules: [readRule('POST', getGoogleAdsSearchPath(customerId))],
         headers: loginCustomerId
             ? { 'login-customer-id': loginCustomerId }
             : null,
@@ -92,6 +95,7 @@ export const googleAdsIntegration = defineLiveIntegration({
         description:
             'GAQL reports return totals by the segments you pick (date, campaign, ad group).',
     },
+    kind: 'reports',
     auth: {
         description:
             'Needs Google verification plus a Google Ads access level: Explorer, then Basic or Standard for real customer volume.',

@@ -9,9 +9,9 @@ import {
     getApiName,
     getLiveDefinitionName,
     getLiveExplore,
+    resolveAbsoluteDateRange,
     type LiveCompiledRequest,
-} from '../../explores/definition';
-import { resolveAbsoluteDateRange } from '../../query/dateRange';
+} from '../../sdk';
 import { type HydraReportName, type HydraReportRequest } from './report';
 
 const isReportName = (name: string): name is HydraReportName =>

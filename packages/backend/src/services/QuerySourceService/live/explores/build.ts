@@ -22,7 +22,7 @@ import { createHash } from 'crypto';
 import { isPlainObject, memoize } from 'es-toolkit/compat';
 import { tooManyRowsError } from '../query/rows';
 import { getLiveIntegration, isLiveIntegrationRegistered } from '../registry';
-import { type LiveCapabilities, type LiveScanResult } from '../types';
+import { type LiveCapabilities, type LiveCatalog } from '../types';
 import {
     buildLiveExplore,
     getApiName,
@@ -122,7 +122,9 @@ export const getLiveScannedModels = (
     const {
         definitions: [wide, ...others],
     } = getLiveBaseLayer(connector);
-    const models = new Set(getLiveIntegration(connector).scan?.models ?? []);
+    const models = new Set(
+        getLiveIntegration(connector).discovery?.models ?? [],
+    );
     return [
         { model: null, definition: wide },
         ...others
@@ -134,14 +136,19 @@ export const getLiveScannedModels = (
 /** The fields a scan found beyond the integration's built-in ones. */
 export const toScannedLiveSourceFields = (
     connector: ApiConnectorType,
-    scan: LiveScanResult,
+    catalog: LiveCatalog,
 ): ScannedLiveSourceField[] => {
-    const { scan: scanning } = getLiveIntegration(connector);
+    const { discovery } = getLiveIntegration(connector);
     const isInternal = (apiName: string) =>
-        scanning?.isInternalField?.(apiName) ?? false;
+        discovery?.isInternalField?.(apiName) ?? false;
+    const described = new Map(
+        (discovery?.describe(catalog) ?? []).map((definition) => [
+            definition.name,
+            definition,
+        ]),
+    );
     return getLiveScannedModels(connector).flatMap(({ model, definition }) => {
-        const scanned =
-            scanning?.withScannedFields(definition, scan) ?? definition;
+        const scanned = described.get(definition.name) ?? definition;
         const builtInNames = new Set([
             ...definition.dimensions.map(({ name }) => name),
             ...definition.metrics.map(({ name }) => name),

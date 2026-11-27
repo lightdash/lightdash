@@ -11,10 +11,11 @@ import {
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
+    getIsoDateInTimeZone,
     jsonRequest,
-} from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
-import { type LiveLimits } from '../../types';
+    readRule,
+    type LiveLimits,
+} from '../../sdk';
 import { compileHydraQuery } from './compile';
 import { getHydraDeclaredLimits } from './declaredLimits';
 import { toHydraError } from './errors';
@@ -46,8 +47,10 @@ export const hydraIntegration = defineLiveIntegration({
     settings: CATALOG.settings,
     origins: [HYDRA_ORIGIN],
     access: () => ({
-        pathPrefixes: [HYDRA_REPORT_PATH, HYDRA_ACCOUNT_PATH],
-        methods: ['GET', 'POST'],
+        rules: [
+            readRule('POST', HYDRA_REPORT_PATH),
+            readRule('GET', HYDRA_ACCOUNT_PATH),
+        ],
     }),
     limits: LIMITS,
     rateLimitsFor: getHydraDeclaredLimits,
@@ -79,6 +82,7 @@ export const hydraIntegration = defineLiveIntegration({
         description:
             'Reports return totals per dimension, filtered and sorted by the API.',
     },
+    kind: 'reports',
     auth: {
         description:
             'A test integration: any token signs in, and each token seeds its own rows.',

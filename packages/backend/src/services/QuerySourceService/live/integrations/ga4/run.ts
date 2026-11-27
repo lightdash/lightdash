@@ -4,14 +4,13 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
 import {
-    type LiveCalls,
+    assertMaxRows,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-    type LiveScanResult,
-} from '../../types';
+    type LiveRuntime,
+} from '../../sdk';
 
 export const GA4_DATA_ORIGIN = 'https://analyticsdata.googleapis.com';
 
@@ -104,15 +103,18 @@ const toNumber = (value: string | undefined) => {
     return Number.isFinite(number) ? number : null;
 };
 
+/** The property's metadata, as GA4 returns it. */
+export type Ga4Catalog = { ga4Metadata?: unknown };
+
 /** Reads the property's dimensions and metrics, including its custom ones. */
 export const scanGa4Metadata = async ({
     settings: { propertyId },
-    calls,
+    runtime,
 }: {
     settings: { propertyId: string };
-    calls: LiveCalls;
-}): Promise<LiveScanResult> => {
-    const response = await calls.send({
+    runtime: LiveRuntime;
+}): Promise<Ga4Catalog> => {
+    const response = await runtime.send({
         method: 'GET',
         path: getGa4MetadataPath(propertyId),
         body: null,
@@ -125,11 +127,11 @@ export const runGa4Query = async ({
     settings: { propertyId },
     request: { limit: requestLimit, ...request },
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<ApiConnectorType.GA4, Ga4Request>): Promise<LiveRunResult> => {
     assertMaxRows(limit, GA4_MAX_QUERY_ROWS);
     const rowLimit = Math.min(limit, requestLimit ?? limit);
-    const report = await calls.fetch(
+    const report = await runtime.fetch(
         {
             method: 'POST',
             path: getGa4ReportPath(propertyId),

@@ -15,12 +15,13 @@ import {
 import {
     getActiveFilterRules,
     getApiName,
+    getLiveDateRange,
     getLiveDefinitionName,
     getLiveExplore,
+    refuseLiveQuery,
+    toAbsoluteDateRange,
     type LiveCompiledRequest,
-} from '../../explores/definition';
-import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
-import { refuseLiveQuery } from '../../query/refuse';
+} from '../../sdk';
 import {
     HUBSPOT_COUNT_REASON,
     HUBSPOT_LABEL_SUFFIX,

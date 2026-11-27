@@ -13,9 +13,11 @@ import {
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
+    describeExplores,
+    getIsoDateInTimeZone,
     jsonRequest,
-} from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
+    readRule,
+} from '../../sdk';
 import { HUBSPOT_MAX_PAGES, HUBSPOT_MAX_ROWS } from './api';
 import { compileHubspotQuery } from './compile';
 import { toHubspotError } from './errors';
@@ -30,6 +32,7 @@ import {
     hubspotRequestSchema,
     runHubspotQuery,
     scanHubspotProperties,
+    type HubspotCatalog,
 } from './run';
 import {
     isInternalHubspotField,
@@ -48,15 +51,15 @@ export const hubspotIntegration = defineLiveIntegration({
     settings: CATALOG.settings,
     origins: [HUBSPOT_ORIGIN],
     access: () => ({
-        pathPrefixes: [
+        rules: [
             ...HUBSPOT_OBJECTS.flatMap((object) => [
-                getHubspotPropertiesPath(object),
-                getHubspotSearchPath(object),
+                readRule('GET', getHubspotPropertiesPath(object)),
+                readRule('POST', getHubspotSearchPath(object)),
             ]),
-            ...HUBSPOT_PIPELINE_OBJECTS.map(getHubspotPipelinesPath),
+            ...HUBSPOT_PIPELINE_OBJECTS.map((object) =>
+                readRule('GET', getHubspotPipelinesPath(object)),
+            ),
         ],
-        // Records are searched with POST, properties read with GET
-        methods: ['GET', 'POST'],
     }),
     limits: {
         callsPerQuery: HUBSPOT_MAX_PAGES,
@@ -92,6 +95,7 @@ export const hubspotIntegration = defineLiveIntegration({
         value: 2,
         description: 'Search filters records but returns no totals.',
     },
+    kind: 'records',
     auth: {
         description: 'No vendor review is needed.',
         testWith: 'test_account',
@@ -138,13 +142,20 @@ export const hubspotIntegration = defineLiveIntegration({
     run: runHubspotQuery,
     toError: toHubspotError,
     summarizeTest: summarizeHubspotTest,
-    scan: {
-        read: scanHubspotProperties,
-        withScannedFields: (definition, scan) =>
-            withHubspotPropertyFields(
-                definition,
-                readHubspotProperties(scan.hubspotProperties, definition.name),
-            ),
+    discovery: {
+        discover: scanHubspotProperties,
+        describe: describeExplores(
+            HUBSPOT_EXPLORES,
+            HUBSPOT_OBJECTS.slice(1),
+            (definition, catalog: HubspotCatalog) =>
+                withHubspotPropertyFields(
+                    definition,
+                    readHubspotProperties(
+                        catalog.hubspotProperties,
+                        definition.name,
+                    ),
+                ),
+        ),
         isInternalField: isInternalHubspotField,
         // Deals is the first explore; the other objects are scanned too
         models: HUBSPOT_OBJECTS.slice(1),

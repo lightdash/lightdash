@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { formatTestCount } from '../../integration';
-import { type LiveTestSummary } from '../../types';
+import { formatTestCount, type LiveTestSummary } from '../../sdk';
 
 // Answer to POSTHOG_TEST_QUERY: one row, one count
 const testResponseSchema = z.object({

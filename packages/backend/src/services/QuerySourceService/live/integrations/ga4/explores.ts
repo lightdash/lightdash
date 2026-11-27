@@ -4,8 +4,8 @@ import {
     dimension,
     metric,
     NON_ADDITIVE,
-} from '../../explores/declare';
-import type { LiveExploreDefinition } from '../../explores/definition';
+    type LiveExploreDefinition,
+} from '../../sdk';
 import {
     GA4_DATE_FILTERS,
     GA4_METRIC_FILTERS,

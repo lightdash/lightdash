@@ -10,15 +10,14 @@ import {
     type ApiSourceOf,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
 import {
-    type LiveCalls,
+    assertMaxRows,
     type LiveColumn,
     type LiveHttpResponse,
     type LiveRunArgs,
     type LiveRunResult,
-    type LiveScanResult,
-} from '../../types';
+    type LiveRuntime,
+} from '../../sdk';
 import {
     POSTHOG_MAX_SCANNED_PROPERTIES,
     type PostHogPropertyKind,
@@ -134,10 +133,10 @@ export const runPostHogQuery = async ({
     settings: { projectId },
     request: query,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<ApiConnectorType.POSTHOG, string>): Promise<LiveRunResult> => {
     assertMaxRows(limit, POSTHOG_MAX_QUERY_ROWS);
-    const response = await calls.send({
+    const response = await runtime.send({
         method: 'POST',
         path: getPostHogQueryPath(projectId),
         body: {
@@ -181,10 +180,10 @@ export const runPostHogQuery = async ({
 const readPropertyDefinitions = async (
     projectId: string,
     type: PostHogPropertyKind,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<{ results: unknown[] }> => {
     const readPage = async (offset: number) => {
-        const response = await calls.send({
+        const response = await runtime.send({
             method: 'GET',
             path: getPostHogPropertyDefinitionsPrefix(projectId),
             query: {
@@ -211,17 +210,22 @@ const readPropertyDefinitions = async (
     return { results: await readFrom(0) };
 };
 
+/** The project's event and person property definitions, as PostHog returns them. */
+export type PostHogCatalog = {
+    posthogProperties?: Record<'event' | 'person', unknown>;
+};
+
 /** Reads the event and person property definitions the explore adds fields for. */
 export const scanPostHogProperties = async ({
     settings: { projectId },
-    calls,
+    runtime,
 }: {
     settings: PostHogSettings;
-    calls: LiveCalls;
-}): Promise<LiveScanResult> => {
+    runtime: LiveRuntime;
+}): Promise<PostHogCatalog> => {
     const [event, person] = await Promise.all([
-        readPropertyDefinitions(projectId, 'event', calls),
-        readPropertyDefinitions(projectId, 'person', calls),
+        readPropertyDefinitions(projectId, 'event', runtime),
+        readPropertyDefinitions(projectId, 'person', runtime),
     ]);
     return { posthogProperties: { event, person } };
 };

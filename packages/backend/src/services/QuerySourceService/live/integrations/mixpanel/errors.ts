@@ -5,7 +5,7 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { type LiveHttpResponse } from '../../types';
+import { type LiveHttpResponse } from '../../sdk';
 
 // Mixpanel's Query API errors are JSON with an `error` string next to a
 // `request` echo, `status` and `error_code`, or plain text.

@@ -4,11 +4,11 @@ import {
     type ApiSourceMetricAggregation,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type {
-    LiveDimensionDefinition,
-    LiveExploreDefinition,
-    LiveMetricDefinition,
-} from '../../explores/definition';
+import {
+    type LiveDimensionDefinition,
+    type LiveExploreDefinition,
+    type LiveMetricDefinition,
+} from '../../sdk';
 import { GA4_METRIC_FILTERS, GA4_STRING_FILTERS } from './filters';
 
 const dimension = (

@@ -12,9 +12,11 @@ import {
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
+    describeExplores,
+    getIsoDateInTimeZone,
     jsonRequest,
-} from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
+    readRule,
+} from '../../sdk';
 import { ATTIO_MAX_PAGES, ATTIO_MAX_RECORDS } from './api';
 import { isInternalAttioField } from './attributes';
 import { compileAttioQuery } from './compile';
@@ -26,7 +28,12 @@ import {
     ATTIO_NUMBER_FILTERS,
     ATTIO_TEXT_FILTERS,
 } from './filters';
-import { attioRequestSchema, runAttioQuery, scanAttioAttributes } from './run';
+import {
+    attioRequestSchema,
+    runAttioQuery,
+    scanAttioAttributes,
+    type AttioCatalog,
+} from './run';
 import {
     ATTIO_SCANNED_MODELS,
     readAttioAttributes,
@@ -44,15 +51,13 @@ export const attioIntegration = defineLiveIntegration({
     settings: CATALOG.settings,
     origins: [ATTIO_ORIGIN],
     access: () => ({
-        pathPrefixes: [
+        rules: [
             ...ATTIO_OBJECTS.flatMap((object) => [
-                getAttioAttributesPath(object),
-                getAttioRecordsQueryPath(object),
+                readRule('GET', getAttioAttributesPath(object)),
+                readRule('POST', getAttioRecordsQueryPath(object)),
             ]),
-            ATTIO_WORKSPACE_MEMBERS_PATH,
+            readRule('GET', ATTIO_WORKSPACE_MEMBERS_PATH),
         ],
-        // Records are read with POST, attributes with GET
-        methods: ['GET', 'POST'],
     }),
     limits: {
         // The record pages, plus one call for owner names when they're selected
@@ -89,6 +94,7 @@ export const attioIntegration = defineLiveIntegration({
         value: 2,
         description: 'Attio has no aggregates; it returns records only.',
     },
+    kind: 'records',
     auth: {
         description: 'No vendor review is needed.',
         testWith: 'test_account',
@@ -138,16 +144,20 @@ export const attioIntegration = defineLiveIntegration({
         }),
     run: runAttioQuery,
     toError: (response) => toAttioError(response),
-    scan: {
-        read: scanAttioAttributes,
-        withScannedFields: (definition, scan) =>
-            withAttioAttributeFields(
-                definition,
-                readAttioAttributes(
-                    scan.attioAttributes,
-                    toAttioObject(definition.name),
+    discovery: {
+        discover: scanAttioAttributes,
+        describe: describeExplores(
+            ATTIO_EXPLORES,
+            ATTIO_SCANNED_MODELS,
+            (definition, catalog: AttioCatalog) =>
+                withAttioAttributeFields(
+                    definition,
+                    readAttioAttributes(
+                        catalog.attioAttributes,
+                        toAttioObject(definition.name),
+                    ),
                 ),
-            ),
+        ),
         isInternalField: isInternalAttioField,
         // Companies is the first explore; the other objects are scanned too
         models: ATTIO_SCANNED_MODELS,

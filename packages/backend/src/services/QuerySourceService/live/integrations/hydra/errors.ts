@@ -5,8 +5,7 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { parseRetryAfterSeconds } from '../../calls';
-import { type LiveHttpResponse } from '../../types';
+import { parseRetryAfterSeconds, type LiveHttpResponse } from '../../sdk';
 
 const errorSchema = z.object({
     message: z.string().optional(),

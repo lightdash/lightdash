@@ -1,9 +1,9 @@
 import { DimensionType, FilterOperator } from '@lightdash/common';
 import { z } from 'zod';
-import type {
-    LiveDimensionDefinition,
-    LiveExploreDefinition,
-} from '../../explores/definition';
+import {
+    type LiveDimensionDefinition,
+    type LiveExploreDefinition,
+} from '../../sdk';
 import { HUBSPOT_LABEL_SUFFIX } from './api';
 import { HUBSPOT_DEALS_EXPLORE } from './explores';
 import {

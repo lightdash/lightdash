@@ -5,7 +5,7 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { type LiveHttpResponse } from '../../types';
+import { type LiveHttpResponse } from '../../sdk';
 
 // Salesforce sends a list of { message, errorCode }
 const errorsSchema = z.array(

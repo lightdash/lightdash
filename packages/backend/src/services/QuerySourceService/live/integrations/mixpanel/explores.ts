@@ -5,8 +5,8 @@ import {
     metric,
     NON_ADDITIVE,
     ratio,
-} from '../../explores/declare';
-import type { LiveExploreDefinition } from '../../explores/definition';
+    type LiveExploreDefinition,
+} from '../../sdk';
 import { MIXPANEL_MAX_RETENTION_PERIODS } from './api';
 import {
     MIXPANEL_DATE_FILTERS,

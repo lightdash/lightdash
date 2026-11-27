@@ -7,11 +7,11 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
-    type LiveCalls,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../types';
+    type LiveRuntime,
+} from '../../sdk';
 
 const LABEL = LIVE_INTEGRATION_CATALOG[ApiConnectorType.AMPLITUDE].messageLabel;
 
@@ -177,12 +177,12 @@ const rangeParams = (request: {
 ];
 
 const get = <T>(
-    calls: LiveCalls,
+    runtime: LiveRuntime,
     path: string,
     params: [string, string | number][],
     schema: z.ZodType<T>,
 ) =>
-    calls.fetch(
+    runtime.fetch(
         { method: 'GET', path, rawQuery: toRawQuery(params), body: undefined },
         schema,
     );
@@ -382,7 +382,7 @@ const mergeRows = () => {
 
 const runSegmentation = async (
     request: Extract<AmplitudeRequest, { endpoint: 'segmentation' }>,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ) => {
     const dateColumn =
         request.interval === null
@@ -397,7 +397,7 @@ const runSegmentation = async (
             ({ event, metric }) =>
                 () =>
                     get(
-                        calls,
+                        runtime,
                         AMPLITUDE_PATHS.segmentation,
                         [
                             [
@@ -478,7 +478,7 @@ const runSegmentation = async (
 
 const runUsers = async (
     request: Extract<AmplitudeRequest, { endpoint: 'users' }>,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ) => {
     const dateColumn = AMPLITUDE_DATE_COLUMNS[request.interval];
     const merged = mergeRows();
@@ -486,7 +486,7 @@ const runUsers = async (
         request.metrics.map(
             (metric) => () =>
                 get(
-                    calls,
+                    runtime,
                     AMPLITUDE_PATHS.users,
                     [
                         ['m', metric],
@@ -550,10 +550,10 @@ const toSeconds = (milliseconds: number | null | undefined) =>
 
 const runFunnel = async (
     request: Extract<AmplitudeRequest, { endpoint: 'funnel' }>,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ) => {
     const { data } = await get(
-        calls,
+        runtime,
         AMPLITUDE_PATHS.funnels,
         [
             ...request.steps.map((step): [string, string] => [
@@ -607,10 +607,10 @@ const toRetentionRows = (
 
 const runRetention = async (
     request: Extract<AmplitudeRequest, { endpoint: 'retention' }>,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ) => {
     const { data } = await get(
-        calls,
+        runtime,
         AMPLITUDE_PATHS.retention,
         [
             ['se', JSON.stringify(toEventObject(request.startEvent))],
@@ -659,14 +659,14 @@ const runRetention = async (
 
 const runSessions = async (
     request: Extract<AmplitudeRequest, { endpoint: 'sessions' }>,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ) => {
     const merged = mergeRows();
     const responses = await inSequence(
         request.metrics.map(
             (metric) => () =>
                 get(
-                    calls,
+                    runtime,
                     metric === 'average'
                         ? AMPLITUDE_PATHS.sessionLength
                         : AMPLITUDE_PATHS.sessionsPerUser,
@@ -699,19 +699,19 @@ const runSessions = async (
 
 const runRequest = (
     request: AmplitudeRequest,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<{ columns: LiveColumn[]; rows: Row[]; truncated?: boolean }> => {
     switch (request.endpoint) {
         case 'segmentation':
-            return runSegmentation(request, calls);
+            return runSegmentation(request, runtime);
         case 'users':
-            return runUsers(request, calls);
+            return runUsers(request, runtime);
         case 'funnel':
-            return runFunnel(request, calls);
+            return runFunnel(request, runtime);
         case 'retention':
-            return runRetention(request, calls);
+            return runRetention(request, runtime);
         case 'sessions':
-            return runSessions(request, calls);
+            return runSessions(request, runtime);
         default:
             throw new Error(`Unknown ${LABEL} endpoint`);
     }
@@ -725,12 +725,12 @@ const runRequest = (
 export const runAmplitudeQuery = async ({
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.AMPLITUDE,
     AmplitudeRequest
 >): Promise<LiveRunResult> => {
-    const { columns, rows, truncated } = await runRequest(request, calls);
+    const { columns, rows, truncated } = await runRequest(request, runtime);
     const rowLimit = Math.min(limit, AMPLITUDE_MAX_QUERY_ROWS);
     return {
         columns,

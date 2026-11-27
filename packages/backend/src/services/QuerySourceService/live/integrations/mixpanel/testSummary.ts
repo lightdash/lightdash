@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { formatTestCount } from '../../integration';
-import { type LiveTestSummary } from '../../types';
+import { formatTestCount, type LiveTestSummary } from '../../sdk';
 
 // The setup test lists the project's most common events of the last 31 days
 const testResponseSchema = z.array(z.string());

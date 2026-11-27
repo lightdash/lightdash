@@ -1,6 +1,5 @@
 import { DimensionType } from '@lightdash/common';
-import { dimension } from '../../explores/declare';
-import type { LiveExploreDefinition } from '../../explores/definition';
+import { dimension, type LiveExploreDefinition } from '../../sdk';
 import { ATTIO_MAX_RECORDS } from './api';
 import { ATTIO_CHOICE_FILTERS, ATTIO_DATE_FILTERS } from './filters';
 

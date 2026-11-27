@@ -9,9 +9,10 @@ import {
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
+    getIsoDateInTimeZone,
     jsonRequest,
-} from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
+    readRule,
+} from '../../sdk';
 import { compileGithubQuery } from './compile';
 import { toGithubError } from './errors';
 import { GITHUB_EXPLORES } from './explores';
@@ -45,11 +46,10 @@ export const githubIntegration = defineLiveIntegration({
     // Search reads any repository the token can, but every request names
     // this one; see toGithubSearchQuery.
     access: ({ owner, repo }) => ({
-        pathPrefixes: [
-            GITHUB_SEARCH_PATH,
-            getGithubContributorsPath(owner, repo),
+        rules: [
+            readRule('GET', GITHUB_SEARCH_PATH),
+            readRule('GET', getGithubContributorsPath(owner, repo)),
         ],
-        methods: ['GET'],
         headers: {
             Accept: 'application/vnd.github+json',
             'X-GitHub-Api-Version': '2022-11-28',
@@ -91,6 +91,7 @@ export const githubIntegration = defineLiveIntegration({
         description:
             'Search returns a total count per filter; nothing else is totalled.',
     },
+    kind: 'records',
     auth: {
         description: 'No vendor review is needed.',
         testWith: 'test_account',

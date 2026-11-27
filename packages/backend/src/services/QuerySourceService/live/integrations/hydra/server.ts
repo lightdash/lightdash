@@ -8,7 +8,7 @@ import {
     type HydraSettings,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type { LiveHttpRequest, LiveHttpResponse } from '../../types';
+import { type LiveHttpRequest, type LiveHttpResponse } from '../../sdk';
 import {
     buildHydraDataset,
     getHydraAccountId,

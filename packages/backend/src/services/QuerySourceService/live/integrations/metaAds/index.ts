@@ -9,9 +9,10 @@ import { z } from 'zod';
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
+    getIsoDateInTimeZone,
     jsonRequest,
-} from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
+    readRule,
+} from '../../sdk';
 import { compileMetaAdsQuery } from './compile';
 import { toMetaAdsError } from './errors';
 import { META_ADS_EXPLORES } from './explores';
@@ -35,8 +36,7 @@ export const metaAdsIntegration = defineLiveIntegration({
     settings: CATALOG.settings,
     origins: [META_ADS_ORIGIN],
     access: ({ adAccountId }) => ({
-        pathPrefixes: [getMetaAdsInsightsPath(adAccountId)],
-        methods: ['GET'],
+        rules: [readRule('GET', getMetaAdsInsightsPath(adAccountId))],
     }),
     limits: {
         callsPerQuery: META_ADS_CALLS_PER_QUERY,
@@ -71,6 +71,7 @@ export const metaAdsIntegration = defineLiveIntegration({
         description:
             'Insights returns totals per campaign, ad set, ad and date.',
     },
+    kind: 'reports',
     auth: {
         description:
             'Needs Meta business verification and App Review for ads_read.',

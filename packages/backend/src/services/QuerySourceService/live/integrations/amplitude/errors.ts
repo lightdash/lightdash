@@ -5,7 +5,7 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { type LiveHttpResponse } from '../../types';
+import { type LiveHttpResponse } from '../../sdk';
 
 // Amplitude's error bodies differ by endpoint: plain text, an `error` object
 // whose `metadata.details` names the problem, or JSON with an `error` string

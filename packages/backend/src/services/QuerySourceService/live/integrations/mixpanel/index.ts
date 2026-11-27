@@ -10,9 +10,10 @@ import {
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
+    getIsoDateInTimeZone,
     jsonRequest,
-} from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
+    readRule,
+} from '../../sdk';
 import { compileMixpanelQuery } from './compile';
 import { toMixpanelError } from './errors';
 import { MIXPANEL_EXPLORES } from './explores';
@@ -45,8 +46,9 @@ export const mixpanelIntegration = defineLiveIntegration({
         MIXPANEL_REGION_ORIGINS.in,
     ],
     access: () => ({
-        pathPrefixes: Object.values(MIXPANEL_PATHS),
-        methods: ['GET'],
+        rules: Object.values(MIXPANEL_PATHS).map((path) =>
+            readRule('GET', path),
+        ),
     }),
     limits: {
         callsPerQuery: MIXPANEL_CALLS_PER_QUERY,
@@ -83,6 +85,7 @@ export const mixpanelIntegration = defineLiveIntegration({
         description:
             'Segmentation and retention return counts, uniques and averages per event, period and property; funnels return the steps of a funnel saved in the app.',
     },
+    kind: 'reports',
     auth: {
         description:
             'A service account (username and secret over HTTP Basic) added to the project; no vendor review. The Query API needs a Growth or Enterprise plan.',

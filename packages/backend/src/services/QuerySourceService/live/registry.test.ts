@@ -12,16 +12,17 @@ import {
     toScannedLiveSourceFields,
 } from './explores/build';
 import { getInitialLiveSourceFieldEdits } from './explores/fields';
+import { findAccessRule } from './integration';
 import { connectLiveSource } from './liveSource.mock';
 import {
     getLiveIntegration,
     isLiveIntegrationRegistered,
     parseStoredApiSource,
 } from './registry';
-import { type LiveHttpResponse, type LiveScanResult } from './types';
+import { type LiveCatalog, type LiveHttpResponse } from './types';
 
 /** A scan for integrations whose explore has no fields until scanned. */
-const SAMPLE_SCANS: Partial<Record<ApiConnectorType, LiveScanResult>> = {
+const SAMPLE_SCANS: Partial<Record<ApiConnectorType, LiveCatalog>> = {
     [ApiConnectorType.SUPABASE]: {
         supabaseTable: {
             properties: { id: { type: 'integer', format: 'bigint' } },
@@ -131,11 +132,11 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
             vi.unstubAllEnvs();
         });
 
-        test('scans only explores it has, besides its first', () => {
+        test('discovers fields only for explores it has, besides its first', () => {
             const [first, ...others] = integration.explores.map(
                 ({ name }) => name,
             );
-            (integration.scan?.models ?? []).forEach((model) => {
+            (integration.discovery?.models ?? []).forEach((model) => {
                 expect(others).toContain(model);
                 expect(model).not.toBe(first);
             });
@@ -182,8 +183,10 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
             // A metric where the explore has one, else a dimension
             const [builtIn] = integration.explores;
             const definition =
-                scan && integration.scan
-                    ? integration.scan.withScannedFields(builtIn, scan)
+                scan && integration.discovery
+                    ? (integration.discovery
+                          .describe(scan)
+                          .find(({ name }) => name === builtIn.name) ?? builtIn)
                     : builtIn;
             const [metric] = definition.metrics;
             const [dimension] = definition.dimensions;
@@ -212,6 +215,28 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
             await expect(run).rejects.toThrow();
             await expect(run).rejects.not.toBeInstanceOf(ParameterError);
             expect(send).toHaveBeenCalled();
+            // Every call it makes is one its access rules allow
+            const { rules } = integration.access(settings);
+            send.mock.calls.forEach(([request]) => {
+                expect(findAccessRule(rules, request)).toBeDefined();
+            });
+        });
+
+        test('states its access as read rules', () => {
+            const { rules } = integration.access(settings);
+            expect(rules.length).toBeGreaterThan(0);
+            rules.forEach((rule) => {
+                expect(rule.effect).toBe('read');
+                expect(rule.path).toMatch(/^\//);
+            });
+        });
+
+        test('describes the explores it declares, in the same order', () => {
+            if (!integration.discovery) return;
+            const catalog = SAMPLE_SCANS[settings.connector] ?? {};
+            expect(
+                integration.discovery.describe(catalog).map(({ name }) => name),
+            ).toEqual(integration.explores.map(({ name }) => name));
         });
     },
 );

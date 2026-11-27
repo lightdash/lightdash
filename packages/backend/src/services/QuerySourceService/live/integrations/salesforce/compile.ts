@@ -15,13 +15,14 @@ import {
 } from '@lightdash/common';
 import {
     getApiName,
+    getLiveDateRange,
     getLiveDefinitionName,
     getLiveExplore,
+    toAbsoluteDateRange,
     toFieldCombinationIssue,
     toLiveQueryError,
     type LiveCompiledRequest,
-} from '../../explores/definition';
-import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
+} from '../../sdk';
 import { toSalesforceObject } from './api';
 import {
     parseSalesforceExpression,

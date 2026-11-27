@@ -4,7 +4,7 @@ import {
     type ApiSourceSchemaScan,
     type QuerySourceSchemaTable,
 } from '@lightdash/common';
-import { type LiveQueryResult } from '../../query/run';
+import { type LiveQueryResult } from '../../sdk';
 
 export const POSTHOG_SCAN_WINDOW_DAYS = 30;
 const MAX_EVENTS = 1_000;

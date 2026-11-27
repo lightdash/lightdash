@@ -6,11 +6,11 @@ import {
     type SalesforceObject,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type {
-    LiveDimensionDefinition,
-    LiveExploreDefinition,
-    LiveMetricDefinition,
-} from '../../explores/definition';
+import {
+    type LiveDimensionDefinition,
+    type LiveExploreDefinition,
+    type LiveMetricDefinition,
+} from '../../sdk';
 import {
     SALESFORCE_EXPLORES,
     SALESFORCE_OPPORTUNITIES_EXPLORE,

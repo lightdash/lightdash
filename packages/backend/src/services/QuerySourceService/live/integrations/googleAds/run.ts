@@ -4,12 +4,12 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { readRowsWithinCap } from '../../query/rows';
 import {
+    readRowsWithinCap,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../types';
+} from '../../sdk';
 import { GOOGLE_ADS_MICROS_FIELDS } from './api';
 
 export const GOOGLE_ADS_ORIGIN = 'https://googleads.googleapis.com';
@@ -124,7 +124,7 @@ export const runGoogleAdsQuery = async ({
     settings: { customerId },
     request: { fields, baseQuery, queryLimit },
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.GOOGLE_ADS,
     GoogleAdsRequest
@@ -137,7 +137,7 @@ export const runGoogleAdsQuery = async ({
         // Asking for one more row than the limit fits in one page
         maxPages: 1,
         fetchPage: async ({ limit: pageLimit }) => {
-            const page = await calls.fetch(
+            const page = await runtime.fetch(
                 {
                     method: 'POST',
                     path: getGoogleAdsSearchPath(customerId),

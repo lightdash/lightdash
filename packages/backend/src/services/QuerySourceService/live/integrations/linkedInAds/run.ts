@@ -8,13 +8,13 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { tooManyRowsError } from '../../query/rows';
 import {
+    tooManyRowsError,
     type LiveColumn,
     type LiveHttpResponse,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../types';
+} from '../../sdk';
 import {
     LINKEDIN_ADS_CAMPAIGN_COLUMNS,
     LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS,
@@ -193,7 +193,7 @@ export const runLinkedInAdsQuery = async ({
     settings: { adAccountId },
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.LINKEDIN_ADS,
     LinkedInAdsRequest
@@ -222,7 +222,7 @@ export const runLinkedInAdsQuery = async ({
         `fields=${[...request.fields, 'dateRange', 'pivotValues'].join(',')}`,
     ].join('&');
 
-    const { elements = [] } = await calls.fetch(
+    const { elements = [] } = await runtime.fetch(
         {
             method: 'GET',
             path: LINKEDIN_ADS_ANALYTICS_PATH,

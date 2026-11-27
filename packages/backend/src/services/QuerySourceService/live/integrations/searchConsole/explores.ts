@@ -5,8 +5,8 @@ import {
     metric,
     NON_ADDITIVE,
     ratio,
-} from '../../explores/declare';
-import type { LiveExploreDefinition } from '../../explores/definition';
+    type LiveExploreDefinition,
+} from '../../sdk';
 import {
     SEARCH_CONSOLE_DATE_FILTERS,
     SEARCH_CONSOLE_STRING_FILTERS,

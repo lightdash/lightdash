@@ -264,7 +264,7 @@ describe('postHogIntegration scan', () => {
             postHogIntegration,
             { connector: ApiConnectorType.POSTHOG, projectId: '303731' },
             send,
-        ).scan();
+        ).discover();
 
     it('reads event and person property definitions page by page', async () => {
         const send = vi.fn(async ({ query: params }) =>

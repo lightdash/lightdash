@@ -4,8 +4,12 @@ import {
     MetricType,
     TimeFrames,
 } from '@lightdash/common';
-import { ADDITIVE, dimension, metric } from '../../explores/declare';
-import type { LiveExploreDefinition } from '../../explores/definition';
+import {
+    ADDITIVE,
+    dimension,
+    metric,
+    type LiveExploreDefinition,
+} from '../../sdk';
 import {
     SALESFORCE_MAX_AGGREGATE_ROWS,
     SALESFORCE_MAX_RECORD_ROWS,

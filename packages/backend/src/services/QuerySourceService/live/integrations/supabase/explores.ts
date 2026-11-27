@@ -1,4 +1,4 @@
-import type { LiveExploreDefinition } from '../../explores/definition';
+import { type LiveExploreDefinition } from '../../sdk';
 
 /**
  * The one explore of a source: the rows of its table. Its columns come from

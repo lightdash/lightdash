@@ -23,10 +23,15 @@ import type { LiveIntegrationSpec, LiveRateLimits } from './spec/types';
  * call, its explores, how a metric query becomes calls and rows, and what
  * its code can't know about the tool (`LiveIntegrationSpec`). Write
  * one with `defineLiveIntegration` and list it in `registry.ts`.
+ *
+ * Integrations hold no state. A function that takes `runtime` may call the
+ * API; every other function is pure. The service owns credentials, rate
+ * limits, stored scans and field edits.
  */
 export type LiveIntegration<
     C extends ApiConnectorType = ApiConnectorType,
     Request = unknown,
+    Catalog extends LiveCatalog = LiveCatalog,
 > = LiveIntegrationSpec & {
     connector: C;
     label: string;
@@ -41,16 +46,12 @@ export type LiveIntegration<
      */
     acceptsOrigin?: (origin: string) => boolean;
     /** What a source may call on its origin, whatever its stored connection says. */
-    access: (settings: ApiSourceOf<C>) => {
-        pathPrefixes: string[];
-        methods: Array<'GET' | 'POST'>;
-        headers?: Record<string, string> | null;
-    };
+    access: (settings: ApiSourceOf<C>) => LiveAccess;
     limits: LiveLimits;
     /** A source's own rate limits, when its settings set them; omitted, every source gets `rateLimits`. */
     rateLimitsFor?: (settings: ApiSourceOf<C>) => LiveRateLimits;
     capabilities: LiveCapabilities;
-    /** The first is the wide model; scans and field edits apply to it and to `scan.models`. */
+    /** The first is the wide model; discovered fields and field edits apply to it and to `discovery.models`. */
     explores: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
     /** Explore names reserved for models not built yet. */
     plannedModelNames: readonly string[];
@@ -91,25 +92,27 @@ export type LiveIntegration<
         settings: ApiSourceOf<C>,
     ) => LiveTestSummary | null;
     /** Reads fields the API reports itself; omitted when every field is built in. */
-    scan?: {
-        read: (args: {
+    discovery?: {
+        /** Reads what the API has now; the service runs it when a source is created or refreshed. */
+        discover: (args: {
             settings: ApiSourceOf<C>;
-            calls: LiveCalls;
-        }) => Promise<LiveScanResult>;
-        withScannedFields: (
-            definition: LiveExploreDefinition,
-            scan: LiveScanResult,
-        ) => LiveExploreDefinition;
-        /** Scanned fields kept out of the default field list. */
+            runtime: LiveRuntime;
+        }) => Promise<Catalog>;
+        /**
+         * `explores` with the fields `discover` found, in the same order and
+         * under the same names. Only the first explore and `models` read it.
+         */
+        describe: (catalog: Catalog) => LiveExploreDefinition[];
+        /** Discovered fields kept out of the default field list. */
         isInternalField?: (apiName: string) => boolean;
         /**
-         * A new source starts with every scanned field in use, for
-         * integrations whose explore is only what the scan finds.
+         * A new source starts with every discovered field in use, for
+         * integrations whose explore is only what discovery finds.
          */
         inUseByDefault?: true;
         /**
-         * Names of the explores besides the first that scans add fields to,
-         * each curated on its own. Omitted, only the first explore is scanned.
+         * Names of the explores besides the first that discovered fields are
+         * added to, each curated on its own. Omitted, only the first is.
          */
         models?: readonly string[];
     };
@@ -148,7 +151,7 @@ export type LiveRunArgs<C extends ApiConnectorType, Request> = {
      * `run` caps or refuses it the way its API needs.
      */
     limit: number;
-    calls: LiveCalls;
+    runtime: LiveRuntime;
 };
 
 export type LiveColumn = {
@@ -165,8 +168,12 @@ export type LiveRunResult = {
     bytesRead?: number;
 };
 
-/** The calls `run` makes, with the connection's credentials and limits applied. */
-export type LiveCalls = {
+/**
+ * The only way an integration reaches its API. The service attaches the
+ * connection's credentials and applies its rate limits; integrations never
+ * see either.
+ */
+export type LiveRuntime = {
     /** Sends one call; a status outside 2xx throws the integration's `toError`. */
     send(request: LiveHttpRequest): Promise<LiveHttpResponse>;
     /**
@@ -205,16 +212,26 @@ export type LiveConnectionCheck = {
     oauthTokenUrl?: string | null;
 };
 
-/** What an integration reports about its own fields; absent when not scanned. */
-export type LiveScanResult = {
-    ga4Metadata?: unknown;
-    posthogProperties?: Record<'event' | 'person', unknown>;
-    /** Each standard object's attribute list, by slug, as Attio returns it. */
-    attioAttributes?: unknown;
-    /** HubSpot's property list for the source's object, as it returns it. */
-    hubspotProperties?: unknown;
-    /** Salesforce's describe of the source's object, as it returns it. */
-    salesforceDescribe?: unknown;
-    /** The source's table under `definitions` in the Supabase Data API's OpenAPI description. */
-    supabaseTable?: unknown;
+/**
+ * What `discover` read, as plain JSON. Each integration gives it its own
+ * type; the service only passes it back to `describe`.
+ */
+export type LiveCatalog = Record<string, unknown>;
+
+/**
+ * One request a source may send. `path` matches as a segment-aware prefix;
+ * exact and templated paths come with stored catalogs. Only reads exist.
+ */
+export type LiveAccessRule = {
+    method: 'GET' | 'POST';
+    path: string;
+    effect: 'read';
+    /** The explore model the rule serves; recorded, not checked yet. */
+    entry?: string;
+};
+
+export type LiveAccess = {
+    rules: LiveAccessRule[];
+    /** Headers the service sends with every request; null clears stored ones. */
+    headers?: Record<string, string> | null;
 };

@@ -8,14 +8,13 @@ import {
     type SalesforceObject,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { tooManyRowsError } from '../../query/rows';
 import {
-    type LiveCalls,
+    tooManyRowsError,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-    type LiveScanResult,
-} from '../../types';
+    type LiveRuntime,
+} from '../../sdk';
 import {
     SALESFORCE_MAX_AGGREGATE_ROWS,
     SALESFORCE_MAX_CALLS,
@@ -171,11 +170,11 @@ const runAggregate = async (
     object: SalesforceObject,
     request: SalesforceRequest,
     limit: number,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<LiveRunResult> => {
     const rowLimit = Math.min(limit, SALESFORCE_MAX_AGGREGATE_ROWS - 1);
     const { soql, aggregateColumns } = toSoql(request, object, rowLimit + 1);
-    const { records } = await calls.fetch(
+    const { records } = await runtime.fetch(
         {
             method: 'GET',
             path: SALESFORCE_QUERY_PATH,
@@ -218,7 +217,7 @@ const runRecords = async (
     object: SalesforceObject,
     request: SalesforceRequest,
     limit: number,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<LiveRunResult> => {
     const rowLimit = Math.min(limit, SALESFORCE_MAX_RECORD_ROWS);
     const { soql } = toSoql(request, object, rowLimit + 1);
@@ -228,7 +227,7 @@ const runRecords = async (
     let finished = false;
     for (let call = 0; call < SALESFORCE_MAX_CALLS; call += 1) {
         // eslint-disable-next-line no-await-in-loop
-        const response = await calls.fetch(
+        const response = await runtime.fetch(
             { method: 'GET', path, query, body: undefined },
             queryResponseSchema,
         );
@@ -277,14 +276,17 @@ const runRecords = async (
 export const runSalesforceQuery = async ({
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.SALESFORCE,
     SalesforceRequest
 >): Promise<LiveRunResult> =>
     request.kind === 'aggregate'
-        ? runAggregate(request.object, request, limit, calls)
-        : runRecords(request.object, request, limit, calls);
+        ? runAggregate(request.object, request, limit, runtime)
+        : runRecords(request.object, request, limit, runtime);
+
+/** Each object's describe, as Salesforce returns it. */
+export type SalesforceCatalog = { salesforceDescribe?: unknown };
 
 /**
  * Reads each object's describe, whose fields become its explore's fields.
@@ -293,13 +295,13 @@ export const runSalesforceQuery = async ({
  * good scan stays.
  */
 export const scanSalesforceDescribe = async ({
-    calls,
+    runtime,
 }: {
-    calls: LiveCalls;
-}): Promise<LiveScanResult> => {
+    runtime: LiveRuntime;
+}): Promise<SalesforceCatalog> => {
     const results = await Promise.allSettled(
         SALESFORCE_OBJECTS.map((object) =>
-            calls.fetch(
+            runtime.fetch(
                 {
                     method: 'GET',
                     path: getSalesforceDescribePath(object),

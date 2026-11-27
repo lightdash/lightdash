@@ -4,8 +4,8 @@ import {
     dimension,
     metric,
     NON_ADDITIVE,
-} from '../../explores/declare';
-import type { LiveExploreDefinition } from '../../explores/definition';
+    type LiveExploreDefinition,
+} from '../../sdk';
 import { LINKEDIN_ADS_DEFAULT_DAYS, LINKEDIN_ADS_MAX_METRICS } from './api';
 import { LINKEDIN_ADS_DATE_FILTERS, LINKEDIN_ADS_ID_FILTERS } from './filters';
 

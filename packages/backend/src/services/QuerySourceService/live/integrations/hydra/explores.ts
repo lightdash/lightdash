@@ -4,8 +4,8 @@ import {
     dimension,
     metric,
     NON_ADDITIVE,
-} from '../../explores/declare';
-import type { LiveExploreDefinition } from '../../explores/definition';
+    type LiveExploreDefinition,
+} from '../../sdk';
 import { HYDRA_DATE_FILTERS, HYDRA_STRING_FILTERS } from './filters';
 
 export const HYDRA_EVENTS_EXPLORE: LiveExploreDefinition = {

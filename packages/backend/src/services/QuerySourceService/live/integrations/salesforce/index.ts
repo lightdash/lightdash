@@ -13,9 +13,11 @@ import {
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
+    describeExplores,
+    getIsoDateInTimeZone,
     jsonRequest,
-} from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
+    readRule,
+} from '../../sdk';
 import {
     SALESFORCE_MAX_CALLS,
     SALESFORCE_MAX_RECORD_ROWS,
@@ -31,7 +33,11 @@ import {
     SALESFORCE_NUMBER_FILTERS,
     SALESFORCE_TEXT_FILTERS,
 } from './filters';
-import { runSalesforceQuery, scanSalesforceDescribe } from './run';
+import {
+    runSalesforceQuery,
+    scanSalesforceDescribe,
+    type SalesforceCatalog,
+} from './run';
 import {
     isInternalSalesforceField,
     readSalesforceDescribe,
@@ -52,12 +58,13 @@ export const salesforceIntegration = defineLiveIntegration({
     origins: ['https://<your domain>.my.salesforce.com'],
     acceptsOrigin: isSalesforceInstanceOrigin,
     access: () => ({
-        pathPrefixes: [
-            SALESFORCE_QUERY_PATH,
-            ...SALESFORCE_OBJECTS.map(getSalesforceDescribePath),
-            SALESFORCE_LIMITS_PATH,
+        rules: [
+            readRule('GET', SALESFORCE_QUERY_PATH),
+            ...SALESFORCE_OBJECTS.map((object) =>
+                readRule('GET', getSalesforceDescribePath(object)),
+            ),
+            readRule('GET', SALESFORCE_LIMITS_PATH),
         ],
-        methods: ['GET'],
     }),
     limits: {
         callsPerQuery: SALESFORCE_MAX_CALLS,
@@ -102,6 +109,7 @@ export const salesforceIntegration = defineLiveIntegration({
         description:
             'SOQL supports GROUP BY and aggregates (COUNT, SUM, AVG), so Salesforce totals itself.',
     },
+    kind: 'records',
     auth: {
         description: 'No vendor review is needed.',
         testWith: 'test_account',
@@ -159,16 +167,20 @@ export const salesforceIntegration = defineLiveIntegration({
     run: runSalesforceQuery,
     toError: toSalesforceError,
     summarizeTest: summarizeSalesforceTest,
-    scan: {
-        read: scanSalesforceDescribe,
-        withScannedFields: (definition, scan) =>
-            withSalesforceFields(
-                definition,
-                readSalesforceDescribe(
-                    scan.salesforceDescribe,
-                    toSalesforceObject(definition.name),
+    discovery: {
+        discover: scanSalesforceDescribe,
+        describe: describeExplores(
+            SALESFORCE_EXPLORES,
+            SALESFORCE_SCANNED_MODELS,
+            (definition, catalog: SalesforceCatalog) =>
+                withSalesforceFields(
+                    definition,
+                    readSalesforceDescribe(
+                        catalog.salesforceDescribe,
+                        toSalesforceObject(definition.name),
+                    ),
                 ),
-            ),
+        ),
         isInternalField: isInternalSalesforceField,
         // Opportunities is the first explore; the other objects are scanned too
         models: SALESFORCE_SCANNED_MODELS,

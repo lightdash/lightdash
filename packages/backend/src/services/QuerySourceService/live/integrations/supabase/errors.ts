@@ -5,7 +5,7 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { type LiveHttpResponse } from '../../types';
+import { type LiveHttpResponse } from '../../sdk';
 
 /** PostgREST's error body; Supabase's gateway sends only `message`. */
 const errorSchema = z.object({

@@ -1,7 +1,7 @@
 // What people expect to ask this integration and the dashboards they expect
 // to build, and whether each is possible today. Flip `possible` in the same PR
 // as the code that changes the answer.
-import type { LiveUseCases } from '../../spec/types';
+import { type LiveUseCases } from '../../sdk';
 
 export const supabaseUseCases: LiveUseCases = {
     questions: [

@@ -10,9 +10,10 @@ import {
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
+    getIsoDateInTimeZone,
     jsonRequest,
-} from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
+    readRule,
+} from '../../sdk';
 import { compileAmplitudeQuery } from './compile';
 import { toAmplitudeError } from './errors';
 import { AMPLITUDE_EXPLORES } from './explores';
@@ -39,8 +40,9 @@ export const amplitudeIntegration = defineLiveIntegration({
     settings: CATALOG.settings,
     origins: [AMPLITUDE_REGION_ORIGINS.us, AMPLITUDE_REGION_ORIGINS.eu],
     access: () => ({
-        pathPrefixes: Object.values(AMPLITUDE_PATHS),
-        methods: ['GET'],
+        rules: Object.values(AMPLITUDE_PATHS).map((path) =>
+            readRule('GET', path),
+        ),
     }),
     limits: {
         callsPerQuery: AMPLITUDE_CALLS_PER_QUERY,
@@ -82,6 +84,7 @@ export const amplitudeIntegration = defineLiveIntegration({
         description:
             'The Dashboard REST API returns totals, uniques, funnels and retention Amplitude computes per event, interval and property.',
     },
+    kind: 'reports',
     auth: {
         description:
             'A project API key and secret key, signed in with HTTP Basic; no vendor review. The free plan includes APIs.',

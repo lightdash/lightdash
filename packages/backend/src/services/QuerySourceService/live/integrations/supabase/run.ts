@@ -6,15 +6,14 @@ import {
     type ApiConnectorType,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
-import { readRowsWithinCap } from '../../query/rows';
 import {
-    type LiveCalls,
+    assertMaxRows,
+    readRowsWithinCap,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-    type LiveScanResult,
-} from '../../types';
+    type LiveRuntime,
+} from '../../sdk';
 
 const LABEL = 'Supabase';
 
@@ -200,7 +199,7 @@ export const runSupabaseQuery = async ({
     settings,
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.SUPABASE,
     SupabaseRequest
@@ -216,7 +215,7 @@ export const runSupabaseQuery = async ({
         maxPages: SUPABASE_MAX_PAGES,
         fetchPage: async ({ limit: pageLimit, cursor }) => {
             const offset = cursor ? Number(cursor) : 0;
-            const page = await calls.fetch(
+            const page = await runtime.fetch(
                 {
                     method: 'GET',
                     path: getSupabaseTablePath(settings.table),
@@ -258,6 +257,9 @@ const openApiSchema = z.object({
     definitions: z.record(z.string(), z.unknown()).optional(),
 });
 
+/** The source's table under `definitions` in the Supabase Data API's OpenAPI description. */
+export type SupabaseCatalog = { supabaseTable?: unknown };
+
 /**
  * Reads the table's columns from the Data API's OpenAPI description. Only
  * secret (service role) keys may read it, and only tables the key can see
@@ -265,12 +267,12 @@ const openApiSchema = z.object({
  */
 export const scanSupabaseTable = async ({
     settings,
-    calls,
+    runtime,
 }: {
     settings: { table: string };
-    calls: LiveCalls;
-}): Promise<LiveScanResult> => {
-    const description = await calls.fetch(
+    runtime: LiveRuntime;
+}): Promise<SupabaseCatalog> => {
+    const description = await runtime.fetch(
         { method: 'GET', path: SUPABASE_REST_PATH, body: undefined },
         openApiSchema,
     );

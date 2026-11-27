@@ -8,8 +8,10 @@ import {
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
+    describeExplores,
     jsonRequest,
-} from '../../integration';
+    readRule,
+} from '../../sdk';
 import { compileSupabaseQuery } from './compile';
 import { toSupabaseError } from './errors';
 import { SUPABASE_EXPLORES } from './explores';
@@ -26,6 +28,7 @@ import {
     SUPABASE_MAX_PAGES,
     SUPABASE_MAX_QUERY_ROWS,
     supabaseRequestSchema,
+    type SupabaseCatalog,
 } from './run';
 import { readSupabaseColumns, withSupabaseColumns } from './scanFields';
 import { supabaseUseCases } from './useCases';
@@ -43,8 +46,7 @@ export const supabaseIntegration = defineLiveIntegration({
     // GET on the Data API only reads: tables, views, and functions declared
     // stable or immutable. Writes need POST, PATCH or DELETE.
     access: () => ({
-        pathPrefixes: [SUPABASE_REST_PATH],
-        methods: ['GET'],
+        rules: [readRule('GET', SUPABASE_REST_PATH)],
     }),
     limits: {
         callsPerQuery: SUPABASE_MAX_PAGES,
@@ -82,6 +84,7 @@ export const supabaseIntegration = defineLiveIntegration({
         description:
             'The Data API filters, sorts and pages rows; aggregate functions are off unless the project turns them on.',
     },
+    kind: 'records',
     auth: {
         description:
             'No vendor review is needed. Reading the table list needs a secret or service_role key.',
@@ -123,13 +126,17 @@ export const supabaseIntegration = defineLiveIntegration({
         compileSupabaseQuery({ explore, metricQuery }),
     run: runSupabaseQuery,
     toError: toSupabaseError,
-    scan: {
-        read: scanSupabaseTable,
-        withScannedFields: (definition, scan) =>
-            withSupabaseColumns(
-                definition,
-                readSupabaseColumns(scan.supabaseTable),
-            ),
+    discovery: {
+        discover: scanSupabaseTable,
+        describe: describeExplores(
+            SUPABASE_EXPLORES,
+            [],
+            (definition, catalog: SupabaseCatalog) =>
+                withSupabaseColumns(
+                    definition,
+                    readSupabaseColumns(catalog.supabaseTable),
+                ),
+        ),
         // The columns are the explore, so a new source starts with all of them
         inUseByDefault: true,
     },

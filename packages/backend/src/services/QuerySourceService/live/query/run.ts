@@ -19,14 +19,14 @@ export const runLiveRequest = async (
     {
         integration,
         settings,
-        calls,
-    }: Pick<MeteredLiveSource, 'integration' | 'settings' | 'calls'>,
+        runtime,
+    }: Pick<MeteredLiveSource, 'integration' | 'settings' | 'runtime'>,
     { query, limit }: { query: string; limit: number },
 ): Promise<LiveQueryResult> => {
     if (!Number.isInteger(limit) || limit < 1) {
         throw new ParameterError('limit must be a positive number of rows');
     }
     const request = integration.parseRequest(query);
-    const result = await integration.run({ settings, request, limit, calls });
+    const result = await integration.run({ settings, request, limit, runtime });
     return { bytesRead: null, ...result };
 };

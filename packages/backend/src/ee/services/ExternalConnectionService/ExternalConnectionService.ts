@@ -93,7 +93,7 @@ import type { UserAttributesModel } from '../../../models/UserAttributesModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
 import {
-    createLiveCalls,
+    createLiveRuntime,
     readLiveRateLimit,
     type LiveCallUsage,
     type LiveTransport,
@@ -141,7 +141,7 @@ import { LIVE_RATE_LIMIT_DEADLINES_MS } from '../../../services/QuerySourceServi
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
 import { type LiveRateLimits } from '../../../services/QuerySourceService/live/spec/types';
 import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
-import { type LiveScanResult } from '../../../services/QuerySourceService/live/types';
+import { type LiveCatalog } from '../../../services/QuerySourceService/live/types';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { checkUserAttributesAccess } from '../../../services/UserAttributesService/UserAttributeUtils';
 import {
@@ -1887,18 +1887,18 @@ export class ExternalConnectionService extends BaseService {
         if (connection.kind !== 'live_source' || !apiSource) {
             return;
         }
-        const getScan = async (): Promise<LiveScanResult | null> => {
+        const getScan = async (): Promise<LiveCatalog | null> => {
             try {
-                const { integration, settings, calls } = this.createLiveSource(
-                    account,
-                    connection,
-                    {
+                const { integration, settings, runtime } =
+                    this.createLiveSource(account, connection, {
                         isPerQuery: false,
                         rateLimitDeadlineMs: LIVE_RATE_LIMIT_DEADLINES_MS.sync,
-                    },
-                );
+                    });
                 return (
-                    (await integration.scan?.read({ settings, calls })) ?? {}
+                    (await integration.discovery?.discover({
+                        settings,
+                        runtime,
+                    })) ?? {}
                 );
             } catch (error) {
                 if (onScanError === 'throw') {
@@ -1931,7 +1931,7 @@ export class ExternalConnectionService extends BaseService {
                     scannedFields,
                     // An explore made only of scanned fields starts with all of them
                     isExistingSource:
-                        getLiveIntegration(apiSource.connector).scan
+                        getLiveIntegration(apiSource.connector).discovery
                             ?.inUseByDefault === true ||
                         (await this.projectModel.hasApiSourceExplores(
                             projectUuid,
@@ -3176,7 +3176,7 @@ export class ExternalConnectionService extends BaseService {
             isPerQuery,
             rateLimitDeadlineMs,
         }: { isPerQuery: boolean; rateLimitDeadlineMs: number },
-    ): Pick<MeteredLiveSource, 'integration' | 'settings' | 'calls'> & {
+    ): Pick<MeteredLiveSource, 'integration' | 'settings' | 'runtime'> & {
         usage: LiveCallUsage;
     } {
         const { apiSource } = storedConnection;
@@ -3276,7 +3276,7 @@ export class ExternalConnectionService extends BaseService {
         return {
             integration,
             settings: apiSource,
-            calls: createLiveCalls(integration, apiSource, send),
+            runtime: createLiveRuntime(integration, apiSource, send),
             usage,
         };
     }

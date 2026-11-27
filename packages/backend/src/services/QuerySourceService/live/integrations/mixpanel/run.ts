@@ -8,11 +8,11 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
-    type LiveCalls,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../types';
+    type LiveRuntime,
+} from '../../sdk';
 import {
     getMixpanelPropertyName,
     MIXPANEL_MAX_RETENTION_PERIODS,
@@ -162,13 +162,13 @@ type Params = [string, string | number][];
 
 /** Every Query API call names its project. */
 const get = <T>(
-    calls: LiveCalls,
+    runtime: LiveRuntime,
     projectId: string,
     path: string,
     params: Params,
     schema: z.ZodType<T>,
 ) =>
-    calls.fetch(
+    runtime.fetch(
         {
             method: 'GET',
             path,
@@ -252,7 +252,7 @@ const toSegmentLabel = (label: string) =>
 const runSegmentation = async (
     request: Extract<MixpanelRequest, { endpoint: 'segmentation' }>,
     projectId: string,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ) => {
     const where = toWhereExpression(request.filters);
     const days = countDays(request.start, request.end);
@@ -264,7 +264,7 @@ const runSegmentation = async (
             ({ event, metric }) =>
                 () =>
                     get(
-                        calls,
+                        runtime,
                         projectId,
                         MIXPANEL_PATHS.segmentation,
                         [
@@ -400,10 +400,10 @@ const FUNNEL_COLUMNS: LiveColumn[] = [
 const runFunnel = async (
     request: Extract<MixpanelRequest, { endpoint: 'funnel' }>,
     projectId: string,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ) => {
     const { data } = await get(
-        calls,
+        runtime,
         projectId,
         MIXPANEL_PATHS.funnels,
         [
@@ -503,7 +503,7 @@ export const getRetentionPeriods = (
 const runRetention = async (
     request: Extract<MixpanelRequest, { endpoint: 'retention' }>,
     projectId: string,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ) => {
     const periods = getRetentionPeriods(
         request.start,
@@ -511,7 +511,7 @@ const runRetention = async (
         request.unit,
     );
     const response = await get(
-        calls,
+        runtime,
         projectId,
         MIXPANEL_PATHS.retention,
         [
@@ -574,9 +574,9 @@ const topEventsResponseSchema = z.object({
     ),
 });
 
-const runTopEvents = async (projectId: string, calls: LiveCalls) => {
+const runTopEvents = async (projectId: string, runtime: LiveRuntime) => {
     const { events } = await get(
-        calls,
+        runtime,
         projectId,
         MIXPANEL_PATHS.topEvents,
         [
@@ -602,17 +602,17 @@ const runTopEvents = async (projectId: string, calls: LiveCalls) => {
 const runRequest = (
     request: MixpanelRequest,
     projectId: string,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<{ columns: LiveColumn[]; rows: Row[]; truncated?: boolean }> => {
     switch (request.endpoint) {
         case 'top_events':
-            return runTopEvents(projectId, calls);
+            return runTopEvents(projectId, runtime);
         case 'segmentation':
-            return runSegmentation(request, projectId, calls);
+            return runSegmentation(request, projectId, runtime);
         case 'funnel':
-            return runFunnel(request, projectId, calls);
+            return runFunnel(request, projectId, runtime);
         case 'retention':
-            return runRetention(request, projectId, calls);
+            return runRetention(request, projectId, runtime);
         default:
             throw new Error(`Unknown ${LABEL} endpoint`);
     }
@@ -627,7 +627,7 @@ export const runMixpanelQuery = async ({
     settings,
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.MIXPANEL,
     MixpanelRequest
@@ -635,7 +635,7 @@ export const runMixpanelQuery = async ({
     const { columns, rows, truncated } = await runRequest(
         request,
         settings.projectId,
-        calls,
+        runtime,
     );
     const rowLimit = Math.min(limit, MIXPANEL_MAX_QUERY_ROWS);
     return {

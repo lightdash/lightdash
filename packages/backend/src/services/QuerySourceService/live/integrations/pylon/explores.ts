@@ -1,6 +1,5 @@
 import { DimensionType, FilterOperator, TimeFrames } from '@lightdash/common';
-import { dimension } from '../../explores/declare';
-import type { LiveExploreDefinition } from '../../explores/definition';
+import { dimension, type LiveExploreDefinition } from '../../sdk';
 import {
     PYLON_DATE_FILTERS,
     PYLON_NUMBER_FILTERS,

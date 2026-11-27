@@ -1,6 +1,10 @@
 import { DimensionType, MetricType } from '@lightdash/common';
-import { ADDITIVE, dimension, metric } from '../../explores/declare';
-import type { LiveExploreDefinition } from '../../explores/definition';
+import {
+    ADDITIVE,
+    dimension,
+    metric,
+    type LiveExploreDefinition,
+} from '../../sdk';
 import {
     GITHUB_BOOLEAN_FILTERS,
     GITHUB_DATE_FILTERS,

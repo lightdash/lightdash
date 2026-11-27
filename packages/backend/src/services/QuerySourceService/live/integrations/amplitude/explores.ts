@@ -5,8 +5,8 @@ import {
     metric,
     NON_ADDITIVE,
     ratio,
-} from '../../explores/declare';
-import type { LiveExploreDefinition } from '../../explores/definition';
+    type LiveExploreDefinition,
+} from '../../sdk';
 import { AMPLITUDE_INTERVALS } from './api';
 import {
     AMPLITUDE_DATE_FILTERS,

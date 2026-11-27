@@ -3,7 +3,7 @@ import {
     type HydraApiSource,
     type HydraRateLimits,
 } from '@lightdash/common';
-import { type LiveRateLimits } from '../../spec/types';
+import { type LiveRateLimits } from '../../sdk';
 
 // The gate always caps calls in flight; "no cap" is one no test reaches
 const UNCAPPED_CONCURRENT_CALLS = 100;

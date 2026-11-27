@@ -10,14 +10,13 @@ import {
     type HubspotPipelineObject,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
 import {
-    type LiveCalls,
+    assertMaxRows,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-    type LiveScanResult,
-} from '../../types';
+    type LiveRuntime,
+} from '../../sdk';
 import {
     HUBSPOT_BUILT_IN_COLUMNS,
     HUBSPOT_LABEL_SUFFIX,
@@ -283,9 +282,9 @@ const DIMENSION_TYPES: Record<HubspotColumnType, DimensionType> = {
 const runCount = async (
     object: HubspotObject,
     filters: HubspotFilter[],
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<LiveRunResult> => {
-    const { total } = await calls.fetch(
+    const { total } = await runtime.fetch(
         {
             method: 'POST',
             path: getHubspotSearchPath(object),
@@ -312,7 +311,7 @@ const runRecords = async (
     object: HubspotObject,
     request: Extract<HubspotRequest, { kind: 'records' }>,
     limit: number,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<LiveRunResult> => {
     const properties = [
         ...new Set(
@@ -326,7 +325,7 @@ const runRecords = async (
     let total = 0;
     for (let page = 0; page < HUBSPOT_MAX_PAGES; page += 1) {
         // eslint-disable-next-line no-await-in-loop
-        const response = await calls.fetch(
+        const response = await runtime.fetch(
             {
                 method: 'POST',
                 path: getHubspotSearchPath(object),
@@ -445,12 +444,12 @@ const toStageRows = (
 const runPipelineStages = async (
     request: Extract<HubspotRequest, { kind: 'pipeline_stages' }>,
     limit: number,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<LiveRunResult> => {
     const objects = [...new Set(request.objects)];
     const lists = await Promise.allSettled(
         objects.map((object) =>
-            calls.fetch(
+            runtime.fetch(
                 {
                     method: 'GET',
                     path: getHubspotPipelinesPath(object),
@@ -496,20 +495,23 @@ const runPipelineStages = async (
 export const runHubspotQuery = async ({
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.HUBSPOT,
     HubspotRequest
 >): Promise<LiveRunResult> => {
     if (request.kind === 'count') {
-        return runCount(request.object, request.filters, calls);
+        return runCount(request.object, request.filters, runtime);
     }
     if (request.kind === 'pipeline_stages') {
-        return runPipelineStages(request, limit, calls);
+        return runPipelineStages(request, limit, runtime);
     }
     assertMaxRows(limit, HUBSPOT_MAX_ROWS);
-    return runRecords(request.object, request, limit, calls);
+    return runRecords(request.object, request, limit, runtime);
 };
+
+/** Each object's property list, as HubSpot returns it. */
+export type HubspotCatalog = { hubspotProperties?: unknown };
 
 /**
  * Reads each object's properties, which become its explore's fields: one
@@ -519,13 +521,13 @@ export const runHubspotQuery = async ({
  * last one.
  */
 export const scanHubspotProperties = async ({
-    calls,
+    runtime,
 }: {
-    calls: LiveCalls;
-}): Promise<LiveScanResult> => {
+    runtime: LiveRuntime;
+}): Promise<HubspotCatalog> => {
     const lists = await Promise.allSettled(
         HUBSPOT_OBJECTS.map((object) =>
-            calls.fetch(
+            runtime.fetch(
                 {
                     method: 'GET',
                     path: getHubspotPropertiesPath(object),

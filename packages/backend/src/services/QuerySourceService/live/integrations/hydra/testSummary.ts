@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { formatTestCount } from '../../integration';
-import { type LiveTestSummary } from '../../types';
+import { formatTestCount, type LiveTestSummary } from '../../sdk';
 
 // The setup test reads the account the token's rows belong to
 const testResponseSchema = z.object({

@@ -4,10 +4,10 @@ import {
     type AttioObject,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type {
-    LiveDimensionDefinition,
-    LiveExploreDefinition,
-} from '../../explores/definition';
+import {
+    type LiveDimensionDefinition,
+    type LiveExploreDefinition,
+} from '../../sdk';
 import {
     ATTIO_ATTRIBUTE_RULES,
     ATTIO_DERIVED_FIELDS,

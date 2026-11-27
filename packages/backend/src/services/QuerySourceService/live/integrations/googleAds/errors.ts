@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type LiveHttpResponse } from '../../types';
+import { type LiveHttpResponse } from '../../sdk';
 import { toGoogleApiError } from '../google/errors';
 
 const googleAdsFailureSchema = z.object({

@@ -8,9 +8,10 @@ import { z } from 'zod';
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
+    getIsoDateInTimeZone,
     jsonRequest,
-} from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
+    readRule,
+} from '../../sdk';
 import { toGoogleApiError } from '../google/errors';
 import { assertGoogleSignIn } from '../google/signIn';
 import { compileYoutubeAnalyticsQuery } from './compile';
@@ -40,8 +41,7 @@ export const youtubeAnalyticsIntegration = defineLiveIntegration({
     // The query names the channel on every report, so the path can't narrow
     // a source to it.
     access: () => ({
-        pathPrefixes: [YOUTUBE_ANALYTICS_REPORTS_PATH],
-        methods: ['GET'],
+        rules: [readRule('GET', YOUTUBE_ANALYTICS_REPORTS_PATH)],
     }),
     limits: {
         callsPerQuery: 1,
@@ -81,6 +81,7 @@ export const youtubeAnalyticsIntegration = defineLiveIntegration({
         value: 3,
         description: 'Reports return totals per dimension and day.',
     },
+    kind: 'reports',
     auth: {
         description:
             'Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',

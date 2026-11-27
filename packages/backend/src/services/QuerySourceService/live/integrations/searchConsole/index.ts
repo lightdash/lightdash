@@ -7,9 +7,10 @@ import { z } from 'zod';
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
+    getIsoDateInTimeZone,
     jsonRequest,
-} from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
+    readRule,
+} from '../../sdk';
 import { toGoogleApiError } from '../google/errors';
 import { assertGoogleSignIn } from '../google/signIn';
 import { compileSearchConsoleQuery } from './compile';
@@ -40,8 +41,7 @@ export const searchConsoleIntegration = defineLiveIntegration({
     origins: [SEARCH_CONSOLE_ORIGIN],
     // The token already limits the source to sites the account can read.
     access: () => ({
-        pathPrefixes: [SEARCH_CONSOLE_SITES_PATH],
-        methods: ['POST'],
+        rules: [readRule('POST', SEARCH_CONSOLE_SITES_PATH)],
     }),
     limits: {
         callsPerQuery: 1,
@@ -73,6 +73,7 @@ export const searchConsoleIntegration = defineLiveIntegration({
     explores: SEARCH_CONSOLE_EXPLORES,
     plannedModelNames: ['search_appearance'],
     level: { value: 3, description: 'Reports return totals per dimension.' },
+    kind: 'reports',
     auth: {
         description:
             'Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',

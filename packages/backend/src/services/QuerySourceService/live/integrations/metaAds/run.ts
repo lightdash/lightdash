@@ -5,13 +5,13 @@ import {
     LIVE_INTEGRATION_CATALOG,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
-import { readRowsWithinCap } from '../../query/rows';
 import {
+    assertMaxRows,
+    readRowsWithinCap,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../types';
+} from '../../sdk';
 import { META_ADS_BREAKDOWNS } from './api';
 
 const LABEL = LIVE_INTEGRATION_CATALOG[ApiConnectorType.META_ADS].messageLabel;
@@ -218,7 +218,7 @@ export const runMetaAdsQuery = async ({
     settings: { adAccountId },
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.META_ADS,
     MetaAdsRequest
@@ -247,7 +247,7 @@ export const runMetaAdsQuery = async ({
         pageSize: INSIGHTS_PAGE_SIZE,
         maxPages: META_ADS_CALLS_PER_QUERY,
         fetchPage: async ({ limit: pageLimit, cursor }) => {
-            const { data, paging } = await calls.fetch(
+            const { data, paging } = await runtime.fetch(
                 {
                     method: 'GET',
                     path: getMetaAdsInsightsPath(adAccountId),

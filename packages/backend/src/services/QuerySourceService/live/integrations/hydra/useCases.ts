@@ -3,7 +3,7 @@
 // events and users by any of their dimensions; anything that needs rows in
 // order or per-user state is not possible. Flip `possible` in the same PR as
 // the code that changes the answer.
-import type { LiveUseCases } from '../../spec/types';
+import { type LiveUseCases } from '../../sdk';
 
 export const hydraUseCases: LiveUseCases = {
     questions: [

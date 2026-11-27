@@ -4,8 +4,7 @@ import {
     HYDRA_REPORT_PATH,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
-import { type LiveRunArgs, type LiveRunResult } from '../../types';
+import { assertMaxRows, type LiveRunArgs, type LiveRunResult } from '../../sdk';
 import { HYDRA_REPORTS, type HydraReportRequest } from './report';
 
 /** The most rows one query returns, kept small so tests reach it. */
@@ -27,7 +26,7 @@ type HydraRow = z.infer<typeof responseSchema>['rows'][number];
 export const runHydraQuery = async ({
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.HYDRA,
     HydraReportRequest
@@ -38,7 +37,7 @@ export const runHydraQuery = async ({
     let offset: number | null = 0;
     while (offset !== null) {
         // eslint-disable-next-line no-await-in-loop
-        const page: z.infer<typeof responseSchema> = await calls.fetch(
+        const page: z.infer<typeof responseSchema> = await runtime.fetch(
             {
                 method: 'POST',
                 path: HYDRA_REPORT_PATH,

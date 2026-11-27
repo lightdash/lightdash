@@ -5,8 +5,8 @@ import {
     metric,
     NON_ADDITIVE,
     ratio,
-} from '../../explores/declare';
-import type { LiveExploreDefinition } from '../../explores/definition';
+    type LiveExploreDefinition,
+} from '../../sdk';
 import {
     GOOGLE_ADS_DATE_FILTERS,
     GOOGLE_ADS_EXACT_FILTERS,

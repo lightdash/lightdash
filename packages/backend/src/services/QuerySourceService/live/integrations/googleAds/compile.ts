@@ -10,17 +10,19 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import {
+    escapeRe2,
     getActiveFilterRules,
     getApiName,
+    getFinestLevel,
+    getGrainIssues,
     getLiveExplore,
+    isFinerLevel,
+    resolveAbsoluteDateRange,
     toFieldCombinationIssue,
     toLiveQueryError,
     type LiveCompiledRequest,
-} from '../../explores/definition';
-import { resolveAbsoluteDateRange } from '../../query/dateRange';
-import { escapeRe2 } from '../../query/escapeRe2';
-import { getGrainIssues, type LiveGrain } from '../../query/grain';
-import { getFinestLevel, isFinerLevel } from '../../query/levels';
+    type LiveGrain,
+} from '../../sdk';
 import { GOOGLE_ADS_MICROS_FIELDS } from './api';
 
 // Reports need a metric; dimension-only queries ask for this one and drop it.

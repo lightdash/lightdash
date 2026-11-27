@@ -312,7 +312,7 @@ describe('salesforceIntegration scan and setup test', () => {
             response({ name: 'Contact', fields: [] }),
         );
 
-        const scan = await source.scan();
+        const scan = await source.discover();
 
         expect(send.mock.calls.map(([call]) => call.path)).toEqual([
             '/services/data/v62.0/sobjects/Opportunity/describe',
@@ -338,11 +338,14 @@ describe('salesforceIntegration scan and setup test', () => {
             forbidden,
         );
         expect(
-            Object.keys((await partial.source.scan()).salesforceDescribe ?? {}),
+            Object.keys(
+                ((await partial.source.discover()).salesforceDescribe ??
+                    {}) as Record<string, unknown>,
+            ),
         ).toEqual(['Opportunity']);
 
         const none = connect(forbidden, forbidden, forbidden, forbidden);
-        await expect(none.source.scan()).rejects.toThrow('read access');
+        await expect(none.source.discover()).rejects.toThrow('read access');
     });
 
     it('fails the scan when a describe is throttled, so the last good scan stays', async () => {
@@ -352,7 +355,7 @@ describe('salesforceIntegration scan and setup test', () => {
             response({ name: 'Lead', fields: [] }),
             response({ name: 'Contact', fields: [] }),
         );
-        await expect(source.scan()).rejects.toBeInstanceOf(
+        await expect(source.discover()).rejects.toBeInstanceOf(
             TooManyRequestsError,
         );
     });
@@ -430,15 +433,14 @@ describe('salesforceIntegration access', () => {
 
     it('reads only the query, describe and limits endpoints, with GET', () => {
         expect(salesforceIntegration.access(SETTINGS)).toEqual({
-            pathPrefixes: [
+            rules: [
                 '/services/data/v62.0/query',
                 '/services/data/v62.0/sobjects/Opportunity/describe',
                 '/services/data/v62.0/sobjects/Account/describe',
                 '/services/data/v62.0/sobjects/Lead/describe',
                 '/services/data/v62.0/sobjects/Contact/describe',
                 '/services/data/v62.0/limits',
-            ],
-            methods: ['GET'],
+            ].map((path) => ({ method: 'GET', path, effect: 'read' })),
         });
     });
 });

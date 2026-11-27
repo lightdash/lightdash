@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type LiveTestSummary } from '../../types';
+import { type LiveTestSummary } from '../../sdk';
 
 // The setup test reads the account's spend over the last 7 days
 const testResponseSchema = z.object({

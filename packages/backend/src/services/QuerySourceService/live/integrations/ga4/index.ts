@@ -8,9 +8,11 @@ import { z } from 'zod';
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
+    describeExplores,
+    getIsoDateInTimeZone,
     jsonRequest,
-} from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
+    readRule,
+} from '../../sdk';
 import { toGoogleApiError } from '../google/errors';
 import { assertGoogleSignIn } from '../google/signIn';
 import { compileGa4Query, GA4_PERIOD_FORMATS } from './compile';
@@ -28,6 +30,7 @@ import {
     getGa4ReportPath,
     runGa4Query,
     scanGa4Metadata,
+    type Ga4Catalog,
 } from './run';
 import { withGa4MetadataFields } from './scanFields';
 import { ga4UseCases } from './useCases';
@@ -42,12 +45,10 @@ export const ga4Integration = defineLiveIntegration({
     settings: CATALOG.settings,
     origins: [GA4_DATA_ORIGIN],
     access: ({ propertyId }) => ({
-        pathPrefixes: [
-            getGa4ReportPath(propertyId),
-            getGa4MetadataPath(propertyId),
+        rules: [
+            readRule('POST', getGa4ReportPath(propertyId)),
+            readRule('GET', getGa4MetadataPath(propertyId)),
         ],
-        // GET reads the property metadata the semantic layer scans
-        methods: ['POST', 'GET'],
     }),
     limits: {
         callsPerQuery: 1,
@@ -87,6 +88,7 @@ export const ga4Integration = defineLiveIntegration({
     explores: GA4_EXPLORES,
     plannedModelNames: ['ecommerce'],
     level: { value: 3, description: 'Reports return totals per dimension.' },
+    kind: 'reports',
     auth: {
         description:
             'Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',
@@ -144,9 +146,13 @@ export const ga4Integration = defineLiveIntegration({
             label: LABEL,
             resource: `property ${propertyId}`,
         }),
-    scan: {
-        read: scanGa4Metadata,
-        withScannedFields: (definition, scan) =>
-            withGa4MetadataFields(definition, scan.ga4Metadata),
+    discovery: {
+        discover: scanGa4Metadata,
+        describe: describeExplores(
+            GA4_EXPLORES,
+            [],
+            (definition, catalog: Ga4Catalog) =>
+                withGa4MetadataFields(definition, catalog.ga4Metadata),
+        ),
     },
 });

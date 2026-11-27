@@ -6,16 +6,46 @@ import {
     type ExternalConnectionAuthType,
 } from '@lightdash/common';
 import { type z } from 'zod';
+import { type LiveExploreDefinition } from './explores/definition';
 import { refuseLiveQuery } from './query/refuse';
-import type { LiveCapabilities, LiveIntegration } from './types';
+import type {
+    LiveAccessRule,
+    LiveCapabilities,
+    LiveCatalog,
+    LiveIntegration,
+} from './types';
 
 /**
  * Checks an integration against the contract. Its request type stays
  * inside it: everything outside sends the query text through `parseRequest`.
  */
-export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
-    integration: LiveIntegration<C, Request>,
+export const defineLiveIntegration = <
+    C extends ApiConnectorType,
+    Request,
+    Catalog extends LiveCatalog,
+>(
+    integration: LiveIntegration<C, Request, Catalog>,
 ): LiveIntegration<C> => integration as unknown as LiveIntegration<C>;
+
+/**
+ * A `describe` that adds discovered fields to the first explore and to
+ * `models`, and keeps every other explore as written.
+ */
+export const describeExplores =
+    <Catalog>(
+        explores: readonly LiveExploreDefinition[],
+        models: readonly string[],
+        withFields: (
+            definition: LiveExploreDefinition,
+            catalog: Catalog,
+        ) => LiveExploreDefinition,
+    ) =>
+    (catalog: Catalog): LiveExploreDefinition[] =>
+        explores.map((definition, index) =>
+            index === 0 || models.includes(definition.name)
+                ? withFields(definition, catalog)
+                : definition,
+        );
 
 /**
  * Reads a JSON request checked by `schema`. `name` names it in errors, as
@@ -90,9 +120,10 @@ export const getLiveAccessRules = <C extends ApiConnectorType>(
     settings: ApiSourceOf<C>,
 ): LiveAccessRules => {
     const access = integration.access(settings);
+    const unique = <T>(values: T[]) => [...new Set(values)];
     return {
-        allowedPathPrefixes: access.pathPrefixes,
-        allowedMethods: access.methods,
+        allowedPathPrefixes: unique(access.rules.map(({ path }) => path)),
+        allowedMethods: unique(access.rules.map(({ method }) => method)),
         allowedContentTypes: ['application/json'],
         timeoutMs: integration.limits.timeoutMs,
         responseMaxBytes: LIVE_RESPONSE_MAX_BYTES,
@@ -129,3 +160,26 @@ export const validateLiveConnection = <C extends ApiConnectorType>(
     }
     integration.checkAuth({ type, origin, oauthTokenUrl });
 };
+
+/** A request a source may send to read data. */
+export const readRule = (
+    method: LiveAccessRule['method'],
+    path: string,
+): LiveAccessRule => ({ method, path, effect: 'read' });
+
+/**
+ * The rule that lets a source send `request`: same method, and a path that
+ * is the rule's path or under it, segment by segment.
+ */
+export const findAccessRule = (
+    rules: LiveAccessRule[],
+    request: Pick<LiveAccessRule, 'method' | 'path'>,
+): LiveAccessRule | undefined =>
+    rules.find(
+        ({ method, path }) =>
+            method === request.method &&
+            (request.path === path ||
+                request.path.startsWith(
+                    path.endsWith('/') ? path : `${path}/`,
+                )),
+    );

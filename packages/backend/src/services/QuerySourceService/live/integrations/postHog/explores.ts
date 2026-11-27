@@ -4,8 +4,8 @@ import {
     dimension,
     metric,
     NON_ADDITIVE,
-} from '../../explores/declare';
-import type { LiveExploreDefinition } from '../../explores/definition';
+    type LiveExploreDefinition,
+} from '../../sdk';
 import {
     POSTHOG_DATE_FILTERS,
     POSTHOG_METRIC_FILTERS,
