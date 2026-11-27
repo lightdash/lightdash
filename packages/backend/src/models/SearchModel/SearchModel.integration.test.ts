@@ -1372,7 +1372,6 @@ describe('SearchModel.searchComposerCharts', () => {
                 projectUuid,
                 spaceUuid,
                 chartType: ChartKind.PIE,
-                chartSource: 'composer',
                 createdBy: {
                     firstName: SEED_ORG_1_ADMIN.first_name,
                     lastName: SEED_ORG_1_ADMIN.last_name,

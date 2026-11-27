@@ -1379,7 +1379,7 @@ export class SearchModel {
         );
         const rows: (Omit<
             ComposerChartSearchResult,
-            'createdBy' | 'chartType' | 'chartSource'
+            'createdBy' | 'chartType'
         > & {
             firstName: string | null;
             lastName: string | null;
@@ -1416,14 +1416,13 @@ export class SearchModel {
         const chartKindByUuid = new Map(
             latestChartConfigs.map(({ composer_chart_uuid, chart_config }) => [
                 composer_chart_uuid,
-                getChartKind(chart_config.type, chart_config.config) ?? null,
+                getChartKind(chart_config.type, chart_config.config),
             ]),
         );
 
         return rows.map(({ firstName, lastName, userUuid, ...chart }) => ({
             ...chart,
             chartType: chartKindByUuid.get(chart.uuid) ?? null,
-            chartSource: 'composer' as const,
             createdBy: userUuid
                 ? {
                       firstName: firstName ?? '',

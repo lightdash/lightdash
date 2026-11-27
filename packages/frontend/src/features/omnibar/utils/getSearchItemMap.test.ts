@@ -123,7 +123,6 @@ describe('getSearchItemMap', () => {
             spaceUuid: 'space-uuid',
             projectUuid: 'project-uuid',
             chartType: ChartKind.LINE,
-            chartSource: 'composer',
             createdBy: null,
             search_rank: 0.8,
         };

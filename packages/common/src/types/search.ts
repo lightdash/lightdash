@@ -196,7 +196,6 @@ export type ComposerChartSearchResult = {
     projectUuid: string;
     /** From the latest version's chart config; null when it has no kind. */
     chartType: ChartKind | null;
-    chartSource: 'composer';
     createdBy: { firstName: string; lastName: string; userUuid: string } | null;
 } & RankedItem;
 

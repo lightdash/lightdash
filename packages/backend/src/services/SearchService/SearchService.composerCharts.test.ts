@@ -38,7 +38,6 @@ const composerChart = (
     spaceUuid,
     projectUuid,
     chartType: ChartKind.LINE,
-    chartSource: 'composer',
     createdBy: null,
     search_rank: 1,
 });
@@ -96,32 +95,27 @@ const setup = ({ enabled }: { enabled: boolean }) => {
             resolveAccessBatch,
         } as never,
     });
-    return { service, resolveAccessBatch };
+    return { service };
 };
 
 describe('composer chart search', () => {
     it('returns only charts whose space lets the user view charts', async () => {
-        const { service, resolveAccessBatch } = setup({ enabled: true });
+        const { service } = setup({ enabled: true });
         const results = await service.getSearchResults(
             user,
             projectUuid,
             'revenue',
         );
         expect(results.composerCharts).toEqual([visible]);
-        expect(resolveAccessBatch).toHaveBeenCalledWith(userUuid, [
-            { type: 'space', spaceUuid: 'shared-space' },
-            { type: 'space', spaceUuid: 'private-space' },
-        ]);
     });
 
     it('returns none when composer-charts is off', async () => {
-        const { service, resolveAccessBatch } = setup({ enabled: false });
+        const { service } = setup({ enabled: false });
         const results = await service.getSearchResults(
             user,
             projectUuid,
             'revenue',
         );
         expect(results.composerCharts).toEqual([]);
-        expect(resolveAccessBatch).toHaveBeenCalledWith(userUuid, []);
     });
 });

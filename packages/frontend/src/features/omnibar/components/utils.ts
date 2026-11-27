@@ -69,11 +69,13 @@ export const getOmnibarItemIcon = (item: SearchItem) => {
             return IconLayoutDashboard;
         case SearchItemType.CHART:
         case SearchItemType.SQL_CHART:
-        case SearchItemType.COMPOSER_CHART:
             return getChartIcon(
                 // FIXME: typing is loose here
                 (item.item as SavedChartSearchResult)?.chartType,
             );
+        // Composer items carry their chart kind icon from the search item map
+        case SearchItemType.COMPOSER_CHART:
+            return getChartIcon(undefined);
         case SearchItemType.SPACE:
             return IconFolder;
         case SearchItemType.TABLE:
