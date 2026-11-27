@@ -12,7 +12,10 @@ import {
 } from '../types/field';
 import { type DashboardFilters } from '../types/filter';
 import { MergeJoinType } from '../types/mergeQuery';
-import { type ParametersValuesMap } from '../types/parameters';
+import {
+    type ParameterDefinitions,
+    type ParametersValuesMap,
+} from '../types/parameters';
 import {
     getSourceQueryResultReferences,
     MAX_SOURCE_QUERIES_PER_SUBMISSION,
@@ -571,6 +574,34 @@ export type ComposerChart = {
 export type ApiComposerChartResponse = {
     status: 'ok';
     results: ComposerChart;
+};
+
+/** A composer chart with what its page header shows. */
+export type ComposerChartWithDetails = ComposerChart & {
+    /** The space the chart lives in: its own, or its dashboard's. */
+    space: { uuid: string; name: string };
+    /** Who wrote the current version; null when that user was deleted. */
+    updatedByUser: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    } | null;
+};
+
+export type ApiComposerChartDetailsResponse = {
+    status: 'ok';
+    results: ComposerChartWithDetails;
+};
+
+/** The parameters a composer chart's nodes reference, with their definitions. */
+export type ComposerChartParameters = {
+    parameterReferences: string[];
+    parameterDefinitions: ParameterDefinitions;
+};
+
+export type ApiComposerChartParametersResponse = {
+    status: 'ok';
+    results: ComposerChartParameters;
 };
 
 /** A bound run of a stored chart where a dashboard shows it; it never carries nodes. */

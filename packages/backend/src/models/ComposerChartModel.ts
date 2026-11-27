@@ -8,9 +8,11 @@ import {
     type ComposerChart,
     type ComposerChartOwner,
     type ComposerChartPipeline,
+    type ComposerChartWithDetails,
     type ComposerStoredChart,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { validate as isValidUuid } from 'uuid';
 import {
     ComposerChartsTableName,
     ComposerChartVersionsTableName,
@@ -21,6 +23,7 @@ import {
     DashboardVersionsTableName,
 } from '../database/entities/dashboards';
 import { SpaceTableName } from '../database/entities/spaces';
+import { UserTableName } from '../database/entities/users';
 import { generateUniqueSlugScopedToProject } from '../utils/SlugUtils';
 
 export type CreateComposerChartRecord = {
@@ -499,6 +502,73 @@ export class ComposerChartModel {
             .first();
         if (!row) throw new NotFoundError('Composer chart not found');
         return ComposerChartModel.toComposerChart(row);
+    }
+
+    /** A live chart's uuid from its uuid or its slug; slugs are unique within composer charts. */
+    async getUuidByUuidOrSlug(
+        projectUuid: string,
+        composerChartUuidOrSlug: string,
+    ): Promise<string> {
+        const row = await this.database(ComposerChartsTableName)
+            .select('composer_chart_uuid')
+            .where('project_uuid', projectUuid)
+            .where(
+                isValidUuid(composerChartUuidOrSlug)
+                    ? 'composer_chart_uuid'
+                    : 'slug',
+                composerChartUuidOrSlug,
+            )
+            .whereNull('deleted_at')
+            .first();
+        if (!row) throw new NotFoundError('Composer chart not found');
+        return row.composer_chart_uuid;
+    }
+
+    /** The chart with its owner's space and the author of its latest version. */
+    async getWithDetails(uuid: string): Promise<ComposerChartWithDetails> {
+        const row = await this.latestVersionQuery()
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${ComposerChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(SpaceTableName, function joinOwnerSpace() {
+                this.on(
+                    `${SpaceTableName}.space_uuid`,
+                    '=',
+                    `${ComposerChartsTableName}.space_uuid`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                );
+            })
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                'current_version.created_by_user_uuid',
+            )
+            .select(
+                `${SpaceTableName}.space_uuid as owner_space_uuid`,
+                `${SpaceTableName}.name as owner_space_name`,
+                `${UserTableName}.user_uuid as updated_by_user_uuid`,
+                `${UserTableName}.first_name as updated_by_first_name`,
+                `${UserTableName}.last_name as updated_by_last_name`,
+            )
+            .where(`${ComposerChartsTableName}.composer_chart_uuid`, uuid)
+            .first();
+        if (!row) throw new NotFoundError('Composer chart not found');
+        return {
+            ...ComposerChartModel.toComposerChart(row),
+            space: { uuid: row.owner_space_uuid, name: row.owner_space_name },
+            updatedByUser: row.updated_by_user_uuid
+                ? {
+                      userUuid: row.updated_by_user_uuid,
+                      firstName: row.updated_by_first_name,
+                      lastName: row.updated_by_last_name,
+                  }
+                : null,
+        };
     }
 
     /** Live charts with a live owner in a live space, for download; all of the project's when `slugs` is undefined. */

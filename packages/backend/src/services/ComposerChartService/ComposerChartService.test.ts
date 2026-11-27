@@ -1582,7 +1582,12 @@ describe('ComposerChartService.runChart', () => {
 
 describe('ComposerChartService.getParameterReferences', () => {
     const setupLookup = ({ flagEnabled = true } = {}) => {
-        const { service, composerChartModel } = setup({ flagEnabled });
+        const { service, composerChartModel, projectParametersModel } = setup({
+            flagEnabled,
+        });
+        projectParametersModel.find.mockResolvedValue([
+            { name: 'currency', config: { label: 'Currency', options: [] } },
+        ]);
         const nodes = [
             semantic({ parameters: { region: 'eu' } }),
             {
@@ -1642,6 +1647,36 @@ describe('ComposerChartService.getParameterReferences', () => {
                 projectDefinitions,
             ),
         ).rejects.toThrow(FeatureNotEnabledError);
+    });
+
+    test('lists the page’s parameters while composer charts are off, as the chart run runs', async () => {
+        const service = setupLookup({ flagEnabled: false });
+        await expect(
+            service.getParameters(
+                sessionAccount(
+                    new Ability<PossibleAbilities>([
+                        { subject: 'SavedChart', action: 'view' as const },
+                    ]),
+                ),
+                projectUuid,
+                'chart-uuid',
+            ),
+        ).resolves.toEqual({
+            parameterReferences: ['currency'],
+            parameterDefinitions: {
+                currency: { label: 'Currency', options: [], type: 'string' },
+            },
+        });
+    });
+
+    test('refuses the page’s parameters to a user who cannot view the chart', async () => {
+        await expect(
+            setupLookup().getParameters(
+                sessionAccount(new Ability<PossibleAbilities>([])),
+                projectUuid,
+                'chart-uuid',
+            ),
+        ).rejects.toThrow(ForbiddenError);
     });
 
     test('fails a chart the viewer cannot view', async () => {
@@ -1731,6 +1766,40 @@ describe('ComposerChartService.get', () => {
             service.get(chartViewer(), projectUuid, 'chart-uuid'),
         ).rejects.toThrow(NotFoundError);
         expect(composerChartModel.get).not.toHaveBeenCalled();
+    });
+
+    const setupGetBySlug = () => {
+        const { service, composerChartModel } = setupGet(spaceOwner);
+        const getUuidByUuidOrSlug = vi.fn(async () => 'chart-uuid');
+        const getWithDetails = vi.fn(async () => ({ uuid: 'chart-uuid' }));
+        Object.assign(composerChartModel, {
+            getUuidByUuidOrSlug,
+            getWithDetails,
+        });
+        return { service, getUuidByUuidOrSlug, getWithDetails };
+    };
+
+    test('reads a chart by its slug, checking view on the space that owns it', async () => {
+        const { service, getUuidByUuidOrSlug } = setupGetBySlug();
+        await expect(
+            service.getWithDetails(chartViewer(), projectUuid, 'orders-chart'),
+        ).resolves.toEqual({ uuid: 'chart-uuid' });
+        expect(getUuidByUuidOrSlug).toHaveBeenCalledWith(
+            projectUuid,
+            'orders-chart',
+        );
+    });
+
+    test('refuses a chart read by slug to a user who cannot view charts', async () => {
+        const { service, getWithDetails } = setupGetBySlug();
+        await expect(
+            service.getWithDetails(
+                dashboardViewer(),
+                projectUuid,
+                'orders-chart',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(getWithDetails).not.toHaveBeenCalled();
     });
 
     test('refuses a space chart whose space is in another project', async () => {

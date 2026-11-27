@@ -1,12 +1,15 @@
 import {
     assertRegisteredAccount,
     QueryExecutionContext,
+    type ApiComposerChartDetailsResponse,
+    type ApiComposerChartParametersResponse,
     type ApiComposerChartResponse,
     type ApiComposerChartRunResponse,
     type ApiErrorPayload,
     type ComposerChartRunRequest,
     type CreateComposerChart,
     type UUID,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import {
     Body,
@@ -66,23 +69,48 @@ export class ComposerChartController extends BaseController {
     }
 
     /**
-     * Gets a composer chart's current version, pipeline included. Anyone who
-     * can view charts in its owning dashboard or space can read it.
+     * Gets a composer chart's current version, pipeline included, with the
+     * space it lives in and who last changed it. Takes the chart's uuid or
+     * slug. Anyone who can view charts in its owning dashboard or space can
+     * read it.
      * @summary Get composer chart
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{composerChartUuid}')
+    @Get('/{composerChartUuidOrSlug}')
     @OperationId('getComposerChart')
     async get(
         @Path() projectUuid: UUID,
-        @Path() composerChartUuid: UUID,
+        @Path() composerChartUuidOrSlug: UuidOrSlug,
         @Request() req: express.Request,
-    ): Promise<ApiComposerChartResponse> {
+    ): Promise<ApiComposerChartDetailsResponse> {
         assertRegisteredAccount(req.account);
         const results = await this.services
             .getComposerChartService()
-            .get(req.account, projectUuid, composerChartUuid);
+            .getWithDetails(req.account, projectUuid, composerChartUuidOrSlug);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Lists the parameters a composer chart's nodes reference, with their
+     * definitions from the project and the nodes' models. Anyone who can view
+     * the chart can read them.
+     * @summary Get composer chart parameters
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{composerChartUuid}/parameters')
+    @OperationId('getComposerChartParameters')
+    async getParameters(
+        @Path() projectUuid: UUID,
+        @Path() composerChartUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiComposerChartParametersResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getComposerChartService()
+            .getParameters(req.account, projectUuid, composerChartUuid);
         this.setStatus(200);
         return { status: 'ok', results };
     }

@@ -1,0 +1,41 @@
+.root {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.pane {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.paneHeader {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-sm);
+    flex-shrink: 0;
+    min-height: rem(44px);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.paneBody {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.paneBody[data-padded='true'] {
+    padding: var(--mantine-spacing-md);
+}
+
+.chart {
+    flex: 1;
+    min-height: 0;
+}
