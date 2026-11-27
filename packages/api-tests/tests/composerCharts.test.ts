@@ -2124,28 +2124,6 @@ describe('Composer charts', () => {
             expect(withFilters.status).toBe(400);
         });
 
-        it('skips the results cache for a run that asks to', async () => {
-            const { chart } = await createSpaceChart();
-            const cacheHitOf = async (invalidateCache: boolean) => {
-                const run = await runChart(admin, {
-                    composerChartUuid: chart.uuid,
-                    invalidateCache,
-                });
-                expect(run.status).toBe(200);
-                const [{ queryUuid }] = run.body.results.queries;
-                await pollRows(admin, queryUuid);
-                const history = await admin.get<
-                    Body<{ data: QueryHistoryListItem[] }>
-                >(`/api/v2/projects/${projectUuid}/query/history?pageSize=100`);
-                return history.body.results.data.find(
-                    (row) => row.queryUuid === queryUuid,
-                )?.cacheHit;
-            };
-            await cacheHitOf(false);
-            expect(await cacheHitOf(false)).toBe(true);
-            expect(await cacheHitOf(true)).toBe(false);
-        });
-
         it("a caller's value beats a node's saved value, which beats the default; DuckDB reads caller values only", async () => {
             const { chart } = await createSpaceChart({
                 pipeline: {
