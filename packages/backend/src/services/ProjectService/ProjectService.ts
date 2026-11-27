@@ -12,6 +12,7 @@ import {
     ApiChartAndResults,
     ApiCompiledMergeQueryResults,
     ApiCompiledQueryResults,
+    ApiConnectorType,
     ApiCreatePreviewResults,
     ApiDataTimezonePreviewResults,
     ApiDeployExploresResults,
@@ -124,6 +125,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
+    getLiveIntegrationCatalogEntry,
     getMergeSourceTableLabels,
     getMetricOverridesWithPopInheritance,
     getMetrics,
@@ -407,7 +409,10 @@ import { type DbtSourceRefCatalogModel } from '../../models/DbtSourceRefCatalogM
 import type { DocumentModel } from '../../models/DocumentModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import {
+    FeatureFlagModel,
+    getDisabledLiveIntegrations,
+} from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
@@ -498,6 +503,7 @@ import { assertValidPersistedBigquerySsoKeyfile } from '../../utils/bigquerySsoC
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
+import { isExploreOfDisabledLiveIntegration } from '../../utils/disabledLiveIntegrations';
 import { redactExploreSql, redactFieldSql } from '../../utils/embedCompiledSql';
 import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -10830,7 +10836,10 @@ export class ProjectService
                     );
                     // A leg cut short at the integration's cap would join
                     // as if its missing rows did not exist
-                    const { label, limits } = getLiveIntegration(integration);
+                    const {
+                        label,
+                        query: { limits },
+                    } = getLiveIntegration(integration);
                     if (resolvedMetricQuery.limit > limits.maxRows) {
                         throw new ParameterError(
                             `Merge source "${source.id}" asks for ${resolvedMetricQuery.limit.toLocaleString(
@@ -14726,6 +14735,7 @@ export class ProjectService
     private async getExploreSummaries(
         account: Account,
         projectUuid: string,
+        disabledIntegrations: ReadonlySet<ApiConnectorType>,
         includeErrors: boolean = true,
     ) {
         // Use optimized query that only fetches summary fields instead of full explore JSON
@@ -14755,11 +14765,19 @@ export class ProjectService
             const {
                 baseTableRequiredAttributes,
                 baseTableAnyAttributes,
+                apiSourceIntegration,
                 ...rest
             } = summary;
             const summaryExplore: SummaryExplore = rest; // Just type assertion to remove the baseTableRequiredAttributes and baseTableAnyAttributes
 
             if (!includeErrors && 'errors' in summaryExplore) {
+                return acc;
+            }
+
+            if (
+                apiSourceIntegration &&
+                disabledIntegrations.has(apiSourceIntegration)
+            ) {
                 return acc;
             }
 
@@ -14824,6 +14842,10 @@ export class ProjectService
         const allExploreSummaries = await this.getExploreSummaries(
             account,
             projectUuid,
+            await getDisabledLiveIntegrations(
+                this.featureFlagModel,
+                organizationUuid,
+            ),
             includeErrors,
         );
         const shouldIncludePreAggregateExplores =
@@ -14938,16 +14960,28 @@ export class ProjectService
                 name: 'ProjectService.getExplore',
             },
             async () => {
-                const { explores: exploresMap, userAccessControls } =
-                    await this.findExploresWithUserAccessControls({
-                        account,
-                        projectUuid,
-                        exploreNames: [exploreName],
-                        organizationUuid,
-                        userAttributeOverrides,
-                    });
+                const {
+                    explores: exploresMap,
+                    userAccessControls,
+                    disabledIntegrationByExplore,
+                } = await this.findExploresWithUserAccessControls({
+                    account,
+                    projectUuid,
+                    exploreNames: [exploreName],
+                    organizationUuid,
+                    userAttributeOverrides,
+                });
                 const explore = exploresMap[exploreName];
 
+                const disabledIntegration =
+                    disabledIntegrationByExplore[exploreName];
+                if (disabledIntegration) {
+                    const { messageLabel } =
+                        getLiveIntegrationCatalogEntry(disabledIntegration);
+                    throw new ForbiddenError(
+                        `The ${messageLabel} integration is turned off for this organization`,
+                    );
+                }
                 if (!explore) {
                     throw await this.projectModel.getMissingExploreError(
                         projectUuid,
@@ -15011,6 +15045,8 @@ export class ProjectService
     }): Promise<{
         explores: Record<string, Explore | ExploreError>;
         userAccessControls: UserAccessControls;
+        /** Explores left out because their live source integration is turned off, with it. */
+        disabledIntegrationByExplore: Partial<Record<string, ApiConnectorType>>;
     }> {
         return traceSpan(
             {
@@ -15051,18 +15087,26 @@ export class ProjectService
                 if (isForbidden) {
                     throw new ForbiddenError();
                 }
-                const [liveExplores, baseUserAccessControls, inDevelopment] =
-                    await Promise.all([
-                        this.projectModel.findExploresFromCache(
-                            projectUuid,
-                            'name',
-                            exploreNames,
-                        ),
-                        this.getUserAttributes({ account }),
-                        developmentView
-                            .getStore()
-                            ?.findExplores(account, projectUuid) ?? null,
-                    ]);
+                const [
+                    liveExplores,
+                    baseUserAccessControls,
+                    inDevelopment,
+                    disabledIntegrations,
+                ] = await Promise.all([
+                    this.projectModel.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                        exploreNames,
+                    ),
+                    this.getUserAttributes({ account }),
+                    developmentView
+                        .getStore()
+                        ?.findExplores(account, projectUuid) ?? null,
+                    getDisabledLiveIntegrations(
+                        this.featureFlagModel,
+                        project.organizationUuid,
+                    ),
+                ]);
                 // A request in the development view reads this person's own unpublished models over the live ones.
                 const explores = inDevelopment
                     ? [
@@ -15089,6 +15133,9 @@ export class ProjectService
                         projectUuid,
                     );
 
+                const disabledIntegrationByExplore: Partial<
+                    Record<string, ApiConnectorType>
+                > = {};
                 const filteredExplores = Object.values(explores).reduce<
                     Record<string, Explore | ExploreError>
                 >((acc, explore) => {
@@ -15096,6 +15143,16 @@ export class ProjectService
                         explore.type === ExploreType.PRE_AGGREGATE &&
                         !canViewPreAggregateExplores
                     ) {
+                        return acc;
+                    }
+                    if (
+                        isExploreOfDisabledLiveIntegration(
+                            explore,
+                            disabledIntegrations,
+                        )
+                    ) {
+                        disabledIntegrationByExplore[explore.name] =
+                            explore.apiSource?.integration;
                         return acc;
                     }
                     if (isExploreError(explore)) {
@@ -15140,6 +15197,7 @@ export class ProjectService
                 return {
                     explores: filteredExplores,
                     userAccessControls,
+                    disabledIntegrationByExplore,
                 };
             },
         );
@@ -15181,7 +15239,21 @@ export class ProjectService
             this.logger,
             catalogReadContext,
         );
-        const explores = Object.values(cachedExplores);
+        const disabledIntegrations = await getDisabledLiveIntegrations(
+            this.featureFlagModel,
+            organizationUuid,
+        );
+        const hiddenExploreNames = new Set(
+            disabledIntegrations.size === 0
+                ? []
+                : await this.projectModel.findApiSourceExploreNamesByIntegration(
+                      projectUuid,
+                      [...disabledIntegrations],
+                  ),
+        );
+        const explores = Object.values(cachedExplores).filter(
+            ({ name }) => !hiddenExploreNames.has(name),
+        );
 
         return (explores || []).reduce<ProjectCatalog>((acc, explore) => {
             if (!('errors' in explore)) {

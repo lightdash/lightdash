@@ -6261,18 +6261,58 @@ export default class SchedulerTask {
                 // appended to the page above.
                 const partialFailures = page?.failures ?? [];
 
+                // Recipients are still told which charts failed, but a run
+                // that delivered no content is a failed run, not a partial one.
+                const countFailedCharts = (
+                    channelPage: NotificationPayloadBase['page'],
+                ) =>
+                    (channelPage.failures ?? []).filter(
+                        (failure) =>
+                            failure.type ===
+                                PartialFailureType.DASHBOARD_CHART ||
+                            failure.type ===
+                                PartialFailureType.DASHBOARD_SQL_CHART ||
+                            failure.type ===
+                                PartialFailureType.DASHBOARD_COMPOSER_CHART,
+                    ).length;
+                // Channels with different link expirations export separately,
+                // so one can deliver files while another delivers none.
+                const exportedPages = [
+                    ...new Set(
+                        [page, ...Object.values(perChannelPages ?? {})].filter(
+                            (channelPage) => channelPage !== undefined,
+                        ),
+                    ),
+                ];
+                const nothingDelivered =
+                    exportedPages.length > 0 &&
+                    exportedPages.every(
+                        (channelPage) =>
+                            countFailedCharts(channelPage) > 0 &&
+                            channelPage.csvUrls?.length === 0,
+                    );
+                const failedChartCount = page ? countFailedCharts(page) : 0;
+
                 await this.schedulerService.logSchedulerJob({
                     task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
                     schedulerUuid,
                     jobId,
                     jobGroup: jobId,
                     scheduledTime,
-                    status: SchedulerJobStatus.COMPLETED,
+                    status: nothingDelivered
+                        ? SchedulerJobStatus.ERROR
+                        : SchedulerJobStatus.COMPLETED,
                     details: {
                         projectUuid: schedulerPayload.projectUuid,
                         organizationUuid: schedulerPayload.organizationUuid,
                         createdByUserUuid: schedulerPayload.userUuid,
                         ...(partialFailures.length > 0 && { partialFailures }),
+                        ...(nothingDelivered && {
+                            error:
+                                failedChartCount === 1
+                                    ? 'The only chart in this delivery failed'
+                                    : `All ${failedChartCount} charts in this delivery failed`,
+                        }),
                     },
                 });
 

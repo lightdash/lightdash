@@ -24,6 +24,7 @@ import {
     timeOmnibarSearch,
     timeOmnibarSearchSync,
 } from '../../logging/omnibarSearchTiming';
+import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { searchReservingVerified } from '../../models/SearchModel/utils/search';
@@ -45,6 +46,7 @@ type SearchServiceArguments = {
     spaceModel: SpaceModel;
     userAttributesModel: UserAttributesModel;
     spacePermissionService: SpacePermissionService;
+    featureFlagModel: Pick<FeatureFlagModel, 'getDisabledLiveIntegrations'>;
     // EE-only — undefined on OSS builds where data apps don't exist.
     appGenerateService?: AppGenerateService;
 };
@@ -96,6 +98,8 @@ export class SearchService extends BaseService {
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly featureFlagModel: SearchServiceArguments['featureFlagModel'];
+
     private readonly appGenerateService?: AppGenerateService;
 
     constructor(args: SearchServiceArguments) {
@@ -107,6 +111,7 @@ export class SearchService extends BaseService {
         this.spaceModel = args.spaceModel;
         this.userAttributesModel = args.userAttributesModel;
         this.spacePermissionService = args.spacePermissionService;
+        this.featureFlagModel = args.featureFlagModel;
         this.appGenerateService = args.appGenerateService;
     }
 
@@ -288,8 +293,18 @@ export class SearchService extends BaseService {
                 throw new ForbiddenError();
             }
 
+            const excludedIntegrations =
+                await this.featureFlagModel.getDisabledLiveIntegrations(
+                    organizationUuid,
+                );
             const search = () =>
-                this.searchModel.search(projectUuid, query, filters, timing);
+                this.searchModel.search(
+                    projectUuid,
+                    query,
+                    filters,
+                    timing,
+                    excludedIntegrations,
+                );
             const results = await timeOmnibarSearch(
                 timing,
                 'searchModel',

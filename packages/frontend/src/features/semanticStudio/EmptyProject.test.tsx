@@ -1,4 +1,5 @@
 import {
+    ApiConnectorType,
     DbtProjectType,
     WarehouseTypes,
     type SemanticLayerStatus,
@@ -58,9 +59,16 @@ type Setup = {
     warehouse: boolean;
     dbtType: DbtProjectType;
     tables: boolean;
+    liveIntegrations: ApiConnectorType[];
 };
 
-const mockApi = ({ status, warehouse, dbtType, tables }: Setup) =>
+const mockApi = ({
+    status,
+    warehouse,
+    dbtType,
+    tables,
+    liveIntegrations,
+}: Setup) =>
     api.mockImplementation(({ url }: { url: string }) => {
         if (url === '/projects/project') {
             return Promise.resolve({
@@ -86,6 +94,9 @@ const mockApi = ({ status, warehouse, dbtType, tables }: Setup) =>
                 externalSources: { engineAvailable: true },
                 rudder: { writeKey: '', dataPlaneUrl: '' },
             });
+        }
+        if (url === '/ee/org/live-integrations') {
+            return Promise.resolve(liveIntegrations);
         }
         if (url === '/aiAgents/settings') {
             return Promise.resolve({ isCopilotEnabled: true });
@@ -141,6 +152,7 @@ const renderEmpty = ({
         warehouse: true,
         dbtType: DbtProjectType.NONE,
         tables: true,
+        liveIntegrations: [ApiConnectorType.POSTHOG, ApiConnectorType.HUBSPOT],
         ...setup,
     });
     renderWithProviders(
@@ -318,6 +330,33 @@ describe('EmptyProject', () => {
             screen.getByRole('button', { name: /Upload a file/ }),
         ).toBeInTheDocument();
         expect(screen.queryByText('Virtual view')).not.toBeInTheDocument();
+    });
+
+    it('names only the turned-on integrations on the live source option', async () => {
+        renderEmpty({ warehouse: false });
+        expect(
+            await screen.findByRole('button', {
+                name: /Connect a live source/,
+            }),
+        ).toHaveTextContent('PostHog and HubSpot');
+    });
+
+    it('offers no live source when every integration is turned off', async () => {
+        renderEmpty({ warehouse: false, liveIntegrations: [] });
+        expect(
+            await screen.findByRole('button', { name: /Upload a file/ }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /Connect a live source/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('drops the live data source button when every integration is turned off', async () => {
+        renderEmpty({ liveIntegrations: [] });
+        expect(
+            await screen.findByText('db.schema_a · 2 tables'),
+        ).toBeInTheDocument();
+        expect(startFromButtons()).toEqual(['External source', 'Virtual view']);
     });
 
     it('waits for a connected dbt project to refresh', async () => {

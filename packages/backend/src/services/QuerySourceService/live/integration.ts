@@ -6,15 +6,27 @@ import {
     type ExternalConnectionAuthType,
 } from '@lightdash/common';
 import { type z } from 'zod';
+import { type LiveExploreDefinition } from './explores/definition';
 import { refuseLiveQuery } from './query/refuse';
-import type { LiveCapabilities, LiveIntegration } from './types';
+import type {
+    LiveAccessRule,
+    LiveCapabilities,
+    LiveCatalog,
+    LiveIntegration,
+    LiveLimits,
+    LiveModel,
+} from './types';
 
 /**
  * Checks an integration against the contract. Its request type stays
- * inside it: everything outside sends the query text through `parseRequest`.
+ * inside it: everything outside sends the query text through `parseLiveRequest`.
  */
-export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
-    integration: LiveIntegration<C, Request>,
+export const defineLiveIntegration = <
+    C extends ApiConnectorType,
+    Request,
+    Catalog extends LiveCatalog,
+>(
+    integration: LiveIntegration<C, Request, Catalog>,
 ): LiveIntegration<C> => integration as unknown as LiveIntegration<C>;
 
 /**
@@ -56,6 +68,50 @@ export const assertMaxRows = (limit: number, maxRows: number) => {
     }
 };
 
+/**
+ * The explores a source offers once `discover` has run: the first explore
+ * and `discovery.models` with the discovered fields, the rest as written.
+ */
+export const describeLiveExplores = (
+    model: LiveModel,
+    catalog: LiveCatalog,
+): LiveExploreDefinition[] =>
+    model.explores.map((definition, index) =>
+        model.discovery &&
+        (index === 0 || model.discovery.models?.includes(definition.name))
+            ? model.discovery.withFields(definition, catalog)
+            : definition,
+    );
+
+/**
+ * A source's limits: its own when its settings set them, with
+ * `callsPerQuery` filled in from the pages `maxRows` takes.
+ */
+export const getLiveLimits = <C extends ApiConnectorType>(
+    integration: Pick<LiveIntegration<C>, 'query'>,
+    settings?: ApiSourceOf<C>,
+): LiveLimits & { callsPerQuery: number } => {
+    const limits =
+        settings && integration.query.limitsFor
+            ? integration.query.limitsFor(settings)
+            : integration.query.limits;
+    return {
+        ...limits,
+        callsPerQuery:
+            limits.callsPerQuery ??
+            (limits.pageSize ? Math.ceil(limits.maxRows / limits.pageSize) : 1),
+    };
+};
+
+/** Reads one query as compile writes it and as an agent may send it raw. */
+export const parseLiveRequest = <C extends ApiConnectorType>(
+    integration: Pick<LiveIntegration<C>, 'label' | 'query'>,
+    query: string,
+): unknown =>
+    typeof integration.query.request === 'function'
+        ? integration.query.request(query)
+        : jsonRequest(integration.label, integration.query.request)(query);
+
 /** Every feature the shared check gates, refused. */
 export const ALL_PUSHDOWN_REFUSED: LiveCapabilities['pushdown'] = {
     tableCalculations: 'refused',
@@ -89,12 +145,13 @@ export const getLiveAccessRules = <C extends ApiConnectorType>(
     integration: LiveIntegration<C>,
     settings: ApiSourceOf<C>,
 ): LiveAccessRules => {
-    const access = integration.access(settings);
+    const access = integration.connection.access(settings);
+    const unique = <T>(values: T[]) => [...new Set(values)];
     return {
-        allowedPathPrefixes: access.pathPrefixes,
-        allowedMethods: access.methods,
+        allowedPathPrefixes: unique(access.rules.map(({ path }) => path)),
+        allowedMethods: unique(access.rules.map(({ method }) => method)),
         allowedContentTypes: ['application/json'],
-        timeoutMs: integration.limits.timeoutMs,
+        timeoutMs: integration.query.limits.timeoutMs,
         responseMaxBytes: LIVE_RESPONSE_MAX_BYTES,
         ...(access.headers !== undefined
             ? { customHeaders: access.headers }
@@ -116,8 +173,11 @@ export const validateLiveConnection = <C extends ApiConnectorType>(
     integration: LiveIntegration<C>,
     { apiSource, type, origin, oauthTokenUrl }: LiveConnectionSettings<C>,
 ) => {
-    integration.validate(apiSource);
-    const { origins, acceptsOrigin, label } = integration;
+    integration.connection.validate?.(apiSource);
+    const {
+        connection: { origins, acceptsOrigin },
+        label,
+    } = integration;
     const trimmed = origin.replace(/\/+$/, '');
     const isAccepted = acceptsOrigin
         ? acceptsOrigin(trimmed)
@@ -127,5 +187,28 @@ export const validateLiveConnection = <C extends ApiConnectorType>(
             `${label} connections must use ${origins.join(' or ')}`,
         );
     }
-    integration.checkAuth({ type, origin, oauthTokenUrl });
+    integration.connection.checkAuth({ type, origin, oauthTokenUrl });
 };
+
+/** A request a source may send to read data. */
+export const readRule = (
+    method: LiveAccessRule['method'],
+    path: string,
+): LiveAccessRule => ({ method, path, effect: 'read' });
+
+/**
+ * The rule that lets a source send `request`: same method, and a path that
+ * is the rule's path or under it, segment by segment.
+ */
+export const findAccessRule = (
+    rules: LiveAccessRule[],
+    request: Pick<LiveAccessRule, 'method' | 'path'>,
+): LiveAccessRule | undefined =>
+    rules.find(
+        ({ method, path }) =>
+            method === request.method &&
+            (request.path === path ||
+                request.path.startsWith(
+                    path.endsWith('/') ? path : `${path}/`,
+                )),
+    );

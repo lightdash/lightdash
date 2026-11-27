@@ -3,6 +3,7 @@ import {
     AlreadyExistsError,
     ApiConnectorType,
     ForbiddenError,
+    getLiveSourceFeatureFlag,
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
@@ -18,7 +19,7 @@ import {
     type LiveSourceFieldEdits,
     type LiveSourceFieldState,
 } from '../../../services/QuerySourceService/live/explores/fields';
-import { POSTHOG_EVENTS_EXPLORE } from '../../../services/QuerySourceService/live/integrations/postHog/explores';
+import { POSTHOG_EVENTS_EXPLORE } from '../../../services/QuerySourceService/live/integrations/postHog/model';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
@@ -27,6 +28,19 @@ import {
     type LiveSourceEdits,
 } from '../../models/ExternalConnectionModel';
 import { ExternalConnectionService } from './ExternalConnectionService';
+
+// No integration declares a flag yet, so the tests declare one for every
+// integration but Hydra.
+vi.mock('@lightdash/common', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@lightdash/common')>();
+    return {
+        ...actual,
+        getLiveSourceFeatureFlag: (connector: string) =>
+            connector === actual.ApiConnectorType.HYDRA
+                ? undefined
+                : `live-source-${connector}`,
+    };
+});
 
 vi.mock('../../../utils/secureFetch/secureFetch', async (importOriginal) => {
     const actual =
@@ -83,6 +97,7 @@ const buildService = ({
     chartCount = 0,
     userAttributes = {},
     orgAttributeNames = [],
+    disabledIntegrations = [],
 }: {
     connections?: ExternalConnection[];
     canView?: boolean;
@@ -97,6 +112,8 @@ const buildService = ({
     userAttributes?: Record<string, string[]>;
     /** Attribute names that exist in the organization. */
     orgAttributeNames?: string[];
+    /** Integrations whose feature flag is off for the organization. */
+    disabledIntegrations?: ApiConnectorType[];
 } = {}) => {
     let fieldState: LiveSourceFieldState = {
         lastScan: null,
@@ -298,7 +315,25 @@ const buildService = ({
             .fn()
             .mockResolvedValue(orgAttributeNames.map((name) => ({ name }))),
     };
+    const featureFlagModel = {
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled: !disabledIntegrations.some(
+                (connector) =>
+                    getLiveSourceFeatureFlag(connector) === featureFlagId,
+            ),
+        })),
+        getDisabledLiveIntegrations: vi.fn(
+            async () =>
+                new Set(
+                    disabledIntegrations.filter(
+                        (connector) => !!getLiveSourceFeatureFlag(connector),
+                    ),
+                ),
+        ),
+    };
     const service = new ExternalConnectionService({
+        featureFlagModel,
         projectModel,
         savedChartModel,
         spacePermissionService,
@@ -323,6 +358,7 @@ const buildService = ({
         projectModel,
         savedChartModel,
         userAttributesModel,
+        featureFlagModel,
     };
 };
 
@@ -3062,5 +3098,200 @@ describe('ExternalConnectionService live source access rule', () => {
         await expect(
             service.listApiSourceConnections(account, 'proj-1'),
         ).resolves.toEqual([]);
+    });
+});
+
+describe('ExternalConnectionService integration feature flags', () => {
+    const postHogCreate: CreateExternalConnection = {
+        name: 'Product analytics',
+        type: 'bearer_token',
+        origin: 'https://eu.posthog.com',
+        secret: 'phx_secret',
+        allowedPathPrefixes: ['/api/projects/303731/query/'],
+        allowedMethods: ['POST'],
+        allowedContentTypes: ['application/json'],
+        apiSource: {
+            connector: ApiConnectorType.POSTHOG,
+            projectId: '303731',
+        },
+    };
+    const turnedOff = {
+        disabledIntegrations: [ApiConnectorType.POSTHOG],
+    };
+
+    it('checks the organization-wide flag of the integration', async () => {
+        const { service, featureFlagModel } = buildService();
+        await service.create(account, 'proj-1', postHogCreate);
+
+        expect(featureFlagModel.get).toHaveBeenCalledWith({
+            user: { organizationUuid: 'org-1' },
+            featureFlagId: 'live-source-posthog',
+        });
+    });
+
+    it('refuses to add an integration the organization has turned off', async () => {
+        const { service, externalConnectionModel } = buildService(turnedOff);
+
+        await expect(
+            service.create(account, 'proj-1', postHogCreate),
+        ).rejects.toThrow(
+            new ForbiddenError(
+                'The PostHog integration is turned off for this organization',
+            ),
+        );
+        expect(externalConnectionModel.create).not.toHaveBeenCalled();
+    });
+
+    it('refuses to query an existing source of a turned-off integration', async () => {
+        const { service } = buildService(turnedOff);
+
+        await expect(
+            service.getLiveSourceForExplore(
+                account,
+                'proj-1',
+                'conn-1',
+                60_000,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        await expect(
+            service.getLiveSource(account, 'proj-1', 'conn-1', 60_000),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('refuses to refresh the explores of a turned-off integration', async () => {
+        const { service, projectModel } = buildService(turnedOff);
+
+        await expect(
+            service.refreshApiSourceExplores(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(ForbiddenError);
+        expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
+    });
+
+    it('refuses to edit, test or reattach a source of a turned-off integration', async () => {
+        const { service, externalConnectionModel } = buildService({
+            ...turnedOff,
+            deletedSources: [],
+        });
+
+        await expect(
+            service.update(account, 'proj-1', 'conn-1', { name: 'Renamed' }),
+        ).rejects.toThrow(ForbiddenError);
+        await expect(
+            service.testConnection(account, 'proj-1', 'conn-1', {
+                path: '/api/projects/303731/query/',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        await expect(
+            service.testConfig(account, 'proj-1', postHogCreate, {
+                path: '/api/projects/303731/query/',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        await expect(
+            service.reattachLiveSource(account, 'proj-1', 'conn-1', 'old-conn'),
+        ).rejects.toThrow(ForbiddenError);
+        expect(externalConnectionModel.update).not.toHaveBeenCalled();
+    });
+
+    it('lists only the integrations the organization has turned on', async () => {
+        const { service, featureFlagModel } = buildService({
+            disabledIntegrations: [
+                ApiConnectorType.HUBSPOT,
+                ApiConnectorType.SALESFORCE,
+            ],
+        });
+
+        const enabled = await service.getEnabledLiveIntegrations(account);
+
+        expect(enabled).toContain(ApiConnectorType.POSTHOG);
+        expect(enabled).not.toContain(ApiConnectorType.HUBSPOT);
+        expect(enabled).not.toContain(ApiConnectorType.SALESFORCE);
+        expect(
+            featureFlagModel.getDisabledLiveIntegrations,
+        ).toHaveBeenCalledWith(account.organization.organizationUuid);
+    });
+
+    it('lists integrations to any organization member', async () => {
+        const { service } = buildService({ canView: false, canManage: false });
+
+        await expect(
+            service.getEnabledLiveIntegrations(account),
+        ).resolves.toEqual(Object.values(ApiConnectorType));
+    });
+
+    it('never gates an integration that declares no feature flag', async () => {
+        const { service, featureFlagModel } = buildService({
+            connections: [
+                posthogConnection({
+                    apiSource: {
+                        connector: ApiConnectorType.HYDRA,
+                    } as ExternalConnection['apiSource'],
+                }),
+            ],
+            disabledIntegrations: [ApiConnectorType.HYDRA],
+        });
+
+        await expect(service.list(account, 'proj-1')).resolves.toHaveLength(1);
+        expect(featureFlagModel.get).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                featureFlagId: expect.stringContaining('hydra'),
+            }),
+        );
+    });
+
+    it('leaves sources of a turned-off integration out of every list', async () => {
+        const hubSpot = posthogConnection({
+            externalConnectionUuid: 'conn-2',
+            apiSource: {
+                connector: ApiConnectorType.HUBSPOT,
+            } as ExternalConnection['apiSource'],
+        });
+        const { service } = buildService({
+            connections: [posthogConnection(), hubSpot],
+            disabledIntegrations: [ApiConnectorType.POSTHOG],
+        });
+
+        const listed = await service.list(account, 'proj-1');
+        const queryable = await service.listApiSourceConnections(
+            account,
+            'proj-1',
+        );
+
+        expect(listed.map((c) => c.externalConnectionUuid)).toEqual(['conn-2']);
+        expect(queryable.map((c) => c.externalConnectionUuid)).toEqual([
+            'conn-2',
+        ]);
+    });
+
+    it('offers no deleted sources to reattach for a turned-off integration', async () => {
+        const { service, externalConnectionModel } = buildService({
+            ...turnedOff,
+            deletedSources: [
+                {
+                    externalConnectionUuid: 'old-conn',
+                    name: 'Old',
+                    sourceName: 'posthog',
+                    origin: 'https://eu.posthog.com',
+                    apiSource: postHogCreate.apiSource!,
+                    deletedAt: new Date(),
+                } as DeletedLiveSource,
+            ],
+        });
+
+        await expect(
+            service.listReattachableLiveSources(account, 'proj-1', 'conn-1'),
+        ).resolves.toEqual([]);
+        expect(
+            externalConnectionModel.listDeletedLiveSources,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('still reads and deletes a source of a turned-off integration', async () => {
+        const { service, externalConnectionModel } = buildService(turnedOff);
+
+        await expect(
+            service.get(account, 'proj-1', 'conn-1'),
+        ).resolves.toMatchObject({ externalConnectionUuid: 'conn-1' });
+        await service.delete(account, 'proj-1', 'conn-1');
+        expect(externalConnectionModel.softDelete).toHaveBeenCalled();
     });
 });

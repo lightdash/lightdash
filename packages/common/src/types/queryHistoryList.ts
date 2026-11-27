@@ -32,6 +32,7 @@ export const QUERY_TRIGGER_BY_CONTEXT: Record<
     [QueryExecutionContext.CHART]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.CHART_HISTORY]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.SQL_CHART]: QueryTrigger.INTERACTIVE,
+    [QueryExecutionContext.COMPOSER_CHART_VIEW]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.VIEW_UNDERLYING_DATA]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.CALCULATE_TOTAL]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.CALCULATE_SUBTOTAL]: QueryTrigger.INTERACTIVE,

@@ -25,11 +25,8 @@ import { WarehouseTypeLabels } from '../../components/ProjectConnection/ProjectC
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import {
-    getLiveSourceIconClass,
-    isAvailableLiveSource,
-    LIVE_SOURCE_CATALOG,
-} from '../externalConnections/liveSources/liveSourceCatalog';
+import { describeLiveSources } from '../externalConnections/liveSources/enabledLiveSources';
+import { getLiveSourceIconClass } from '../externalConnections/liveSources/liveSourceCatalog';
 import { TableListingFailureNotice } from '../sqlRunner/components/TableListingFailureNotice';
 import classes from './EmptyProject.module.css';
 import sharedClasses from './shared.module.css';
@@ -92,10 +89,6 @@ const WAREHOUSE_LOGOS = WarehouseTypeLabels.flatMap((warehouse) =>
         : [],
 );
 
-const LIVE_SOURCE_ICONS = LIVE_SOURCE_CATALOG.filter(isAvailableLiveSource).map(
-    ({ label, icon }) => ({ label, icon }),
-);
-
 const LIVE_ICONS_SHOWN = 3;
 
 /** Every supported warehouse as a tile on a faint isometric floor. */
@@ -137,7 +130,7 @@ const AltOption: FC<{
 
 /** Ways in that need no warehouse: live data sources and files. */
 const StartWithoutWarehouse: FC<{ view: ViewModel }> = ({ view }) => {
-    const { options, addInPlace } = useAddSource(view);
+    const { options, addInPlace, enabledLiveSources } = useAddSource(view);
     const live = options.find(({ key }) => key === 'live');
     const file = options.find(({ key }) => key === 'file');
     if (!live && !file) return null;
@@ -151,27 +144,28 @@ const StartWithoutWarehouse: FC<{ view: ViewModel }> = ({ view }) => {
                     <AltOption
                         icon={
                             <Box className={classes.liveIcons}>
-                                {LIVE_SOURCE_ICONS.slice(
-                                    0,
-                                    LIVE_ICONS_SHOWN,
-                                ).map(({ label, icon }) => (
-                                    <Box
-                                        key={label}
-                                        className={classes.liveIcon}
-                                    >
-                                        <img
-                                            src={icon}
-                                            alt=""
-                                            className={getLiveSourceIconClass(
-                                                icon,
-                                            )}
-                                        />
-                                    </Box>
-                                ))}
+                                {enabledLiveSources
+                                    .slice(0, LIVE_ICONS_SHOWN)
+                                    .map(({ label, icon }) => (
+                                        <Box
+                                            key={label}
+                                            className={classes.liveIcon}
+                                        >
+                                            <img
+                                                src={icon}
+                                                alt=""
+                                                className={getLiveSourceIconClass(
+                                                    icon,
+                                                )}
+                                            />
+                                        </Box>
+                                    ))}
                             </Box>
                         }
                         title="Connect a live source"
-                        description="PostHog, HubSpot and more"
+                        description={describeLiveSources(
+                            enabledLiveSources.map(({ label }) => label),
+                        )}
                         onClick={() => addInPlace(live)}
                     />
                 ) : null}

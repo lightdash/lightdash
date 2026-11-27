@@ -170,6 +170,9 @@ function buildService(opts: {
     const analytics = { track: vi.fn(), trackAccount: vi.fn() };
 
     const service = new ExternalConnectionService({
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ id: 'flag', enabled: true }),
+        },
         userAttributesModel: {
             getAttributeValuesForOrgMember: vi.fn().mockResolvedValue({}),
             find: vi.fn().mockResolvedValue([]),

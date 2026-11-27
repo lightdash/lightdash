@@ -1,5 +1,6 @@
 /* oxlint-disable react/only-export-components -- Shared Storybook fixtures and providers. */
 import {
+    ApiConnectorType,
     DbtProjectType,
     getSlackFeatureAvailability,
     type SlackSettings,
@@ -157,6 +158,7 @@ const defaultRoutes = (): StubRoutes => ({
     } satisfies SlackSettings,
     'GET /org/jobs/create-project/active': null,
     'GET /ee/homepage/recommended-action-skips': [],
+    'GET /ee/org/live-integrations': Object.values(ApiConnectorType),
     'GET /aiAgents/settings': {
         isCopilotEnabled: false,
         isTrial: false,

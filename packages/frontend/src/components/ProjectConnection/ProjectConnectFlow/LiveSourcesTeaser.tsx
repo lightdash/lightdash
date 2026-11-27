@@ -10,33 +10,33 @@ import {
 import { IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLiveSourcesAvailability } from '../../../features/externalConnections/hooks/useLiveSourcesAvailability';
-import { isGoogleConnector } from '../../../features/externalConnections/liveSources/googleConnection';
 import {
-    isAvailableLiveSource,
-    LIVE_SOURCE_CATALOG,
-    type AvailableLiveSource,
-} from '../../../features/externalConnections/liveSources/liveSourceCatalog';
+    describeLiveSources,
+    shortLiveSourceLabel,
+    useEnabledLiveSources,
+} from '../../../features/externalConnections/liveSources/enabledLiveSources';
+import { isGoogleConnector } from '../../../features/externalConnections/liveSources/googleConnection';
+import { type AvailableLiveSource } from '../../../features/externalConnections/liveSources/liveSourceCatalog';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import { NextUpCard } from '../../common/OnboardingVisuals';
 import classes from './DataSourceChooser.module.css';
 
-// Only what the tools step will actually offer: Google needs its OAuth client
+const TEASED_COUNT = 4;
+
+// Only what the tools step will actually offer: turned on, and Google needs its OAuth client
 const useTeasedLiveSources = () => {
     const { health } = useApp();
-    const isEnabled = useLiveSourcesAvailability().isAvailable;
+    const isAvailable = useLiveSourcesAvailability().isAvailable;
+    const enabled = useEnabledLiveSources();
     const hasGoogle = health.data?.hasGoogleLiveSources === true;
-    return {
-        isEnabled,
-        hasGoogle,
-        sources: LIVE_SOURCE_CATALOG.filter(isAvailableLiveSource)
-            .filter(
-                ({ connector, inOnboarding }) =>
-                    inOnboarding &&
-                    (hasGoogle || !isGoogleConnector(connector)),
-            )
-            .slice(0, 4),
-    };
+    const sources = enabled.sources
+        .filter(
+            ({ connector, inOnboarding }) =>
+                inOnboarding && (hasGoogle || !isGoogleConnector(connector)),
+        )
+        .slice(0, TEASED_COUNT);
+    return { isEnabled: isAvailable && sources.length > 0, sources };
 };
 
 const TeaserIcons: FC<{ sources: AvailableLiveSource[] }> = ({ sources }) => (
@@ -54,7 +54,7 @@ export const LiveSourcesStartCard: FC<{
     isStarting: boolean;
     onStart: () => void;
 }> = ({ isStarting, onStart }) => {
-    const { isEnabled, hasGoogle, sources } = useTeasedLiveSources();
+    const { isEnabled, sources } = useTeasedLiveSources();
     if (!isEnabled) return null;
     return (
         <UnstyledButton
@@ -66,9 +66,12 @@ export const LiveSourcesStartCard: FC<{
                 <TeaserIcons sources={sources} />
                 <Stack gap={0} className={classes.shortcutText}>
                     <Text fw={500} size="sm">
-                        {hasGoogle
-                            ? 'Start with PostHog, GA4 or Search Console'
-                            : 'Start with PostHog'}
+                        {`Start with ${describeLiveSources(
+                            sources.map(({ label }) =>
+                                shortLiveSourceLabel(label),
+                            ),
+                            { shown: TEASED_COUNT, conjunction: 'or' },
+                        )}`}
                     </Text>
                     <Text size="xs" c="dimmed">
                         No warehouse yet? Connect a tool now and add your
@@ -85,9 +88,6 @@ export const LiveSourcesStartCard: FC<{
     );
 };
 
-const shortLabel = (label: string) =>
-    label.replace('Google Analytics 4', 'GA4').replace(/^Google /, '');
-
 /** Teases the live sources the tools step offers, beside the warehouse form */
 export const LiveSourcesNextUp: FC = () => {
     const { isEnabled, sources } = useTeasedLiveSources();
@@ -102,7 +102,7 @@ export const LiveSourcesNextUp: FC = () => {
                     <Group key={id} gap={6} wrap="nowrap">
                         <Image src={icon} alt="" w={14} h={14} />
                         <Text fz="xs" fw={500}>
-                            {shortLabel(label)}
+                            {shortLiveSourceLabel(label)}
                         </Text>
                     </Group>
                 ))}

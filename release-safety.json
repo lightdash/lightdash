@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.423.1",
-  "previousVersion": "3.423.0",
-  "releaseDate": "2026-11-27T14:34:34.753Z",
+  "version": "3.429.0",
+  "previousVersion": "3.428.0",
+  "releaseDate": "2026-11-27T17:14:21.072Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -17,14 +17,26 @@
   "api": {
     "rest": {
       "checked": true,
-      "breaking": true,
-      "changes": [
-        "POST /api/v2/projects/{projectUuid}/composer-charts — removed the required property `results/dashboardUuid` from the response with the `201` status",
-        "GET /api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid} — removed the required property `results/dashboardUuid` from the response with the `200` status"
+      "breaking": false,
+      "changes": [],
+      "breakingCount": 0,
+      "advisories": [
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `composerChartView` enum value to the `results/data/items/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `composerChartView` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncApiQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `composerChartView` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncComposeMergeQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `composerChartView` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `composerChartView` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardChartRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `composerChartView` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartBySlugRequestParams]/allOf[#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `composerChartView` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartByUuidRequestParams]/allOf[#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `composerChartView` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncFieldValueSearchRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `composerChartView` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncMergeQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `composerChartView` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncMetricQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `composerChartView` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncPythonQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `composerChartView` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncSavedChartRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `composerChartView` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncSqlQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `composerChartView` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncUnderlyingDataRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`"
       ],
-      "breakingCount": 2,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisoryCount": 14
     },
     "mcp": {
       "checked": true,
@@ -45,22 +57,5 @@
     "requiredStops": []
   },
   "declaredBreaks": [],
-  "declaredAdvisories": [
-    {
-      "id": "composer-chart-owner-replaces-dashboard-uuid",
-      "reason": "GET and POST /api/v2/projects/{projectUuid}/composer-charts now return an owner field, either a dashboard or a space, instead of a top-level dashboardUuid. The @lightdash/common ComposerChart type no longer has dashboardUuid. The create request still takes dashboardUuid. The web app is the only caller. Its dashboard tile reads only the pipeline and chart, and its save modal reads only uuid from the create response, so an old tab keeps working during a rolling update.",
-      "requiredStop": false,
-      "impact": {
-        "kind": "no-external-callers",
-        "firstPartyOnly": "Only the web app calls these endpoints: the composer chart dashboard tile reads the chart and the save composer chart modal creates one. Neither reads dashboardUuid from the response.",
-        "covers": {
-          "rest": [
-            "POST /api/v2/projects/{projectUuid}/composer-charts",
-            "GET /api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid}"
-          ],
-          "mcp": []
-        }
-      }
-    }
-  ]
+  "declaredAdvisories": []
 }

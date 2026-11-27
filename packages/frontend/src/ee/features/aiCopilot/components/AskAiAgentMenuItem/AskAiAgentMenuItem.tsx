@@ -24,7 +24,8 @@ type Props = {
 };
 
 /**
- * Menu item that starts a new AI agent conversation (panel or full page).
+ * Menu item that asks the AI agent about this content: in the thread on
+ * screen, or else in a new one (panel or full page).
  * Renders nothing when AI agents are not enabled, the user lacks permission,
  * or no default agent can be resolved.
  */

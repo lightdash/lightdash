@@ -1,6 +1,6 @@
 # Hydra, the test integration
 
-Hydra is a live integration you test with. Only its vendor API is fake: it is answered in-process (`server.ts`, reached through `hydraFetch.ts`), so everything from the chart to the HTTP call is the real engine: refusals, the results cache, the call limiter and errors. It needs no credentials and no network.
+Hydra is a live integration you test with. Only its vendor API is fake: it is answered in-process (`fake/server.ts`, reached through `hydraFetch.ts`), so everything from the chart to the HTTP call is the real engine: refusals, the results cache, the call limiter and errors. It needs no credentials and no network.
 
 Use it to test anything live data sources do (adding a source, charts, dashboards, the cache, rate limits, failures) on a local instance or a Rainbow Machine env.
 
@@ -33,7 +33,7 @@ Use it to test anything live data sources do (adding a source, charts, dashboard
 
 ## Data
 
-- Two explores, `<prefix>_events` and `<prefix>_users` (see `explores.ts`).
+- Two explores, `<prefix>_events` and `<prefix>_users` (see `model.ts`).
   - **Events:** dimensions `date` (with week and month), `event_type`, `user_id`, `country` and `plan`; metrics `event_count`, `revenue` and `unique_users`. Rows cover the last 90 UTC days. A query reads the last 30 days unless its date filter says otherwise.
   - **Users:** dimensions `user_id`, `plan`, `country` and `signup_date`; metrics `user_count` and `seats`. There is no date range.
 - `rowCount` events and `max(10, rowCount / 10)` users, seeded from the token. The same token always returns the same totals, and another token returns other totals, which shows per-viewer sign-in at work.
@@ -74,7 +74,7 @@ Use a new source for each scenario: call numbers and API calls count per source,
 
 ## Stats
 
-`hydraServer.getStats(connectionUuid)` (in `server.ts`) returns Hydra's own view of a source: `{ calls, refused, maxInFlight, minGapMs, peakPerBucket }`. `hydraServer.reset(connectionUuid)` forgets its counts, windows and call numbers. They are in-process only, for backend tests: reading them over HTTP would go through the gate and use up its limits, and each backend process keeps its own. Against an env, use API calls instead (see Recipes).
+`hydraServer.getStats(connectionUuid)` (in `fake/server.ts`) returns Hydra's own view of a source: `{ calls, refused, maxInFlight, minGapMs, peakPerBucket }`. `hydraServer.reset(connectionUuid)` forgets its counts, windows and call numbers. They are in-process only, for backend tests: reading them over HTTP would go through the gate and use up its limits, and each backend process keeps its own. Against an env, use API calls instead (see Recipes).
 
 ## What to check
 
@@ -84,5 +84,5 @@ Use a new source for each scenario: call numbers and API calls count per source,
 
 ## Automated tests
 
-- Unit: `hydra.test.ts` (compile, the engine path, mock responses, paging, declared limits), `server.test.ts` (vendor limits, refusals, stats), `ExternalConnectionService/hydraFetch.test.ts` (fetch seam).
+- Unit: `hydra.test.ts` (compile, the engine path, mock responses, paging, declared limits), `fake/server.test.ts` (vendor limits, refusals, stats), `ExternalConnectionService/hydraFetch.test.ts` (fetch seam).
 - API: `packages/api-tests/tests/hydraLiveSource.test.ts`, run against a preview env.

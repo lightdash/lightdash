@@ -1,5 +1,13 @@
 import { ApiConnectorType } from '@lightdash/common';
-import { Group, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core';
+import {
+    Center,
+    Group,
+    Loader,
+    SimpleGrid,
+    Stack,
+    Text,
+    UnstyledButton,
+} from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { type FC } from 'react';
@@ -32,6 +40,13 @@ type Props = {
     canUseSalesforce: boolean;
     /** Hydra, the test integration, only where the server registers it. */
     canUseHydra: boolean;
+    /**
+     * The integrations the organization has turned on, by their feature
+     * flags; undefined while they load.
+     */
+    enabledIntegrations: readonly ApiConnectorType[] | undefined;
+    /** Whether loading the turned-on integrations failed. */
+    isEnabledIntegrationsError: boolean;
     onPick: (connector: ApiConnectorType) => void;
 };
 
@@ -62,13 +77,17 @@ export const AddLiveSourceModal: FC<Props> = ({
     canUseLinkedInAds,
     canUseSalesforce,
     canUseHydra,
+    enabledIntegrations,
+    isEnabledIntegrationsError,
     onPick,
 }) => {
     const { user } = useApp();
     const { track } = useTracking();
     // Only what this instance can connect: Google sources need its Google
-    // sign-in, LinkedIn Ads and Salesforce an app most servers won't have.
+    // sign-in, LinkedIn Ads and Salesforce an app most servers won't have,
+    // and only what the organization has turned on.
     const isConnectable = (connector: ApiConnectorType) => {
+        if (!enabledIntegrations?.includes(connector)) return false;
         if (isGoogleConnector(connector)) return canUseGoogle;
         if (connector === ApiConnectorType.LINKEDIN_ADS)
             return canUseLinkedInAds;
@@ -124,18 +143,29 @@ export const AddLiveSourceModal: FC<Props> = ({
                         </Stack>
                     </Group>
                 )}
-                <SimpleGrid cols={{ base: 1, xs: 2, sm: 3 }} spacing="sm">
-                    {entries.map((entry) => (
-                        <UnstyledButton
-                            key={entry.id}
-                            className={styles.card}
-                            disabled={!canAdd}
-                            onClick={() => onPick(entry.connector)}
-                        >
-                            <CardHead entry={entry} />
-                        </UnstyledButton>
-                    ))}
-                </SimpleGrid>
+                {isEnabledIntegrationsError ? (
+                    <Text fz="sm" c="red">
+                        Couldn't load the integrations you can add. Close this
+                        and try again.
+                    </Text>
+                ) : enabledIntegrations === undefined ? (
+                    <Center py="lg">
+                        <Loader size="sm" />
+                    </Center>
+                ) : (
+                    <SimpleGrid cols={{ base: 1, xs: 2, sm: 3 }} spacing="sm">
+                        {entries.map((entry) => (
+                            <UnstyledButton
+                                key={entry.id}
+                                className={styles.card}
+                                disabled={!canAdd}
+                                onClick={() => onPick(entry.connector)}
+                            >
+                                <CardHead entry={entry} />
+                            </UnstyledButton>
+                        ))}
+                    </SimpleGrid>
+                )}
                 <CustomLiveSourceRequest onRequest={requestCustom} />
             </Stack>
         </MantineModal>

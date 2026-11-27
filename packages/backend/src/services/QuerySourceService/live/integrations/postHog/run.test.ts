@@ -12,10 +12,8 @@ import { postHogIntegration } from '.';
 import { type LiveTransport } from '../../calls';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import {
-    clickHouseTypeToDimensionType,
-    getPostHogPropertyDefinitionsPrefix,
-} from './run';
+import { getPostHogPropertyDefinitionsPrefix } from './api';
+import { clickHouseTypeToDimensionType } from './run';
 
 // Trimmed from real PostHog responses; values replaced with neutral ones.
 const weeklyActiveUsers = {
@@ -68,8 +66,7 @@ const connect = (response: LiveHttpResponse) => {
 describe('postHogIntegration run', () => {
     it('describes itself as an L5 HogQL integration', () => {
         expect(postHogIntegration.label).toBe('PostHog');
-        expect(postHogIntegration.limits).toEqual({
-            callsPerQuery: 1,
+        expect(postHogIntegration.query.limits).toMatchObject({
             timeoutMs: 45_000,
             maxRows: 49_999,
         });
@@ -264,7 +261,7 @@ describe('postHogIntegration scan', () => {
             postHogIntegration,
             { connector: ApiConnectorType.POSTHOG, projectId: '303731' },
             send,
-        ).scan();
+        ).discover();
 
     it('reads event and person property definitions page by page', async () => {
         const send = vi.fn(async ({ query: params }) =>

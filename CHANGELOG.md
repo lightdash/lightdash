@@ -1,3 +1,59 @@
+# [3.429.0](https://github.com/lightdash/lightdash/compare/3.428.0...3.429.0) (2026-11-27)
+
+
+### Features
+
+* **composer:** read run records without a dashboard ([#33574](https://github.com/lightdash/lightdash/issues/33574)) ([11f3ea7](https://github.com/lightdash/lightdash/commit/11f3ea7ac8e533909ffa01750c10da1a5373b759))
+
+# [3.428.0](https://github.com/lightdash/lightdash/compare/3.427.1...3.428.0) (2026-11-27)
+
+
+### Features
+
+* **live-sources:** turn each integration on or off with a feature flag ([#33541](https://github.com/lightdash/lightdash/issues/33541)) ([f28864e](https://github.com/lightdash/lightdash/commit/f28864ecb5b6b6d94a80585db9b8421b495ec4b1)), closes [#33540](https://github.com/lightdash/lightdash/issues/33540)
+
+## [3.427.1](https://github.com/lightdash/lightdash/compare/3.427.0...3.427.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **ai-agent:** keep a removed dashboard chip removed after the first reply ([#33563](https://github.com/lightdash/lightdash/issues/33563)) ([73660ac](https://github.com/lightdash/lightdash/commit/73660ac061f809da2b18e2c5694e0d76f40acaad))
+
+# [3.427.0](https://github.com/lightdash/lightdash/compare/3.426.0...3.427.0) (2026-11-27)
+
+
+### Features
+
+* **ai-agent:** simpler, consistent AI chat input ([#33561](https://github.com/lightdash/lightdash/issues/33561)) ([a75697a](https://github.com/lightdash/lightdash/commit/a75697ad960ede79a78a0b5155e498e9381fd705))
+* **navigation:** dock the AI chat beside the page ([#33543](https://github.com/lightdash/lightdash/issues/33543)) ([be02f1b](https://github.com/lightdash/lightdash/commit/be02f1b02e44c700b6558e53df14981394e4a9d1))
+
+# [3.426.0](https://github.com/lightdash/lightdash/compare/3.425.0...3.426.0) (2026-11-27)
+
+
+### Features
+
+* **sql-runner:** currency and custom number formats on chart y-axes ([#33266](https://github.com/lightdash/lightdash/issues/33266)) ([33ed0f6](https://github.com/lightdash/lightdash/commit/33ed0f675a9a36239be951c8bcb6b9e53388890f)), closes [#11544](https://github.com/lightdash/lightdash/issues/11544)
+
+# [3.425.0](https://github.com/lightdash/lightdash/compare/3.424.0...3.425.0) (2026-11-27)
+
+
+### Bug Fixes
+
+* **scheduler:** record a delivery where every chart failed as failed ([#33557](https://github.com/lightdash/lightdash/issues/33557)) ([2afaefb](https://github.com/lightdash/lightdash/commit/2afaefb693f94ac27e7ddefb335e395e7af48c8c))
+
+
+### Features
+
+* **ai-agent:** Ask AI attaches content to the open thread ([#33548](https://github.com/lightdash/lightdash/issues/33548)) ([ed117b9](https://github.com/lightdash/lightdash/commit/ed117b932251178f5f888406d331df71d817218e))
+* **ai-agent:** show pinned context inside the chat input ([#33556](https://github.com/lightdash/lightdash/issues/33556)) ([23038d2](https://github.com/lightdash/lightdash/commit/23038d2dd41b99d8be8b94221512732beee0408c))
+
+# [3.424.0](https://github.com/lightdash/lightdash/compare/3.423.1...3.424.0) (2026-11-27)
+
+
+### Features
+
+* apply AI router routing instructions when picking agents in Slack ([#33465](https://github.com/lightdash/lightdash/issues/33465)) ([b0c0b3f](https://github.com/lightdash/lightdash/commit/b0c0b3ffe22ccfa9e5cce98df9ec59341d7c8852))
+
 ## [3.423.1](https://github.com/lightdash/lightdash/compare/3.423.0...3.423.1) (2026-11-27)
 
 

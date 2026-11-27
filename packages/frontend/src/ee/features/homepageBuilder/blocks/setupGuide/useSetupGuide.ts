@@ -7,6 +7,7 @@ import { useDataAppVisualizations } from '../../../../../features/chartTypes/hoo
 import { useRegistryChartTypes } from '../../../../../features/chartTypes/hooks/useRegistryChartTypes';
 import { useExternalConnections } from '../../../../../features/externalConnections/hooks/useExternalConnections';
 import { useLiveSourcesAvailability } from '../../../../../features/externalConnections/hooks/useLiveSourcesAvailability';
+import { useEnabledLiveSources } from '../../../../../features/externalConnections/liveSources/enabledLiveSources';
 import { useExternalSources } from '../../../../../features/externalSources/hooks/useExternalSources';
 import { getSemanticStudioUrl } from '../../../../../features/semanticStudio/urls';
 import { useOrganizationBrand } from '../../../../../hooks/organization/useOrganizationBrand';
@@ -27,6 +28,7 @@ export const useSetupGuide = (
     const userUuid = user.data?.userUuid;
     const newOrg = useIsNewOrg();
     const liveSources = useLiveSourcesAvailability();
+    const enabledLiveSources = useEnabledLiveSources();
     const canManageProject = useCanManageProject(projectUuid);
     // visibleActions is empty on the playground, where setup has no place
     const isEligible =
@@ -111,6 +113,7 @@ export const useSetupGuide = (
         semanticStudioUrl,
         canAddLiveSources:
             liveSources.isAvailable &&
+            enabledLiveSources.connectors.length > 0 &&
             !!user.data?.ability.can(
                 'manage',
                 subject('LiveSource', {
@@ -122,6 +125,7 @@ export const useSetupGuide = (
             ...liveConnections.map(({ name }) => name),
             ...(sources.data ?? []).map(({ name }) => name),
         ],
+        liveIntegrations: enabledLiveSources.connectors,
         brand: brand.data ?? null,
         teammateCount: (users.data ?? []).filter(
             (member) => member.userUuid !== userUuid,

@@ -5,8 +5,9 @@ import {
     capitalize,
     CustomFormatType,
     DimensionType,
-    Format,
     friendlyName,
+    type CustomFormat,
+    type Format,
 } from '../types/field';
 import { type Organization } from '../types/organization';
 import { type RawResultRow } from '../types/results';
@@ -113,25 +114,155 @@ export class CartesianChartDataModel {
         this.type = args.type ?? ChartKind.VERTICAL_BAR;
     }
 
+    // A y-axis stores either full format options or a legacy preset
+    // (percent, SI); format options win when both are present.
+    static getAxisFormat(
+        axis:
+            | Pick<
+                  NonNullable<CartesianChartDisplay['yAxis']>[number],
+                  'format' | 'formatOptions'
+              >
+            | undefined,
+    ): CustomFormat | undefined {
+        return CartesianChartDataModel.toCustomFormat(
+            axis?.formatOptions ?? axis?.format,
+        );
+    }
+
+    private static toCustomFormat(
+        format: CustomFormat | Format | undefined,
+    ): CustomFormat | undefined {
+        if (!format) return undefined;
+        const customFormat =
+            typeof format === 'string'
+                ? getCustomFormatFromLegacy({ format })
+                : format;
+        return customFormat.type === CustomFormatType.DEFAULT
+            ? undefined
+            : customFormat;
+    }
+
+    // The values a y-axis has to span: every point, plus the totals of
+    // stacked series, which reach past any single value in the stack.
+    private static getYAxisValues(
+        rows: RawResultRow[],
+        seriesReferences: string[],
+        seriesStacks: Map<string, string>,
+    ): number[] {
+        return rows.flatMap((row) => {
+            const values: number[] = [];
+            const stackTotals = new Map<string, [number, number]>();
+            seriesReferences.forEach((reference) => {
+                const value = Number(row[reference]);
+                if (!Number.isFinite(value)) return;
+                values.push(value);
+
+                const stack = seriesStacks.get(reference);
+                if (!stack) return;
+                const [above, below] = stackTotals.get(stack) ?? [0, 0];
+                stackTotals.set(
+                    stack,
+                    value > 0 ? [above + value, below] : [above, below + value],
+                );
+            });
+            stackTotals.forEach((totals) => values.push(...totals));
+            return values;
+        });
+    }
+
+    // Approximates the ticks ECharts draws on a value axis: about five steps
+    // of 1, 2, 3 or 5 times a power of ten, covering the values and zero.
+    private static getYAxisTicks(values: number[]): number[] {
+        const min = values.reduce(
+            (lowest, value) => Math.min(lowest, value),
+            0,
+        );
+        const max = values.reduce(
+            (highest, value) => Math.max(highest, value),
+            0,
+        );
+        if (min === max) return [min];
+
+        const roughStep = (max - min) / 5;
+        const exponent = Math.floor(Math.log10(roughStep));
+        const magnitude = 10 ** exponent;
+        const niceSteps: [number, number][] = [
+            [1.5, 1],
+            [2.5, 2],
+            [4, 3],
+            [7, 5],
+        ];
+        const step =
+            (niceSteps.find(([limit]) => roughStep / magnitude < limit)?.[1] ??
+                10) * magnitude;
+
+        const decimals = Math.max(0, -exponent);
+        const firstTick = Math.floor(min / step);
+        const lastTick = Math.ceil(max / step);
+        return Array.from({ length: lastTick - firstTick + 1 }, (_, index) =>
+            Number(((firstTick + index) * step).toFixed(decimals)),
+        );
+    }
+
+    // Formatted tick labels (currency, decimals, prefixes) can be wider than
+    // the default gap, which would put the axis title on top of them.
+    private static getYAxisNameGap(
+        formatter: ((value: number) => string) | undefined,
+        rows: RawResultRow[],
+        seriesReferences: string[],
+        seriesStacks: Map<string, string>,
+    ): number {
+        const defaultNameGap = 50;
+        if (!formatter) return defaultNameGap;
+
+        const values = CartesianChartDataModel.getYAxisValues(
+            rows,
+            seriesReferences,
+            seriesStacks,
+        );
+        if (values.length === 0) return defaultNameGap;
+
+        // Conditional formats can give an intermediate tick a longer label
+        // than any value in the data, so size from the ticks as well
+        const longestLabel = [
+            ...values,
+            ...CartesianChartDataModel.getYAxisTicks(values),
+        ].reduce(
+            (longest, value) => Math.max(longest, formatter(value).length),
+            0,
+        );
+
+        // Approximate label width at the axis font size, with one character
+        // of slack for glyphs wider than the average
+        const approximateCharacterWidth = 7;
+        const labelMargin = 14;
+        return Math.max(
+            defaultNameGap,
+            (longestLabel + 1) * approximateCharacterWidth + labelMargin,
+        );
+    }
+
     // Get the formatter for the tooltip, which has a simple callback signature
-    static getTooltipFormatter(format: Format | undefined) {
-        if (format === Format.PERCENT) {
-            return (value: number) =>
-                applyCustomFormat(value, {
-                    type: CustomFormatType.PERCENT,
-                });
-        }
-        if (format === Format.SI) {
-            return (value: number) =>
-                applyCustomFormat(value, getCustomFormatFromLegacy({ format }));
-        }
-        return undefined;
+    static getTooltipFormatter(format: CustomFormat | Format | undefined) {
+        const customFormat = CartesianChartDataModel.toCustomFormat(format);
+        if (!customFormat) return undefined;
+        return (value: number) => applyCustomFormat(value, customFormat);
+    }
+
+    // Regular stacked bars hand ECharts tuple rows, read by the encoded index;
+    // every other series reads object rows by dimension name.
+    // Echarts doesn't export the types for these params
+    private static getValueLabelValue(params: AnyType): unknown {
+        const yIndex = params.encode.y[0];
+        return Array.isArray(params.value)
+            ? params.value[yIndex]
+            : params.value[params.dimensionNames[yIndex]];
     }
 
     // Get the formatter for the value label,
     // which has more complex inputs
     static getValueFormatter(
-        format: Format | undefined,
+        format: CustomFormat | Format | undefined,
         isStack100: boolean = false,
     ) {
         // For 100% stacked charts, always format as percentage
@@ -139,7 +270,7 @@ export class CartesianChartDataModel {
         if (isStack100) {
             return (params: AnyType) => {
                 const value =
-                    params.value[params.dimensionNames[params.encode.y[0]]];
+                    CartesianChartDataModel.getValueLabelValue(params);
                 return typeof value === 'number'
                     ? `${formatNumberValue(value, {
                           type: CustomFormatType.NUMBER,
@@ -149,29 +280,14 @@ export class CartesianChartDataModel {
             };
         }
 
-        if (format === Format.PERCENT) {
-            // Echarts doesn't export the types for this function
-            return (params: AnyType) => {
-                const value =
-                    params.value[params.dimensionNames[params.encode.y[0]]];
+        const customFormat = CartesianChartDataModel.toCustomFormat(format);
+        if (!customFormat) return undefined;
 
-                return applyCustomFormat(value, {
-                    type: CustomFormatType.PERCENT,
-                });
-            };
-        }
-        if (format === Format.SI) {
-            return (params: AnyType) => {
-                const value =
-                    params.value[params.dimensionNames[params.encode.y[0]]];
-
-                return applyCustomFormat(
-                    value,
-                    getCustomFormatFromLegacy({ format }),
-                );
-            };
-        }
-        return undefined;
+        return (params: AnyType) =>
+            applyCustomFormat(
+                CartesianChartDataModel.getValueLabelValue(params),
+                customFormat,
+            );
     }
 
     mergeConfig(
@@ -645,6 +761,14 @@ export class CartesianChartDataModel {
 
         const leftYAxisSeriesReferences: string[] = [];
         const rightYAxisSeriesReferences: string[] = [];
+        // The chart tooltip is built by hand, so it needs each series'
+        // formatter keyed by the column the series reads from.
+        const seriesTooltipFormatters = new Map<
+            string,
+            (value: number) => string
+        >();
+        // Stack id per stacked series column, for sizing the y-axis
+        const seriesStacks = new Map<string, string>();
 
         // Calculate dynamic border radius for non-stacked bars
         const barSeriesCount = transformedData.valuesColumns.filter(
@@ -698,7 +822,17 @@ export class CartesianChartDataModel {
                 const whichYAxis = seriesDisplay?.whichYAxis === 1 ? 1 : 0;
                 const seriesFormat =
                     seriesDisplay?.format ??
-                    display?.yAxis?.[whichYAxis]?.format;
+                    CartesianChartDataModel.getAxisFormat(
+                        display?.yAxis?.[whichYAxis],
+                    );
+                const seriesTooltipFormatter =
+                    CartesianChartDataModel.getTooltipFormatter(seriesFormat);
+                if (seriesTooltipFormatter) {
+                    seriesTooltipFormatters.set(
+                        seriesColumnId,
+                        seriesTooltipFormatter,
+                    );
+                }
 
                 const singleYAxisLabel =
                     // NOTE: When there's only one y-axis left, set the label on the series as well
@@ -745,13 +879,16 @@ export class CartesianChartDataModel {
                 const isLineOrArea = seriesType === CartesianSeriesType.LINE;
                 const showSymbol = isLineOrArea && dataToRender.length <= 100;
 
+                const seriesStack =
+                    shouldStack && seriesType === 'bar'
+                        ? `stack-${seriesColumn.referenceField}` // Use referenceField for stack ID
+                        : undefined;
+                if (seriesStack) seriesStacks.set(seriesColumnId, seriesStack);
+
                 return {
                     dimensions: [xAxisReference, seriesColumnId],
                     type: seriesType ?? defaultSeriesType,
-                    stack:
-                        shouldStack && seriesType === 'bar'
-                            ? `stack-${seriesColumn.referenceField}` // Use referenceField for stack ID
-                            : undefined,
+                    stack: seriesStack,
                     name:
                         seriesLabel ||
                         capitalize(seriesColumnId.toLowerCase()).replaceAll(
@@ -776,11 +913,7 @@ export class CartesianChartDataModel {
                           }
                         : {}),
                     tooltip: {
-                        valueFormatter: seriesFormat
-                            ? CartesianChartDataModel.getTooltipFormatter(
-                                  seriesFormat,
-                              )
-                            : undefined,
+                        valueFormatter: seriesTooltipFormatter,
                     },
                     label: seriesValueLabelPosition
                         ? {
@@ -848,6 +981,16 @@ export class CartesianChartDataModel {
         const effectiveDateFormat: string | undefined =
             display?.xAxis?.dateFormat ??
             (xAxisType === VizIndexType.TIME ? 'MMM D, YYYY' : undefined);
+
+        // 100% stacks label the left axis themselves, so it takes no format
+        const leftYAxisFormatter = shouldStack100
+            ? undefined
+            : CartesianChartDataModel.getTooltipFormatter(
+                  CartesianChartDataModel.getAxisFormat(display?.yAxis?.[0]),
+              );
+        const rightYAxisFormatter = CartesianChartDataModel.getTooltipFormatter(
+            CartesianChartDataModel.getAxisFormat(display?.yAxis?.[1]),
+        );
 
         // Determine tooltip configuration
         let tooltipConfig = {};
@@ -948,6 +1091,7 @@ export class CartesianChartDataModel {
                     xFieldId: xAxisReference,
                     originalValues,
                     xAxisDateFormat: effectiveDateFormat,
+                    valueFormatters: seriesTooltipFormatters,
                 }),
                 extraCssText: `overflow-y: auto; max-height:280px; ${
                     getTooltipStyle().extraCssText
@@ -1003,7 +1147,12 @@ export class CartesianChartDataModel {
                               friendlyName(leftYAxisSeriesReferences[0])
                             : '',
                     nameLocation: 'center',
-                    nameGap: 50,
+                    nameGap: CartesianChartDataModel.getYAxisNameGap(
+                        leftYAxisFormatter,
+                        dataToRender,
+                        leftYAxisSeriesReferences,
+                        seriesStacks,
+                    ),
                     nameRotate: 90,
                     nameTextStyle: getAxisTitleStyle(),
                     axisLabel: {
@@ -1015,15 +1164,9 @@ export class CartesianChartDataModel {
                                     formatter: '{value}%',
                                 };
                             }
-                            if (display?.yAxis?.[0]?.format) {
-                                return {
-                                    formatter:
-                                        CartesianChartDataModel.getTooltipFormatter(
-                                            display.yAxis[0].format,
-                                        ),
-                                };
-                            }
-                            return {};
+                            return leftYAxisFormatter
+                                ? { formatter: leftYAxisFormatter }
+                                : {};
                         })(),
                     },
                     axisLine: getAxisLineStyle(),
@@ -1040,18 +1183,18 @@ export class CartesianChartDataModel {
                               friendlyName(rightYAxisSeriesReferences[0])
                             : '',
                     nameLocation: 'center',
-                    nameGap: 50,
+                    nameGap: CartesianChartDataModel.getYAxisNameGap(
+                        rightYAxisFormatter,
+                        dataToRender,
+                        rightYAxisSeriesReferences,
+                        seriesStacks,
+                    ),
                     nameRotate: -90,
                     nameTextStyle: getAxisTitleStyle(),
                     axisLabel: {
                         ...getAxisLabelStyle(),
-                        ...(display?.yAxis?.[1]?.format
-                            ? {
-                                  formatter:
-                                      CartesianChartDataModel.getTooltipFormatter(
-                                          display?.yAxis?.[1].format,
-                                      ),
-                              }
+                        ...(rightYAxisFormatter
+                            ? { formatter: rightYAxisFormatter }
                             : {}),
                     },
                     axisLine: getAxisLineStyle(),
@@ -1084,7 +1227,9 @@ export type CartesianChartDisplay = {
     yAxis?: {
         label?: string;
         position?: string;
+        // Legacy preset; `formatOptions` takes precedence when both are set.
         format?: Format;
+        formatOptions?: CustomFormat;
     }[];
     series?: {
         [key: string]: {

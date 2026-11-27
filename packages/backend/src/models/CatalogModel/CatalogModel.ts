@@ -21,6 +21,7 @@ import {
     UNCATEGORIZED_TAG_UUID,
     UnexpectedServerError,
     type ApiCatalogSearch,
+    type ApiConnectorType,
     type ApiSort,
     type CatalogFieldMap,
     type CatalogItem,
@@ -79,6 +80,7 @@ import {
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { wrapSentryTransaction } from '../../utils';
+import { excludeLiveIntegrationsSql } from '../../utils/disabledLiveIntegrations';
 import {
     getFullTextSearchQuery,
     getFullTextSearchRankCalcSql,
@@ -209,6 +211,8 @@ type CatalogSearchArgs = {
     filteredExplores?: Explore[];
     hasTimeDimension?: boolean;
     tags?: string[];
+    /** Live source integrations whose explores' items are left out. */
+    excludedIntegrations?: ReadonlySet<ApiConnectorType>;
 };
 
 export class CatalogModel {
@@ -500,6 +504,7 @@ export class CatalogModel {
         filteredExplores,
         hasTimeDimension,
         tags,
+        excludedIntegrations,
     }: Omit<CatalogSearchArgs, 'paginateArgs' | 'sortArgs'>) {
         // filteredExplores enforces visibility through the type-specific allow-list
         // filter below, which only runs for Table/Field. Without an explicit type that
@@ -579,6 +584,16 @@ export class CatalogModel {
                 },
             )
             .where(`${CatalogTableName}.project_uuid`, projectUuid)
+            .modify((query) => {
+                if (excludedIntegrations && excludedIntegrations.size > 0) {
+                    void query.whereRaw(
+                        excludeLiveIntegrationsSql(
+                            `${CachedExploreTableName}.explore`,
+                        ),
+                        [[...excludedIntegrations]],
+                    );
+                }
+            })
             // tables configuration filtering
             .andWhere(function tablesConfigurationFiltering() {
                 // An explicit explore allow-list is the authoritative visibility set,

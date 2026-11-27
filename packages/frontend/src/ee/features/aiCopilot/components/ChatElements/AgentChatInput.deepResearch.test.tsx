@@ -156,12 +156,7 @@ describe('AgentChatInput Deep Research mode', () => {
             screen
                 .getAllByRole('menuitem')
                 .map((menuItem) => menuItem.textContent),
-        ).toEqual([
-            'Attach a CSV',
-            'Attach a document',
-            'SQL Runner',
-            'Deep research',
-        ]);
+        ).toEqual(['Attach a file', 'SQL Runner', 'Deep research']);
         expect(
             screen.getByRole('menuitem', { name: 'Enable SQL Runner' }),
         ).toBeInTheDocument();
@@ -210,7 +205,7 @@ describe('AgentChatInput Deep Research mode', () => {
         expectAllComposerActions();
     });
 
-    it('opens the CSV file picker from the action menu', async () => {
+    it('opens the file picker from the action menu', async () => {
         renderInput({
             onStartDeepResearch: null,
             enableCsvAttachment: true,
@@ -219,7 +214,7 @@ describe('AgentChatInput Deep Research mode', () => {
         const inputClick = vi.spyOn(HTMLInputElement.prototype, 'click');
 
         await user.click(
-            screen.getByRole('menuitem', { name: 'Attach a CSV' }),
+            screen.getByRole('menuitem', { name: 'Attach a file' }),
         );
 
         expect(inputClick).toHaveBeenCalledOnce();
@@ -252,6 +247,28 @@ describe('AgentChatInput Deep Research mode', () => {
         expect(screen.getByRole('menu')).toBeInTheDocument();
     });
 
+    it('shows an enabled mode in the input', () => {
+        renderInput({ sqlMode: true, onSqlModeChange: vi.fn() });
+
+        expect(
+            screen.getByRole('img', { name: 'SQL Runner is on' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('img', { name: 'Deep research is on' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows no mode in the input while both are off', () => {
+        renderInput({ onSqlModeChange: vi.fn() });
+
+        expect(
+            screen.queryByRole('img', { name: 'SQL Runner is on' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('img', { name: 'Deep research is on' }),
+        ).not.toBeInTheDocument();
+    });
+
     it('keeps the action menu open in deep research mode', async () => {
         renderInput({ enableCsvAttachment: true });
         const user = await openComposerOptions();
@@ -265,7 +282,7 @@ describe('AgentChatInput Deep Research mode', () => {
         ).toBeInTheDocument();
         expect(
             screen.getByRole('menuitem', {
-                name: 'Attach a CSV unavailable in deep research',
+                name: 'Attach a file unavailable in deep research',
             }),
         ).toBeDisabled();
     });
@@ -328,7 +345,7 @@ describe('AgentChatInput Deep Research mode', () => {
         ).toBeInTheDocument();
     });
 
-    it('still offers document attachment when no other actions are available', async () => {
+    it('still offers file attachment when no other actions are available', async () => {
         renderInput({ onStartDeepResearch: null });
 
         await openComposerOptions();
@@ -337,7 +354,7 @@ describe('AgentChatInput Deep Research mode', () => {
             screen
                 .getAllByRole('menuitem')
                 .map((menuItem) => menuItem.textContent),
-        ).toEqual(['Attach a document']);
+        ).toEqual(['Attach a file']);
         expect(
             within(screen.getByRole('menu')).queryByRole('separator'),
         ).not.toBeInTheDocument();

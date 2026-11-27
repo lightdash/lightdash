@@ -1,4 +1,8 @@
-import { FeatureFlags } from '@lightdash/common';
+import {
+    ApiConnectorType,
+    FeatureFlags,
+    getLiveSourceFeatureFlag,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -11,6 +15,13 @@ import {
 import Logger from '../../logging/logger';
 import { FeatureFlagModel } from './FeatureFlagModel';
 import { record } from './flagCheckAggregator';
+
+// No integration declares a flag yet, so the tests declare HubSpot's.
+vi.mock('@lightdash/common', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@lightdash/common')>()),
+    LIVE_SOURCE_FEATURE_FLAGS: new Set(['live-source-hubspot']),
+    getLiveSourceFeatureFlag: vi.fn(() => undefined),
+}));
 
 vi.mock('./flagCheckAggregator', async (importOriginal) => {
     const original =
@@ -748,6 +759,91 @@ describe('FeatureFlagModel', () => {
         });
     });
 
+    describe('live source integration flags', () => {
+        const FLAG_ID = 'live-source-hubspot';
+
+        it('is on when the flag has no row, so existing organizations keep their integrations', async () => {
+            const model = buildModel({}, buildFakeDatabase({}));
+
+            const result = await model.get({
+                featureFlagId: FLAG_ID,
+                user: dbUser,
+            });
+
+            expect(result).toEqual({ id: FLAG_ID, enabled: true });
+        });
+
+        it('is off everywhere when its default is off', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({ flag: { default_enabled: false } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FLAG_ID,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('lets an organization override turn it on for that organization only', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({
+                    flag: { default_enabled: false },
+                    orgOverride: {
+                        organization_uuid: 'org-uuid',
+                        enabled: true,
+                    },
+                }),
+            );
+
+            const chosen = await model.get({
+                featureFlagId: FLAG_ID,
+                user: dbUser,
+            });
+            const other = await model.get({
+                featureFlagId: FLAG_ID,
+                user: { organizationUuid: 'other-org' },
+            });
+
+            expect(chosen.enabled).toBe(true);
+            expect(other.enabled).toBe(false);
+        });
+
+        it('ignores user overrides, since it applies to a whole organization', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({
+                    flag: { default_enabled: false },
+                    userOverride: { enabled: true },
+                }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FLAG_ID,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('is turned off instance-wide by LIGHTDASH_DISABLE_FEATURE_FLAGS', async () => {
+            const model = buildModel(
+                { disabledFeatureFlags: new Set([FLAG_ID]) },
+                buildFakeDatabase({}),
+            );
+
+            const result = await model.get({
+                featureFlagId: FLAG_ID,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+    });
+
     describe('ensureOrganizationOverrideEnabled', () => {
         const FLAG_ID = 'homepage-builder';
         const ORG_UUID = 'org-uuid';
@@ -1059,5 +1155,51 @@ describe('mobile app access', () => {
             ),
         );
         warn.mockRestore();
+    });
+});
+
+describe('FeatureFlagModel.getDisabledLiveIntegrations', () => {
+    afterEach(() => {
+        vi.mocked(getLiveSourceFeatureFlag).mockImplementation(() => undefined);
+    });
+
+    it('resolves empty without reading anything while no integration declares a flag', async () => {
+        const model = buildModel({}, throwingDatabase);
+        const get = vi.spyOn(model, 'get');
+        const organization = vi.fn(async () => 'org-uuid');
+
+        const disabled = await model.getDisabledLiveIntegrations(organization);
+
+        expect(disabled.size).toBe(0);
+        expect(get).not.toHaveBeenCalled();
+        expect(organization).not.toHaveBeenCalled();
+    });
+
+    it('lists the integrations whose flag is off for the organization', async () => {
+        vi.mocked(getLiveSourceFeatureFlag).mockImplementation((connector) =>
+            connector === ApiConnectorType.HUBSPOT ||
+            connector === ApiConnectorType.POSTHOG
+                ? // Stand-in flags: no integration declares a real one yet
+                  (`live-source-${connector}` as FeatureFlags)
+                : undefined,
+        );
+        const model = buildModel();
+        const get = vi
+            .spyOn(model, 'get')
+            .mockImplementation(async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled: featureFlagId !== 'live-source-hubspot',
+            }));
+
+        const disabled = await model.getDisabledLiveIntegrations(
+            async () => 'org-uuid',
+        );
+
+        expect([...disabled]).toEqual([ApiConnectorType.HUBSPOT]);
+        expect(get).toHaveBeenCalledTimes(2);
+        expect(get).toHaveBeenCalledWith({
+            user: { organizationUuid: 'org-uuid' },
+            featureFlagId: 'live-source-hubspot',
+        });
     });
 });

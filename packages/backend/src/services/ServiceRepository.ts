@@ -1579,6 +1579,7 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     userAttributesModel: this.models.getUserAttributesModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     // Only wired when EE license is active. Core builds get
                     // undefined and SearchService drops data apps from results.
                     appGenerateService: this.providers.appGenerateService
@@ -1960,6 +1961,7 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     tagsModel: this.models.getTagsModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

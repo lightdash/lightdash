@@ -508,6 +508,16 @@ const getValueIdxFromEncode = (
 export const isLineSeriesOption = (obj: unknown): obj is LineSeriesOption =>
     typeof obj === 'object' && obj !== null && 'showSymbol' in obj;
 
+// Formatted values can carry user-written text (prefixes, suffixes, literals
+// in format expressions), and ECharts renders the tooltip as HTML.
+const escapeTooltipText = (text: string): string =>
+    text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+
 /**
  * Creates a tooltip formatter for 100% stacked charts
  * This formatter shows both the percentage and the original count value
@@ -551,6 +561,9 @@ export function createStack100TooltipFormatter(
     displayTimezone?: string,
     pivotValuesColumnsMap?: Record<string, PivotValuesColumn>,
     parameters?: ParametersValuesMap,
+    // SQL Runner formatter per series, keyed by the column the series reads
+    // from; formats the original amount when there is no itemsMap
+    valueFormatters?: Map<string, (value: number) => string>,
 ) {
     return (params: TooltipParams) => {
         if (!Array.isArray(params)) return '';
@@ -638,7 +651,9 @@ export function createStack100TooltipFormatter(
                                 timezone,
                                 displayTimezone,
                             )
-                          : originalValue.toLocaleString();
+                          : (valueFormatters?.get(dimensionName)?.(
+                                originalValue,
+                            ) ?? originalValue.toLocaleString());
 
                 const colorIndicator = formatColorIndicator(
                     extractColor(marker),
@@ -646,7 +661,9 @@ export function createStack100TooltipFormatter(
                 return formatCartesianTooltipRow(
                     colorIndicator,
                     seriesName,
-                    formatTooltipValue(`${percentageStr} (${countStr})`),
+                    formatTooltipValue(
+                        escapeTooltipText(`${percentageStr} (${countStr})`),
+                    ),
                 );
             })
             .filter(Boolean)
@@ -739,12 +756,15 @@ export const buildSqlRunnerCartesianTooltipFormatter =
         xFieldId,
         originalValues,
         xAxisDateFormat,
+        valueFormatters,
     }: {
         stackValue: string | boolean | undefined;
         flipAxes: boolean | undefined;
         xFieldId: string | undefined;
         originalValues?: Map<string, Map<string, number>> | undefined;
         xAxisDateFormat?: string;
+        // Formatter per series, keyed by the column the series reads from
+        valueFormatters?: Map<string, (value: number) => string>;
     }): TooltipComponentFormatterCallback<
         TooltipFormatterParams | TooltipFormatterParams[]
     > =>
@@ -771,6 +791,11 @@ export const buildSqlRunnerCartesianTooltipFormatter =
                 xFieldId,
                 undefined, // No itemsMap available in SQL Runner
                 xAxisDateFormat,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                valueFormatters,
             )(params as TooltipParam[]);
         }
 
@@ -814,10 +839,15 @@ export const buildSqlRunnerCartesianTooltipFormatter =
                 if (valueForFormat === undefined || valueForFormat === null)
                     return '';
 
-                // Format the value - for SQL Runner, we'll use the raw number
+                // Format the value with the series' format when it has one;
+                // otherwise SQL Runner shows the raw number
+                const seriesFormatter = dim
+                    ? valueFormatters?.get(dim)
+                    : undefined;
                 const formattedValue =
                     typeof valueForFormat === 'number'
-                        ? valueForFormat.toLocaleString()
+                        ? (seriesFormatter?.(valueForFormat) ??
+                          valueForFormat.toLocaleString())
                         : String(valueForFormat);
 
                 const colorIndicator = formatColorIndicator(
@@ -826,7 +856,7 @@ export const buildSqlRunnerCartesianTooltipFormatter =
                 return formatCartesianTooltipRow(
                     colorIndicator,
                     seriesName || '',
-                    formatTooltipValue(formattedValue),
+                    formatTooltipValue(escapeTooltipText(formattedValue)),
                 );
             })
             .join('');

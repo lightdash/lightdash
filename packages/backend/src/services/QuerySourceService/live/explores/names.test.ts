@@ -5,7 +5,7 @@ import {
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
 import { OPPORTUNITY_DESCRIBE } from '../integrations/salesforce/salesforce.fixtures';
-import { type LiveScanResult } from '../types';
+import { type LiveCatalog } from '../types';
 import {
     buildLiveExplores,
     getLiveBaseLayer,
@@ -24,7 +24,7 @@ import { getLiveFieldEditKey, type LiveSourceFieldEdits } from './fields';
 const SOURCES: {
     name: string;
     apiSource: ExternalConnectionApiSource;
-    scan: LiveScanResult;
+    scan: LiveCatalog;
 }[] = [
     {
         name: 'Google Analytics',

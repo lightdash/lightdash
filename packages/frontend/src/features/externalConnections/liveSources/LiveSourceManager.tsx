@@ -12,6 +12,7 @@ import MantineModal from '../../../components/common/MantineModal';
 import useHealth from '../../../hooks/health/useHealth';
 import { getSemanticStudioSourceUrl } from '../../semanticStudio/urls';
 import { useDeleteExternalConnection } from '../hooks/useDeleteExternalConnection';
+import { useEnabledLiveIntegrations } from '../hooks/useEnabledLiveIntegrations';
 import { useLiveSourceFields } from '../hooks/useLiveSourceFields';
 import { AddLiveSourceModal } from './AddLiveSourceModal';
 import { AmplitudeConnectionModal } from './AmplitudeConnectionModal';
@@ -95,6 +96,30 @@ const RemoveLiveSourceModal: FC<{
                     },
                 )
             }
+        />
+    );
+};
+
+/** The add dialog for someone who can't add a live data source: it says so. */
+const LockedAddLiveSourceModal: FC<{
+    opened: boolean;
+    onClose: () => void;
+    projectUuid: string;
+    canUseGoogle: boolean;
+    canUseLinkedInAds: boolean;
+    canUseSalesforce: boolean;
+    canUseHydra: boolean;
+}> = ({ onClose, ...props }) => {
+    const { data: enabledIntegrations, isError: isEnabledIntegrationsError } =
+        useEnabledLiveIntegrations();
+    return (
+        <AddLiveSourceModal
+            {...props}
+            onClose={onClose}
+            canAdd={false}
+            enabledIntegrations={enabledIntegrations}
+            isEnabledIntegrationsError={isEnabledIntegrationsError}
+            onPick={onClose}
         />
     );
 };
@@ -220,16 +245,14 @@ export const LiveSourceManager: FC<{
         return (
             <AddLiveSourceContext.Provider value={actions.add}>
                 {children}
-                <AddLiveSourceModal
+                <LockedAddLiveSourceModal
                     opened={dialog.kind === 'pick'}
                     onClose={close}
                     projectUuid={projectUuid}
-                    canAdd={false}
                     canUseGoogle={canUseGoogle}
                     canUseLinkedInAds={canUseLinkedInAds}
                     canUseSalesforce={canUseSalesforce}
                     canUseHydra={canUseHydra}
-                    onPick={close}
                 />
             </AddLiveSourceContext.Provider>
         );
@@ -367,6 +390,8 @@ const LiveSourceDialogs: FC<{
     onRemoved,
 }) => {
     const navigate = useNavigate();
+    const { data: enabledIntegrations, isError: isEnabledIntegrationsError } =
+        useEnabledLiveIntegrations();
     // A new source opens on its own page, offering to reattach a deleted one
     const openConnected = (connectionUuid: string) => {
         void navigate(getSemanticStudioSourceUrl(projectUuid, connectionUuid));
@@ -396,6 +421,8 @@ const LiveSourceDialogs: FC<{
                 canUseLinkedInAds={canUseLinkedInAds}
                 canUseSalesforce={canUseSalesforce}
                 canUseHydra={canUseHydra}
+                enabledIntegrations={enabledIntegrations}
+                isEnabledIntegrationsError={isEnabledIntegrationsError}
                 onPick={(picked) =>
                     setDialog({ kind: 'create', connector: picked })
                 }

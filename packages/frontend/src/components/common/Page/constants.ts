@@ -12,6 +12,9 @@ export const APP_SIDEBAR_RAIL_WIDTH = 49;
 export const APP_PREVIEW_GUTTER_HEIGHT = 52;
 // Dragging the sidebar's edge narrower than this collapses it to the rail.
 export const APP_SIDEBAR_COLLAPSE_THRESHOLD = 70;
+export const APP_ASIDE_WIDTH = 400;
+export const APP_ASIDE_MIN_WIDTH = 360;
+export const APP_ASIDE_MAX_WIDTH = 720;
 
 export const FOOTER_HEIGHT = 80;
 export const FOOTER_MARGIN: MantineSize = 'lg';

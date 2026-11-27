@@ -203,7 +203,7 @@ describe('supabaseIntegration scan', () => {
                 'content-type': 'application/openapi+json',
             }),
         );
-        await expect(source.scan()).resolves.toEqual({
+        await expect(source.discover()).resolves.toEqual({
             supabaseTable: ORDERS_TABLE,
         });
         expect(send.mock.calls[0][0]).toMatchObject({
@@ -216,7 +216,7 @@ describe('supabaseIntegration scan', () => {
         const { source } = connect(
             response({ ...OPEN_API, definitions: { customers: {} } }),
         );
-        await expect(source.scan()).rejects.toThrow(
+        await expect(source.discover()).rejects.toThrow(
             'Supabase has no table or view called "orders" in the exposed schema; it has customers.',
         );
     });

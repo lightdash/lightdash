@@ -177,8 +177,8 @@ describe('LauncherPanel AI access', () => {
         state.refusal = null;
         renderWithProviders(panel(null, LAUNCHER_AUTO_AGENT));
         expect(
-            screen.queryByLabelText('Image attachments'),
-        ).not.toBeInTheDocument();
+            screen.getByLabelText('Attachments').getAttribute('accept'),
+        ).not.toContain('image/');
     });
 
     it.each([null, 'thread-1'])(
@@ -187,9 +187,10 @@ describe('LauncherPanel AI access', () => {
             state.refusal = null;
             renderWithProviders(panel(threadId));
             await waitFor(() =>
-                expect(
-                    screen.getAllByLabelText('Image attachments').length,
-                ).toBeGreaterThan(0),
+                expect(screen.getByLabelText('Attachments')).toHaveAttribute(
+                    'accept',
+                    expect.stringContaining('image/'),
+                ),
             );
         },
     );

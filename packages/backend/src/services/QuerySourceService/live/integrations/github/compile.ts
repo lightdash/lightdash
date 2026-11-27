@@ -9,11 +9,12 @@ import {
 import {
     getActiveFilterRules,
     getApiName,
+    getLiveDateRange,
     getLiveDefinitionName,
     getLiveExplore,
+    toAbsoluteDateRange,
     type LiveCompiledRequest,
-} from '../../explores/definition';
-import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
+} from '../../sdk';
 import { type GithubRequest } from './run';
 
 /** The first day GitHub can have anything on, for open-ended date filters. */

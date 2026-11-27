@@ -35,6 +35,11 @@ import { useEffect, useRef, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import {
+    describeLiveSources,
+    shortLiveSourceLabel,
+} from '../../../../../features/externalConnections/liveSources/enabledLiveSources';
+import { getLiveSource } from '../../../../../features/externalConnections/liveSources/liveSourceCatalog';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { HomepageTour } from '../../onboarding';
@@ -66,7 +71,7 @@ const ROW_COPY: Record<
     },
     'app-data': {
         icon: IconPlugConnected,
-        pitch: 'Query PostHog or GA4 next to your warehouse metrics.',
+        pitch: 'Query your tools live next to your warehouse metrics.',
         time: '2 min',
     },
     'semantic-layer': {
@@ -196,6 +201,17 @@ const GuideRow: FC<
             },
         });
     const copy = ROW_COPY[row.id];
+    const liveConnectors =
+        row.preview?.kind === 'live-sources' ? row.preview.connectors : [];
+    const pitch =
+        liveConnectors.length > 0
+            ? `Query ${describeLiveSources(
+                  liveConnectors.map((connector) =>
+                      shortLiveSourceLabel(getLiveSource(connector).label),
+                  ),
+                  { conjunction: 'or' },
+              )} next to your warehouse metrics.`
+            : copy.pitch;
     const content: ReactNode = (
         <>
             <Box className={classes.rowIcon}>
@@ -307,13 +323,14 @@ const GuideRow: FC<
                                     : copy.time
                             }
                             size="lg"
+                            liveConnectors={liveConnectors}
                         />
                         <Box p="sm">
                             <Text fz="sm" fw={600}>
                                 {row.title}
                             </Text>
                             <Text fz="xs" c="dimmed">
-                                {row.evidence?.text ?? copy.pitch}
+                                {row.evidence?.text ?? pitch}
                             </Text>
                         </Box>
                     </>

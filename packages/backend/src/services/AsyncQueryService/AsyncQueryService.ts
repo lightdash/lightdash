@@ -11566,7 +11566,7 @@ export class AsyncQueryService extends ProjectService {
             // A composer tile's SQL node applies its column targets, as a SQL chart tile does
             ...(authority.kind === 'composer' && {
                 dashboardFilters: authority.binding.dashboardFilters,
-                tileUuid: authority.binding.stamp.tileUuid,
+                tileUuid: authority.binding.stamp.tileUuid ?? undefined,
             }),
         });
 
@@ -13146,7 +13146,9 @@ export class AsyncQueryService extends ProjectService {
             toResult: (result) => {
                 const {
                     label,
-                    limits: { maxRows },
+                    query: {
+                        limits: { maxRows },
+                    },
                 } = source.integration;
                 assertLiveResultComplete({
                     compiled,

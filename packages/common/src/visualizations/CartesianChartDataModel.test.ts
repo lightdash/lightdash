@@ -1,10 +1,16 @@
-import { DimensionType, Format } from '../types/field';
+import {
+    CustomFormatType,
+    DimensionType,
+    Format,
+    NumberSeparator,
+} from '../types/field';
 import { CartesianSeriesType, ChartKind } from '../types/savedCharts';
 import {
     CartesianChartDataModel,
     ValueLabelPositionOptions,
 } from './CartesianChartDataModel';
 import {
+    StackType,
     VizAggregationOptions,
     VizIndexType,
     type PivotChartData,
@@ -32,6 +38,231 @@ describe('CartesianChartDataModel formatters', () => {
                 value: { category: 'Jan', value: 1200000 },
             }),
         ).toEqual('1.2M');
+    });
+
+    test('formats tooltip values with custom format options', () => {
+        const formatter = CartesianChartDataModel.getTooltipFormatter({
+            type: CustomFormatType.CURRENCY,
+            currency: 'USD',
+            round: 2,
+            separator: NumberSeparator.COMMA_PERIOD,
+        });
+
+        expect(formatter?.(1234.5)).toEqual('$1,234.50');
+    });
+
+    test('prefers y-axis format options over the legacy preset', () => {
+        const formatOptions = {
+            type: CustomFormatType.NUMBER,
+            prefix: '~',
+            round: 1,
+        };
+
+        expect(
+            CartesianChartDataModel.getAxisFormat({
+                format: Format.PERCENT,
+                formatOptions,
+            }),
+        ).toEqual(formatOptions);
+        expect(
+            CartesianChartDataModel.getAxisFormat({ format: Format.PERCENT }),
+        ).toMatchObject({ type: CustomFormatType.PERCENT });
+        expect(
+            CartesianChartDataModel.getAxisFormat({
+                formatOptions: { type: CustomFormatType.DEFAULT },
+            }),
+        ).toBeUndefined();
+        expect(
+            CartesianChartDataModel.getAxisFormat(undefined),
+        ).toBeUndefined();
+    });
+});
+
+describe('CartesianChartDataModel y-axis format options', () => {
+    const usd = {
+        type: CustomFormatType.CURRENCY,
+        currency: 'USD',
+        round: 2,
+        separator: NumberSeparator.COMMA_PERIOD,
+    };
+
+    const getModel = async (
+        results = [{ month: 'Jan', sales: 1234.5, margin: 0.25 }],
+    ) => {
+        const pivotChartData: PivotChartData = {
+            queryUuid: undefined,
+            fileUrl: undefined,
+            results,
+            indexColumn: { reference: 'month', type: VizIndexType.CATEGORY },
+            valuesColumns: ['sales', 'margin'].map((reference) => ({
+                referenceField: reference,
+                pivotColumnName: reference,
+                aggregation: VizAggregationOptions.SUM,
+                pivotValues: [],
+            })),
+            columns: [],
+            columnCount: 3,
+        };
+        const model = new CartesianChartDataModel({
+            type: ChartKind.VERTICAL_BAR,
+            resultsRunner: {
+                getPivotedVisualizationData: async () => pivotChartData,
+                getColumnNames: () => ['month', 'sales', 'margin'],
+                getRows: () => [],
+                getPivotQueryDimensions: () => [],
+                getPivotQueryMetrics: () => [],
+                getPivotQueryCustomMetrics: () => [],
+            },
+            fieldConfig: {
+                x: { reference: 'month', type: VizIndexType.CATEGORY },
+                y: ['sales', 'margin'].map((reference) => ({
+                    reference,
+                    aggregation: VizAggregationOptions.SUM,
+                })),
+                groupBy: undefined,
+            },
+        });
+        await model.getPivotedChartData({
+            sql: 'SELECT 1',
+            limit: 500,
+            sortBy: [],
+            filters: [],
+        });
+        return model;
+    };
+
+    const tooltipParam = (column: string, columnIndex: number) => ({
+        seriesName: column,
+        marker: '',
+        dimensionNames: ['month', 'sales', 'margin'],
+        encode: { x: [0], y: [columnIndex] },
+        value: { month: 'Jan', sales: 1234.5, margin: 0.25 },
+    });
+
+    test('formats the axis labels, value labels and tooltip of each axis', async () => {
+        const model = await getModel();
+        const spec = model.getSpec({
+            yAxis: [{ formatOptions: usd }, { format: Format.PERCENT }],
+            series: {
+                sales: { valueLabelPosition: ValueLabelPositionOptions.TOP },
+                margin: {
+                    valueLabelPosition: ValueLabelPositionOptions.TOP,
+                    whichYAxis: 1,
+                },
+            },
+        });
+
+        expect(spec.yAxis[0].axisLabel.formatter(1234.5)).toBe('$1,234.50');
+        expect(spec.yAxis[1].axisLabel.formatter(0.25)).toBe('25%');
+        expect(spec.series[0].label.formatter(tooltipParam('sales', 1))).toBe(
+            '$1,234.50',
+        );
+        expect(spec.series[1].label.formatter(tooltipParam('margin', 2))).toBe(
+            '25%',
+        );
+
+        const tooltip = spec.tooltip.formatter([
+            tooltipParam('sales', 1),
+            tooltipParam('margin', 2),
+        ]);
+        expect(tooltip).toContain('$1,234.50');
+        expect(tooltip).toContain('25%');
+
+        // "$1,234.50" needs more room than the default gap before the title
+        expect(spec.yAxis[0].nameGap).toBeGreaterThan(50);
+        expect(spec.yAxis[1].nameGap).toBe(50);
+    });
+
+    test('leaves axes and tooltips unformatted without a format', async () => {
+        const model = await getModel();
+        const spec = model.getSpec({});
+
+        expect(spec.yAxis[0].axisLabel.formatter).toBeUndefined();
+        expect(spec.yAxis[1].axisLabel.formatter).toBeUndefined();
+        expect(spec.yAxis[0].nameGap).toBe(50);
+        expect(spec.tooltip.formatter([tooltipParam('sales', 1)])).toContain(
+            (1234.5).toLocaleString(),
+        );
+    });
+
+    test('escapes markup in formatted tooltip values', async () => {
+        const model = await getModel();
+        const spec = model.getSpec({
+            yAxis: [
+                {
+                    formatOptions: {
+                        type: CustomFormatType.NUMBER,
+                        prefix: '<img src=x onerror=alert(1)>',
+                    },
+                },
+            ],
+        });
+
+        const tooltip = spec.tooltip.formatter([tooltipParam('sales', 1)]);
+        expect(tooltip).not.toContain('<img');
+        expect(tooltip).toContain('&lt;img src=x onerror=alert(1)&gt;');
+    });
+
+    test('formats value labels on regular stacked bars', async () => {
+        const model = await getModel();
+        const spec = model.getSpec({
+            stack: StackType.NORMAL,
+            yAxis: [{ formatOptions: usd }],
+            series: {
+                sales: { valueLabelPosition: ValueLabelPositionOptions.TOP },
+            },
+        });
+
+        // Rounded stack corners turn the series data into tuple rows
+        const sales = spec.series[0];
+        expect(Array.isArray(sales.data[0].value)).toBe(true);
+        expect(
+            sales.label.formatter({
+                dimensionNames: sales.dimensions,
+                encode: { x: [0], y: [1] },
+                value: sales.data[0].value,
+            }),
+        ).toBe('$1,234.50');
+    });
+
+    test('formats the original amount in 100% stack tooltips', async () => {
+        const model = await getModel();
+        const spec = model.getSpec({
+            stack: StackType.PERCENT,
+            yAxis: [{ formatOptions: usd }],
+        });
+
+        const row = spec.dataset.source[0];
+        const tooltip = spec.tooltip.formatter([
+            {
+                seriesName: 'sales',
+                marker: '',
+                dimensionNames: ['month', 'sales'],
+                encode: { x: [0], y: [1] },
+                value: row,
+                data: row,
+            },
+        ]);
+        expect(tooltip).toContain(`${row.sales.toFixed(1)}% ($1,234.50)`);
+    });
+
+    test('sizes the title gap from tick labels the data does not reach', async () => {
+        // The axis ticks run to 600, past the largest value (550)
+        const model = await getModel([{ month: 'Jan', sales: 550, margin: 0 }]);
+        const spec = model.getSpec({
+            yAxis: [
+                {
+                    formatOptions: {
+                        type: CustomFormatType.CUSTOM,
+                        custom: '[>=600]"over budget "0;0',
+                    },
+                },
+            ],
+        });
+
+        expect(spec.yAxis[0].axisLabel.formatter(550)).toBe('550');
+        expect(spec.yAxis[0].axisLabel.formatter(600)).toBe('over budget 600');
+        expect(spec.yAxis[0].nameGap).toBeGreaterThan(50);
     });
 });
 
