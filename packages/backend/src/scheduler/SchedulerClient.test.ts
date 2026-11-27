@@ -470,6 +470,7 @@ describe('SchedulerClient per-org delivery queue', () => {
                 ...traceProperties,
                 schedulerUuid: scheduler.schedulerUuid,
                 executionUserUuid: traceProperties.userUuid,
+                cronScheduledAt: dueTime,
             },
             scheduler.schedulerUuid,
         );

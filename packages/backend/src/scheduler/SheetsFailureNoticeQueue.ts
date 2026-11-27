@@ -1,9 +1,9 @@
-import { SCHEDULER_TASKS, type BigQueryTableNotice } from '@lightdash/common';
+import { SCHEDULER_TASKS, type SheetsFailureNotice } from '@lightdash/common';
 import { type Knex } from 'knex';
 
-export async function enqueueBigQueryTableNotice(
+export async function enqueueSheetsFailureNotice(
     database: Knex,
-    notice: BigQueryTableNotice,
+    notice: SheetsFailureNotice,
 ): Promise<void> {
     const { schedulerUuid, event } = notice;
     const eventKey =
@@ -17,9 +17,11 @@ export async function enqueueBigQueryTableNotice(
             max_attempts => 6, job_key => (? || channel), job_key_mode => 'unsafe_dedupe'
         ) FROM unnest(ARRAY['email', 'slack']) AS channels(channel)`,
         [
-            SCHEDULER_TASKS.NOTIFY_BIGQUERY_TABLE_FAILURE,
+            event.type === 'attempt'
+                ? SCHEDULER_TASKS.NOTIFY_SHEETS_MISSING_TABLE_ATTEMPT
+                : SCHEDULER_TASKS.NOTIFY_SHEETS_FAILURE,
             JSON.stringify(notice),
-            `bigquery-notice:${schedulerUuid}:${eventKey}:`,
+            `sheets-notice:${schedulerUuid}:${eventKey}:`,
         ],
     );
 }

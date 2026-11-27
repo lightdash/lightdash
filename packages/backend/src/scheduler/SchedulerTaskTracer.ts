@@ -72,7 +72,11 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
 
-    [SCHEDULER_TASKS.NOTIFY_BIGQUERY_TABLE_FAILURE]: (payload) => ({
+    [SCHEDULER_TASKS.NOTIFY_SHEETS_MISSING_TABLE_ATTEMPT]: (payload) => ({
+        'scheduler.uuid': payload.schedulerUuid,
+        'delivery.channel': payload.channel,
+    }),
+    [SCHEDULER_TASKS.NOTIFY_SHEETS_FAILURE]: (payload) => ({
         'scheduler.uuid': payload.schedulerUuid,
         'delivery.channel': payload.channel,
     }),

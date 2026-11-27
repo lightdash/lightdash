@@ -54,8 +54,8 @@ import {
     UpdateSchedulerAndTargetsWithoutId,
     UserSchedulersSummary,
     type Account,
-    type BigQueryTableNoticePayload,
     type SchedulerAppState,
+    type SheetsFailureNoticePayload,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import {
@@ -86,16 +86,16 @@ import { BaseService } from '../BaseService';
 import type { SoftDeleteOptions } from '../SoftDeletableService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
-import type { BigQueryTableFailureNotice } from './BigQueryTableNotifications';
 import { assertCanReplaceChartFilters } from './chartFilterOverridesAccess';
+import type { SheetsFailureNotification } from './SheetsFailureNotifications';
 
-type SendBigQueryNotice = (
-    notice: BigQueryTableFailureNotice,
-    channel: BigQueryTableNoticePayload['channel'],
+type SendSheetsNotice = (
+    notice: SheetsFailureNotification,
+    channel: SheetsFailureNoticePayload['channel'],
 ) => Promise<void>;
 
 type SchedulerServiceArguments = {
-    sendBigQueryNotice: SendBigQueryNotice;
+    sendSheetsNotice: SendSheetsNotice;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     schedulerModel: SchedulerModel;
@@ -166,10 +166,10 @@ export class SchedulerService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
-    private readonly sendBigQueryNotice: SendBigQueryNotice;
+    private readonly sendSheetsNotice: SendSheetsNotice;
 
     constructor({
-        sendBigQueryNotice,
+        sendSheetsNotice,
         lightdashConfig,
         analytics,
         schedulerModel,
@@ -188,7 +188,7 @@ export class SchedulerService extends BaseService {
         spacePermissionService,
     }: SchedulerServiceArguments) {
         super();
-        this.sendBigQueryNotice = sendBigQueryNotice;
+        this.sendSheetsNotice = sendSheetsNotice;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.schedulerModel = schedulerModel;
@@ -1202,25 +1202,32 @@ export class SchedulerService extends BaseService {
         );
     }
 
-    async deliverBigQueryTableNotice({
+    async deliverSheetsFailureNotice({
         schedulerUuid,
         event,
         channel,
-    }: BigQueryTableNoticePayload): Promise<void> {
-        const scheduler =
-            await this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
-        const { projectUuid, organizationUuid } =
-            await this.getSchedulerProjectContext(scheduler);
-        const { resourceType, resourceId } =
-            getSchedulerResourceTypeAndId(scheduler);
-        const paths = {
-            [SchedulerResourceType.CHART]: `saved/${resourceId}/view`,
-            [SchedulerResourceType.DASHBOARD]: `dashboards/${resourceId}/view`,
-            [SchedulerResourceType.SQL_CHART]: `sql-runner/${resourceId}`,
-            [SchedulerResourceType.APP]: `apps/${resourceId}/view`,
-        };
-        const deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/${paths[resourceType]}?scheduler_uuid=${schedulerUuid}&isSync=true`;
-        await this.sendBigQueryNotice(
+    }: SheetsFailureNoticePayload): Promise<void> {
+        const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
+        const { projectUuid, organizationUuid } = scheduler.projectUuid
+            ? await this.projectModel.getSummary(scheduler.projectUuid)
+            : await this.getSchedulerProjectContext(scheduler);
+        const search = new URLSearchParams({
+            needsAttention: 'true',
+            nameSearch: scheduler.name,
+        });
+        let deliveryUrl = `${this.lightdashConfig.siteUrl}/generalSettings/projectManagement/${projectUuid}/scheduledDeliveries?${search}`;
+        if (event.type === 'attempt') {
+            const { resourceType, resourceId } =
+                getSchedulerResourceTypeAndId(scheduler);
+            const paths = {
+                [SchedulerResourceType.CHART]: `saved/${resourceId}/view`,
+                [SchedulerResourceType.DASHBOARD]: `dashboards/${resourceId}/view`,
+                [SchedulerResourceType.SQL_CHART]: `sql-runner/${resourceId}`,
+                [SchedulerResourceType.APP]: `apps/${resourceId}/view`,
+            };
+            deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/${paths[resourceType]}?scheduler_uuid=${schedulerUuid}&isSync=true`;
+        }
+        await this.sendSheetsNotice(
             {
                 organizationUuid,
                 schedulerUuid,

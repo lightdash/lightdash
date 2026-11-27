@@ -4,23 +4,32 @@ import {
     mockOrgAdmin2,
 } from '../AdminNotificationService/AdminNotificationService.mock';
 import {
-    notifyBigQueryTableFailure,
-    type BigQueryTableFailureNotice,
-} from './BigQueryTableNotifications';
+    notifySheetsFailure,
+    type SheetsFailureNotification,
+} from './SheetsFailureNotifications';
 
 const org = mockOrgAdmin1.organizationUuid;
-const notice: BigQueryTableFailureNotice = {
+const notice = {
     organizationUuid: org,
     ownerUuid: mockOrgAdmin1.userUuid,
     schedulerUuid: 'delivery-id',
     schedulerName: 'Inventory report',
     deliveryUrl:
         'https://app.example.test/projects/demo/saved/stock/view?scheduler_uuid=delivery-id&isSync=true',
-    event: { type: 'attempt', jobId: '1398', attempt: 2 },
-};
+    event: {
+        type: 'paused',
+        scheduledTime: '2026-11-26T12:00:00Z',
+        reason: 'Google Sheets rejected the upload.',
+    },
+} satisfies SheetsFailureNotification;
 
 function fixture() {
     return {
+        serviceAccountModel: {
+            getCreatorForAccountUser: vi
+                .fn<(org: string, user: string) => Promise<string | null>>()
+                .mockResolvedValue(null),
+        },
         emailClient: {
             canSendEmail: vi.fn(() => true),
             sendGenericNotificationEmail: vi.fn().mockResolvedValue(undefined),
@@ -48,10 +57,28 @@ function fixture() {
     };
 }
 
-describe('Google Sheets missing-table notifications', () => {
+describe('Google Sheets failure notifications', () => {
     it('identifies the failed worker attempt and links the verified owner to the delivery', async () => {
         const deps = fixture();
-        await notifyBigQueryTableFailure(deps, notice, 'email');
+        await notifySheetsFailure(
+            deps,
+            {
+                ...notice,
+                event: { type: 'attempt', jobId: '1398', attempt: 2 },
+            },
+            'email',
+        );
+        const [[to, subject, , body]] =
+            deps.emailClient.sendGenericNotificationEmail.mock.calls;
+        expect(to).toEqual([mockOrgAdmin1.email]);
+        expect(subject).toContain('attempt failed');
+        expect(body).toContain('attempt 2 of job 1398');
+        expect(body).toContain(notice.deliveryUrl);
+    });
+
+    it('sends the pause reason and settings link to the verified owner', async () => {
+        const deps = fixture();
+        await notifySheetsFailure(deps, notice, 'email');
         expect(
             deps.organizationMemberProfileModel.getOrganizationMemberByUuid,
         ).toHaveBeenCalledWith(org, notice.ownerUuid);
@@ -59,7 +86,7 @@ describe('Google Sheets missing-table notifications', () => {
             deps.emailClient.sendGenericNotificationEmail.mock.calls;
         expect(to).toEqual([mockOrgAdmin1.email]);
         expect(subject).toContain('Inventory report');
-        expect(body).toContain('attempt 2 of job 1398');
+        expect(body).toContain(notice.event.reason);
         expect(body).toContain(notice.deliveryUrl);
         expect(
             deps.organizationMemberProfileModel.getOrganizationAdmins,
@@ -97,7 +124,7 @@ describe('Google Sheets missing-table notifications', () => {
                 new NotFoundError('No primary email'),
             );
         }
-        await notifyBigQueryTableFailure(deps, notice, 'email');
+        await notifySheetsFailure(deps, notice, 'email');
         expect(
             deps.organizationMemberProfileModel.getOrganizationAdmins,
         ).toHaveBeenCalledWith(org);
@@ -106,30 +133,89 @@ describe('Google Sheets missing-table notifications', () => {
         ).toEqual([mockOrgAdmin2.email]);
     });
 
-    it('sends separate pause copy to the configured organization channel', async () => {
-        const deps = fixture();
-        await notifyBigQueryTableFailure(
-            deps,
-            {
-                ...notice,
-                event: {
-                    type: 'paused',
-                    scheduledTime: '2026-11-26T12:00:00Z',
+    it.each([
+        'verified',
+        'left organization',
+        'unverified',
+        'inactive',
+    ] as const)(
+        'routes a permanent pause when the service account creator is %s',
+        async (status) => {
+            const deps = fixture();
+            const creator = { ...mockOrgAdmin1, userUuid: 'creator' };
+            const getMember =
+                deps.organizationMemberProfileModel.getOrganizationMemberByUuid;
+            getMember.mockRejectedValueOnce(
+                new NotFoundError('Service account'),
+            );
+            if (status === 'left organization') {
+                getMember.mockRejectedValueOnce(
+                    new NotFoundError('No matching member'),
+                );
+            } else {
+                getMember.mockResolvedValueOnce({
+                    ...creator,
+                    isActive: status !== 'inactive',
+                });
+            }
+            deps.serviceAccountModel.getCreatorForAccountUser.mockResolvedValue(
+                creator.userUuid,
+            );
+            deps.emailModel.getPrimaryEmailStatus.mockImplementation(
+                async (id) => ({
+                    email:
+                        id === creator.userUuid
+                            ? 'creator@example.test'
+                            : mockOrgAdmin2.email,
+                    isVerified:
+                        id !== creator.userUuid || status !== 'unverified',
+                }),
+            );
+            const reason =
+                'This Google Sheets sync does not have access to a required resource.';
+            await notifySheetsFailure(
+                deps,
+                {
+                    ...notice,
+                    event: {
+                        type: 'paused',
+                        reason,
+                        scheduledTime: '2026-11-26T12:00:00Z',
+                    },
                 },
-            },
-            'slack',
-        );
+                'email',
+            );
+            expect(
+                deps.serviceAccountModel.getCreatorForAccountUser,
+            ).toHaveBeenCalledWith(org, notice.ownerUuid);
+            expect(getMember).toHaveBeenNthCalledWith(2, org, creator.userUuid);
+            expect(
+                deps.emailClient.sendGenericNotificationEmail,
+            ).toHaveBeenCalledExactlyOnceWith(
+                [
+                    status === 'verified'
+                        ? 'creator@example.test'
+                        : mockOrgAdmin2.email,
+                ],
+                expect.stringContaining('paused'),
+                expect.any(String),
+                expect.stringContaining(reason),
+            );
+            expect(
+                deps.organizationMemberProfileModel.getOrganizationAdmins,
+            ).toHaveBeenCalledTimes(status === 'verified' ? 0 : 1);
+        },
+    );
+
+    it('sends the pause to the configured organization channel', async () => {
+        const deps = fixture();
+        await notifySheetsFailure(deps, notice, 'slack');
         expect(deps.slackClient.getNotificationChannel).toHaveBeenCalledWith(
             org,
         );
         const [[message]] = deps.slackClient.postMessage.mock.calls;
         expect(message.channel).toBe('org-channel');
-        expect(message.blocks[0].text.text).toContain(
-            'at least five consecutive scheduled runs spanning at least seven days',
-        );
-        expect(message.blocks[0].text.text).toContain(
-            'Future scheduled runs have stopped',
-        );
+        expect(message.blocks[0].text.text).toContain(notice.event.reason);
         expect(message.blocks[0].accessory.url).toBe(notice.deliveryUrl);
         expect(
             deps.emailClient.sendGenericNotificationEmail,
@@ -140,8 +226,8 @@ describe('Google Sheets missing-table notifications', () => {
         const deps = fixture();
         deps.emailClient.canSendEmail.mockReturnValue(false);
         deps.slackClient.getNotificationChannel.mockResolvedValue(undefined);
-        await notifyBigQueryTableFailure(deps, notice, 'email');
-        await notifyBigQueryTableFailure(deps, notice, 'slack');
+        await notifySheetsFailure(deps, notice, 'email');
+        await notifySheetsFailure(deps, notice, 'slack');
         expect(
             deps.organizationMemberProfileModel.getOrganizationMemberByUuid,
         ).not.toHaveBeenCalled();
@@ -155,13 +241,15 @@ describe('Google Sheets missing-table notifications', () => {
             isVerified: false,
         });
         await expect(
-            notifyBigQueryTableFailure(deps, notice, 'email'),
-        ).rejects.toThrow('No active owner or organization admin');
+            notifySheetsFailure(deps, notice, 'email'),
+        ).rejects.toThrow(
+            'No active owner, service account creator, or organization admin',
+        );
         deps.organizationMemberProfileModel.getOrganizationMemberByUuid.mockRejectedValue(
             new Error('database unavailable'),
         );
         await expect(
-            notifyBigQueryTableFailure(deps, notice, 'email'),
+            notifySheetsFailure(deps, notice, 'email'),
         ).rejects.toThrow('database unavailable');
         expect(
             deps.emailClient.sendGenericNotificationEmail,
@@ -174,14 +262,14 @@ describe('Google Sheets missing-table notifications', () => {
             new Error('SMTP down'),
         );
         await expect(
-            notifyBigQueryTableFailure(deps, notice, 'email'),
+            notifySheetsFailure(deps, notice, 'email'),
         ).rejects.toThrow('SMTP down');
-        await notifyBigQueryTableFailure(deps, notice, 'slack');
+        await notifySheetsFailure(deps, notice, 'slack');
         deps.slackClient.postMessage.mockRejectedValue(
             new Error('channel unavailable'),
         );
         await expect(
-            notifyBigQueryTableFailure(deps, notice, 'slack'),
+            notifySheetsFailure(deps, notice, 'slack'),
         ).rejects.toThrow('channel unavailable');
         expect(
             deps.emailClient.sendGenericNotificationEmail,

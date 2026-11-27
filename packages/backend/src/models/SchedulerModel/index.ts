@@ -82,7 +82,7 @@ import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
-import { enqueueBigQueryTableNotice } from '../../scheduler/BigQueryTableNoticeQueue';
+import { enqueueSheetsFailureNotice } from '../../scheduler/SheetsFailureNoticeQueue';
 import { validateSchedulerWebhookTargets } from '../../utils/schedulerWebhookValidation';
 
 type SelectScheduler = SchedulerDb & {
@@ -108,6 +108,8 @@ const statusOrder = [
 ].map((s) => s.toString());
 
 const BIGQUERY_PAUSE_MIN_FAILURES = 5;
+const BIGQUERY_PAUSE_REASON =
+    'The same BigQuery table was missing for at least five consecutive scheduled runs spanning at least seven days. Restore the table or update the source query, then resume the delivery.';
 const BIGQUERY_PAUSE_MIN_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 const CLEARED_MISSING_TABLE_STREAK = {
     bigquery_missing_table_hash: null,
@@ -1330,7 +1332,7 @@ export class SchedulerModel {
                 )
                 .returning('source_job_id');
             if (queued.length > 0) {
-                await enqueueBigQueryTableNotice(trx, {
+                await enqueueSheetsFailureNotice(trx, {
                     schedulerUuid,
                     event: { type: 'attempt', jobId, attempt },
                 });
@@ -1424,46 +1426,124 @@ export class SchedulerModel {
                 ...(shouldPause && {
                     enabled: false,
                     updated_at: new Date(),
-                    automatically_disabled_reason:
-                        'A BigQuery table was missing on repeated deliveries for at least seven days. Check the source table and resume the delivery.',
+                    automatically_disabled_reason: BIGQUERY_PAUSE_REASON,
                 }),
             });
             if (shouldPause) {
                 await attempts.delete();
-                // remove_job also alters locked jobs. Lock only future cron jobs we can remove.
-                const { rows: removedJobs } = await trx.raw<{
-                    rows: Array<{ id: string }>;
-                }>(
-                    `SELECT (graphile_worker.remove_job(pending.key)).id::text AS id
-                     FROM (
-                         SELECT key FROM graphile_worker.jobs
-                         WHERE key LIKE ? AND run_at > now()
-                           AND payload->>'cronScheduledAt' IS NOT NULL
-                           AND attempts = 0 AND locked_at IS NULL
-                         FOR UPDATE SKIP LOCKED
-                     ) AS pending`,
-                    [`scheduler:${schedulerUuid}:%`],
-                );
-                await trx(SchedulerLogTableName)
-                    .where({
-                        scheduler_uuid: schedulerUuid,
-                        status: SchedulerJobStatus.SCHEDULED,
-                    })
-                    .whereIn(
-                        'job_id',
-                        removedJobs.map(({ id }) => id),
-                    )
-                    .delete();
-                await enqueueBigQueryTableNotice(trx, {
+                await SchedulerModel.removeFutureSheetsJobs(trx, schedulerUuid);
+                await enqueueSheetsFailureNotice(trx, {
                     schedulerUuid,
                     event: {
                         type: 'paused',
+                        reason: BIGQUERY_PAUSE_REASON,
                         scheduledTime: scheduledTime.toISOString(),
                     },
                 });
                 return 'paused';
             }
             return 'warning';
+        });
+    }
+
+    private static async removeFutureSheetsJobs(
+        trx: Knex.Transaction,
+        schedulerUuid: string,
+    ): Promise<void> {
+        // remove_job also alters locked jobs. Lock only future cron jobs we can remove.
+        const { rows: removedJobs } = await trx.raw<{
+            rows: Array<{ id: string }>;
+        }>(
+            `SELECT (graphile_worker.remove_job(pending.key)).id::text AS id
+             FROM (
+                 SELECT key FROM graphile_worker.jobs
+                 WHERE key LIKE ? AND run_at > now()
+                   AND payload->>'cronScheduledAt' IS NOT NULL
+                   AND attempts = 0 AND locked_at IS NULL
+                 FOR UPDATE SKIP LOCKED
+             ) AS pending`,
+            [`scheduler:${schedulerUuid}:%`],
+        );
+        await trx(SchedulerLogTableName)
+            .where({
+                scheduler_uuid: schedulerUuid,
+                status: SchedulerJobStatus.SCHEDULED,
+            })
+            .whereIn(
+                'job_id',
+                removedJobs.map(({ id }) => id),
+            )
+            .delete();
+    }
+
+    async pauseScheduledSheetsForError({
+        schedulerUuid,
+        projectUuid,
+        organizationUuid,
+        ownerUuid,
+        scheduledTime,
+        reason,
+    }: {
+        schedulerUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        ownerUuid: string;
+        scheduledTime: Date;
+        reason: string;
+    }): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            const updated = await trx(SchedulerTableName)
+                .where({
+                    scheduler_uuid: schedulerUuid,
+                    project_uuid: projectUuid,
+                    created_by: ownerUuid,
+                    format: SchedulerFormat.GSHEETS,
+                    enabled: true,
+                })
+                .whereNull('deleted_at')
+                .where('updated_at', '<=', scheduledTime)
+                .where((query) =>
+                    query
+                        .whereNull('bigquery_last_scheduled_time')
+                        .orWhere(
+                            'bigquery_last_scheduled_time',
+                            '<',
+                            scheduledTime,
+                        ),
+                )
+                .whereExists(
+                    trx(ProjectTableName)
+                        .join(
+                            OrganizationTableName,
+                            `${OrganizationTableName}.organization_id`,
+                            `${ProjectTableName}.organization_id`,
+                        )
+                        .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                        .where(
+                            `${OrganizationTableName}.organization_uuid`,
+                            organizationUuid,
+                        ),
+                )
+                .update({
+                    ...CLEARED_MISSING_TABLE_STREAK,
+                    bigquery_last_scheduled_time: scheduledTime,
+                    enabled: false,
+                    automatically_disabled_reason: reason,
+                    updated_at: new Date(),
+                });
+            if (!updated) return;
+            await trx(SchedulerBigQueryAttemptsTableName)
+                .where('scheduler_uuid', schedulerUuid)
+                .delete();
+            await SchedulerModel.removeFutureSheetsJobs(trx, schedulerUuid);
+            await enqueueSheetsFailureNotice(trx, {
+                schedulerUuid,
+                event: {
+                    type: 'paused',
+                    reason,
+                    scheduledTime: scheduledTime.toISOString(),
+                },
+            });
         });
     }
 
@@ -1481,20 +1561,36 @@ export class SchedulerModel {
                 // A delayed worker must not relabel a schedule that was already paused.
                 scheduler.andWhere('enabled', true);
             }
-            const updated = await scheduler.update({
-                enabled,
-                ...CLEARED_MISSING_TABLE_STREAK,
-                // Ignore workers finishing an occurrence from before this pause or resume.
-                bigquery_last_scheduled_time: trx.raw<Date>(
-                    'GREATEST(bigquery_last_scheduled_time, clock_timestamp())',
-                ),
-                automatically_disabled_reason: enabled
-                    ? null
-                    : automaticallyDisabledReason,
-                updated_at: new Date(),
-            });
+            const [updated] = await scheduler
+                .update({
+                    enabled,
+                    ...CLEARED_MISSING_TABLE_STREAK,
+                    // Ignore workers finishing an occurrence from before this pause or resume.
+                    bigquery_last_scheduled_time: trx.raw<Date>(
+                        'GREATEST(bigquery_last_scheduled_time, clock_timestamp())',
+                    ),
+                    automatically_disabled_reason: enabled
+                        ? null
+                        : automaticallyDisabledReason,
+                    updated_at: new Date(),
+                })
+                .returning('format');
 
             if (updated) {
+                if (
+                    !enabled &&
+                    automaticallyDisabledReason &&
+                    updated.format === SchedulerFormat.GSHEETS
+                ) {
+                    await enqueueSheetsFailureNotice(trx, {
+                        schedulerUuid,
+                        event: {
+                            type: 'paused',
+                            reason: automaticallyDisabledReason,
+                            scheduledTime: new Date().toISOString(),
+                        },
+                    });
+                }
                 await trx(SchedulerBigQueryAttemptsTableName)
                     .where('scheduler_uuid', schedulerUuid)
                     .delete();

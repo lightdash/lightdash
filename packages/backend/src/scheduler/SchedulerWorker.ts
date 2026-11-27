@@ -1084,10 +1084,13 @@ export class SchedulerWorker extends SchedulerTask {
 
     protected getFullTaskList(): TypedTaskList {
         return {
-            [SCHEDULER_TASKS.NOTIFY_BIGQUERY_TABLE_FAILURE]: async (
+            [SCHEDULER_TASKS.NOTIFY_SHEETS_MISSING_TABLE_ATTEMPT]: async (
                 payload,
             ) => {
-                await this.schedulerService.deliverBigQueryTableNotice(payload);
+                await this.schedulerService.deliverSheetsFailureNotice(payload);
+            },
+            [SCHEDULER_TASKS.NOTIFY_SHEETS_FAILURE]: async (payload) => {
+                await this.schedulerService.deliverSheetsFailureNotice(payload);
             },
             [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: async () => {
                 const currentDateStartOfDay = moment()
@@ -1623,7 +1626,17 @@ export class SchedulerWorker extends SchedulerTask {
                         throw missingTable;
                     }
 
-                    if (isFinalAttempt || action.disableReason !== null) {
+                    if (action.disableReason !== null && deliveryError) {
+                        await this.disableGsheetsScheduler(
+                            payload.schedulerUuid,
+                            deliveryError.createdByUserUuid,
+                            action.disableReason,
+                            payload,
+                        );
+                        return; // Swallow so graphile does not retry
+                    }
+
+                    if (isFinalAttempt) {
                         await this.recordScheduledSheetsOutcome(payload, null);
                     }
                     if (action.notify && deliveryError) {
@@ -1631,15 +1644,6 @@ export class SchedulerWorker extends SchedulerTask {
                             deliveryError,
                             helpers.job.id,
                         );
-                    }
-
-                    if (action.disableReason !== null && deliveryError) {
-                        await this.disableGsheetsScheduler(
-                            payload.schedulerUuid,
-                            deliveryError.createdByUserUuid,
-                            action.disableReason,
-                        );
-                        return; // Swallow so graphile does not retry
                     }
 
                     // Re-throw the original error (not the envelope) so graphile

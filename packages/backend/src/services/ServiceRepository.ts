@@ -111,8 +111,8 @@ import { RenameService } from './RenameService/RenameService';
 import { RolesService } from './RolesService/RolesService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SavedSqlService } from './SavedSqlService/SavedSqlService';
-import { notifyBigQueryTableFailure } from './SchedulerService/BigQueryTableNotifications';
 import { SchedulerService } from './SchedulerService/SchedulerService';
+import { notifySheetsFailure } from './SchedulerService/SheetsFailureNotifications';
 import { SearchService } from './SearchService/SearchService';
 import { ShareService } from './ShareService/ShareService';
 import { SlackIntegrationService } from './SlackIntegrationService/SlackIntegrationService';
@@ -1548,9 +1548,13 @@ export class ServiceRepository
             'schedulerService',
             () =>
                 new SchedulerService({
-                    sendBigQueryNotice: (notice, channel) =>
-                        notifyBigQueryTableFailure(
+                    sendSheetsNotice: (notice, channel) =>
+                        notifySheetsFailure(
                             {
+                                serviceAccountModel: this.providers
+                                    .serviceAccountService
+                                    ? this.models.getServiceAccountModel<ServiceAccountModel>()
+                                    : undefined,
                                 organizationMemberProfileModel:
                                     this.models.getOrganizationMemberProfileModel(),
                                 emailModel: this.models.getEmailModel(),

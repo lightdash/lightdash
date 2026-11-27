@@ -525,6 +525,19 @@ export class ServiceAccountModel {
         return query;
     }
 
+    async getCreatorForAccountUser(
+        organizationUuid: string,
+        accountUserUuid: string,
+    ): Promise<string | null> {
+        const account = await this.database(ServiceAccountsTableName)
+            .where({
+                organization_uuid: organizationUuid,
+                service_account_user_uuid: accountUserUuid,
+            })
+            .first('created_by_user_uuid');
+        return account?.created_by_user_uuid ?? null;
+    }
+
     async getAllForOrganization(
         organizationUuid: string,
         scopes?: ServiceAccountScope[],
