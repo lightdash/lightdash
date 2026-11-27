@@ -7,7 +7,8 @@ import {
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useRef, useState } from 'react';
+import { isEqual } from 'es-toolkit/compat';
+import { useCallback, useState } from 'react';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type PageChart = Pick<ComposerChart, 'uuid' | 'versionUuid'>;
@@ -24,12 +25,17 @@ export const useComposerChartPageRun = ({
 }) => {
     const lightdashApi = useLightdashApi();
     // A timestamp, not a counter: a counter restarts on remount and would hit a cached run
-    const [refreshedAt, setRefreshedAt] = useState(0);
-    const invalidateNextRun = useRef(false);
-    const refresh = useCallback(() => {
-        invalidateNextRun.current = true;
-        setRefreshedAt(Date.now());
-    }, []);
+    const [refreshed, setRefreshed] = useState<{
+        at: number;
+        parameters: ParametersValuesMap;
+    } | null>(null);
+    const refresh = useCallback(
+        () => setRefreshed({ at: Date.now(), parameters }),
+        [parameters],
+    );
+    // Only the refreshed selection skips the cache; a later pick reads it again
+    const invalidateCache =
+        refreshed !== null && isEqual(refreshed.parameters, parameters);
     const runQuery = useQuery<
         { versionUuid: string; run: ComposerChartRunResults },
         ApiError
@@ -40,15 +46,14 @@ export const useComposerChartPageRun = ({
             chart.uuid,
             chart.versionUuid,
             parameters,
-            refreshedAt,
+            refreshed?.at ?? 0,
         ],
         queryFn: () => {
             const body: ExecuteComposerChartRequest = {
                 composerChartUuid: chart.uuid,
                 parameters,
-                invalidateCache: invalidateNextRun.current,
+                invalidateCache,
             };
-            invalidateNextRun.current = false;
             return lightdashApi<ComposerChartRunResults>({
                 url: `/projects/${projectUuid}/query/composer-chart`,
                 version: 'v2',

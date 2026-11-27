@@ -50,6 +50,20 @@ describe('getComposerChartParameterValues', () => {
         ).toEqual({ region: 'UK' });
     });
 
+    it('shows a pick one node ran even when another node kept its own value', () => {
+        expect(
+            getComposerChartParameterValues({
+                nodes: [orders, tagged],
+                usedParameterValuesByNodeId: {
+                    orders: { region: 'EU' },
+                    tagged: { region: 'CA' },
+                },
+                picks: { region: 'CA' },
+                isRunCurrent: true,
+            }),
+        ).toEqual({ region: 'CA' });
+    });
+
     it('shows the value the run applied over a pick it dropped', () => {
         expect(
             getComposerChartParameterValues({
