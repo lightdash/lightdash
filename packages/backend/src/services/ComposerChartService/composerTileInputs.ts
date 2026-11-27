@@ -217,6 +217,17 @@ export const applyDashboardParametersToComposerNodes = ({
     };
 };
 
+// A project parameter wins over a model's copy of its name, as on saved charts
+const getModelOnlyDefinitions = (
+    explore: Explore,
+    projectDefinitions: ParameterDefinitions,
+): ParameterDefinitions =>
+    Object.fromEntries(
+        Object.entries(getExploreDefinitions(explore)).filter(
+            ([key]) => !(key in projectDefinitions),
+        ),
+    );
+
 /** A chart run's precedence: each semantic-layer node runs defaults < its saved value < the caller's; the shared map gets the caller's values only. */
 export const applyCallerParametersToComposerNodes = ({
     nodes,
@@ -236,10 +247,10 @@ export const applyCallerParametersToComposerNodes = ({
         const explore = exploreByNodeId[node.nodeId];
         if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER || !explore)
             return node;
-        const definitions = getEffectiveParameterDefinitions({
-            projectDefinitions,
-            exploreDefinitions: getExploreDefinitions(explore),
-        });
+        const definitions = {
+            ...projectDefinitions,
+            ...getModelOnlyDefinitions(explore, projectDefinitions),
+        };
         return {
             ...node,
             parameters: {
@@ -251,17 +262,15 @@ export const applyCallerParametersToComposerNodes = ({
             },
         };
     }),
-    // A project parameter wins over a model's copy of its name; a model-only key must suit every model defining it
-    parameters: [
-        projectDefinitions,
-        ...Object.values(exploreByNodeId).map((explore) =>
-            Object.fromEntries(
-                Object.entries(getExploreDefinitions(explore)).filter(
-                    ([key]) => !(key in projectDefinitions),
-                ),
+    // A model-only key must suit every model that defines it
+    parameters: Object.values(exploreByNodeId).reduce(
+        (values, explore) =>
+            omitDisallowedParameterValues(
+                values,
+                getModelOnlyDefinitions(explore, projectDefinitions),
             ),
-        ),
-    ].reduce(omitDisallowedParameterValues, callerValues),
+        omitDisallowedParameterValues(callerValues, projectDefinitions),
+    ),
 });
 
 const getNodeParameterReferences = (

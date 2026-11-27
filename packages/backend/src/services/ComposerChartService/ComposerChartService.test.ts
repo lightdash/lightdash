@@ -24,6 +24,7 @@ import {
     type DashboardFilters,
     type DataAppVizSchema,
     type Explore,
+    type LightdashProjectParameter,
     type ParametersValuesMap,
     type PossibleAbilities,
 } from '@lightdash/common';
@@ -1476,7 +1477,7 @@ describe('ComposerChartService.runChart', () => {
                 modelParameters,
                 projectParameterName,
             }: {
-                modelParameters?: Record<string, object>;
+                modelParameters?: Record<string, LightdashProjectParameter>;
                 projectParameterName?: string;
             } = {},
         ) => {
@@ -1491,7 +1492,7 @@ describe('ComposerChartService.runChart', () => {
                 const original = getExplore.getMockImplementation()!;
                 getExplore.mockImplementation(async (...args) => {
                     const explore = await original(...args);
-                    explore.tables.orders.parameters = modelParameters as never;
+                    explore.tables.orders.parameters = modelParameters;
                     return explore;
                 });
             }
@@ -1544,23 +1545,30 @@ describe('ComposerChartService.runChart', () => {
             expect(
                 await runWith(
                     { 'orders.size': 'huge' },
-                    { modelParameters: { size: { options: ['small'] } } },
+                    {
+                        modelParameters: {
+                            size: { label: 'Size', options: ['small'] },
+                        },
+                    },
                 ),
             ).toEqual({ nodeParameters: { region: 'UK' }, shared: {} });
         });
 
         test("a project parameter keeps a caller value that a model's copy of its name refuses", async () => {
             expect(
-                (
-                    await runWith(
-                        { 'orders.region': 'EU' },
-                        {
-                            projectParameterName: 'orders.region',
-                            modelParameters: { region: { options: ['US'] } },
+                await runWith(
+                    { 'orders.region': 'EU' },
+                    {
+                        projectParameterName: 'orders.region',
+                        modelParameters: {
+                            region: { label: 'Region', options: ['US'] },
                         },
-                    )
-                ).shared,
-            ).toEqual({ 'orders.region': 'EU' });
+                    },
+                ),
+            ).toEqual({
+                nodeParameters: { region: 'UK', 'orders.region': 'EU' },
+                shared: { 'orders.region': 'EU' },
+            });
         });
 
         test("a caller's value outside the fixed options is dropped everywhere", async () => {
