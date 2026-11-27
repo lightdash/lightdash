@@ -5899,9 +5899,6 @@ export class AiAgentService extends BaseService {
             organizationUuid,
             agentUuid,
         });
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
-        }
 
         const { enabled: deletionDisabled } = await this.featureFlagService.get(
             {
