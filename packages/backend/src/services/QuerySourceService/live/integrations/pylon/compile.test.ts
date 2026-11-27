@@ -19,7 +19,7 @@ import {
     PYLON_ACCOUNTS_EXPLORE,
     PYLON_CONTACTS_EXPLORE,
     PYLON_ISSUES_EXPLORE,
-} from './explores';
+} from './model';
 import { PYLON_MAX_QUERY_ROWS } from './run';
 
 const build = (definition: LiveExploreDefinition) =>
@@ -30,7 +30,7 @@ const build = (definition: LiveExploreDefinition) =>
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.PYLON,
         baseVersion: 1,
-        capabilities: pylonIntegration.capabilities,
+        capabilities: pylonIntegration.query.capabilities,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),

@@ -2311,7 +2311,7 @@ describe('AsyncQueryService', () => {
             const source = {
                 integration: {
                     connector: 'posthog',
-                    limits: { timeoutMs: 1_000, callsPerQuery: 1 },
+                    query: { limits: { timeoutMs: 1_000, callsPerQuery: 1 } },
                 },
                 cache,
                 usage: () => ({
@@ -2547,7 +2547,10 @@ describe('AsyncQueryService', () => {
 
         const setup = (composer: Partial<QueryComposer> = {}) => {
             const source = {
-                integration: { label: 'GA4', limits: { maxRows: 100000 } },
+                integration: {
+                    label: 'GA4',
+                    query: { limits: { maxRows: 100000 } },
+                },
             };
             const getLiveSourceForExplore = vi.fn(async () => source);
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
@@ -6353,11 +6356,17 @@ describe('AsyncQueryService', () => {
         const source = {
             integration: {
                 connector: 'github',
-                parseRequest: (query: string) => query,
-                run: async () => ({ columns: [], rows: [], hasMoreRows: true }),
+                query: {
+                    request: (query: string) => query,
+                    run: async () => ({
+                        columns: [],
+                        rows: [],
+                        hasMoreRows: true,
+                    }),
+                },
             },
             settings: {},
-            calls: {},
+            runtime: {},
         };
         await expect(
             service['executeLiveRequest'](

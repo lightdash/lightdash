@@ -53,7 +53,7 @@ export const CustomLiveSourceRequest: FC<Props> = ({ onRequest }) => {
                 <Button
                     // Escape hands focus back; leaving the input doesn't
                     autoFocus={step.isDismissed}
-                    variant="transparent"
+                    variant="subtle"
                     color="gray"
                     size="xs"
                     leftSection={<MantineIcon icon={IconPlus} size={14} />}

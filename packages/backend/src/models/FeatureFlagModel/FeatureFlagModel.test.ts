@@ -1179,7 +1179,8 @@ describe('FeatureFlagModel.getDisabledLiveIntegrations', () => {
         vi.mocked(getLiveSourceFeatureFlag).mockImplementation((connector) =>
             connector === ApiConnectorType.HUBSPOT ||
             connector === ApiConnectorType.POSTHOG
-                ? `live-source-${connector}`
+                ? // Stand-in flags: no integration declares a real one yet
+                  (`live-source-${connector}` as FeatureFlags)
                 : undefined,
         );
         const model = buildModel();
