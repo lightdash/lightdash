@@ -3,6 +3,7 @@ import {
     type AiServiceAccountParent,
     type AiServiceAccountParentUnavailableReason,
     type AiServiceAccountSlot,
+    type AiServiceAccountWarehouse,
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
 import { type ReactNode } from 'react';
@@ -41,7 +42,7 @@ export const getAiServiceAccountStatus = ({
     isPreview,
 }: {
     rule: OrganizationAgentIdentityRule & {
-        warehouseType: keyof typeof identityWarehouseNames;
+        warehouseType: AiServiceAccountWarehouse;
     };
     slot: AiServiceAccountSlot | null;
     parent: AiServiceAccountParent | null;

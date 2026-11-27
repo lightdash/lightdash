@@ -254,7 +254,23 @@ export type ApiOrganizationAgentIdentityRuleResponse = {
     results: OrganizationAgentIdentityRule;
 };
 
-export const supportsAiServiceAccount = (type: WarehouseTypes): boolean =>
+export const AI_SERVICE_ACCOUNT_WAREHOUSE_TYPES = [
+    WarehouseTypes.POSTGRES,
+    WarehouseTypes.REDSHIFT,
+    WarehouseTypes.TRINO,
+    WarehouseTypes.CLICKHOUSE,
+    WarehouseTypes.ATHENA,
+    WarehouseTypes.SNOWFLAKE,
+    WarehouseTypes.BIGQUERY,
+    WarehouseTypes.DATABRICKS,
+] as const;
+
+export type AiServiceAccountWarehouse =
+    (typeof AI_SERVICE_ACCOUNT_WAREHOUSE_TYPES)[number];
+
+export const supportsAiServiceAccount = (
+    type: WarehouseTypes,
+): type is AiServiceAccountWarehouse =>
     Object.values(AGENT_IDENTITY_SOURCES[type]).some((sources) =>
         sources.includes('ai_service_account'),
     );

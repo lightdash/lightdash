@@ -1,4 +1,7 @@
-import { type AiIdentitySource, type WarehouseTypes } from '@lightdash/common';
+import {
+    type AiIdentitySource,
+    type AiServiceAccountWarehouse,
+} from '@lightdash/common';
 import { Anchor, Button, Group, Loader, Text } from '@mantine/core';
 import { Fragment } from 'react';
 import { Link } from 'react-router';
@@ -8,7 +11,7 @@ import { useProjectsWithoutAiServiceAccount } from './api';
 import { identityWarehouseNames } from './identityLabels';
 
 interface AgentIdentityRuleConfirmModalProps {
-    warehouseType: WarehouseTypes;
+    warehouseType: AiServiceAccountWarehouse;
     source: Exclude<AiIdentitySource, 'agent_sign_in'>;
     onClose: () => void;
     onConfirm: () => void;
@@ -102,10 +105,7 @@ const AgentIdentityRuleConfirmModal = ({
         warehouseType,
         usesServiceAccount,
     );
-    const warehouseName =
-        identityWarehouseNames[
-            warehouseType as keyof typeof identityWarehouseNames
-        ];
+    const warehouseName = identityWarehouseNames[warehouseType];
     const copy = getConfirmationCopy(source, warehouseName);
     const confirmDisabled =
         usesServiceAccount && (!projects.isSuccess || projects.isFetching);

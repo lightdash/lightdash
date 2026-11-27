@@ -3,6 +3,7 @@ import { assertValidBigqueryKeyfile } from '../utils/bigqueryKeyfile';
 import {
     AGENT_IDENTITY_SOURCES,
     AgentActorSurface,
+    AI_SERVICE_ACCOUNT_WAREHOUSE_TYPES,
     buildAgentIdentityClaim,
     getAgentClientLabel,
     getAgentConnectionGrantRef,
@@ -465,4 +466,16 @@ test('the connection reader rejects a malformed present reference', () => {
             act: { agent_connection_grant: {} },
         } as never),
     ).toThrow('Invalid agent connection reference');
+});
+
+describe('shared agent account warehouses', () => {
+    it('lists the same warehouses as the identity source map', () => {
+        const sorted = [...AI_SERVICE_ACCOUNT_WAREHOUSE_TYPES].sort();
+        expect(
+            Object.values(WarehouseTypes)
+                .filter(supportsAiServiceAccount)
+                .sort(),
+        ).toEqual(sorted);
+        expect([...getAgentIdentityWarehouseTypes()].sort()).toEqual(sorted);
+    });
 });

@@ -1,44 +1,14 @@
 import {
-    assertUnreachable,
     getProjectAgentIdentitySettingsPath,
-    WarehouseTypes,
     type AiServiceAccountParent,
     type AiServiceAccountSlot,
     type AiServiceAccountTestResult,
+    type AiServiceAccountWarehouse,
 } from '@lightdash/common';
 import { Anchor, Stack, Text } from '@mantine/core';
 import { Link } from 'react-router';
+import { agentIdentityWarehouses } from './agentIdentityWarehouses';
 import { formatAiServiceAccountDate } from './formatAiServiceAccountDate';
-
-type ServiceAccountWarehouse =
-    | WarehouseTypes.CLICKHOUSE
-    | WarehouseTypes.REDSHIFT
-    | WarehouseTypes.TRINO
-    | WarehouseTypes.POSTGRES
-    | WarehouseTypes.ATHENA
-    | WarehouseTypes.BIGQUERY
-    | WarehouseTypes.SNOWFLAKE
-    | WarehouseTypes.DATABRICKS;
-
-const getMethod = (warehouseType: ServiceAccountWarehouse): string => {
-    switch (warehouseType) {
-        case WarehouseTypes.TRINO:
-        case WarehouseTypes.CLICKHOUSE:
-        case WarehouseTypes.REDSHIFT:
-        case WarehouseTypes.POSTGRES:
-            return 'User and password';
-        case WarehouseTypes.ATHENA:
-            return 'Access keys';
-        case WarehouseTypes.BIGQUERY:
-            return 'Key file';
-        case WarehouseTypes.SNOWFLAKE:
-            return 'Key pair';
-        case WarehouseTypes.DATABRICKS:
-            return 'Client ID and secret';
-        default:
-            return assertUnreachable(warehouseType, 'Unknown warehouse type');
-    }
-};
 
 export const AiServiceAccountDetails = ({
     slot,
@@ -51,10 +21,11 @@ export const AiServiceAccountDetails = ({
     parent: AiServiceAccountParent | null;
     testedPrincipal: string | null;
     observation: AiServiceAccountTestResult | null;
-    warehouseType: ServiceAccountWarehouse;
+    warehouseType: AiServiceAccountWarehouse;
 }) => {
+    const warehouse = agentIdentityWarehouses[warehouseType];
     const principal =
-        warehouseType === WarehouseTypes.BIGQUERY && !slot && parent
+        !warehouse.usesPersistedVerification && !slot && parent
             ? parent.principal !== null
                 ? (testedPrincipal ?? parent.principal)
                 : null
@@ -97,7 +68,7 @@ export const AiServiceAccountDetails = ({
                     Not tested yet. Select Test to see who it signs in as.
                 </Text>
             )}
-            <Text size="sm">{getMethod(warehouseType)}</Text>
+            <Text size="sm">{warehouse.methodLabel}</Text>
             {dates && (
                 <Text size="xs" c="dimmed">
                     {dates}
