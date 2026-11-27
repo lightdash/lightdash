@@ -9,6 +9,7 @@ import {
     buildComposerArtifactPipeline,
     CatalogFilter,
     CatalogType,
+    ChartSourceType,
     ChartType,
     COMPOSER_NODE_SAMPLE_ROW_LIMIT,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
@@ -7182,11 +7183,17 @@ export class AiAgentToolsService extends BaseService {
                                 contentType: item.contentType,
                                 name: item.name,
                                 slug: item.slug,
-                                href: AiAgentToolsService.getContentUrl(
-                                    context,
-                                    'chart',
-                                    item.uuid,
-                                ),
+                                href:
+                                    item.source === ChartSourceType.SQL
+                                        ? AiAgentToolsService.getSqlChartUrl(
+                                              context,
+                                              item.slug,
+                                          )
+                                        : AiAgentToolsService.getContentUrl(
+                                              context,
+                                              'chart',
+                                              item.uuid,
+                                          ),
                             };
                         case ContentType.DATA_APP:
                             return {
