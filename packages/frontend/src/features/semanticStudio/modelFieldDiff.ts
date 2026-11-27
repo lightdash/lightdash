@@ -139,3 +139,21 @@ export const findTouchedFields = (
         ];
     });
 };
+
+/** The one line for a draft whose models change no field; null when a field changes or no model is read yet. */
+export const describeUnchangedFields = (
+    changes: (FieldChange[] | null)[],
+    isChecked: boolean,
+    fileCount: number,
+): string | null => {
+    const read = changes.flatMap((change) => (change ? [change] : []));
+    if (read.length === 0 || read.some((change) => change.length > 0)) {
+        return null;
+    }
+    if (!isChecked) return 'Fields show here once the draft compiles.';
+    const files =
+        fileCount > 0
+            ? `${fileCount} ${fileCount === 1 ? 'file' : 'files'} changed. `
+            : '';
+    return `${files}No field is added, changed or removed.`;
+};

@@ -121,7 +121,6 @@ export const PullRequestChanges: FC<{
                                         projectUuid={projectUuid}
                                         model={model}
                                         previewProjectUuid={previewProjectUuid}
-                                        isCompiled
                                     />
                                     {modelFiles.map((file) => (
                                         <FileBlock key={file.key} file={file} />

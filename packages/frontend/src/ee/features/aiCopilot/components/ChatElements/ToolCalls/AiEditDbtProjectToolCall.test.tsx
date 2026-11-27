@@ -41,7 +41,7 @@ vi.mock('../../../hooks/useProjectAiAgents', () => ({
 }));
 vi.mock('./WritebackDiffModal', () => ({ WritebackDiffModal: () => null }));
 vi.mock('../../../../../../features/semanticStudio/ModelFieldChanges', () => ({
-    ModelFieldChanges: () => null,
+    DraftFieldChanges: () => null,
 }));
 vi.mock('../../../../../../features/semanticStudio/TryItButton', () => ({
     TryIt: () => null,
