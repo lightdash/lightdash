@@ -48,7 +48,8 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
     const { user } = useApp();
-    const { data: hasSavedCharts } = useProjectSavedChartStatus(projectUuid);
+    const { data: hasSavedCharts, isInitialLoading: isLoadingSavedCharts } =
+        useProjectSavedChartStatus(projectUuid);
 
     // Only check permissions when in edit mode (when it's actually needed)
     const userCanCreateDashboard = useCreateInAnySpaceAccess(
@@ -75,7 +76,8 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     return (
         <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
             <div className={classes.emptyState}>
-                {hasSavedCharts ? (
+                {/* Its copy depends on whether the project has charts, so wait for that */}
+                {isLoadingSavedCharts ? null : hasSavedCharts ? (
                     <SuboptimalState
                         icon={IconLayoutDashboard}
                         title={dashboardEmptyStateTitle()}

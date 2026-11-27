@@ -219,6 +219,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                 isSdk && styles.workspaceSdk,
             )}
             data-artifact-focused={artifactFocus.isFocused || undefined}
+            data-ai-agent-page
         >
             <ResizableSplitter
                 orientation="horizontal"

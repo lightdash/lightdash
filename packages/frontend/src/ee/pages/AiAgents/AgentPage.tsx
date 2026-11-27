@@ -41,6 +41,7 @@ import {
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { store as aiAgentStore } from '../../features/aiCopilot/store';
 import { openPanel } from '../../features/aiCopilot/store/aiAgentLauncherSlice';
+import { navigateFromAgentPage } from '../../features/aiCopilot/utils/navigateFromAgentPage';
 import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
 import styles from './AgentPage.module.css';
 
@@ -169,12 +170,11 @@ const AgentPage = () => {
                     }),
                 );
             }
-            void navigate(
+            const destination =
                 targetUrl ??
-                    launcherSession.consumeLastNonAgentUrl() ??
-                    `/projects/${projectUuid}/home`,
-                { viewTransition: true },
-            );
+                launcherSession.consumeLastNonAgentUrl() ??
+                `/projects/${projectUuid}/home`;
+            navigateFromAgentPage(() => navigate(destination));
         },
         [
             addDockItem,
