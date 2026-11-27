@@ -934,7 +934,7 @@ export class ComposerChartService extends BaseService {
                 { projectUuid },
             );
             throw new NotSupportedError(
-                `This composer chart belongs to the dashboard "${dashboard.name}" (${dashboard.uuid}); run it through its tile on that dashboard`,
+                `This composer chart belongs to the dashboard "${dashboard.name}" (${dashboard.uuid}). Run it through its tile on that dashboard.`,
             );
         }
         const chart = await this.composerChartModel.get(composerChartUuid);

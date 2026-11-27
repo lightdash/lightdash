@@ -938,11 +938,11 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Runs a composer chart that a space owns, on its own, with no dashboard
-     * filters or date zoom. Parameters override the values saved on the
-     * chart's nodes. A chart a dashboard owns is refused: run it with Execute
-     * dashboard composer chart. Poll each node's query with the standard
-     * results endpoint.
+     * Runs a composer chart that belongs to a space. The run applies no
+     * dashboard filters or date zoom. Parameters override the values saved on
+     * the chart's nodes. The endpoint rejects a chart that belongs to a
+     * dashboard. Run that chart with Execute dashboard composer chart. Poll
+     * each node's query with GET /api/v2/projects/{projectUuid}/query/{queryUuid}.
      * @summary Execute composer chart
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

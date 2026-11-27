@@ -72,8 +72,8 @@ Scenarios every proof on a space-owned chart checks:
 - with `composer-charts` off, the create is refused (403, `featureFlagId`)
   while reading an existing chart still answers.
 
-Run it on its own (the chart run; no dashboard filters or date zoom), then
-poll each node with `GET …/query/{queryUuid}`:
+Run it with the chart run, which applies no dashboard filters or date zoom.
+Then poll each node's query with `GET …/query/{queryUuid}`:
 
 ```bash
 curl -X POST "$SITE_URL/api/v2/projects/<projectUuid>/query/composer-chart" \
@@ -81,6 +81,6 @@ curl -X POST "$SITE_URL/api/v2/projects/<projectUuid>/query/composer-chart" \
   -d '{"composerChartUuid": "<composerChartUuid>", "invalidateCache": false}'
 ```
 
-Optional `parameters` beat the values saved on the nodes. A chart a dashboard
-owns is refused (400, naming the dashboard): run it with
-`…/query/dashboard-composer-chart`.
+Optional `parameters` override the values saved on the nodes. The chart run
+rejects a chart that belongs to a dashboard, and the 400 error names that
+dashboard. Run that chart with `…/query/dashboard-composer-chart`.
