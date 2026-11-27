@@ -230,8 +230,8 @@ _Avoid_: pipeline chart, saved composer query, composer tile (the dashboard
 tile that shows one)
 
 **Owner**:
-The dashboard or the space a composer chart belongs to: exactly one, never
-both. Access to the chart is decided through its owner. Today every owner is a
+The dashboard or space a composer chart belongs to. A chart has one owner,
+never both. Access to the chart follows its owner. Today every owner is a
 dashboard.
 _Avoid_: parent, container, location, home
 
