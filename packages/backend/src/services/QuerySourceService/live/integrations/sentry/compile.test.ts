@@ -2,6 +2,7 @@ import {
     ApiConnectorType,
     FilterOperator,
     getApiSourceQueryIssues,
+    getItemMap,
     ParameterError,
     SupportedDbtAdapter,
     UnitOfTime,
@@ -448,6 +449,37 @@ describe('the shared check on Sentry explores', () => {
                 }),
             ),
         ).toEqual([]);
+    });
+
+    it('refuses Session status with another grouping, in plain words', () => {
+        const message = getApiSourceQueryIssues(
+            SESSIONS.apiSource!,
+            query('sentry_sessions', {
+                dimensions: [session('release'), session('session_status')],
+                metrics: [session('sessions')],
+            }),
+            { itemsMap: getItemMap(SESSIONS) },
+        ).map((problem) => `${problem.code}: ${problem.message}`);
+
+        expect(message).toEqual([
+            "live_source.refused.field_combination: Session status can't be combined with Release: Sentry does not say when a list of sessions by status and by another field is cut short, so the result could be incomplete. Filter Release, Project or Environment instead.",
+        ]);
+        // Alone, or by day, the statuses are one short list
+        expect(
+            issuesOf(
+                SESSIONS,
+                query('sentry_sessions', {
+                    dimensions: [session('date'), session('session_status')],
+                    metrics: [session('sessions')],
+                }),
+            ),
+        ).toEqual([]);
+    });
+
+    it('offers no Culprit field', () => {
+        expect(Object.keys(ISSUES.apiSource!.fields)).not.toContain(
+            issue('culprit'),
+        );
     });
 
     it('refuses to leave a project out, which a parameter cannot do', () => {

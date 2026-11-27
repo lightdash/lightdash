@@ -24,6 +24,8 @@ describe('sentryConnection', () => {
         expect(isValid('acme/mobile-ios,,')).toBe(false);
         expect(isValid('acme/mobile-ios/extra')).toBe(false);
         expect(isValid('acme/../other')).toBe(false);
+        // Sentry reads a slug of digits only as an ID
+        expect(isValid('acme/12345')).toBe(false);
     });
 
     it('creates a token-authenticated source that reads the named projects', () => {
@@ -44,19 +46,19 @@ describe('sentryConnection', () => {
                 projectSlugs: ['mobile-ios', 'mobile-android'],
             },
             allowedMethods: ['GET'],
+            // No path lists the projects of the organization
             allowedPathPrefixes: [
                 '/api/0/organizations/acme/events/',
                 '/api/0/organizations/acme/issues/',
                 '/api/0/organizations/acme/sessions/',
-                '/api/0/organizations/acme/projects/',
             ],
         });
     });
 
-    it('tests against the organization the form names', () => {
+    it('asks for a test with no query of its own: the server writes the request', () => {
         expect(SENTRY_TOKEN_FORM.getTestRequest('acme/mobile-ios')).toEqual({
             method: 'GET',
-            path: '/api/0/organizations/acme/projects/',
+            path: '/api/0/organizations/acme/events/',
             query: {},
         });
     });

@@ -9,6 +9,7 @@ import {
 import { sentryIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpRequest, type LiveHttpResponse } from '../../types';
+import { toSentryError } from './errors';
 import { getNextCursor, SENTRY_MAX_QUERY_ROWS } from './run';
 
 const response = (
@@ -503,6 +504,21 @@ describe('sentryIntegration issues', () => {
         expect(JSON.stringify(result.rows)).not.toContain('jane');
     });
 
+    it('has no Culprit column: an app can put any text in it', async () => {
+        const { source, send } = connect(response([sentryIssue()]));
+
+        await expect(
+            run(source, { kind: 'issues', columns: ['short_id', 'culprit'] }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(send).not.toHaveBeenCalled();
+
+        const result = await run(source, {
+            kind: 'issues',
+            columns: ['short_id', 'title'],
+        });
+        expect(JSON.stringify(result.rows)).not.toContain('DashboardView');
+    });
+
     it('sends an empty search, so resolved issues are listed too', async () => {
         const { source, send } = connect(response([]));
 
@@ -530,32 +546,22 @@ describe('sentryIntegration issues', () => {
 });
 
 describe('sentryIntegration sessions', () => {
-    it('reads totals per group, naming projects by slug', async () => {
+    it('reads each project of the source apart when Project is selected, by its slug', async () => {
+        const totals = (sessions: number) => ({
+            groups: [
+                {
+                    by: { release: '1.0.7' },
+                    totals: {
+                        'sum(session)': sessions,
+                        'crash_free_rate(session)': sessions ? 0.9975 : null,
+                        'crash_free_rate(user)': sessions ? 0.99 : null,
+                    },
+                },
+            ],
+        });
         const { source, send } = connect(
-            response([
-                { id: '11', slug: 'mobile-ios' },
-                { id: '12', slug: 'mobile-android' },
-            ]),
-            response({
-                groups: [
-                    {
-                        by: { project: 11, release: '1.0.7' },
-                        totals: {
-                            'sum(session)': 2000,
-                            'crash_free_rate(session)': 0.9975,
-                            'crash_free_rate(user)': 0.99,
-                        },
-                    },
-                    {
-                        by: { project: 12, release: '1.0.7' },
-                        totals: {
-                            'sum(session)': 0,
-                            'crash_free_rate(session)': null,
-                            'crash_free_rate(user)': null,
-                        },
-                    },
-                ],
-            }),
+            response(totals(2000)),
+            response(totals(0)),
         );
 
         const result = await run(source, {
@@ -576,17 +582,24 @@ describe('sentryIntegration sessions', () => {
             ],
         });
 
+        // Sentry names a project by a number when it groups by project, so
+        // the source reads one named project a call and never lists projects
         expect(send).toHaveBeenCalledTimes(2);
-        expect(sent(send, 0).path).toBe('/api/0/organizations/acme/projects/');
-        const call = sent(send, 1);
-        expect(call.path).toBe('/api/0/organizations/acme/sessions/');
+        [0, 1].forEach((index) =>
+            expect(sent(send, index).path).toBe(
+                '/api/0/organizations/acme/sessions/',
+            ),
+        );
+        expect(sent(send, 0).get('project')).toEqual(['mobile-ios']);
+        expect(sent(send, 1).get('project')).toEqual(['mobile-android']);
+        const call = sent(send, 0);
         // Sessions are read too, to leave out groups that have none
         expect(call.get('field')).toEqual([
             'crash_free_rate(session)',
             'crash_free_rate(user)',
             'sum(session)',
         ]);
-        expect(call.get('groupBy')).toEqual(['project', 'release']);
+        expect(call.get('groupBy')).toEqual(['release']);
         expect(call.get('interval')).toEqual(['1d']);
         expect(call.get('includeSeries')).toEqual(['0']);
         expect(call.get('includeTotals')).toEqual(['1']);
@@ -599,6 +612,58 @@ describe('sentryIntegration sessions', () => {
                 crash_free_users: 0.99,
             },
         ]);
+    });
+
+    it('refuses Session status with another grouping, where Sentry can cut the list short unseen', async () => {
+        const { source, send } = connect();
+
+        for (const column of ['release', 'project', 'environment']) {
+            // eslint-disable-next-line no-await-in-loop
+            await expect(
+                run(source, {
+                    kind: 'sessions',
+                    columns: [column, 'session_status', 'sessions'],
+                    ...RANGE,
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+        }
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it('reads sessions by status in one call, and refuses a list Sentry says it cut', async () => {
+        const byStatus = {
+            groups: ['healthy', 'errored', 'crashed', 'abnormal'].map(
+                (status, index) => ({
+                    by: { 'session.status': status },
+                    totals: {
+                        'sum(session)': index === 3 ? 0 : 10 * (index + 1),
+                    },
+                }),
+            ),
+        };
+        const { source, send } = connect(
+            response(byStatus),
+            response(byStatus, 200, link('0:10:0', true)),
+        );
+        const request = {
+            kind: 'sessions',
+            columns: ['session_status', 'sessions'],
+            ...RANGE,
+        };
+
+        const result = await run(source, request);
+
+        // Far from the count of statuses, so Sentry drops none as a "next page"
+        expect(sent(send).get('per_page')).toEqual(['10']);
+        expect(result.rows).toEqual([
+            { session_status: 'healthy', sessions: 10 },
+            { session_status: 'errored', sessions: 20 },
+            { session_status: 'crashed', sessions: 30 },
+        ]);
+        await expect(run(source, request)).rejects.toMatchObject({
+            data: { liveSourceErrorCode: 'live_source.refused.row_limit' },
+        });
+        expect(send).toHaveBeenCalledTimes(2);
     });
 
     it('reads one row per group and day, skipping days with no sessions', async () => {
@@ -648,8 +713,22 @@ describe('sentryIntegration sessions', () => {
             end: '2026-11-27',
         });
 
-        // 180 days: 10,000 points / 181 a group
-        expect(sent(send).get('per_page')).toEqual(['55']);
+        // 180 days: Sentry reads one group more than asked, to find the next
+        // page, and 55 x 181 points is the most under its 10,000
+        expect(sent(send).get('per_page')).toEqual(['54']);
+    });
+
+    it('keeps totals under the point cap too', async () => {
+        const { source, send } = connect(response({ groups: [] }));
+
+        await run(source, {
+            kind: 'sessions',
+            columns: ['release', 'sessions'],
+            start: '2026-06-01',
+            end: '2026-11-27',
+        });
+
+        expect(sent(send).get('per_page')).toEqual(['54']);
     });
 
     it('refuses a crash-free rate for one session status, before calling', async () => {
@@ -704,6 +783,21 @@ describe('sentryIntegration errors from Sentry', () => {
         });
     });
 
+    it('reads when to retry from the reset time of Sentry, when it is all Sentry sends', () => {
+        const error = toSentryError(
+            {
+                status: 429,
+                headers: { 'x-sentry-rate-limit-reset': '1795800060' },
+                body: {},
+            },
+            { organizationSlug: 'acme' },
+            new Date(1_795_800_000_000),
+        );
+
+        expect(error).toBeInstanceOf(TooManyRequestsError);
+        expect(error).toMatchObject({ data: { retryAfterSeconds: 60 } });
+    });
+
     it('refuses a response in another shape', async () => {
         const { source } = connect(response({ rows: [] }));
 
@@ -718,34 +812,249 @@ describe('sentryIntegration setup test', () => {
         connector: ApiConnectorType.SENTRY,
         organizationSlug: 'acme',
         projectSlugs: ['mobile-ios', 'mobile-android'],
-    } as const;
-    const summarize = (body: unknown) =>
-        sentryIntegration.summarizeTest?.(body, {
-            ...settings,
-            projectSlugs: [...settings.projectSlugs],
-        });
+    };
 
-    it('says how many of its projects the organization has', () => {
+    it('sends one request that names only the projects of the source', () => {
+        const request = sentryIntegration.testRequest?.(settings);
+
+        expect(request).toMatchObject({
+            method: 'GET',
+            path: '/api/0/organizations/acme/events/',
+        });
+        const params = new URLSearchParams(request?.rawQuery);
+        expect(params.getAll('project')).toEqual([
+            'mobile-ios',
+            'mobile-android',
+        ]);
+        expect(params.getAll('field')).toEqual(['count()']);
+        expect(params.get('dataset')).toBe('errors');
+    });
+
+    it('can call no path that lists the projects of the organization', () => {
+        expect(sentryIntegration.access(settings).pathPrefixes).toEqual([
+            '/api/0/organizations/acme/events/',
+            '/api/0/organizations/acme/issues/',
+            '/api/0/organizations/acme/sessions/',
+        ]);
+    });
+
+    it('says what it reached: the projects it names, and a count', () => {
         expect(
-            summarize([
-                { slug: 'mobile-ios' },
-                { slug: 'mobile-android' },
-                { slug: 'backend' },
-            ]),
+            sentryIntegration.summarizeTest?.(
+                { data: [{ 'count()': 1204 }] },
+                settings,
+            ),
         ).toEqual({
             summary: 'Connected to the Sentry organization acme',
             facts: [
-                { label: 'Projects read', value: '2' },
-                { label: 'Projects in the organization', value: '3' },
+                { label: 'Projects', value: 'mobile-ios, mobile-android' },
+                { label: 'Error events in the last 24 hours', value: '1,204' },
             ],
         });
     });
 
-    it('names a project the organization does not have', () => {
-        expect(summarize([{ slug: 'mobile-ios' }])?.summary).toBe(
-            'Connected to acme, but it has no project mobile-android',
-        );
+    it('refuses a slug of digits only, which Sentry reads as an ID', () => {
+        const parse = (overrides: Record<string, unknown>) =>
+            sentryIntegration.settings.safeParse({ ...settings, ...overrides })
+                .success;
+
+        expect(parse({})).toBe(true);
+        expect(parse({ projectSlugs: ['12345'] })).toBe(false);
+        expect(parse({ organizationSlug: '42' })).toBe(false);
+        expect(parse({ projectSlugs: ['ios-17'] })).toBe(true);
     });
+});
+
+describe('sentryIntegration filters keep their meaning', () => {
+    const errors = (filters: unknown[]) => ({
+        kind: 'errors',
+        columns: ['events'],
+        ...RANGE,
+        filters,
+    });
+    const issues = (filters: unknown[]) => ({
+        kind: 'issues',
+        columns: ['short_id'],
+        filters,
+    });
+    const is = (field: string, ...values: string[]) => ({
+        field,
+        operator: 'is',
+        values,
+    });
+    const queryOf = async (request: Record<string, unknown>) => {
+        const { source, send } = connect(response({ data: [] }), response([]));
+        await run(source, request);
+        return sent(send);
+    };
+
+    it('reads only the environments every Environment filter keeps', async () => {
+        const call = await queryOf(
+            errors([
+                is('environment', 'production', 'staging'),
+                is('environment', 'production'),
+            ]),
+        );
+        expect(call.get('environment')).toEqual(['production']);
+
+        const { source, send } = connect();
+        await expect(
+            run(
+                source,
+                errors([
+                    is('environment', 'production'),
+                    is('environment', 'staging'),
+                ]),
+            ),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it('keeps handled and unhandled errors when Unhandled is either', async () => {
+        const both = await queryOf(errors([is('unhandled', 'true', 'false')]));
+        expect(both.get('query')).toEqual(['']);
+
+        const one = await queryOf(errors([is('unhandled', 'false')]));
+        expect(one.get('query')).toEqual(['error.unhandled:false']);
+    });
+
+    it('filters issues by several statuses', async () => {
+        const send = async (operator: string, ...values: string[]) =>
+            (
+                await queryOf({
+                    kind: 'issues',
+                    columns: ['short_id'],
+                    filters: [{ field: 'status', operator, values }],
+                })
+            ).get('query');
+
+        expect(await send('is', 'unresolved')).toEqual(['is:unresolved']);
+        // Sentry has no "or" for a status, so two of three is "not the third"
+        expect(await send('is', 'unresolved', 'resolved')).toEqual([
+            '!is:archived',
+        ]);
+        expect(await send('is', 'unresolved', 'resolved', 'ignored')).toEqual([
+            '',
+        ]);
+        expect(await send('is_not', 'unresolved', 'resolved')).toEqual([
+            '!is:unresolved !is:resolved',
+        ]);
+
+        const { source, send: transport } = connect();
+        await expect(
+            run(
+                source,
+                issues([
+                    {
+                        field: 'status',
+                        operator: 'is_not',
+                        values: ['unresolved', 'resolved', 'ignored'],
+                    },
+                ]),
+            ),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(transport).not.toHaveBeenCalled();
+    });
+
+    it('matches any of several title parts on errors, and refuses that on issues', async () => {
+        const contains = {
+            field: 'title',
+            operator: 'contains',
+            values: ['Hang', 'Watchdog'],
+        };
+        const call = await queryOf(errors([contains]));
+        expect(call.get('query')).toEqual([
+            '(title:"*Hang*" OR title:"*Watchdog*")',
+        ]);
+
+        // Sentry issue search has no "or"
+        const { source, send } = connect();
+        await expect(run(source, issues([contains]))).rejects.toBeInstanceOf(
+            ParameterError,
+        );
+        expect(send).not.toHaveBeenCalled();
+    });
+});
+
+describe('sentryIntegration row cap', () => {
+    const request = {
+        kind: 'errors',
+        columns: ['release', 'events'],
+        ...RANGE,
+    };
+    const pages = (total: number) =>
+        Array.from({ length: Math.ceil(total / 100) }, (_, page) => {
+            const count = Math.min(100, total - page * 100);
+            const isLast = (page + 1) * 100 >= total;
+            return response(
+                {
+                    data: Array.from({ length: count }, (__, index) => ({
+                        release: `1.0.${page * 100 + index}`,
+                        'count()': 1,
+                    })),
+                },
+                200,
+                link(`0:${(page + 1) * 100}:0`, !isLast),
+            );
+        });
+
+    it('returns 999 rows when Sentry has 999', async () => {
+        const { source } = connect(...pages(SENTRY_MAX_QUERY_ROWS));
+
+        const result = await run(source, request, SENTRY_MAX_QUERY_ROWS);
+
+        expect(result.rows).toHaveLength(999);
+        expect(result.hasMoreRows).toBe(false);
+    });
+
+    it('refuses when Sentry has 1,000 rows, and does not return 999 of them', async () => {
+        const { source } = connect(...pages(1_000));
+
+        await expect(
+            run(source, request, SENTRY_MAX_QUERY_ROWS),
+        ).rejects.toMatchObject({
+            data: { liveSourceErrorCode: 'live_source.refused.row_limit' },
+        });
+    });
+
+    it('still returns the top rows of a smaller limit, and says more exist', async () => {
+        const { source } = connect(...pages(1_000));
+
+        const result = await run(source, request, 10);
+
+        expect(result.rows).toHaveLength(10);
+        expect(result.hasMoreRows).toBe(true);
+    });
+});
+
+describe('sentryIntegration dates', () => {
+    it.each(['2026-11-99', '2026-02-30'])(
+        'refuses %s, a day that does not exist, before calling',
+        async (day) => {
+            const { source, send } = connect();
+
+            await expect(
+                run(source, {
+                    kind: 'errors',
+                    columns: ['events'],
+                    start: '2026-01-01',
+                    end: day,
+                }),
+            ).rejects.toMatchObject({
+                data: { liveSourceErrorCode: 'live_source.refused.date_range' },
+            });
+            await expect(
+                run(source, {
+                    kind: 'issues',
+                    columns: ['short_id'],
+                    firstSeen: { start: '2026-01-01', end: day },
+                }),
+            ).rejects.toMatchObject({
+                data: { liveSourceErrorCode: 'live_source.refused.date_range' },
+            });
+            expect(send).not.toHaveBeenCalled();
+        },
+    );
 });
 
 describe('getNextCursor', () => {
@@ -753,5 +1062,25 @@ describe('getNextCursor', () => {
         expect(getNextCursor(link('0:100:0', true).link)).toBe('0:100:0');
         expect(getNextCursor(link('0:100:0', false).link)).toBeUndefined();
         expect(getNextCursor(undefined)).toBeUndefined();
+    });
+
+    it('reads the cursor from the link target when no attribute repeats it', () => {
+        // As Sentry's pagination reference writes it, and after the proxy
+        // makes the target a path
+        expect(
+            getNextCursor(
+                '<https://sentry.io/api/0/organizations/acme/events/?&cursor=0:0:1>; rel="previous"; results="false", <https://sentry.io/api/0/organizations/acme/events/?field=count()&query=a,b&cursor=0:100:0>; rel="next"; results="true"',
+            ),
+        ).toBe('0:100:0');
+        expect(
+            getNextCursor(
+                '</api/0/organizations/acme/events/?cursor=0%3A200%3A0>; rel="next"; results="true"',
+            ),
+        ).toBe('0:200:0');
+        expect(
+            getNextCursor(
+                '</api/0/organizations/acme/events/?cursor=0:200:0>; rel="next"; results="false"',
+            ),
+        ).toBeUndefined();
     });
 });

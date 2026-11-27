@@ -3192,6 +3192,105 @@ describe('ExternalConnectionService integration feature flags', () => {
         expect(externalConnectionModel.update).not.toHaveBeenCalled();
     });
 
+    describe('the setup test of an integration that fixes its own request', () => {
+        const sentryCreate: CreateExternalConnection = {
+            name: 'Sentry',
+            type: 'bearer_token',
+            origin: 'https://sentry.io',
+            secret: 'token',
+            allowedPathPrefixes: ['/api/0/organizations/acme/events/'],
+            allowedMethods: ['GET'],
+            allowedContentTypes: ['application/json'],
+            apiSource: {
+                connector: ApiConnectorType.SENTRY,
+                organizationSlug: 'acme',
+                projectSlugs: ['mobile-ios'],
+            },
+        };
+        const sentryConnection = () =>
+            posthogConnection({
+                origin: 'https://sentry.io',
+                allowedMethods: ['GET'],
+                allowedPathPrefixes: ['/api/0/organizations/acme/events/'],
+                apiSource: sentryCreate.apiSource,
+            });
+        // What the organization's project list returns: teams and more
+        const upstream = (status: number, body: unknown) =>
+            mockSecureFetch.mockResolvedValueOnce({
+                status,
+                contentType: 'application/json',
+                headers: { 'x-sentry-rate-limit-remaining': '39' },
+                bodyText: JSON.stringify(body),
+                truncated: false,
+            });
+        // A request an admin could write to read another project
+        const otherProject = {
+            path: '/api/0/organizations/acme/events/',
+            query: { project: 'backend', field: 'user.email' },
+        };
+
+        it('sends the request of the integration, whatever the admin asks for', async () => {
+            upstream(200, { data: [{ 'count()': 7 }] });
+            const { service } = buildService({
+                connections: [sentryConnection()],
+            });
+
+            await service.testConnection(
+                account,
+                'proj-1',
+                'conn-1',
+                otherProject,
+            );
+
+            const [url] = mockSecureFetch.mock.calls[0];
+            const sent = new URL(url);
+            expect(sent.pathname).toBe('/api/0/organizations/acme/events/');
+            expect(sent.searchParams.getAll('project')).toEqual(['mobile-ios']);
+            expect(sent.searchParams.getAll('field')).toEqual(['count()']);
+        });
+
+        it.each([
+            [200, { data: [{ 'count()': 7 }], teams: [{ name: 'Payments' }] }],
+            [403, { detail: 'No access to project backend of team Payments' }],
+        ])(
+            'answers a %i with the check alone, for a saved and an unsaved source',
+            async (status, body) => {
+                const { service } = buildService({
+                    connections: [sentryConnection()],
+                });
+
+                upstream(status, body);
+                const saved = await service.testConnection(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                    otherProject,
+                );
+                upstream(status, body);
+                const unsaved = await service.testConfig(
+                    account,
+                    'proj-1',
+                    sentryCreate,
+                    otherProject,
+                );
+
+                [saved, unsaved].forEach((result) => {
+                    expect(result.liveCheck?.ok).toBe(status === 200);
+                    expect(result).toEqual({
+                        status,
+                        contentType: 'application/json',
+                        headers: {},
+                        body: null,
+                        truncated: false,
+                        liveCheck: result.liveCheck,
+                    });
+                    // The whole response as the API sends it
+                    expect(JSON.stringify(result)).not.toContain('Payments');
+                });
+            },
+        );
+    });
+
     it('lists only the integrations the organization has turned on', async () => {
         const { service, featureFlagModel } = buildService({
             disabledIntegrations: [
