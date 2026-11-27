@@ -14,10 +14,10 @@ import {
     dimension,
     metric,
     NON_ADDITIVE,
+    toLiveModelName,
     type LiveExploreDefinition,
     type LiveModel,
     type LiveRuntime,
-    type NamedLiveExploreDefinition,
 } from '../../sdk';
 import {
     HYDRA_RECORD_COUNT,
@@ -40,7 +40,7 @@ export const HYDRA_DATE_FILTERS = [
     FilterOperator.GREATER_THAN_OR_EQUAL,
 ];
 
-export const HYDRA_EVENTS_EXPLORE: NamedLiveExploreDefinition = {
+export const HYDRA_EVENTS_EXPLORE: LiveExploreDefinition = {
     name: 'events',
     label: 'Events',
     description:
@@ -138,7 +138,7 @@ export const HYDRA_EVENTS_EXPLORE: NamedLiveExploreDefinition = {
     ],
 };
 
-export const HYDRA_USERS_EXPLORE: NamedLiveExploreDefinition = {
+export const HYDRA_USERS_EXPLORE: LiveExploreDefinition = {
     name: 'users',
     label: 'Users',
     description:
@@ -224,6 +224,7 @@ type HydraListedObject = HydraObjectsResponse['objects'][number];
 export const toHydraObjectExplore = (
     object: HydraListedObject,
 ): LiveExploreDefinition => ({
+    name: toLiveModelName(object.id),
     apiName: object.id,
     onByDefault: false,
     label: object.label,

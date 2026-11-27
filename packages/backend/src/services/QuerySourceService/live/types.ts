@@ -15,7 +15,6 @@ import type {
     LiveCompiledRequest,
     LiveExploreDefinition,
     LivePeriodFormat,
-    NamedLiveExploreDefinition,
 } from './explores/definition';
 import type {
     LiveIntegrationKind,
@@ -121,10 +120,7 @@ export type LiveModel<C extends ApiConnectorType = ApiConnectorType> = {
      * The explores every source has, each with its fixed name. The first
      * one's field edits are stored under bare field names.
      */
-    explores: readonly [
-        NamedLiveExploreDefinition,
-        ...NamedLiveExploreDefinition[],
-    ];
+    explores: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
 } & (
     | { scan?: undefined; metadata?: undefined; extend?: undefined }
     | {

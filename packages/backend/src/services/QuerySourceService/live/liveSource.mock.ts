@@ -58,12 +58,9 @@ export const getExploresWithDiscoveredFields = (
 /** A source's state after a Refresh stored `metadata`, with nothing curated unless given. */
 export const getRefreshedLiveState = (
     metadata: unknown,
-    curated: Partial<
-        Pick<LiveSourceFieldState, 'fields' | 'explores' | 'modelNames'>
-    > = {},
+    curated: Partial<Pick<LiveSourceFieldState, 'fields' | 'explores'>> = {},
 ) => ({
     scan: { at: '2026-11-06T12:00:00.000Z', metadata },
-    modelNames: {},
     fields: {},
     explores: {},
     ...curated,
@@ -75,13 +72,10 @@ export const getRefreshedLiveState = (
  */
 export const getLiveStateWithExplores = (
     explores: LiveExploreDefinition[],
-    curated: Partial<
-        Pick<LiveSourceFieldState, 'fields' | 'explores' | 'modelNames'>
-    > = {},
+    curated: Partial<Pick<LiveSourceFieldState, 'fields' | 'explores'>> = {},
 ) => ({
     scan: null,
     legacy: { at: '2026-11-06T12:00:00.000Z', explores },
-    modelNames: {},
     fields: {},
     explores: {},
     ...curated,

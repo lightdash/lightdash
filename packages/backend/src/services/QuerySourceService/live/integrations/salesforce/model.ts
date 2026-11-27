@@ -21,7 +21,6 @@ import {
     type LiveMetricDefinition,
     type LiveModel,
     type LiveRuntime,
-    type NamedLiveExploreDefinition,
 } from '../../sdk';
 import {
     SALESFORCE_MAX_AGGREGATE_ROWS,
@@ -88,7 +87,7 @@ export const SALESFORCE_METRIC_FILTERS = [
     FilterOperator.IN_BETWEEN,
 ];
 
-export const SALESFORCE_OPPORTUNITIES_EXPLORE: NamedLiveExploreDefinition = {
+export const SALESFORCE_OPPORTUNITIES_EXPLORE: LiveExploreDefinition = {
     name: 'opportunities',
     label: 'Opportunities',
     description:
@@ -173,7 +172,7 @@ export const SALESFORCE_OPPORTUNITIES_EXPLORE: NamedLiveExploreDefinition = {
     ],
 };
 
-export const SALESFORCE_ACCOUNTS_EXPLORE: NamedLiveExploreDefinition = {
+export const SALESFORCE_ACCOUNTS_EXPLORE: LiveExploreDefinition = {
     name: 'accounts',
     label: 'Accounts',
     description:
@@ -258,7 +257,7 @@ export const SALESFORCE_ACCOUNTS_EXPLORE: NamedLiveExploreDefinition = {
     ],
 };
 
-export const SALESFORCE_LEADS_EXPLORE: NamedLiveExploreDefinition = {
+export const SALESFORCE_LEADS_EXPLORE: LiveExploreDefinition = {
     name: 'leads',
     label: 'Leads',
     description: 'Leads in Salesforce, one row per lead, with their fields.',
@@ -342,7 +341,7 @@ export const SALESFORCE_LEADS_EXPLORE: NamedLiveExploreDefinition = {
     ],
 };
 
-export const SALESFORCE_CONTACTS_EXPLORE: NamedLiveExploreDefinition = {
+export const SALESFORCE_CONTACTS_EXPLORE: LiveExploreDefinition = {
     name: 'contacts',
     label: 'Contacts',
     description:

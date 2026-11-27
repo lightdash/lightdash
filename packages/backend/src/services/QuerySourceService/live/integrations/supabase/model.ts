@@ -13,7 +13,6 @@ import {
     type LiveExploreDefinition,
     type LiveModel,
     type LiveRuntime,
-    type NamedLiveExploreDefinition,
 } from '../../sdk';
 
 /** "is" and "is not" take several values: PostgREST's in.(…) and not.in.(…). */
@@ -76,7 +75,7 @@ export const SUPABASE_STRUCTURED_FILTERS = SUPABASE_SET_FILTERS;
  * The one explore of a source: the rows of its table. Its columns come from
  * the scan, so the definition itself has none.
  */
-export const SUPABASE_TABLE_EXPLORE: NamedLiveExploreDefinition = {
+export const SUPABASE_TABLE_EXPLORE: LiveExploreDefinition = {
     name: 'table',
     label: 'Table',
     description:

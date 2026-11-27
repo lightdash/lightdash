@@ -16,10 +16,7 @@ import {
     type LiveExploreDefinition,
 } from '../../explores/definition';
 import { type LiveSourceExploreEdits } from '../../explores/fields';
-import {
-    checkDiscoveredExplores,
-    nameLiveExplores,
-} from '../../explores/source';
+import { checkDiscoveredExplores } from '../../explores/source';
 import { extendLiveModel, findAccessRule } from '../../integration';
 import {
     connectLiveSource,
@@ -66,24 +63,19 @@ const connect = (settings: HydraApiSource) => {
     };
 };
 
-/** What a Refresh stores: the vendor's metadata, and a name for each unnamed explore it gives. */
+/** What a Refresh stores: the vendor's metadata, with the explores it gives and the ones left out. */
 const refresh = async (objects: HydraObject[]) => {
     const { source } = connect(settingsWith(objects));
     const metadata = await source.scan();
-    const explores = checkDiscoveredExplores(
+    const { explores, dropped } = checkDiscoveredExplores(
         ApiConnectorType.HYDRA,
         extendLiveModel(hydraIntegration.model, metadata),
     );
-    const modelNames = nameLiveExplores({
-        connector: ApiConnectorType.HYDRA,
-        explores,
-        modelNames: {},
-    });
-    return { metadata, explores, modelNames };
+    return { metadata, explores, dropped };
 };
 
 const build = (
-    { metadata, modelNames }: Awaited<ReturnType<typeof refresh>>,
+    { metadata }: Awaited<ReturnType<typeof refresh>>,
     exploreEdits: LiveSourceExploreEdits = {},
 ) =>
     buildLiveExplores({
@@ -91,10 +83,7 @@ const build = (
         sourceName: 'crm',
         name: 'CRM',
         apiSource: settingsWith([DEALS]),
-        state: getRefreshedLiveState(metadata, {
-            modelNames,
-            explores: exploreEdits,
-        }),
+        state: getRefreshedLiveState(metadata, { explores: exploreEdits }),
     });
 
 const DEALS_ON = { deals: { inUse: true } };
@@ -115,10 +104,10 @@ describe('Hydra explores found by a Refresh', () => {
         expect(send).not.toHaveBeenCalled();
     });
 
-    it('finds one explore per object, keyed by its id, with a record id field', async () => {
+    it('finds one explore per object, named from its id, with a record id field', async () => {
         const { explores } = await refresh([DEALS]);
         const deals = explores.find(({ apiName }) => apiName === 'Deals');
-        expect(deals?.name).toBeUndefined();
+        expect(deals?.name).toBe('deals');
         expect(
             deals?.dimensions.map(({ name, onByDefault }) => [
                 name,
@@ -209,17 +198,23 @@ describe('Hydra explores found by a Refresh', () => {
     });
 
     it('drops the explore of an object a later Refresh no longer finds', async () => {
-        const { modelNames } = await refresh([DEALS]);
+        await refresh([DEALS]);
         const later = await refresh([]);
-        expect(
-            build({ ...later, modelNames }, DEALS_ON).map(({ name }) => name),
-        ).toEqual(['crm_events', 'crm_users']);
+        expect(build(later, DEALS_ON).map(({ name }) => name)).toEqual([
+            'crm_events',
+            'crm_users',
+        ]);
     });
 
-    it('numbers an object whose name another explore has', async () => {
+    it('leaves out an object whose name a declared explore has', async () => {
         const users: HydraObject = { ...DEALS, id: 'Users', label: 'Users' };
-        const { modelNames } = await refresh([users]);
-        expect(modelNames).toEqual({ Users: 'users_2' });
+        const refreshed = await refresh([users, DEALS]);
+        expect(refreshed.dropped).toEqual(['users']);
+        expect(
+            build(refreshed, { users: { inUse: true }, ...DEALS_ON }).map(
+                ({ name }) => name,
+            ),
+        ).toEqual(['crm_events', 'crm_users', 'crm_deals']);
     });
 
     it('answers 404 for an object it does not have, and 400 for a field it does not know', async () => {

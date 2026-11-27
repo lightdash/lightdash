@@ -9,7 +9,6 @@ import {
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveMetricDefinition,
-    type NamedLiveExploreDefinition,
 } from './definition';
 
 /** What an admin or the agent changed on one field; unset keys keep the default. */
@@ -167,10 +166,10 @@ export const applyLiveSourceFieldEdits = ({
     definition,
     edits,
 }: {
-    definition: NamedLiveExploreDefinition;
+    definition: LiveExploreDefinition;
     /** The explore's edits, keyed by bare field name. */
     edits: LiveSourceFieldEdits;
-}): NamedLiveExploreDefinition => {
+}): LiveExploreDefinition => {
     const required = new Set(getRequiredFieldNames(definition));
     const curate = <F extends LiveFieldDefinition>(fields: F[]): F[] =>
         fields.flatMap((field) => {

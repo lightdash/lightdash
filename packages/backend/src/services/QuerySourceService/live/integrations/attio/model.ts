@@ -17,7 +17,6 @@ import {
     type LiveExploreDefinition,
     type LiveModel,
     type LiveRuntime,
-    type NamedLiveExploreDefinition,
 } from '../../sdk';
 import { ATTIO_MAX_RECORDS, AttioObjectAccessError } from './api';
 
@@ -59,7 +58,7 @@ export const ATTIO_CHOICE_FILTERS = [
 
 export const ATTIO_BOOLEAN_FILTERS = [FilterOperator.EQUALS];
 
-export const ATTIO_COMPANIES_EXPLORE: NamedLiveExploreDefinition = {
+export const ATTIO_COMPANIES_EXPLORE: LiveExploreDefinition = {
     name: 'companies',
     label: 'Companies',
     description:
@@ -95,7 +94,7 @@ export const ATTIO_COMPANIES_EXPLORE: NamedLiveExploreDefinition = {
     metrics: [],
 };
 
-export const ATTIO_PEOPLE_EXPLORE: NamedLiveExploreDefinition = {
+export const ATTIO_PEOPLE_EXPLORE: LiveExploreDefinition = {
     name: 'people',
     label: 'People',
     description:
@@ -131,7 +130,7 @@ export const ATTIO_PEOPLE_EXPLORE: NamedLiveExploreDefinition = {
     metrics: [],
 };
 
-export const ATTIO_DEALS_EXPLORE: NamedLiveExploreDefinition = {
+export const ATTIO_DEALS_EXPLORE: LiveExploreDefinition = {
     name: 'deals',
     label: 'Deals',
     description:
@@ -167,7 +166,7 @@ export const ATTIO_DEALS_EXPLORE: NamedLiveExploreDefinition = {
     metrics: [],
 };
 
-export const ATTIO_USERS_EXPLORE: NamedLiveExploreDefinition = {
+export const ATTIO_USERS_EXPLORE: LiveExploreDefinition = {
     name: 'users',
     label: 'Users',
     description:
@@ -203,7 +202,7 @@ export const ATTIO_USERS_EXPLORE: NamedLiveExploreDefinition = {
     metrics: [],
 };
 
-export const ATTIO_WORKSPACES_EXPLORE: NamedLiveExploreDefinition = {
+export const ATTIO_WORKSPACES_EXPLORE: LiveExploreDefinition = {
     name: 'workspaces',
     label: 'Workspaces',
     description:

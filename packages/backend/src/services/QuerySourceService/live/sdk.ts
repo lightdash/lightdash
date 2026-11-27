@@ -15,6 +15,7 @@ export {
     formatTestCount,
     jsonRequest,
     readRule,
+    toLiveModelName,
     withFieldsOffByDefault,
 } from './integration';
 export type {
@@ -58,7 +59,6 @@ export {
     type LiveExploreDefinition,
     type LiveMetricDefinition,
     type LivePeriodFormat,
-    type NamedLiveExploreDefinition,
 } from './explores/definition';
 
 // Compiling and running queries

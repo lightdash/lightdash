@@ -28,8 +28,8 @@ import {
     getApiName,
     getLiveRequestLimit,
     type CompiledLiveQuery,
+    type LiveExploreDefinition,
     type LivePeriodFormat,
-    type NamedLiveExploreDefinition,
 } from './definition';
 import {
     applyLiveSourceFieldEdits,
@@ -73,10 +73,7 @@ export type LiveBaseLayer = {
     baseVersion: number;
     /** The integration's own declaration, shared by every model. */
     capabilities: LiveCapabilities;
-    definitions: readonly [
-        NamedLiveExploreDefinition,
-        ...NamedLiveExploreDefinition[],
-    ];
+    definitions: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
 };
 
 export const getLiveBaseLayer = (
@@ -145,10 +142,7 @@ const toStableJson = (value: unknown): string =>
  * code's output does, and nobody has to bump a version.
  */
 export const getLiveDefinitionHash = memoize(
-    (
-        connector: ApiConnectorType,
-        definition: NamedLiveExploreDefinition,
-    ): string =>
+    (connector: ApiConnectorType, definition: LiveExploreDefinition): string =>
         createHash('sha256')
             .update(
                 toStableJson(
@@ -174,7 +168,7 @@ export const getLiveDefinitionHash = memoize(
 /** The hash of each explore a source builds, by model name. */
 export const getLiveSourceDefinitionHashes = (
     connector: ApiConnectorType,
-    state: Pick<LiveSourceFieldState, 'scan' | 'modelNames' | 'explores'> &
+    state: Pick<LiveSourceFieldState, 'scan' | 'explores'> &
         Partial<Pick<LiveSourceFieldState, 'legacy'>>,
 ): Record<string, string> =>
     Object.fromEntries(
@@ -285,7 +279,6 @@ const withAccessRule = (
 
 const NEVER_CURATED = {
     scan: null,
-    modelNames: {},
     fields: {},
     explores: {},
 };
@@ -310,10 +303,7 @@ export const buildLiveExplores = ({
     name: string;
     apiSource: ExternalConnectionApiSource;
     /** What the source stored: its last Refresh and its edits. Omitted, a source never refreshed or edited. */
-    state?: Pick<
-        LiveSourceFieldState,
-        'scan' | 'modelNames' | 'fields' | 'explores'
-    > &
+    state?: Pick<LiveSourceFieldState, 'scan' | 'fields' | 'explores'> &
         Partial<Pick<LiveSourceFieldState, 'legacy'>>;
     /** The target first, then the admin's source hint; each explore's own hint follows. */
     aiHint?: string[];
@@ -598,7 +588,7 @@ export type StoredLiveSourceExplores = {
     name: string;
     sourceName: string;
     connector: ApiConnectorType;
-    state: Pick<LiveSourceFieldState, 'scan' | 'modelNames' | 'explores'>;
+    state: Pick<LiveSourceFieldState, 'scan' | 'explores'>;
 };
 
 /**

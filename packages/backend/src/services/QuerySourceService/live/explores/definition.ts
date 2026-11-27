@@ -71,15 +71,17 @@ export type LiveMetricDefinition = ApiSourceFieldDefinition & {
 /** One explore of an integration's semantic layer, written by hand or added by `extend`. */
 export type LiveExploreDefinition = {
     /**
-     * The model name; the explore is `<source prefix>_<name>`. Absent, the
-     * core names it once from `apiName` (numbered past names taken) and
-     * keeps that name.
+     * The model name, and the explore's one identity: the explore is
+     * `<source prefix>_<name>`, and charts, edits and a Refresh all go by
+     * it. For an explore only the vendor has, derive it from the vendor's
+     * stable id with `toLiveModelName`, never from a label people can
+     * rename.
      */
-    name?: string;
+    name: string;
     /**
      * The vendor's stable id of what the explore reads, e.g. Salesforce
-     * `Invoice__c`. A Refresh tells explores apart by it (by `name` when
-     * absent), and the built explore carries it for `compile`.
+     * `Invoice__c`, when a request needs it. The built explore carries it
+     * for `compile` and for the source's access rules.
      */
     apiName?: string;
     /**
@@ -107,11 +109,6 @@ export type LiveExploreDefinition = {
     }[];
 };
 
-/** An explore with its model name: as declared in `model.explores`, or once the core named it. */
-export type NamedLiveExploreDefinition = LiveExploreDefinition & {
-    name: string;
-};
-
 /** Builds a live data source explore whose field ids are `<exploreName>_<field name>`. */
 export const buildLiveExplore = ({
     definition,
@@ -127,7 +124,7 @@ export const buildLiveExplore = ({
     aiHint,
     tags = [],
 }: {
-    definition: NamedLiveExploreDefinition;
+    definition: LiveExploreDefinition;
     exploreName: string;
     label: string;
     /** The source's name, when its integration has several explores. */

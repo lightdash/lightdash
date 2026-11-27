@@ -132,9 +132,7 @@ import {
     getLiveDiscoveredExplores,
     getLiveRefreshSummary,
     getLiveSourceModels,
-    getUnnamedApiNames,
     hasLiveRefresh,
-    nameLiveExplores,
     pinLiveDefaults,
     type LiveSourceFieldState,
     type LiveSourceModel,
@@ -378,9 +376,6 @@ export type GoogleOAuthSession = {
 
 /** Stands in for the uuid of a connection tested before it is saved. */
 const UNSAVED_CONNECTION_UUID = 'unsaved';
-
-/** Rounds of names tried for unnamed explores before giving up on the project's explores. */
-const MAX_MODEL_NAME_ATTEMPTS = 20;
 
 const EMPTY_REFRESH_SUMMARY: LiveSourceRefreshSummary = {
     addedExplores: [],
@@ -2036,10 +2031,7 @@ export class ExternalConnectionService extends BaseService {
             return EMPTY_REFRESH_SUMMARY;
         }
         const { connector } = apiSource;
-        const scan = async (): Promise<{
-            metadata: unknown;
-            explores: LiveExploreDefinition[];
-        } | null> => {
+        const scan = async (): Promise<{ metadata: unknown } | null> => {
             try {
                 const { integration, settings, runtime } =
                     this.createLiveSource(account, connection, {
@@ -2051,16 +2043,22 @@ export class ExternalConnectionService extends BaseService {
                     return null;
                 }
                 const metadata = await model.scan({ settings, runtime });
-                const explores = extendLiveModel(model, metadata);
-                if (!explores) {
+                const extended = extendLiveModel(model, metadata);
+                if (!extended) {
                     throw new UnexpectedServerError(
                         `${integration.label} reported its schema in an unexpected shape`,
                     );
                 }
-                return {
-                    metadata,
-                    explores: checkDiscoveredExplores(connector, explores),
-                };
+                const { dropped } = checkDiscoveredExplores(
+                    connector,
+                    extended,
+                );
+                if (dropped.length > 0) {
+                    this.logger.warn(
+                        `Live data source ${connection.externalConnectionUuid} left out explores whose names it can't use: ${dropped.join(', ')}`,
+                    );
+                }
+                return { metadata };
             } catch (error) {
                 if (onScanError === 'throw') {
                     throw error;
@@ -2083,29 +2081,16 @@ export class ExternalConnectionService extends BaseService {
             );
         let current = previous;
         if (scanned) {
-            const { metadata, explores } = scanned;
-            const unavailable = await this.findUnavailableModelNames(
-                { ...connection, apiSource },
-                sourceName,
-                explores,
-                previous.modelNames,
-            );
+            const { metadata } = scanned;
             const at = new Date().toISOString();
             current = {
                 ...previous,
                 ...(await this.externalConnectionModel.updateLiveSourceEdits(
                     externalConnectionUuid,
                     (stored) => {
-                        // Named under the lock, so two Refreshes can't name one explore twice
                         const next = {
                             scan: { at, metadata },
                             legacy: null,
-                            modelNames: nameLiveExplores({
-                                connector,
-                                explores,
-                                modelNames: stored.modelNames,
-                                isTaken: (model) => unavailable.has(model),
-                            }),
                         };
                         return {
                             ...next,
@@ -2138,23 +2123,15 @@ export class ExternalConnectionService extends BaseService {
               });
     }
 
-    /** Every explore name a source has or holds: its explores, and each name the core gave. */
+    /** Every explore name a source has: its declared explores, and the ones its scan adds. */
     private static getLiveSourceExploreNames(
         connector: ApiConnectorType,
         sourceName: string,
-        state: Pick<LiveSourceFieldState, 'modelNames'> &
-            Partial<Pick<LiveSourceFieldState, 'scan' | 'legacy'>>,
+        state: Pick<LiveSourceFieldState, 'scan' | 'legacy'>,
     ): string[] {
-        return [
-            ...new Set([
-                ...getLiveSourceModels(connector, {
-                    scan: state.scan ?? null,
-                    legacy: state.legacy ?? null,
-                    modelNames: state.modelNames,
-                }).map(({ name }) => name),
-                ...Object.values(state.modelNames),
-            ]),
-        ].map((model) => getLiveExploreName(sourceName, model));
+        return getLiveSourceModels(connector, state).map(({ name }) =>
+            getLiveExploreName(sourceName, name),
+        );
     }
 
     /**
@@ -2186,7 +2163,7 @@ export class ExternalConnectionService extends BaseService {
                         externalConnectionUuid,
                     ),
                 ]);
-                const explores = buildLiveExplores({
+                const built = buildLiveExplores({
                     connectionUuid: externalConnectionUuid,
                     sourceName,
                     name: connection.name,
@@ -2203,6 +2180,23 @@ export class ExternalConnectionService extends BaseService {
                     accessRule: stored?.accessRule ?? null,
                     tags: state.tags,
                 });
+                // An explore the scan added can't take a name something else in the project has
+                const added = getLiveSourceModels(apiSource.connector, state)
+                    .filter(({ isDeclared }) => !isDeclared)
+                    .map(({ name }) => getLiveExploreName(sourceName, name));
+                const taken = new Set(
+                    await this.projectModel.findExploreNamesTakenByOthers(
+                        projectUuid,
+                        externalConnectionUuid,
+                        added,
+                    ),
+                );
+                if (taken.size > 0) {
+                    this.logger.warn(
+                        `Live data source ${externalConnectionUuid} left out explores whose names are taken: ${[...taken].join(', ')}`,
+                    );
+                }
+                const explores = built.filter(({ name }) => !taken.has(name));
                 if (keepFields) {
                     const lost = getLostLiveFieldIds({
                         storedFieldIds:
@@ -2447,55 +2441,6 @@ export class ExternalConnectionService extends BaseService {
             },
         });
         return this.readLiveSourceFields(connection, apiSource);
-    }
-
-    /**
-     * The model names that would clash with an explore something else in
-     * the project has, for each explore about to be named. Names them in
-     * order, as a Refresh does, one batched lookup per round, so the result
-     * lets every one be named.
-     */
-    private async findUnavailableModelNames(
-        connection: ExternalConnection & {
-            apiSource: ExternalConnectionApiSource;
-        },
-        sourceName: string,
-        explores: readonly LiveExploreDefinition[],
-        modelNames: Record<string, string>,
-    ): Promise<Set<string>> {
-        const { connector } = connection.apiSource;
-        const unnamed = getUnnamedApiNames(explores, modelNames);
-        const unavailable = new Set<string>();
-        /* eslint-disable no-await-in-loop -- each round depends on the names refused before it */
-        for (
-            let attempt = 0;
-            attempt < MAX_MODEL_NAME_ATTEMPTS && unnamed.length > 0;
-            attempt += 1
-        ) {
-            const named = nameLiveExplores({
-                connector,
-                explores,
-                modelNames,
-                isTaken: (model) => unavailable.has(model),
-            });
-            const models = unnamed.map((apiName) => named[apiName]);
-            const taken = new Set(
-                await this.projectModel.findExploreNamesTakenByOthers(
-                    connection.projectUuid,
-                    connection.externalConnectionUuid,
-                    models.map((model) =>
-                        getLiveExploreName(sourceName, model),
-                    ),
-                ),
-            );
-            const refused = models.filter((model) =>
-                taken.has(getLiveExploreName(sourceName, model)),
-            );
-            if (refused.length === 0) break;
-            refused.forEach((model) => unavailable.add(model));
-        }
-        /* eslint-enable no-await-in-loop */
-        return unavailable;
     }
 
     /**
@@ -3053,7 +2998,6 @@ export class ExternalConnectionService extends BaseService {
                 explorePrefix,
                 deleted.fieldEdits,
                 deleted.exploreEdits,
-                deleted.modelNames,
             );
         if (!isReattached) {
             throw new AlreadyExistsError(

@@ -13,7 +13,6 @@ import {
     ratio,
     type LiveExploreDefinition,
     type LiveModel,
-    type NamedLiveExploreDefinition,
 } from '../../sdk';
 import { MIXPANEL_MAX_RETENTION_PERIODS } from './api';
 
@@ -38,7 +37,7 @@ export const MIXPANEL_EVENT_FILTERS = [FilterOperator.EQUALS];
 export const MIXPANEL_NUMBER_FILTERS = [FilterOperator.EQUALS];
 
 // Today's top events (/api/query/events/top), as Mixpanel ranks them.
-export const MIXPANEL_TOP_EVENTS_EXPLORE: NamedLiveExploreDefinition = {
+export const MIXPANEL_TOP_EVENTS_EXPLORE: LiveExploreDefinition = {
     name: 'top_events',
     label: 'Top events today',
     description:
@@ -83,7 +82,7 @@ export const MIXPANEL_TOP_EVENTS_EXPLORE: NamedLiveExploreDefinition = {
 // Segmentation (/api/query/segmentation): one event per call, counted per day
 // or month and split by one property. Totals add up across days and
 // property values; uniques count each user once per row, so they don't.
-export const MIXPANEL_EVENTS_EXPLORE: NamedLiveExploreDefinition = {
+export const MIXPANEL_EVENTS_EXPLORE: LiveExploreDefinition = {
     name: 'events',
     label: 'Events',
     description:
@@ -249,7 +248,7 @@ export const MIXPANEL_EVENTS_EXPLORE: NamedLiveExploreDefinition = {
 
 // Saved funnels (/api/query/funnels). Mixpanel computes each step's users and
 // conversion over the date range; nothing is summed here.
-export const MIXPANEL_FUNNEL_EXPLORE: NamedLiveExploreDefinition = {
+export const MIXPANEL_FUNNEL_EXPLORE: LiveExploreDefinition = {
     name: 'funnel',
     label: 'Funnel',
     description:
@@ -337,7 +336,7 @@ export const MIXPANEL_FUNNEL_EXPLORE: NamedLiveExploreDefinition = {
 
 // Retention (/api/query/retention). Mixpanel counts each cohort's returning
 // users per period after it started; nothing is summed here.
-export const MIXPANEL_RETENTION_EXPLORE: NamedLiveExploreDefinition = {
+export const MIXPANEL_RETENTION_EXPLORE: LiveExploreDefinition = {
     name: 'retention',
     label: 'Retention',
     description:

@@ -1,4 +1,5 @@
 import { ApiConnectorType, DimensionType } from '@lightdash/common';
+import { toLiveModelName } from '../integration';
 import {
     getLiveStateWithExplores,
     getRefreshedLiveState,
@@ -10,7 +11,6 @@ import {
     getLiveDiscoveredExplores,
     getLiveRefreshSummary,
     getLiveSourceModels,
-    nameLiveExplores,
     parseLiveSourceFieldState,
     pinLiveDefaults,
 } from './source';
@@ -30,6 +30,7 @@ const explore = (
     fields: ReturnType<typeof dimension>[],
     rest: Partial<LiveExploreDefinition> = {},
 ): LiveExploreDefinition => ({
+    name: 'invoices',
     label: 'Invoices',
     description: '',
     dimensions: fields,
@@ -140,50 +141,51 @@ describe('a source stored before Refresh returned explores', () => {
 });
 
 describe('checkDiscoveredExplores', () => {
-    it('refuses explores in another shape, or one reported twice', () => {
+    it('refuses explores in another shape', () => {
         expect(() => checkDiscoveredExplores(HUBSPOT, [{ label: 1 }])).toThrow(
             'unexpected shape',
         );
-        expect(() =>
-            checkDiscoveredExplores(HUBSPOT, [
-                explore([], { apiName: 'invoice' }),
-                explore([], { apiName: 'invoice' }),
-            ]),
-        ).toThrow('one explore twice');
     });
 
     it('leaves out an explore whose id could widen its access', () => {
         expect(
             checkDiscoveredExplores(HUBSPOT, [
-                explore([], { apiName: 'invoice' }),
-                explore([], { apiName: '../deals' }),
-                explore([], { apiName: '{object}' }),
-            ]).map(({ apiName }) => apiName),
-        ).toEqual(['invoice']);
+                explore([], { name: 'invoices', apiName: 'invoice' }),
+                explore([], { name: 'up', apiName: '../deals' }),
+                explore([], { name: 'any', apiName: '{object}' }),
+            ]),
+        ).toMatchObject({
+            explores: [{ name: 'invoices' }],
+            dropped: ['up', 'any'],
+        });
+    });
+
+    it('leaves out an explore whose name it cannot use, and says which', () => {
+        const { explores, dropped } = checkDiscoveredExplores(HUBSPOT, [
+            explore([], { name: 'invoices', apiName: 'Invoice' }),
+            // An earlier explore has the name
+            explore([], { name: 'invoices', apiName: 'invoice' }),
+            // Not a model name
+            explore([], { name: 'Bad Name', apiName: 'bad' }),
+            // A declared explore has the name for something else
+            explore([], { name: 'deals', apiName: 'custom_deals' }),
+            // More fields for a declared explore
+            explore([dimension('region')], { name: 'contacts' }),
+        ]);
+        expect(explores.map(({ name, apiName }) => [name, apiName])).toEqual([
+            ['invoices', 'Invoice'],
+            ['contacts', undefined],
+        ]);
+        expect(dropped).toEqual(['invoices', 'Bad Name', 'deals']);
     });
 });
 
-describe('naming found explores', () => {
-    it('names an explore once from its id, numbered past a taken name', () => {
-        const explores = [
-            explore([], { apiName: 'Invoice' }),
-            explore([], { apiName: 'deals' }),
-        ];
-        const modelNames = nameLiveExplores({
-            connector: HUBSPOT,
-            explores,
-            modelNames: {},
-        });
-        expect(modelNames).toEqual({ Invoice: 'invoice', deals: 'deals_2' });
-        // A later Refresh keeps the names given
-        expect(
-            nameLiveExplores({
-                connector: HUBSPOT,
-                explores,
-                modelNames: { Invoice: 'bills' },
-                isTaken: (name) => name === 'invoice',
-            }),
-        ).toEqual({ Invoice: 'bills', deals: 'deals_2' });
+describe('naming an explore only the vendor has', () => {
+    it('makes a model name from the vendor id', () => {
+        expect(toLiveModelName('Invoice__c')).toBe('invoice__c');
+        expect(toLiveModelName('2-Custom Object!')).toBe('custom_object');
+        expect(toLiveModelName('***')).toBe('explore');
+        expect(toLiveModelName('x'.repeat(60))).toBe('x'.repeat(40));
     });
 });
 
@@ -194,15 +196,13 @@ describe('a Refresh that changes a default', () => {
     ) =>
         getLiveSourceModels(
             HUBSPOT,
-            getLiveStateWithExplores(
-                [
-                    explore([dimension('total', fieldOn)], {
-                        apiName: 'Invoice',
-                        onByDefault,
-                    }),
-                ],
-                { modelNames: { Invoice: 'invoices' } },
-            ),
+            getLiveStateWithExplores([
+                explore([dimension('total', fieldOn)], {
+                    name: 'invoices',
+                    apiName: 'Invoice',
+                    onByDefault,
+                }),
+            ]),
         );
 
     it('keeps the explore and its fields as the source had them', () => {

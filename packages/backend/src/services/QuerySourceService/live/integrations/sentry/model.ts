@@ -9,8 +9,8 @@ import {
     dimension,
     metric,
     NON_ADDITIVE,
+    type LiveExploreDefinition,
     type LiveModel,
-    type NamedLiveExploreDefinition,
 } from '../../sdk';
 
 /** Search takes a list of values per key, so "is" and "is not" take several. */
@@ -47,7 +47,7 @@ export const SENTRY_DATE_FILTERS = [
  * affected is a count, and events are never listed one by one. Sentry's
  * totals can't be filtered on.
  */
-export const SENTRY_ERRORS_EXPLORE: NamedLiveExploreDefinition = {
+export const SENTRY_ERRORS_EXPLORE: LiveExploreDefinition = {
     name: 'errors',
     label: 'Errors',
     description:
@@ -198,7 +198,7 @@ export const SENTRY_ERRORS_EXPLORE: NamedLiveExploreDefinition = {
  * an issue are left out. So is the culprit, which an app can set to any
  * text, such as a path with an account in it.
  */
-export const SENTRY_ISSUES_EXPLORE: NamedLiveExploreDefinition = {
+export const SENTRY_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
     label: 'Issues',
     description:
@@ -352,7 +352,7 @@ export const SENTRY_ISSUES_EXPLORE: NamedLiveExploreDefinition = {
 };
 
 /** Release health: sessions and crash-free rates, as Sentry totals them. */
-export const SENTRY_SESSIONS_EXPLORE: NamedLiveExploreDefinition = {
+export const SENTRY_SESSIONS_EXPLORE: LiveExploreDefinition = {
     name: 'sessions',
     label: 'Sessions',
     description:

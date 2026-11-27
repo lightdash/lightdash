@@ -2,19 +2,17 @@ import {
     ApiConnectorType,
     DimensionType,
     FilterOperator,
-    getLiveModelName,
     MetricType,
     UnexpectedServerError,
     type LiveSourceRefreshSummary,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { extendLiveModel } from '../integration';
+import { extendLiveModel, isLiveModelName } from '../integration';
 import { getLiveIntegration, isLiveIntegrationRegistered } from '../registry';
 import {
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveMetricDefinition,
-    type NamedLiveExploreDefinition,
 } from './definition';
 import {
     getLiveExploreEdit,
@@ -33,9 +31,9 @@ import {
  *   `extend`, so a deploy changes every source without a Refresh
  * - a declared explore always comes from the code, with the fields the
  *   metadata adds after its own
- * - an explore the integration left unnamed is named once from its
- *   `apiName` and keeps that name (`modelNames`), so charts on it survive
- *   its label changing or it going away and coming back
+ * - every explore has a `name`, its one identity. One that `extend` adds
+ *   is left out when its name isn't a model name, an earlier explore has
+ *   it, or a declared explore has it for something else
  * - every explore and field is on as an admin set it, else as its
  *   definition's `onByDefault` (on when absent). A Refresh that sees a
  *   default change keeps the state the source had, so `onByDefault` only
@@ -61,8 +59,6 @@ export type LiveSourceFieldState = {
     scan: LiveSourceScan | null;
     /** Read only, never written: a source's `lastScan` from before metadata was stored, until its next Refresh. */
     legacy: LiveSourceLegacyScan | null;
-    /** The model name the core gave each explore its integration left unnamed, by `apiName`. */
-    modelNames: Record<string, string>;
     fields: LiveSourceFieldEdits;
     explores: LiveSourceExploreEdits;
     aiHint: string | null;
@@ -75,11 +71,9 @@ export type LiveSourceFieldState = {
 export type LiveSourceModel = {
     /** The model name; the explore is `<source prefix>_<name>`. */
     name: string;
-    /** What a Refresh tells it apart by: its `apiName`, else its name. */
-    key: string;
     /** The model its field edits are keyed under; null for the first declared explore. */
     editModel: string | null;
-    definition: NamedLiveExploreDefinition;
+    definition: LiveExploreDefinition;
     /** Declared in the integration's code, so a deploy rebuilds it. */
     isDeclared: boolean;
     /** The fields the code declares, as opposed to ones a Refresh found. */
@@ -100,7 +94,7 @@ const fieldSchema = z
 
 const exploreSchema = z
     .object({
-        name: z.string().min(1).optional(),
+        name: z.string().min(1),
         apiName: z.string().min(1).optional(),
         onByDefault: z.boolean().optional(),
         label: z.string(),
@@ -118,19 +112,11 @@ const exploreSchema = z
             .nullable(),
         incompatible: z.array(z.object({}).passthrough()),
     })
-    .passthrough()
-    .refine(
-        ({ name, apiName }) => name !== undefined || apiName !== undefined,
-        'needs a name or an apiName',
-    );
+    .passthrough();
 
 const exploresSchema = z.array(exploreSchema) as unknown as z.ZodType<
     LiveExploreDefinition[]
 >;
-
-/** What a Refresh tells an explore apart by: its `apiName`, else its name. */
-export const getLiveExploreKey = (explore: LiveExploreDefinition): string =>
-    explore.apiName ?? explore.name ?? '';
 
 /**
  * Whether an id can sit in one path segment of an access rule as it is: no
@@ -140,14 +126,52 @@ export const getLiveExploreKey = (explore: LiveExploreDefinition): string =>
 const isPathSafe = (id: string) => !/[/{}?#\s%]/.test(id);
 
 /**
- * The explores a Refresh stores, checked. An explore whose `apiName` can't
- * be one path segment is left out, so it can never widen the source's
- * access.
+ * The explores `extend` gave that a source can have, and the names of the
+ * ones left out. One is left out when:
+ *
+ * - its name isn't a model name, so it can't be part of an explore name
+ * - its `apiName` can't be one path segment, so it could widen the source's
+ *   access
+ * - an earlier one has its name
+ * - a declared explore has its name for something else (another `apiName`)
  */
+export const keepLiveExplores = (
+    connector: ApiConnectorType,
+    explores: readonly LiveExploreDefinition[],
+): { kept: LiveExploreDefinition[]; dropped: string[] } => {
+    const declared = new Map(
+        getLiveIntegration(connector).model.explores.map((explore) => [
+            explore.name,
+            explore.apiName,
+        ]),
+    );
+    const seen = new Set<string>();
+    return explores.reduce<{
+        kept: LiveExploreDefinition[];
+        dropped: string[];
+    }>(
+        ({ kept, dropped }, explore) => {
+            const isKept =
+                isLiveModelName(explore.name) &&
+                (explore.apiName === undefined ||
+                    isPathSafe(explore.apiName)) &&
+                !seen.has(explore.name) &&
+                (!declared.has(explore.name) ||
+                    declared.get(explore.name) === explore.apiName);
+            seen.add(explore.name);
+            return isKept
+                ? { kept: [...kept, explore], dropped }
+                : { kept, dropped: [...dropped, explore.name] };
+        },
+        { kept: [], dropped: [] },
+    );
+};
+
+/** What `extend` returned at a Refresh, checked: the explores the source can have, and the names left out. */
 export const checkDiscoveredExplores = (
     connector: ApiConnectorType,
     discovered: unknown,
-): LiveExploreDefinition[] => {
+): { explores: LiveExploreDefinition[]; dropped: string[] } => {
     const { label } = getLiveIntegration(connector);
     const parsed = exploresSchema.safeParse(discovered);
     if (!parsed.success) {
@@ -155,41 +179,28 @@ export const checkDiscoveredExplores = (
             `${label} reported its explores in an unexpected shape`,
         );
     }
-    const keys = parsed.data.map(getLiveExploreKey);
-    if (new Set(keys).size !== keys.length) {
-        throw new UnexpectedServerError(`${label} reported one explore twice`);
-    }
-    return parsed.data.filter(
-        ({ apiName }) => apiName === undefined || isPathSafe(apiName),
-    );
+    const { kept, dropped } = keepLiveExplores(connector, parsed.data);
+    return { explores: kept, dropped };
 };
 
 /**
  * The explores a source's stored metadata gives, or its old scan's; none
- * before its first Refresh. As at Refresh, an `apiName` that can't be one
- * path segment is left out, and so is a second explore under one key.
+ * before its first Refresh. The same ones are left out as at Refresh.
  */
 export const getLiveDiscoveredExplores = (
     connector: ApiConnectorType,
     state: Pick<LiveSourceFieldState, 'scan'> &
         Partial<Pick<LiveSourceFieldState, 'legacy'>>,
-): LiveExploreDefinition[] => {
-    const explores = state.scan
-        ? (extendLiveModel(
-              getLiveIntegration(connector).model,
-              state.scan.metadata,
-          ) ?? [])
-        : (state.legacy?.explores ?? []);
-    const seen = new Set<string>();
-    return explores.filter((explore) => {
-        const key = getLiveExploreKey(explore);
-        const isKept =
-            !seen.has(key) &&
-            (explore.apiName === undefined || isPathSafe(explore.apiName));
-        seen.add(key);
-        return isKept;
-    });
-};
+): LiveExploreDefinition[] =>
+    keepLiveExplores(
+        connector,
+        state.scan
+            ? (extendLiveModel(
+                  getLiveIntegration(connector).model,
+                  state.scan.metadata,
+              ) ?? [])
+            : (state.legacy?.explores ?? []),
+    ).kept;
 
 const legacyFieldSchema = z.object({
     name: z.string(),
@@ -243,7 +254,6 @@ const fieldStateSchema = z.object({
         .nullish()
         .catch(null),
     lastScan: legacyScanSchema.nullish(),
-    modelNames: z.record(z.string(), z.string().min(1)).nullish().catch(null),
     fields: z
         .record(
             z.string(),
@@ -275,7 +285,6 @@ const fieldStateSchema = z.object({
 const EMPTY_STATE: LiveSourceFieldState = {
     scan: null,
     legacy: null,
-    modelNames: {},
     fields: {},
     explores: {},
     aiHint: null,
@@ -352,7 +361,6 @@ export const parseLiveSourceFieldState = (
     const { data } = parsed;
     const base = {
         ...EMPTY_STATE,
-        modelNames: data.modelNames ?? {},
         explores: data.explores ?? {},
         aiHint: data.aiHint ?? null,
         targetLabel: data.targetLabel ?? null,
@@ -388,70 +396,13 @@ export const hasLiveRefresh = (
         Partial<Pick<LiveSourceFieldState, 'legacy'>>,
 ): boolean => state.scan !== null || (state.legacy ?? null) !== null;
 
-/** Model names an unnamed explore can't take: declared, fixed and given ones. */
-const getTakenModelNames = (
-    connector: ApiConnectorType,
-    explores: readonly LiveExploreDefinition[],
-    modelNames: Record<string, string>,
-): Set<string> => {
-    const { model } = getLiveIntegration(connector);
-    return new Set([
-        ...model.explores.map(({ name }) => name),
-        ...explores.flatMap(({ name }) => (name ? [name] : [])),
-        ...Object.values(modelNames),
-    ]);
-};
-
-/** The `apiName` of each explore the core still has to name. */
-export const getUnnamedApiNames = (
-    explores: readonly LiveExploreDefinition[],
-    modelNames: Record<string, string>,
-): string[] =>
-    explores.flatMap(({ name, apiName }) =>
-        name === undefined &&
-        apiName !== undefined &&
-        !Object.hasOwn(modelNames, apiName)
-            ? [apiName]
-            : [],
-    );
-
-/**
- * Names every explore its integration left unnamed, once: its `apiName` as
- * a slug, numbered past any name taken. `isTaken` says whether an explore of
- * that model name belongs to something else in the project.
- */
-export const nameLiveExplores = ({
-    connector,
-    explores,
-    modelNames,
-    isTaken = () => false,
-}: {
-    connector: ApiConnectorType;
-    explores: readonly LiveExploreDefinition[];
-    modelNames: Record<string, string>;
-    isTaken?: (model: string) => boolean;
-}): Record<string, string> => {
-    const taken = getTakenModelNames(connector, explores, modelNames);
-    return getUnnamedApiNames(explores, modelNames).reduce<
-        Record<string, string>
-    >((named, apiName) => {
-        const name = getLiveModelName(
-            apiName,
-            (candidate) => taken.has(candidate) || isTaken(candidate),
-        );
-        taken.add(name);
-        return { ...named, [apiName]: name };
-    }, modelNames);
-};
-
 /**
  * Every explore of a source: the declared ones, each with the fields a
- * Refresh found after its own, then each one only the Refresh knows, under
- * the name it was given.
+ * Refresh found after its own, then each one only the Refresh knows.
  */
 export const getLiveSourceModels = (
     connector: ApiConnectorType,
-    state: Pick<LiveSourceFieldState, 'scan' | 'modelNames'> &
+    state: Pick<LiveSourceFieldState, 'scan'> &
         Partial<Pick<LiveSourceFieldState, 'legacy'>>,
 ): LiveSourceModel[] => {
     const declared = getLiveIntegration(connector).model.explores;
@@ -467,7 +418,6 @@ export const getLiveSourceModels = (
         const isNew = ({ name }: { name: string }) => !fieldNames.has(name);
         return {
             name: definition.name,
-            key: definition.apiName ?? definition.name,
             editModel: index === 0 ? null : definition.name,
             definition: {
                 ...definition,
@@ -485,28 +435,18 @@ export const getLiveSourceModels = (
             onByDefault: definition.onByDefault ?? true,
         };
     });
-    const fromRefresh = discovered.flatMap((definition): LiveSourceModel[] => {
-        if (definition.name !== undefined && declaredNames.has(definition.name))
-            return [];
-        const key = getLiveExploreKey(definition);
-        const name =
-            definition.name ??
-            (Object.hasOwn(state.modelNames, key)
-                ? state.modelNames[key]
-                : undefined);
-        if (name === undefined) return [];
-        return [
-            {
-                name,
-                key,
-                editModel: name,
-                definition: { ...definition, name },
+    const fromRefresh = discovered
+        .filter(({ name }) => !declaredNames.has(name))
+        .map(
+            (definition): LiveSourceModel => ({
+                name: definition.name,
+                editModel: definition.name,
+                definition,
                 isDeclared: false,
                 declaredNames: new Set(),
                 onByDefault: definition.onByDefault ?? true,
-            },
-        ];
-    });
+            }),
+        );
     return [...fromCode, ...fromRefresh];
 };
 
@@ -585,7 +525,7 @@ export const pinLiveDefaults = ({
         { fields, explores },
     );
 
-/** What a Refresh changed: explores by key, and fields by explore. */
+/** What a Refresh changed: explores by name, and fields by explore. */
 export const getLiveRefreshSummary = ({
     previous,
     next,
@@ -608,7 +548,7 @@ export const getLiveRefreshSummary = ({
     } =>
         from.reduce<{ explores: string[]; fields: Record<string, string[]> }>(
             (result, model) => {
-                const other = to.find(({ key }) => key === model.key);
+                const other = to.find(({ name }) => name === model.name);
                 if (!other) {
                     return {
                         ...result,

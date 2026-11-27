@@ -14,7 +14,7 @@ import { sentryIntegration } from '.';
 import { compileLiveMetricQuery } from '../../explores/build';
 import {
     buildLiveExplore,
-    type NamedLiveExploreDefinition,
+    type LiveExploreDefinition,
 } from '../../explores/definition';
 import { compileSentryQuery } from './compile';
 import {
@@ -24,7 +24,7 @@ import {
 } from './model';
 import { SENTRY_MAX_QUERY_ROWS } from './run';
 
-const build = (definition: NamedLiveExploreDefinition) =>
+const build = (definition: LiveExploreDefinition) =>
     buildLiveExplore({
         definition,
         exploreName: `sentry_${definition.name}`,

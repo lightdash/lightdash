@@ -131,7 +131,6 @@ const SERVER_OWNED_API_SOURCE_KEYS = [
     'sourceName',
     'lastScan',
     'scan',
-    'modelNames',
     'fields',
     'explores',
     'aiHint',
@@ -223,7 +222,6 @@ const toApiSourceSettingsJson = (apiSource: ExternalConnectionApiSource) =>
  */
 export type LiveSourceEdits = {
     scan: LiveSourceScan | null;
-    modelNames: Record<string, string>;
     fields: LiveSourceFieldEdits;
     explores: LiveSourceExploreEdits;
 };
@@ -238,8 +236,9 @@ export type DeletedLiveSource = {
     sourceName: string | null;
     fieldEdits: LiveSourceFieldEdits;
     exploreEdits: LiveSourceExploreEdits;
-    /** The names the core gave its explores, so they keep them. */
-    modelNames: Record<string, string>;
+    /** Its last scan, so the explores it added are known by name. */
+    scan: LiveSourceScan | null;
+    legacy: LiveSourceFieldState['legacy'];
     aiHint: string | null;
     targetLabel: string | null;
     accessRule: LiveSourceAccessRule | null;
@@ -1254,7 +1253,6 @@ export class ExternalConnectionModel {
         sourceName: string,
         fieldEdits: LiveSourceFieldEdits,
         exploreEdits: LiveSourceExploreEdits = {},
-        modelNames: Record<string, string> = {},
     ): Promise<boolean> {
         return this.database.transaction(async (trx) => {
             await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
@@ -1294,12 +1292,7 @@ export class ExternalConnectionModel {
             await trx(ExternalConnectionsTableName)
                 .where('external_connection_uuid', uuid)
                 .update({
-                    api_source: (Object.keys(modelNames).length > 0
-                        ? trx.raw(`jsonb_set(?, '{modelNames}', ?::jsonb)`, [
-                              withExplores,
-                              JSON.stringify(modelNames),
-                          ])
-                        : withExplores) as unknown as string,
+                    api_source: withExplores as unknown as string,
                 });
             return true;
         });
@@ -1512,7 +1505,6 @@ export class ExternalConnectionModel {
             const next = update({
                 scan: state.scan,
                 legacy: state.legacy,
-                modelNames: state.modelNames,
                 fields: state.fields,
                 explores: state.explores,
             });
@@ -1522,10 +1514,9 @@ export class ExternalConnectionModel {
                     api_source: trx.raw(
                         `api_source || jsonb_build_object(${
                             next.scan ? "'scan', ?::jsonb, " : ''
-                        }'modelNames', ?::jsonb, 'fields', ?::jsonb, 'explores', ?::jsonb)`,
+                        }'fields', ?::jsonb, 'explores', ?::jsonb)`,
                         [
                             ...(next.scan ? [JSON.stringify(next.scan)] : []),
-                            JSON.stringify(next.modelNames),
                             JSON.stringify(next.fields),
                             JSON.stringify(next.explores),
                         ],
@@ -1568,8 +1559,9 @@ export class ExternalConnectionModel {
                           exploreEdits: parseLiveSourceFieldState(
                               row.api_source,
                           ).explores,
-                          modelNames: parseLiveSourceFieldState(row.api_source)
-                              .modelNames,
+                          scan: parseLiveSourceFieldState(row.api_source).scan,
+                          legacy: parseLiveSourceFieldState(row.api_source)
+                              .legacy,
                           ...readSourceDetails(row.api_source),
                           accessRule: readLiveSourceAccessRule(row.api_source),
                       },

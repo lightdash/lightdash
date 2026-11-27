@@ -639,7 +639,6 @@ describe('definition hashes', () => {
         (connector) => {
             const hashes = getLiveSourceDefinitionHashes(connector, {
                 scan: null,
-                modelNames: {},
                 explores: {},
             });
             expect(Object.values(hashes).length).toBeGreaterThan(0);

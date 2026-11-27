@@ -10,7 +10,6 @@ import {
     metric,
     type LiveExploreDefinition,
     type LiveModel,
-    type NamedLiveExploreDefinition,
 } from '../../sdk';
 
 // Search matches whole words, so only word matches are offered
@@ -47,7 +46,7 @@ export const GITHUB_DATE_FILTERS = [
     FilterOperator.LESS_THAN_OR_EQUAL,
 ];
 
-export const GITHUB_PULL_REQUESTS_EXPLORE: NamedLiveExploreDefinition = {
+export const GITHUB_PULL_REQUESTS_EXPLORE: LiveExploreDefinition = {
     name: 'pull_requests',
     label: 'Pull requests',
     description: 'Pull requests in one GitHub repository.',
@@ -200,7 +199,7 @@ export const GITHUB_PULL_REQUESTS_EXPLORE: NamedLiveExploreDefinition = {
     ],
 };
 
-export const GITHUB_ISSUES_EXPLORE: NamedLiveExploreDefinition = {
+export const GITHUB_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
     label: 'Issues',
     description:
@@ -345,7 +344,7 @@ export const GITHUB_ISSUES_EXPLORE: NamedLiveExploreDefinition = {
     ],
 };
 
-export const GITHUB_CONTRIBUTORS_EXPLORE: NamedLiveExploreDefinition = {
+export const GITHUB_CONTRIBUTORS_EXPLORE: LiveExploreDefinition = {
     name: 'contributors',
     label: 'Contributors',
     description:

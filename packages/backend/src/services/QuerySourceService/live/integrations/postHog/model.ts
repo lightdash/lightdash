@@ -20,7 +20,6 @@ import {
     type LiveModel,
     type LiveQueryResult,
     type LiveRuntime,
-    type NamedLiveExploreDefinition,
 } from '../../sdk';
 import {
     getPostHogPropertyDefinitionsPrefix,
@@ -83,7 +82,7 @@ export const POSTHOG_METRIC_FILTERS = POSTHOG_NUMBER_FILTERS.filter(
     (operator) => !POSTHOG_NULL_FILTERS.includes(operator),
 );
 
-export const POSTHOG_EVENTS_EXPLORE: NamedLiveExploreDefinition = {
+export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
     name: 'events',
     label: 'Events',
     description:

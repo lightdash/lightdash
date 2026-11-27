@@ -12,7 +12,7 @@ import { pylonIntegration } from '.';
 import { compileLiveMetricQuery } from '../../explores/build';
 import {
     buildLiveExplore,
-    type NamedLiveExploreDefinition,
+    type LiveExploreDefinition,
 } from '../../explores/definition';
 import { compilePylonQuery } from './compile';
 import {
@@ -22,7 +22,7 @@ import {
 } from './model';
 import { PYLON_MAX_QUERY_ROWS } from './run';
 
-const build = (definition: NamedLiveExploreDefinition) =>
+const build = (definition: LiveExploreDefinition) =>
     buildLiveExplore({
         definition,
         exploreName: `pylon_${definition.name}`,

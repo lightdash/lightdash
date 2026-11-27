@@ -13,7 +13,6 @@ import {
     ratio,
     type LiveExploreDefinition,
     type LiveModel,
-    type NamedLiveExploreDefinition,
 } from '../../sdk';
 import { META_ADS_DEFAULT_DAYS } from './api';
 
@@ -38,7 +37,7 @@ export const META_ADS_NAME_FILTERS = [
     FilterOperator.NOT_INCLUDE,
 ];
 
-export const META_ADS_INSIGHTS_EXPLORE: NamedLiveExploreDefinition = {
+export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
     name: 'insights',
     label: 'Insights',
     description:

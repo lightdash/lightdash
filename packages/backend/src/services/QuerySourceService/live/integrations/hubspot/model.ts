@@ -18,7 +18,6 @@ import {
     type LiveExploreDefinition,
     type LiveModel,
     type LiveRuntime,
-    type NamedLiveExploreDefinition,
 } from '../../sdk';
 import {
     HUBSPOT_LABEL_SUFFIX,
@@ -64,7 +63,7 @@ export const HUBSPOT_DATE_FILTERS = [
 
 export const HUBSPOT_BOOLEAN_FILTERS = [FilterOperator.EQUALS];
 
-export const HUBSPOT_DEALS_EXPLORE: NamedLiveExploreDefinition = {
+export const HUBSPOT_DEALS_EXPLORE: LiveExploreDefinition = {
     name: 'deals',
     label: 'Deals',
     description: 'Deals in HubSpot, one row per record, with their properties.',
@@ -122,7 +121,7 @@ export const HUBSPOT_DEALS_EXPLORE: NamedLiveExploreDefinition = {
     ],
 };
 
-export const HUBSPOT_CONTACTS_EXPLORE: NamedLiveExploreDefinition = {
+export const HUBSPOT_CONTACTS_EXPLORE: LiveExploreDefinition = {
     name: 'contacts',
     label: 'Contacts',
     description:
@@ -181,7 +180,7 @@ export const HUBSPOT_CONTACTS_EXPLORE: NamedLiveExploreDefinition = {
     ],
 };
 
-export const HUBSPOT_COMPANIES_EXPLORE: NamedLiveExploreDefinition = {
+export const HUBSPOT_COMPANIES_EXPLORE: LiveExploreDefinition = {
     name: 'companies',
     label: 'Companies',
     description:
@@ -240,7 +239,7 @@ export const HUBSPOT_COMPANIES_EXPLORE: NamedLiveExploreDefinition = {
     ],
 };
 
-export const HUBSPOT_TICKETS_EXPLORE: NamedLiveExploreDefinition = {
+export const HUBSPOT_TICKETS_EXPLORE: LiveExploreDefinition = {
     name: 'tickets',
     label: 'Tickets',
     description:
@@ -299,7 +298,7 @@ export const HUBSPOT_TICKETS_EXPLORE: NamedLiveExploreDefinition = {
     ],
 };
 
-export const HUBSPOT_LEADS_EXPLORE: NamedLiveExploreDefinition = {
+export const HUBSPOT_LEADS_EXPLORE: LiveExploreDefinition = {
     name: 'leads',
     label: 'Leads',
     description: 'Leads in HubSpot, one row per record, with their properties.',
@@ -362,7 +361,7 @@ export const HUBSPOT_LEADS_EXPLORE: NamedLiveExploreDefinition = {
  * HubSpot's pipelines API: one call per object. Records hold stage and
  * pipeline ids, so this explains them and can be merged with them.
  */
-export const HUBSPOT_PIPELINE_STAGES_EXPLORE: NamedLiveExploreDefinition = {
+export const HUBSPOT_PIPELINE_STAGES_EXPLORE: LiveExploreDefinition = {
     name: 'pipeline_stages',
     label: 'Pipeline stages',
     description:

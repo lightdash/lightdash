@@ -122,7 +122,6 @@ const buildService = ({
     let fieldState: LiveSourceFieldState = {
         scan: null,
         legacy: null,
-        modelNames: {},
         fields: {},
         explores: {},
         aiHint: null,
@@ -196,13 +195,11 @@ const buildService = ({
                     _name: string,
                     fields: LiveSourceFieldEdits,
                     explores: LiveSourceFieldState['explores'] = {},
-                    modelNames: Record<string, string> = {},
                 ) => {
                     fieldState = {
                         ...fieldState,
                         fields,
                         explores,
-                        modelNames,
                     };
                     return true;
                 },
@@ -269,7 +266,6 @@ const buildService = ({
                 ) => {
                     const next = update({
                         scan: fieldState.scan,
-                        modelNames: fieldState.modelNames,
                         fields: fieldState.fields,
                         explores: fieldState.explores,
                     });
@@ -1660,7 +1656,6 @@ describe('ExternalConnectionService live source explores', () => {
                 buildService();
             externalConnectionModel.getLiveSourceFieldState.mockResolvedValue({
                 scan: null,
-                modelNames: {},
                 explores: {},
                 fields: {},
                 aiHint: 'EU project',
@@ -1712,7 +1707,6 @@ describe('ExternalConnectionService live source explores', () => {
                 buildService();
             externalConnectionModel.getLiveSourceFieldState.mockResolvedValue({
                 scan: null,
-                modelNames: {},
                 explores: {},
                 fields: {},
                 aiHint: null,
@@ -2401,7 +2395,8 @@ describe('ExternalConnectionService live source explores', () => {
         sourceName: 'posthog',
         fieldEdits: {},
         exploreEdits: {},
-        modelNames: {},
+        scan: null,
+        legacy: null,
         tags: [],
         aiHint: null,
         targetLabel: null,
@@ -2633,14 +2628,7 @@ describe('ExternalConnectionService live source explores', () => {
         expect(reattached.liveSourceName).toBe('posthog');
         expect(
             externalConnectionModel.reattachLiveSourceName,
-        ).toHaveBeenCalledWith(
-            'proj-1',
-            'conn-1',
-            'posthog',
-            fieldEdits,
-            {},
-            {},
-        );
+        ).toHaveBeenCalledWith('proj-1', 'conn-1', 'posthog', fieldEdits, {});
         expect(savedExploreName(projectModel)).toBe('posthog_events');
     });
 
@@ -2661,7 +2649,6 @@ describe('ExternalConnectionService live source explores', () => {
                 externalConnectionModel.getLiveSourceFieldState.mockResolvedValue(
                     {
                         scan: null,
-                        modelNames: {},
                         explores: {},
                         fields: {},
                         aiHint: 'EU project',
@@ -3690,9 +3677,6 @@ describe('ExternalConnectionService explores found by a Refresh, through Hydra',
         expect(
             explores.find(({ exploreName }) => exploreName === 'crm_deals'),
         ).toMatchObject({ inUse: false });
-        const state =
-            await externalConnectionModel.getLiveSourceFieldState('conn-1');
-        expect(state.modelNames).toEqual({ Deals: 'deals' });
     });
 
     it('builds the explore of an object an admin turns on, with off-by-default fields hidden', async () => {
@@ -3718,12 +3702,25 @@ describe('ExternalConnectionService explores found by a Refresh, through Hydra',
         expect(dimensions.sync_token).toBeUndefined();
     });
 
-    it('numbers an object whose name another explore of the project holds', async () => {
+    it('leaves out an object whose name another explore of the project holds', async () => {
         const connection = hydraConnection([DEALS]);
-        const { service, externalConnectionModel } = buildService({
+        const { service, projectModel } = buildService({
             connections: [connection],
             takenExploreNames: ['crm_deals'],
         });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        await turnOn(service, 'crm_deals');
+
+        expect(lastExplores(projectModel).map(({ name }) => name)).toEqual([
+            'crm_events',
+            'crm_users',
+        ]);
+    });
+
+    it('leaves out an object whose name a declared explore has', async () => {
+        const connection = hydraConnection([EVENTS]);
+        const { service } = buildService({ connections: [connection] });
         await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
 
         const { explores } = await service.getLiveSourceFields(
@@ -3731,24 +3728,10 @@ describe('ExternalConnectionService explores found by a Refresh, through Hydra',
             'proj-1',
             'conn-1',
         );
-        expect(explores.map(({ exploreName }) => exploreName)).toContain(
-            'crm_deals_2',
-        );
-        const state =
-            await externalConnectionModel.getLiveSourceFieldState('conn-1');
-        expect(state.modelNames).toEqual({ Deals: 'deals_2' });
-    });
-
-    it('numbers an object whose name a declared explore holds', async () => {
-        const connection = hydraConnection([EVENTS]);
-        const { service, externalConnectionModel } = buildService({
-            connections: [connection],
-        });
-        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
-
-        const state =
-            await externalConnectionModel.getLiveSourceFieldState('conn-1');
-        expect(state.modelNames).toEqual({ Events: 'events_2' });
+        expect(explores.map(({ exploreName }) => exploreName)).toEqual([
+            'crm_events',
+            'crm_users',
+        ]);
     });
 
     it('refuses to edit an explore the source does not have', async () => {

@@ -51,6 +51,24 @@ export const defineLiveModel = <C extends ApiConnectorType, Metadata>(model: {
     extend: (metadata: Metadata) => LiveExploreDefinition[];
 }): LiveModel<C> => model as unknown as LiveModel<C>;
 
+const MODEL_NAME_MAX_LENGTH = 40;
+
+/**
+ * A model name from a vendor's stable id, for an explore only the vendor
+ * has: `Invoice__c` → `invoice__c`, cut to 40 characters.
+ */
+export const toLiveModelName = (apiName: string): string => {
+    const slug = apiName
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, '_')
+        .replace(/^[_0-9]+|_+$/g, '');
+    return (slug.length > 0 ? slug : 'explore').slice(0, MODEL_NAME_MAX_LENGTH);
+};
+
+/** Whether a name can be the model part of an explore name. */
+export const isLiveModelName = (name: string): boolean =>
+    name.length <= MODEL_NAME_MAX_LENGTH && /^[a-z][a-z0-9_]*$/.test(name);
+
 /**
  * The explores a model's `extend` gives for stored metadata. Null when the
  * model doesn't scan, or the metadata isn't in its shape: stored by an

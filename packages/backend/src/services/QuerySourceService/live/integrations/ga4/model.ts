@@ -19,7 +19,6 @@ import {
     type LiveMetricDefinition,
     type LiveModel,
     type LiveRuntime,
-    type NamedLiveExploreDefinition,
 } from '../../sdk';
 import { getGa4MetadataPath } from './api';
 
@@ -56,7 +55,7 @@ export const GA4_METRIC_FILTERS = [
     FilterOperator.IN_BETWEEN,
 ];
 
-export const GA4_REPORT_EXPLORE: NamedLiveExploreDefinition = {
+export const GA4_REPORT_EXPLORE: LiveExploreDefinition = {
     name: 'report',
     label: 'Report',
     description:
