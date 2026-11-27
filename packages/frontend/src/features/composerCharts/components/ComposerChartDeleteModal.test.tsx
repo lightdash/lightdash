@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
     dashboards: {} as {
         isSuccess: boolean;
         isError: boolean;
+        isFetching: boolean;
         data?: { uuid: string; name: string }[];
     },
 }));
@@ -43,6 +44,7 @@ describe('ComposerChartDeleteModal', () => {
         mocks.dashboards = {
             isSuccess: true,
             isError: false,
+            isFetching: false,
             data: [{ uuid: 'dashboard', name: 'Sales' }],
         };
         renderModal(true);
@@ -63,7 +65,11 @@ describe('ComposerChartDeleteModal', () => {
     });
 
     it('blocks the delete while the dashboards that show the chart are unknown', async () => {
-        mocks.dashboards = { isSuccess: false, isError: true };
+        mocks.dashboards = {
+            isSuccess: false,
+            isError: true,
+            isFetching: false,
+        };
         renderModal(true);
         expect(
             await screen.findByText(

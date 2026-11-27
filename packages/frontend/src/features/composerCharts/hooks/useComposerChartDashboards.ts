@@ -17,5 +17,7 @@ export const useComposerChartDashboards = (
                 method: 'GET',
                 body: undefined,
             }),
+        // The delete modal must name the dashboards as they are now
+        refetchOnMount: 'always',
     });
 };

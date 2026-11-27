@@ -62,7 +62,7 @@ export const ComposerChartDeleteModal: FC<Props> = ({
                     },
                 })
             }
-            confirmDisabled={!dashboards.isSuccess}
+            confirmDisabled={!dashboards.isSuccess || dashboards.isFetching}
             confirmLoading={isDeleting}
             cancelDisabled={isDeleting}
         >
