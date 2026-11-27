@@ -1,3 +1,10 @@
+# [3.429.0](https://github.com/lightdash/lightdash/compare/3.428.0...3.429.0) (2026-11-27)
+
+
+### Features
+
+* **composer:** read run records without a dashboard ([#33574](https://github.com/lightdash/lightdash/issues/33574)) ([11f3ea7](https://github.com/lightdash/lightdash/commit/11f3ea7ac8e533909ffa01750c10da1a5373b759))
+
 # [3.428.0](https://github.com/lightdash/lightdash/compare/3.427.1...3.428.0) (2026-11-27)
 
 

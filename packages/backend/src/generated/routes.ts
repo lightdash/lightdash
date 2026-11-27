@@ -30377,6 +30377,7 @@ const models: TsoaRoute.Models = {
             'chartView',
             'chartHistory',
             'sqlChartView',
+            'composerChartView',
             'sqlRunner',
             'viewUnderlyingData',
             'alert',
