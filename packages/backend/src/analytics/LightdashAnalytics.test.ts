@@ -1,4 +1,7 @@
 import {
+    LightdashAppUuidHeader,
+    LightdashRequestMethodHeader,
+    QueryExecutionContext,
     RequestMethod,
     SchedulerFormat,
     type Account,
@@ -13,7 +16,7 @@ import Logger from '../logging/logger';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { EventStreamSink } from './eventStream/EventStreamSink';
 import { eventStreamRegistry } from './eventStream/registry';
-import { LightdashAnalytics } from './LightdashAnalytics';
+import { getContextFromHeader, LightdashAnalytics } from './LightdashAnalytics';
 import type { QueryCompletedEvent } from './LightdashAnalytics';
 
 // writeKey drives the tracking-enabled check inside flushEvents()
@@ -582,4 +585,26 @@ describe('LightdashAnalytics', () => {
             );
         });
     });
+});
+
+describe('getContextFromHeader', () => {
+    it.each([
+        [undefined, 'app-uuid', QueryExecutionContext.DATA_APP],
+        [undefined, undefined, QueryExecutionContext.API],
+        [RequestMethod.CLI, 'app-uuid', QueryExecutionContext.CLI],
+        [RequestMethod.WEB_APP, 'app-uuid', undefined],
+    ])(
+        'maps request method %s with app header %s to %s',
+        (method, appUuid, expected) => {
+            const headers: Record<string, string | undefined> = {
+                [LightdashRequestMethodHeader]: method,
+                [LightdashAppUuidHeader]: appUuid,
+            };
+            const req = {
+                header: (name: string) => headers[name],
+            } as unknown as Parameters<typeof getContextFromHeader>[0];
+
+            expect(getContextFromHeader(req)).toBe(expected);
+        },
+    );
 });

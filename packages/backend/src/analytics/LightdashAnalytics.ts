@@ -22,6 +22,7 @@ import {
     ExternalSourceType,
     getRequestMethod,
     InviteLinkPurpose,
+    LightdashAppUuidHeader,
     LightdashInstallType,
     LightdashMode,
     LightdashPage,
@@ -652,7 +653,10 @@ export const getContextFromHeader = (req: Request) => {
         case RequestMethod.DESKTOP:
             return QueryExecutionContext.DESKTOP;
         case RequestMethod.UNKNOWN:
-            return QueryExecutionContext.API;
+            // The data app SDK bridge sends no request method, only the app header
+            return req.header(LightdashAppUuidHeader)
+                ? QueryExecutionContext.DATA_APP
+                : QueryExecutionContext.API;
         default:
             return undefined;
     }
