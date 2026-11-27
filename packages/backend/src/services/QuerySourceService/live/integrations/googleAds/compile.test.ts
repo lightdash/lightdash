@@ -21,8 +21,6 @@ const [explore] = buildLiveExplores({
         customerId: '1234567890',
         loginCustomerId: null,
     },
-    scannedFields: [],
-    edits: { fields: {} } as never,
 });
 
 const id = (name: string) => `google_ads_performance_${name}`;

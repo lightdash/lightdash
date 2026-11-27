@@ -8,8 +8,10 @@ import {
     Text,
     UnstyledButton,
 } from '@mantine/core';
+import { IconLock } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -31,11 +33,11 @@ type Props = {
     opened: boolean;
     onClose: () => void;
     projectUuid: string;
+    /** Otherwise the integrations are greyed out under why; requests still work. */
+    canAdd: boolean;
     canUseGoogle: boolean;
     canUseLinkedInAds: boolean;
     canUseSalesforce: boolean;
-    /** Hydra, the test integration, only where the server registers it. */
-    canUseHydra: boolean;
     /**
      * The integrations the organization has turned on, by their feature
      * flags; undefined while they load.
@@ -68,10 +70,10 @@ export const AddLiveSourceModal: FC<Props> = ({
     opened,
     onClose,
     projectUuid,
+    canAdd,
     canUseGoogle,
     canUseLinkedInAds,
     canUseSalesforce,
-    canUseHydra,
     enabledIntegrations,
     isEnabledIntegrationsError,
     onPick,
@@ -87,7 +89,6 @@ export const AddLiveSourceModal: FC<Props> = ({
         if (connector === ApiConnectorType.LINKEDIN_ADS)
             return canUseLinkedInAds;
         if (connector === ApiConnectorType.SALESFORCE) return canUseSalesforce;
-        if (connector === ApiConnectorType.HYDRA) return canUseHydra;
         return true;
     };
     const entries = LIVE_SOURCE_CATALOG.filter(isAvailableLiveSource).filter(
@@ -119,6 +120,25 @@ export const AddLiveSourceModal: FC<Props> = ({
             cancelLabel={false}
         >
             <Stack gap="sm">
+                {!canAdd && (
+                    <Group
+                        gap="sm"
+                        wrap="nowrap"
+                        align="flex-start"
+                        className={styles.notice}
+                        role="note"
+                    >
+                        <MantineIcon icon={IconLock} color="dimmed" />
+                        <Stack gap={2}>
+                            <Text fz="sm" fw={600}>
+                                You can't add live data sources in this project
+                            </Text>
+                            <Text fz="xs" c="dimmed">
+                                Ask a project admin to add one for you
+                            </Text>
+                        </Stack>
+                    </Group>
+                )}
                 {isEnabledIntegrationsError ? (
                     <Text fz="sm" c="red">
                         Couldn't load the integrations you can add. Close this
@@ -134,6 +154,7 @@ export const AddLiveSourceModal: FC<Props> = ({
                             <UnstyledButton
                                 key={entry.id}
                                 className={styles.card}
+                                disabled={!canAdd}
                                 onClick={() => onPick(entry.connector)}
                             >
                                 <CardHead entry={entry} />

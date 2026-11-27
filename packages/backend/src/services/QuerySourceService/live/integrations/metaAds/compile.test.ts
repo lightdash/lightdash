@@ -13,7 +13,7 @@ import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { connectLiveSource } from '../../liveSource.mock';
 import { compileMetaAdsQuery } from './compile';
-import { META_ADS_INSIGHTS_EXPLORE } from './explores';
+import { META_ADS_INSIGHTS_EXPLORE } from './model';
 import { META_ADS_MAX_QUERY_ROWS } from './run';
 
 const EXPLORE = 'meta_ads_insights';
@@ -25,7 +25,7 @@ const explore = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.META_ADS,
     baseVersion: 1,
-    capabilities: metaAdsIntegration.capabilities,
+    capabilities: metaAdsIntegration.query.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),

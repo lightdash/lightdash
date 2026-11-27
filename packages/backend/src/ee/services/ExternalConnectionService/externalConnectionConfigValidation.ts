@@ -57,6 +57,8 @@ export type ValidatableExternalConnectionConfig = {
     oauthClientId?: string | null;
     oauthClientAuthMethod?: OAuthClientAuthMethod | null;
     customHeaders?: Record<string, string> | null;
+    /** Set on a live data source, whose reach is its integration's access rules. */
+    apiSource?: unknown;
 };
 
 /**
@@ -169,8 +171,13 @@ export function validateExternalConnectionConfig(
     });
 
     // Browser images are loaded directly, so an image-only connection does not
-    // need to allow any methods through the external-fetch proxy.
-    if (config.allowedMethods.length === 0 && !config.allowBrowserImages) {
+    // need to allow any methods through the external-fetch proxy. Nor does a
+    // live data source whose integration calls nothing: it has no rules.
+    if (
+        config.allowedMethods.length === 0 &&
+        !config.allowBrowserImages &&
+        !config.apiSource
+    ) {
         throw new ParameterError('At least one allowed method is required');
     }
     config.allowedMethods.forEach((method) => {
