@@ -109,22 +109,18 @@ export const CartesianChartDisplayConfig = ({
                             />
                         </Group>
 
-                        <Config.Group>
-                            <Config.Label>{`Format`}</Config.Label>
-                            <CartesianChartFormatConfig
-                                format={
-                                    currentConfig?.display?.yAxis?.[0]?.format
-                                }
-                                onChangeFormat={(value) => {
-                                    dispatch(
-                                        actions.setYAxisFormat({
-                                            format: value,
-                                            index: 0,
-                                        }),
-                                    );
-                                }}
-                            />
-                        </Config.Group>
+                        <CartesianChartFormatConfig
+                            axis={currentConfig?.display?.yAxis?.[0]}
+                            onChangeFormatOption={(path, value) => {
+                                dispatch(
+                                    actions.setYAxisFormatOption({
+                                        index: 0,
+                                        path,
+                                        value,
+                                    }),
+                                );
+                            }}
+                        />
                     </Config.Section>
                 </Config>
             )}
@@ -149,22 +145,18 @@ export const CartesianChartDisplayConfig = ({
                             />
                         </Group>
 
-                        <Config.Group>
-                            <Config.Label>{`Format`}</Config.Label>
-                            <CartesianChartFormatConfig
-                                format={
-                                    currentConfig?.display?.yAxis?.[1]?.format
-                                }
-                                onChangeFormat={(value) => {
-                                    dispatch(
-                                        actions.setYAxisFormat({
-                                            format: value,
-                                            index: 1,
-                                        }),
-                                    );
-                                }}
-                            />
-                        </Config.Group>
+                        <CartesianChartFormatConfig
+                            axis={currentConfig?.display?.yAxis?.[1]}
+                            onChangeFormatOption={(path, value) => {
+                                dispatch(
+                                    actions.setYAxisFormatOption({
+                                        index: 1,
+                                        path,
+                                        value,
+                                    }),
+                                );
+                            }}
+                        />
                     </Config.Section>
                 </Config>
             )}
