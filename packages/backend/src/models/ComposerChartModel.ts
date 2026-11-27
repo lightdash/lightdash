@@ -10,6 +10,8 @@ import {
     type ComposerChartPipeline,
     type ComposerChartWithDetails,
     type ComposerStoredChart,
+    type UUID,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { validate as isValidUuid } from 'uuid';
@@ -506,9 +508,9 @@ export class ComposerChartModel {
 
     /** A live chart's uuid from its uuid or its slug; slugs are unique within composer charts. */
     async getUuidByUuidOrSlug(
-        projectUuid: string,
-        composerChartUuidOrSlug: string,
-    ): Promise<string> {
+        projectUuid: UUID,
+        composerChartUuidOrSlug: UuidOrSlug,
+    ): Promise<UUID> {
         const row = await this.database(ComposerChartsTableName)
             .select('composer_chart_uuid')
             .where('project_uuid', projectUuid)
@@ -525,13 +527,15 @@ export class ComposerChartModel {
     }
 
     /** The chart with its owner's space and the author of its latest version. */
-    async getWithDetails(uuid: string): Promise<ComposerChartWithDetails> {
+    async getWithDetails(uuid: UUID): Promise<ComposerChartWithDetails> {
         const row = await this.latestVersionQuery()
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${ComposerChartsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function joinLiveDashboard() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${ComposerChartsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .innerJoin(SpaceTableName, function joinOwnerSpace() {
                 this.on(
                     `${SpaceTableName}.space_uuid`,
@@ -556,6 +560,7 @@ export class ComposerChartModel {
                 `${UserTableName}.last_name as updated_by_last_name`,
             )
             .where(`${ComposerChartsTableName}.composer_chart_uuid`, uuid)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .first();
         if (!row) throw new NotFoundError('Composer chart not found');
         return {

@@ -1649,7 +1649,7 @@ describe('ComposerChartService.getParameterReferences', () => {
         ).rejects.toThrow(FeatureNotEnabledError);
     });
 
-    test('lists the page’s parameters while composer charts are off, as the chart run runs', async () => {
+    test('lists the page’s parameters with composer charts off', async () => {
         const service = setupLookup({ flagEnabled: false });
         await expect(
             service.getParameters(
@@ -1769,24 +1769,35 @@ describe('ComposerChartService.get', () => {
     });
 
     const setupGetBySlug = () => {
-        const { service, composerChartModel } = setupGet(spaceOwner);
+        const { service, composerChartModel, spacePermissionService } =
+            setupGet(spaceOwner);
         const getUuidByUuidOrSlug = vi.fn(async () => 'chart-uuid');
         const getWithDetails = vi.fn(async () => ({ uuid: 'chart-uuid' }));
         Object.assign(composerChartModel, {
             getUuidByUuidOrSlug,
             getWithDetails,
         });
-        return { service, getUuidByUuidOrSlug, getWithDetails };
+        return {
+            service,
+            getUuidByUuidOrSlug,
+            getWithDetails,
+            spacePermissionService,
+        };
     };
 
     test('reads a chart by its slug, checking view on the space that owns it', async () => {
-        const { service, getUuidByUuidOrSlug } = setupGetBySlug();
+        const { service, getUuidByUuidOrSlug, spacePermissionService } =
+            setupGetBySlug();
         await expect(
             service.getWithDetails(chartViewer(), projectUuid, 'orders-chart'),
         ).resolves.toEqual({ uuid: 'chart-uuid' });
         expect(getUuidByUuidOrSlug).toHaveBeenCalledWith(
             projectUuid,
             'orders-chart',
+        );
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            defaultSessionUser.userUuid,
+            { type: 'space', spaceUuid: 'space-uuid' },
         );
     });
 

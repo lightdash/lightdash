@@ -716,10 +716,10 @@ export class ComposerChartService extends BaseService {
         return sources.flat();
     }
 
-    /** Answers with the flag off, so a chart stays readable (spec 5). */
+    /** The chart page's read; answers with the flag off, as `get` does. */
     async getWithDetails(
         account: RegisteredAccount,
-        projectUuid: string,
+        projectUuid: UUID,
         composerChartUuidOrSlug: UuidOrSlug,
     ): Promise<ComposerChartWithDetails> {
         const composerChartUuid =
@@ -734,8 +734,8 @@ export class ComposerChartService extends BaseService {
     /** The parameters the chart's nodes reference, for its page; answers with the flag off, as the chart run does. */
     async getParameters(
         account: RegisteredAccount,
-        projectUuid: string,
-        composerChartUuid: string,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
     ): Promise<ComposerChartParameters> {
         const projectParameters =
             await this.projectParametersModel.find(projectUuid);
@@ -756,8 +756,8 @@ export class ComposerChartService extends BaseService {
 
     private async getChartParameterReferences(
         account: RegisteredAccount,
-        projectUuid: string,
-        uuid: string,
+        projectUuid: UUID,
+        uuid: UUID,
         projectDefinitions: ParameterDefinitions,
     ): Promise<Extract<ChartParameterReferencesResult, { error: null }>> {
         const { organizationUuid } = await this.assertCanView(

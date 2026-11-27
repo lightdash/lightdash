@@ -6,6 +6,7 @@ import {
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
+import { useCallback, useRef, useState } from 'react';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 /** Query keys the chart page reads; an agent edit invalidates them. */
@@ -15,33 +16,38 @@ export const COMPOSER_CHART_PAGE_QUERY_KEYS = [
     'composerChartParameters',
 ] as const;
 
-/** A chart run of a space-owned chart for its page; `refresh` bumps on Refresh, which skips the results cache. */
+/** A chart run of a space-owned chart for its page; `refresh` reruns it once, skipping the results cache. */
 export const useComposerChartPageRun = ({
     projectUuid,
     composerChartUuid,
     parameters,
-    refresh,
 }: {
     projectUuid: string;
     composerChartUuid: string;
     parameters: ParametersValuesMap;
-    refresh: { count: number; invalidateCache: boolean };
 }) => {
     const lightdashApi = useLightdashApi();
-    return useQuery<ComposerChartRunResults, ApiError>({
+    const [refreshCount, setRefreshCount] = useState(0);
+    const invalidateNextRun = useRef(false);
+    const refresh = useCallback(() => {
+        invalidateNextRun.current = true;
+        setRefreshCount((count) => count + 1);
+    }, []);
+    const runQuery = useQuery<ComposerChartRunResults, ApiError>({
         queryKey: [
             'composerChartPageRun',
             projectUuid,
             composerChartUuid,
             parameters,
-            refresh,
+            refreshCount,
         ],
         queryFn: () => {
             const body: ExecuteComposerChartRequest = {
                 composerChartUuid,
                 parameters,
-                invalidateCache: refresh.invalidateCache,
+                invalidateCache: invalidateNextRun.current,
             };
+            invalidateNextRun.current = false;
             return lightdashApi<ComposerChartRunResults>({
                 url: `/projects/${projectUuid}/query/composer-chart`,
                 version: 'v2',
@@ -51,6 +57,7 @@ export const useComposerChartPageRun = ({
         },
         keepPreviousData: true,
     });
+    return { runQuery, refresh };
 };
 
 export const useComposerChartParameters = (

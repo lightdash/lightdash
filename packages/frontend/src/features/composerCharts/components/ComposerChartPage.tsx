@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     getComposerChartExportLabels,
+    type ApiErrorDetail,
     type ComposerChartWithDetails,
     type ParametersValuesMap,
     type ParameterValue,
@@ -68,6 +69,13 @@ enum View {
 
 const noop = () => {};
 
+const toErrorDetail = (message: string): ApiErrorDetail => ({
+    name: 'Error',
+    statusCode: 500,
+    message,
+    data: {},
+});
+
 type Props = {
     projectUuid: string;
     chart: ComposerChartWithDetails;
@@ -79,15 +87,10 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
     useRefreshComposerChartOnAgentEdit({ projectUuid, composerChartUuid });
     const [view, setView] = useState<View>(View.CHART);
     const [picks, setPicks] = useState<ParametersValuesMap>({});
-    const [refresh, setRefresh] = useState({
-        count: 0,
-        invalidateCache: false,
-    });
-    const runQuery = useComposerChartPageRun({
+    const { runQuery, refresh } = useComposerChartPageRun({
         projectUuid,
         composerChartUuid,
         parameters: picks,
-        refresh,
     });
     const parametersQuery = useComposerChartParameters(
         projectUuid,
@@ -126,19 +129,10 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
             setPicks(({ [key]: _, ...rest }) =>
                 value === null ? rest : { ...rest, [key]: value },
             );
-            setRefresh((current) => ({ ...current, invalidateCache: false }));
         },
         [],
     );
     const handleClearParameters = useCallback(() => setPicks({}), []);
-    const handleRefresh = useCallback(
-        () =>
-            setRefresh(({ count }) => ({
-                count: count + 1,
-                invalidateCache: true,
-            })),
-        [],
-    );
 
     const { user } = useApp();
     const canExportData = !!user.data?.ability?.can(
@@ -172,15 +166,11 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                 }
                 fallback={({ error }) => (
                     <ErrorState
-                        error={{
-                            name: 'Error',
-                            statusCode: 500,
-                            message:
-                                error instanceof Error
-                                    ? error.message
-                                    : String(error),
-                            data: {},
-                        }}
+                        error={toErrorDetail(
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
+                        )}
                     />
                 )}
             >
@@ -240,7 +230,7 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                 size="md"
                                 aria-label="Refresh"
                                 loading={runQuery.isFetching}
-                                onClick={handleRefresh}
+                                onClick={refresh}
                             >
                                 <MantineIcon icon={IconRefresh} />
                             </ActionIcon>
@@ -343,12 +333,7 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                             (errorMessage !== null ? (
                                 <ErrorState
                                     error={
-                                        runError ?? {
-                                            name: 'Error',
-                                            statusCode: 500,
-                                            message: errorMessage,
-                                            data: {},
-                                        }
+                                        runError ?? toErrorDetail(errorMessage)
                                     }
                                 />
                             ) : isDrawn ? (
