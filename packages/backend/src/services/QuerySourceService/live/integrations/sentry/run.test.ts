@@ -215,6 +215,97 @@ describe('sentryIntegration errors', () => {
         ]);
     });
 
+    it('counts one issue a row when grouped by issue, and does not ask Sentry to', async () => {
+        const { source, send } = connect(
+            response({
+                data: [
+                    {
+                        release: '1.0.7',
+                        issue: 'MOBILE-IOS-1A',
+                        'issue.id': 42,
+                        'count()': 3,
+                        'count_unique(user)': 2,
+                    },
+                ],
+            }),
+        );
+
+        const result = await run(source, {
+            kind: 'errors',
+            columns: ['release', 'issue', 'issues', 'events', 'users_affected'],
+            ...RANGE,
+            // The same on every row, so it is not sent either
+            sort: { column: 'issues', descending: true },
+        });
+
+        const call = sent(send);
+        // Sentry refuses a field both grouped by and counted
+        expect(call.get('field')).toEqual([
+            'release',
+            'issue',
+            'count()',
+            'count_unique(user)',
+            'issue.id',
+        ]);
+        expect(call.get('sort')).toEqual(['release', 'issue.id']);
+        expect(result.rows).toEqual([
+            {
+                release: '1.0.7',
+                issue: 'MOBILE-IOS-1A',
+                issues: 1,
+                events: 3,
+                users_affected: 2,
+            },
+        ]);
+    });
+
+    it('still makes Sentry group when Issues by issue is the only metric', async () => {
+        const { source, send } = connect(
+            response({
+                data: [
+                    { issue: 'MOBILE-IOS-1A', 'issue.id': 42, 'count()': 3 },
+                ],
+            }),
+        );
+
+        const result = await run(source, {
+            kind: 'errors',
+            columns: ['issue', 'issues'],
+            ...RANGE,
+        });
+
+        expect(sent(send).get('field')).toEqual([
+            'issue',
+            'count()',
+            'issue.id',
+        ]);
+        expect(result.rows).toEqual([{ issue: 'MOBILE-IOS-1A', issues: 1 }]);
+    });
+
+    it('asks Sentry to count issues by any other dimension, each field once', async () => {
+        const { source, send } = connect(
+            response({
+                data: [{ title: 'App Hang', 'count_unique(issue)': 4 }],
+            }),
+        );
+
+        const result = await run(source, {
+            kind: 'errors',
+            columns: ['title', 'issues'],
+            ...RANGE,
+            sort: { column: 'issues', descending: true },
+        });
+
+        const fields = sent(send).get('field');
+        expect(fields).toEqual(['title', 'count_unique(issue)']);
+        expect(new Set(fields).size).toBe(fields.length);
+        expect(sent(send).get('sort')).toEqual([
+            '-count_unique(issue)',
+            'title',
+        ]);
+        expect(result.rows).toEqual([{ title: 'App Hang', issues: 4 }]);
+    });
+
     it("names the source's projects on every call, so Sentry reads no other", async () => {
         const { source, send } = connect(
             response({ data: [] }),
@@ -578,21 +669,24 @@ describe('sentryIntegration sessions', () => {
 describe('sentryIntegration errors from Sentry', () => {
     const request = { kind: 'errors', columns: ['events'], ...RANGE };
 
+    // Sentry's own text names its fields and functions, never the explore's
+    const SENTRY_TEXT =
+        'To use issue.id you must first remove the function(s): count_unique(issue)';
+
     it.each([
-        [401, WarehouseConnectionError, /rejected the auth token/],
+        [401, WarehouseConnectionError, /rejected the auth token\. Create/],
         [403, WarehouseConnectionError, /read access to Organization/],
         [404, WarehouseConnectionError, /organization "acme"/],
-        [400, WarehouseQueryError, /couldn't run this query: Invalid query/],
-        [503, UnexpectedServerError, /returned 503/],
-    ])('explains a %i', async (status, type, message) => {
-        const { source } = connect(
-            response({ detail: 'Invalid query.' }, status),
-        );
+        [400, WarehouseQueryError, /couldn't run this query\. Check/],
+        [503, UnexpectedServerError, /returned 503$/],
+    ])('explains a %i in its own words', async (status, type, message) => {
+        const { source } = connect(response({ detail: SENTRY_TEXT }, status));
 
         const failed = run(source, request);
 
         await expect(failed).rejects.toBeInstanceOf(type);
         await expect(failed).rejects.toThrow(message);
+        await expect(failed).rejects.not.toThrow(/issue\.id|count_unique/);
     });
 
     it('reads when to retry from the rate limit headers', async () => {

@@ -223,6 +223,63 @@ describe('compileSentryQuery on errors', () => {
         ).toEqual(byIssue);
     });
 
+    it('drops a sort on Issues when grouped by issue, where it is 1 on every row', () => {
+        const dimensions = [error('release'), error('issue')];
+        const metrics = [
+            error('issues'),
+            error('events'),
+            error('users_affected'),
+        ];
+        const onlyIssues = compile(
+            ERRORS,
+            query('sentry_errors', {
+                dimensions,
+                metrics,
+                sorts: [{ fieldId: error('issues'), descending: true }],
+            }),
+        );
+        expect(onlyIssues.request.columns).toEqual([
+            'release',
+            'issue',
+            'issues',
+            'events',
+            'users_affected',
+        ]);
+        expect(onlyIssues.request.sort).toBeUndefined();
+        expect(onlyIssues.localSorts).toEqual([]);
+
+        // The sort that is left is one Sentry can apply
+        const thenEvents = compile(
+            ERRORS,
+            query('sentry_errors', {
+                dimensions,
+                metrics,
+                sorts: [
+                    { fieldId: error('issues'), descending: true },
+                    { fieldId: error('events'), descending: true },
+                ],
+            }),
+        );
+        expect(thenEvents.request.sort).toEqual({
+            column: 'events',
+            descending: true,
+        });
+        expect(thenEvents.localSorts).toEqual([]);
+    });
+
+    it('keeps a sort on Issues by any other dimension', () => {
+        const { request } = compile(
+            ERRORS,
+            query('sentry_errors', {
+                dimensions: [error('title')],
+                metrics: [error('issues')],
+                sorts: [{ fieldId: error('issues'), descending: true }],
+            }),
+        );
+
+        expect(request.sort).toEqual({ column: 'issues', descending: true });
+    });
+
     it('reads every row it may when the sort is ours', () => {
         const compiled = compileLiveMetricQuery({
             explore: ERRORS,

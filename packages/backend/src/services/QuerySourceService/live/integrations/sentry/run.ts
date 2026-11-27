@@ -481,15 +481,29 @@ const runErrors = async ({
     limit: number;
     calls: LiveCalls;
 }): Promise<LiveRunResult> => {
-    const { columns, sort } = request;
-    // Sentry groups rows only when a function is selected; without one it
-    // lists events one by one
+    const { columns } = request;
+    // Sentry refuses to count a field it also groups by. Grouped by issue,
+    // each row is one issue, so Issues is 1 and is not asked for.
+    const isOneIssueARow =
+        columns.includes('issue') && columns.includes('issues');
+    const isAskedFor = (column: ErrorColumn) =>
+        !(isOneIssueARow && column === 'issues');
+    const askedFor = columns.filter(isAskedFor);
+    // Every row has the same Issues then, so it orders nothing
+    const sort =
+        request.sort && isAskedFor(request.sort.column)
+            ? request.sort
+            : undefined;
     const fields = [
-        ...columns.map((column) => ERROR_FIELDS[column]),
-        ...(columns.some((column) => ERROR_METRICS.includes(column))
-            ? []
-            : [ERROR_FIELDS.events]),
-        ...(columns.includes('issue') ? [ISSUE_ORDER_FIELD] : []),
+        ...new Set([
+            ...askedFor.map((column) => ERROR_FIELDS[column]),
+            // Sentry groups rows only when a function is selected; without
+            // one it lists events one by one
+            ...(askedFor.some((column) => ERROR_METRICS.includes(column))
+                ? []
+                : [ERROR_FIELDS.events]),
+            ...(columns.includes('issue') ? [ISSUE_ORDER_FIELD] : []),
+        ]),
     ];
     // Pages are cut by row offset, so rows that tie in the order can repeat
     // on the next page. Every other selected dimension breaks the ties.
@@ -533,7 +547,9 @@ const runErrors = async ({
                     Object.fromEntries(
                         columns.map((column) => [
                             column,
-                            readErrorColumn(row, column),
+                            isAskedFor(column)
+                                ? readErrorColumn(row, column)
+                                : 1,
                         ]),
                     ),
                 ),

@@ -134,7 +134,12 @@ const compileRange = ({ explore, metricQuery, today }: CompileArgs) => {
 
 const compileErrors = (args: CompileArgs): LiveCompiledRequest => {
     const { apiName, columns, ...range } = compileRange(args);
-    const [first, ...others] = args.metricQuery.sorts;
+    // Grouped by issue, Issues is 1 on every row, so it orders nothing
+    const sorts = args.metricQuery.sorts.filter(
+        ({ fieldId }) =>
+            !(apiName(fieldId) === 'issues' && columns.includes('issue')),
+    );
+    const [first, ...others] = sorts;
     const sortColumn = first ? apiName(first.fieldId) : undefined;
     const isSortedBySentry =
         sortColumn !== undefined &&
@@ -156,7 +161,7 @@ const compileErrors = (args: CompileArgs): LiveCompiledRequest => {
     };
     return {
         query: JSON.stringify(request),
-        localSorts: isSortedBySentry ? [] : args.metricQuery.sorts,
+        localSorts: isSortedBySentry ? [] : sorts,
     };
 };
 
