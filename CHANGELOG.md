@@ -1,3 +1,10 @@
+# [3.423.0](https://github.com/lightdash/lightdash/compare/3.422.0...3.423.0) (2026-11-27)
+
+
+### Features
+
+* **live-sources:** give the integrations list a card header and the page's own facts ([#33539](https://github.com/lightdash/lightdash/issues/33539)) ([2d28f9e](https://github.com/lightdash/lightdash/commit/2d28f9ea4ca76c8b7eb8d0ac1158fd53ca588aed))
+
 # [3.422.0](https://github.com/lightdash/lightdash/compare/3.421.0...3.422.0) (2026-11-27)
 
 
