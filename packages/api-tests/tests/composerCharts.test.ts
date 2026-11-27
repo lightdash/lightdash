@@ -820,14 +820,11 @@ describe('Composer charts', () => {
     });
 
     describe('chart permissions', () => {
-        type RoleUser = {
-            client: ApiClient;
-            roleUuid: string;
-            userUuid: string;
-        };
-        const roleUsers: RoleUser[] = [];
+        // Tracked as soon as each exists, so a failed setup still cleans up
+        const roleUuids: string[] = [];
+        const assignedUserUuids: string[] = [];
 
-        const roleUser = async (scopes: string[]): Promise<RoleUser> => {
+        const roleUser = async (scopes: string[]): Promise<ApiClient> => {
             const role = await admin.post<Body<{ roleUuid: string }>>(
                 `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles`,
                 {
@@ -837,6 +834,7 @@ describe('Composer charts', () => {
                 },
             );
             expect(role.status).toBe(201);
+            roleUuids.push(role.body.results.roleUuid);
             const { client, email } = await loginWithPermissions('member', []);
             const user =
                 await client.get<Body<{ userUuid: string }>>('/api/v1/user');
@@ -846,22 +844,19 @@ describe('Composer charts', () => {
                 { roleId: role.body.results.roleUuid },
             );
             expect(assigned.status).toBe(200);
-            const created = {
-                client: await loginWithEmail(email),
-                roleUuid: role.body.results.roleUuid,
-                userUuid: user.body.results.userUuid,
-            };
-            roleUsers.push(created);
-            return created;
+            assignedUserUuids.push(user.body.results.userUuid);
+            return loginWithEmail(email);
         };
 
         afterAll(async () => {
-            for (const { roleUuid, userUuid } of roleUsers) {
-                // A role still assigned cannot be deleted
+            // A role still assigned cannot be deleted
+            for (const userUuid of assignedUserUuids) {
                 const unassigned = await admin.delete(
                     `/api/v2/projects/${projectUuid}/roles/assignments/user/${userUuid}`,
                 );
                 expect(unassigned.status).toBe(200);
+            }
+            for (const roleUuid of roleUuids) {
                 const deleted = await admin.delete(
                     `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles/${roleUuid}`,
                 );
@@ -881,7 +876,7 @@ describe('Composer charts', () => {
         it('lets a role that views charts but not dashboards read and run a dashboard chart', async () => {
             const { dashboard, chart, tileUuid } =
                 await createViewableDashboard();
-            const { client } = await roleUser(['view:SavedChart']);
+            const client = await roleUser(['view:SavedChart']);
 
             const read = await client.get(`${chartsUrl}/${chart.uuid}`);
             expect(read.status).toBe(200);
@@ -899,7 +894,7 @@ describe('Composer charts', () => {
         it('refuses a role that views dashboards but not charts, as for a classic tile', async () => {
             const { dashboard, chart, tileUuid } =
                 await createViewableDashboard();
-            const { client } = await roleUser(['view:Dashboard']);
+            const client = await roleUser(['view:Dashboard']);
 
             const read = await client.get(`${chartsUrl}/${chart.uuid}`, {
                 failOnStatusCode: false,
@@ -922,7 +917,7 @@ describe('Composer charts', () => {
 
         it('lets a role that writes charts but not dashboards save a chart onto a dashboard', async () => {
             const dashboard = await createDashboard();
-            const { client } = await roleUser([
+            const client = await roleUser([
                 ...authorScopes,
                 'manage:SavedChart',
             ]);
@@ -935,7 +930,7 @@ describe('Composer charts', () => {
 
         it('refuses a role that writes dashboards but not charts saving a chart onto a dashboard', async () => {
             const dashboard = await createDashboard();
-            const { client } = await roleUser([
+            const client = await roleUser([
                 ...authorScopes,
                 'manage:Dashboard',
             ]);
