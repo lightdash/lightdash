@@ -1100,6 +1100,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'SemanticStudioController.compileCheckout': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getCheckout': [AgentCapability.ReadDiscover],
+    'SemanticStudioController.getCheckoutUnbuiltFields': [
+        AgentCapability.ReadDiscover,
+    ],
     'SemanticStudioController.publishCheckout': [AgentCapability.DbtWriteback],
     'SemanticStudioController.discardDraftModel': [
         AgentCapability.DbtWriteback,
