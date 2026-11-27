@@ -331,6 +331,8 @@ interface AgentChatInputProps {
     toolbarStart?: ReactNode;
     // Rendered directly under the card composer, before suggestions.
     composerTray?: ReactNode;
+    // Content pinned to the next prompt, shown inside the composer.
+    pinnedContext?: ReactNode;
     // Off where files make no sense: hides the attach menu and ignores dropped files.
     allowAttachments?: boolean;
     // Off where taking focus on mount would pull it from somewhere else on the page.
@@ -426,6 +428,7 @@ export const AgentChatInput = ({
     footerNotice,
     toolbarStart,
     composerTray,
+    pinnedContext,
     allowAttachments = true,
     autoFocus = true,
     hideSuggestionsWhenScrolledUp = true,
@@ -2013,6 +2016,7 @@ export const AgentChatInput = ({
                                     : undefined
                             }
                             attachments={renderedAttachments}
+                            pinned={pinnedContext}
                             toolbarLeft={
                                 // Wraps in a thread so labels never push send out of a narrow card.
                                 <Group
@@ -2090,6 +2094,7 @@ export const AgentChatInput = ({
                         className={styles.agentComposer}
                         onMouseDown={handleInputCardMouseDown}
                         attachments={renderedAttachments}
+                        pinned={pinnedContext}
                         toolbarLeft={
                             <Group
                                 gap="xs"

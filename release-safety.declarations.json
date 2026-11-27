@@ -397,6 +397,21 @@
                     "mcp": []
                 }
             }
+        },
+        "composer-chart-owner-replaces-dashboard-uuid": {
+            "reason": "GET and POST /api/v2/projects/{projectUuid}/composer-charts now return an owner field, either a dashboard or a space, instead of a top-level dashboardUuid. The @lightdash/common ComposerChart type no longer has dashboardUuid. The create request still takes dashboardUuid. The web app is the only caller. Its dashboard tile reads only the pipeline and chart, and its save modal reads only uuid from the create response, so an old tab keeps working during a rolling update.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "Only the web app calls these endpoints: the composer chart dashboard tile reads the chart and the save composer chart modal creates one. Neither reads dashboardUuid from the response.",
+                "covers": {
+                    "rest": [
+                        "POST /api/v2/projects/{projectUuid}/composer-charts",
+                        "GET /api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid}"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }

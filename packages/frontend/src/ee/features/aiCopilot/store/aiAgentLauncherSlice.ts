@@ -1,4 +1,8 @@
-import { type AiDashboardRuntimeOverrides } from '@lightdash/common';
+import {
+    type AiDashboardRuntimeOverrides,
+    type AiPromptContextInput,
+    type AiPromptContextItem,
+} from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { type LauncherActiveAgentUuid } from '../components/Launcher/launcherAgentSelection';
 
@@ -17,6 +21,13 @@ export type LauncherPendingContext = {
     dashboardUuid?: string;
     dataAppUuid?: string;
     documentUuid?: string;
+};
+
+/** Content that goes out with the next prompt: what is sent, and how it is shown. */
+export type LauncherPinnedContextEntry = {
+    key: string;
+    input: AiPromptContextInput[number];
+    preview: AiPromptContextItem;
 };
 
 export type LauncherCurrentDashboard = {
@@ -55,7 +66,11 @@ export interface AiAgentLauncherState {
     view: LauncherView;
     activeThreadId: string | null;
     activeAgentUuid: LauncherActiveAgentUuid | null;
+    /** Content asked about from a page, until its names have loaded. */
     pendingContext: LauncherPendingContext | null;
+    pinnedContext: LauncherPinnedContextEntry[];
+    /** The user removed the dashboard on screen from the next prompt. */
+    pageContextDismissed: boolean;
     /** A prompt to send as soon as the new-thread panel is ready. */
     pendingPrompt: string | null;
     currentDashboard: LauncherCurrentDashboard | null;
@@ -70,11 +85,37 @@ const initialState: AiAgentLauncherState = {
     activeThreadId: null,
     activeAgentUuid: null,
     pendingContext: null,
+    pinnedContext: [],
+    pageContextDismissed: false,
     pendingPrompt: null,
     currentDashboard: null,
     currentDataApp: null,
     currentDocument: null,
     dashboardRefreshRequest: null,
+};
+
+const clearNextPromptContext = (state: AiAgentLauncherState) => {
+    state.pendingContext = null;
+    state.pinnedContext = [];
+    state.pageContextDismissed = false;
+};
+
+const addPinnedContext = (
+    state: AiAgentLauncherState,
+    entries: LauncherPinnedContextEntry[],
+) => {
+    const pinnedKeys = new Set(state.pinnedContext.map(({ key }) => key));
+    entries.forEach((entry) => {
+        if (pinnedKeys.has(entry.key)) return;
+        pinnedKeys.add(entry.key);
+        state.pinnedContext.push(entry);
+    });
+    const pinsDashboardOnScreen = entries.some(
+        ({ preview }) =>
+            preview.type === 'dashboard' &&
+            preview.dashboardUuid === state.currentDashboard?.uuid,
+    );
+    if (pinsDashboardOnScreen) state.pageContextDismissed = false;
 };
 
 export const aiAgentLauncherSlice = createSlice({
@@ -89,6 +130,10 @@ export const aiAgentLauncherSlice = createSlice({
                 pendingContext?: LauncherPendingContext | null;
             }>,
         ) => {
+            // Switching agent on a new thread keeps what was pinned to it.
+            if (action.payload.threadId !== state.activeThreadId) {
+                clearNextPromptContext(state);
+            }
             state.mode = 'panel-open';
             state.view = 'chat';
             state.activeThreadId = action.payload.threadId;
@@ -108,6 +153,7 @@ export const aiAgentLauncherSlice = createSlice({
                 pendingPrompt?: string | null;
             }>,
         ) => {
+            clearNextPromptContext(state);
             state.mode = 'panel-open';
             state.view = 'chat';
             state.activeThreadId = null;
@@ -115,8 +161,66 @@ export const aiAgentLauncherSlice = createSlice({
             state.pendingContext = action.payload.pendingContext ?? null;
             state.pendingPrompt = action.payload.pendingPrompt ?? null;
         },
+        // Pins the context to the thread on screen; with none, a new thread.
+        attachContextOrStartThread: (
+            state,
+            action: PayloadAction<{
+                pendingContext: LauncherPendingContext | null;
+            }>,
+        ) => {
+            const hasThreadOnScreen =
+                state.mode === 'panel-open' &&
+                state.view === 'chat' &&
+                state.activeThreadId !== null;
+            if (!hasThreadOnScreen) {
+                clearNextPromptContext(state);
+                state.activeThreadId = null;
+                state.activeAgentUuid = null;
+                state.pendingPrompt = null;
+            }
+            state.mode = 'panel-open';
+            state.view = 'chat';
+            state.pendingContext = action.payload.pendingContext;
+        },
+        // The thread on screen cannot be replied to: its context moves to a
+        // new thread.
+        startThreadKeepingContext: (state) => {
+            state.activeThreadId = null;
+            state.activeAgentUuid = null;
+        },
         clearPendingPrompt: (state) => {
             state.pendingPrompt = null;
+        },
+        // The names of the pending content loaded: it joins the pinned list.
+        pendingContextResolved: (
+            state,
+            action: PayloadAction<LauncherPinnedContextEntry[]>,
+        ) => {
+            state.pendingContext = null;
+            addPinnedContext(state, action.payload);
+        },
+        unpinContext: (
+            state,
+            action: PayloadAction<{
+                key: string;
+                dashboardUuid: string | null;
+            }>,
+        ) => {
+            state.pinnedContext = state.pinnedContext.filter(
+                ({ key }) => key !== action.payload.key,
+            );
+            // The dashboard on screen is added on its own, so removing its
+            // chip has to hold that back too.
+            if (
+                action.payload.dashboardUuid !== null &&
+                action.payload.dashboardUuid === state.currentDashboard?.uuid
+            ) {
+                state.pageContextDismissed = true;
+            }
+        },
+        // After a prompt is sent; the dashboard stays dismissed for the thread.
+        clearPinnedContext: (state) => {
+            state.pinnedContext = [];
         },
         setActiveAgent: (
             state,
@@ -132,7 +236,7 @@ export const aiAgentLauncherSlice = createSlice({
             state.view = 'chat';
             state.activeThreadId = null;
             state.activeAgentUuid = null;
-            state.pendingContext = null;
+            clearNextPromptContext(state);
         },
         // Cascade-reset the active panel when a dock item is removed externally
         // (the dock itself is owned by `LauncherDockProvider`/localStorage).
@@ -145,13 +249,16 @@ export const aiAgentLauncherSlice = createSlice({
                 state.view = 'chat';
                 state.activeThreadId = null;
                 state.activeAgentUuid = null;
-                state.pendingContext = null;
+                clearNextPromptContext(state);
             }
         },
         setCurrentDashboard: (
             state,
             action: PayloadAction<LauncherCurrentDashboard | null>,
         ) => {
+            if (action.payload?.uuid !== state.currentDashboard?.uuid) {
+                state.pageContextDismissed = false;
+            }
             state.currentDashboard = action.payload;
         },
         setCurrentDataApp: (
@@ -183,7 +290,12 @@ export const aiAgentLauncherSlice = createSlice({
 });
 
 export const {
+    attachContextOrStartThread,
+    clearPinnedContext,
     clearPendingPrompt,
+    pendingContextResolved,
+    startThreadKeepingContext,
+    unpinContext,
     openPanel,
     openAnalysisPanel,
     openDefaultAgentPanel,

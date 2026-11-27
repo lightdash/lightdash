@@ -85678,6 +85678,38 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComposerChartOwner: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dashboardUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['dashboard'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        spaceUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['space'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ComposerChart: {
         dataType: 'refAlias',
         type: {
@@ -85714,7 +85746,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 name: { dataType: 'string', required: true },
-                dashboardUuid: { dataType: 'string', required: true },
+                owner: { ref: 'ComposerChartOwner', required: true },
                 projectUuid: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
             },

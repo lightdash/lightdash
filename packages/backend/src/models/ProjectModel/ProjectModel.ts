@@ -8367,6 +8367,7 @@ export class ProjectModel {
                 trx,
                 previewProjectUuid,
                 previewDashboardUuidBySource,
+                previewSpaceUuidBySource,
                 previewDashboardVersionIdBySource,
             );
 

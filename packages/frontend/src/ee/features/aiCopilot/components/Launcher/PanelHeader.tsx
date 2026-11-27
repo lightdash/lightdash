@@ -23,6 +23,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import { pinnedEntriesToPendingContext } from '../PinnedContextChips/pinnableContext';
 import styles from './AiAgentsLauncher.module.css';
 import {
     getConcreteLauncherAgent,
@@ -56,6 +57,9 @@ export const PanelHeader: FC<Props> = ({
     const pendingContext = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.pendingContext,
     );
+    const pinned = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.pinnedContext,
+    );
     const { data: aiRouterConfig } = useAiRouterConfig();
     const isAuto = isLauncherAutoAgent(agent);
     const showAutoOption =
@@ -85,7 +89,12 @@ export const PanelHeader: FC<Props> = ({
             if (isAuto) return;
             target = `/projects/${projectUuid}/ai-agents/${agent.uuid}/threads/${threadId}`;
         } else {
-            target = buildNewThreadUrl({ projectUuid, agent, pendingContext });
+            target = buildNewThreadUrl({
+                projectUuid,
+                agent,
+                pendingContext:
+                    pendingContext ?? pinnedEntriesToPendingContext(pinned),
+            });
         }
         dispatch(closePanel());
         void navigate(target);

@@ -437,6 +437,7 @@ import {
     AiDeepResearchRunModel,
     type AiDeepResearchRunContextRow,
 } from '../../models/AiDeepResearchRunModel';
+import { type AiRouterModel } from '../../models/AiRouterModel';
 import {
     IMAGE_ATTACHMENT_LIMIT_MESSAGE,
     type AiThreadFileModel,
@@ -791,6 +792,7 @@ import {
     deliverSlackArtifactImages,
     type SlackArtifactDeliveryRuntime,
 } from './SlackArtifactImageDelivery';
+import { buildSlackRoutingInstructions } from './slackRoutingInstructions';
 import {
     canGeneratePostResponseSuggestions,
     filterSuggestionsByEnabledTools,
@@ -1089,6 +1091,10 @@ type AiAgentServiceDependencies = {
         | 'assertActorVerifiedWithRequest'
     >;
     aiAgentModel: AiAgentModel;
+    aiRouterModel: Pick<
+        AiRouterModel,
+        'findByOrganization' | 'getLatestInstruction'
+    >;
     appModel: Pick<
         AppModel,
         'findVisualizationApp' | 'findAppByUuid' | 'getVersion'
@@ -1379,6 +1385,8 @@ export class AiAgentService extends BaseService {
     private readonly agentActionLogModel: AiAgentServiceDependencies['agentActionLogModel'];
     private readonly agentPermissionService: AiAgentServiceDependencies['agentPermissionService'];
     private readonly aiAgentModel: AiAgentModel;
+
+    private readonly aiRouterModel: AiAgentServiceDependencies['aiRouterModel'];
 
     private readonly appModel: Pick<
         AppModel,
@@ -2283,6 +2291,7 @@ export class AiAgentService extends BaseService {
     constructor(dependencies: AiAgentServiceDependencies) {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
+        this.aiRouterModel = dependencies.aiRouterModel;
         this.agentActionLogModel = dependencies.agentActionLogModel;
         this.agentPermissionService = dependencies.agentPermissionService;
         this.appModel = dependencies.appModel;
@@ -22520,6 +22529,51 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         return new Map(entries.filter((entry) => entry !== undefined));
     }
 
+    // A failed lookup routes without admin rules rather than blocking the reply.
+    private async getSlackRoutingInstructions(
+        organizationUuid: string,
+        candidates: AiAgentWithContext[],
+    ): Promise<string | null> {
+        try {
+            const router =
+                await this.aiRouterModel.findByOrganization(organizationUuid);
+            if (!router) return null;
+
+            const projectUuids = [
+                ...new Set(candidates.map((agent) => agent.projectUuid)),
+            ];
+            const instructions = await Promise.all(
+                projectUuids.map((projectUuid) =>
+                    this.aiRouterModel.getLatestInstruction({
+                        routerUuid: router.routerUuid,
+                        projectUuid,
+                    }),
+                ),
+            );
+            if (instructions.every((instruction) => !instruction)) return null;
+
+            const projectNames =
+                projectUuids.length > 1
+                    ? await this.getAgentSelectProjectMap(candidates)
+                    : new Map<string, string>();
+
+            return buildSlackRoutingInstructions(
+                projectUuids.map((projectUuid, index) => ({
+                    projectName: projectNames.get(projectUuid) ?? projectUuid,
+                    agentNames: candidates
+                        .filter((agent) => agent.projectUuid === projectUuid)
+                        .map((agent) => agent.name),
+                    instruction: instructions[index]?.instruction ?? null,
+                })),
+            );
+        } catch (error) {
+            Logger.warn(
+                `Failed to load Slack routing instructions: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+    }
+
     /**
      * Show agent selection UI when multiple agents are available
      */
@@ -22828,6 +22882,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             model,
             candidates: availableAgents,
             prompt: messageText,
+            instructions: await this.getSlackRoutingInstructions(
+                organizationUuid,
+                availableAgents,
+            ),
             decisions,
             telemetry: { organizationUuid, userUuid, keyManagement },
         });

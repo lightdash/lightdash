@@ -63,6 +63,7 @@ When the backend creates a presigned URL for browser-direct upload, it uses `S3_
 
 -   Assume the dev-server is always running and watching source files; a separate `api-routes-watch` process regenerates TSOA routes when controllers change, so backend and generated-route changes reload the API automatically.
 -   Always use package-specific commands for faster linting/typechecking/testing.
+-   After changing an exported `@lightdash/common` type, typecheck every dependent: `pnpm -F '...@lightdash/common' typecheck` covers `api-tests`, `e2e`, `cli` and `query-sdk` too.
 
 **Code Quality:**
 
@@ -219,13 +220,13 @@ refresh/restart behavior, and remove temporary ENV overrides after rollout.
 
 ## Authorization & Custom Roles
 
-**When adding or changing a permission scope, use the `ld-permissions` skill** — it has the full checklist of ability layers to update (forgetting `serviceAccountAbility.ts` breaks CI/CD pipelines).
+**When adding a permission scope, also update `packages/common/src/authorization/serviceAccountAbility.ts`** — forgetting it breaks CI/CD pipelines.
 
 **Important behavior:**
 
 -   CASL abilities are **additive** - org-level permissions cannot be revoked by project-level custom roles
 -   If a permission should be restrictable via custom roles, do NOT add it to org-level developer/editor abilities
--   **Changing the scope vocabulary (rename / split / merge / remove) requires a Knex migration against `scoped_roles`** — custom roles persist scope names as strings and do not auto-update. See the `ld-permissions` skill for the migration checklist and patterns.
+-   **Changing the scope vocabulary (rename / split / merge / remove) requires a Knex migration against `scoped_roles`** — custom roles persist scope names as strings and do not auto-update.
 -   **Embed capabilities are scopes, not JWT flags**: gate new embedded features with an embed scope on the embed's write actor (user or service account), never a new boolean on the JWT `content`. See `packages/common/src/authorization/AGENTS.md`.
 
 ## TypeScript Project References

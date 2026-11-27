@@ -214,6 +214,29 @@ const getIconMeta = ({
     }
 };
 
+/** The icon a kind of content is drawn with, on its own. */
+export const ContentReferenceIcon = ({
+    chartKind,
+    kind,
+    size,
+}: {
+    chartKind?: ChartKind;
+    kind: ContentReferenceKind;
+    size: number;
+}) => {
+    const { color, fill, icon } = getIconMeta({ chartKind, kind });
+    return (
+        <MantineIcon
+            icon={icon}
+            size={size}
+            color={color}
+            fill={fill}
+            fillOpacity={0.2}
+            stroke={1.5}
+        />
+    );
+};
+
 export const ContentReferenceLink = ({
     chartKind,
     children,
@@ -224,7 +247,10 @@ export const ContentReferenceLink = ({
     to,
     ...props
 }: Props) => {
-    const { color, fill, icon } = getIconMeta({ chartKind, kind });
+    const { color, fill, icon } = getIconMeta({
+        chartKind,
+        kind,
+    });
 
     const content = (
         <>
@@ -242,12 +268,14 @@ export const ContentReferenceLink = ({
             </Text>
 
             {showArrow && (
-                <MantineIcon
-                    icon={trailingIcon ?? IconArrowRight}
-                    color="dimmed"
-                    size={11}
-                    stroke={1.5}
-                />
+                <span className={styles.arrow}>
+                    <MantineIcon
+                        icon={trailingIcon ?? IconArrowRight}
+                        color="dimmed"
+                        size={11}
+                        stroke={1.5}
+                    />
+                </span>
             )}
         </>
     );

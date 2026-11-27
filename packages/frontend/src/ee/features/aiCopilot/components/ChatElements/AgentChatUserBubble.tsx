@@ -27,6 +27,7 @@ import { PinnedReviewContextGroup } from '../PinnedContextCard/PinnedReviewEntit
 import { isReviewEntityItem } from '../PinnedContextCard/reviewEntityItem';
 import { useAiThreadChartEdit } from '../ThreadChartEditor/useAiThreadChartEdit';
 import styles from './AgentChatUserBubble.module.css';
+import contentLinkStyles from './ContentLink.module.css';
 import { ContentReferenceLink } from './ContentReferenceLink';
 import {
     buildContentReferenceSegments,
@@ -149,7 +150,12 @@ export const UserBubble: FC<Props> = ({
                     className={styles.contextGroup}
                 >
                     {otherContext.length > 0 && (
-                        <Group gap="xs" wrap="wrap" justify="flex-end">
+                        <Group
+                            gap={2}
+                            wrap="wrap"
+                            justify="flex-end"
+                            className={contentLinkStyles.quietLinks}
+                        >
                             {otherContext.map((item, idx) => (
                                 <PinnedContextCard
                                     key={`${getPromptContextItemKey(item)}-${idx}`}

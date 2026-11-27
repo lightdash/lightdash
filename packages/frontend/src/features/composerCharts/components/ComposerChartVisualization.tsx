@@ -19,8 +19,10 @@ import { ComposerChartRenderTargetContext } from '../../chartTypes/composerChart
 type Props = {
     projectUuid: string;
     composerChartUuid: string | null;
-    dashboardUuid: string | undefined;
-    tileUuid: string;
+    /** Picks the dashboard's color palette over the project's. */
+    dashboardUuid: string | null;
+    tileUuid: string | null;
+    isDashboard: boolean;
     isTitleHidden: boolean;
     minimal: boolean;
     draw: ComposerChartDraw;
@@ -32,12 +34,13 @@ type Props = {
     setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
 };
 
-/** A stored composer chart drawn by the classic builders on a dashboard; no drill, underlying data or explore. */
+/** A stored composer chart drawn by the classic builders; no drill, underlying data or explore, so it needs no dashboard. */
 export const ComposerChartVisualization: FC<Props> = ({
     projectUuid,
     composerChartUuid,
     dashboardUuid,
     tileUuid,
+    isDashboard,
     isTitleHidden,
     minimal,
     draw,
@@ -50,7 +53,7 @@ export const ComposerChartVisualization: FC<Props> = ({
     const colorScheme = useComputedColorScheme();
     const { data: org } = useOrganization();
     const { data: palette } = useProjectColorPalette(projectUuid, {
-        dashboardUuid,
+        dashboardUuid: dashboardUuid ?? undefined,
     });
     const colorPalette = useMemo(
         () =>
@@ -93,7 +96,7 @@ export const ComposerChartVisualization: FC<Props> = ({
                 colorPalette={colorPalette}
                 isLoading={results.isFetchingRows}
                 unsavedMetricQuery={metricQuery}
-                isDashboard
+                isDashboard={isDashboard}
                 setEchartsRef={setEchartsRef}
             >
                 <ComposerChartRenderTargetContext.Provider
@@ -102,9 +105,10 @@ export const ComposerChartVisualization: FC<Props> = ({
                     <LightdashVisualization
                         className="sentry-block ph-no-capture"
                         data-testid="composer-chart-visualization"
-                        isDashboard
-                        tileUuid={tileUuid}
+                        isDashboard={isDashboard}
+                        tileUuid={tileUuid ?? undefined}
                         isTitleHidden={isTitleHidden}
+                        // No drill; also keeps dashboard-only cell menus unreachable
                         enableContextMenu={false}
                         onScreenshotReady={onScreenshotReady}
                         onScreenshotError={onScreenshotError}

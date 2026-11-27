@@ -293,6 +293,26 @@ const SupersededJobRow: FC<{
 );
 
 // Unified component for job rows (success, failure, partial failure)
+// A retried job logs an error per failed attempt before its final outcome
+const getLatestTerminalLog = (
+    logs: SchedulerRunLog[],
+): SchedulerRunLog | undefined =>
+    logs
+        .filter(
+            (log) =>
+                log.status === SchedulerJobStatus.COMPLETED ||
+                log.status === SchedulerJobStatus.ERROR,
+        )
+        .reduce<SchedulerRunLog | undefined>(
+            (latest, log) =>
+                latest &&
+                new Date(latest.createdAt).getTime() >
+                    new Date(log.createdAt).getTime()
+                    ? latest
+                    : log,
+            undefined,
+        );
+
 const JobRow: FC<{
     job: JobSummary;
     run: SchedulerRun;
@@ -314,6 +334,12 @@ const JobRow: FC<{
         job.task === 'handleScheduledDelivery' &&
         job.finalStatus === SchedulerJobStatus.COMPLETED &&
         partialFailures.length > 0;
+    // A delivery where every chart failed is an error that still lists them
+    const hasFailureList =
+        isPartialFailure ||
+        (isError &&
+            job.task === 'handleScheduledDelivery' &&
+            partialFailures.length > 0);
     const hasDetails = isError || isPartialFailure;
 
     // Determine status icon
@@ -449,7 +475,7 @@ const JobRow: FC<{
                     {job.errorDetails}
                 </Code>
             )}
-            {isPartialFailure && (
+            {hasFailureList && (
                 <Stack gap="xs">
                     {partialFailures.map((failure, index) => {
                         return (
@@ -713,12 +739,8 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                     (log) => log.status === SchedulerJobStatus.STARTED,
                 );
 
-                // Find completed or error event (final status)
-                const completedLog = logs.find(
-                    (log) =>
-                        log.status === SchedulerJobStatus.COMPLETED ||
-                        log.status === SchedulerJobStatus.ERROR,
-                );
+                // Final status: the last attempt's, not an earlier retry's
+                const completedLog = getLatestTerminalLog(logs);
 
                 // Get target info from started log (or first log with target, or first log)
                 const logWithTarget =
@@ -802,12 +824,11 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
     const partialFailures = useMemo<PartialFailure[]>(() => {
         if (!childLogs) return [];
 
-        // Find the parent job's completed log (handleScheduledDelivery task)
-        const parentCompletedLog = childLogs.find(
-            (log) =>
-                log.isParent &&
-                log.task === 'handleScheduledDelivery' &&
-                log.status === SchedulerJobStatus.COMPLETED,
+        // The parent job's final log (handleScheduledDelivery task)
+        const parentCompletedLog = getLatestTerminalLog(
+            childLogs.filter(
+                (log) => log.isParent && log.task === 'handleScheduledDelivery',
+            ),
         );
 
         if (!parentCompletedLog?.details?.partialFailures) return [];

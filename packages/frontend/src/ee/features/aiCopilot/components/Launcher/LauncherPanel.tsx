@@ -3,7 +3,7 @@ import {
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
-import { Avatar, Center, Group, Loader, Stack, Text } from '@mantine/core';
+import { Avatar, Center, Loader, Stack, Text } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -23,7 +23,6 @@ import {
     type StartDeepResearchArgs,
 } from '../../deepResearch/types';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
-import { useDashboardPageContextCuration } from '../../hooks/useDashboardPageContextCuration';
 import {
     useStartDeepResearchForThreadMutation,
     useStartDeepResearchMutation,
@@ -41,7 +40,9 @@ import { useRefreshDocumentOnAgentSave } from '../../hooks/useRefreshDocumentOnA
 import { useThreadModel } from '../../hooks/useThreadModel';
 import {
     clearPendingPrompt,
+    clearPinnedContext,
     openPanel,
+    startThreadKeepingContext,
 } from '../../store/aiAgentLauncherSlice';
 import {
     selectThreadSqlMode,
@@ -58,8 +59,7 @@ import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
 import { getPendingAskUser } from '../ChatElements/askUserQuestions';
 import { contextItemsToContentMentionSuggestions } from '../ChatElements/contentMentions';
-import { getPromptContextItemKey } from '../ChatElements/contentReferenceUtils';
-import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
+import { pinnedEntriesToPendingContext } from '../PinnedContextChips/pinnableContext';
 import styles from './AiAgentsLauncher.module.css';
 import { LauncherAgentPicker } from './LauncherAgentPicker';
 import {
@@ -72,6 +72,10 @@ import { LauncherPanelFrame } from './LauncherPanelFrame';
 import { PanelHeader } from './PanelHeader';
 import { useAiAgentLauncherRouter } from './useAiAgentLauncherRouter';
 import { useLauncherDock } from './useLauncherDock';
+import {
+    useLauncherNextPromptContext,
+    useResolvePendingContext,
+} from './useLauncherNextPromptContext';
 
 type Props = {
     projectUuid: string;
@@ -88,6 +92,8 @@ export const LauncherPanel: FC<Props> = ({
     activeThreadId,
     transitionStyle,
 }) => {
+    useResolvePendingContext(projectUuid);
+
     if (!agent) {
         return (
             <LauncherPanelFrame transitionStyle={transitionStyle}>
@@ -123,6 +129,8 @@ export const LauncherPanel: FC<Props> = ({
     );
 };
 
+const NO_PREVIOUS_CONTEXT: AiPromptContext = [];
+
 const NewThreadPanel: FC<{
     projectUuid: string;
     agent: NonNullable<LauncherSelectedAgent>;
@@ -131,51 +139,40 @@ const NewThreadPanel: FC<{
 }> = ({ projectUuid, agent, agents, transitionStyle }) => {
     const navigate = useNavigate();
     const dispatch = useAiAgentStoreDispatch();
-    const pendingContext = useAiAgentStoreSelector(
-        (state) => state.aiAgentLauncher.pendingContext,
-    );
-
-    const chartUuid = pendingContext?.chartUuid;
-    const sqlChartUuid = pendingContext?.sqlChartUuid;
-    const composerChartUuid = pendingContext?.composerChartUuid;
-    const dashboardUuid = pendingContext?.dashboardUuid;
-    const dataAppUuid = pendingContext?.dataAppUuid;
-    const documentUuid = pendingContext?.documentUuid;
-
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const isAuto = isLauncherAutoAgent(agent);
     const concreteAgent = getConcreteLauncherAgent(agent);
     const canStartDeepResearch = useDeepResearchAccess(projectUuid);
 
     const {
-        contextInput,
-        previewItems,
-        contentMentionItems,
+        contextInput: contextInputWithPageContext,
+        previewItems: previewItemsWithPageContext,
         isReady: isPinnedContextReady,
-    } = usePinnedContext({
+        pinnedContextNode,
+        placeholder: pinnedContextPlaceholder,
+    } = useLauncherNextPromptContext({
         projectUuid,
-        chartUuidOrSlug: chartUuid,
-        dashboardUuidOrSlug: dashboardUuid,
-        dataAppUuidOrSlug: dataAppUuid,
-        documentUuid,
-        sqlChartUuid,
-        composerChartUuid,
+        previousContext: NO_PREVIOUS_CONTEXT,
+        threadId: null,
+        boundDashboardUuid: null,
     });
-    const { curateContext } = useDashboardPageContextCuration({
-        previousContext: contextInput,
-        projectUuid,
-    });
-    const {
-        context: contextInputWithPageContext = [],
-        optimisticContext: previewItemsWithPageContext = [],
-    } = useMemo(
-        () =>
-            curateContext({
-                context: contextInput,
-                optimisticContext: previewItems,
-            }),
-        [contextInput, curateContext, previewItems],
+    // Offers the pinned dashboard's tiles first when mentioning content.
+    const pinned = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.pinnedContext,
     );
+    const pinnedRefs = useMemo(
+        () => pinnedEntriesToPendingContext(pinned),
+        [pinned],
+    );
+    const { contentMentionItems } = usePinnedContext({
+        projectUuid,
+        chartUuidOrSlug: pinnedRefs?.chartUuid,
+        dashboardUuidOrSlug: pinnedRefs?.dashboardUuid,
+        dataAppUuidOrSlug: pinnedRefs?.dataAppUuid,
+        documentUuid: pinnedRefs?.documentUuid,
+        sqlChartUuid: pinnedRefs?.sqlChartUuid,
+        composerChartUuid: pinnedRefs?.composerChartUuid,
+    });
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     // New threads have no uuid yet — keep the toggle in local state and seed
@@ -388,23 +385,6 @@ const NewThreadPanel: FC<{
                         />
                     </Stack>
                 )}
-                {previewItemsWithPageContext.length > 0 && (
-                    <Stack gap="xxs" px="md" pb="xs">
-                        <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-                            Pinned context
-                        </Text>
-                        <Group gap="xs" wrap="wrap">
-                            {previewItemsWithPageContext.map((item) => (
-                                <PinnedContextCard
-                                    key={getPromptContextItemKey(item)}
-                                    item={item}
-                                    projectUuid={projectUuid}
-                                    previewScope={null}
-                                />
-                            ))}
-                        </Group>
-                    </Stack>
-                )}
                 {isPickingAgent && (
                     <LauncherAgentPicker
                         candidates={sortedCandidates}
@@ -427,7 +407,10 @@ const NewThreadPanel: FC<{
                     }
                     loading={isLocked && !isPickingAgent}
                     disabled={!isPinnedContextReady || isPickingAgent}
-                    placeholder={`Ask ${displayName} anything...`}
+                    placeholder={
+                        pinnedContextPlaceholder ??
+                        `Ask ${displayName} anything...`
+                    }
                     projectUuid={projectUuid}
                     agentUuid={concreteAgent?.uuid}
                     fullWidth
@@ -438,6 +421,7 @@ const NewThreadPanel: FC<{
                             : undefined
                     }
                     contentMentionPriorityItems={contentMentionItems}
+                    pinnedContext={pinnedContextNode}
                 />
             </div>
         </LauncherPanelFrame>
@@ -512,16 +496,21 @@ const ExistingThreadPanel: FC<{
             ) ?? [],
         [thread?.messages],
     );
-    const { curateContext, recordSubmittedContext } =
-        useDashboardPageContextCuration({
-            previousContext: threadContext,
-            projectUuid,
-            threadId,
-            boundDashboardUuid:
-                thread?.binding?.type === 'dashboard'
-                    ? thread.binding.dashboardUuid
-                    : null,
-        });
+    const {
+        buildContext,
+        isReady: isNextContextReady,
+        pinnedContextNode,
+        placeholder: pinnedContextPlaceholder,
+        recordSubmittedContext,
+    } = useLauncherNextPromptContext({
+        projectUuid,
+        previousContext: threadContext,
+        threadId,
+        boundDashboardUuid:
+            thread?.binding?.type === 'dashboard'
+                ? thread.binding.dashboardUuid
+                : null,
+    });
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
     const isBusy = Boolean(
@@ -532,6 +521,18 @@ const ExistingThreadPanel: FC<{
     );
     const isInputDisabled =
         thread?.createdFrom === 'slack' || !isThreadFromCurrentUser;
+
+    // A thread that cannot be replied to cannot take pinned content either.
+    const hasNextPromptContext = useAiAgentStoreSelector(
+        (state) =>
+            state.aiAgentLauncher.pendingContext !== null ||
+            state.aiAgentLauncher.pinnedContext.length > 0,
+    );
+    const isReadOnlyThread = !!thread && isInputDisabled;
+    useEffect(() => {
+        if (!hasNextPromptContext || !isReadOnlyThread) return;
+        dispatchToStore(startThreadKeepingContext());
+    }, [dispatchToStore, hasNextPromptContext, isReadOnlyThread]);
     const contentMentionItems = useMemo(
         () => contextItemsToContentMentionSuggestions(threadContext, 'thread'),
         [threadContext],
@@ -555,7 +556,8 @@ const ExistingThreadPanel: FC<{
             typeof createAgentThreadMessage
         >[0]['optimisticContext'];
     }) => {
-        const curatedContext = curateContext({ context, optimisticContext });
+        const curatedContext = buildContext({ context, optimisticContext });
+        dispatchToStore(clearPinnedContext());
 
         return createAgentThreadMessage({
             prompt: message,
@@ -687,14 +689,17 @@ const ExistingThreadPanel: FC<{
                         accessCalloutVariant="inline"
                         disabled={isInputDisabled}
                         disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
-                        loading={isBusy}
+                        loading={isBusy || !isNextContextReady}
                         onSubmit={handleSubmit}
                         onStartDeepResearch={
                             canStartDeepResearch
                                 ? handleStartDeepResearch
                                 : undefined
                         }
-                        placeholder={`Ask ${agent.name} anything...`}
+                        placeholder={
+                            pinnedContextPlaceholder ??
+                            `Ask ${agent.name} anything...`
+                        }
                         messageCount={thread.messages?.length || 0}
                         projectUuid={projectUuid}
                         agentUuid={agent.uuid}
@@ -705,6 +710,7 @@ const ExistingThreadPanel: FC<{
                             threadModel?.deprecationWarning ?? null
                         }
                         contentMentionPriorityItems={contentMentionItems}
+                        pinnedContext={pinnedContextNode}
                         // The question card's options would repeat as chips.
                         showSuggestions={
                             getPendingAskUser(thread.messages?.at(-1)) === null
