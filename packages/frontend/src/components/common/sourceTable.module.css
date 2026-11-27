@@ -123,3 +123,32 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+
+/* In the Studio's main pane the tables lie flat and run edge to edge, like its model and field lists. */
+[data-flat-tables] .table {
+    margin-inline: -24px;
+    border: 0;
+    border-top: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    border-radius: 0;
+}
+
+/* By position, since each table composes its own row class */
+[data-flat-tables] .table > * {
+    padding-inline: 24px;
+}
+
+[data-flat-tables] .table > :last-child {
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-ldGray-1), var(--mantine-color-dark-5));
+}
+
+[data-flat-tables] .summary {
+    margin-inline: -24px;
+    border-inline: 0;
+    border-radius: 0;
+}
+
+[data-flat-tables] .stat {
+    padding-inline: 24px;
+}

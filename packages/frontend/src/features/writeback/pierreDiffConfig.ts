@@ -5,10 +5,11 @@ import {
 // Vite resolves this to the bundled worker URL.
 // oxlint-disable-next-line import/default
 import DiffsWorkerUrl from '@pierre/diffs/worker/worker.js?worker&url';
+import { STUDIO_THEMES } from './pierreThemes';
 
-// Tokenize with both Pierre themes; diffs render via CSS `light-dark()` and
+// Tokenize with both themes; diffs render via CSS `light-dark()` and
 // hosts pin `color-scheme` to Mantine's computed scheme.
-const PIERRE_THEMES = { dark: 'pierre-dark', light: 'pierre-light' } as const;
+const PIERRE_THEMES = STUDIO_THEMES;
 
 /** Pierre's themes, with its colour scheme pinned to the app's rather than the system's. */
 export const pierreThemeFor = (colorScheme: 'light' | 'dark') =>

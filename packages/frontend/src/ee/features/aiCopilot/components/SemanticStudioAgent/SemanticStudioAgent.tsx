@@ -426,6 +426,7 @@ const ExistingThread: FC<
                 projectUuid={projectUuid}
                 agentUuid={agent.uuid}
                 renderArtifactsInline
+                showsThreadSetup={thread.messages.length > 0}
                 onChoiceSelect={
                     isBusy ? undefined : (message) => send({ message })
                 }

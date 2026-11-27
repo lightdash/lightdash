@@ -254,6 +254,8 @@ type SummaryExtraFields = {
     description?: string;
     schemaName: string;
     databaseName: string;
+    /** The base table's SQL identifier, as the warehouse quotes it. */
+    sqlTable?: string;
 };
 
 type SummaryBindingFields = {
@@ -315,6 +317,7 @@ export const toExploreSummary = (
         description: baseTable.description,
         schemaName: baseTable.schema,
         databaseName: baseTable.database,
+        sqlTable: baseTable.sqlTable,
         warehouseConnectionUuid: null,
     };
 };

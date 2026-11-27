@@ -8,7 +8,6 @@ import {
     ActionIcon,
     Badge,
     Box,
-    Code,
     Group,
     Loader,
     Paper,
@@ -38,6 +37,7 @@ import MantineIcon from '../../components/common/MantineIcon';
 import DefaultEdge from '../../components/common/ReactFlow/DefaultEdge';
 import reactFlowStyles from '../../components/common/ReactFlow/reactFlow.module.css';
 import { useExploreByProjectUuid } from '../../hooks/useExplore';
+import { CodeSnippet } from './CodeSnippet';
 import classes from './JoinDiagram.module.css';
 import {
     JOIN_NODE_HEIGHT,
@@ -355,9 +355,12 @@ const JoinDetails: FC<{
                                 copyLabel="Copy condition"
                             />
                         </Group>
-                        <Code block className={classes.condition}>
-                            {table.keys}
-                        </Code>
+                        <Box className={classes.condition}>
+                            <CodeSnippet
+                                code={table.keys ?? ''}
+                                language="sql"
+                            />
+                        </Box>
                     </Box>
                 </Stack>
             )}

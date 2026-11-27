@@ -405,6 +405,7 @@ type RawSummaryRow = {
     baseTable: Explore['baseTable'];
     baseTableDatabase: Explore['tables'][string]['database'];
     baseTableSchema: Explore['tables'][string]['schema'];
+    baseTableSqlTable?: Explore['tables'][string]['sqlTable'] | null;
     baseTableDescription: Explore['tables'][string]['description'] | null;
     warehouseConnectionUuid: string | null;
     baseTableRequiredAttributes:
@@ -3486,6 +3487,7 @@ export class ProjectModel {
                     explore_summary."baseTable" as "baseTable",
                     base_table.value->>'database' as "baseTableDatabase",
                     base_table.value->>'schema' as "baseTableSchema",
+                    base_table.value->>'sqlTable' as "baseTableSqlTable",
                     base_table.value->>'description' as "baseTableDescription",
                     ${CachedExploreTableName}.warehouse_connection_uuid as "warehouseConnectionUuid",
                     base_table.value->'requiredAttributes' as "baseTableRequiredAttributes",
@@ -3531,6 +3533,7 @@ export class ProjectModel {
             groups: row.groups ?? undefined,
             databaseName: row.baseTableDatabase,
             schemaName: row.baseTableSchema,
+            sqlTable: row.baseTableSqlTable ?? undefined,
             description: row.baseTableDescription ?? undefined,
             warehouseConnectionUuid: row.warehouseConnectionUuid,
             aiHint: row.aiHint ?? undefined,

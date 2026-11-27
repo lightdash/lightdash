@@ -4,8 +4,10 @@ import {
 } from '@lightdash/common';
 import { Box, Group, Menu, Text } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { useContext, type FC, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import MantineIcon from '../../components/common/MantineIcon';
+import { ProtoSlotsContext } from './protoFlag';
 import { DraftDevelopmentBar } from './SemanticLayerDraft';
 import {
     type StudioPendingChange,
@@ -52,27 +54,47 @@ const ToolbarLayout: FC<{
     changeUrl: string | null;
     actions: ReactNode;
     children: ReactNode;
-}> = ({ picker, stage, changeUrl, actions, children }) => (
-    <>
-        {picker ? (
-            <Group
-                gap="xs"
-                wrap="nowrap"
-                miw={0}
-                className={classes.toolbarChange}
-            >
-                {picker}
-                {stage ? (
-                    <StudioStageLine stage={stage} href={changeUrl} />
-                ) : null}
-            </Group>
-        ) : null}
+}> = ({ picker, stage, changeUrl, actions, children }) => {
+    const slots = useContext(ProtoSlotsContext);
+    const status = (
+        <>
+            {picker ? (
+                <Group
+                    gap="xs"
+                    wrap="nowrap"
+                    miw={0}
+                    className={classes.toolbarChange}
+                >
+                    {picker}
+                    {stage ? (
+                        <StudioStageLine stage={stage} href={changeUrl} />
+                    ) : null}
+                </Group>
+            ) : null}
+        </>
+    );
+    const end = (
         <Group gap="xs" wrap="nowrap" miw={0} ml="auto">
             {actions}
             {children}
         </Group>
-    </>
-);
+    );
+    // Prototype: with the bar gone, its halves render where the sidebar offers them
+    if (slots) {
+        return (
+            <>
+                {slots.status ? createPortal(status, slots.status) : null}
+                {slots.actions ? createPortal(end, slots.actions) : null}
+            </>
+        );
+    }
+    return (
+        <>
+            {status}
+            {end}
+        </>
+    );
+};
 
 export const DraftToolbar: FC<ToolbarProps> = ({
     projectUuid,

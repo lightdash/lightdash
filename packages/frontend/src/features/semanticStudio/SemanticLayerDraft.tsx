@@ -27,7 +27,14 @@ import {
     IconPencil,
 } from '@tabler/icons-react';
 import { uniqBy } from 'es-toolkit/compat';
-import { useContext, useEffect, useRef, useState, type FC } from 'react';
+import {
+    Fragment,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -69,6 +76,7 @@ import {
     listPublishedParts,
     refusalText,
 } from './modelCode';
+import { IS_STUDIO_PROTO } from './protoFlag';
 import classes from './SemanticLayerDraft.module.css';
 import { getSemanticStudioUrl } from './urls';
 import {
@@ -466,6 +474,9 @@ export const ProjectContextDraftFile: FC<{
     </Box>
 );
 
+// Prototype: Publish stands alone, with its other actions in a quiet menu beside it
+const PublishGroup = IS_STUDIO_PROTO ? Fragment : Button.Group;
+
 /** A draft in the toolbar: what it changes, the way to its review and back, and publishing it. */
 export const DraftDevelopmentBar: FC<{
     projectUuid: string;
@@ -503,7 +514,7 @@ export const DraftDevelopmentBar: FC<{
     const moreMenu = (
         <Menu position="bottom-end" withinPortal>
             <Menu.Target>
-                {showsPublish ? (
+                {showsPublish && !IS_STUDIO_PROTO ? (
                     <Button
                         size="xs"
                         px={6}
@@ -564,7 +575,7 @@ export const DraftDevelopmentBar: FC<{
                 }
             >
                 {showsPublish ? (
-                    <Button.Group>
+                    <PublishGroup>
                         <Tooltip
                             label={
                                 isAgentWorking
@@ -597,7 +608,7 @@ export const DraftDevelopmentBar: FC<{
                             </Button>
                         </Tooltip>
                         {moreMenu}
-                    </Button.Group>
+                    </PublishGroup>
                 ) : (
                     moreMenu
                 )}

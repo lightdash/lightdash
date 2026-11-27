@@ -42,6 +42,7 @@ import {
     useRef,
     useState,
     type FC,
+    useContext,
 } from 'react';
 import { useSearchParams } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
@@ -61,18 +62,25 @@ import {
     splitPatchIntoFiles,
 } from '../writeback/splitPatch';
 import { useWholePullRequestDiff } from '../writeback/usePullRequestDiff';
+import { FIELD_PARAM, findFieldLine } from './modelCode';
 import tabClasses from './ModelTabs.module.css';
 import {
     createEditor,
     editorOptionsFor,
     leaveOnEscape,
     MOD_KEY,
+    pointInCode,
     readSelection,
     REDO_KEYS,
     replaceText,
     type Attached,
 } from './pierreEditor';
 import { applyProposal, fileBefore } from './proposedFile';
+import {
+    IS_STUDIO_PROTO,
+    ProtoFileSearchContext,
+    protoPlace,
+} from './protoFlag';
 import classes from './SourcesView.module.css';
 import { type StartStudioThread, type StoredThread } from './studioChange';
 import { type StudioChatRef } from './studioChatRefs';
@@ -247,6 +255,7 @@ export const SourcesRail: FC<{
     // The tree keeps its first options, so its listener reads the latest through a ref.
     const fileSet = useMemo(() => new Set(all), [all]);
     const unsaved = useUnsavedPaths(target.projectUuid, target.prUrl);
+    const syncing = useRef(false);
     const latest = useRef({ open, selected, files: fileSet, unsaved });
     latest.current = { open, selected, files: fileSet, unsaved };
     const { model } = useFileTree({
@@ -254,6 +263,8 @@ export const SourcesRail: FC<{
         icons: SOURCE_ICONS,
         fileTreeSearchMode: 'hide-non-matches',
         density: 'compact',
+        // Matches --trees-row-height, or the tree under-counts its height and cuts its last rows
+        itemHeight: 28,
         // Like an editor's explorer: folders closed except the way to the open file.
         initialExpansion: 'closed',
         initialExpandedPaths: ancestorsOf(selected),
@@ -263,7 +274,17 @@ export const SourcesRail: FC<{
             latest.current.unsaved.has(item.path)
                 ? { text: '●', title: 'Unsaved edits' }
                 : null,
-        onSelectionChange: ([path]) => {
+        onSelectionChange: (paths) => {
+            // Selections made here to follow the open file are not the person choosing one
+            if (syncing.current) return;
+            const [path] = paths;
+            // Prototype: marking the open file's pair is not a choice of file
+            if (
+                IS_STUDIO_PROTO &&
+                latest.current.selected &&
+                paths.includes(latest.current.selected)
+            )
+                return;
             if (path && latest.current.files.has(path)) {
                 latest.current.open(path);
             }
@@ -279,10 +300,29 @@ export const SourcesRail: FC<{
     // The open file can change from outside the tree, and a reset drops what was selected.
     useEffect(() => {
         const shown = model.getSelectedPaths();
-        if (!selected || !fileSet.has(selected) || shown.includes(selected))
+        if (!selected || !fileSet.has(selected)) return;
+        // Prototype: a model's YAML and SQL open together, so both are marked
+        const wanted = IS_STUDIO_PROTO
+            ? [...fileSet].filter(
+                  (path) =>
+                      path === selected ||
+                      (/\.(ya?ml|sql)$/.test(path) &&
+                          path.replace(/\.(ya?ml|sql)$/, '') ===
+                              selected.replace(/\.(ya?ml|sql)$/, '')),
+              )
+            : [selected];
+        if (
+            shown.length === wanted.length &&
+            wanted.every((path) => shown.includes(path))
+        )
             return;
+        syncing.current = true;
         shown.forEach((path) => model.getItem(path)?.deselect());
-        model.getItem(selected)?.select();
+        // The open file first: the tree reports each selection as it is made
+        [selected, ...wanted.filter((path) => path !== selected)].forEach(
+            (path) => model.getItem(path)?.select(),
+        );
+        syncing.current = false;
     }, [model, fileSet, selected]);
     useEffect(
         () =>
@@ -297,9 +337,17 @@ export const SourcesRail: FC<{
     // The tree has no redraw of its own; setting its icons redraws the unsaved marks.
     useEffect(() => model.setIcons(SOURCE_ICONS), [model, unsaved]);
     const [search, setSearch] = useState('');
+    // Prototype: searched from the sidebar's own box when it has one
+    const sharedSearch = useContext(ProtoFileSearchContext);
+    useEffect(() => {
+        if (sharedSearch !== null) model.setSearch(sharedSearch.trim() || null);
+    }, [model, sharedSearch]);
     return (
         <Box className={railClasses.rail}>
-            <Box className={railClasses.railHeader}>
+            <Box
+                className={railClasses.railHeader}
+                display={sharedSearch === null ? undefined : 'none'}
+            >
                 <TextInput
                     size="xs"
                     flex={1}
@@ -402,10 +450,20 @@ export const SourcePane: FC<{
     proposal: string[];
     /** The proposal is a save of the agent's that is running, so it is shown and not saved again. */
     isSaving: boolean;
-}> = ({ target, onSaved, onAddToChat, proposal, isSaving }) => {
+    /** Prototype: shows this file whatever the address names, so a model's two files open side by side. */
+    file?: string;
+}> = ({
+    target,
+    onSaved,
+    onAddToChat,
+    proposal,
+    isSaving,
+    file: shownFile,
+}) => {
     const colorScheme = useComputedColorScheme('light');
     const canEdit = target.readOnlyReason === null;
-    const [path] = useOpenFile();
+    const [openPath] = useOpenFile();
+    const path = shownFile ?? openPath;
     const { data: sources } = useStudioSources(
         target.projectUuid,
         target.prUrl,
@@ -471,6 +529,17 @@ export const SourcePane: FC<{
                 ? file.revision
                 : (saved?.revision ?? file?.revision ?? null);
     }
+    // A save that lands while more was typed: its revision becomes the edit's base once the saved file is read back.
+    const savedRevision = useRef<string | null>(null);
+    if (
+        savedRevision.current !== null &&
+        file?.revision === savedRevision.current
+    ) {
+        sourceRevision.current = savedRevision.current;
+        savedRevision.current = null;
+    }
+    const latestText = useRef(text);
+    latestText.current = text;
     const value = text ?? loaded ?? '';
     const isDirty = text !== null && text !== loaded;
     const { track } = useTracking();
@@ -612,6 +681,12 @@ export const SourcePane: FC<{
             return;
         // The save may land after another file is opened; it then leaves that file alone.
         const savedKey = editKey;
+        const submitted = value;
+        // On a draft the file stays editable while it saves; the first save from Published moves to a new draft, so it waits.
+        const keepsTyping = target.prUrl !== null;
+        if (keepsTyping) {
+            setNotice({ tone: 'info', text: `Saving to ${where}…` });
+        }
         const isStillOpen = () => open.current.key === savedKey;
         const named = (message: string) =>
             isStillOpen() ? message : `${fileName(path)}: ${message}`;
@@ -619,7 +694,7 @@ export const SourcePane: FC<{
             {
                 path,
                 content: value,
-                revision: sourceRevision.current,
+                revision: savedRevision.current ?? sourceRevision.current,
                 prUrl: target.prUrl,
                 threadUuid: target.threadUuid,
                 newChangeAgentUuid: target.newChangeAgentUuid,
@@ -636,9 +711,24 @@ export const SourcePane: FC<{
                             result.prUrl,
                             path,
                         ),
-                        content: value,
+                        content: submitted,
                         revision: result.revision,
                     });
+                    // Typed on while it saved: those edits stay in the editor, on top of what was just saved.
+                    const typedOn =
+                        keepsTyping &&
+                        isStillOpen() &&
+                        latestText.current !== null &&
+                        latestText.current !== submitted;
+                    if (typedOn) {
+                        savedRevision.current = result.revision;
+                        setNotice({
+                            tone: 'info',
+                            text: `Saved to ${where}. What you typed since is not saved yet.`,
+                        });
+                        onSaved(result.prUrl, result.thread);
+                        return;
+                    }
                     dropUnsaved(savedKey);
                     // A save from live moves to its new change, and what is typed in another live file comes along.
                     const liveKey = unsavedEditKey(
@@ -708,6 +798,46 @@ export const SourcePane: FC<{
     // Pierre keeps the first options it is given, so they read the latest through refs.
     const actions = useRef({ addToChat });
     actions.current = { addToChat };
+    const codeBox = useRef<HTMLDivElement>(null);
+    const [searchParams] = useSearchParams();
+    const askedField = IS_STUDIO_PROTO ? searchParams.get(FIELD_PARAM) : null;
+    const askedLine =
+        askedField && loaded ? findFieldLine(loaded, askedField) : null;
+    // The editor renders, attaches and grows after this does, so the line is brought to the middle until it stays there
+    useEffect(() => {
+        if (askedLine === null) return undefined;
+        let tries = 0;
+        let settled = 0;
+        const timer = window.setInterval(() => {
+            tries += 1;
+            const box = codeBox.current;
+            const target = box
+                ?.querySelector('diffs-container')
+                ?.shadowRoot?.querySelector(`[data-line="${askedLine}"]`);
+            if (tries > 40 || settled > 2) window.clearInterval(timer);
+            if (!box || !target) return;
+            // Scrolled by hand: scrollIntoView also moves a wide line sideways
+            const off =
+                target.getBoundingClientRect().top -
+                box.getBoundingClientRect().top -
+                box.clientHeight / 2;
+            box.scrollTop += off;
+            if (Math.abs(off) > 4) return;
+            settled += 1;
+            if (settled !== 1) return;
+            codeRef.current?.setSelections([
+                {
+                    start: { line: askedLine - 1, character: 0 },
+                    end: {
+                        line: askedLine - 1,
+                        character: target.textContent?.length ?? 0,
+                    },
+                    direction: 'forward',
+                },
+            ]);
+        }, 100);
+        return () => window.clearInterval(timer);
+    }, [askedLine, path]);
     const [fileOptions, diffOptions] = useMemo(() => {
         const attach = (code: Attached) => {
             codeRef.current = code;
@@ -770,6 +900,14 @@ export const SourcePane: FC<{
         overflow: 'scroll',
         disableFileHeader: true,
     } as const;
+    // Prototype: arriving from a field, its lines are marked; the caret is remembered for the way back
+    const notePlace = (clicked: number | null) => {
+        if (!IS_STUDIO_PROTO) return;
+        const caret =
+            codeRef.current?.getViewState().selections?.[0]?.start.line;
+        const line = clicked ?? (caret === undefined ? null : caret + 1);
+        if (line !== null) protoPlace.caret = { path, text: value, line };
+    };
     // Pierre takes `edit` when it mounts, so a lock or unlock mounts it again.
     // A file read after it opened mounts again, so its retained document starts from the read text.
     const surfaceKey = `${path}:${shownLayout}:${revision}:${canEdit}:${loaded !== null}`;
@@ -921,12 +1059,6 @@ export const SourcePane: FC<{
                                 {target.readOnlyReason ?? 'Read only'}
                             </Text>
                         </Group>
-                    ) : !isDirty ? (
-                        <Text fz="xs" c="dimmed" truncate maw={240}>
-                            {target.prUrl
-                                ? `Saves to ${where}`
-                                : 'Saving starts a draft'}
-                        </Text>
                     ) : null}
                     {isFetching && !isDirty ? (
                         <Loader size={12} color="gray" />
@@ -1152,7 +1284,14 @@ export const SourcePane: FC<{
                 </Alert>
             ) : null}
             <Box
+                ref={codeBox}
                 className={classes.sourceCode}
+                onKeyUp={() => notePlace(null)}
+                onMouseUp={(event) =>
+                    notePlace(
+                        pointInCode(event.nativeEvent)?.lineNumber ?? null,
+                    )
+                }
                 onKeyDownCapture={(event) => {
                     leaveOnEscape(event.nativeEvent, codeRef.current);
                     if (!(event.metaKey || event.ctrlKey)) return;
@@ -1184,7 +1323,8 @@ export const SourcePane: FC<{
                                     options={options}
                                     edit={
                                         canEdit &&
-                                        !save.isLoading &&
+                                        (!save.isLoading ||
+                                            target.prUrl !== null) &&
                                         !isBeingSaved
                                     }
                                     editorOptions={fileOptions}
@@ -1217,7 +1357,8 @@ export const SourcePane: FC<{
                                     }}
                                     edit={
                                         canEdit &&
-                                        !save.isLoading &&
+                                        (!save.isLoading ||
+                                            target.prUrl !== null) &&
                                         !isBeingSaved
                                     }
                                     editorOptions={diffOptions}

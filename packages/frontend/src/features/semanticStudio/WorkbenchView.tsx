@@ -43,6 +43,7 @@ import {
     useRef,
     useState,
     type FC,
+    type ReactElement,
 } from 'react';
 import {
     createSearchParams,
@@ -108,6 +109,12 @@ import {
     type StudioView,
 } from './modelCode';
 import { ModelCodeView } from './ModelTabs';
+import {
+    IS_STUDIO_PROTO,
+    PROTO_TABLE_PARAM,
+    ProtoSlotsContext,
+    protoPlace,
+} from './protoFlag';
 import { DraftReview, ProjectContextDraftFile } from './SemanticLayerDraft';
 import { describeBlocker } from './studioBlocker';
 import { useChatOpen, useStoredStudioThread } from './studioChange';
@@ -116,6 +123,12 @@ import {
     sameStudioChatRef,
     type StudioChatRef,
 } from './studioChatRefs';
+import {
+    ProtoMain,
+    ProtoRail,
+    ProtoCodePair,
+    ProtoViewDock,
+} from './StudioProto';
 import { stageOfWorkspace, type StudioStage } from './studioStage';
 import { StudioStageLine } from './StudioStageLine';
 import { StudioWorkspacesList } from './StudioWorkspacesList';
@@ -176,6 +189,7 @@ const BlockedNotice: FC<{ blocker: SemanticLayerBlocker }> = ({ blocker }) => {
 };
 
 const FILE_PARAM = 'file';
+const ignoreSlot = () => {};
 const EDIT_PARAM = 'edit';
 
 const BUILD_MODEL_PROMPT =
@@ -252,6 +266,15 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         });
     };
     const studioView = readStudioView(searchParams);
+    const [protoCode, setProtoCode] = useState<string | null>(null);
+    const [protoStatusSlot, setProtoStatusSlot] = useState<HTMLElement | null>(
+        null,
+    );
+    const [protoActionsSlot, setProtoActionsSlot] =
+        useState<HTMLElement | null>(null);
+    const protoTable = IS_STUDIO_PROTO
+        ? searchParams.get(PROTO_TABLE_PARAM)
+        : null;
     const { data: draft } = useSemanticLayerDraft(view.project.id);
     useDraftFreshness(view.project.id);
     const { data: project } = useProject(view.project.id);
@@ -742,6 +765,83 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const showsCodeRail =
         (pane === 'code' || pane === 'review') &&
         (files.length > 0 || hasDraft);
+    // Prototype: no bar on the pages whose sidebar carries its status and actions
+    const protoNoBar =
+        IS_STUDIO_PROTO &&
+        (pane === 'browse' || showsCodeRail || pane === 'sources');
+    const protoOpenFiles = !hasCodeView
+        ? null
+        : ({
+              model,
+              path,
+              field,
+          }: {
+              model: string;
+              path: string | null;
+              field: string | null;
+          }) =>
+              setStudioParams(
+                  codeTab === 'sources'
+                      ? {
+                            [VIEW_PARAM]: 'sources',
+                            // With no model open, the code view returns to the file last read there
+                            ...((path ?? lastSourceFile.current)
+                                ? {
+                                      [SOURCE_PARAM]:
+                                          path ?? lastSourceFile.current ?? '',
+                                  }
+                                : {}),
+                            ...(field ? { [FIELD_PARAM]: field } : {}),
+                        }
+                      : {
+                            [VIEW_PARAM]: 'code',
+                            [FILE_PARAM]: model,
+                            ...(field ? { [FIELD_PARAM]: field } : {}),
+                        },
+              );
+    const protoOpenTable = (reference: string) =>
+        setStudioParams({ view: 'models', [PROTO_TABLE_PARAM]: reference });
+    const protoHasModel =
+        pane === 'browse' &&
+        protoTable === null &&
+        (view.selected?.type === 'explore' || view.selected?.type === 'field');
+    // The dock carries the draft's actions wherever it shows; without it they stay in the sidebar
+    const protoHasDock =
+        IS_STUDIO_PROTO &&
+        hasCodeView &&
+        (pane === 'browse' || pane === 'sources' || showsCodeRail);
+    const protoRailWith = (codeFiles: ReactElement | null) => (
+        <ProtoRail
+            codeFiles={codeFiles}
+            view={view}
+            onStatusSlot={setProtoStatusSlot}
+            onActionsSlot={protoHasDock ? ignoreSlot : setProtoActionsSlot}
+            onOpenFiles={protoOpenFiles}
+            openFile={
+                pane === 'sources'
+                    ? sourceFile
+                    : pane === 'code' && file
+                      ? `${file}.yml`
+                      : null
+            }
+            openTable={protoTable}
+            onOpenTable={protoOpenTable}
+            counts={lineCounts}
+        />
+    );
+    const protoRail = protoRailWith(null);
+    // The code view keeps the same sidebar, with the project's files under the models
+    const protoFilesRail = (rail: ReactElement) =>
+        IS_STUDIO_PROTO ? protoRailWith(rail) : rail;
+    const protoFileModel = view.project.explores.find(
+        ({ name }) =>
+            name ===
+            (pane === 'sources'
+                ? sourceFile && modelNameOfSourcePath(sourceFile)
+                : pane === 'code'
+                  ? file
+                  : null),
+    );
     const isChangeOpen =
         (pane === 'changes' || pane === 'review') &&
         !!(shownWorkspace || workspace);
@@ -1054,15 +1154,27 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     />
                 ) : (
                     <Suspense fallback={null}>
-                        <SourcePane
-                            target={dbt.sourcesTarget}
-                            // Once the commit lands the file is read from the change, so its diffs are not applied again.
-                            proposal={
-                                isSavingProposal && !saving ? [] : shownProposal
-                            }
-                            isSaving={isSavingProposal}
-                            onSaved={dbt.onSourcesSaved}
-                            onAddToChat={attachToChat}
+                        <ProtoCodePair
+                            projectUuid={view.project.id}
+                            prUrl={dbt.sourcesTarget.prUrl}
+                            head={dbt.sourcesTarget.head}
+                            path={IS_STUDIO_PROTO ? sourceFile : null}
+                            render={(file) => (
+                                <SourcePane
+                                    key={file ?? 'open'}
+                                    file={file ?? undefined}
+                                    target={dbt.sourcesTarget}
+                                    // Once the commit lands the file is read from the change, so its diffs are not applied again.
+                                    proposal={
+                                        isSavingProposal && !saving
+                                            ? []
+                                            : shownProposal
+                                    }
+                                    isSaving={isSavingProposal}
+                                    onSaved={dbt.onSourcesSaved}
+                                    onAddToChat={attachToChat}
+                                />
+                            )}
                         />
                     </Suspense>
                 );
@@ -1081,8 +1193,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         }
                     />
                 ) : null;
-            case 'browse':
-                return (
+            case 'browse': {
+                const mainPane = (
                     <MainPane
                         view={view}
                         onOpen={(ref) => (ref ? open(ref) : view.select(null))}
@@ -1092,6 +1204,30 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         }
                     />
                 );
+                return IS_STUDIO_PROTO ? (
+                    <ProtoMain
+                        view={view}
+                        openTable={protoTable}
+                        code={{
+                            extension: protoCode,
+                            isWide: false,
+                            open: protoOpenFiles,
+                            onChange: setProtoCode,
+                            render: null,
+                            dbt: keepsDraft
+                                ? null
+                                : {
+                                      target: dbt.sourcesTarget,
+                                      onSaved: dbt.onSourcesSaved,
+                                  },
+                            readOnlyReason: codeReadOnlyReason,
+                        }}
+                        fallback={mainPane}
+                    />
+                ) : (
+                    mainPane
+                );
+            }
             case 'buildFirst':
                 return (
                     <BuildFirstModel
@@ -1185,93 +1321,134 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                     ) : null
                                 ) : (
                                     <>
-                                        <Group
-                                            className={classes.toolbar}
-                                            justify="space-between"
-                                            wrap="nowrap"
-                                            gap="sm"
+                                        <ProtoSlotsContext.Provider
+                                            value={
+                                                protoNoBar
+                                                    ? {
+                                                          status: protoStatusSlot,
+                                                          actions:
+                                                              protoActionsSlot,
+                                                      }
+                                                    : null
+                                            }
                                         >
-                                            <div
-                                                className={classes.views}
-                                                role="tablist"
-                                                aria-label="Views"
+                                            <Group
+                                                className={classes.toolbar}
+                                                justify="space-between"
+                                                wrap="nowrap"
+                                                gap="sm"
+                                                display={
+                                                    protoNoBar
+                                                        ? 'none'
+                                                        : undefined
+                                                }
                                             >
-                                                <UnstyledButton
-                                                    role="tab"
-                                                    className={classes.view}
-                                                    aria-selected={
-                                                        !isCodeTab &&
-                                                        !isReviewPane
-                                                    }
-                                                    onClick={() =>
-                                                        switchView('models')
-                                                    }
-                                                >
-                                                    Models
-                                                </UnstyledButton>
-                                                {hasCodeView ? (
-                                                    <UnstyledButton
-                                                        role="tab"
-                                                        className={classes.view}
-                                                        aria-selected={
-                                                            isCodeTab
+                                                {protoNoBar ? null : (
+                                                    <div
+                                                        className={
+                                                            classes.views
                                                         }
-                                                        onClick={() =>
-                                                            switchView(codeTab)
-                                                        }
+                                                        role="tablist"
+                                                        aria-label="Views"
                                                     >
-                                                        Code
-                                                    </UnstyledButton>
-                                                ) : null}
-                                            </div>
-                                            <workflow.Toolbar
-                                                projectUuid={view.project.id}
-                                                pane={pane}
-                                                stage={stage}
-                                                changeUrl={changeUrl}
-                                                canEditModels={canEditModels}
-                                                development={development}
-                                                saving={saving}
-                                                shownWorkspace={shownWorkspace}
-                                                myWorkspaces={
-                                                    workspaces?.mine ?? []
-                                                }
-                                                changeName={changeName}
-                                                changeLinks={changeLinks}
-                                                changeActions={changeActions}
-                                                onShowChanges={
-                                                    hasChangesTab
-                                                        ? showChanges
-                                                        : null
-                                                }
-                                                startNewThread={startNewThread}
-                                                dbt={dbt.toolbarFor(pane)}
-                                            >
-                                                {agentAvailable &&
-                                                !isChatOpen &&
-                                                !waitsForFirstAsk ? (
-                                                    <Button
-                                                        size="xs"
-                                                        variant="subtle"
-                                                        color="gray"
-                                                        flex="none"
-                                                        leftSection={
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconMessage
+                                                        <UnstyledButton
+                                                            role="tab"
+                                                            className={
+                                                                classes.view
+                                                            }
+                                                            aria-selected={
+                                                                !isCodeTab &&
+                                                                !isReviewPane
+                                                            }
+                                                            onClick={() =>
+                                                                switchView(
+                                                                    'models',
+                                                                )
+                                                            }
+                                                        >
+                                                            Models
+                                                        </UnstyledButton>
+                                                        {hasCodeView ? (
+                                                            <UnstyledButton
+                                                                role="tab"
+                                                                className={
+                                                                    classes.view
                                                                 }
-                                                                size={14}
-                                                            />
-                                                        }
-                                                        onClick={() =>
-                                                            setIsChatOpen(true)
-                                                        }
-                                                    >
-                                                        Chat
-                                                    </Button>
-                                                ) : null}
-                                            </workflow.Toolbar>
-                                        </Group>
+                                                                aria-selected={
+                                                                    isCodeTab
+                                                                }
+                                                                onClick={() =>
+                                                                    switchView(
+                                                                        codeTab,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Code
+                                                            </UnstyledButton>
+                                                        ) : null}
+                                                    </div>
+                                                )}
+                                                <workflow.Toolbar
+                                                    projectUuid={
+                                                        view.project.id
+                                                    }
+                                                    pane={pane}
+                                                    stage={stage}
+                                                    changeUrl={changeUrl}
+                                                    canEditModels={
+                                                        canEditModels
+                                                    }
+                                                    development={development}
+                                                    saving={saving}
+                                                    shownWorkspace={
+                                                        shownWorkspace
+                                                    }
+                                                    myWorkspaces={
+                                                        workspaces?.mine ?? []
+                                                    }
+                                                    changeName={changeName}
+                                                    changeLinks={changeLinks}
+                                                    changeActions={
+                                                        changeActions
+                                                    }
+                                                    onShowChanges={
+                                                        hasChangesTab
+                                                            ? showChanges
+                                                            : null
+                                                    }
+                                                    startNewThread={
+                                                        startNewThread
+                                                    }
+                                                    dbt={dbt.toolbarFor(pane)}
+                                                >
+                                                    {agentAvailable &&
+                                                    !isChatOpen &&
+                                                    !waitsForFirstAsk ? (
+                                                        <Button
+                                                            size="xs"
+                                                            variant="subtle"
+                                                            color="gray"
+                                                            flex="none"
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconMessage
+                                                                    }
+                                                                    size={14}
+                                                                />
+                                                            }
+                                                            onClick={() =>
+                                                                setIsChatOpen(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        >
+                                                            Chat
+                                                        </Button>
+                                                    ) : null}
+                                                </workflow.Toolbar>
+                                            </Group>
+                                        </ProtoSlotsContext.Provider>
                                     </>
                                 )}
                                 <AddToStudioChatContext.Provider
@@ -1280,7 +1457,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                     <Box
                                         className={classes.workspaceBody}
                                         data-sources={
-                                            pane === 'sources' || undefined
+                                            // Prototype: one sidebar, one width, so the sheets below don't shift
+                                            !IS_STUDIO_PROTO &&
+                                            (pane === 'sources' || undefined)
                                         }
                                         data-no-rail={
                                             isReviewPane ||
@@ -1293,58 +1472,71 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         {(pane === 'code' ||
                                             pane === 'review') &&
                                         !showsCodeRail ? null : showsCodeRail ? (
-                                            <CodeRail
-                                                files={files}
-                                                overview={
-                                                    hasDraft
-                                                        ? {
-                                                              isOpen:
-                                                                  pane ===
-                                                                  'review',
-                                                              onOpen: () =>
-                                                                  switchView(
-                                                                      'changes',
-                                                                  ),
-                                                          }
-                                                        : null
-                                                }
-                                                selected={
-                                                    pane === 'review'
-                                                        ? null
-                                                        : file
-                                                }
-                                                selectedPart={searchParams.get(
-                                                    FIELD_PARAM,
-                                                )}
-                                                lineCounts={lineCounts}
-                                                preAggregates={
-                                                    preAggregatesByModel
-                                                }
-                                                onOpen={(next, part) =>
-                                                    setSearchParams({
-                                                        [VIEW_PARAM]: 'code',
-                                                        [FILE_PARAM]: next,
-                                                        ...(part
+                                            protoFilesRail(
+                                                <CodeRail
+                                                    files={files}
+                                                    overview={
+                                                        hasDraft
                                                             ? {
-                                                                  [FIELD_PARAM]:
-                                                                      part,
+                                                                  isOpen:
+                                                                      pane ===
+                                                                      'review',
+                                                                  onOpen: () =>
+                                                                      switchView(
+                                                                          'changes',
+                                                                      ),
                                                               }
-                                                            : {}),
-                                                    })
-                                                }
-                                            />
-                                        ) : pane === 'sources' ? (
-                                            <Suspense fallback={null}>
-                                                <SourcesRail
-                                                    target={dbt.sourcesTarget}
-                                                    proposal={shownProposal}
-                                                    isSaving={isSavingProposal}
-                                                    hasOverview={
-                                                        !!dbt.sourcesPrUrl
+                                                            : null
                                                     }
-                                                />
-                                            </Suspense>
-                                        ) : isEmpty || isReviewPane ? null : (
+                                                    selected={
+                                                        pane === 'review'
+                                                            ? null
+                                                            : file
+                                                    }
+                                                    selectedPart={searchParams.get(
+                                                        FIELD_PARAM,
+                                                    )}
+                                                    lineCounts={lineCounts}
+                                                    preAggregates={
+                                                        preAggregatesByModel
+                                                    }
+                                                    onOpen={(next, part) =>
+                                                        setSearchParams({
+                                                            [VIEW_PARAM]:
+                                                                'code',
+                                                            [FILE_PARAM]: next,
+                                                            ...(part
+                                                                ? {
+                                                                      [FIELD_PARAM]:
+                                                                          part,
+                                                                  }
+                                                                : {}),
+                                                        })
+                                                    }
+                                                />,
+                                            )
+                                        ) : pane === 'sources' ? (
+                                            protoFilesRail(
+                                                <Suspense fallback={null}>
+                                                    <SourcesRail
+                                                        target={
+                                                            dbt.sourcesTarget
+                                                        }
+                                                        proposal={shownProposal}
+                                                        isSaving={
+                                                            isSavingProposal
+                                                        }
+                                                        hasOverview={
+                                                            !!dbt.sourcesPrUrl
+                                                        }
+                                                    />
+                                                </Suspense>,
+                                            )
+                                        ) : isEmpty ||
+                                          isReviewPane ? null : IS_STUDIO_PROTO &&
+                                          pane === 'browse' ? (
+                                            protoRail
+                                        ) : (
                                             <Rail
                                                 view={view}
                                                 expanded={expanded}
@@ -1386,6 +1578,34 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     </ExternalSourceManager>
                 </LiveSourceManager>
             </MarkPublishedContext.Provider>
+            {protoHasDock ? (
+                <ProtoViewDock
+                    onActionsSlot={setProtoActionsSlot}
+                    view={pane === 'browse' ? 'model' : 'code'}
+                    projectUuid={view.project.id}
+                    modelName={
+                        protoHasModel
+                            ? (view.project.explores.find(
+                                  ({ id }) =>
+                                      view.selected !== null &&
+                                      'exploreId' in view.selected &&
+                                      id === view.selected.exploreId,
+                              )?.name ?? null)
+                            : null
+                    }
+                    onOpenFiles={protoTable === null ? protoOpenFiles : null}
+                    onModel={() => {
+                        // The app-kept code view has no caret to read, so it returns to the field it was opened on
+                        protoPlace.arrive = searchParams.get(FIELD_PARAM);
+                        if (protoFileModel)
+                            view.select({
+                                type: 'explore',
+                                exploreId: protoFileModel.id,
+                            });
+                        else switchView('models');
+                    }}
+                />
+            ) : null}
         </DraftMarksContext.Provider>
     );
 };

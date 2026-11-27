@@ -113,7 +113,9 @@ const RailFooter: FC<{
                         title="Model another table"
                         subtitle={`${modelledCount} of ${tableCount} modelled`}
                         warehouseType={view.project.warehouse?.type ?? null}
-                        onStart={onBuildModel}
+                        onStart={() =>
+                            view.select({ type: 'kind', kind: 'modelled' })
+                        }
                     />
                     {sql && !hasKind('sqlViews') ? (
                         <VirtualViewSuggestion path={pathOf(sql) ?? ''} />

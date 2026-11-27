@@ -54,6 +54,8 @@ type Props = {
     projectUuid?: string;
     agentUuid?: string;
     renderArtifactsInline?: boolean;
+    /** False where the thread's setup says nothing to the reader, such as a thread a hand edit started. */
+    showsThreadSetup?: boolean;
     showAddToEvalsButton?: boolean;
     onDashboardLinkClick?: (url: string) => void;
     canRetryDeepResearch?: boolean;
@@ -118,6 +120,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     projectUuid,
     agentUuid,
     renderArtifactsInline = false,
+    showsThreadSetup = true,
     showAddToEvalsButton = false,
     onDashboardLinkClick,
     canRetryDeepResearch = false,
@@ -256,7 +259,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     flex={1}
                 >
                     <Stack flex={1} gap="lg">
-                        {projectUuid && (
+                        {projectUuid && showsThreadSetup && (
                             <ThreadSetupHeader
                                 thread={thread}
                                 projectUuid={projectUuid}

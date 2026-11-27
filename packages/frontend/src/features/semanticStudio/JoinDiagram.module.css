@@ -271,7 +271,7 @@
 }
 
 .condition {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    font-size: var(--mantine-font-size-xs);
+    padding: 4px 0;
+    border-radius: var(--mantine-radius-sm);
+    background: color-mix(in srgb, var(--mantine-color-text) 4%, transparent);
 }

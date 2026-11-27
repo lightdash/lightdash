@@ -1,0 +1,38 @@
+/* Stays in reach while the page scrolls through the tables. */
+.catalogToolbar {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 8px 0;
+    background: var(--mantine-color-body);
+}
+
+/* The copy button sits over the row's right edge, so the schema makes room for it. */
+.catalogRow:hover .catalogRecentSchema {
+    visibility: hidden;
+}
+
+.catalogAction {
+    display: none;
+}
+
+.catalogRow:hover .catalogAction,
+.catalogRow:focus-within .catalogAction {
+    display: block;
+}
+
+.catalogColumns {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0 24px;
+    padding: 2px 8px 8px 56px;
+}
+
+.catalogColumn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    height: 24px;
+    color: var(--mantine-color-ldGray-7);
+}

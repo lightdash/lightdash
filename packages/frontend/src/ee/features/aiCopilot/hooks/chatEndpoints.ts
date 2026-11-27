@@ -57,5 +57,7 @@ export const useChatReadsItsAgent = () =>
 /** Whether to ask for this agent: always in an agent's chat, and elsewhere unless the chat already holds it. */
 export const useChatReadsAgent = (agentUuid: string | undefined) => {
     const own = useContext(ChatOwnEndpointsContext);
-    return own === null || agentUuid !== own.ownAgentUuid;
+    if (own === null) return true;
+    // Until the chat holds its own agent it cannot tell this one apart from it, so it waits
+    return own.ownAgentUuid !== null && agentUuid !== own.ownAgentUuid;
 };
