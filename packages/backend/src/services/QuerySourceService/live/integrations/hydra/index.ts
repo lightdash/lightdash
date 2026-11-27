@@ -18,12 +18,8 @@ import { type LiveLimits } from '../../types';
 import { compileHydraQuery } from './compile';
 import { getHydraDeclaredLimits } from './declaredLimits';
 import { toHydraError } from './errors';
-import {
-    HYDRA_DATE_FILTERS,
-    HYDRA_EVENTS_EXPLORE,
-    HYDRA_STRING_FILTERS,
-    HYDRA_USERS_EXPLORE,
-} from './explores';
+import { HYDRA_EXPLORES } from './explores';
+import { HYDRA_DATE_FILTERS, HYDRA_STRING_FILTERS } from './filters';
 import { hydraReportSchema } from './report';
 import { HYDRA_MAX_QUERY_ROWS, runHydraQuery } from './run';
 import { summarizeHydraTest } from './testSummary';
@@ -76,7 +72,7 @@ export const hydraIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [HYDRA_EVENTS_EXPLORE, HYDRA_USERS_EXPLORE],
+    explores: HYDRA_EXPLORES,
     plannedModelNames: [],
     level: {
         value: 3,

@@ -16,12 +16,12 @@ import {
     type LiveRunResult,
     type LiveScanResult,
 } from '../../types';
-import { SalesforceObjectAccessError } from './errors';
 import {
     SALESFORCE_MAX_AGGREGATE_ROWS,
     SALESFORCE_MAX_CALLS,
     SALESFORCE_MAX_RECORD_ROWS,
-} from './explores';
+} from './api';
+import { SalesforceObjectAccessError } from './errors';
 import {
     parseSalesforceExpression,
     toSoql,

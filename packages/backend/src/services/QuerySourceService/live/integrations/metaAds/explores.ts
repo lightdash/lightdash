@@ -1,445 +1,341 @@
+import { DimensionType, MetricType, TimeFrames } from '@lightdash/common';
 import {
-    DimensionType,
-    FilterOperator,
-    MetricType,
-    TimeFrames,
-    type ApiSourceMetricAggregation,
-} from '@lightdash/common';
-import type {
-    LiveDimensionDefinition,
-    LiveExploreDefinition,
-    LiveMetricDefinition,
-} from '../../explores/definition';
+    ADDITIVE,
+    dimension,
+    explore,
+    metric,
+    NON_ADDITIVE,
+    ratio,
+} from '../../explores/declare';
+import {
+    META_ADS_DATE_FILTERS,
+    META_ADS_ID_FILTERS,
+    META_ADS_NAME_FILTERS,
+} from './filters';
 
-export const META_ADS_DATE_FILTERS = [
-    FilterOperator.IN_THE_PAST,
-    FilterOperator.IN_THE_CURRENT,
-    FilterOperator.IN_BETWEEN,
-    FilterOperator.EQUALS,
-    FilterOperator.GREATER_THAN,
-    FilterOperator.GREATER_THAN_OR_EQUAL,
-];
-
-export const META_ADS_ID_FILTERS = [
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-];
-
-export const META_ADS_NAME_FILTERS = [
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-    FilterOperator.INCLUDE,
-    FilterOperator.NOT_INCLUDE,
-];
-
-export type MetaAdsLevel = 'account' | 'campaign' | 'adset' | 'ad';
-
-/** Coarsest first; a query reads at the finest level it groups by. */
-export const META_ADS_LEVELS: readonly MetaAdsLevel[] = [
-    'account',
-    'campaign',
-    'adset',
-    'ad',
-];
-
-/** Which reporting level each ad object field needs. */
-export const META_ADS_FIELD_LEVELS: Record<string, MetaAdsLevel> = {
-    campaign_id: 'campaign',
-    campaign_name: 'campaign',
-    objective: 'campaign',
-    adset_id: 'adset',
-    adset_name: 'adset',
-    ad_id: 'ad',
-    ad_name: 'ad',
-};
-
-/** The Insights `filtering` field of each filterable ad object field. */
-export const META_ADS_FILTER_FIELDS: Record<string, string> = {
-    campaign_id: 'campaign.id',
-    campaign_name: 'campaign.name',
-    adset_id: 'adset.id',
-    adset_name: 'adset.name',
-    ad_id: 'ad.id',
-    ad_name: 'ad.name',
-};
-
-/**
- * Values Meta reports per breakdown; the ones not listed in its combining
- * table (https://developers.facebook.com/docs/marketing-api/insights/breakdowns),
- * or that need an ad account opt-in such as `impression_device`, are left out.
- */
-export const META_ADS_BREAKDOWNS = [
-    'age',
-    'gender',
-    'country',
-    'publisher_platform',
-    'platform_position',
-] as const;
-
-const DEMOGRAPHIC_FIELDS = ['age', 'gender'];
-const GEO_FIELDS = ['country'];
-const PLACEMENT_FIELDS = ['publisher_platform', 'platform_position'];
-
-const DEFAULT_DAYS = 30;
-
-const ADDITIVE: ApiSourceMetricAggregation = { aggregation: 'additive' };
-const NON_ADDITIVE: ApiSourceMetricAggregation = {
-    aggregation: 'non_additive',
-};
-
-const dimension = (
-    name: string,
-    label: string,
-    description: string,
-    filterOperators: FilterOperator[] = [],
-): LiveDimensionDefinition => ({
-    name,
-    apiName: name,
-    label,
-    description,
-    type: DimensionType.STRING,
-    filterOperators,
-});
-
-// Meta's Insights fields can't be filtered at the row level the way
-// dimensions can, so metrics take no filter operators.
-const metric = (
-    name: string,
-    apiName: string,
-    label: string,
-    type: MetricType,
-    aggregation: ApiSourceMetricAggregation,
-    description: string,
-    format?: string,
-): LiveMetricDefinition => ({
-    name,
-    apiName,
-    label,
-    description,
-    type,
-    filterOperators: [],
-    aggregation,
-    ...(format ? { format } : {}),
-});
-
-const ATTRIBUTION_NOTE =
-    "Uses Meta's default attribution (7-day click and 1-day view), which can differ from an ad set's own setting. Empty when Meta reports no value.";
-
-const RATIO_NOTE = 'A ratio: never sum or average rows.';
-
-// Additivity follows Meta's Insights docs
-// (https://developers.facebook.com/docs/marketing-api/insights): spend,
-// impressions, clicks and actions are counts, reach deduplicates people across
-// the rows of a report so it can't be rebuilt by summing them, and frequency
-// divides by reach. CTR and CPC recompute from their parts; CPM carries a
-// factor of 1,000 that a ratio can't express.
-export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
+export const META_ADS_INSIGHTS_EXPLORE = explore({
     name: 'insights',
     label: 'Insights',
     description:
         'Facebook and Instagram ad performance for one Meta ad account: spend, reach, impressions, clicks and conversions, by campaign, ad set, ad, date, audience and placement. Dates are in the ad account time zone and money is in the ad account currency.',
-    aiHint: `Without a Date filter the query reads the last ${DEFAULT_DAYS} days. Meta reports Age and Gender only on their own, without Country, Platform or Placement; and Country only without Platform or Placement. Add Platform whenever you use Placement. Reach and Frequency count each person once per row: never sum or average rows; split or filter the query instead. With a breakdown, Meta only reports reach for the last 13 months. Conversion metrics use Meta's default attribution (7-day click, 1-day view). Spend, reach and frequency are Meta estimates.`,
-    dimensions: [
+    aiHint: "Without a Date filter the query reads the last 30 days. Meta reports Age and Gender only on their own, without Country, Platform or Placement; and Country only without Platform or Placement. Add Platform whenever you use Placement. Reach and Frequency count each person once per row: never sum or average rows; split or filter the query instead. With a breakdown, Meta only reports reach for the last 13 months. Conversion metrics use Meta's default attribution (7-day click, 1-day view). Spend, reach and frequency are Meta estimates.",
+    dateRange: { dimension: 'date', defaultDays: 30 },
+    incompatible: [
         {
+            fields: ['age', 'gender'],
+            with: ['country', 'publisher_platform', 'platform_position'],
+            reason: 'Meta reports age and gender on their own, without location or placement.',
+        },
+        {
+            fields: ['country'],
+            with: ['publisher_platform', 'platform_position'],
+            reason: 'Meta reports location on its own, without placement.',
+        },
+    ],
+    dimensions: [
+        dimension({
             name: 'date',
             apiName: 'date_start',
             label: 'Date',
             type: DimensionType.DATE,
             filterOperators: META_ADS_DATE_FILTERS,
-            timeInterval: { base: 'date', grain: TimeFrames.DAY },
             description: 'Day of the activity, in the ad account time zone.',
-            aiHint: `Without a date filter the query reads the last ${DEFAULT_DAYS} days.`,
-        },
-        {
+            aiHint: 'Without a date filter the query reads the last 30 days.',
+            timeInterval: { base: 'date', grain: TimeFrames.DAY },
+        }),
+        dimension({
             name: 'date_month',
             apiName: 'date_start',
             label: 'Date month',
             type: DimensionType.DATE,
             filterOperators: [],
-            timeInterval: { base: 'date', grain: TimeFrames.MONTH },
             description:
                 'Month of the activity, shown as its first day, in the ad account time zone.',
             aiHint: 'Filter Date, not this field, to choose the months.',
-        },
-        dimension(
-            'campaign_id',
-            'Campaign ID',
-            'Meta campaign ID.',
-            META_ADS_ID_FILTERS,
-        ),
-        dimension(
-            'campaign_name',
-            'Campaign name',
-            'Name of the campaign.',
-            META_ADS_NAME_FILTERS,
-        ),
-        dimension(
-            'objective',
-            'Campaign objective',
-            'What the campaign is set up to achieve, such as sales, leads or traffic.',
-        ),
-        dimension(
-            'adset_id',
-            'Ad set ID',
-            'Meta ad set ID.',
-            META_ADS_ID_FILTERS,
-        ),
-        dimension(
-            'adset_name',
-            'Ad set name',
-            'Name of the ad set.',
-            META_ADS_NAME_FILTERS,
-        ),
-        dimension('ad_id', 'Ad ID', 'Meta ad ID.', META_ADS_ID_FILTERS),
-        dimension(
-            'ad_name',
-            'Ad name',
-            'Name of the ad.',
-            META_ADS_NAME_FILTERS,
-        ),
-        {
-            ...dimension(
-                'age',
-                'Age',
-                'Age range of the people reached, such as 25-34.',
-            ),
+            timeInterval: { base: 'date', grain: TimeFrames.MONTH },
+        }),
+        dimension({
+            name: 'campaign_id',
+            label: 'Campaign ID',
+            type: DimensionType.STRING,
+            filterOperators: META_ADS_ID_FILTERS,
+            description: 'Meta campaign ID.',
+        }),
+        dimension({
+            name: 'campaign_name',
+            label: 'Campaign name',
+            type: DimensionType.STRING,
+            filterOperators: META_ADS_NAME_FILTERS,
+            description: 'Name of the campaign.',
+        }),
+        dimension({
+            name: 'objective',
+            label: 'Campaign objective',
+            type: DimensionType.STRING,
+            filterOperators: [],
+            description:
+                'What the campaign is set up to achieve, such as sales, leads or traffic.',
+        }),
+        dimension({
+            name: 'adset_id',
+            label: 'Ad set ID',
+            type: DimensionType.STRING,
+            filterOperators: META_ADS_ID_FILTERS,
+            description: 'Meta ad set ID.',
+        }),
+        dimension({
+            name: 'adset_name',
+            label: 'Ad set name',
+            type: DimensionType.STRING,
+            filterOperators: META_ADS_NAME_FILTERS,
+            description: 'Name of the ad set.',
+        }),
+        dimension({
+            name: 'ad_id',
+            label: 'Ad ID',
+            type: DimensionType.STRING,
+            filterOperators: META_ADS_ID_FILTERS,
+            description: 'Meta ad ID.',
+        }),
+        dimension({
+            name: 'ad_name',
+            label: 'Ad name',
+            type: DimensionType.STRING,
+            filterOperators: META_ADS_NAME_FILTERS,
+            description: 'Name of the ad.',
+        }),
+        dimension({
+            name: 'age',
+            label: 'Age',
+            type: DimensionType.STRING,
+            filterOperators: [],
+            description: 'Age range of the people reached, such as 25-34.',
             aiHint: 'Reported only on its own: not with Country, Platform or Placement.',
-        },
-        {
-            ...dimension('gender', 'Gender', 'Gender of the people reached.'),
+        }),
+        dimension({
+            name: 'gender',
+            label: 'Gender',
+            type: DimensionType.STRING,
+            filterOperators: [],
+            description: 'Gender of the people reached.',
             aiHint: 'Reported only on its own: not with Country, Platform or Placement.',
-        },
-        {
-            ...dimension(
-                'country',
-                'Country',
+        }),
+        dimension({
+            name: 'country',
+            label: 'Country',
+            type: DimensionType.STRING,
+            filterOperators: [],
+            description:
                 'Two-letter code of the country of the people reached.',
-            ),
             aiHint: 'Reported without Platform or Placement, and without Age or Gender.',
-        },
-        dimension(
-            'publisher_platform',
-            'Platform',
-            'Where the ad ran: facebook, instagram, messenger or audience_network.',
-        ),
-        {
-            ...dimension(
-                'platform_position',
-                'Placement',
-                'Position within the platform, such as feed or story.',
-            ),
+        }),
+        dimension({
+            name: 'publisher_platform',
+            label: 'Platform',
+            type: DimensionType.STRING,
+            filterOperators: [],
+            description:
+                'Where the ad ran: facebook, instagram, messenger or audience_network.',
+        }),
+        dimension({
+            name: 'platform_position',
+            label: 'Placement',
+            type: DimensionType.STRING,
+            filterOperators: [],
+            description: 'Position within the platform, such as feed or story.',
             aiHint: 'Add Platform too: Meta reports placements per platform.',
-        },
+        }),
     ],
+    // Additivity follows Meta's Insights docs
+    // (https://developers.facebook.com/docs/marketing-api/insights): spend,
+    // impressions, clicks and actions are counts, reach deduplicates people across
+    // the rows of a report so it can't be rebuilt by summing them, and frequency
+    // divides by reach. CTR and CPC recompute from their parts; CPM carries a
+    // factor of 1,000 that a ratio can't express. Insights fields can't be
+    // filtered at the row level the way dimensions can, so metrics take no
+    // filter operators.
     metrics: [
-        metric(
-            'spend',
-            'spend',
-            'Spend',
-            MetricType.SUM,
-            ADDITIVE,
-            'Amount spent, in the ad account currency. Meta reports it as an estimate.',
-            '#,##0.00',
-        ),
-        metric(
-            'impressions',
-            'impressions',
-            'Impressions',
-            MetricType.SUM,
-            ADDITIVE,
-            'Number of times the ads were on screen.',
-        ),
-        {
-            ...metric(
-                'reach',
-                'reach',
-                'Reach',
-                MetricType.NUMBER,
-                NON_ADDITIVE,
+        metric({
+            name: 'spend',
+            label: 'Spend',
+            type: MetricType.SUM,
+            filterOperators: [],
+            description:
+                'Amount spent, in the ad account currency. Meta reports it as an estimate.',
+            format: '#,##0.00',
+            aggregation: ADDITIVE,
+        }),
+        metric({
+            name: 'impressions',
+            label: 'Impressions',
+            type: MetricType.SUM,
+            filterOperators: [],
+            description: 'Number of times the ads were on screen.',
+            aggregation: ADDITIVE,
+        }),
+        metric({
+            name: 'reach',
+            label: 'Reach',
+            type: MetricType.NUMBER,
+            filterOperators: [],
+            description:
                 'Estimated number of people who saw the ads at least once.',
-            ),
             aiHint: 'Counts each person once per row: never sum rows. With a breakdown, only the last 13 months are reported.',
-        },
-        {
-            ...metric(
-                'frequency',
-                'frequency',
-                'Frequency',
-                MetricType.NUMBER,
-                NON_ADDITIVE,
+            aggregation: NON_ADDITIVE,
+        }),
+        metric({
+            name: 'frequency',
+            label: 'Frequency',
+            type: MetricType.NUMBER,
+            filterOperators: [],
+            description:
                 'Average number of times each person saw the ads, estimated by Meta.',
-                '0.00',
-            ),
             aiHint: 'Depends on reach: never sum or average rows.',
-        },
-        metric(
-            'clicks',
-            'clicks',
-            'Clicks (all)',
-            MetricType.SUM,
-            ADDITIVE,
-            'Number of all clicks on the ads, including link clicks, likes, comments and shares.',
-        ),
-        metric(
-            'link_clicks',
-            'inline_link_clicks',
-            'Link clicks',
-            MetricType.SUM,
-            ADDITIVE,
-            'Number of clicks on links in the ads to destinations on or off Meta.',
-        ),
-        {
-            ...metric(
-                'ctr',
-                'ctr',
-                'Click-through rate (all)',
-                MetricType.NUMBER,
-                {
-                    aggregation: 'ratio',
-                    numerator: 'clicks',
-                    denominator: 'impressions',
-                },
-                'All clicks as a share of impressions.',
-                '0.00%',
-            ),
-            aiHint: RATIO_NOTE,
-        },
-        {
-            ...metric(
-                'cpc',
-                'cpc',
-                'Cost per click (all)',
-                MetricType.NUMBER,
-                {
-                    aggregation: 'ratio',
-                    numerator: 'spend',
-                    denominator: 'clicks',
-                },
+            format: '0.00',
+            aggregation: NON_ADDITIVE,
+        }),
+        metric({
+            name: 'clicks',
+            label: 'Clicks (all)',
+            type: MetricType.SUM,
+            filterOperators: [],
+            description:
+                'Number of all clicks on the ads, including link clicks, likes, comments and shares.',
+            aggregation: ADDITIVE,
+        }),
+        metric({
+            name: 'link_clicks',
+            apiName: 'inline_link_clicks',
+            label: 'Link clicks',
+            type: MetricType.SUM,
+            filterOperators: [],
+            description:
+                'Number of clicks on links in the ads to destinations on or off Meta.',
+            aggregation: ADDITIVE,
+        }),
+        metric({
+            name: 'ctr',
+            label: 'Click-through rate (all)',
+            type: MetricType.NUMBER,
+            filterOperators: [],
+            description: 'All clicks as a share of impressions.',
+            aiHint: 'A ratio: never sum or average rows.',
+            format: '0.00%',
+            aggregation: ratio('clicks', 'impressions'),
+        }),
+        metric({
+            name: 'cpc',
+            label: 'Cost per click (all)',
+            type: MetricType.NUMBER,
+            filterOperators: [],
+            description:
                 'Average cost per click (all clicks), in the ad account currency.',
-                '#,##0.00',
-            ),
-            aiHint: RATIO_NOTE,
-        },
-        {
-            ...metric(
-                'cpm',
-                'cpm',
-                'Cost per 1,000 impressions',
-                MetricType.NUMBER,
-                NON_ADDITIVE,
+            aiHint: 'A ratio: never sum or average rows.',
+            format: '#,##0.00',
+            aggregation: ratio('spend', 'clicks'),
+        }),
+        metric({
+            name: 'cpm',
+            label: 'Cost per 1,000 impressions',
+            type: MetricType.NUMBER,
+            filterOperators: [],
+            description:
                 'Average cost per 1,000 impressions, in the ad account currency.',
-                '#,##0.00',
-            ),
-            aiHint: RATIO_NOTE,
-        },
-        {
-            ...metric(
-                'purchases',
-                'actions:omni_purchase',
-                'Purchases',
-                MetricType.SUM,
-                ADDITIVE,
+            aiHint: 'A ratio: never sum or average rows.',
+            format: '#,##0.00',
+            aggregation: NON_ADDITIVE,
+        }),
+        metric({
+            name: 'purchases',
+            apiName: 'actions:omni_purchase',
+            label: 'Purchases',
+            type: MetricType.SUM,
+            filterOperators: [],
+            description:
                 'Number of purchases on the website, in the app and on Meta, attributed to the ads.',
-            ),
-            aiHint: ATTRIBUTION_NOTE,
-        },
-        {
-            ...metric(
-                'purchase_value',
-                'action_values:omni_purchase',
-                'Purchase value',
-                MetricType.SUM,
-                ADDITIVE,
+            aiHint: "Uses Meta's default attribution (7-day click and 1-day view), which can differ from an ad set's own setting. Empty when Meta reports no value.",
+            aggregation: ADDITIVE,
+        }),
+        metric({
+            name: 'purchase_value',
+            apiName: 'action_values:omni_purchase',
+            label: 'Purchase value',
+            type: MetricType.SUM,
+            filterOperators: [],
+            description:
                 'Value of those purchases, in the ad account currency.',
-                '#,##0.00',
-            ),
-            aiHint: ATTRIBUTION_NOTE,
-        },
-        {
-            ...metric(
-                'purchase_roas',
-                'purchase_roas:omni_purchase',
-                'Purchase ROAS',
-                MetricType.NUMBER,
-                {
-                    aggregation: 'ratio',
-                    numerator: 'purchase_value',
-                    denominator: 'spend',
-                },
+            aiHint: "Uses Meta's default attribution (7-day click and 1-day view), which can differ from an ad set's own setting. Empty when Meta reports no value.",
+            format: '#,##0.00',
+            aggregation: ADDITIVE,
+        }),
+        metric({
+            name: 'purchase_roas',
+            apiName: 'purchase_roas:omni_purchase',
+            label: 'Purchase ROAS',
+            type: MetricType.NUMBER,
+            filterOperators: [],
+            description:
                 'Purchase value divided by spend (return on ad spend).',
-                '0.00',
-            ),
-            aiHint: `${ATTRIBUTION_NOTE} ${RATIO_NOTE}`,
-        },
-        {
-            ...metric(
-                'leads',
-                'actions:lead',
-                'Leads',
-                MetricType.SUM,
-                ADDITIVE,
+            aiHint: "Uses Meta's default attribution (7-day click and 1-day view), which can differ from an ad set's own setting. Empty when Meta reports no value. A ratio: never sum or average rows.",
+            format: '0.00',
+            aggregation: ratio('purchase_value', 'spend'),
+        }),
+        metric({
+            name: 'leads',
+            apiName: 'actions:lead',
+            label: 'Leads',
+            type: MetricType.SUM,
+            filterOperators: [],
+            description:
                 'Number of leads from websites and Meta lead forms, attributed to the ads.',
-            ),
-            aiHint: ATTRIBUTION_NOTE,
-        },
-        {
-            ...metric(
-                'landing_page_views',
-                'actions:landing_page_view',
-                'Landing page views',
-                MetricType.SUM,
-                ADDITIVE,
+            aiHint: "Uses Meta's default attribution (7-day click and 1-day view), which can differ from an ad set's own setting. Empty when Meta reports no value.",
+            aggregation: ADDITIVE,
+        }),
+        metric({
+            name: 'landing_page_views',
+            apiName: 'actions:landing_page_view',
+            label: 'Landing page views',
+            type: MetricType.SUM,
+            filterOperators: [],
+            description:
                 'Number of times a landing page loaded after someone clicked a link in the ad.',
-            ),
-            aiHint: ATTRIBUTION_NOTE,
-        },
-        {
-            ...metric(
-                'adds_to_cart',
-                'actions:omni_add_to_cart',
-                'Adds to cart',
-                MetricType.SUM,
-                ADDITIVE,
+            aiHint: "Uses Meta's default attribution (7-day click and 1-day view), which can differ from an ad set's own setting. Empty when Meta reports no value.",
+            aggregation: ADDITIVE,
+        }),
+        metric({
+            name: 'adds_to_cart',
+            apiName: 'actions:omni_add_to_cart',
+            label: 'Adds to cart',
+            type: MetricType.SUM,
+            filterOperators: [],
+            description:
                 'Number of adds to cart on the website, in the app and on Meta, attributed to the ads.',
-            ),
-            aiHint: ATTRIBUTION_NOTE,
-        },
-        {
-            ...metric(
-                'checkouts_initiated',
-                'actions:omni_initiated_checkout',
-                'Checkouts initiated',
-                MetricType.SUM,
-                ADDITIVE,
+            aiHint: "Uses Meta's default attribution (7-day click and 1-day view), which can differ from an ad set's own setting. Empty when Meta reports no value.",
+            aggregation: ADDITIVE,
+        }),
+        metric({
+            name: 'checkouts_initiated',
+            apiName: 'actions:omni_initiated_checkout',
+            label: 'Checkouts initiated',
+            type: MetricType.SUM,
+            filterOperators: [],
+            description:
                 'Number of checkouts started on the website, in the app and on Meta, attributed to the ads.',
-            ),
-            aiHint: ATTRIBUTION_NOTE,
-        },
-        {
-            ...metric(
-                'registrations_completed',
-                'actions:omni_complete_registration',
-                'Registrations completed',
-                MetricType.SUM,
-                ADDITIVE,
+            aiHint: "Uses Meta's default attribution (7-day click and 1-day view), which can differ from an ad set's own setting. Empty when Meta reports no value.",
+            aggregation: ADDITIVE,
+        }),
+        metric({
+            name: 'registrations_completed',
+            apiName: 'actions:omni_complete_registration',
+            label: 'Registrations completed',
+            type: MetricType.SUM,
+            filterOperators: [],
+            description:
                 'Number of registrations completed on the website, in the app and on Meta, attributed to the ads.',
-            ),
-            aiHint: ATTRIBUTION_NOTE,
-        },
+            aiHint: "Uses Meta's default attribution (7-day click and 1-day view), which can differ from an ad set's own setting. Empty when Meta reports no value.",
+            aggregation: ADDITIVE,
+        }),
     ],
-    maxDimensions: null,
-    maxMetrics: null,
-    dateRange: { dimension: 'date', defaultDays: DEFAULT_DAYS },
-    incompatible: [
-        {
-            fields: DEMOGRAPHIC_FIELDS,
-            with: [...GEO_FIELDS, ...PLACEMENT_FIELDS],
-            reason: 'Meta reports age and gender on their own, without location or placement.',
-        },
-        {
-            fields: GEO_FIELDS,
-            with: PLACEMENT_FIELDS,
-            reason: 'Meta reports location on its own, without placement.',
-        },
-    ],
-};
+});
+
+export const META_ADS_EXPLORES = [META_ADS_INSIGHTS_EXPLORE] as const;

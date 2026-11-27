@@ -25,7 +25,7 @@ import {
     META_ADS_FILTER_FIELDS,
     META_ADS_LEVELS,
     type MetaAdsLevel,
-} from './explores';
+} from './api';
 
 const REACH_METRICS = ['reach', 'frequency'];
 const BREAKDOWNS: ReadonlySet<string> = new Set(META_ADS_BREAKDOWNS);

@@ -16,7 +16,7 @@ import {
     type LiveCompiledRequest,
 } from '../../explores/definition';
 import { resolveAbsoluteDateRange } from '../../query/dateRange';
-import { isAmplitudeUserProperty } from './explores';
+import { isAmplitudeUserProperty } from './api';
 import {
     AMPLITUDE_CALLS_PER_QUERY,
     AMPLITUDE_MAX_EVENTS,

@@ -1,285 +1,360 @@
-import { DimensionType, FilterOperator, MetricType } from '@lightdash/common';
-import type {
-    LiveDimensionDefinition,
-    LiveExploreDefinition,
-    LiveMetricDefinition,
-} from '../../explores/definition';
+import { DimensionType, MetricType } from '@lightdash/common';
+import { ADDITIVE, dimension, explore, metric } from '../../explores/declare';
+import {
+    GITHUB_BOOLEAN_FILTERS,
+    GITHUB_DATE_FILTERS,
+    GITHUB_NUMBER_FILTERS,
+    GITHUB_STATE_FILTERS,
+    GITHUB_TEXT_FILTERS,
+    GITHUB_VALUE_FILTERS,
+} from './filters';
 
-// Search matches whole words, so only word matches are offered
-export const GITHUB_TEXT_FILTERS = [
-    FilterOperator.INCLUDE,
-    FilterOperator.NOT_INCLUDE,
-];
-
-export const GITHUB_VALUE_FILTERS = [
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-];
-
-// A state is one qualifier; "not merged" has no single one
-export const GITHUB_STATE_FILTERS = [FilterOperator.EQUALS];
-
-export const GITHUB_NUMBER_FILTERS = [
-    FilterOperator.EQUALS,
-    FilterOperator.GREATER_THAN,
-    FilterOperator.LESS_THAN,
-];
-
-export const GITHUB_BOOLEAN_FILTERS = [FilterOperator.EQUALS];
-
-export const GITHUB_DATE_FILTERS = [
-    FilterOperator.IN_THE_PAST,
-    FilterOperator.IN_THE_CURRENT,
-    FilterOperator.IN_BETWEEN,
-    FilterOperator.EQUALS,
-    // Open-ended: the missing side is today or GitHub's first day
-    FilterOperator.GREATER_THAN,
-    FilterOperator.GREATER_THAN_OR_EQUAL,
-    FilterOperator.LESS_THAN,
-    FilterOperator.LESS_THAN_OR_EQUAL,
-];
-
-const dimension = (
-    name: string,
-    label: string,
-    type: DimensionType,
-    filterOperators: FilterOperator[],
-    description: string,
-    aiHint?: string,
-): LiveDimensionDefinition => ({
-    name,
-    apiName: name,
-    label,
-    description,
-    ...(aiHint ? { aiHint } : {}),
-    type,
-    filterOperators,
-});
-
-const date = (name: string, label: string, description: string) =>
-    dimension(
-        name,
-        label,
-        DimensionType.DATE,
-        GITHUB_DATE_FILTERS,
-        description,
-    );
-
-const SEARCH_COUNT_NAME = 'count';
-
-const searchCount = (noun: string): LiveMetricDefinition => ({
-    name: SEARCH_COUNT_NAME,
-    apiName: 'total_count',
-    label: 'Count',
-    description: `Number of ${noun}s that match the filters.`,
-    aiHint: "Comes from GitHub search's total, so it cannot be split by any dimension: use it alone (with filters) or list rows without it.",
-    type: MetricType.NUMBER,
-    filterOperators: [],
-    aggregation: { aggregation: 'additive' },
-});
-
-const searchDimensions = (noun: string): LiveDimensionDefinition[] => [
-    dimension(
-        'number',
-        'Number',
-        DimensionType.NUMBER,
-        [],
-        `The ${noun} number in the repository.`,
-    ),
-    dimension(
-        'title',
-        'Title',
-        DimensionType.STRING,
-        GITHUB_TEXT_FILTERS,
-        `Title of the ${noun}.`,
-        'Text filters match whole words only (GitHub search).',
-    ),
-    dimension(
-        'url',
-        'URL',
-        DimensionType.STRING,
-        [],
-        `Link to the ${noun} on GitHub.`,
-    ),
-    dimension(
-        'author',
-        'Author',
-        DimensionType.STRING,
-        GITHUB_VALUE_FILTERS,
-        `GitHub username of the person who opened the ${noun}.`,
-    ),
-    dimension(
-        'assignee',
-        'Assignee',
-        DimensionType.STRING,
-        GITHUB_VALUE_FILTERS,
-        `GitHub username of the first person assigned to the ${noun}.`,
-        'Only the first assignee is shown; filtering by it matches any assignee.',
-    ),
-    dimension(
-        'labels',
-        'Labels',
-        DimensionType.STRING,
-        GITHUB_VALUE_FILTERS,
-        `Labels on the ${noun}, separated by commas.`,
-        `"Is" keeps ${noun}s that have the label.`,
-    ),
-    dimension(
-        'comments',
-        'Comments',
-        DimensionType.NUMBER,
-        GITHUB_NUMBER_FILTERS,
-        'Number of comments.',
-    ),
-    date('created_at', 'Created', `Day the ${noun} was opened, in UTC.`),
-    date('updated_at', 'Updated', `Day the ${noun} last changed, in UTC.`),
-    date('closed_at', 'Closed', `Day the ${noun} was closed, in UTC.`),
-    dimension(
-        'search',
-        'Search text',
-        DimensionType.STRING,
-        GITHUB_TEXT_FILTERS,
-        'Words to look for in the title or description.',
-        'Filter only: matches whole words. Empty when selected.',
-    ),
-];
-
-const countIncompatibility = (dimensions: LiveDimensionDefinition[]) => ({
-    fields: [SEARCH_COUNT_NAME],
-    with: dimensions.map(({ name }) => name),
-    reason: "GitHub search returns one total, so Count can't be split by a dimension. Filter by it instead, or list rows without Count.",
-    selectedOnly: true as const,
-});
-
-const PULL_REQUEST_DIMENSIONS: LiveDimensionDefinition[] = [
-    ...searchDimensions('pull request'),
-    dimension(
-        'state',
-        'State',
-        DimensionType.STRING,
-        GITHUB_STATE_FILTERS,
-        'Whether the pull request is open, merged, or closed without merging.',
-        'Filter with equals only.',
-    ),
-    dimension(
-        'draft',
-        'Draft',
-        DimensionType.BOOLEAN,
-        GITHUB_BOOLEAN_FILTERS,
-        'Whether the pull request is a draft.',
-    ),
-    date('merged_at', 'Merged', 'Day the pull request was merged, in UTC.'),
-];
-
-export const GITHUB_PULL_REQUESTS_EXPLORE: LiveExploreDefinition = {
+export const GITHUB_PULL_REQUESTS_EXPLORE = explore({
     name: 'pull_requests',
     label: 'Pull requests',
     description: 'Pull requests in one GitHub repository.',
     aiHint: "Read live from GitHub search. Count is GitHub's total for the filters and cannot be split by any dimension: query Count alone with filters, or list rows without Count. Listing reads at most 1,000 pull requests. Text filters match whole words. Dates are UTC days.",
-    dimensions: PULL_REQUEST_DIMENSIONS,
-    metrics: [searchCount('pull request')],
-    maxDimensions: null,
-    maxMetrics: null,
-    dateRange: null,
-    incompatible: [countIncompatibility(PULL_REQUEST_DIMENSIONS)],
-};
+    incompatible: [
+        {
+            fields: ['count'],
+            with: [
+                'number',
+                'title',
+                'url',
+                'author',
+                'assignee',
+                'labels',
+                'comments',
+                'created_at',
+                'updated_at',
+                'closed_at',
+                'search',
+                'state',
+                'draft',
+                'merged_at',
+            ],
+            reason: "GitHub search returns one total, so Count can't be split by a dimension. Filter by it instead, or list rows without Count.",
+            selectedOnly: true,
+        },
+    ],
+    dimensions: [
+        dimension({
+            name: 'number',
+            label: 'Number',
+            type: DimensionType.NUMBER,
+            filterOperators: [],
+            description: 'The pull request number in the repository.',
+        }),
+        dimension({
+            name: 'title',
+            label: 'Title',
+            type: DimensionType.STRING,
+            filterOperators: GITHUB_TEXT_FILTERS,
+            description: 'Title of the pull request.',
+            aiHint: 'Text filters match whole words only (GitHub search).',
+        }),
+        dimension({
+            name: 'url',
+            label: 'URL',
+            type: DimensionType.STRING,
+            filterOperators: [],
+            description: 'Link to the pull request on GitHub.',
+        }),
+        dimension({
+            name: 'author',
+            label: 'Author',
+            type: DimensionType.STRING,
+            filterOperators: GITHUB_VALUE_FILTERS,
+            description:
+                'GitHub username of the person who opened the pull request.',
+        }),
+        dimension({
+            name: 'assignee',
+            label: 'Assignee',
+            type: DimensionType.STRING,
+            filterOperators: GITHUB_VALUE_FILTERS,
+            description:
+                'GitHub username of the first person assigned to the pull request.',
+            aiHint: 'Only the first assignee is shown; filtering by it matches any assignee.',
+        }),
+        dimension({
+            name: 'labels',
+            label: 'Labels',
+            type: DimensionType.STRING,
+            filterOperators: GITHUB_VALUE_FILTERS,
+            description: 'Labels on the pull request, separated by commas.',
+            aiHint: '"Is" keeps pull requests that have the label.',
+        }),
+        dimension({
+            name: 'comments',
+            label: 'Comments',
+            type: DimensionType.NUMBER,
+            filterOperators: GITHUB_NUMBER_FILTERS,
+            description: 'Number of comments.',
+        }),
+        dimension({
+            name: 'created_at',
+            label: 'Created',
+            type: DimensionType.DATE,
+            filterOperators: GITHUB_DATE_FILTERS,
+            description: 'Day the pull request was opened, in UTC.',
+        }),
+        dimension({
+            name: 'updated_at',
+            label: 'Updated',
+            type: DimensionType.DATE,
+            filterOperators: GITHUB_DATE_FILTERS,
+            description: 'Day the pull request last changed, in UTC.',
+        }),
+        dimension({
+            name: 'closed_at',
+            label: 'Closed',
+            type: DimensionType.DATE,
+            filterOperators: GITHUB_DATE_FILTERS,
+            description: 'Day the pull request was closed, in UTC.',
+        }),
+        dimension({
+            name: 'search',
+            label: 'Search text',
+            type: DimensionType.STRING,
+            filterOperators: GITHUB_TEXT_FILTERS,
+            description: 'Words to look for in the title or description.',
+            aiHint: 'Filter only: matches whole words. Empty when selected.',
+        }),
+        dimension({
+            name: 'state',
+            label: 'State',
+            type: DimensionType.STRING,
+            filterOperators: GITHUB_STATE_FILTERS,
+            description:
+                'Whether the pull request is open, merged, or closed without merging.',
+            aiHint: 'Filter with equals only.',
+        }),
+        dimension({
+            name: 'draft',
+            label: 'Draft',
+            type: DimensionType.BOOLEAN,
+            filterOperators: GITHUB_BOOLEAN_FILTERS,
+            description: 'Whether the pull request is a draft.',
+        }),
+        dimension({
+            name: 'merged_at',
+            label: 'Merged',
+            type: DimensionType.DATE,
+            filterOperators: GITHUB_DATE_FILTERS,
+            description: 'Day the pull request was merged, in UTC.',
+        }),
+    ],
+    metrics: [
+        metric({
+            name: 'count',
+            apiName: 'total_count',
+            label: 'Count',
+            type: MetricType.NUMBER,
+            filterOperators: [],
+            description: 'Number of pull requests that match the filters.',
+            aiHint: "Comes from GitHub search's total, so it cannot be split by any dimension: use it alone (with filters) or list rows without it.",
+            aggregation: ADDITIVE,
+        }),
+    ],
+});
 
-const ISSUE_DIMENSIONS: LiveDimensionDefinition[] = [
-    ...searchDimensions('issue'),
-    dimension(
-        'state',
-        'State',
-        DimensionType.STRING,
-        GITHUB_STATE_FILTERS,
-        'Whether the issue is open or closed.',
-        'Filter with equals only.',
-    ),
-    dimension(
-        'state_reason',
-        'State reason',
-        DimensionType.STRING,
-        GITHUB_STATE_FILTERS,
-        'Why a closed issue was closed: completed, not_planned or reopened.',
-    ),
-];
-
-export const GITHUB_ISSUES_EXPLORE: LiveExploreDefinition = {
+export const GITHUB_ISSUES_EXPLORE = explore({
     name: 'issues',
     label: 'Issues',
     description:
         'Issues in one GitHub repository, not including pull requests.',
     aiHint: "Read live from GitHub search. Count is GitHub's total for the filters and cannot be split by any dimension: query Count alone with filters, or list rows without Count. Listing reads at most 1,000 issues. Text filters match whole words. Dates are UTC days.",
-    dimensions: ISSUE_DIMENSIONS,
-    metrics: [searchCount('issue')],
-    maxDimensions: null,
-    maxMetrics: null,
-    dateRange: null,
-    incompatible: [countIncompatibility(ISSUE_DIMENSIONS)],
-};
-
-const contributorMetric = (
-    name: string,
-    apiName: string,
-    label: string,
-    description: string,
-    aiHint?: string,
-): LiveMetricDefinition => ({
-    name,
-    apiName,
-    label,
-    description,
-    ...(aiHint ? { aiHint } : {}),
-    type: MetricType.NUMBER,
-    filterOperators: [],
-    aggregation: { aggregation: 'additive' },
+    incompatible: [
+        {
+            fields: ['count'],
+            with: [
+                'number',
+                'title',
+                'url',
+                'author',
+                'assignee',
+                'labels',
+                'comments',
+                'created_at',
+                'updated_at',
+                'closed_at',
+                'search',
+                'state',
+                'state_reason',
+            ],
+            reason: "GitHub search returns one total, so Count can't be split by a dimension. Filter by it instead, or list rows without Count.",
+            selectedOnly: true,
+        },
+    ],
+    dimensions: [
+        dimension({
+            name: 'number',
+            label: 'Number',
+            type: DimensionType.NUMBER,
+            filterOperators: [],
+            description: 'The issue number in the repository.',
+        }),
+        dimension({
+            name: 'title',
+            label: 'Title',
+            type: DimensionType.STRING,
+            filterOperators: GITHUB_TEXT_FILTERS,
+            description: 'Title of the issue.',
+            aiHint: 'Text filters match whole words only (GitHub search).',
+        }),
+        dimension({
+            name: 'url',
+            label: 'URL',
+            type: DimensionType.STRING,
+            filterOperators: [],
+            description: 'Link to the issue on GitHub.',
+        }),
+        dimension({
+            name: 'author',
+            label: 'Author',
+            type: DimensionType.STRING,
+            filterOperators: GITHUB_VALUE_FILTERS,
+            description: 'GitHub username of the person who opened the issue.',
+        }),
+        dimension({
+            name: 'assignee',
+            label: 'Assignee',
+            type: DimensionType.STRING,
+            filterOperators: GITHUB_VALUE_FILTERS,
+            description:
+                'GitHub username of the first person assigned to the issue.',
+            aiHint: 'Only the first assignee is shown; filtering by it matches any assignee.',
+        }),
+        dimension({
+            name: 'labels',
+            label: 'Labels',
+            type: DimensionType.STRING,
+            filterOperators: GITHUB_VALUE_FILTERS,
+            description: 'Labels on the issue, separated by commas.',
+            aiHint: '"Is" keeps issues that have the label.',
+        }),
+        dimension({
+            name: 'comments',
+            label: 'Comments',
+            type: DimensionType.NUMBER,
+            filterOperators: GITHUB_NUMBER_FILTERS,
+            description: 'Number of comments.',
+        }),
+        dimension({
+            name: 'created_at',
+            label: 'Created',
+            type: DimensionType.DATE,
+            filterOperators: GITHUB_DATE_FILTERS,
+            description: 'Day the issue was opened, in UTC.',
+        }),
+        dimension({
+            name: 'updated_at',
+            label: 'Updated',
+            type: DimensionType.DATE,
+            filterOperators: GITHUB_DATE_FILTERS,
+            description: 'Day the issue last changed, in UTC.',
+        }),
+        dimension({
+            name: 'closed_at',
+            label: 'Closed',
+            type: DimensionType.DATE,
+            filterOperators: GITHUB_DATE_FILTERS,
+            description: 'Day the issue was closed, in UTC.',
+        }),
+        dimension({
+            name: 'search',
+            label: 'Search text',
+            type: DimensionType.STRING,
+            filterOperators: GITHUB_TEXT_FILTERS,
+            description: 'Words to look for in the title or description.',
+            aiHint: 'Filter only: matches whole words. Empty when selected.',
+        }),
+        dimension({
+            name: 'state',
+            label: 'State',
+            type: DimensionType.STRING,
+            filterOperators: GITHUB_STATE_FILTERS,
+            description: 'Whether the issue is open or closed.',
+            aiHint: 'Filter with equals only.',
+        }),
+        dimension({
+            name: 'state_reason',
+            label: 'State reason',
+            type: DimensionType.STRING,
+            filterOperators: GITHUB_STATE_FILTERS,
+            description:
+                'Why a closed issue was closed: completed, not_planned or reopened.',
+        }),
+    ],
+    metrics: [
+        metric({
+            name: 'count',
+            apiName: 'total_count',
+            label: 'Count',
+            type: MetricType.NUMBER,
+            filterOperators: [],
+            description: 'Number of issues that match the filters.',
+            aiHint: "Comes from GitHub search's total, so it cannot be split by any dimension: use it alone (with filters) or list rows without it.",
+            aggregation: ADDITIVE,
+        }),
+    ],
 });
 
-export const GITHUB_CONTRIBUTORS_EXPLORE: LiveExploreDefinition = {
+export const GITHUB_CONTRIBUTORS_EXPLORE = explore({
     name: 'contributors',
     label: 'Contributors',
     description:
         "Weekly commits, lines added and lines deleted per author on the repository's default branch.",
     aiHint: "From GitHub's contributor statistics: covers only the top 100 contributors, weeks start on Sunday (UTC), and Lines added and Lines deleted are 0 for repositories with 10,000 or more commits. Without a Week filter it returns the full history; filter Week to choose the weeks. GitHub may compute statistics in the background on first request.",
     dimensions: [
-        dimension(
-            'author',
-            'Author',
-            DimensionType.STRING,
-            GITHUB_VALUE_FILTERS,
-            'GitHub username of the commit author.',
-        ),
-        dimension(
-            'week',
-            'Week',
-            DimensionType.DATE,
-            GITHUB_DATE_FILTERS,
-            'Week of the commits, shown as its Sunday, in UTC.',
-        ),
+        dimension({
+            name: 'author',
+            label: 'Author',
+            type: DimensionType.STRING,
+            filterOperators: GITHUB_VALUE_FILTERS,
+            description: 'GitHub username of the commit author.',
+        }),
+        dimension({
+            name: 'week',
+            label: 'Week',
+            type: DimensionType.DATE,
+            filterOperators: GITHUB_DATE_FILTERS,
+            description: 'Week of the commits, shown as its Sunday, in UTC.',
+        }),
     ],
     metrics: [
-        contributorMetric(
-            'commits',
-            'commits',
-            'Commits',
-            'Number of commits on the default branch.',
-        ),
-        contributorMetric(
-            'additions',
-            'additions',
-            'Lines added',
-            'Number of lines added.',
-            'GitHub reports 0 for repositories with 10,000 or more commits.',
-        ),
-        contributorMetric(
-            'deletions',
-            'deletions',
-            'Lines deleted',
-            'Number of lines deleted.',
-            'GitHub reports 0 for repositories with 10,000 or more commits.',
-        ),
+        metric({
+            name: 'commits',
+            label: 'Commits',
+            type: MetricType.NUMBER,
+            filterOperators: [],
+            description: 'Number of commits on the default branch.',
+            aggregation: ADDITIVE,
+        }),
+        metric({
+            name: 'additions',
+            label: 'Lines added',
+            type: MetricType.NUMBER,
+            filterOperators: [],
+            description: 'Number of lines added.',
+            aiHint: 'GitHub reports 0 for repositories with 10,000 or more commits.',
+            aggregation: ADDITIVE,
+        }),
+        metric({
+            name: 'deletions',
+            label: 'Lines deleted',
+            type: MetricType.NUMBER,
+            filterOperators: [],
+            description: 'Number of lines deleted.',
+            aiHint: 'GitHub reports 0 for repositories with 10,000 or more commits.',
+            aggregation: ADDITIVE,
+        }),
     ],
-    maxDimensions: null,
-    maxMetrics: null,
-    dateRange: null,
-    incompatible: [],
-};
+});
+
+export const GITHUB_EXPLORES = [
+    GITHUB_PULL_REQUESTS_EXPLORE,
+    GITHUB_ISSUES_EXPLORE,
+    GITHUB_CONTRIBUTORS_EXPLORE,
+] as const;

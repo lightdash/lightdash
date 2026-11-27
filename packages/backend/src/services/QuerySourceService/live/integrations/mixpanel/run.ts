@@ -18,7 +18,7 @@ import {
     MIXPANEL_MAX_RETENTION_PERIODS,
     MIXPANEL_PROPERTIES,
     type MixpanelProperty,
-} from './explores';
+} from './api';
 
 const LABEL = LIVE_INTEGRATION_CATALOG[ApiConnectorType.MIXPANEL].messageLabel;
 

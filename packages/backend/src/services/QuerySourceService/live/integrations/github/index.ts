@@ -14,16 +14,14 @@ import {
 import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { compileGithubQuery } from './compile';
 import { toGithubError } from './errors';
+import { GITHUB_EXPLORES } from './explores';
 import {
     GITHUB_BOOLEAN_FILTERS,
-    GITHUB_CONTRIBUTORS_EXPLORE,
     GITHUB_DATE_FILTERS,
-    GITHUB_ISSUES_EXPLORE,
     GITHUB_NUMBER_FILTERS,
-    GITHUB_PULL_REQUESTS_EXPLORE,
     GITHUB_TEXT_FILTERS,
     GITHUB_VALUE_FILTERS,
-} from './explores';
+} from './filters';
 import {
     GITHUB_CALLS_PER_QUERY,
     GITHUB_MAX_QUERY_ROWS,
@@ -86,11 +84,7 @@ export const githubIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [
-        GITHUB_PULL_REQUESTS_EXPLORE,
-        GITHUB_ISSUES_EXPLORE,
-        GITHUB_CONTRIBUTORS_EXPLORE,
-    ],
+    explores: GITHUB_EXPLORES,
     plannedModelNames: ['workflow_runs', 'releases'],
     level: {
         value: 2,

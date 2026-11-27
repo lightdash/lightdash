@@ -11,11 +11,8 @@ import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { supabaseIntegration } from '.';
 import { buildLiveExplore } from '../../explores/definition';
 import { compileSupabaseQuery } from './compile';
-import {
-    readSupabaseColumns,
-    SUPABASE_TABLE_EXPLORE,
-    withSupabaseColumns,
-} from './explores';
+import { SUPABASE_TABLE_EXPLORE } from './explores';
+import { readSupabaseColumns, withSupabaseColumns } from './scanFields';
 import { ORDERS_TABLE } from './supabase.fixtures';
 
 const DEFINITION = withSupabaseColumns(

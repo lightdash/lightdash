@@ -28,10 +28,10 @@ import {
     HUBSPOT_OBJECT_LABELS,
     HUBSPOT_PIPELINE_STAGES,
     toHubspotObject,
-    toHubspotPropertyName,
     type HubspotPipelineColumn,
-} from './explores';
+} from './api';
 import { type HubspotFilter, type HubspotRequest } from './run';
+import { toHubspotPropertyName } from './scanFields';
 
 // Placeholder for the open side of a one-sided date filter; never sent
 const EARLIEST_DATE = '1900-01-01';

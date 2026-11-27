@@ -10,14 +10,12 @@ import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { z } from 'zod';
 import { ALL_PUSHDOWN_REFUSED, defineLiveIntegration } from '../../integration';
 import { compilePostHogQuery } from './compile';
+import { POSTHOG_EXPLORES } from './explores';
 import {
-    isInternalPostHogProperty,
     POSTHOG_DATE_FILTERS,
-    POSTHOG_EVENTS_EXPLORE,
     POSTHOG_FILTERS_BY_TYPE,
     POSTHOG_METRIC_FILTERS,
-    withPostHogPropertyFields,
-} from './explores';
+} from './filters';
 import {
     getPostHogOAuthEndpoints,
     getPostHogPropertyDefinitionsPrefix,
@@ -28,6 +26,10 @@ import {
     scanPostHogProperties,
     toPostHogError,
 } from './run';
+import {
+    isInternalPostHogProperty,
+    withPostHogPropertyFields,
+} from './scanFields';
 import { summarizePostHogTest } from './testSummary';
 import { postHogUseCases } from './useCases';
 
@@ -89,7 +91,7 @@ export const postHogIntegration = defineLiveIntegration({
             periodOverPeriod: 'native',
         },
     },
-    explores: [POSTHOG_EVENTS_EXPLORE],
+    explores: POSTHOG_EXPLORES,
     plannedModelNames: ['persons', 'sessions'],
     level: {
         value: 5,

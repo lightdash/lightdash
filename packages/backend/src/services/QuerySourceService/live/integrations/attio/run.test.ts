@@ -9,9 +9,9 @@ import {
 import { attioIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
+import { ATTIO_MAX_RECORDS, ATTIO_PAGE_SIZE } from './api';
 import { ATTIO_DEAL_ATTRIBUTES, attioDeal } from './attio.fixtures';
 import { toAttioError } from './errors';
-import { ATTIO_MAX_RECORDS, ATTIO_PAGE_SIZE } from './explores';
 
 const response = (
     body: unknown,

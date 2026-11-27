@@ -21,7 +21,7 @@ import { resolveAbsoluteDateRange } from '../../query/dateRange';
 import { escapeRe2 } from '../../query/escapeRe2';
 import { getGrainIssues, type LiveGrain } from '../../query/grain';
 import { getFinestLevel, isFinerLevel } from '../../query/levels';
-import { GOOGLE_ADS_MICROS_FIELDS } from './explores';
+import { GOOGLE_ADS_MICROS_FIELDS } from './api';
 
 // Reports need a metric; dimension-only queries ask for this one and drop it.
 const DIMENSION_ONLY_METRIC = 'metrics.impressions';

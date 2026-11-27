@@ -15,11 +15,11 @@ import { postHogIntegration } from '.';
 import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { compilePostHogQuery } from './compile';
+import { POSTHOG_EVENTS_EXPLORE } from './explores';
 import {
-    POSTHOG_EVENTS_EXPLORE,
     POSTHOG_MAX_SCANNED_PROPERTIES,
     withPostHogPropertyFields,
-} from './explores';
+} from './scanFields';
 
 const EXPLORE = 'posthog_events';
 const warehouseSqlBuilder = warehouseSqlBuilderFromType(

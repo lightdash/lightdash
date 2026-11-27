@@ -9,8 +9,8 @@ import {
 import { hubspotIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
+import { HUBSPOT_MAX_ROWS } from './api';
 import { toHubspotError } from './errors';
-import { HUBSPOT_MAX_ROWS } from './explores';
 import {
     HUBSPOT_DEAL_PIPELINES,
     HUBSPOT_DEAL_PROPERTIES,

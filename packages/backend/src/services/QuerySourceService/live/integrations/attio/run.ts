@@ -16,13 +16,9 @@ import {
     type LiveRunResult,
     type LiveScanResult,
 } from '../../types';
+import { ATTIO_MAX_PAGES, ATTIO_MAX_RECORDS, ATTIO_PAGE_SIZE } from './api';
 import { parseAttioApiName, type AttioValueProperty } from './attributes';
 import { AttioObjectAccessError } from './errors';
-import {
-    ATTIO_MAX_PAGES,
-    ATTIO_MAX_RECORDS,
-    ATTIO_PAGE_SIZE,
-} from './explores';
 
 const LABEL = 'Attio';
 

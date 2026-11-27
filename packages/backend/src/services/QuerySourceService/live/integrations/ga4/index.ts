@@ -14,13 +14,12 @@ import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { toGoogleApiError } from '../google/errors';
 import { assertGoogleSignIn } from '../google/signIn';
 import { compileGa4Query, GA4_PERIOD_FORMATS } from './compile';
+import { GA4_EXPLORES } from './explores';
 import {
     GA4_DATE_FILTERS,
     GA4_METRIC_FILTERS,
-    GA4_REPORT_EXPLORE,
     GA4_STRING_FILTERS,
-    withGa4MetadataFields,
-} from './explores';
+} from './filters';
 import {
     GA4_DATA_ORIGIN,
     GA4_MAX_QUERY_ROWS,
@@ -30,6 +29,7 @@ import {
     runGa4Query,
     scanGa4Metadata,
 } from './run';
+import { withGa4MetadataFields } from './scanFields';
 import { ga4UseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.GA4];
@@ -84,7 +84,7 @@ export const ga4Integration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [GA4_REPORT_EXPLORE],
+    explores: GA4_EXPLORES,
     plannedModelNames: ['ecommerce'],
     level: { value: 3, description: 'Reports return totals per dimension.' },
     auth: {

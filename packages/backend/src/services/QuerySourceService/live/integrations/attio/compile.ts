@@ -24,8 +24,8 @@ import {
     isAttioChoiceProperty,
     parseAttioApiName,
 } from './attributes';
-import { toAttioObject } from './explores';
 import { type AttioRequest, type AttioSort } from './run';
+import { toAttioObject } from './scanFields';
 
 type AttioCondition = Record<string, unknown>;
 

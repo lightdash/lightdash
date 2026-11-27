@@ -13,17 +13,17 @@ import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { attioIntegration } from '.';
 import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
+import { ATTIO_MAX_RECORDS } from './api';
 import { ATTIO_DEAL_ATTRIBUTES } from './attio.fixtures';
 import { isInternalAttioField } from './attributes';
 import { compileAttioQuery } from './compile';
+import { ATTIO_EXPLORES } from './explores';
 import {
-    ATTIO_EXPLORES,
-    ATTIO_MAX_RECORDS,
     ATTIO_SCANNED_MODELS,
     readAttioAttributes,
     toAttioObject,
     withAttioAttributeFields,
-} from './explores';
+} from './scanFields';
 
 const DEALS_EXPLORE = ATTIO_EXPLORES.find(({ name }) => name === 'deals')!;
 

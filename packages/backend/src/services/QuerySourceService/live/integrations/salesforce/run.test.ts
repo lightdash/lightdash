@@ -11,11 +11,11 @@ import { salesforceIntegration } from '.';
 import { validateLiveConnection } from '../../integration';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { toSalesforceError } from './errors';
 import {
     SALESFORCE_MAX_AGGREGATE_ROWS,
     SALESFORCE_MAX_RECORD_ROWS,
-} from './explores';
+} from './api';
+import { toSalesforceError } from './errors';
 import {
     AGGREGATE_RESPONSE,
     LIMITS_RESPONSE,

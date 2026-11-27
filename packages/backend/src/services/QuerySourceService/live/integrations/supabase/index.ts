@@ -12,16 +12,14 @@ import {
 } from '../../integration';
 import { compileSupabaseQuery } from './compile';
 import { toSupabaseError } from './errors';
+import { SUPABASE_EXPLORES } from './explores';
 import {
-    readSupabaseColumns,
     SUPABASE_BOOLEAN_FILTERS,
     SUPABASE_DATE_FILTERS,
     SUPABASE_NUMBER_FILTERS,
-    SUPABASE_TABLE_EXPLORE,
     SUPABASE_TEXT_FILTERS,
     SUPABASE_TIMESTAMP_FILTERS,
-    withSupabaseColumns,
-} from './explores';
+} from './filters';
 import {
     runSupabaseQuery,
     scanSupabaseTable,
@@ -29,6 +27,7 @@ import {
     SUPABASE_MAX_QUERY_ROWS,
     supabaseRequestSchema,
 } from './run';
+import { readSupabaseColumns, withSupabaseColumns } from './scanFields';
 import { supabaseUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.SUPABASE];
@@ -76,7 +75,7 @@ export const supabaseIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [SUPABASE_TABLE_EXPLORE],
+    explores: SUPABASE_EXPLORES,
     plannedModelNames: [],
     level: {
         value: 2,

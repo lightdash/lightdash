@@ -16,24 +16,28 @@ import {
     jsonRequest,
 } from '../../integration';
 import { getIsoDateInTimeZone } from '../../query/dateRange';
+import {
+    SALESFORCE_MAX_CALLS,
+    SALESFORCE_MAX_RECORD_ROWS,
+    toSalesforceObject,
+} from './api';
 import { compileSalesforceQuery } from './compile';
 import { toSalesforceError } from './errors';
+import { SALESFORCE_EXPLORES } from './explores';
+import {
+    SALESFORCE_BOOLEAN_FILTERS,
+    SALESFORCE_DATE_FILTERS,
+    SALESFORCE_METRIC_FILTERS,
+    SALESFORCE_NUMBER_FILTERS,
+    SALESFORCE_TEXT_FILTERS,
+} from './filters';
+import { runSalesforceQuery, scanSalesforceDescribe } from './run';
 import {
     isInternalSalesforceField,
     readSalesforceDescribe,
-    SALESFORCE_BOOLEAN_FILTERS,
-    SALESFORCE_DATE_FILTERS,
-    SALESFORCE_EXPLORES,
-    SALESFORCE_MAX_CALLS,
-    SALESFORCE_MAX_RECORD_ROWS,
-    SALESFORCE_METRIC_FILTERS,
-    SALESFORCE_NUMBER_FILTERS,
     SALESFORCE_SCANNED_MODELS,
-    SALESFORCE_TEXT_FILTERS,
-    toSalesforceObject,
     withSalesforceFields,
-} from './explores';
-import { runSalesforceQuery, scanSalesforceDescribe } from './run';
+} from './scanFields';
 import { salesforceRequestSchema } from './soql';
 import { summarizeSalesforceTest } from './testSummary';
 import { salesforceUseCases } from './useCases';

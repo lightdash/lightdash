@@ -15,16 +15,12 @@ import {
 import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { compileAmplitudeQuery } from './compile';
 import { toAmplitudeError } from './errors';
+import { AMPLITUDE_EXPLORES } from './explores';
 import {
     AMPLITUDE_DATE_FILTERS,
-    AMPLITUDE_EVENTS_EXPLORE,
-    AMPLITUDE_FUNNEL_EXPLORE,
     AMPLITUDE_NUMBER_FILTERS,
     AMPLITUDE_PROPERTY_FILTERS,
-    AMPLITUDE_RETENTION_EXPLORE,
-    AMPLITUDE_SESSIONS_EXPLORE,
-    AMPLITUDE_USERS_EXPLORE,
-} from './explores';
+} from './filters';
 import {
     AMPLITUDE_CALLS_PER_QUERY,
     AMPLITUDE_MAX_QUERY_ROWS,
@@ -73,13 +69,7 @@ export const amplitudeIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [
-        AMPLITUDE_EVENTS_EXPLORE,
-        AMPLITUDE_USERS_EXPLORE,
-        AMPLITUDE_FUNNEL_EXPLORE,
-        AMPLITUDE_RETENTION_EXPLORE,
-        AMPLITUDE_SESSIONS_EXPLORE,
-    ],
+    explores: AMPLITUDE_EXPLORES,
     plannedModelNames: [
         'lifecycle',
         'stickiness',

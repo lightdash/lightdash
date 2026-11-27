@@ -1,0 +1,104 @@
+import {
+    type ApiSourceMetricAggregation,
+    type DimensionType,
+    type FilterOperator,
+    type MetricType,
+    type TimeFrames,
+} from '@lightdash/common';
+import {
+    type LiveDimensionDefinition,
+    type LiveExploreDefinition,
+    type LiveMetricDefinition,
+} from './definition';
+
+/**
+ * The only way an integration's `explores.ts` declares explores and fields.
+ * Every field is one call with named arguments in the order below, so a file
+ * reads top to bottom as a list of fields and a diff shows one field per hunk.
+ */
+
+type FieldArguments = {
+    /** Stable within the explore: saved charts reference it forever. */
+    name: string;
+    /** Defaults to `name`. */
+    apiName?: string;
+    label: string;
+    description?: string;
+    filterOperators: FilterOperator[];
+    aiHint?: string;
+    sql?: string;
+    valueLabels?: Record<string, string>;
+    groups?: string[];
+};
+
+/** Drops absent arguments, so a definition holds only what was written. */
+const compact = <T extends object>(value: T): T =>
+    Object.fromEntries(
+        Object.entries(value).filter(([, nested]) => nested !== undefined),
+    ) as T;
+
+export const dimension = ({
+    apiName,
+    ...field
+}: FieldArguments & {
+    type: DimensionType;
+    /** A coarser grain of a date dimension that the API groups by itself. */
+    timeInterval?: { base: string; grain: TimeFrames };
+}): LiveDimensionDefinition =>
+    compact({ ...field, apiName: apiName ?? field.name });
+
+export const metric = ({
+    apiName,
+    ...field
+}: FieldArguments & {
+    type: MetricType;
+    /** Checked against the API's docs; saved charts rely on it. */
+    aggregation: ApiSourceMetricAggregation;
+    format?: string;
+}): LiveMetricDefinition =>
+    compact({ ...field, apiName: apiName ?? field.name });
+
+export const ADDITIVE: ApiSourceMetricAggregation = { aggregation: 'additive' };
+
+export const NON_ADDITIVE: ApiSourceMetricAggregation = {
+    aggregation: 'non_additive',
+};
+
+export const ratio = (
+    numerator: string,
+    denominator: string,
+): ApiSourceMetricAggregation => ({
+    aggregation: 'ratio',
+    numerator,
+    denominator,
+});
+
+export const explore = ({
+    metrics = [],
+    maxDimensions = null,
+    maxMetrics = null,
+    dateRange = null,
+    incompatible = [],
+    ...definition
+}: Pick<
+    LiveExploreDefinition,
+    'name' | 'label' | 'description' | 'aiHint' | 'dimensions'
+> &
+    Partial<
+        Pick<
+            LiveExploreDefinition,
+            | 'metrics'
+            | 'maxDimensions'
+            | 'maxMetrics'
+            | 'dateRange'
+            | 'incompatible'
+        >
+    >): LiveExploreDefinition =>
+    compact({
+        ...definition,
+        metrics,
+        maxDimensions,
+        maxMetrics,
+        dateRange,
+        incompatible,
+    });
