@@ -1,3 +1,11 @@
+# [3.427.0](https://github.com/lightdash/lightdash/compare/3.426.0...3.427.0) (2026-11-27)
+
+
+### Features
+
+* **ai-agent:** simpler, consistent AI chat input ([#33561](https://github.com/lightdash/lightdash/issues/33561)) ([a75697a](https://github.com/lightdash/lightdash/commit/a75697ad960ede79a78a0b5155e498e9381fd705))
+* **navigation:** dock the AI chat beside the page ([#33543](https://github.com/lightdash/lightdash/issues/33543)) ([be02f1b](https://github.com/lightdash/lightdash/commit/be02f1b02e44c700b6558e53df14981394e4a9d1))
+
 # [3.426.0](https://github.com/lightdash/lightdash/compare/3.425.0...3.426.0) (2026-11-27)
 
 
