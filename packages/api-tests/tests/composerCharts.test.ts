@@ -1936,6 +1936,25 @@ describe('Composer charts', () => {
             });
             expect(created.status).toBe(201);
             const chart = created.body.results;
+            // A chart its dashboard owns never lists, even in that dashboard's space
+            const dashboard = await admin.post<Body<Dashboard>>(
+                `/api/v1/projects/${projectUuid}/dashboards`,
+                {
+                    name: uniqueName('Composer dashboard'),
+                    spaceUuid: child.uuid,
+                    tiles: [],
+                    tabs: [],
+                },
+            );
+            expect(dashboard.status).toBe(201);
+            tracker.trackDashboard(dashboard.body.results.uuid);
+            expect(
+                (
+                    await postChart(
+                        composerChartBody(dashboard.body.results.uuid),
+                    )
+                ).status,
+            ).toBe(201);
 
             const viewer = await loginAsViewer();
             const list = async (spaceUuid: string, types: ContentType[]) => {
