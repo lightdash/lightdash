@@ -423,11 +423,8 @@ mcpRouter.all(
                 const userAgent = req.account?.requestContext?.userAgent;
                 const protocolVersion = extractProtocolVersionFromHeader(req);
 
-                // Session ids group tool calls made over one client
-                // connection. Assigned on initialize (spec: clients MUST echo
-                // the header on all subsequent requests); the stateless
-                // transport skips session validation, so the only state kept
-                // per session is the clientInfo its initialize declared.
+                // Minted on initialize and echoed by clients; ties tool calls to
+                // the clientInfo their session declared.
                 const isInitialize = isInitializeRequest(req);
                 const sessionId = isInitialize
                     ? randomUUID()
