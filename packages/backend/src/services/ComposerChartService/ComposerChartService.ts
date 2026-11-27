@@ -34,11 +34,13 @@ import {
     type ComposerChart,
     type ComposerChartOwner,
     type ComposerChartPipeline,
+    type ComposerChartPipelineNode,
     type ComposerChartRunRequest,
     type ComposerChartRunResults,
     type ComposerStoredChart,
     type CreateComposerChart,
     type DashboardAvailableFiltersTile,
+    type DashboardFilters,
     type DateZoom,
     type Explore,
     type ParameterDefinitions,
@@ -92,6 +94,38 @@ export type ComposerChartRunContext =
     | QueryExecutionContext.DASHBOARD
     | QueryExecutionContext.SCHEDULED_DELIVERY
     | QueryExecutionContext.CSV;
+
+type ComposerTileRunRequest = Pick<
+    ComposerChartRunRequest,
+    'dashboardUuid' | 'tileUuid' | 'invalidateCache'
+> & {
+    context: ComposerChartRunContext;
+    dateZoom: DateZoom | null;
+    dashboardState:
+        | ({ type: 'request' } & Pick<
+              ComposerChartRunRequest,
+              'dashboardFilters' | 'parameters' | 'excludedParameterKeys'
+          >)
+        | { type: 'saved' };
+};
+
+/** A run's inputs once resolved: the stored chart and its nodes with the caller's state written on. */
+type ComposerResolvedRun = {
+    chart: ComposerChart;
+    exploreByNodeId: ComposerNodeExplores;
+    resolved: {
+        nodes: ComposerChartPipelineNode[];
+        parameters: ParametersValuesMap;
+    };
+    dateZoomByNodeId: Record<string, DateZoom>;
+    tile: {
+        dashboardUuid: string;
+        tileUuid: string;
+        dashboardFilters: DashboardFilters;
+        /** The semantic-layer filters written on; SQL column targets join once the run reports its columns. */
+        appliedDashboardFiltersByNodeId: Record<string, DashboardFilters>;
+    };
+};
 
 export type ProjectSubject = { organizationUuid: string; projectUuid: string };
 
@@ -812,23 +846,28 @@ export class ComposerChartService extends BaseService {
         account: RegisteredAccount,
         projectUuid: UUID,
         composerChartUuid: UUID,
-        request: Pick<
-            ComposerChartRunRequest,
-            'dashboardUuid' | 'tileUuid' | 'invalidateCache'
-        > & {
-            context: ComposerChartRunContext;
-            dateZoom: DateZoom | null;
-            dashboardState:
-                | ({ type: 'request' } & Pick<
-                      ComposerChartRunRequest,
-                      | 'dashboardFilters'
-                      | 'parameters'
-                      | 'excludedParameterKeys'
-                  >)
-                | { type: 'saved' };
-        },
+        request: ComposerTileRunRequest,
     ): Promise<ComposerChartRunResults> {
-        Sentry.setTag('lightdash.chartKind', 'composer');
+        return this.runBound(account, projectUuid, {
+            resolve: () =>
+                this.resolveTileRun(
+                    account,
+                    projectUuid,
+                    composerChartUuid,
+                    request,
+                ),
+            context: request.context,
+            invalidateCache: request.invalidateCache,
+        });
+    }
+
+    /** The chart's nodes with this dashboard tile's filters, parameters and date zoom written on, for a viewer of the chart on that tile. */
+    private async resolveTileRun(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        request: ComposerTileRunRequest,
+    ): Promise<ComposerResolvedRun> {
         const { organizationUuid, owner } = await this.assertCanView(
             account,
             projectUuid,
@@ -899,19 +938,50 @@ export class ComposerChartService extends BaseService {
             projectDefinitions,
             ...parameterLayer,
         });
-        const dateZoomByNodeId = getComposerNodeDateZooms({
-            nodes: resolved.nodes,
+        return {
+            chart,
             exploreByNodeId,
-            dateZoom: request.dateZoom ?? null,
-            chartXFieldId: getStoredChartXField(chart.chart) ?? null,
-        });
+            resolved,
+            dateZoomByNodeId: getComposerNodeDateZooms({
+                nodes: resolved.nodes,
+                exploreByNodeId,
+                dateZoom: request.dateZoom ?? null,
+                chartXFieldId: getStoredChartXField(chart.chart) ?? null,
+            }),
+            tile: {
+                dashboardUuid,
+                tileUuid: request.tileUuid,
+                dashboardFilters,
+                appliedDashboardFiltersByNodeId:
+                    filtered.appliedDashboardFiltersByNodeId,
+            },
+        };
+    }
+
+    /** The shared core of every composer run: binds the resolved nodes, submits them and assembles the multi-query result. */
+    private async runBound(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        {
+            resolve,
+            context,
+            invalidateCache,
+        }: {
+            resolve: () => Promise<ComposerResolvedRun>;
+            context: ComposerChartRunContext;
+            invalidateCache: boolean;
+        },
+    ): Promise<ComposerChartRunResults> {
+        Sentry.setTag('lightdash.chartKind', 'composer');
+        const { chart, exploreByNodeId, resolved, dateZoomByNodeId, tile } =
+            await resolve();
         const binding = ComposerRunBinding.forAuthorizedViewer({
             account,
             chart,
-            dashboardUuid,
-            tileUuid: request.tileUuid,
+            dashboardUuid: tile.dashboardUuid,
+            tileUuid: tile.tileUuid,
             resolved,
-            dashboardFilters,
+            dashboardFilters: tile.dashboardFilters,
             dateZoomByNodeId,
         });
         const { queries } = await traceSpan(
@@ -920,7 +990,7 @@ export class ComposerChartService extends BaseService {
                 name: 'composer_chart.run',
                 attributes: {
                     'lightdash.projectUuid': projectUuid,
-                    'lightdash.composerChartUuid': composerChartUuid,
+                    'lightdash.composerChartUuid': chart.uuid,
                     'lightdash.nodeCount': binding.nodes.length,
                     'lightdash.nodeKinds': [
                         ...new Set(binding.nodes.map((n) => n.sourceType)),
@@ -934,8 +1004,8 @@ export class ComposerChartService extends BaseService {
                     account,
                     projectUuid,
                     binding,
-                    context: request.context,
-                    invalidateCache: request.invalidateCache,
+                    context,
+                    invalidateCache,
                 }),
         );
         const queryUuidOf = (nodeId: string | null) =>
@@ -964,9 +1034,9 @@ export class ComposerChartService extends BaseService {
                     : [],
             ),
         );
-        const applied = withSqlColumnFilters(filtered, {
-            tileUuid: request.tileUuid,
-            dashboardFilters,
+        const applied = withSqlColumnFilters(tile, {
+            tileUuid: tile.tileUuid,
+            dashboardFilters: tile.dashboardFilters,
             sqlColumnsByNodeId: Object.fromEntries(
                 Object.entries(sqlColumnsByNodeId).map(([nodeId, columns]) => [
                     nodeId,
