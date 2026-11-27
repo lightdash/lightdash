@@ -635,7 +635,7 @@ describe('AiAgentService.createPinnedContextMessage SQL charts', () => {
 });
 
 describe('AiAgentService.createPinnedContextMessage composer charts', () => {
-    const composerChart = (ownerType: 'dashboard' | 'space') =>
+    const composerChart = (ownerType: 'dashboard' | 'space' | null) =>
         buildMessage([
             {
                 type: 'composer_chart',
@@ -669,6 +669,13 @@ describe('AiAgentService.createPinnedContextMessage composer charts', () => {
         );
         expect(content).not.toContain('dashboardChart');
         expect(content).not.toContain('editContent');
+    });
+
+    it('says a deleted chart is no longer available', () => {
+        const content = composerChart(null);
+
+        expect(content).toContain('it is no longer available');
+        expect(content).not.toContain('runContentQuery');
     });
 });
 
