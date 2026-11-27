@@ -96,6 +96,7 @@ import type {
     ApiLiveSourceAccessResponse,
     ApiLiveSourceContentUsageResponse,
     ApiLiveSourceFieldsResponse,
+    ApiLiveSourceRefreshResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
@@ -1753,6 +1754,7 @@ type ApiResults =
     | ApiExternalConnectionAsCodeUpsertResponse['results']
     | ApiLiveSourceContentUsageResponse['results']
     | ApiLiveSourceFieldsResponse['results']
+    | ApiLiveSourceRefreshResponse['results']
     | ApiLiveSourceAccessResponse['results']
     | ApiExplorePrefixCheckResponse['results']
     | ApiReattachableLiveSourcesResponse['results']

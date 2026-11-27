@@ -30,6 +30,8 @@ type FieldArguments = {
     sql?: string;
     valueLabels?: Record<string, string>;
     groups?: string[];
+    /** Absent, a source starts with the field in use. */
+    onByDefault?: boolean;
 };
 
 /** Drops absent arguments, so a definition holds only what was written. */

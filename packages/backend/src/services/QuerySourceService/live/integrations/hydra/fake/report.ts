@@ -1,4 +1,10 @@
+import { ParameterError } from '@lightdash/common';
 import { z } from 'zod';
+import { jsonRequest } from '../../../sdk';
+import {
+    hydraObjectReportSchema,
+    type HydraObjectReportRequest,
+} from '../objects';
 import { type HydraDataset } from './data';
 
 /** What each of Hydra's reports groups by and totals. */
@@ -105,6 +111,29 @@ export const hydraReportSchema = z
     });
 
 export type HydraReportRequest = z.infer<typeof hydraReportSchema>;
+
+/** A report on the events or users explore, or on one workspace object (`object`). */
+export type HydraRequest = HydraReportRequest | HydraObjectReportRequest;
+
+export const isHydraObjectRequest = (
+    request: HydraRequest,
+): request is HydraObjectReportRequest => 'object' in request;
+
+const readReport = jsonRequest('Hydra', hydraReportSchema);
+const readObjectReport = jsonRequest('Hydra object', hydraObjectReportSchema);
+
+/** Reads a report on the events or users explore, or on an object when it names one. */
+export const parseHydraRequest = (query: string): HydraRequest => {
+    let json: unknown;
+    try {
+        json = JSON.parse(query);
+    } catch {
+        throw new ParameterError('The Hydra request must be a JSON object');
+    }
+    return typeof json === 'object' && json !== null && 'object' in json
+        ? readObjectReport(query)
+        : readReport(query);
+};
 
 export type HydraReportRow = Record<string, string | number>;
 

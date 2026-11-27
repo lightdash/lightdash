@@ -1,5 +1,6 @@
 import {
     HYDRA_ACCOUNT_PATH,
+    HYDRA_OBJECTS_PATH,
     HYDRA_REPORT_PATH,
     withHydraDefaults,
     type HydraApiSource,
@@ -9,6 +10,13 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import { type LiveHttpRequest, type LiveHttpResponse } from '../../../sdk';
+import {
+    buildHydraObjectRecords,
+    HYDRA_RECORD_COUNT,
+    hydraObjectReportSchema,
+    listHydraObjects,
+    runHydraObjectReport,
+} from '../objects';
 import {
     buildHydraDataset,
     getHydraAccountId,
@@ -234,11 +242,91 @@ export const createHydraServer = ({
         );
     };
 
+    /** A page of rows cut the way every Hydra report is. */
+    const toPage = (
+        settings: HydraSettings,
+        rows: Record<string, string | number>[],
+        offset: number,
+        requestLimit: number | undefined,
+    ) => {
+        const limit = Math.min(
+            requestLimit ?? HYDRA_REPORT_MAX_ROWS,
+            HYDRA_REPORT_MAX_ROWS,
+            rows.length,
+        );
+        const end = Math.min(offset + (settings.pageSize || limit), limit);
+        return {
+            rows: rows.slice(offset, end),
+            totalRows: rows.length,
+            nextOffset: end < limit ? end : null,
+        };
+    };
+
+    const answerObjectReport = (
+        settings: HydraSettings,
+        token: string,
+        objectId: string,
+        body: unknown,
+    ): LiveHttpResponse => {
+        const object = settings.objects.find(({ id }) => id === objectId);
+        if (!object) {
+            return json(404, { message: `Hydra has no object ${objectId}` });
+        }
+        const page = pageSchema.safeParse(body);
+        const { offset, ...report } = page.success ? page.data : { offset: 0 };
+        const parsed = hydraObjectReportSchema.safeParse({
+            ...(page.success ? report : (body as object)),
+            object: objectId,
+        });
+        if (!parsed.success) {
+            return json(400, {
+                message: parsed.error.issues
+                    .map(({ message }) => message)
+                    .join('; '),
+            });
+        }
+        const [listed] = listHydraObjects([object]).objects;
+        const fieldIds = listed.fields.map(({ id }) => id);
+        const unknown = [
+            ...parsed.data.dimensions,
+            ...parsed.data.filters.map(({ field }) => field),
+            ...parsed.data.orderBy
+                .map(({ field }) => field)
+                .filter((field) => field !== HYDRA_RECORD_COUNT),
+        ].filter((field) => !fieldIds.includes(field));
+        if (unknown.length > 0) {
+            return json(400, {
+                message: `${objectId} has no field ${unknown.join(', ')}`,
+            });
+        }
+        const records = buildHydraObjectRecords({
+            token,
+            object,
+            today: now().toISOString().slice(0, 10),
+        });
+        const rows = runHydraObjectReport(records, parsed.data);
+        return json(200, toPage(settings, rows, offset, parsed.data.limit));
+    };
+
     const answer = (
         settings: HydraSettings,
         token: string,
         request: HydraCall['request'],
     ): LiveHttpResponse => {
+        if (request.method === 'GET' && request.path === HYDRA_OBJECTS_PATH) {
+            return json(200, listHydraObjects(settings.objects));
+        }
+        const objectReport = request.path.match(
+            /^\/v1\/objects\/([^/]+)\/report$/,
+        );
+        if (request.method === 'POST' && objectReport) {
+            return answerObjectReport(
+                settings,
+                token,
+                decodeURIComponent(objectReport[1]),
+                request.body,
+            );
+        }
         const dataset = getDataset(token, settings.rowCount);
         if (request.method === 'GET' && request.path === HYDRA_ACCOUNT_PATH) {
             return json(200, {
@@ -263,17 +351,7 @@ export const createHydraServer = ({
                 });
             }
             const rows = runHydraReport(dataset, parsed.data);
-            const limit = Math.min(
-                parsed.data.limit ?? HYDRA_REPORT_MAX_ROWS,
-                HYDRA_REPORT_MAX_ROWS,
-                rows.length,
-            );
-            const end = Math.min(offset + (settings.pageSize || limit), limit);
-            return json(200, {
-                rows: rows.slice(offset, end),
-                totalRows: rows.length,
-                nextOffset: end < limit ? end : null,
-            });
+            return json(200, toPage(settings, rows, offset, parsed.data.limit));
         }
         return json(404, {
             message: `No ${request.method} ${request.path} on Hydra`,

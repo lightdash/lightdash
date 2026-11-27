@@ -38,6 +38,7 @@ Use it to test anything live data sources do (adding a source, charts, dashboard
   - **Users:** dimensions `user_id`, `plan`, `country` and `signup_date`; metrics `user_count` and `seats`. There is no date range.
 - `rowCount` events and `max(10, rowCount / 10)` users, seeded from the token. The same token always returns the same totals, and another token returns other totals, which shows per-viewer sign-in at work.
 - One query returns at most 500 rows. Asking for more is refused before any call.
+- **Objects:** each entry of `objects` is an object Hydra's API lists at `GET /v1/objects` and reports on at `POST /v1/objects/<id>/report`, with an `id` field added. A Refresh returns one more explore per object, keyed by its id (`apiName`) and named `<prefix>_<id as a slug>` once, numbered past a name taken (`_2`). It starts off (`onByDefault: false`), with a `record_count` metric and one dimension per field; fields marked `system` start off. Its rows are seeded from the token and the object id.
 
 ## Settings
 
@@ -53,6 +54,7 @@ Set these in `apiSource` through the API; keys left out keep their defaults.
 | `vendorLimits` | 2 at once, 30 a minute, 300 an hour | What Hydra's API enforces: `concurrentCalls`, `callsPerSecond` and `buckets` (`{id, windowMs, capacity}`: at most 5, unique ids of up to 40 characters, `second` reserved). A window opens at the first call that reaches Hydra after the last one closed. Hydra refuses calls past a limit until its window closes; null enforces none | Nothing while the gate keeps under them |
 | `onLimit` | 429, Retry-After in seconds | How Hydra refuses: `status` (400 to 599), `retryAfterFormat` (`seconds`, `date` or `none`) and an optional `body`. A body with `"code": "rate_limited"` marks a throttle under any status | `Hydra rate limit reached…` once retries run out |
 | `declaredLimits` | `"vendor"` | The limits Lightdash's rate-limit gate keeps calls under, in the `vendorLimits` shape: `"vendor"` copies them, an object sets tighter or looser ones, null declares none. The gate's window opens when it charges a call, a moment before Hydra's, so a test that runs right at the limit declares a slightly longer window | Calls wait their turn; past the deadline, `…reached its limit…` |
+| `objects` | none | Objects the workspace made: at most 10, each `{ id, label, recordCount?, fields }` with `id` a letter then up to 59 letters, digits or `_`, `recordCount` 0 to 10000 (default 50), and 1 to 20 `fields` of `{ id, label, type, system? }` (`string`, `number`, `date` or `boolean`). With none, a Refresh makes no call | New explores after a Refresh |
 | `mockResponses` | none | Fake answers a test sets by call number, counted per source from 1; at most 50, the first match wins. Each names `call`, or `fromCall` with an optional `toCall`, and a `status`: 200 answers as usual, skipping `errorRate`; 400 to 599 is answered as given, with optional `retryAfterSeconds` and `body`. `[{"call": 2, "status": 429, "retryAfterSeconds": 5}, {"fromCall": 3, "status": 503}]` | Whatever the mock answers |
 
 Each call is refused at once past `vendorLimits`, then waits, then answers its mock response, `failAuth`, `errorRate` or the data, in that order.
@@ -70,6 +72,7 @@ Use a new source for each scenario: call numbers and API calls count per source,
 | Declared limits keep under the vendor's | `vendorLimits` with concurrency 1 and a `burst` bucket of 1 per 2500 ms; `declaredLimits` the same with 3000 ms | 2 queries at once | Both ready, the 2nd about 3 seconds later; API calls 2, as Hydra never refused |
 | Paging | `"pageSize": 20` | events by `user_id`, limit 60 | 60 rows; API calls 4 (61 rows asked for, 20 a page) |
 | Declared looser than the vendor | `"declaredLimits": {"concurrentCalls": 5, "callsPerSecond": null, "buckets": [{"id": "minute", "windowMs": 60000, "capacity": 100}]}` with a tight `vendorLimits` | queries past the vendor's limit | Ready after holds; API calls above the queries run |
+| Objects | `"objects": [{"id": "Deals", "label": "Deals", "fields": [{"id": "stage", "label": "Stage", "type": "string"}]}]` | Refresh, turn Deals on, query `record_count` by `stage` | 50 records; an object removed from `objects` drops its explore on the next Refresh |
 | A slow or failing API | `latencyMs`, `errorRate`, `failAuth` | 1 query | A slow tile, a timeout past 30000 ms, `Hydra returned 500…`, or `Hydra rejected the sign-in token…` |
 
 ## Stats
@@ -84,5 +87,5 @@ Use a new source for each scenario: call numbers and API calls count per source,
 
 ## Automated tests
 
-- Unit: `hydra.test.ts` (compile, the engine path, mock responses, paging, declared limits), `fake/server.test.ts` (vendor limits, refusals, stats), `ExternalConnectionService/hydraFetch.test.ts` (fetch seam).
+- Unit: `hydra.test.ts` (compile, the engine path, mock responses, paging, declared limits), `discoveredExplores.test.ts` (explores a Refresh finds: discovery, naming, access, build and run), `fake/server.test.ts` (vendor limits, refusals, stats), `ExternalConnectionService/hydraFetch.test.ts` (fetch seam), and the Hydra block in `ExternalConnectionService.apiSource.test.ts` (Refresh, naming, turning explores on, removal).
 - API: `packages/api-tests/tests/hydraLiveSource.test.ts`, run against a preview env.

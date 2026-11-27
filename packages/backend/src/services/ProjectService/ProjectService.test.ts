@@ -16462,8 +16462,6 @@ describe('ProjectService', () => {
                     connector: ApiConnectorType.GA4,
                     propertyId: '123',
                 },
-                scannedFields: [],
-                edits: {},
             });
             const channel = `${liveExplore.name}_session_default_channel_group`;
             const liveSource = (
@@ -16539,8 +16537,7 @@ describe('ProjectService', () => {
                         connector: ApiConnectorType.GA4,
                         propertyId: '123',
                     },
-                    scannedFields: [],
-                    edits: {},
+
                     accessRule: { required: { team: ['marketing'] }, any: {} },
                 });
                 vi.mocked(service.getExplore).mockRestore();
@@ -23287,8 +23284,6 @@ describe('ProjectService.compileQueryForResponse', () => {
             sourceName: 'ga4_03386598',
             name: 'Marketing site',
             apiSource: { connector: ApiConnectorType.GA4, propertyId: '123' },
-            scannedFields: [],
-            edits: {},
         });
         const liveArgs = (caller: Account) => ({
             ...compileArgs(caller),

@@ -40,7 +40,7 @@ const VALUE_PROPERTIES = [
     'member_name',
 ] as const satisfies readonly AttioValueProperty[];
 
-const BUILT_IN_COLUMNS = ['record_id', 'web_url', 'created_at'] as const;
+const RECORD_COLUMNS = ['record_id', 'web_url', 'created_at'] as const;
 
 const ATTRIBUTE_COLUMN = new RegExp(
     `^[a-z0-9_]+(\\.(${VALUE_PROPERTIES.join('|')}))?$`,
@@ -51,7 +51,7 @@ const columnSchema = z
     .refine((column) => ATTRIBUTE_COLUMN.test(column), {
         message: `columns are attribute slugs, optionally with .property (${VALUE_PROPERTIES.join(
             ', ',
-        )}), or built-in fields (${BUILT_IN_COLUMNS.join(', ')})`,
+        )}), or declared fields (${RECORD_COLUMNS.join(', ')})`,
     });
 
 const sortSchema = z
@@ -90,9 +90,9 @@ type AttioRecord = z.infer<typeof recordSchema>;
 
 const recordsResponseSchema = z.object({ data: z.array(recordSchema) });
 
-const readBuiltIn = (
+const readRecordColumn = (
     record: AttioRecord,
-    column: (typeof BUILT_IN_COLUMNS)[number],
+    column: (typeof RECORD_COLUMNS)[number],
 ): unknown => {
     switch (column) {
         case 'record_id':
@@ -177,8 +177,8 @@ const readColumn = (
     column: string,
     memberNames: MemberNames,
 ): unknown =>
-    (BUILT_IN_COLUMNS as readonly string[]).includes(column)
-        ? readBuiltIn(record, column as (typeof BUILT_IN_COLUMNS)[number])
+    (RECORD_COLUMNS as readonly string[]).includes(column)
+        ? readRecordColumn(record, column as (typeof RECORD_COLUMNS)[number])
         : readAttribute(record, column, memberNames);
 
 const membersResponseSchema = z.object({

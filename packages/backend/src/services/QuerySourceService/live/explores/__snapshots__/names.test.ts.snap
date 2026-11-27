@@ -50,7 +50,6 @@ exports[`live data source names > Attio explore names and field ids never change
       "name": "attio_workspaces",
     },
   ],
-  "reservedExploreNames": [],
 }
 `;
 
@@ -107,10 +106,6 @@ exports[`live data source names > GitHub explore names and field ids never chang
       "name": "github_contributors",
     },
   ],
-  "reservedExploreNames": [
-    "github_workflow_runs",
-    "github_releases",
-  ],
 }
 `;
 
@@ -164,13 +159,6 @@ exports[`live data source names > Google Ads explore names and field ids never c
       "name": "google_ads_performance",
     },
   ],
-  "reservedExploreNames": [
-    "google_ads_ads",
-    "google_ads_keywords",
-    "google_ads_search_terms",
-    "google_ads_conversions",
-    "google_ads_locations",
-  ],
 }
 `;
 
@@ -219,9 +207,6 @@ exports[`live data source names > Google Analytics explore names and field ids n
       ],
       "name": "google_analytics_report",
     },
-  ],
-  "reservedExploreNames": [
-    "google_analytics_ecommerce",
   ],
 }
 `;
@@ -294,7 +279,6 @@ exports[`live data source names > HubSpot explore names and field ids never chan
       "name": "hubspot_pipeline_stages",
     },
   ],
-  "reservedExploreNames": [],
 }
 `;
 
@@ -329,12 +313,6 @@ exports[`live data source names > LinkedIn Ads explore names and field ids never
       ],
       "name": "linkedin_ads_performance",
     },
-  ],
-  "reservedExploreNames": [
-    "linkedin_ads_creatives",
-    "linkedin_ads_demographics",
-    "linkedin_ads_conversions",
-    "linkedin_ads_organic_shares",
   ],
 }
 `;
@@ -379,11 +357,6 @@ exports[`live data source names > Meta Ads explore names and field ids never cha
       "name": "meta_ads_insights",
     },
   ],
-  "reservedExploreNames": [
-    "meta_ads_demographics",
-    "meta_ads_placements",
-    "meta_ads_creatives",
-  ],
 }
 `;
 
@@ -415,10 +388,6 @@ exports[`live data source names > PostHog explore names and field ids never chan
       ],
       "name": "posthog_events",
     },
-  ],
-  "reservedExploreNames": [
-    "posthog_persons",
-    "posthog_sessions",
   ],
 }
 `;
@@ -493,11 +462,6 @@ exports[`live data source names > Pylon explore names and field ids never change
       ],
       "name": "pylon_contacts",
     },
-  ],
-  "reservedExploreNames": [
-    "pylon_messages",
-    "pylon_users",
-    "pylon_teams",
   ],
 }
 `;
@@ -587,7 +551,6 @@ exports[`live data source names > Salesforce explore names and field ids never c
       "name": "salesforce_contacts",
     },
   ],
-  "reservedExploreNames": [],
 }
 `;
 
@@ -610,9 +573,6 @@ exports[`live data source names > Search Console explore names and field ids nev
       ],
       "name": "search_console_performance",
     },
-  ],
-  "reservedExploreNames": [
-    "search_console_search_appearance",
   ],
 }
 `;
@@ -677,12 +637,6 @@ exports[`live data source names > Sentry explore names and field ids never chang
       "name": "sentry_sessions",
     },
   ],
-  "reservedExploreNames": [
-    "sentry_releases",
-    "sentry_transactions",
-    "sentry_logs",
-    "sentry_monitors",
-  ],
 }
 `;
 
@@ -712,12 +666,6 @@ exports[`live data source names > YouTube Analytics explore names and field ids 
       ],
       "name": "youtube_analytics_activity",
     },
-  ],
-  "reservedExploreNames": [
-    "youtube_analytics_demographics",
-    "youtube_analytics_playlists",
-    "youtube_analytics_revenue",
-    "youtube_analytics_audience_retention",
   ],
 }
 `;

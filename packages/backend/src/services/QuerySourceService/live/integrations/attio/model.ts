@@ -9,7 +9,10 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
+    defineLiveModel,
     dimension,
+    keepParsed,
+    withFieldsOffByDefault,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveModel,
@@ -258,7 +261,7 @@ type AttioAttributeRule = {
     /** Attio sorts it itself; the rest is sorted after reading. */
     sortable: boolean;
     /** Ids nobody reads, kept out of the default field list. */
-    internal: boolean;
+    system: boolean;
 };
 
 export type AttioValueProperty =
@@ -284,7 +287,7 @@ const rule = (
     type,
     filterOperators: [],
     sortable: false,
-    internal: false,
+    system: false,
     ...overrides,
 });
 
@@ -346,11 +349,11 @@ export const ATTIO_ATTRIBUTE_RULES: Record<string, AttioAttributeRule> = {
     location: rule(DimensionType.STRING, { property: 'address' }),
     'record-reference': rule(DimensionType.STRING, {
         property: 'target_record_id',
-        internal: true,
+        system: true,
     }),
     'actor-reference': rule(DimensionType.STRING, {
         property: 'referenced_actor_id',
-        internal: true,
+        system: true,
     }),
     interaction: rule(DimensionType.TIMESTAMP, {
         property: 'interacted_at',
@@ -394,9 +397,9 @@ export const ATTIO_DERIVED_FIELDS: Record<string, AttioDerivedField[]> = {
     ],
 };
 
-const INTERNAL_PROPERTIES: ReadonlySet<string> = new Set(
-    Object.values(ATTIO_ATTRIBUTE_RULES).flatMap(({ property, internal }) =>
-        internal && property ? [property] : [],
+const SYSTEM_PROPERTIES: ReadonlySet<string> = new Set(
+    Object.values(ATTIO_ATTRIBUTE_RULES).flatMap(({ property, system }) =>
+        system && property ? [property] : [],
     ),
 );
 
@@ -414,9 +417,9 @@ export const parseAttioApiName = (
 export const toAttioApiName = (slug: string, property?: AttioValueProperty) =>
     property ? `${slug}.${property}` : slug;
 
-export const isInternalAttioField = (apiName: string) => {
+export const isAttioSystemField = (apiName: string) => {
     const { property } = parseAttioApiName(apiName);
-    return property !== null && INTERNAL_PROPERTIES.has(property);
+    return property !== null && SYSTEM_PROPERTIES.has(property);
 };
 
 /** Properties whose filters use Attio's shorthand, matching an option's title. */
@@ -429,8 +432,8 @@ export const ATTIO_SORT_FIELDS: ReadonlySet<AttioValueProperty> = new Set([
     'full_name',
 ]);
 
-/** Attributes the built-in fields already read. */
-const BUILT_IN_SLUGS = new Set(['record_id', 'created_at']);
+/** Attributes the declared fields already read. */
+const RECORD_SLUGS = new Set(['record_id', 'created_at']);
 
 const MAX_SCANNED_ATTRIBUTES = 300;
 
@@ -439,11 +442,6 @@ const ATTIO_SLUG = /^[a-z0-9_]+$/;
 
 const MULTISELECT_HINT =
     'Multi-select attribute: values are joined with commas.';
-
-/** Names of the explores scans add fields to besides the first. */
-export const ATTIO_SCANNED_MODELS = ATTIO_EXPLORES.slice(1).map(
-    ({ name }) => name,
-);
 
 /** The object an explore definition reads. */
 export const toAttioObject = (definitionName: string): AttioObject => {
@@ -471,12 +469,12 @@ export const readAttioAttributes = (
         : undefined;
 
 /**
- * Names attribute fields can't take: built-in fields, and fields of earlier
+ * Names attribute fields can't take: declared fields, and fields of earlier
  * versions (created_at grains, count, total_*) that saved charts may still
  * name.
  */
 const RESERVED_NAMES = new Set([
-    // Every object's explore has the same built-in fields
+    // Every object's explore has the same declared fields
     ...ATTIO_COMPANIES_EXPLORE.dimensions.map(({ name }) => name),
     'created_at_week',
     'created_at_month',
@@ -518,10 +516,10 @@ const attributesSchema = z.object({
  * Adds a dimension per attribute of the object. Unknown types and unreadable
  * lists add nothing.
  */
-export const withAttioAttributeFields = (
-    definition: LiveExploreDefinition,
+export const withAttioAttributeFields = <D extends LiveExploreDefinition>(
+    definition: D,
     attributes: unknown,
-): LiveExploreDefinition => {
+): D => {
     const parsed = attributesSchema.safeParse(attributes);
     if (!parsed.success) {
         return definition;
@@ -531,7 +529,7 @@ export const withAttioAttributeFields = (
             ({ api_slug: slug, type, is_archived: isArchived }) =>
                 !isArchived &&
                 ATTIO_SLUG.test(slug) &&
-                !BUILT_IN_SLUGS.has(slug) &&
+                !RECORD_SLUGS.has(slug) &&
                 Object.hasOwn(ATTIO_ATTRIBUTE_RULES, type),
         )
         .slice(0, MAX_SCANNED_ATTRIBUTES);
@@ -587,11 +585,11 @@ export const withAttioAttributeFields = (
 };
 
 /** Each standard object's attribute list, by slug, as Attio returns it. */
-export type AttioCatalog = { attioAttributes?: unknown };
+export type AttioScan = { attioAttributes?: unknown };
 
 /**
  * Reads each object's attributes, which become its explore's fields. An
- * object the token can't read, or the workspace lacks, keeps its built-in
+ * object the token can't read, or the workspace lacks, keeps its declared
  * fields; any other failed call, such as a throttled one, fails the scan so
  * the last good scan stays.
  */
@@ -599,7 +597,7 @@ export const scanAttioAttributes = async ({
     runtime,
 }: {
     runtime: LiveRuntime;
-}): Promise<AttioCatalog> => {
+}): Promise<AttioScan> => {
     const results = await Promise.allSettled(
         ATTIO_OBJECTS.map((object) =>
             runtime.fetch(
@@ -623,7 +621,9 @@ export const scanAttioAttributes = async ({
     }
     const read = ATTIO_OBJECTS.flatMap((object, index) => {
         const result = results[index];
-        return result.status === 'fulfilled' ? [[object, result.value]] : [];
+        return result.status === 'fulfilled'
+            ? [[object, keepParsed(attributesSchema, result.value)]]
+            : [];
     });
     if (read.length === 0) {
         throw failed[0];
@@ -631,20 +631,23 @@ export const scanAttioAttributes = async ({
     return { attioAttributes: Object.fromEntries(read) };
 };
 
-export const attioModel: LiveModel<ApiConnectorType.ATTIO, AttioCatalog> = {
+export const attioModel: LiveModel<ApiConnectorType.ATTIO> = defineLiveModel({
     explores: ATTIO_EXPLORES,
-    discovery: {
-        discover: scanAttioAttributes,
-        withFields: (definition, catalog: AttioCatalog) =>
-            withAttioAttributeFields(
+    // Every object's explore gets the attributes the workspace has
+    scan: scanAttioAttributes,
+    metadata: z.object({ attioAttributes: z.unknown() }),
+    extend: ({ attioAttributes }) =>
+        ATTIO_EXPLORES.map((definition) =>
+            withFieldsOffByDefault(
                 definition,
-                readAttioAttributes(
-                    catalog.attioAttributes,
-                    toAttioObject(definition.name),
+                withAttioAttributeFields(
+                    definition,
+                    readAttioAttributes(
+                        attioAttributes,
+                        toAttioObject(definition.name),
+                    ),
                 ),
+                isAttioSystemField,
             ),
-        isInternalField: isInternalAttioField,
-        // Companies is the first explore; the other objects are scanned too
-        models: ATTIO_SCANNED_MODELS,
-    },
-};
+        ),
+});

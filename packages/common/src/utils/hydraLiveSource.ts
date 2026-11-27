@@ -27,6 +27,7 @@ export const HYDRA_DEFAULT_SETTINGS: HydraSettings = {
     onLimit: { status: 429, retryAfterFormat: 'seconds' },
     declaredLimits: 'vendor',
     mockResponses: [],
+    objects: [],
 };
 
 /** A Hydra source with no settings, so every one takes its default. */
@@ -53,6 +54,43 @@ export const withHydraDefaults = (source: HydraApiSource): HydraSettings => ({
 const MAX_BUCKETS = 5;
 const MAX_BUCKET_ID_LENGTH = 40;
 const MAX_MOCK_RESPONSES = 50;
+const MAX_OBJECTS = 10;
+const MAX_OBJECT_FIELDS = 20;
+const MAX_OBJECT_RECORDS = 10_000;
+
+const vendorId = z
+    .string()
+    .regex(
+        /^[A-Za-z][A-Za-z0-9_]{0,59}$/,
+        'must be a letter then up to 59 letters, digits or underscores',
+    );
+const label = z.string().trim().min(1).max(100);
+
+const objectSchema = z
+    .object({
+        id: vendorId,
+        label,
+        recordCount: z.number().int().min(0).max(MAX_OBJECT_RECORDS).optional(),
+        fields: z
+            .array(
+                z
+                    .object({
+                        id: vendorId,
+                        label,
+                        type: z.enum(['string', 'number', 'date', 'boolean']),
+                        system: z.boolean().optional(),
+                    })
+                    .strict(),
+            )
+            .min(1)
+            .max(MAX_OBJECT_FIELDS)
+            .refine(
+                (fields) =>
+                    new Set(fields.map(({ id }) => id)).size === fields.length,
+                'must have unique ids',
+            ),
+    })
+    .strict();
 
 const count = z.number().int().min(1);
 const errorStatus = z.number().int().min(400).max(599);
@@ -145,6 +183,15 @@ const SETTING_SCHEMAS = {
     mockResponses: z
         .array(mockResponseSchema)
         .max(MAX_MOCK_RESPONSES)
+        .optional(),
+    objects: z
+        .array(objectSchema)
+        .max(MAX_OBJECTS)
+        .refine(
+            (objects) =>
+                new Set(objects.map(({ id }) => id)).size === objects.length,
+            'must have unique ids',
+        )
         .optional(),
 };
 

@@ -11,23 +11,79 @@ import { refuseLiveQuery } from './query/refuse';
 import type {
     LiveAccessRule,
     LiveCapabilities,
-    LiveCatalog,
     LiveIntegration,
     LiveLimits,
     LiveModel,
+    LiveRuntime,
 } from './types';
 
 /**
  * Checks an integration against the contract. Its request type stays
  * inside it: everything outside sends the query text through `parseLiveRequest`.
  */
-export const defineLiveIntegration = <
-    C extends ApiConnectorType,
-    Request,
-    Catalog extends LiveCatalog,
->(
-    integration: LiveIntegration<C, Request, Catalog>,
+export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
+    integration: LiveIntegration<C, Request>,
 ): LiveIntegration<C> => integration as unknown as LiveIntegration<C>;
+
+/**
+ * What `schema` keeps of a vendor response, or undefined when it doesn't
+ * match: a scan returns only the parts `extend` reads.
+ */
+export const keepParsed = <T>(
+    schema: z.ZodType<T>,
+    value: unknown,
+): T | undefined => {
+    const parsed = schema.safeParse(value);
+    return parsed.success ? parsed.data : undefined;
+};
+
+/**
+ * A model that reads the vendor's schema: `scan` returns metadata in the
+ * shape `metadata` states, and `extend` receives it in that shape.
+ */
+export const defineLiveModel = <C extends ApiConnectorType, Metadata>(model: {
+    explores: LiveModel<C>['explores'];
+    scan: (args: {
+        settings: ApiSourceOf<C>;
+        runtime: LiveRuntime;
+    }) => Promise<Metadata>;
+    metadata: z.ZodType<Metadata>;
+    extend: (metadata: Metadata) => LiveExploreDefinition[];
+}): LiveModel<C> => model as unknown as LiveModel<C>;
+
+const MODEL_NAME_MAX_LENGTH = 40;
+
+/**
+ * A model name from a vendor's stable id, for an explore only the vendor
+ * has: `Invoice__c` → `invoice__c`, cut to 40 characters.
+ */
+export const toLiveModelName = (apiName: string): string => {
+    const slug = apiName
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, '_')
+        .replace(/^[_0-9]+|_+$/g, '');
+    return (slug.length > 0 ? slug : 'explore').slice(0, MODEL_NAME_MAX_LENGTH);
+};
+
+/** Whether a name can be the model part of an explore name. */
+export const isLiveModelName = (name: string): boolean =>
+    name.length <= MODEL_NAME_MAX_LENGTH && /^[a-z][a-z0-9_]*$/.test(name);
+
+/**
+ * The explores a model's `extend` gives for stored metadata. Null when the
+ * model doesn't scan, or the metadata isn't in its shape: stored by an
+ * older version of the integration, say.
+ */
+export const extendLiveModel = <C extends ApiConnectorType>(
+    model: LiveModel<C>,
+    metadata: unknown,
+): LiveExploreDefinition[] | null => {
+    if (!model.extend) {
+        return null;
+    }
+    const parsed = model.metadata.safeParse(metadata);
+    return parsed.success ? model.extend(parsed.data) : null;
+};
 
 /**
  * Reads a JSON request checked by `schema`. `name` names it in errors, as
@@ -58,6 +114,30 @@ export const jsonRequest =
         return parsed.data;
     };
 
+/**
+ * `merged` with each field `declared` lacks starting off when `isOff` says
+ * so by its `apiName`: the vendor's own bookkeeping, which most people never
+ * chart.
+ */
+export const withFieldsOffByDefault = <D extends LiveExploreDefinition>(
+    declared: LiveExploreDefinition,
+    merged: D,
+    isOff: (apiName: string) => boolean,
+): D => {
+    const declaredNames = new Set(
+        [...declared.dimensions, ...declared.metrics].map(({ name }) => name),
+    );
+    const mark = <F extends { name: string; apiName: string }>(field: F) =>
+        !declaredNames.has(field.name) && isOff(field.apiName)
+            ? { ...field, onByDefault: false }
+            : field;
+    return {
+        ...merged,
+        dimensions: merged.dimensions.map(mark),
+        metrics: merged.metrics.map(mark),
+    };
+};
+
 /** Refuses a limit past what one query can read, for APIs that can't cap it. */
 export const assertMaxRows = (limit: number, maxRows: number) => {
     if (limit > maxRows) {
@@ -67,21 +147,6 @@ export const assertMaxRows = (limit: number, maxRows: number) => {
         );
     }
 };
-
-/**
- * The explores a source offers once `discover` has run: the first explore
- * and `discovery.models` with the discovered fields, the rest as written.
- */
-export const describeLiveExplores = (
-    model: LiveModel,
-    catalog: LiveCatalog,
-): LiveExploreDefinition[] =>
-    model.explores.map((definition, index) =>
-        model.discovery &&
-        (index === 0 || model.discovery.models?.includes(definition.name))
-            ? model.discovery.withFields(definition, catalog)
-            : definition,
-    );
 
 /**
  * A source's limits: its own when its settings set them, with
@@ -141,14 +206,34 @@ export type LiveAccessRules = Required<
 > &
     Pick<CreateExternalConnection, 'customHeaders'>;
 
+/**
+ * The fixed part of a rule's path, which covers every path it allows: up to
+ * its first `{name}` segment.
+ */
+const getStaticPathPrefix = (path: string) => {
+    const segments = path.split('/');
+    const templated = segments.findIndex((segment) => /^\{.+\}$/.test(segment));
+    return templated === -1
+        ? path
+        : segments.slice(0, templated).join('/') || '/';
+};
+
+/**
+ * What a source can reach, as the connection stores it. The proxy checks a
+ * live source's requests against its rules (`findAccessRule`); these lists
+ * only cover them, a path prefix per rule.
+ */
 export const getLiveAccessRules = <C extends ApiConnectorType>(
     integration: LiveIntegration<C>,
     settings: ApiSourceOf<C>,
+    explores: readonly LiveExploreDefinition[] = integration.model.explores,
 ): LiveAccessRules => {
-    const access = integration.connection.access(settings);
+    const access = integration.connection.access(settings, explores);
     const unique = <T>(values: T[]) => [...new Set(values)];
     return {
-        allowedPathPrefixes: unique(access.rules.map(({ path }) => path)),
+        allowedPathPrefixes: unique(
+            access.rules.map(({ path }) => getStaticPathPrefix(path)),
+        ),
         allowedMethods: unique(access.rules.map(({ method }) => method)),
         allowedContentTypes: ['application/json'],
         timeoutMs: integration.query.limits.timeoutMs,
@@ -190,25 +275,64 @@ export const validateLiveConnection = <C extends ApiConnectorType>(
     integration.connection.checkAuth({ type, origin, oauthTokenUrl });
 };
 
-/** A request a source may send to read data. */
+/**
+ * A request a source may send to read data: `path` and the paths under it,
+ * or only `path` itself when `exact`. A `{name}` segment matches any one
+ * segment; `entry` names the explore model the rule serves.
+ */
 export const readRule = (
     method: LiveAccessRule['method'],
     path: string,
-): LiveAccessRule => ({ method, path, effect: 'read' });
+    { exact, entry }: { exact?: boolean; entry?: string } = {},
+): LiveAccessRule => ({
+    method,
+    path,
+    effect: 'read',
+    ...(exact ? { exact: true } : {}),
+    ...(entry !== undefined ? { entry } : {}),
+});
+
+const isTemplateSegment = (segment: string) => /^\{.+\}$/.test(segment);
+
+/** Whether `path` is the rule's path, or under it unless the rule is exact. */
+const matchesRulePath = (rule: LiveAccessRule, path: string): boolean => {
+    if (!rule.exact && !rule.path.split('/').some(isTemplateSegment)) {
+        return (
+            path === rule.path ||
+            path.startsWith(
+                rule.path.endsWith('/') ? rule.path : `${rule.path}/`,
+            )
+        );
+    }
+    const ruleSegments = rule.path.replace(/\/+$/, '').split('/');
+    const segments = path.split('/');
+    const isTrailingSlashOnly =
+        segments.length === ruleSegments.length + 1 && segments.at(-1) === '';
+    if (
+        segments.length < ruleSegments.length ||
+        (rule.exact &&
+            segments.length !== ruleSegments.length &&
+            !isTrailingSlashOnly)
+    ) {
+        return false;
+    }
+    return ruleSegments.every((ruleSegment, index) =>
+        isTemplateSegment(ruleSegment)
+            ? segments[index] !== ''
+            : segments[index] === ruleSegment,
+    );
+};
 
 /**
- * The rule that lets a source send `request`: same method, and a path that
- * is the rule's path or under it, segment by segment.
+ * The rule that lets a source send `request`: the same method, and a path
+ * the rule allows (see `readRule`). The proxy refuses anything else.
  */
 export const findAccessRule = (
     rules: LiveAccessRule[],
     request: Pick<LiveAccessRule, 'method' | 'path'>,
 ): LiveAccessRule | undefined =>
     rules.find(
-        ({ method, path }) =>
-            method === request.method &&
-            (request.path === path ||
-                request.path.startsWith(
-                    path.endsWith('/') ? path : `${path}/`,
-                )),
+        (rule) =>
+            rule.method === request.method &&
+            matchesRulePath(rule, request.path),
     );

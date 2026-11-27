@@ -8,16 +8,13 @@ import {
     assertLiveResultComplete,
     buildLiveExplores,
     compileLiveMetricQuery,
-    toScannedLiveSourceFields,
 } from '../explores/build';
-import { getInitialLiveSourceFieldEdits } from '../explores/fields';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
 
 const build = (
     apiSource: Parameters<typeof buildLiveExplores>[0]['apiSource'],
 ): Explore => {
-    const scannedFields = toScannedLiveSourceFields(apiSource.connector, {});
     const [explore] = buildLiveExplores({
         connectionUuid: CONNECTION_UUID,
         sourceName: getLegacyLiveSourceName(
@@ -26,11 +23,6 @@ const build = (
         ),
         name: 'Source',
         apiSource,
-        scannedFields,
-        edits: getInitialLiveSourceFieldEdits({
-            scannedFields,
-            isExistingSource: true,
-        }),
     });
     return explore;
 };

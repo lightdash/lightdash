@@ -78,7 +78,7 @@ export const HUBSPOT_DEAL_PROPERTIES = {
             fieldType: 'number',
             hidden: false,
         },
-        // Read by the built-in fields
+        // Read by the declared fields
         { name: 'hs_object_id', label: 'Record ID', type: 'number' },
         { name: 'createdate', label: 'Create Date', type: 'datetime' },
         {

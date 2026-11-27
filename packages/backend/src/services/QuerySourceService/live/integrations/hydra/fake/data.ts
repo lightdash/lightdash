@@ -39,7 +39,7 @@ export type HydraDataset = { events: HydraEvent[]; users: HydraUser[] };
 const MODULUS = 2_147_483_647;
 
 /** A token's seed: the same token always seeds the same rows. */
-const toSeed = (text: string) =>
+export const toSeed = (text: string) =>
     (parseInt(
         createHash('sha256').update(text).digest('hex').slice(0, 12),
         16,
@@ -48,7 +48,7 @@ const toSeed = (text: string) =>
     1;
 
 /** Park-Miller: small, and the same on every machine. */
-const createRandom = (seed: number) => {
+export const createRandom = (seed: number) => {
     let state = seed;
     return () => {
         state = (state * 48_271) % MODULUS;
@@ -56,7 +56,7 @@ const createRandom = (seed: number) => {
     };
 };
 
-const addDays = (isoDate: string, days: number) => {
+export const addDays = (isoDate: string, days: number) => {
     const date = new Date(`${isoDate}T00:00:00Z`);
     date.setUTCDate(date.getUTCDate() + days);
     return date.toISOString().slice(0, 10);

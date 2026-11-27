@@ -15,7 +15,6 @@ import {
     compileLiveMetricQuery,
 } from '../../explores/build';
 import { assertLiveQuery } from '../../explores/definition';
-import { getInitialLiveSourceFieldEdits } from '../../explores/fields';
 import { connectLiveSource } from '../../liveSource.mock';
 import { createHydraServer, type HydraServer } from './fake/server';
 import { HYDRA_MAX_QUERY_ROWS } from './run';
@@ -32,11 +31,6 @@ const [EVENTS, USERS] = buildLiveExplores({
     sourceName: 'hydra',
     name: 'Hydra',
     apiSource: HYDRA_DEFAULT_SOURCE,
-    scannedFields: [],
-    edits: getInitialLiveSourceFieldEdits({
-        scannedFields: [],
-        isExistingSource: true,
-    }),
 });
 
 const field = (explore: Explore, name: string) => `${explore.name}_${name}`;

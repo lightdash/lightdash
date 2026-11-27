@@ -21,16 +21,12 @@ export const HUBSPOT_MAX_PAGES = 5;
 export const HUBSPOT_MAX_ROWS = HUBSPOT_PAGE_SIZE * HUBSPOT_MAX_PAGES;
 
 /**
- * API names of the built-in fields: the keys every search result has. They
+ * API names of the declared fields: the keys every search result has. They
  * are camelCase, so no property name (lowercase) can take them.
  */
-export const HUBSPOT_BUILT_IN_COLUMNS = [
-    'id',
-    'createdAt',
-    'updatedAt',
-] as const;
+export const HUBSPOT_RECORD_COLUMNS = ['id', 'createdAt', 'updatedAt'] as const;
 
-export type HubspotBuiltInColumn = (typeof HUBSPOT_BUILT_IN_COLUMNS)[number];
+export type HubspotRecordColumn = (typeof HUBSPOT_RECORD_COLUMNS)[number];
 
 export const HUBSPOT_COUNT_REASON =
     "HubSpot search returns one total, so Count can't be split by a field. Filter by the field instead, or list records without Count.";

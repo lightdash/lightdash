@@ -2,17 +2,28 @@ import {
     ApiConnectorType,
     DimensionType,
     FilterOperator,
+    HYDRA_OBJECTS_PATH,
     MetricType,
     TimeFrames,
+    withHydraDefaults,
+    type HydraApiSource,
 } from '@lightdash/common';
 import {
     ADDITIVE,
+    defineLiveModel,
     dimension,
     metric,
     NON_ADDITIVE,
+    toLiveModelName,
     type LiveExploreDefinition,
     type LiveModel,
+    type LiveRuntime,
 } from '../../sdk';
+import {
+    HYDRA_RECORD_COUNT,
+    hydraObjectsResponseSchema,
+    type HydraObjectsResponse,
+} from './objects';
 
 /** Each report filter takes a list of values to keep or drop. */
 export const HYDRA_STRING_FILTERS = [
@@ -193,6 +204,86 @@ export const HYDRA_EXPLORES = [
     HYDRA_USERS_EXPLORE,
 ] as const;
 
-export const hydraModel: LiveModel<ApiConnectorType.HYDRA> = {
-    explores: HYDRA_EXPLORES,
+const DIMENSION_TYPES: Record<string, DimensionType> = {
+    number: DimensionType.NUMBER,
+    date: DimensionType.DATE,
+    boolean: DimensionType.BOOLEAN,
 };
+
+/** A field id as a field name: `Amount__c` → `amount__c`. */
+const toFieldName = (id: string) => id.toLowerCase();
+
+type HydraListedObject = HydraObjectsResponse['objects'][number];
+
+/**
+ * One workspace object's explore, keyed by the object's id and named by the
+ * core: every field as a dimension, filtered by value when it is text, and a
+ * count of records. It starts off, and the vendor's system fields start
+ * hidden.
+ */
+export const toHydraObjectExplore = (
+    object: HydraListedObject,
+): LiveExploreDefinition => ({
+    name: toLiveModelName(object.id),
+    apiName: object.id,
+    onByDefault: false,
+    label: object.label,
+    description: `Records of the ${object.label} object in Hydra's test workspace.`,
+    aiHint: 'Seeded test data from a Hydra workspace object.',
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
+    incompatible: [],
+    dimensions: object.fields.map((field) =>
+        dimension({
+            name: toFieldName(field.id),
+            apiName: field.id,
+            label: field.label,
+            type: DIMENSION_TYPES[field.type] ?? DimensionType.STRING,
+            filterOperators:
+                field.type === 'string' ? HYDRA_STRING_FILTERS : [],
+            description: `${field.label} of the record.`,
+            ...(field.system ? { onByDefault: false } : {}),
+        }),
+    ),
+    // Reports can't filter on totals
+    metrics: [
+        metric({
+            name: HYDRA_RECORD_COUNT,
+            label: 'Records',
+            type: MetricType.COUNT,
+            filterOperators: [],
+            description: 'Number of records.',
+            aggregation: ADDITIVE,
+        }),
+    ],
+});
+
+/**
+ * The workspace's objects. A source that declares no objects is never
+ * asked, so its call numbers and limits stay as its tests expect.
+ */
+export const readHydraObjects = async ({
+    settings,
+    runtime,
+}: {
+    settings: HydraApiSource;
+    runtime: LiveRuntime;
+}): Promise<HydraObjectsResponse> =>
+    withHydraDefaults(settings).objects.length === 0
+        ? { objects: [] }
+        : runtime.fetch(
+              { method: 'GET', path: HYDRA_OBJECTS_PATH, body: undefined },
+              hydraObjectsResponseSchema,
+          );
+
+/** The events and users explores, then one per object the workspace has. */
+export const hydraModel: LiveModel<ApiConnectorType.HYDRA> = defineLiveModel({
+    explores: HYDRA_EXPLORES,
+    scan: readHydraObjects,
+    metadata: hydraObjectsResponseSchema,
+    extend: ({ objects }) => [
+        ...HYDRA_EXPLORES,
+        ...objects.map(toHydraObjectExplore),
+    ],
+});

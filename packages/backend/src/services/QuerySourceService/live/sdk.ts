@@ -10,8 +10,13 @@ export {
     ALL_PUSHDOWN_REFUSED,
     assertMaxRows,
     defineLiveIntegration,
+    defineLiveModel,
+    keepParsed,
     formatTestCount,
+    jsonRequest,
     readRule,
+    toLiveModelName,
+    withFieldsOffByDefault,
 } from './integration';
 export type {
     LiveIntegrationSpec,
@@ -19,7 +24,6 @@ export type {
     LiveUseCases,
 } from './spec/types';
 export type {
-    LiveCatalog,
     LiveColumn,
     LiveConnection,
     LiveModel,
@@ -46,6 +50,7 @@ export {
     getApiName,
     getLiveDefinitionName,
     getLiveExplore,
+    getLiveExploreApiName,
     getLiveRequestLimit,
     toFieldCombinationIssue,
     toLiveQueryError,

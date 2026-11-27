@@ -11,6 +11,7 @@ import { sentryIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpRequest, type LiveHttpResponse } from '../../sdk';
 import { toSentryError } from './api';
+import { SENTRY_EXPLORES } from './model';
 import { getNextCursor, SENTRY_MAX_QUERY_ROWS } from './run';
 
 const response = (
@@ -872,7 +873,7 @@ describe('sentryIntegration setup test', () => {
     it('can call no path that lists the projects of the organization', () => {
         expect(
             sentryIntegration.connection
-                .access(settings)
+                .access(settings, SENTRY_EXPLORES)
                 .rules.map(({ path }) => path),
         ).toEqual([
             '/api/0/organizations/acme/events/',
