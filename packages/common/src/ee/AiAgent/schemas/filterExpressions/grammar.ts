@@ -1,4 +1,7 @@
-import { filterExpressionOperatorDefinitions } from './operators';
+import {
+    filterExpressionOperatorAliases,
+    filterExpressionOperatorDefinitions,
+} from './operators';
 
 export const FILTER_EXPRESSION_MIXED_CONNECTORS_CODE =
     'FILTER_EXPRESSION_MIXED_CONNECTORS';
@@ -15,6 +18,16 @@ const getOperatorAlternatives = (syntax: 'presence' | 'values'): string =>
 
 const presenceOperators = getOperatorAlternatives('presence');
 const valueOperators = getOperatorAlternatives('values');
+
+const valueOperatorAliases = Object.entries(filterExpressionOperatorAliases)
+    .sort(([left], [right]) => right.length - left.length)
+    .map(
+        ([alias, operator]) =>
+            `"${alias}" !IDENTIFIER_CHARACTER {
+      return node("operator", "${operator}", location());
+    }`,
+    )
+    .join('\n  / ');
 
 export const filterExpressionGrammar = String.raw`{
   function node(kind, value, span) {
@@ -137,6 +150,10 @@ VALUE_OPERATOR
   = value:(${valueOperators}) !IDENTIFIER_CHARACTER {
       return node("operator", value, location());
     }
+  / VALUE_OPERATOR_ALIAS
+
+VALUE_OPERATOR_ALIAS
+  = ${valueOperatorAliases}
 
 CONNECTOR
   = value:("AND"i / "OR"i) !IDENTIFIER_CHARACTER {

@@ -708,6 +708,91 @@ describe("getApiSourceQueryIssues with the explore's fields", () => {
         ]);
     });
 
+    const twoDateFilters = query({
+        filters: {
+            dimensions: {
+                id: 'root',
+                and: [
+                    rule('report_date', FilterOperator.IN_THE_PAST, [7]),
+                    rule('report_date', FilterOperator.IN_BETWEEN, [
+                        '2026-10-01',
+                        '2026-10-31',
+                    ]),
+                ],
+            },
+        },
+    });
+
+    test('names the range operator as the UI does when the date is filtered twice', () => {
+        expect(labelledMessages(twoDateFilters)).toEqual([
+            'Filter the date once: replace the date filters with one "is between" filter from the start date to the end date.',
+        ]);
+    });
+
+    test('names operators as filter expressions write them for AI callers', () => {
+        const expressionMessages = (metricQuery: MetricQuery) =>
+            getApiSourceQueryIssues(apiSource, metricQuery, {
+                itemsMap,
+                operatorNames: 'expression',
+            }).map(({ message }) => message);
+
+        expect(expressionMessages(twoDateFilters)).toEqual([
+            'Filter the date once: replace the date filters with one "inBetween" filter from the start date to the end date.',
+        ]);
+        expect(
+            expressionMessages(
+                query({
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                rule(
+                                    'report_date',
+                                    FilterOperator.GREATER_THAN,
+                                    ['2026-01-01'],
+                                ),
+                            ],
+                        },
+                    },
+                }),
+            ),
+        ).toEqual([
+            'Date can\'t use "greaterThan" on Google Analytics. Use one of: "inBetween", "inThePast".',
+        ]);
+    });
+
+    test('keeps the generic range advice where the date has no range operator', () => {
+        const withoutRange: ApiSourceExplore = {
+            ...apiSource,
+            fields: {
+                ...apiSource.fields,
+                report_date: {
+                    apiName: 'date',
+                    filterOperators: [FilterOperator.IN_THE_PAST],
+                },
+            },
+        };
+        const twoRelativeFilters = query({
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        rule('report_date', FilterOperator.IN_THE_PAST, [7]),
+                        rule('report_date', FilterOperator.IN_THE_PAST, [30]),
+                    ],
+                },
+            },
+        });
+
+        expect(
+            getApiSourceQueryIssues(withoutRange, twoRelativeFilters, {
+                itemsMap,
+            }).map(({ message }) => message),
+        ).toEqual([
+            'Filter the date once: combine the date filters into one range.',
+        ]);
+    });
+
     test("names both fields when they can't be combined", () => {
         expect(
             labelledMessages(query({ dimensions: ['report_item_name'] })),

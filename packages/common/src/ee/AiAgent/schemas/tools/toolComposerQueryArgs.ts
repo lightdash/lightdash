@@ -34,6 +34,7 @@ import assertUnreachable from '../../../../utils/assertUnreachable';
 import { currencies } from '../../../../utils/formatting';
 import { getItemId } from '../../../../utils/item';
 import {
+    FILTER_EXPRESSION_COMPACT_CONTRACT,
     filterExpressionInputSchema,
     filterExpressionsSchema,
 } from '../filterExpressions/expressionSchemas';
@@ -182,7 +183,7 @@ export const composerSemanticLayerFiltersSchema = filterExpressionsSchema
     .nullish()
     .default(null)
     .describe(
-        "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
+        `Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.\n${FILTER_EXPRESSION_COMPACT_CONTRACT}`,
     );
 
 const composerCustomMetricSchema = z.object({

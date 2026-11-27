@@ -6,12 +6,14 @@ import {
     DimensionType,
     FILTER_EXPRESSION_MAX_RULES,
     filterAggregationCustomMetrics,
+    filterExpressionOperatorAliases,
     filterExpressionOperatorDefinitions,
     filterExpressionResolvedFiltersSchemaTransformed,
     FilterOperator,
     filterRuleSchema,
     filtersSchemaTransformed,
     FilterType,
+    getApiSourceFilterOperators,
     getFields,
     getFilterTypeFromItemType,
     getItemId,
@@ -86,6 +88,8 @@ type ResolvedField = {
     fieldType: Parameters<typeof getFilterTypeFromItemType>[0];
     filterType: FilterType;
     category: QueryFilterExpressionCategory;
+    // The operators a live data source runs on the field; null elsewhere.
+    sourceOperators: FilterOperator[] | null;
 };
 
 type ResolvedQueryConfigParts = {
@@ -305,6 +309,13 @@ const makeExploreFields = (
         fieldType: field.type,
         filterType: getFilterTypeFromItemType(field.type),
         category: isDimension(field) ? 'dimensions' : 'metrics',
+        sourceOperators: explore.apiSource
+            ? getApiSourceFilterOperators(
+                  explore.apiSource,
+                  getItemId(field),
+                  !isDimension(field),
+              )
+            : null,
     }));
 
 const makeTableCalculationFields = (
@@ -320,6 +331,7 @@ const makeTableCalculationFields = (
                 fieldType,
                 filterType: getFilterTypeFromItemType(fieldType),
                 category: 'tableCalculations',
+                sourceOperators: null,
             };
         },
     );
@@ -339,6 +351,7 @@ const makeAdditionalMetricFields = (
                 fieldType: metric.type,
                 filterType: getFilterTypeFromItemType(metric.type),
                 category: 'metrics' as const,
+                sourceOperators: null,
             },
         ];
     });
@@ -1355,6 +1368,15 @@ type SyntaxRepair =
     | { kind: 'invalidEscape'; sequence: string; example: string }
     | { kind: 'settingSeparator'; example: string }
     | { kind: 'mixedConnectors'; example: string }
+    | {
+          kind: 'unknownOperator';
+          token: string;
+          field: ResolvedField | null;
+          operators: FilterOperator[];
+          isSourceNarrowed: boolean;
+          suggestion: FilterOperator | null;
+          example: string;
+      }
     | { kind: 'malformed' };
 
 type RepairDetails = {
@@ -1616,6 +1638,177 @@ const repairSettingSeparator = ({
         : null;
 };
 
+// Spellings callers reach for, keyed in lowercase without punctuation.
+const operatorSynonyms: Record<string, FilterOperator> = {
+    is: FilterOperator.EQUALS,
+    eq: FilterOperator.EQUALS,
+    in: FilterOperator.EQUALS,
+    equal: FilterOperator.EQUALS,
+    isnot: FilterOperator.NOT_EQUALS,
+    ne: FilterOperator.NOT_EQUALS,
+    neq: FilterOperator.NOT_EQUALS,
+    notin: FilterOperator.NOT_EQUALS,
+    notequal: FilterOperator.NOT_EQUALS,
+    null: FilterOperator.NULL,
+    isnotnull: FilterOperator.NOT_NULL,
+    contains: FilterOperator.INCLUDE,
+    includes: FilterOperator.INCLUDE,
+    like: FilterOperator.INCLUDE,
+    notcontains: FilterOperator.NOT_INCLUDE,
+    doesnotcontain: FilterOperator.NOT_INCLUDE,
+    notinclude: FilterOperator.NOT_INCLUDE,
+    notlike: FilterOperator.NOT_INCLUDE,
+    lt: FilterOperator.LESS_THAN,
+    before: FilterOperator.LESS_THAN,
+    lte: FilterOperator.LESS_THAN_OR_EQUAL,
+    le: FilterOperator.LESS_THAN_OR_EQUAL,
+    gt: FilterOperator.GREATER_THAN,
+    after: FilterOperator.GREATER_THAN,
+    gte: FilterOperator.GREATER_THAN_OR_EQUAL,
+    ge: FilterOperator.GREATER_THAN_OR_EQUAL,
+    since: FilterOperator.GREATER_THAN_OR_EQUAL,
+    within: FilterOperator.IN_BETWEEN,
+    range: FilterOperator.IN_BETWEEN,
+    inrange: FilterOperator.IN_BETWEEN,
+    inthelast: FilterOperator.IN_THE_PAST,
+    last: FilterOperator.IN_THE_PAST,
+    past: FilterOperator.IN_THE_PAST,
+    next: FilterOperator.IN_THE_NEXT,
+    current: FilterOperator.IN_THE_CURRENT,
+    this: FilterOperator.IN_THE_CURRENT,
+};
+
+const normalizeOperatorToken = (token: string): string =>
+    token.toLowerCase().replaceAll(/[^a-z0-9]/g, '');
+
+const suggestOperator = (
+    token: string,
+    operators: FilterOperator[],
+): FilterOperator | null => {
+    const normalized = normalizeOperatorToken(token);
+    const synonyms: Record<string, FilterOperator> = {
+        ...operatorSynonyms,
+        ...Object.fromEntries(
+            Object.entries(filterExpressionOperatorAliases).map(
+                ([alias, operator]) => [
+                    normalizeOperatorToken(alias),
+                    operator,
+                ],
+            ),
+        ),
+    };
+    const synonym = Object.hasOwn(synonyms, normalized)
+        ? synonyms[normalized]
+        : undefined;
+    return (
+        operators.find(
+            (operator) => normalizeOperatorToken(operator) === normalized,
+        ) ??
+        operators.find((operator) => operator === synonym) ??
+        null
+    );
+};
+
+const operatorsForField = (
+    field: ResolvedField | null,
+): { operators: FilterOperator[]; isSourceNarrowed: boolean } => {
+    if (!field) {
+        return {
+            operators: filterExpressionOperatorDefinitions.map(
+                ({ operator }) => operator,
+            ),
+            isSourceNarrowed: false,
+        };
+    }
+    const typeOperators = filterExpressionOperatorDefinitions
+        .filter(
+            ({ argumentCountByFilterType }) =>
+                argumentCountByFilterType[field.filterType] !== null,
+        )
+        .map(({ operator }): FilterOperator => operator);
+    const sourceOperators = typeOperators.filter((operator) =>
+        field.sourceOperators?.includes(operator),
+    );
+    // A field the source can't filter is refused when the query runs.
+    return sourceOperators.length > 0
+        ? { operators: sourceOperators, isSourceNarrowed: true }
+        : { operators: typeOperators, isSourceNarrowed: false };
+};
+
+const identifierCharacterPattern = /[A-Za-z0-9_.-]/;
+
+const isKnownOperatorToken = (token: string): boolean =>
+    Object.hasOwn(filterExpressionOperatorAliases, token) ||
+    filterExpressionOperatorDefinitions.some(
+        ({ operator }) => operator === token,
+    );
+
+// The token in operator position: a rule that parses once it is replaced.
+const repairUnknownOperator = ({
+    expression,
+    error,
+    fields,
+    source,
+}: {
+    expression: string;
+    error: SyntaxParseError;
+    fields: ResolvedField[];
+    source: FilterExpressionSource;
+}): SyntaxRepair | null => {
+    let start = Math.min(error.span.start.offset, expression.length);
+    while (
+        start > 0 &&
+        identifierCharacterPattern.test(expression[start - 1])
+    ) {
+        start -= 1;
+    }
+    let end = start;
+    while (
+        end < expression.length &&
+        identifierCharacterPattern.test(expression[end])
+    ) {
+        end += 1;
+    }
+    const token = expression.slice(start, end);
+    if (token === '' || isKnownOperatorToken(token)) return null;
+
+    const probe = parseFilterExpression(
+        `${expression.slice(0, start)}${FilterOperator.NULL}`,
+    );
+    if (!probe.success) return null;
+    const rule = probe.expression.rules.at(-1);
+    if (!rule || rule.operator.span.start.offset !== start) return null;
+
+    const field = getRuleField({ rule, fields, source });
+    const { operators, isSourceNarrowed } = operatorsForField(field);
+    const suggestion = suggestOperator(token, operators);
+    const corrected =
+        suggestion === null
+            ? null
+            : `${expression.slice(0, start)}${suggestion}${expression.slice(end)}`;
+    const fallbackOperator =
+        suggestion ??
+        operators.find((operator) => operator === FilterOperator.EQUALS) ??
+        operators[0];
+    const fallbackExample =
+        field && fallbackOperator
+            ? expressionExample(field.id, fallbackOperator, field.filterType)
+            : scopedExample(source, fields);
+    return {
+        kind: 'unknownOperator',
+        token,
+        field,
+        operators,
+        isSourceNarrowed,
+        suggestion,
+        example:
+            corrected !== null &&
+            validateRepairCandidate({ candidate: corrected, fields, source })
+                ? corrected
+                : fallbackExample,
+    };
+};
+
 const parseConnector = (value: string): ExpressionConnector | null => {
     switch (value.toLowerCase()) {
         case 'and':
@@ -1758,7 +1951,14 @@ const getSyntaxRepair = ({
                 fields,
                 source,
             });
-            return settingSeparator ?? { kind: 'malformed' };
+            if (settingSeparator) return settingSeparator;
+            const unknownOperator = repairUnknownOperator({
+                expression,
+                error,
+                fields,
+                source,
+            });
+            return unknownOperator ?? { kind: 'malformed' };
         }
         default:
             return assertUnreachable(error.code, 'Unknown syntax error');
@@ -1829,6 +2029,21 @@ const getRepairDetails = ({
                 guidance: mixedConnectorGuidance(source),
                 example: repair.example,
             };
+        case 'unknownOperator': {
+            const suggestionText =
+                repair.suggestion === null
+                    ? ''
+                    : ` Did you mean \`${repair.suggestion}\`?`;
+            const operatorList = repair.operators.join(', ');
+            return {
+                problem: `\`${repair.token}\` is not a filter operator.${suggestionText}`,
+                guidance:
+                    repair.field === null
+                        ? `Use one of the filter operators: ${operatorList}.`
+                        : `Use one of the ${repair.field.filterType} operators ${repair.isSourceNarrowed ? 'this live data source runs' : 'available'} on ${formatFieldId(repair.field.id)}: ${operatorList}.`,
+                example: repair.example,
+            };
+        }
         case 'malformed':
             return {
                 problem: `The expression is malformed near line ${error.span.start.line}, column ${error.span.start.column}.`,

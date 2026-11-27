@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { FilterType } from '../../../../types/filter';
+import { DimensionType } from '../../../../types/field';
+import { FilterOperator, FilterType } from '../../../../types/filter';
 import assertUnreachable from '../../../../utils/assertUnreachable';
 import {
     aggregationCustomMetricSchema,
@@ -20,7 +21,10 @@ import {
 } from '../tools/toolRunQueryArgs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
-import { FILTER_EXPRESSION_STRING_VALUES_EXAMPLE } from './examples';
+import {
+    FILTER_EXPRESSION_STRING_VALUES_EXAMPLE,
+    formatFilterExpressionExample,
+} from './examples';
 import {
     filterExpressionDateUnits,
     filterExpressionOperatorDefinitions,
@@ -48,22 +52,22 @@ const ruleSyntaxByArgumentCount = {
     oneOrMore: '<operator>=<value>[,<value>...]',
 } satisfies Record<FilterExpressionArgumentCount, string>;
 
-const getOperatorSyntax = (
+const getOperatorForm = (
     definition: FilterExpressionOperatorDefinition,
     argumentCount: FilterExpressionArgumentCount,
 ): string => {
     switch (definition.argumentSyntax) {
         case 'none':
-            return `${definition.operator} [0 values]`;
+            return definition.operator;
         case 'relativeDate':
-            return `${definition.operator}=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]`;
+            return `${definition.operator}=<count>{unit:<unit>,completed:<bool>}`;
         case 'currentDate':
-            return `${definition.operator}=<unit>[{toDate:true[,excludeToday:true]}] [1 unit; settings optional]`;
+            return `${definition.operator}=<unit>[{toDate:true[,excludeToday:true]}]`;
         case 'values':
-            return `${ruleSyntaxByArgumentCount[argumentCount].replace(
+            return ruleSyntaxByArgumentCount[argumentCount].replace(
                 '<operator>',
                 definition.operator,
-            )} [${argumentCount === 'oneOrMore' ? '1+ values' : `${argumentCount} ${argumentCount === 1 ? 'value' : 'values'}`}]`;
+            );
         default:
             return assertUnreachable(
                 definition,
@@ -71,6 +75,34 @@ const getOperatorSyntax = (
             );
     }
 };
+
+const getOperatorArityNote = (
+    definition: FilterExpressionOperatorDefinition,
+    argumentCount: FilterExpressionArgumentCount,
+): string => {
+    switch (definition.argumentSyntax) {
+        case 'none':
+            return '0 values';
+        case 'relativeDate':
+            return '1 count; settings required';
+        case 'currentDate':
+            return '1 unit; settings optional';
+        case 'values':
+            if (argumentCount === 'oneOrMore') return '1+ values';
+            return `${argumentCount} ${argumentCount === 1 ? 'value' : 'values'}`;
+        default:
+            return assertUnreachable(
+                definition,
+                'Unknown filter expression argument syntax',
+            );
+    }
+};
+
+const getOperatorSyntax = (
+    definition: FilterExpressionOperatorDefinition,
+    argumentCount: FilterExpressionArgumentCount,
+): string =>
+    `${getOperatorForm(definition, argumentCount)} [${getOperatorArityNote(definition, argumentCount)}]`;
 
 const getFilterTypeGrammar = (filterType: FilterType): string => {
     const operators = filterExpressionOperatorDefinitions.flatMap(
@@ -104,6 +136,59 @@ export const FILTER_EXPRESSION_GRAMMAR_DESCRIPTION =
 
 export const FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION =
     getFilterExpressionGrammarDescription('andOnly');
+
+// Only operators whose form differs from `<operator>=<value>[,<value>...]` spell it out.
+const getCompactOperatorForm = (
+    definition: FilterExpressionOperatorDefinition,
+    argumentCount: FilterExpressionArgumentCount,
+): string =>
+    definition.argumentSyntax === 'values' && argumentCount !== 2
+        ? definition.operator
+        : getOperatorForm(definition, argumentCount);
+
+const getCompactOperatorList = (): string => {
+    const operatorsByFilterTypes = new Map<string, string[]>();
+    filterExpressionOperatorDefinitions.forEach((definition) => {
+        const supported = Object.values(FilterType).flatMap((filterType) => {
+            const argumentCount =
+                definition.argumentCountByFilterType[filterType];
+            return argumentCount === null
+                ? []
+                : [{ filterType, argumentCount }];
+        });
+        const [first] = supported;
+        if (!first) return;
+        const filterTypes = supported
+            .map(({ filterType }) => filterType)
+            .join(', ');
+        operatorsByFilterTypes.set(filterTypes, [
+            ...(operatorsByFilterTypes.get(filterTypes) ?? []),
+            getCompactOperatorForm(definition, first.argumentCount),
+        ]);
+    });
+    return [...operatorsByFilterTypes]
+        .map(
+            ([filterTypes, operators]) =>
+                `- ${filterTypes}: ${operators.join(', ')}`,
+        )
+        .join('\n');
+};
+
+export const FILTER_EXPRESSION_DATE_RANGE_EXAMPLE =
+    formatFilterExpressionExample({
+        fieldId: 'orders_order_date',
+        fieldType: DimensionType.DATE,
+        fieldFilterType: FilterType.DATE,
+        operator: FilterOperator.IN_BETWEEN,
+        values: ['2026-10-01', '2026-10-31'],
+    });
+
+// The operator vocabulary for tool schemas, derived from the same definitions
+// as the full grammar.
+export const FILTER_EXPRESSION_COMPACT_CONTRACT = `A rule is \`<fieldId> <operator>[=<value>[,<value>...]]\`; double-quote string values. Operators by field type:
+${getCompactOperatorList()}
+Date units: ${filterExpressionDateUnits.join(', ')}; completed:false includes the current partial period.
+Filter a date field with one rule: a range is \`${FILTER_EXPRESSION_DATE_RANGE_EXAMPLE}\`, not two comparisons, which live data sources refuse.`;
 
 export const filterExpressionInputSchema = z
     .string()
@@ -210,8 +295,16 @@ export const toolRunQueryExpressionArgsSchemaV2FormulaOnly = createToolSchema()
     })
     .build();
 
+// MCP clients may lack the skill tools, so the schema carries the operators.
 export const toolRunQueryExpressionArgsSchemaV2Mcp =
     toolRunQueryExpressionArgsSchemaV2FormulaOnly.extend({
+        queryConfig: queryConfigExpressionSchemaV2FormulaOnly.extend({
+            filters: filterExpressionsSchema
+                .describe(
+                    `${filterExpressionsSchema.description}\n${FILTER_EXPRESSION_COMPACT_CONTRACT}`,
+                )
+                .nullable(),
+        }),
         chartConfig: chartConfigBuiltinOnlySchema,
     });
 

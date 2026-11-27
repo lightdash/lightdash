@@ -6,6 +6,7 @@ import {
     filterExpressionGrammar,
 } from './grammar';
 import {
+    filterExpressionOperatorAliases,
     filterExpressionOperatorDefinitions,
     filterExpressionOperators,
 } from './operators';
@@ -301,6 +302,57 @@ describe('parseFilterExpression', () => {
         });
     });
 
+    it.each([
+        ['between', FilterOperator.IN_BETWEEN],
+        ['notBetween', FilterOperator.NOT_IN_BETWEEN],
+    ] as const)(
+        'parses the %s alias as the canonical %s operator',
+        (alias, canonical) => {
+            const aliased = expectParsed(`orders_amount ${alias}=10,100`);
+            expect(withoutSpans(`orders_amount ${alias}=10,100`)).toEqual(
+                withoutSpans(`orders_amount ${canonical}=10,100`),
+            );
+            expect(aliased.rules[0]?.operator).toEqual({
+                kind: 'operator',
+                value: canonical,
+                span: {
+                    start: { offset: 14, line: 1, column: 15 },
+                    end: {
+                        offset: 14 + alias.length,
+                        line: 1,
+                        column: 15 + alias.length,
+                    },
+                },
+            });
+        },
+    );
+
+    it('parses aliases next to canonical operators in one expression', () => {
+        expect(
+            withoutSpans(
+                'orders_order_date between=2026-10-01,2026-10-31 AND orders_amount inBetween=10,100',
+            ).rules.map(({ operator }) => operator),
+        ).toEqual([FilterOperator.IN_BETWEEN, FilterOperator.IN_BETWEEN]);
+    });
+
+    it.each([
+        'field between',
+        'field betweenx=1,2',
+        'field Between=1,2',
+        'field notbetween=1,2',
+        'field within=1,2',
+        'field gte=1',
+    ])('rejects spellings outside the alias list: %s', (input) => {
+        expect(expectParseError(input).code).toBe('FILTER_EXPRESSION_SYNTAX');
+    });
+
+    it('keeps fields named like an alias as fields', () => {
+        expect(withoutSpans('between equals=1').rules[0]).toMatchObject({
+            field: 'between',
+            operator: FilterOperator.EQUALS,
+        });
+    });
+
     it('parses presence operators without arguments', () => {
         expect(withoutSpans('field isNull')).toMatchObject({
             rules: [
@@ -459,6 +511,16 @@ describe('filter expression operator definitions', () => {
         expect(filterExpressionOperatorDefinitions).toHaveLength(
             filterExpressionOperators.length,
         );
+    });
+
+    it('aliases only between and notBetween, to canonical operators', () => {
+        expect(filterExpressionOperatorAliases).toEqual({
+            between: FilterOperator.IN_BETWEEN,
+            notBetween: FilterOperator.NOT_IN_BETWEEN,
+        });
+        Object.keys(filterExpressionOperatorAliases).forEach((alias) => {
+            expect(filterExpressionOperators).not.toContain(alias);
+        });
     });
 
     it('builds every exposed operator into the grammar', () => {
