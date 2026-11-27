@@ -4033,7 +4033,9 @@ describe('AiAgentToolsService', () => {
             readOnlySpaceUuids = [],
             composerChart = editableChart,
         }: {
-            composerChart?: Record<string, unknown>;
+            composerChart?: Omit<typeof editableChart, 'dashboardSlug'> & {
+                dashboardSlug: string | null;
+            };
             flagEnabled?: boolean;
             preflightPipeline?: import('vitest').Mock;
             threadBinding?: AiAgentToolsRuntimeContext['threadBinding'];

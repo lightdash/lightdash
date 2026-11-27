@@ -40,6 +40,7 @@ const storedChart = (uuid: string): AnyType => ({
     dashboardUuid: `${uuid}-dashboard`,
     dashboardSlug: `${uuid}-dashboard`,
     spaceUuid: 'space-uuid',
+    spacePath: 'jaffle',
     pipeline: { schemaVersion: 1, terminalNodeId: 'n', nodes: [] },
     chart: {
         schemaVersion: 1,
@@ -65,12 +66,6 @@ const makeService = (
         projectModel: {
             getSummary: vi.fn(async () => ({ organizationUuid: ORG_UUID })),
         },
-        spaceModel: {
-            find: vi.fn(async () => [
-                { uuid: 'space-uuid', path: 'jaffle' },
-                { uuid: 'marketing-uuid', path: 'marketing.growth' },
-            ]),
-        },
         appModel: { findAppsByUuids: vi.fn(async () => []) },
         composerChartModel: {
             findForCode: vi.fn(async (): Promise<ComposerChart[]> => charts),
@@ -87,6 +82,7 @@ const spaceChart = (uuid: string): AnyType => ({
     dashboardUuid: undefined,
     dashboardSlug: null,
     spaceUuid: 'marketing-uuid',
+    spacePath: 'marketing.growth',
 });
 
 describe('CoderService composer chart download', () => {

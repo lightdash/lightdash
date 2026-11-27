@@ -247,6 +247,7 @@ describe('composer charts follow their dashboard on the real schema', () => {
                     owner,
                     dashboardSlug: null,
                     spaceUuid: fixture.spaceUuid,
+                    spacePath: 'reports',
                 }),
                 expect.objectContaining({
                     uuid: dashboardChartUuid,

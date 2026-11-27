@@ -3582,20 +3582,12 @@ export class CoderService extends BaseService {
         );
     }
 
-    private async withSpaceSlugs<T extends { spaceUuid: string }>(
+    private static withSpaceSlugs<T extends { spacePath: string }>(
         items: T[],
-    ): Promise<Array<T & { spaceSlug: string }>> {
-        const spaces = await this.spaceModel.find({
-            spaceUuids: [...new Set(items.map((item) => item.spaceUuid))],
-        });
-        const spacePathByUuid = new Map(
-            spaces.map((space) => [space.uuid, space.path]),
-        );
+    ): Array<T & { spaceSlug: string }> {
         return items.map((item) => ({
             ...item,
-            spaceSlug: getContentAsCodePathFromLtreePath(
-                spacePathByUuid.get(item.spaceUuid) ?? '',
-            ),
+            spaceSlug: getContentAsCodePathFromLtreePath(item.spacePath),
         }));
     }
 
@@ -3610,7 +3602,7 @@ export class CoderService extends BaseService {
         );
         return this.getComposerChartsAsCode(
             projectUuid,
-            await this.withSpaceSlugs(charts),
+            CoderService.withSpaceSlugs(charts),
         );
     }
 
@@ -3652,7 +3644,7 @@ export class CoderService extends BaseService {
         if (!chart) return null;
         const [composerChart] = await this.getComposerChartsAsCode(
             projectUuid,
-            await this.withSpaceSlugs([chart]),
+            CoderService.withSpaceSlugs([chart]),
         );
         return { composerChart, spaceUuid: chart.spaceUuid };
     }
@@ -3713,7 +3705,7 @@ export class CoderService extends BaseService {
         return {
             composerCharts: await this.getComposerChartsAsCode(
                 projectUuid,
-                await this.withSpaceSlugs(page),
+                CoderService.withSpaceSlugs(page),
             ),
             missingIds: (slugs ?? []).filter((slug) => !found.has(slug)),
             total,

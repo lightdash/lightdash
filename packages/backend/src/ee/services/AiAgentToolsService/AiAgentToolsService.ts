@@ -4256,7 +4256,6 @@ export class AiAgentToolsService extends BaseService {
             slug,
             'update',
         );
-        // Refused before any SQL approval is asked for
         if (!current.content.dashboardSlug) {
             throw new SpaceOwnedComposerChartUploadError(slug);
         }

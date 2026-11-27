@@ -507,7 +507,11 @@ export class ComposerChartModel {
         slugs: string[] | undefined,
     ): Promise<
         Array<
-            ComposerChart & { dashboardSlug: string | null; spaceUuid: string }
+            ComposerChart & {
+                dashboardSlug: string | null;
+                spaceUuid: string;
+                spacePath: string;
+            }
         >
     > {
         const query = this.latestVersionQuery()
@@ -532,6 +536,7 @@ export class ComposerChartModel {
             .select(
                 `${DashboardsTableName}.slug as dashboard_slug`,
                 `${SpaceTableName}.space_uuid as owner_space_uuid`,
+                `${SpaceTableName}.path as owner_space_path`,
             )
             .where(`${ComposerChartsTableName}.project_uuid`, projectUuid)
             .whereNull(`${SpaceTableName}.deleted_at`)
@@ -543,6 +548,7 @@ export class ComposerChartModel {
             ...ComposerChartModel.toComposerChart(row),
             dashboardSlug: row.dashboard_slug,
             spaceUuid: row.owner_space_uuid,
+            spacePath: row.owner_space_path,
         }));
     }
 
