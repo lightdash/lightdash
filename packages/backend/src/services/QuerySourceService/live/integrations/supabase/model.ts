@@ -8,7 +8,6 @@ import {
 import { z } from 'zod';
 import {
     defineLiveModel,
-    keepParsed,
     pickLiveFields,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
@@ -222,9 +221,6 @@ const openApiSchema = z.object({
     definitions: z.record(z.string(), z.unknown()).optional(),
 });
 
-/** The source's table under `definitions` in the Supabase Data API's OpenAPI description. */
-export type SupabaseScan = { supabaseTable?: unknown };
-
 /**
  * Reads the table's columns from the Data API's OpenAPI description. Only
  * secret (service role) keys may read it, and only tables the key can see
@@ -236,7 +232,7 @@ export const scanSupabaseTable = async ({
 }: {
     settings: { table: string };
     runtime: LiveRuntime;
-}): Promise<SupabaseScan> => {
+}): Promise<unknown> => {
     const description = await runtime.fetch(
         { method: 'GET', path: SUPABASE_REST_PATH, body: undefined },
         openApiSchema,
@@ -250,9 +246,7 @@ export const scanSupabaseTable = async ({
             }. Check the table name, and that the schema is exposed in the project's Data API settings.`,
         );
     }
-    return {
-        supabaseTable: keepParsed(tableSchema, definitions[settings.table]),
-    };
+    return { table: definitions[settings.table] };
 };
 
 export const supabaseModel: LiveModel<ApiConnectorType.SUPABASE> =
@@ -260,15 +254,17 @@ export const supabaseModel: LiveModel<ApiConnectorType.SUPABASE> =
         explores: SUPABASE_EXPLORES,
         // The table's columns are the explore, every one in use from the start
         scan: scanSupabaseTable,
-        metadata: z.object({ supabaseTable: z.unknown() }),
-        extend: ({ supabaseTable }) => {
+        metadata: z.object({
+            table: tableSchema.optional().catch(undefined),
+        }),
+        extend: ({ table: scanned }) => {
             const [table] = SUPABASE_EXPLORES;
             return {
                 fields: {
                     [table.name]: pickLiveFields(
                         withSupabaseColumns(
                             table,
-                            readSupabaseColumns(supabaseTable),
+                            readSupabaseColumns(scanned),
                         ),
                     ),
                 },

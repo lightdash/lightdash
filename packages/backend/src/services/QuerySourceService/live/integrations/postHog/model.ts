@@ -573,11 +573,6 @@ const readPropertyDefinitions = async (
     return { results: await readFrom(0) };
 };
 
-/** The project's event and person property definitions, as PostHog returns them. */
-export type PostHogScan = {
-    posthogProperties?: Record<'event' | 'person', unknown>;
-};
-
 /** Reads the event and person property definitions the explore adds fields for. */
 export const scanPostHogProperties = async ({
     settings: { projectId },
@@ -585,12 +580,12 @@ export const scanPostHogProperties = async ({
 }: {
     settings: PostHogSettings;
     runtime: LiveRuntime;
-}): Promise<PostHogScan> => {
+}): Promise<unknown> => {
     const [event, person] = await Promise.all([
         readPropertyDefinitions(projectId, 'event', runtime),
         readPropertyDefinitions(projectId, 'person', runtime),
     ]);
-    return { posthogProperties: { event, person } };
+    return { properties: { event, person } };
 };
 
 export const postHogModel: LiveModel<ApiConnectorType.POSTHOG> =
@@ -599,21 +594,28 @@ export const postHogModel: LiveModel<ApiConnectorType.POSTHOG> =
         // The first explore gets the project's event and person properties
         scan: scanPostHogProperties,
         metadata: z.object({
-            posthogProperties: z
-                .object({ event: z.unknown(), person: z.unknown() })
+            properties: z
+                .object({
+                    event: propertyDefinitionsSchema
+                        .optional()
+                        .catch(undefined),
+                    person: propertyDefinitionsSchema
+                        .optional()
+                        .catch(undefined),
+                })
                 .optional(),
         }),
-        extend: ({ posthogProperties }) => {
+        extend: ({ properties }) => {
             const [events] = POSTHOG_EXPLORES;
-            return posthogProperties
+            return properties
                 ? {
                       fields: {
                           [events.name]: pickLiveFields(
                               withFieldsOffByDefault(
                                   events,
                                   withPostHogPropertyFields(events, {
-                                      event: posthogProperties.event,
-                                      person: posthogProperties.person,
+                                      event: properties.event,
+                                      person: properties.person,
                                   }),
                                   isPostHogSystemProperty,
                               ),

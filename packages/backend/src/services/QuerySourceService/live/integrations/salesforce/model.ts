@@ -13,7 +13,6 @@ import {
     ADDITIVE,
     defineLiveModel,
     dimension,
-    keepParsed,
     metric,
     pickLiveFields,
     withFieldsOffByDefault,
@@ -833,9 +832,6 @@ export const withSalesforceFields = <D extends LiveExploreDefinition>(
     };
 };
 
-/** Each object's describe, as Salesforce returns it. */
-export type SalesforceScan = { salesforceDescribe?: unknown };
-
 /**
  * Reads each object's describe, whose fields become its explore's fields.
  * An object the signed-in user can't read keeps its declared fields; any
@@ -846,7 +842,7 @@ export const scanSalesforceDescribe = async ({
     runtime,
 }: {
     runtime: LiveRuntime;
-}): Promise<SalesforceScan> => {
+}): Promise<unknown> => {
     const results = await Promise.allSettled(
         SALESFORCE_OBJECTS.map((object) =>
             runtime.fetch(
@@ -870,14 +866,12 @@ export const scanSalesforceDescribe = async ({
     }
     const read = SALESFORCE_OBJECTS.flatMap((object, index) => {
         const result = results[index];
-        return result.status === 'fulfilled'
-            ? [[object, keepParsed(describeSchema, result.value)]]
-            : [];
+        return result.status === 'fulfilled' ? [[object, result.value]] : [];
     });
     if (read.length === 0) {
         throw failed[0];
     }
-    return { salesforceDescribe: Object.fromEntries(read) };
+    return { objects: Object.fromEntries(read) };
 };
 
 export const salesforceModel: LiveModel<ApiConnectorType.SALESFORCE> =
@@ -885,8 +879,13 @@ export const salesforceModel: LiveModel<ApiConnectorType.SALESFORCE> =
         explores: SALESFORCE_EXPLORES,
         // Every object's explore gets the fields the org has
         scan: scanSalesforceDescribe,
-        metadata: z.object({ salesforceDescribe: z.unknown() }),
-        extend: ({ salesforceDescribe }) => ({
+        metadata: z.object({
+            objects: z.record(
+                z.string(),
+                describeSchema.optional().catch(undefined),
+            ),
+        }),
+        extend: ({ objects }) => ({
             fields: Object.fromEntries(
                 SALESFORCE_EXPLORES.map((definition) => [
                     definition.name,
@@ -896,7 +895,7 @@ export const salesforceModel: LiveModel<ApiConnectorType.SALESFORCE> =
                             withSalesforceFields(
                                 definition,
                                 readSalesforceDescribe(
-                                    salesforceDescribe,
+                                    objects,
                                     toSalesforceObject(definition.name),
                                 ),
                             ),

@@ -11,7 +11,6 @@ import {
     ADDITIVE,
     defineLiveModel,
     dimension,
-    keepParsed,
     metric,
     NON_ADDITIVE,
     pickLiveFields,
@@ -544,9 +543,6 @@ export const withGa4MetadataFields = <D extends LiveExploreDefinition>(
     };
 };
 
-/** The property's metadata, as GA4 returns it. */
-export type Ga4Scan = { ga4Metadata?: unknown };
-
 /** Reads the property's dimensions and metrics, including its custom ones. */
 export const scanGa4Metadata = async ({
     settings: { propertyId },
@@ -554,26 +550,28 @@ export const scanGa4Metadata = async ({
 }: {
     settings: { propertyId: string };
     runtime: LiveRuntime;
-}): Promise<Ga4Scan> => {
+}): Promise<unknown> => {
     const response = await runtime.send({
         method: 'GET',
         path: getGa4MetadataPath(propertyId),
         body: null,
     });
-    return { ga4Metadata: keepParsed(metadataSchema, response.body) };
+    return { property: response.body };
 };
 
 export const ga4Model: LiveModel<ApiConnectorType.GA4> = defineLiveModel({
     explores: GA4_EXPLORES,
     // The first explore gets the property's custom definitions
     scan: scanGa4Metadata,
-    metadata: z.object({ ga4Metadata: z.unknown() }),
-    extend: ({ ga4Metadata }) => {
+    metadata: z.object({
+        property: metadataSchema.optional().catch(undefined),
+    }),
+    extend: ({ property }) => {
         const [report] = GA4_EXPLORES;
         return {
             fields: {
                 [report.name]: pickLiveFields(
-                    withGa4MetadataFields(report, ga4Metadata),
+                    withGa4MetadataFields(report, property),
                 ),
             },
         };

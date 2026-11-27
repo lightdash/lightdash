@@ -20,7 +20,7 @@ import { type LiveHttpResponse } from './types';
 /** What a Refresh stores for an integration whose declared explore has no fields of its own. */
 const SAMPLE_METADATA: Partial<Record<ApiConnectorType, unknown>> = {
     [ApiConnectorType.SUPABASE]: {
-        supabaseTable: {
+        table: {
             properties: { id: { type: 'integer', format: 'bigint' } },
         },
     },

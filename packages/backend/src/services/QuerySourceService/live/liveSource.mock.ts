@@ -5,6 +5,7 @@ import {
     getLiveSourceModels,
     type LiveSourceFieldState,
 } from './explores/source';
+import { readLiveMetadata } from './integration';
 import { runLiveRequest } from './query/run';
 import type { LiveExtension, LiveIntegration } from './types';
 
@@ -25,11 +26,15 @@ export const connectLiveSource = <C extends ApiConnectorType>(
             transport,
         ),
     };
-    const scan = (): Promise<unknown> =>
-        integration.model.scan?.({
-            settings,
-            runtime: source.runtime,
-        }) ?? Promise.resolve(null);
+    const scan = async (): Promise<unknown> => {
+        const { model } = source.integration;
+        return model.scan
+            ? (readLiveMetadata(
+                  model,
+                  await model.scan({ settings, runtime: source.runtime }),
+              )?.metadata ?? null)
+            : null;
+    };
     return {
         run: (args: { query: string; limit: number }) =>
             runLiveRequest(source, args),
