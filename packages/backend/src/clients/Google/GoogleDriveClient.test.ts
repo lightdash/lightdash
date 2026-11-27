@@ -594,7 +594,7 @@ describe('GoogleDriveClient', () => {
             [
                 'Sheets 500 Internal error encountered',
                 googleInternalError(),
-                'UnexpectedGoogleSheetsError',
+                'GoogleSheetsTransientError',
                 undefined,
             ],
             [
