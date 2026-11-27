@@ -2994,6 +2994,23 @@ export class PromoteService extends BaseService {
                 upstreamDashboard.projectUuid,
                 upstreamDashboard.dashboard.uuid,
             );
+        } else if (
+            // A new upstream dashboard has no grants yet, so its space decides
+            this.createAuditedAbility(account).cannot(
+                'create',
+                subject('SavedChart', {
+                    organizationUuid: account.organization.organizationUuid!,
+                    projectUuid: upstreamDashboard.projectUuid,
+                    inheritsFromOrgOrProject:
+                        upstreamDashboard.spaceAccessContext
+                            ?.inheritsFromOrgOrProject,
+                    access: upstreamDashboard.spaceAccessContext?.access ?? [],
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "Failed to promote dashboard: you don't have access to save its composer charts in the upstream project.",
+            );
         }
         const changes = await getComposerChartChanges(
             this.composerChartModel,

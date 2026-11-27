@@ -820,7 +820,11 @@ describe('Composer charts', () => {
     });
 
     describe('chart permissions', () => {
-        type RoleUser = { client: ApiClient; roleUuid: string };
+        type RoleUser = {
+            client: ApiClient;
+            roleUuid: string;
+            userUuid: string;
+        };
         const roleUsers: RoleUser[] = [];
 
         const roleUser = async (scopes: string[]): Promise<RoleUser> => {
@@ -845,17 +849,23 @@ describe('Composer charts', () => {
             const created = {
                 client: await loginWithEmail(email),
                 roleUuid: role.body.results.roleUuid,
+                userUuid: user.body.results.userUuid,
             };
             roleUsers.push(created);
             return created;
         };
 
         afterAll(async () => {
-            for (const { roleUuid } of roleUsers) {
-                await admin.delete(
-                    `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles/${roleUuid}`,
-                    { failOnStatusCode: false },
+            for (const { roleUuid, userUuid } of roleUsers) {
+                // A role still assigned cannot be deleted
+                const unassigned = await admin.delete(
+                    `/api/v2/projects/${projectUuid}/roles/assignments/user/${userUuid}`,
                 );
+                expect(unassigned.status).toBe(200);
+                const deleted = await admin.delete(
+                    `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles/${roleUuid}`,
+                );
+                expect(deleted.status).toBe(200);
             }
         });
 
