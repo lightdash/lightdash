@@ -1,7 +1,6 @@
 import {
     FeatureFlag,
     FeatureFlags,
-    isLiveSourceOnByDefault,
     LightdashUser,
     LIVE_SOURCE_FEATURE_FLAGS,
     PREVIEW_ENABLED_FEATURE_FLAGS,
@@ -26,7 +25,7 @@ const ORG_OVERRIDE_CONFLICT_TARGET =
 // for anyone in it, or by the scheduler, agrees with what admins see.
 const ORGANIZATION_ONLY_FLAGS: ReadonlySet<string> = new Set([
     FeatureFlags.MobileAppAccess,
-    ...LIVE_SOURCE_FEATURE_FLAGS.keys(),
+    ...LIVE_SOURCE_FEATURE_FLAGS,
 ]);
 
 export type FeatureFlagLogicArgs = {
@@ -70,18 +69,14 @@ export class FeatureFlagModel {
                 this.getMobileAppAccessEnabled.bind(this),
             [FeatureFlags.AiThreadImages]:
                 this.getAiThreadImagesEnabled.bind(this),
+            // A live source integration is on until a flag says otherwise.
             ...Object.fromEntries(
-                [...LIVE_SOURCE_FEATURE_FLAGS].map(([flagId, connector]) => [
+                [...LIVE_SOURCE_FEATURE_FLAGS].map((flagId) => [
                     flagId,
                     (
                         flagArgs: FeatureFlagLogicArgs,
                         flagOptions?: FeatureFlagQueryOptions,
-                    ) =>
-                        this.getWithEnvFallback(
-                            flagArgs,
-                            isLiveSourceOnByDefault(connector),
-                            flagOptions,
-                        ),
+                    ) => this.getWithEnvFallback(flagArgs, true, flagOptions),
                 ]),
             ),
         };

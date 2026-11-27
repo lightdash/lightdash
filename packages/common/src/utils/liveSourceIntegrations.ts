@@ -41,12 +41,6 @@ type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
     getTarget: (apiSource: ApiSourceOf<C>) => string;
     /** Offered by the onboarding tools step. Most sources are added later. */
     inOnboarding?: true;
-    /**
-     * Off for every organization until its feature flag, or an organization
-     * override, turns it on. Set it on a new integration to release it to
-     * chosen organizations first; omit it to have the integration on.
-     */
-    offByDefault?: true;
 };
 
 /**
@@ -309,25 +303,17 @@ export const getLiveIntegrationCatalogEntry = (
 
 /**
  * The feature flag that turns one integration on or off, such as
- * `live-source-hubspot` or `live-source-search-console`. It applies per
- * organization: an organization override wins over the flag's default,
- * which falls back to the catalog's `offByDefault` when the flag has no row.
+ * `live-source-hubspot` or `live-source-search-console`. With no flag the
+ * integration is on; with one, the organization's override, else the flag's
+ * default, decides.
  */
 export const getLiveSourceFeatureFlagId = (connector: ApiConnectorType) =>
     `live-source-${connector.replace(/_/g, '-')}`;
 
-/** Whether an integration is on when its feature flag has no stored value. */
-export const isLiveSourceOnByDefault = (connector: ApiConnectorType) =>
-    LIVE_INTEGRATION_CATALOG[connector].offByDefault !== true;
-
-/** Every integration's feature flag, keyed by flag id. */
-export const LIVE_SOURCE_FEATURE_FLAGS: ReadonlyMap<string, ApiConnectorType> =
-    new Map(
-        Object.values(ApiConnectorType).map((connector) => [
-            getLiveSourceFeatureFlagId(connector),
-            connector,
-        ]),
-    );
+/** Every integration's feature flag id. */
+export const LIVE_SOURCE_FEATURE_FLAGS: ReadonlySet<string> = new Set(
+    Object.values(ApiConnectorType).map(getLiveSourceFeatureFlagId),
+);
 
 /** What a source reads: a PostHog project, a Search Console site, a GA4 property and so on. */
 export const getLiveSourceTarget = (apiSource: ExternalConnectionApiSource) =>
