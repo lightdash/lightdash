@@ -33739,7 +33739,7 @@ describe('bound composer chart runs', () => {
         dashboardUuid: 'dashboard-uuid',
         tileUuid: 'tile-uuid',
     };
-    // No writer yet: the stamp a run from the composer chart page will leave
+    // A run outside a dashboard, as the composer chart page runs one
     const chartPageStamp = {
         composerChartUuid: 'composer-chart-uuid',
         dashboardUuid: null,
