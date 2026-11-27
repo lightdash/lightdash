@@ -1168,6 +1168,15 @@ export class ExternalConnectionService extends BaseService {
                 'Add a new Supabase source to read another table',
             );
         }
+        if (
+            existing.apiSource?.connector === ApiConnectorType.AIRTABLE &&
+            data.apiSource?.connector === ApiConnectorType.AIRTABLE &&
+            data.apiSource.baseId !== existing.apiSource.baseId
+        ) {
+            throw new ParameterError(
+                'Add a new Airtable source to read another base',
+            );
+        }
         const resolved = ExternalConnectionService.resolveConnectionUpdate(
             existing,
             data,

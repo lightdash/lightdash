@@ -6,10 +6,12 @@ import {
     type LiveIntegrationCatalogEntry,
 } from '@lightdash/common';
 import { startCase } from 'es-toolkit/compat';
+import { AIRTABLE_TOKEN_FORM } from './airtableConnection';
 import { ATTIO_TOKEN_FORM } from './attioConnection';
 import { GITHUB_TOKEN_FORM } from './githubConnection';
 import { HUBSPOT_TOKEN_FORM } from './hubspotConnection';
 import { HYDRA_TOKEN_FORM } from './hydraConnection';
+import airtableIcon from './icons/airtable.svg';
 import amplitudeIcon from './icons/amplitude.svg';
 import attioIcon from './icons/attio.svg';
 import githubIcon from './icons/github.svg';
@@ -87,6 +89,7 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.MIXPANEL]: mixpanelIcon,
     [ApiConnectorType.SUPABASE]: supabaseIcon,
     [ApiConnectorType.SENTRY]: sentryIcon,
+    [ApiConnectorType.AIRTABLE]: airtableIcon,
     [ApiConnectorType.HYDRA]: hydraIcon,
     shopify: shopifyIcon,
     stripe: stripeIcon,
@@ -123,6 +126,7 @@ const DISPLAY_ORDER = [
     ApiConnectorType.MIXPANEL,
     ApiConnectorType.SUPABASE,
     ApiConnectorType.SENTRY,
+    ApiConnectorType.AIRTABLE,
     ApiConnectorType.HYDRA,
 ] as const satisfies readonly ApiConnectorType[];
 
@@ -134,6 +138,7 @@ const TOKEN_FORMS: Partial<Record<ApiConnectorType, TokenLiveSourceForm>> = {
     [ApiConnectorType.ATTIO]: ATTIO_TOKEN_FORM,
     [ApiConnectorType.HUBSPOT]: HUBSPOT_TOKEN_FORM,
     [ApiConnectorType.SENTRY]: SENTRY_TOKEN_FORM,
+    [ApiConnectorType.AIRTABLE]: AIRTABLE_TOKEN_FORM,
     [ApiConnectorType.HYDRA]: HYDRA_TOKEN_FORM,
 };
 

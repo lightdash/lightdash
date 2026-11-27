@@ -59,6 +59,10 @@ describe('live integration specs', () => {
             ),
         ).toMatchInlineSnapshot(`
           {
+            "airtable": {
+              "rating": "easy",
+              "score": 7,
+            },
             "amplitude": {
               "rating": "easy",
               "score": 7,
