@@ -34,10 +34,11 @@ import { BaseController } from '../baseController';
 @Tags('v2', 'Charts')
 export class ComposerChartController extends BaseController {
     /**
-     * Creates a composer chart owned by a dashboard: a stored pipeline and the
-     * chart drawn from its terminal node. Adds no tile; add one with the
-     * dashboard update. Requires the composer-charts feature flag and
-     * permission to save charts on the dashboard.
+     * Creates a composer chart: a stored pipeline and the chart drawn from its
+     * terminal node. A `dashboardUuid` makes the dashboard its owner and
+     * ignores `spaceUuid`; with no dashboard, the space in `spaceUuid` owns it.
+     * Adds no tile; add one with the dashboard update. Requires the
+     * composer-charts feature flag and permission to save charts on the owner.
      * @summary Create composer chart
      */
     @Middlewares([

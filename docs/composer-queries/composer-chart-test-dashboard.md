@@ -30,3 +30,29 @@ tracker.trackDashboard(dashboard.uuid);
 // packages/e2e (support/cleanup.ts deletes it when the worker exits)
 const { dashboard, chart } = await createComposerDashboard(api);
 ```
+
+## Space-owned chart
+
+A composer chart a space owns, with no dashboard. `createComposerSpaceChart`
+in the same helper creates a new space (inheriting project access) and the
+chart; `deleteComposerSpace` deletes the space and, through it, the chart.
+With soft delete on, the chart stays in the trashed space, refused for
+everything, until the space is purged.
+
+```bash
+SITE_URL=… LDPAT=… pnpm -F api-tests composer-dashboard create-space
+# {"spaceUuid":"…","composerChartUuid":"…","apiUrl":"…"}
+SITE_URL=… LDPAT=… pnpm -F api-tests composer-dashboard delete-space <spaceUuid>
+```
+
+The create alone is one call: the body of `composerSpaceChartBody(spaceUuid)`
+(`dashboardUuid: null`, `spaceUuid`, a name, the pipeline and the chart) sent
+to `POST /api/v2/projects/{projectUuid}/composer-charts`. It needs `SavedChart`
+write on the space, `manage:ComposerChart` and the per-node permissions.
+
+Scenarios every proof on a space-owned chart checks:
+
+- a viewer of the space reads it (`GET …/composer-charts/{uuid}`, 200);
+- a user who cannot view the space is refused (403);
+- with `composer-charts` off, the create is refused (403, `featureFlagId`)
+  while reading an existing chart still answers.

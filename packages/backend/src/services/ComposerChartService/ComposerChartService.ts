@@ -436,13 +436,16 @@ export class ComposerChartService extends BaseService {
     async preflightCreate(
         account: RegisteredAccount,
         projectUuid: string,
-        data: Pick<CreateComposerChart, 'dashboardUuid' | 'pipeline' | 'chart'>,
+        data: Pick<
+            CreateComposerChart,
+            'dashboardUuid' | 'spaceUuid' | 'pipeline' | 'chart'
+        >,
     ): Promise<void> {
         await this.authorizeWrite(
             account,
             projectUuid,
             {
-                owner: { type: 'dashboard', dashboardUuid: data.dashboardUuid },
+                owner: ComposerChartService.getCreateOwner(data),
                 composerChartUuid: null,
             },
             data,
@@ -462,15 +465,28 @@ export class ComposerChartService extends BaseService {
         );
     }
 
+    /** A named dashboard owns the chart and the space is ignored; with none, the space owns it. */
+    private static getCreateOwner({
+        dashboardUuid = null,
+        spaceUuid = null,
+    }: Pick<
+        CreateComposerChart,
+        'dashboardUuid' | 'spaceUuid'
+    >): ComposerChartOwner {
+        if (dashboardUuid !== null) return { type: 'dashboard', dashboardUuid };
+        if (spaceUuid !== null) return { type: 'space', spaceUuid };
+        throw new ParameterError(
+            'A composer chart needs a dashboardUuid or a spaceUuid to belong to',
+        );
+    }
+
+    /** The one create every caller goes through: the API, the agent and content as code. */
     async create(
         account: RegisteredAccount,
         projectUuid: string,
         data: CreateComposerChart,
     ): Promise<ComposerChart> {
-        const owner: ComposerChartOwner = {
-            type: 'dashboard',
-            dashboardUuid: data.dashboardUuid,
-        };
+        const owner = ComposerChartService.getCreateOwner(data);
         const { pipeline, chart } = await this.authorizeWrite(
             account,
             projectUuid,
@@ -495,7 +511,7 @@ export class ComposerChartService extends BaseService {
     async writeFromCode(
         account: RegisteredAccount,
         projectUuid: string,
-        data: Omit<CreateComposerChart, 'dashboardUuid'> & {
+        data: Omit<CreateComposerChart, 'dashboardUuid' | 'spaceUuid'> & {
             slug: string;
             /** Owner of a new or revived chart; an existing chart keeps its own. */
             dashboardUuid: string | null;

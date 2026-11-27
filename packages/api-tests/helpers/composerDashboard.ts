@@ -10,6 +10,7 @@ import {
     type CreateComposerChart,
     type Dashboard,
     type DashboardComposerChartTile,
+    type Space,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 
@@ -22,6 +23,11 @@ export type ComposerApiSend = <T>(
 
 export type ComposerDashboard = {
     dashboard: Dashboard;
+    chart: ComposerChart;
+};
+
+export type ComposerSpaceChart = {
+    space: Space;
     chart: ComposerChart;
 };
 
@@ -69,6 +75,15 @@ export const composerChartBody = (
             columnOrder: ['orders_status', 'orders_total_order_amount'],
         },
     },
+});
+
+/** The same chart, owned by a space instead of a dashboard. */
+export const composerSpaceChartBody = (
+    spaceUuid: string,
+): CreateComposerChart => ({
+    ...composerChartBody(''),
+    dashboardUuid: null,
+    spaceUuid,
 });
 
 export const composerTile = (
@@ -127,6 +142,44 @@ export const createComposerDashboard = async (
         return { dashboard, chart };
     } catch (error) {
         await deleteComposerDashboard(send, created.uuid);
+        throw error;
+    }
+};
+
+/** Deleting the space deletes the charts it owns; with soft delete on, they stay until the space is purged. */
+export const deleteComposerSpace = (send: ComposerApiSend, spaceUuid: string) =>
+    send<undefined>(
+        'DELETE',
+        `/api/v1/projects/${SEED_PROJECT.project_uuid}/spaces/${spaceUuid}`,
+    );
+
+/** A new space in the seed project, inheriting project access, owning one composer chart. */
+export const createComposerSpaceChart = async (
+    send: ComposerApiSend,
+    {
+        pipeline,
+        chart: storedChart,
+    }: Partial<Pick<CreateComposerChart, 'pipeline' | 'chart'>> = {},
+): Promise<ComposerSpaceChart> => {
+    const projectUuid = SEED_PROJECT.project_uuid;
+    const space = await send<Space>(
+        'POST',
+        `/api/v1/projects/${projectUuid}/spaces`,
+        { name: `Composer test space ${randomUUID().slice(0, 8)}` },
+    );
+    try {
+        const chart = await send<ComposerChart>(
+            'POST',
+            `/api/v2/projects/${projectUuid}/composer-charts`,
+            {
+                ...composerSpaceChartBody(space.uuid),
+                ...(pipeline && { pipeline }),
+                ...(storedChart && { chart: storedChart }),
+            },
+        );
+        return { space, chart };
+    } catch (error) {
+        await deleteComposerSpace(send, space.uuid);
         throw error;
     }
 };
