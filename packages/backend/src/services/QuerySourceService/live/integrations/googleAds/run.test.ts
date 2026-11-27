@@ -9,7 +9,8 @@ import {
 import { googleAdsIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { getGoogleAdsSearchPath, GOOGLE_ADS_MAX_QUERY_ROWS } from './run';
+import { getGoogleAdsSearchPath } from './api';
+import { GOOGLE_ADS_MAX_QUERY_ROWS } from './run';
 
 const jsonResponse = (
     body: unknown,

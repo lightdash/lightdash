@@ -9,7 +9,7 @@ import {
 import { ga4Integration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { getGa4ReportPath } from './run';
+import { getGa4ReportPath } from './api';
 
 const jsonResponse = (
     body: unknown,
@@ -174,7 +174,7 @@ describe('ga4Integration run', () => {
         ],
         [
             JSON.stringify({ ...request, metrics: [] }),
-            'Invalid GA4 report request at metrics',
+            'Invalid Google Analytics request at metrics',
         ],
         [JSON.stringify({ ...request, offset: 10 }), 'Unrecognized key'],
         [

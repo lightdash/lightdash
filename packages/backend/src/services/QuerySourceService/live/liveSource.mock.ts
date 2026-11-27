@@ -1,7 +1,7 @@
 import type { ApiConnectorType, ApiSourceOf } from '@lightdash/common';
-import { createLiveCalls, type LiveTransport } from './calls';
+import { createLiveRuntime, type LiveTransport } from './calls';
 import { runLiveRequest } from './query/run';
-import type { LiveIntegration, LiveScanResult } from './types';
+import type { LiveCatalog, LiveIntegration } from './types';
 
 /** One integration over a fake transport, the way the service runs it. */
 export const connectLiveSource = <C extends ApiConnectorType>(
@@ -12,7 +12,7 @@ export const connectLiveSource = <C extends ApiConnectorType>(
     const source = {
         integration: integration as unknown as LiveIntegration,
         settings,
-        calls: createLiveCalls(
+        runtime: createLiveRuntime(
             integration as unknown as LiveIntegration,
             settings,
             transport,
@@ -21,8 +21,10 @@ export const connectLiveSource = <C extends ApiConnectorType>(
     return {
         run: (args: { query: string; limit: number }) =>
             runLiveRequest(source, args),
-        scan: (): Promise<LiveScanResult> =>
-            integration.scan?.read({ settings, calls: source.calls }) ??
-            Promise.resolve({}),
+        discover: (): Promise<LiveCatalog> =>
+            integration.model.discovery?.discover({
+                settings,
+                runtime: source.runtime,
+            }) ?? Promise.resolve({}),
     };
 };

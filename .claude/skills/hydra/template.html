@@ -59,7 +59,7 @@ h2 { font-size: 12px; font-weight: 500; color: var(--text-3); margin: 28px 0 8px
 .row:first-child { border-top: 0; }
 a.row:hover, .row.case:hover { background: var(--hover); }
 .row.head { min-height: 32px; font-size: 11px; font-weight: 500; color: var(--text-3); background: var(--raised); }
-.overview .row { grid-template-columns: minmax(140px, 1.2fr) 56px 120px 130px 296px minmax(0, 1fr); }
+.overview .row { grid-template-columns: minmax(140px, 1.2fr) 56px 120px 130px minmax(0, 1fr); }
 .overview .tags { flex-wrap: nowrap; overflow: hidden; }
 .row .name { font-weight: 500; }
 .row .clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
@@ -221,14 +221,13 @@ const overview = (integrations) => `
   <h1>${esc(data.title)}</h1>
   <div class="subtitle">${integrations.length} integrations</div>
   <div class="list overview">
-    <div class="row head"><span>Integration</span><span>Level</span><span>Auth</span><span>Possible</span><span>Rate limits</span><span>Paging</span></div>
+    <div class="row head"><span>Integration</span><span>Kind</span><span>Auth</span><span>Possible</span><span>Rate limits</span></div>
     ${integrations.map((i) => `<a class="row" href="#${esc(i.name)}">
       <span class="name">${esc(i.label)}</span>
-      <span class="mono t2">L${i.level.value}</span>
+      <span class="mono t2">${esc(i.kind)}</span>
       <span>${authChip(i)}</span>
       ${coverage(i.useCases)}
       ${i.rateLimits ? limitTags(i.rateLimits) : '<span class="t3">Not set</span>'}
-      <span class="clip">${esc(i.paging.description)}</span>
     </a>`).join('')}
   </div>`;
 
@@ -351,13 +350,11 @@ const detail = (i) => {
     <span class="mono t3">${esc(i.name)}</span>
   </div>
   <div class="subtitle" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-    ${chip(`Level ${i.level.value}`)} ${chip(`${share.yes} of ${share.total} possible`)} ${i.results ? tally(i.results) : ''}
+    ${chip(i.kind)} ${chip(`${share.yes} of ${share.total} possible`)} ${i.results ? tally(i.results) : ''}
   </div>
   ${i.verdict ? verdictBlock(i.verdict) : ''}
   <div class="props">
-    <div class="prop"><div class="k">Level <span class="mono">${i.level.value}/5</span></div><div class="v">${esc(i.level.description)}</div></div>
     <div class="prop"><div class="k">Auth <span class="status">${dot(RATING_COLOR[i.authScore.rating])}${esc(i.authScore.rating)}</span></div><div class="v">${esc(i.auth.description)}</div></div>
-    <div class="prop"><div class="k">Paging</div><div class="v">${esc(i.paging.description)}</div></div>
     <div class="prop"><div class="k">Access</div>${authAccess(i.auth)}</div>
     <div class="prop wide"><div class="k">Rate limits</div>${i.rateLimits ? rateLimitsValue(i.rateLimits) : '<div class="v"><span class="t3">Not set</span></div>'}</div>
   </div>
@@ -390,7 +387,7 @@ const render = () => {
         <a href="#" class="${selected ? '' : 'on'}"><span class="grow">Overview</span></a>
         <div class="label">Integrations</div>
         ${data.integrations.map((i) => `<a href="#${esc(i.name)}" class="${selected === i ? 'on' : ''}">
-          ${dot(coverageColor(i.useCases))}<span class="grow">${esc(i.label)}</span><span class="mono t3">L${i.level.value}</span>
+          ${dot(coverageColor(i.useCases))}<span class="grow">${esc(i.label)}</span><span class="mono t3">${esc(i.kind)}</span>
         </a>`).join('')}
       </nav>` : ''}
       <main>${selected ? detail(selected) : overview(data.integrations)}</main>
