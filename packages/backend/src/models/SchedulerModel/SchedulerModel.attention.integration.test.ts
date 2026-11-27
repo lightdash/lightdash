@@ -132,7 +132,7 @@ describe('SchedulerModel automatically disabled deliveries', () => {
         );
 
         const enabledPage = await getPage(1, { enabled: true });
-        expect(enabledPage.pagination.totalResults).toBe(1);
+        expect(enabledPage.pagination).toMatchObject({ totalResults: 1 });
         expect(enabledPage.data[0].schedulerUuid).toBe(active.schedulerUuid);
 
         const disabledPage = await getPage(1, { enabled: false });
