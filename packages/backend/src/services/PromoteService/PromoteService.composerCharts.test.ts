@@ -144,8 +144,10 @@ const setup = ({
         dashboardUuid: upstreamDashboardUuid,
     },
     sourceChart = composerChart({}),
+    upstreamSpaceExists = true,
 }: {
     upstreamDashboardExists?: boolean;
+    upstreamSpaceExists?: boolean;
     upstreamChart?: ComposerChart | null;
     upstreamChartOwner?: ComposerChartOwner;
     sourceChart?: ComposerChart;
@@ -220,9 +222,11 @@ const setup = ({
                 space(previewProjectUuid, 'preview-space'),
             ),
             getSpaceAncestors: vi.fn(async () => []),
-            find: vi.fn(async () => [
-                space(upstreamProjectUuid, 'upstream-space'),
-            ]),
+            find: vi.fn(async () =>
+                upstreamSpaceExists
+                    ? [space(upstreamProjectUuid, 'upstream-space')]
+                    : [],
+            ),
         } as never,
         savedChartModel: {} as never,
         savedSqlModel: {} as never,
@@ -451,29 +455,41 @@ describe('promoting a dashboard with composer charts', () => {
         expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
     });
 
-    test('refuses before any write when the user cannot save charts where a new upstream dashboard goes', async () => {
-        const { service, dashboardModel, composerChartService } = setup();
-        const cannotSaveCharts = {
-            ...account,
-            user: {
-                ...account.user,
-                ability: new Ability<PossibleAbilities>([
-                    { action: 'manage', subject: 'all' },
-                    { action: 'create', subject: 'SavedChart', inverted: true },
-                ]),
-            },
-        } as RegisteredAccount;
+    test.each([
+        ['an existing upstream space', true],
+        ['a new upstream space', false],
+    ])(
+        'refuses before any write when the user cannot save charts in %s',
+        async (_, upstreamSpaceExists) => {
+            const { service, dashboardModel, composerChartService } = setup({
+                upstreamSpaceExists,
+            });
+            const cannotSaveCharts = {
+                ...account,
+                user: {
+                    ...account.user,
+                    ability: new Ability<PossibleAbilities>([
+                        { action: 'manage', subject: 'all' },
+                        {
+                            action: 'create',
+                            subject: 'SavedChart',
+                            inverted: true,
+                        },
+                    ]),
+                },
+            } as RegisteredAccount;
 
-        await expect(
-            service.promoteDashboard(
-                cannotSaveCharts,
-                sourceDashboard.uuid,
-                scoped,
-            ),
-        ).rejects.toBeInstanceOf(ForbiddenError);
-        expect(dashboardModel.create).not.toHaveBeenCalled();
-        expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
-    });
+            await expect(
+                service.promoteDashboard(
+                    cannotSaveCharts,
+                    sourceDashboard.uuid,
+                    scoped,
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(dashboardModel.create).not.toHaveBeenCalled();
+            expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
+        },
+    );
 
     test('refuses when the slug belongs to a composer chart on another upstream dashboard', async () => {
         const { service, dashboardModel, composerChartService } = setup({

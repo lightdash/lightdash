@@ -2995,8 +2995,7 @@ export class PromoteService extends BaseService {
                 upstreamDashboard.dashboard.uuid,
             );
         } else if (
-            // A new dashboard has no grants yet, so an existing space decides; a new space's creation check covers it, as for classic charts
-            upstreamDashboard.space &&
+            // A new dashboard has no grants: its space decides, or the project when the space is new too
             this.createAuditedAbility(account).cannot(
                 'create',
                 subject('SavedChart', {
