@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
     aiAgentLauncherSlice,
+    attachContextOrStartThread,
+    clearPinnedContext,
     closePanel,
     dockItemRemoved,
     openAnalysisPanel,
     openDefaultAgentPanel,
     openPanel,
+    pendingContextResolved,
     resetActivePanel,
+    setCurrentDashboard,
+    unpinContext,
     type AiAgentLauncherState,
+    type LauncherPinnedContextEntry,
 } from './aiAgentLauncherSlice';
 
 const { reducer } = aiAgentLauncherSlice;
@@ -81,5 +87,222 @@ describe('aiAgentLauncherSlice view', () => {
         const removed = reducer(analysis, dockItemRemoved({ threadId: 't1' }));
         expect(removed.view).toBe('chat');
         expect(removed.mode).toBe('collapsed');
+    });
+});
+
+describe('asking about content from a page', () => {
+    const chart = { chartUuid: 'c1' };
+
+    it('pins the content to the thread on screen', () => {
+        const withThread = reducer(
+            initial(),
+            openPanel({ threadId: 't1', agentUuid: 'a1' }),
+        );
+        const state = reducer(
+            withThread,
+            attachContextOrStartThread({ pendingContext: chart }),
+        );
+        expect(state.activeThreadId).toBe('t1');
+        expect(state.activeAgentUuid).toBe('a1');
+        expect(state.pendingContext).toEqual(chart);
+    });
+
+    it('starts a new thread when no chat is open', () => {
+        const state = reducer(
+            initial(),
+            attachContextOrStartThread({ pendingContext: chart }),
+        );
+        expect(state.mode).toBe('panel-open');
+        expect(state.activeThreadId).toBeNull();
+        expect(state.pendingContext).toEqual(chart);
+    });
+
+    it('starts a new thread when the chat was closed', () => {
+        const closed = reducer(
+            reducer(initial(), openPanel({ threadId: 't1', agentUuid: 'a1' })),
+            closePanel(),
+        );
+        const state = reducer(
+            closed,
+            attachContextOrStartThread({ pendingContext: chart }),
+        );
+        expect(state.mode).toBe('panel-open');
+        expect(state.activeThreadId).toBeNull();
+    });
+
+    it('starts a new thread when the panel shows the analysis view', () => {
+        const analysis = reducer(
+            reducer(initial(), openPanel({ threadId: 't1', agentUuid: 'a1' })),
+            openAnalysisPanel(),
+        );
+        const state = reducer(
+            analysis,
+            attachContextOrStartThread({ pendingContext: chart }),
+        );
+        expect(state.view).toBe('chat');
+        expect(state.activeThreadId).toBeNull();
+    });
+
+    it('drops the pinned content when another thread is opened', () => {
+        const pinned = reducer(
+            reducer(initial(), openPanel({ threadId: 't1', agentUuid: 'a1' })),
+            attachContextOrStartThread({ pendingContext: chart }),
+        );
+        const state = reducer(
+            pinned,
+            openPanel({ threadId: 't2', agentUuid: 'a1' }),
+        );
+        expect(state.pendingContext).toBeNull();
+    });
+});
+
+describe('content pinned to the next prompt', () => {
+    const entry = (
+        key: string,
+        preview: LauncherPinnedContextEntry['preview'],
+        input: LauncherPinnedContextEntry['input'],
+    ): LauncherPinnedContextEntry => ({ key, preview, input });
+    const chartEntry = (uuid: string) =>
+        entry(
+            `chart:${uuid}`,
+            {
+                type: 'chart',
+                chartUuid: uuid,
+                chartSlug: null,
+                displayName: uuid,
+                pinnedVersionUuid: null,
+                runtimeOverrides: null,
+                chartKind: null,
+            },
+            { type: 'chart', chartUuid: uuid, chartSlug: null },
+        );
+    const dashboardEntry = (uuid: string) =>
+        entry(
+            `dashboard:${uuid}`,
+            {
+                type: 'dashboard',
+                dashboardUuid: uuid,
+                dashboardSlug: null,
+                displayName: uuid,
+                pinnedVersionUuid: null,
+                runtimeOverrides: null,
+            },
+            { type: 'dashboard', dashboardUuid: uuid, dashboardSlug: null },
+        );
+    const onDashboard = (uuid: string) =>
+        reducer(
+            reducer(initial(), openPanel({ threadId: 't1', agentUuid: 'a1' })),
+            setCurrentDashboard({
+                projectUuid: 'p1',
+                uuid,
+                name: uuid,
+                activeTabUuid: null,
+                runtimeOverrides: null,
+            }),
+        );
+    const keys = (state: AiAgentLauncherState) =>
+        state.pinnedContext.map(({ key }) => key);
+
+    it('adds each piece of content once, in the order it was pinned', () => {
+        const first = reducer(
+            reducer(
+                initial(),
+                attachContextOrStartThread({
+                    pendingContext: { chartUuid: 'c1' },
+                }),
+            ),
+            pendingContextResolved([chartEntry('c1')]),
+        );
+        const state = reducer(
+            first,
+            pendingContextResolved([chartEntry('c2'), chartEntry('c1')]),
+        );
+        expect(keys(state)).toEqual(['chart:c1', 'chart:c2']);
+        expect(state.pendingContext).toBeNull();
+    });
+
+    it('removes one piece of content and keeps the rest', () => {
+        const pinned = reducer(
+            initial(),
+            pendingContextResolved([chartEntry('c1'), chartEntry('c2')]),
+        );
+        const state = reducer(
+            pinned,
+            unpinContext({ key: 'chart:c1', dashboardUuid: null }),
+        );
+        expect(keys(state)).toEqual(['chart:c2']);
+    });
+
+    it('holds back the dashboard on screen once its chip is removed', () => {
+        const state = reducer(
+            onDashboard('d1'),
+            unpinContext({
+                key: 'dashboard:d1',
+                dashboardUuid: 'd1',
+            }),
+        );
+        expect(state.pageContextDismissed).toBe(true);
+    });
+
+    it('brings the dashboard on screen back when it is pinned again', () => {
+        const dismissed = reducer(
+            onDashboard('d1'),
+            unpinContext({
+                key: 'dashboard:d1',
+                dashboardUuid: 'd1',
+            }),
+        );
+        const state = reducer(
+            dismissed,
+            pendingContextResolved([dashboardEntry('d1')]),
+        );
+        expect(state.pageContextDismissed).toBe(false);
+    });
+
+    it('keeps the dashboard dismissed for the thread after a prompt is sent', () => {
+        const dismissed = reducer(
+            reducer(
+                onDashboard('d1'),
+                pendingContextResolved([chartEntry('c1')]),
+            ),
+            unpinContext({
+                key: 'dashboard:d1',
+                dashboardUuid: 'd1',
+            }),
+        );
+        const state = reducer(dismissed, clearPinnedContext());
+        expect(state.pinnedContext).toEqual([]);
+        expect(state.pageContextDismissed).toBe(true);
+    });
+
+    it('starts clean when another thread is opened', () => {
+        const dismissed = reducer(
+            reducer(
+                onDashboard('d1'),
+                pendingContextResolved([chartEntry('c1')]),
+            ),
+            unpinContext({
+                key: 'dashboard:d1',
+                dashboardUuid: 'd1',
+            }),
+        );
+        const state = reducer(
+            dismissed,
+            openPanel({ threadId: 't2', agentUuid: 'a1' }),
+        );
+        expect(state.pinnedContext).toEqual([]);
+        expect(state.pageContextDismissed).toBe(false);
+    });
+
+    it('keeps pinned content when the agent of a new thread is switched', () => {
+        const pinned = reducer(
+            reducer(initial(), openDefaultAgentPanel({})),
+            pendingContextResolved([chartEntry('c1')]),
+        );
+        const state = reducer(
+            pinned,
+            openPanel({ threadId: null, agentUuid: 'a2' }),
+        );
+        expect(keys(state)).toEqual(['chart:c1']);
     });
 });

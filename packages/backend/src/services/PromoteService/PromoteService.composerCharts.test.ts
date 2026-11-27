@@ -8,6 +8,7 @@ import {
     OrganizationMemberRole,
     PromotionAction,
     type ComposerChart,
+    type ComposerChartOwner,
     type DashboardDAO,
     type DashboardTile,
     type RegisteredAccount,
@@ -124,7 +125,7 @@ const composerChart = (overrides: Partial<ComposerChart>): ComposerChart =>
     ({
         uuid: 'preview-composer-chart',
         projectUuid: previewProjectUuid,
-        dashboardUuid: sourceDashboard.uuid,
+        owner: { type: 'dashboard', dashboardUuid: sourceDashboard.uuid },
         name: 'Revenue',
         description: null,
         slug: 'revenue',
@@ -136,12 +137,15 @@ const composerChart = (overrides: Partial<ComposerChart>): ComposerChart =>
 const setup = ({
     upstreamDashboardExists = false,
     upstreamChart = null as ComposerChart | null,
-    upstreamChartOwner = upstreamDashboardUuid,
+    upstreamChartOwner = {
+        type: 'dashboard',
+        dashboardUuid: upstreamDashboardUuid,
+    },
     sourceChart = composerChart({}),
 }: {
     upstreamDashboardExists?: boolean;
     upstreamChart?: ComposerChart | null;
-    upstreamChartOwner?: string;
+    upstreamChartOwner?: ComposerChartOwner;
     sourceChart?: ComposerChart;
 } = {}) => {
     const upstreamDashboard = dashboard(
@@ -175,7 +179,7 @@ const setup = ({
         ),
         getOwner: vi.fn(async () => ({
             projectUuid: upstreamProjectUuid,
-            dashboardUuid: upstreamChartOwner,
+            owner: upstreamChartOwner,
         })),
         deleteOrphans: vi.fn(async () => undefined),
     };
@@ -320,7 +324,10 @@ describe('promoting a dashboard with composer charts', () => {
             upstreamChart: composerChart({
                 uuid: upstreamChartUuid,
                 projectUuid: upstreamProjectUuid,
-                dashboardUuid: upstreamDashboardUuid,
+                owner: {
+                    type: 'dashboard',
+                    dashboardUuid: upstreamDashboardUuid,
+                },
                 pipeline: { schemaVersion: 1, nodes: [] } as never,
             }),
         });
@@ -361,7 +368,10 @@ describe('promoting a dashboard with composer charts', () => {
             upstreamChart: composerChart({
                 uuid: upstreamChartUuid,
                 projectUuid: upstreamProjectUuid,
-                dashboardUuid: upstreamDashboardUuid,
+                owner: {
+                    type: 'dashboard',
+                    dashboardUuid: upstreamDashboardUuid,
+                },
             }),
         });
 
@@ -396,7 +406,10 @@ describe('promoting a dashboard with composer charts', () => {
             upstreamChart: composerChart({
                 uuid: upstreamChartUuid,
                 projectUuid: upstreamProjectUuid,
-                dashboardUuid: upstreamDashboardUuid,
+                owner: {
+                    type: 'dashboard',
+                    dashboardUuid: upstreamDashboardUuid,
+                },
             }),
         });
         composerChartService.isEnabled.mockResolvedValue(false);
@@ -442,7 +455,10 @@ describe('promoting a dashboard with composer charts', () => {
                 uuid: 'someone-elses-chart',
                 projectUuid: upstreamProjectUuid,
             }),
-            upstreamChartOwner: 'another-dashboard',
+            upstreamChartOwner: {
+                type: 'dashboard',
+                dashboardUuid: 'another-dashboard',
+            },
         });
 
         await expect(

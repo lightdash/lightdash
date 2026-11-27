@@ -33765,13 +33765,14 @@ describe('bound composer chart runs', () => {
             chart: {
                 uuid: 'composer-chart-uuid',
                 projectUuid,
-                dashboardUuid: 'dashboard-uuid',
+                owner: { type: 'dashboard', dashboardUuid: 'dashboard-uuid' },
                 pipeline: { schemaVersion: 1, terminalNodeId: 'n', nodes: [] },
                 chart: {
                     pivotConfig: null,
                     chartConfig: { type: ChartType.TABLE },
                 },
             } as unknown as ComposerChart,
+            dashboardUuid: 'dashboard-uuid',
             tileUuid: 'tile-uuid',
             resolved: { nodes: [], parameters: {} },
             dashboardFilters: {

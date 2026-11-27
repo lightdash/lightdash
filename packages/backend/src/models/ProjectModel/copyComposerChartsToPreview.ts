@@ -5,15 +5,27 @@ import {
     DashboardTileComposerChartsTableName,
 } from '../../database/entities/composerCharts';
 
-/** Clones the composer charts of copied dashboards, their latest versions and tile rows. */
+/** Clones the composer charts of copied dashboards and spaces, their latest versions and tile rows. */
 export const copyComposerChartsToPreview = async (
     trx: Knex.Transaction,
     previewProjectUuid: string,
     previewDashboardUuidBySource: Map<string, string>,
+    previewSpaceUuidBySource: Map<string, string>,
     previewDashboardVersionIdBySource: Map<number, number>,
 ): Promise<void> => {
     const sources = await trx(ComposerChartsTableName)
-        .whereIn('dashboard_uuid', [...previewDashboardUuidBySource.keys()])
+        // Bind ID lists as arrays so large copies stay below Postgres's parameter limit.
+        .where((owner) =>
+            owner
+                .whereRaw('?? = ANY(?::uuid[])', [
+                    'dashboard_uuid',
+                    [...previewDashboardUuidBySource.keys()],
+                ])
+                .orWhereRaw('?? = ANY(?::uuid[])', [
+                    'space_uuid',
+                    [...previewSpaceUuidBySource.keys()],
+                ]),
+        )
         .whereNull('deleted_at')
         .select('*');
     if (sources.length === 0) return;
@@ -27,9 +39,13 @@ export const copyComposerChartsToPreview = async (
         )
             .insert({
                 project_uuid: previewProjectUuid,
-                dashboard_uuid: previewDashboardUuidBySource.get(
-                    source.dashboard_uuid!,
-                )!,
+                // Exactly one owner column is set, as the table's CHECK requires
+                dashboard_uuid: source.dashboard_uuid
+                    ? previewDashboardUuidBySource.get(source.dashboard_uuid)!
+                    : null,
+                space_uuid: source.space_uuid
+                    ? previewSpaceUuidBySource.get(source.space_uuid)!
+                    : null,
                 name: source.name,
                 description: source.description,
                 slug: source.slug,

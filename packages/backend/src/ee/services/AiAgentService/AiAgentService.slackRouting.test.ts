@@ -8,9 +8,24 @@ vi.mock('../ai/agents/agentSelector', () => ({ selectAgent: vi.fn() }));
 vi.mock('../ai/models', () => ({ getModel: () => ({ model: 'test-model' }) }));
 
 const availableAgents = [
-    { uuid: 'sales', name: 'Sales' },
-    { uuid: 'finance', name: 'Finance' },
+    { uuid: 'sales', name: 'Sales', projectUuid: 'project-a' },
+    { uuid: 'finance', name: 'Finance', projectUuid: 'project-a' },
 ] as AiAgentWithContext[];
+
+type RouterModelMock = {
+    findByOrganization: () => Promise<{ routerUuid: string } | null>;
+    getLatestInstruction: (args: {
+        projectUuid: string;
+    }) => Promise<{ instruction: string } | null>;
+};
+
+const routerWith = (instructions: Record<string, string>): RouterModelMock => ({
+    findByOrganization: async () => ({ routerUuid: 'router' }),
+    getLatestInstruction: async ({ projectUuid }) =>
+        instructions[projectUuid]
+            ? { instruction: instructions[projectUuid] }
+            : null,
+});
 
 const decision: RouterDecision = {
     selectedAgentUuid: 'finance',
@@ -23,10 +38,18 @@ describe('Slack automatic agent routing', () => {
     const route = async (
         fast: boolean,
         selection: Partial<RouterDecision> = {},
+        aiRouterModel: RouterModelMock = routerWith({}),
+        agents: AiAgentWithContext[] = availableAgents,
     ) => {
         const service = new AiAgentService({
             lightdashConfig: lightdashConfigMock,
             orgAiCopilotConfigResolver: { getCopilotConfig: async () => ({}) },
+            aiRouterModel,
+            projectModel: {
+                getSummary: async (projectUuid: string) => ({
+                    name: `Name of ${projectUuid}`,
+                }),
+            },
         } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
         vi.spyOn(service, 'getDecisionClient').mockResolvedValue(
             fast ? ({} as AiDecisionClient) : undefined,
@@ -42,7 +65,7 @@ describe('Slack automatic agent routing', () => {
         vi.mocked(selectAgent).mockResolvedValue({ ...decision, ...selection });
         const postMessage = vi.fn().mockResolvedValue({ ok: true });
         const result = await service['selectAgentForSlack']({
-            availableAgents,
+            availableAgents: agents,
             messageText: 'Revenue by month',
             channelId: 'channel',
             threadTs: 'thread-ts',
@@ -101,5 +124,62 @@ describe('Slack automatic agent routing', () => {
         expect(result).toBeUndefined();
         expect(picker).toHaveBeenCalled();
         expect(postMessage).not.toHaveBeenCalled();
+    });
+
+    const instructionsPassed = () =>
+        vi.mocked(selectAgent).mock.lastCall?.[0].instructions;
+
+    it('passes the project routing instructions unchanged for one project', async () => {
+        await route(
+            true,
+            {},
+            routerWith({ 'project-a': 'Revenue goes to Finance' }),
+        );
+        expect(instructionsPassed()).toBe('Revenue goes to Finance');
+    });
+
+    it('passes no instructions when none are saved or no router exists', async () => {
+        await route(true);
+        expect(instructionsPassed()).toBeNull();
+        await route(
+            true,
+            {},
+            {
+                ...routerWith({ 'project-a': 'ignored' }),
+                findByOrganization: async () => null,
+            },
+        );
+        expect(instructionsPassed()).toBeNull();
+    });
+
+    it('scopes instructions to their project when agents span projects', async () => {
+        const agents = [
+            ...availableAgents,
+            { uuid: 'ops', name: 'Ops', projectUuid: 'project-b' },
+        ] as AiAgentWithContext[];
+        await route(
+            true,
+            {},
+            routerWith({ 'project-a': 'Revenue goes to Finance' }),
+            agents,
+        );
+        expect(instructionsPassed()).toBe(
+            'Rules for project "Name of project-a". They apply only when choosing between its agents (Sales, Finance):\nRevenue goes to Finance',
+        );
+    });
+
+    it('still routes when the instruction lookup fails', async () => {
+        const { result } = await route(
+            true,
+            {},
+            {
+                ...routerWith({}),
+                findByOrganization: async () => {
+                    throw new Error('database down');
+                },
+            },
+        );
+        expect(instructionsPassed()).toBeNull();
+        expect(result?.agent.uuid).toBe('finance');
     });
 });

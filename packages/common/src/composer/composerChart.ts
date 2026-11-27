@@ -543,11 +543,16 @@ export type CreateComposerChart = {
     chart: ComposerStoredChart;
 };
 
+/** The dashboard or the space a composer chart belongs to: exactly one. */
+export type ComposerChartOwner =
+    | { type: 'dashboard'; dashboardUuid: string }
+    | { type: 'space'; spaceUuid: string };
+
 /** A composer chart and its current version. */
 export type ComposerChart = {
     uuid: string;
     projectUuid: string;
-    dashboardUuid: string;
+    owner: ComposerChartOwner;
     name: string;
     description: string | null;
     slug: string;

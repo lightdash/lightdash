@@ -73,7 +73,7 @@ describe('composer charts follow their dashboard on the real schema', () => {
             uuid: null,
             slug: null,
             projectUuid: owner.projectUuid,
-            dashboardUuid: created.uuid,
+            owner: { type: 'dashboard', dashboardUuid: created.uuid },
             name: 'Orders by status',
             description: null,
             pipeline: pipeline('select status, total from orders'),
@@ -127,7 +127,7 @@ describe('composer charts follow their dashboard on the real schema', () => {
             uuid: null,
             slug: null,
             projectUuid: fixture.projectUuid,
-            dashboardUuid: dashboard.uuid,
+            owner: { type: 'dashboard', dashboardUuid: dashboard.uuid },
             name: 'Deleted earlier',
             description: null,
             pipeline: pipeline('select 1'),
@@ -150,7 +150,9 @@ describe('composer charts follow their dashboard on the real schema', () => {
         await dashboardModel.restore(dashboard.uuid);
         await expect(
             composerChartModel.get(composerChartUuid),
-        ).resolves.toMatchObject({ dashboardUuid: dashboard.uuid });
+        ).resolves.toMatchObject({
+            owner: { type: 'dashboard', dashboardUuid: dashboard.uuid },
+        });
         await expect(composerChartModel.get(deletedEarlier)).rejects.toThrow(
             NotFoundError,
         );
@@ -172,7 +174,7 @@ describe('composer charts follow their dashboard on the real schema', () => {
             existing,
             slug,
             projectUuid: fixture.projectUuid,
-            dashboardUuid: newOwner.uuid,
+            owner: { type: 'dashboard', dashboardUuid: newOwner.uuid },
             name: 'Revived',
             description: null,
             pipeline: pipeline('select status, 2 as total from orders'),
@@ -185,8 +187,81 @@ describe('composer charts follow their dashboard on the real schema', () => {
         ).resolves.toMatchObject({
             slug,
             name: 'Revived',
-            dashboardUuid: newOwner.uuid,
+            owner: { type: 'dashboard', dashboardUuid: newOwner.uuid },
             pipeline: pipeline('select status, 2 as total from orders'),
+        });
+    });
+
+    it('lists a dashboard-owned chart for code with its dashboard and space', async () => {
+        const { dashboard, composerChartUuid } =
+            await createDashboardWithChart();
+        const { slug } = await composerChartModel.get(composerChartUuid);
+
+        await expect(
+            composerChartModel.findForCode(fixture.projectUuid, [slug]),
+        ).resolves.toEqual([
+            expect.objectContaining({
+                uuid: composerChartUuid,
+                owner: { type: 'dashboard', dashboardUuid: dashboard.uuid },
+                dashboardSlug: dashboard.slug,
+                spaceUuid: fixture.spaceUuid,
+            }),
+        ]);
+    });
+
+    const createSpaceChart = () =>
+        composerChartModel.create({
+            uuid: null,
+            slug: null,
+            projectUuid: fixture.projectUuid,
+            owner: { type: 'space', spaceUuid: fixture.spaceUuid },
+            name: 'In a space',
+            description: null,
+            pipeline: pipeline('select 1'),
+            chart: storedChart,
+            createdByUserUuid: fixture.userUuid,
+        });
+
+    it('reads a space owner', async () => {
+        const composerChartUuid = await createSpaceChart();
+        const owner = { type: 'space', spaceUuid: fixture.spaceUuid };
+
+        await expect(
+            composerChartModel.getOwner(composerChartUuid),
+        ).resolves.toEqual({ projectUuid: fixture.projectUuid, owner });
+        await expect(
+            composerChartModel.get(composerChartUuid),
+        ).resolves.toMatchObject({ owner });
+    });
+
+    it('revives a space-owned chart onto a dashboard, leaving one owner column', async () => {
+        const { dashboard } = await createDashboardWithChart();
+        const composerChartUuid = await createSpaceChart();
+        const { slug } = await composerChartModel.get(composerChartUuid);
+        await database('composer_charts')
+            .where('composer_chart_uuid', composerChartUuid)
+            .update({ deleted_at: new Date() });
+
+        await composerChartModel.writeFromCode({
+            existing: { uuid: composerChartUuid, deleted: true },
+            slug,
+            projectUuid: fixture.projectUuid,
+            owner: { type: 'dashboard', dashboardUuid: dashboard.uuid },
+            name: 'Revived',
+            description: null,
+            pipeline: pipeline('select 1'),
+            chart: storedChart,
+            createdByUserUuid: fixture.userUuid,
+        });
+
+        await expect(
+            database('composer_charts')
+                .select('dashboard_uuid', 'space_uuid')
+                .where('composer_chart_uuid', composerChartUuid)
+                .first(),
+        ).resolves.toEqual({
+            dashboard_uuid: dashboard.uuid,
+            space_uuid: null,
         });
     });
 
@@ -228,7 +303,7 @@ describe('composer charts follow their dashboard on the real schema', () => {
         expect(rolledBack.versionUuid).not.toBe(original.versionUuid);
     });
 
-    it('copies the chart, its latest version and its tile into a preview project', async () => {
+    it("copies a dashboard's chart with its tile and a space's chart, each with its latest version, into a preview project", async () => {
         const owner = await createFixture(database);
         const { dashboard, composerChartUuid } =
             await createDashboardWithChart(owner);
@@ -251,7 +326,26 @@ describe('composer charts follow their dashboard on the real schema', () => {
             }),
         });
 
-        await projectModel.duplicateContent(
+        const [{ composer_chart_uuid: spaceChartUuid }] = await database(
+            'composer_charts',
+        )
+            .insert({
+                project_uuid: owner.projectUuid,
+                dashboard_uuid: null,
+                space_uuid: owner.spaceUuid,
+                name: 'Space chart',
+                slug: 'space-chart',
+                created_by_user_uuid: owner.userUuid,
+            })
+            .returning('composer_chart_uuid');
+        await database('composer_chart_versions').insert({
+            composer_chart_uuid: spaceChartUuid,
+            pipeline: JSON.stringify(pipeline('select 1')),
+            chart: JSON.stringify(storedChart),
+            created_by_user_uuid: owner.userUuid,
+        });
+
+        const { spaceMapping } = await projectModel.duplicateContent(
             owner.projectUuid,
             previewUuid,
             [{ uuid: owner.spaceUuid }],
@@ -273,11 +367,27 @@ describe('composer charts follow their dashboard on the real schema', () => {
         expect(previewChartUuid).not.toBe(composerChartUuid);
         expect(await composerChartModel.get(previewChartUuid!)).toMatchObject({
             projectUuid: previewUuid,
-            dashboardUuid: preview.uuid,
+            owner: { type: 'dashboard', dashboardUuid: preview.uuid },
             slug: source.slug,
             createdByUserUuid: owner.userUuid,
             pipeline: source.pipeline,
             chart: source.chart,
         });
+
+        const [previewSpaceChart] = await database('composer_charts')
+            .where({ project_uuid: previewUuid, slug: 'space-chart' })
+            .select('composer_chart_uuid', 'dashboard_uuid', 'space_uuid');
+        expect(previewSpaceChart).toMatchObject({
+            dashboard_uuid: null,
+            space_uuid: spaceMapping[0].previewSpaceUuid,
+        });
+        expect(
+            await database('composer_chart_versions')
+                .where(
+                    'composer_chart_uuid',
+                    previewSpaceChart.composer_chart_uuid,
+                )
+                .pluck('pipeline'),
+        ).toEqual([pipeline('select 1')]);
     });
 });
