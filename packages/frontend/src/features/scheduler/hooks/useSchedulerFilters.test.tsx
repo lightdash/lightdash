@@ -41,3 +41,37 @@ it('combines needs attention with other filters and clears it from the URL and r
     expect(result.current.filters.apiFilters).toEqual({});
     expect(result.current.filters.hasActiveFilters).toBe(false);
 });
+
+it('preserves attention and run history filters when switching delivery status', () => {
+    const { result } = renderHook(
+        () => ({
+            filters: useSchedulerFilters(),
+            params: useSearchParams()[0],
+        }),
+        {
+            wrapper: ({ children }) => (
+                <MemoryRouter
+                    initialEntries={[
+                        '/?deliveryStatus=paused&needsAttention=true&status=error',
+                    ]}
+                >
+                    {children}
+                </MemoryRouter>
+            ),
+        },
+    );
+
+    expect(result.current.filters.apiFilters).toEqual({
+        enabled: false,
+        needsAttention: true,
+    });
+    act(() => result.current.filters.setDeliveryStatus('scheduled'));
+    expect(result.current.filters.apiFilters.enabled).toBe(true);
+    act(() => result.current.filters.setDeliveryStatus('all'));
+    expect(result.current.params.has('deliveryStatus')).toBe(false);
+    expect(result.current.filters.apiFilters).toEqual({ needsAttention: true });
+    act(() => result.current.filters.setDeliveryStatus('paused'));
+    act(() => result.current.filters.resetFilters());
+    expect(result.current.params.toString()).toBe('status=error');
+    expect(result.current.filters.apiFilters).toEqual({});
+});

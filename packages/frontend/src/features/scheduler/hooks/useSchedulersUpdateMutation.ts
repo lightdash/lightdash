@@ -73,6 +73,11 @@ export const useSchedulersEnabledUpdateMutation = (schedulerUuid: string) => {
                 await queryClient.invalidateQueries(['dashboard_schedulers']);
                 await queryClient.invalidateQueries(['sql_chart_schedulers']);
                 await queryClient.invalidateQueries(['app_schedulers']);
+                await queryClient.invalidateQueries([
+                    'scheduler',
+                    schedulerUuid,
+                ]);
+                await queryClient.invalidateQueries(['paginatedSchedulers']);
             },
             onError: ({ error }) => {
                 showToastApiError({

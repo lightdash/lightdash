@@ -29,6 +29,7 @@ import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import ConfirmPauseSchedulerModal from '../../scheduler/components/ConfirmPauseSchedulerModal';
+import { SchedulerPauseReason } from '../../scheduler/components/SchedulerPauseReason';
 import { useSendNowSchedulerByUuid } from '../../scheduler/hooks/useScheduler';
 import { useSchedulersEnabledUpdateMutation } from '../../scheduler/hooks/useSchedulersUpdateMutation';
 import { SyncModalAction } from '../providers/types';
@@ -210,6 +211,9 @@ export const SyncModalView: FC<Props> = ({
                                                         project.schedulerTimezone,
                                                 )}
                                             </Text>
+                                            <SchedulerPauseReason
+                                                scheduler={sync}
+                                            />
                                         </Stack>
 
                                         {canManageSync && (

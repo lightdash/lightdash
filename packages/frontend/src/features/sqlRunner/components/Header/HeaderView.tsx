@@ -16,7 +16,7 @@ import {
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useRef, type FC } from 'react';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { editorName } from '../../../../components/common/Page/editorName';
@@ -111,6 +111,7 @@ export const HeaderView: FC = () => {
         dispatch(toggleModal('deleteChartModal'));
     }, [dispatch]);
 
+    const [initialSyncUuid, setInitialSyncUuid] = useState<string>();
     const [isSyncModalOpen, syncModalHandlers] = useDisclosure();
     const [isRequestReviewModalOpen, requestReviewModalHandlers] =
         useDisclosure(false);
@@ -132,6 +133,7 @@ export const HeaderView: FC = () => {
         hasProcessedUrlParams.current = true;
 
         if (isSchedulerTypeSync(search)) {
+            setInitialSyncUuid(schedulerUuid);
             syncModalHandlers.open();
         }
 
@@ -455,7 +457,11 @@ export const HeaderView: FC = () => {
                     projectUuid={projectUuid}
                     savedSqlUuid={savedSqlChart.savedSqlUuid}
                     opened={isSyncModalOpen}
-                    onClose={syncModalHandlers.close}
+                    initialSchedulerUuid={initialSyncUuid}
+                    onClose={() => {
+                        syncModalHandlers.close();
+                        setInitialSyncUuid(undefined);
+                    }}
                 />
             )}
             {(promoteSqlChartDiff || promoteSqlChartDiffLoading) && (

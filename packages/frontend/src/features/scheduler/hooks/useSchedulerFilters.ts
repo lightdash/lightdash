@@ -4,7 +4,10 @@ import { useSearchParams } from 'react-router';
 
 export type DestinationType = 'slack' | 'email' | 'msteams' | 'googlechat';
 
+export type DeliveryStatusFilter = 'all' | 'scheduled' | 'paused';
+
 export type SchedulerFilters = {
+    enabled?: boolean;
     search?: string;
     needsAttention?: boolean;
     createdByUserUuids?: string[];
@@ -44,6 +47,11 @@ const DEFAULT_FILTERS: SchedulerFiltersState = {
 export const useSchedulerFilters = () => {
     const [searchParams, setSearchParams] = useSearchParams();
 
+    const statusParam = searchParams.get('deliveryStatus');
+    const deliveryStatus: DeliveryStatusFilter =
+        statusParam === 'scheduled' || statusParam === 'paused'
+            ? statusParam
+            : 'all';
     const needsAttention = searchParams.get('needsAttention') === 'true';
 
     // Initialize from URL params
@@ -167,6 +175,19 @@ export const useSchedulerFilters = () => {
         [searchParams, setSearchParams],
     );
 
+    const setDeliveryStatus = useCallback(
+        (status: DeliveryStatusFilter) => {
+            const newParams = new URLSearchParams(searchParams);
+            if (status === 'all') {
+                newParams.delete('deliveryStatus');
+            } else {
+                newParams.set('deliveryStatus', status);
+            }
+            setSearchParams(newParams);
+        },
+        [searchParams, setSearchParams],
+    );
+
     const setNeedsAttention = useCallback(
         (selected: boolean) => {
             const newParams = new URLSearchParams(searchParams);
@@ -206,6 +227,7 @@ export const useSchedulerFilters = () => {
         // Clear filter-related URL params
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('nameSearch');
+        newParams.delete('deliveryStatus');
         newParams.delete('needsAttention');
         newParams.delete('format');
         newParams.delete('type');
@@ -216,6 +238,7 @@ export const useSchedulerFilters = () => {
 
     const hasActiveFilters = useMemo(() => {
         return (
+            deliveryStatus !== 'all' ||
             needsAttention ||
             search !== DEFAULT_FILTERS.search ||
             selectedCreatedByUserUuids.length !==
@@ -230,6 +253,7 @@ export const useSchedulerFilters = () => {
             sortDirection !== DEFAULT_FILTERS.sortDirection
         );
     }, [
+        deliveryStatus,
         needsAttention,
         search,
         selectedCreatedByUserUuids,
@@ -243,6 +267,10 @@ export const useSchedulerFilters = () => {
 
     const apiFilters = useMemo(() => {
         const result: SchedulerFilters = {};
+
+        if (deliveryStatus !== 'all') {
+            result.enabled = deliveryStatus === 'scheduled';
+        }
 
         if (needsAttention) {
             result.needsAttention = true;
@@ -274,6 +302,7 @@ export const useSchedulerFilters = () => {
 
         return result;
     }, [
+        deliveryStatus,
         needsAttention,
         search,
         selectedCreatedByUserUuids,
@@ -284,6 +313,8 @@ export const useSchedulerFilters = () => {
     ]);
 
     return {
+        deliveryStatus,
+        setDeliveryStatus,
         needsAttention,
         setNeedsAttention,
         search,

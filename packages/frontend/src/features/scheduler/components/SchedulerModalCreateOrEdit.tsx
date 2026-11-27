@@ -50,6 +50,7 @@ import {
     SchedulerFormProvider,
     type SchedulerFormValues,
 } from './SchedulerForm/schedulerFormContext';
+import { SchedulerPauseReason } from './SchedulerPauseReason';
 
 interface Props {
     resourceUuid: string;
@@ -371,6 +372,11 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                                     >
                                         <div className={classes.centerInner}>
                                             <Stack gap="lg">
+                                                <SchedulerPauseReason
+                                                    scheduler={
+                                                        savedSchedulerData
+                                                    }
+                                                />
                                                 <Stack gap={2}>
                                                     <span
                                                         className={

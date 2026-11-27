@@ -86,17 +86,22 @@ describe('SchedulerModel automatically disabled deliveries', () => {
             targets: [],
         });
 
-    const getPage = (page: number) =>
+    const getPage = (
+        page: number,
+        filters: { needsAttention?: boolean; enabled?: boolean } = {
+            needsAttention: true,
+        },
+    ) =>
         model.getSchedulers({
             organizationUuid: SEED_ORG_1.organization_uuid,
             projectUuid: SEED_PROJECT.project_uuid,
             searchQuery: 'Attention fixture',
-            filters: { needsAttention: true },
+            filters,
             paginateArgs: { page, pageSize: 1 },
         });
 
     it('filters before paginating and preserves the first automatic disable reason', async () => {
-        await createScheduler('active');
+        const active = await createScheduler('active');
         const paused = await createScheduler('manually paused');
         const first = await createScheduler('report A');
         const second = await createScheduler('report B');
@@ -125,6 +130,20 @@ describe('SchedulerModel automatically disabled deliveries', () => {
             false,
             disconnected,
         );
+
+        const enabledPage = await getPage(1, { enabled: true });
+        expect(enabledPage.pagination.totalResults).toBe(1);
+        expect(enabledPage.data[0].schedulerUuid).toBe(active.schedulerUuid);
+
+        const disabledPage = await getPage(1, { enabled: false });
+        expect(disabledPage.pagination).toMatchObject({
+            totalResults: 3,
+            totalPageCount: 3,
+        });
+        expect(disabledPage.data[0].schedulerUuid).toBe(paused.schedulerUuid);
+        expect(
+            (await getPage(3, { enabled: false })).data[0].schedulerUuid,
+        ).toBe(second.schedulerUuid);
 
         const firstPage = await getPage(1);
         expect(firstPage.pagination).toMatchObject({

@@ -62,6 +62,7 @@ import {
     useDirectAccessAvailability,
 } from '../../directAccess';
 import { AppSchedulersModal } from '../../scheduler/components/SchedulerModals';
+import { type SchedulerDeepLink } from '../../scheduler/hooks/useSchedulerDeepLink';
 import { AppSyncModal } from '../../sync/components';
 import {
     refreshAppThumbnailQueries,
@@ -80,6 +81,7 @@ import { MoveAppToSpaceModal } from './MoveAppToSpaceModal';
 import { PromoteAppModal } from './PromoteAppModal';
 
 export type AppActionsMenuProps = {
+    schedulerDeepLink?: SchedulerDeepLink | null;
     projectUuid: string;
     appUuid: string;
     appName: string;
@@ -183,6 +185,7 @@ const duplicateTourAction = {
  * permissions, while duplicate only needs `useCanCreateDataApp`.
  */
 const AppActionsMenu: FC<AppActionsMenuProps> = ({
+    schedulerDeepLink,
     projectUuid,
     appUuid,
     appName,
@@ -332,8 +335,15 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
         showToastError,
     ]);
 
-    const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
-    const [syncModalOpen, setSyncModalOpen] = useState(false);
+    const [schedulerModalOpen, setSchedulerModalOpen] = useState(
+        schedulerDeepLink?.modal === 'scheduledDeliveries',
+    );
+    const [syncModalOpen, setSyncModalOpen] = useState(
+        schedulerDeepLink?.modal === 'googleSheetsSync',
+    );
+    const [initialSchedulerUuid, setInitialSchedulerUuid] = useState(
+        schedulerDeepLink?.schedulerUuid ?? undefined,
+    );
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [isMoveToSpaceOpen, setIsMoveToSpaceOpen] = useState(false);
@@ -804,7 +814,11 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                     appUuid={appUuid}
                     name={getAppDisplayName(appName, appUuid)}
                     isOpen
-                    onClose={() => setSchedulerModalOpen(false)}
+                    initialSchedulerUuid={initialSchedulerUuid}
+                    onClose={() => {
+                        setSchedulerModalOpen(false);
+                        setInitialSchedulerUuid(undefined);
+                    }}
                     capturedQueryCount={capturedQueryCount}
                 />
             )}
@@ -813,7 +827,11 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                     projectUuid={projectUuid}
                     appUuid={appUuid}
                     opened
-                    onClose={() => setSyncModalOpen(false)}
+                    initialSchedulerUuid={initialSchedulerUuid}
+                    onClose={() => {
+                        setSyncModalOpen(false);
+                        setInitialSchedulerUuid(undefined);
+                    }}
                 />
             )}
             {isAppStateModalOpen && (

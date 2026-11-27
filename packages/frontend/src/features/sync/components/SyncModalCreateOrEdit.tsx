@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Button, Tabs } from '@mantine/core';
+import { Button, Stack, Tabs } from '@mantine/core';
 import { type FC } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
@@ -8,6 +8,7 @@ import MantineModal, {
 } from '../../../components/common/MantineModal';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import useApp from '../../../providers/App/useApp';
+import { SchedulerPauseReason } from '../../scheduler/components/SchedulerPauseReason';
 import { useSyncModalForm } from '../hooks/useSyncModalForm';
 import { SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
@@ -29,6 +30,7 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
     const { user } = useApp();
     const {
         form,
+        savedScheduler,
         handleSubmit,
         isLoading,
         isEditing,
@@ -92,30 +94,33 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
                     </Button>
                 }
             >
-                {chart ? (
-                    <Tabs defaultValue="setup">
-                        <Tabs.List aria-label="Sync settings">
-                            <Tabs.Tab value="setup">Setup</Tabs.Tab>
-                            <Tabs.Tab value="filters">Filters</Tabs.Tab>
-                        </Tabs.List>
-                        <Tabs.Panel value="setup" pt="md">
-                            {setup}
-                        </Tabs.Panel>
-                        <Tabs.Panel value="filters" pt="md">
-                            <SyncChartFilterOverrides
-                                chart={chart}
-                                canAdjustFilters={canAdjustFilters}
-                                savedFilters={savedFilters}
-                                isEditing={isEditing}
-                                filtersWithUnmetRequirements={
-                                    filtersWithUnmetRequirements
-                                }
-                            />
-                        </Tabs.Panel>
-                    </Tabs>
-                ) : (
-                    setup
-                )}
+                <Stack gap="md">
+                    <SchedulerPauseReason scheduler={savedScheduler} />
+                    {chart ? (
+                        <Tabs defaultValue="setup">
+                            <Tabs.List aria-label="Sync settings">
+                                <Tabs.Tab value="setup">Setup</Tabs.Tab>
+                                <Tabs.Tab value="filters">Filters</Tabs.Tab>
+                            </Tabs.List>
+                            <Tabs.Panel value="setup" pt="md">
+                                {setup}
+                            </Tabs.Panel>
+                            <Tabs.Panel value="filters" pt="md">
+                                <SyncChartFilterOverrides
+                                    chart={chart}
+                                    canAdjustFilters={canAdjustFilters}
+                                    savedFilters={savedFilters}
+                                    isEditing={isEditing}
+                                    filtersWithUnmetRequirements={
+                                        filtersWithUnmetRequirements
+                                    }
+                                />
+                            </Tabs.Panel>
+                        </Tabs>
+                    ) : (
+                        setup
+                    )}
+                </Stack>
             </MantineModal>
         </SyncModalFormProvider>
     );

@@ -60,8 +60,11 @@ const AppSyncModalContent: FC<Props> = ({
     return null;
 };
 
-export const AppSyncModal: FC<Props> = (props) => (
-    <SyncModalProvider>
+export const AppSyncModal: FC<Props & { initialSchedulerUuid?: string }> = ({
+    initialSchedulerUuid,
+    ...props
+}) => (
+    <SyncModalProvider initialSchedulerUuid={initialSchedulerUuid}>
         <AppSyncModalContent {...props} />
     </SyncModalProvider>
 );

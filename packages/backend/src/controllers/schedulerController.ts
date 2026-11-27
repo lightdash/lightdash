@@ -247,6 +247,7 @@ export class SchedulerController extends BaseController {
      * @param formats filter by scheduler formats (comma-separated)
      * @param resourceType filter by resource type (chart or dashboard)
      * @param resourceUuids filter by resource UUIDs (comma-separated)
+     * @param enabled filter by whether the delivery is enabled
      * @param destinations filter by destination types (comma-separated: email, slack, msteams, googlechat)
      * @param includeLatestRun include latest run information for each scheduler
      */
@@ -267,6 +268,7 @@ export class SchedulerController extends BaseController {
         @Query() destinations?: string,
         @Query() includeLatestRun?: boolean,
         @Query() needsAttention?: boolean,
+        @Query() enabled?: boolean,
     ): Promise<ApiSchedulersResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -303,6 +305,7 @@ export class SchedulerController extends BaseController {
                             ? resourceUuids.split(',')
                             : undefined,
                         needsAttention,
+                        enabled,
                         destinations: destinations
                             ? destinations.split(',')
                             : undefined,
@@ -326,6 +329,7 @@ export class SchedulerController extends BaseController {
      * @param formats filter by scheduler formats (comma-separated)
      * @param resourceType filter by resource type (chart or dashboard)
      * @param resourceUuids filter by resource UUIDs (comma-separated)
+     * @param enabled filter by whether the delivery is enabled
      * @param destinations filter by destination types (comma-separated: email, slack, msteams, googlechat)
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -347,6 +351,7 @@ export class SchedulerController extends BaseController {
         @Query() destinations?: string,
         @Query() includeLatestRun?: boolean,
         @Query() needsAttention?: boolean,
+        @Query() enabled?: boolean,
     ): Promise<ApiSchedulersResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -376,6 +381,7 @@ export class SchedulerController extends BaseController {
             resourceUuids: resourceUuids ? resourceUuids.split(',') : undefined,
             destinations: destinations ? destinations.split(',') : undefined,
             needsAttention,
+            enabled,
         };
 
         return {
