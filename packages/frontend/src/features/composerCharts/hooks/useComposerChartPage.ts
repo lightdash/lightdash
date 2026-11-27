@@ -62,14 +62,17 @@ export const useComposerChartPageRun = ({
                 version: 'v2',
                 method: 'POST',
                 body: JSON.stringify(body),
-            }).then((run) => ({ versionUuid: chart.versionUuid, run }));
+            }).then((run) => {
+                // Marked here, not in onSuccess, which skips a run the page has moved on from
+                if (invalidateCache) {
+                    setRefreshed(
+                        (current) => current && { ...current, ran: true },
+                    );
+                }
+                return { versionUuid: chart.versionUuid, run };
+            });
         },
         keepPreviousData: true,
-        onSuccess: () => {
-            if (invalidateCache) {
-                setRefreshed((current) => current && { ...current, ran: true });
-            }
-        },
     });
     // A kept run of an older version would draw the new chart with old columns
     const run =
