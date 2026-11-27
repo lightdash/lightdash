@@ -438,6 +438,8 @@ const projectModel = {
         queryTimezone: null,
     })),
     findExploresFromCache: vi.fn(async () => allExplores),
+    // No API source explores, whichever integrations a flag turns off
+    findApiSourceExploreNamesByIntegration: vi.fn(async () => []),
     findExploreTableSummariesFromCache: vi.fn<
         ProjectModel['findExploreTableSummariesFromCache']
     >(async () => ({
