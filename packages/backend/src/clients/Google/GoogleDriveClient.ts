@@ -747,6 +747,8 @@ export class GoogleDriveClient {
             const shifted = toIsoWithProjectOffset(value, timezone);
             formattedValue = shifted ?? value;
         } else if (isField(item) && item.type === DimensionType.DATE) {
+            if (value === null || value === undefined) return '';
+
             const timeInterval = isDimension(item)
                 ? item.timeInterval
                 : undefined;
