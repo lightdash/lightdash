@@ -11,11 +11,11 @@ import {
     getApiName,
     getLiveDefinitionName,
     getLiveExplore,
+    resolveAbsoluteDateRange,
     toFieldCombinationIssue,
     toLiveQueryError,
     type LiveCompiledRequest,
-} from '../../explores/definition';
-import { resolveAbsoluteDateRange } from '../../query/dateRange';
+} from '../../sdk';
 import { isMixpanelProperty, type MixpanelProperty } from './api';
 import {
     getRetentionPeriods,

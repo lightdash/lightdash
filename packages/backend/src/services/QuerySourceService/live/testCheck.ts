@@ -37,7 +37,10 @@ export const getLiveSourceTestCheck = (
     const integration = getLiveIntegration(apiSource.connector);
     const { label } = integration;
     if (response.status >= 200 && response.status < 300) {
-        const summary = integration.summarizeTest?.(response.body, apiSource);
+        const summary = integration.connection.summarizeTest?.(
+            response.body,
+            apiSource,
+        );
         return {
             ok: true,
             summary: summary?.summary ?? `Connected to ${label}`,
@@ -45,7 +48,7 @@ export const getLiveSourceTestCheck = (
             facts: summary?.facts ?? [],
         };
     }
-    const error = integration.toError(response, apiSource);
+    const error = integration.query.toError(response, apiSource);
     return {
         ok: false,
         summary: toFailureSummary(label, response.status, error),

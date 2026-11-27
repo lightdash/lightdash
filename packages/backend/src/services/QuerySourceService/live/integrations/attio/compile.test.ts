@@ -15,15 +15,15 @@ import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { ATTIO_MAX_RECORDS } from './api';
 import { ATTIO_DEAL_ATTRIBUTES } from './attio.fixtures';
-import { isInternalAttioField } from './attributes';
 import { compileAttioQuery } from './compile';
-import { ATTIO_EXPLORES } from './explores';
 import {
+    ATTIO_EXPLORES,
     ATTIO_SCANNED_MODELS,
+    isInternalAttioField,
     readAttioAttributes,
     toAttioObject,
     withAttioAttributeFields,
-} from './scanFields';
+} from './model';
 
 const DEALS_EXPLORE = ATTIO_EXPLORES.find(({ name }) => name === 'deals')!;
 
@@ -39,7 +39,7 @@ const DEALS = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.ATTIO,
     baseVersion: 1,
-    capabilities: attioIntegration.capabilities,
+    capabilities: attioIntegration.query.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),
@@ -173,7 +173,7 @@ describe('Attio explores', () => {
             'users',
             'workspaces',
         ]);
-        expect(attioIntegration.explores).toBe(ATTIO_EXPLORES);
+        expect(attioIntegration.model.explores).toBe(ATTIO_EXPLORES);
     });
 
     it('reads each object from its explore name', () => {

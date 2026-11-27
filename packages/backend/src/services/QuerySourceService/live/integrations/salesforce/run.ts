@@ -1,27 +1,23 @@
 import {
     ApiConnectorType,
     DimensionType,
-    getSalesforceDescribePath,
     ParameterError,
-    SALESFORCE_OBJECTS,
     SALESFORCE_QUERY_PATH,
     type SalesforceObject,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { tooManyRowsError } from '../../query/rows';
 import {
-    type LiveCalls,
+    tooManyRowsError,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-    type LiveScanResult,
-} from '../../types';
+    type LiveRuntime,
+} from '../../sdk';
 import {
     SALESFORCE_MAX_AGGREGATE_ROWS,
     SALESFORCE_MAX_CALLS,
     SALESFORCE_MAX_RECORD_ROWS,
 } from './api';
-import { SalesforceObjectAccessError } from './errors';
 import {
     parseSalesforceExpression,
     toSoql,
@@ -171,11 +167,11 @@ const runAggregate = async (
     object: SalesforceObject,
     request: SalesforceRequest,
     limit: number,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<LiveRunResult> => {
     const rowLimit = Math.min(limit, SALESFORCE_MAX_AGGREGATE_ROWS - 1);
     const { soql, aggregateColumns } = toSoql(request, object, rowLimit + 1);
-    const { records } = await calls.fetch(
+    const { records } = await runtime.fetch(
         {
             method: 'GET',
             path: SALESFORCE_QUERY_PATH,
@@ -218,7 +214,7 @@ const runRecords = async (
     object: SalesforceObject,
     request: SalesforceRequest,
     limit: number,
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<LiveRunResult> => {
     const rowLimit = Math.min(limit, SALESFORCE_MAX_RECORD_ROWS);
     const { soql } = toSoql(request, object, rowLimit + 1);
@@ -228,7 +224,7 @@ const runRecords = async (
     let finished = false;
     for (let call = 0; call < SALESFORCE_MAX_CALLS; call += 1) {
         // eslint-disable-next-line no-await-in-loop
-        const response = await calls.fetch(
+        const response = await runtime.fetch(
             { method: 'GET', path, query, body: undefined },
             queryResponseSchema,
         );
@@ -277,53 +273,11 @@ const runRecords = async (
 export const runSalesforceQuery = async ({
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.SALESFORCE,
     SalesforceRequest
 >): Promise<LiveRunResult> =>
     request.kind === 'aggregate'
-        ? runAggregate(request.object, request, limit, calls)
-        : runRecords(request.object, request, limit, calls);
-
-/**
- * Reads each object's describe, whose fields become its explore's fields.
- * An object the signed-in user can't read keeps its built-in fields; any
- * other failed call, such as a throttled one, fails the scan so the last
- * good scan stays.
- */
-export const scanSalesforceDescribe = async ({
-    calls,
-}: {
-    calls: LiveCalls;
-}): Promise<LiveScanResult> => {
-    const results = await Promise.allSettled(
-        SALESFORCE_OBJECTS.map((object) =>
-            calls.fetch(
-                {
-                    method: 'GET',
-                    path: getSalesforceDescribePath(object),
-                    body: undefined,
-                },
-                z.unknown(),
-            ),
-        ),
-    );
-    const failed = results.flatMap((result) =>
-        result.status === 'rejected' ? [result.reason as unknown] : [],
-    );
-    const [unexpected] = failed.filter(
-        (error) => !(error instanceof SalesforceObjectAccessError),
-    );
-    if (unexpected !== undefined) {
-        throw unexpected;
-    }
-    const read = SALESFORCE_OBJECTS.flatMap((object, index) => {
-        const result = results[index];
-        return result.status === 'fulfilled' ? [[object, result.value]] : [];
-    });
-    if (read.length === 0) {
-        throw failed[0];
-    }
-    return { salesforceDescribe: Object.fromEntries(read) };
-};
+        ? runAggregate(request.object, request, limit, runtime)
+        : runRecords(request.object, request, limit, runtime);

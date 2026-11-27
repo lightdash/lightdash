@@ -11,8 +11,7 @@ import { ga4Integration } from '.';
 import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { compileGa4Query, GA4_EARLIEST_DATE } from './compile';
-import { GA4_REPORT_EXPLORE } from './explores';
-import { withGa4MetadataFields } from './scanFields';
+import { GA4_REPORT_EXPLORE, withGa4MetadataFields } from './model';
 
 const EXPLORE = 'ga4_report';
 
@@ -24,7 +23,7 @@ const buildExplore = (definition = GA4_REPORT_EXPLORE) =>
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.GA4,
         baseVersion: 1,
-        capabilities: ga4Integration.capabilities,
+        capabilities: ga4Integration.query.capabilities,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),

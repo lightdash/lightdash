@@ -7,21 +7,22 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
-import { readRowsWithinCap } from '../../query/rows';
 import {
-    type LiveCalls,
+    assertMaxRows,
+    readRowsWithinCap,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../types';
+    type LiveRuntime,
+} from '../../sdk';
 
 const LABEL = 'GitHub';
 
 /** Search reads 100 results a page and at most 1,000 in all. */
-const SEARCH_PAGE_SIZE = 100;
+export const GITHUB_SEARCH_PAGE_SIZE = 100;
 const SEARCH_RESULT_CAP = 1_000;
-export const GITHUB_SEARCH_MAX_PAGES = SEARCH_RESULT_CAP / SEARCH_PAGE_SIZE;
+export const GITHUB_SEARCH_MAX_PAGES =
+    SEARCH_RESULT_CAP / GITHUB_SEARCH_PAGE_SIZE;
 
 /**
  * The most rows one query can return: one fewer than search's 1,000, so
@@ -221,12 +222,12 @@ const runSearch = async ({
     settings,
     request,
     limit,
-    calls,
+    runtime,
 }: {
     settings: { owner: string; repo: string };
     request: GithubSearchRequest;
     limit: number;
-    calls: LiveCalls;
+    runtime: LiveRuntime;
 }): Promise<LiveRunResult> => {
     const q = toGithubSearchQuery(settings, request);
     const sortQuery = {
@@ -235,7 +236,7 @@ const runSearch = async ({
     };
     const { columns } = request;
     if (columns[0] === 'total_count') {
-        const { total_count: totalCount } = await calls.fetch(
+        const { total_count: totalCount } = await runtime.fetch(
             {
                 method: 'GET',
                 path: GITHUB_SEARCH_PATH,
@@ -253,7 +254,7 @@ const runSearch = async ({
     const searchColumns = columns as SearchColumn[];
     const requestedRows = Math.min(limit, request.limit ?? limit);
     // Pages are numbered, so every page asks for the same size
-    const perPage = Math.min(SEARCH_PAGE_SIZE, requestedRows + 1);
+    const perPage = Math.min(GITHUB_SEARCH_PAGE_SIZE, requestedRows + 1);
     const { rows, hasMoreRows } = await readRowsWithinCap({
         label: LABEL,
         requestedRows,
@@ -262,7 +263,7 @@ const runSearch = async ({
         maxPages: GITHUB_SEARCH_MAX_PAGES,
         fetchPage: async ({ cursor }) => {
             const page = cursor ? Number(cursor) : 1;
-            const response = await calls.fetch(
+            const response = await runtime.fetch(
                 {
                     method: 'GET',
                     path: GITHUB_SEARCH_PATH,
@@ -315,12 +316,12 @@ const wait = (ms: number) =>
  */
 const fetchContributorStats = async (
     { owner, repo }: { owner: string; repo: string },
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ) => {
     const path = getGithubContributorsPath(owner, repo);
     for (let attempt = 0; ; attempt += 1) {
         // eslint-disable-next-line no-await-in-loop
-        const response = await calls.send({
+        const response = await runtime.send({
             method: 'GET',
             path,
             body: undefined,
@@ -361,14 +362,14 @@ const runContributors = async ({
     settings,
     request,
     limit,
-    calls,
+    runtime,
 }: {
     settings: { owner: string; repo: string };
     request: GithubContributorsRequest;
     limit: number;
-    calls: LiveCalls;
+    runtime: LiveRuntime;
 }): Promise<LiveRunResult> => {
-    const stats = await fetchContributorStats(settings, calls);
+    const stats = await fetchContributorStats(settings, runtime);
     const columns = request.columns as ContributorColumn[];
     const groupBy = columns.filter(
         (column): column is 'author' | 'week' =>
@@ -438,7 +439,7 @@ export const runGithubQuery = async ({
     settings,
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.GITHUB,
     GithubRequest
@@ -446,9 +447,9 @@ export const runGithubQuery = async ({
     assertMaxRows(limit, GITHUB_MAX_QUERY_ROWS);
     switch (request.kind) {
         case 'search':
-            return runSearch({ settings, request, limit, calls });
+            return runSearch({ settings, request, limit, runtime });
         case 'contributors':
-            return runContributors({ settings, request, limit, calls });
+            return runContributors({ settings, request, limit, runtime });
         default:
             throw new ParameterError('Unknown GitHub request kind');
     }

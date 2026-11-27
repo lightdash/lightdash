@@ -15,12 +15,12 @@ import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { HUBSPOT_MAX_ROWS } from './api';
 import { compileHubspotQuery } from './compile';
-import { HUBSPOT_EXPLORES } from './explores';
 import { HUBSPOT_DEAL_PROPERTIES } from './hubspot.fixtures';
 import {
+    HUBSPOT_EXPLORES,
     isInternalHubspotField,
     withHubspotPropertyFields,
-} from './scanFields';
+} from './model';
 
 const [DEALS_EXPLORE] = HUBSPOT_EXPLORES;
 
@@ -36,7 +36,7 @@ const DEALS = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.HUBSPOT,
     baseVersion: 1,
-    capabilities: hubspotIntegration.capabilities,
+    capabilities: hubspotIntegration.query.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),
@@ -587,7 +587,7 @@ describe('compileHubspotQuery pipeline stages', () => {
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.HUBSPOT,
         baseVersion: 1,
-        capabilities: hubspotIntegration.capabilities,
+        capabilities: hubspotIntegration.query.capabilities,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),

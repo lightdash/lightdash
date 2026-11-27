@@ -2,39 +2,20 @@ import {
     ApiConnectorType,
     DimensionType,
     LIVE_INTEGRATION_CATALOG,
-    TooManyRequestsError,
-    UnexpectedServerError,
-    WarehouseConnectionError,
-    WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { tooManyRowsError } from '../../query/rows';
 import {
+    tooManyRowsError,
     type LiveColumn,
-    type LiveHttpResponse,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../types';
+} from '../../sdk';
 import {
+    LINKEDIN_ADS_ANALYTICS_PATH,
     LINKEDIN_ADS_CAMPAIGN_COLUMNS,
     LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS,
     LINKEDIN_ADS_DATE_COLUMNS,
 } from './api';
-
-export const LINKEDIN_ADS_ORIGIN = 'https://api.linkedin.com';
-export const LINKEDIN_ADS_TOKEN_URL =
-    'https://www.linkedin.com/oauth/v2/accessToken';
-// Versions are supported for about a year; 202611 and 202610 are the newest
-// documented (https://learn.microsoft.com/linkedin/marketing/versioning).
-export const LINKEDIN_ADS_API_VERSION = '202610';
-export const LINKEDIN_ADS_REQUEST_HEADERS = {
-    'Linkedin-Version': LINKEDIN_ADS_API_VERSION,
-    'X-Restli-Protocol-Version': '2.0.0',
-};
-export const LINKEDIN_ADS_ANALYTICS_PATH = '/rest/adAnalytics';
-
-export const getLinkedInAdsAccountPath = (adAccountId: string) =>
-    `/rest/adAccounts/${adAccountId}`;
 
 const LABEL =
     LIVE_INTEGRATION_CATALOG[ApiConnectorType.LINKEDIN_ADS].messageLabel;
@@ -114,8 +95,6 @@ const analyticsSchema = z.object({
         .optional(),
 });
 
-const errorSchema = z.object({ message: z.string().optional() });
-
 const toRestliDate = (isoDate: string) => {
     const [year, month, day] = isoDate.split('-').map(Number);
     return `(year:${year},month:${month},day:${day})`;
@@ -125,43 +104,6 @@ const urnList = (kind: string, ids: string[]) =>
     `List(${ids
         .map((id) => encodeURIComponent(`urn:li:${kind}:${id}`))
         .join(',')})`;
-
-/** Turns a LinkedIn API error response into an error that says what to change. */
-export const toLinkedInApiError = (
-    response: LiveHttpResponse,
-    adAccountId: string,
-): Error => {
-    const parsed = errorSchema.safeParse(response.body);
-    const detail =
-        parsed.success && parsed.data.message ? `: ${parsed.data.message}` : '';
-    switch (response.status) {
-        case 400:
-            return new WarehouseQueryError(
-                `LinkedIn Ads rejected the request${detail}`,
-            );
-        case 401:
-            return new WarehouseConnectionError(
-                `LinkedIn sign-in has expired${detail}. Reconnect the source.`,
-            );
-        case 403:
-            return new WarehouseConnectionError(
-                `LinkedIn denied access to ad account ${adAccountId}${detail}. Check that the signed-in member still has a role on the account, or reconnect the source.`,
-            );
-        case 404:
-            return new WarehouseConnectionError(
-                `LinkedIn could not find ad account ${adAccountId}${detail}`,
-            );
-        case 429:
-            return new TooManyRequestsError(
-                `LinkedIn Ads rate limit reached${detail}. Retry in a few minutes.`,
-                { retryAfterSeconds: null },
-            );
-        default:
-            return new UnexpectedServerError(
-                `LinkedIn Ads returned ${response.status}${detail}`,
-            );
-    }
-};
 
 const toNumber = (value: unknown) => {
     if (value === undefined || value === null || value === '') return null;
@@ -193,7 +135,7 @@ export const runLinkedInAdsQuery = async ({
     settings: { adAccountId },
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.LINKEDIN_ADS,
     LinkedInAdsRequest
@@ -222,7 +164,7 @@ export const runLinkedInAdsQuery = async ({
         `fields=${[...request.fields, 'dateRange', 'pivotValues'].join(',')}`,
     ].join('&');
 
-    const { elements = [] } = await calls.fetch(
+    const { elements = [] } = await runtime.fetch(
         {
             method: 'GET',
             path: LINKEDIN_ADS_ANALYTICS_PATH,

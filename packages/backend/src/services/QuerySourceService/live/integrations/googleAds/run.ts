@@ -4,19 +4,13 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { readRowsWithinCap } from '../../query/rows';
 import {
+    readRowsWithinCap,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../types';
-import { GOOGLE_ADS_MICROS_FIELDS } from './api';
-
-export const GOOGLE_ADS_ORIGIN = 'https://googleads.googleapis.com';
-// Each version is sunset about a year after release; v26 runs to November 2027
-// (https://developers.google.com/google-ads/api/docs/sunset-dates).
-export const GOOGLE_ADS_API_VERSION = 'v26';
-export const GOOGLE_ADS_LIST_CUSTOMERS_PATH = `/${GOOGLE_ADS_API_VERSION}/customers:listAccessibleCustomers`;
+} from '../../sdk';
+import { getGoogleAdsSearchPath, GOOGLE_ADS_MICROS_FIELDS } from './api';
 
 // GoogleAdsService.Search returns 10,000 rows a page; asking for one more row
 // than the limit keeps every query to one page and one operation.
@@ -39,9 +33,6 @@ const responseSchema = z.object({
     results: z.array(z.record(z.string(), z.unknown())).optional(),
     nextPageToken: z.string().optional(),
 });
-
-export const getGoogleAdsSearchPath = (customerId: string) =>
-    `/${GOOGLE_ADS_API_VERSION}/customers/${customerId}/googleAds:search`;
 
 /** One GAQL query, split into what `run` sends and reads back. */
 export type GoogleAdsRequest = {
@@ -124,7 +115,7 @@ export const runGoogleAdsQuery = async ({
     settings: { customerId },
     request: { fields, baseQuery, queryLimit },
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.GOOGLE_ADS,
     GoogleAdsRequest
@@ -137,7 +128,7 @@ export const runGoogleAdsQuery = async ({
         // Asking for one more row than the limit fits in one page
         maxPages: 1,
         fetchPage: async ({ limit: pageLimit }) => {
-            const page = await calls.fetch(
+            const page = await runtime.fetch(
                 {
                     method: 'POST',
                     path: getGoogleAdsSearchPath(customerId),

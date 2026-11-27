@@ -9,11 +9,11 @@ import {
     getActiveFilterRules,
     getApiName,
     getLiveExplore,
+    resolveAbsoluteDateRange,
     toFieldCombinationIssue,
     toLiveQueryError,
     type LiveCompiledRequest,
-} from '../../explores/definition';
-import { resolveAbsoluteDateRange } from '../../query/dateRange';
+} from '../../sdk';
 import {
     LINKEDIN_ADS_CAMPAIGN_COLUMNS,
     LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS,

@@ -83,6 +83,7 @@ export const parseStoredApiSource = (
     if (!isLiveIntegrationRegistered(connector)) {
         return null;
     }
-    const parsed = getLiveIntegration(connector).settings.safeParse(value);
+    const parsed =
+        getLiveIntegration(connector).connection.settings.safeParse(value);
     return parsed.success ? parsed.data : null;
 };

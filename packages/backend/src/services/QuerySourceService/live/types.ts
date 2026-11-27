@@ -16,20 +16,43 @@ import type {
     LiveExploreDefinition,
     LivePeriodFormat,
 } from './explores/definition';
-import type { LiveIntegrationSpec, LiveRateLimits } from './spec/types';
+import type {
+    LiveIntegrationKind,
+    LiveIntegrationSpec,
+    LiveRateLimits,
+} from './spec/types';
 
 /**
- * One external API Lightdash queries live: a source's settings, what it may
- * call, its explores, how a metric query becomes calls and rows, and what
- * its code can't know about the tool (`LiveIntegrationSpec`). Write
- * one with `defineLiveIntegration` and list it in `registry.ts`.
+ * One external API Lightdash queries live, in four parts read top to
+ * bottom: how a source connects, what it can query, how a query runs, and
+ * the vendor's facts. Write one with `defineLiveIntegration` and list it in
+ * `registry.ts`.
+ *
+ * Integrations hold no state. A function that takes `runtime` may call the
+ * API; every other function is pure. The service owns credentials, rate
+ * limits, stored catalogs and field edits.
  */
 export type LiveIntegration<
     C extends ApiConnectorType = ApiConnectorType,
     Request = unknown,
-> = LiveIntegrationSpec & {
+    Catalog extends LiveCatalog = LiveCatalog,
+> = {
     connector: C;
     label: string;
+    /**
+     * How Integrations 2.0 answers it: `reports` when the API computes
+     * totals at a grain, `records` when it returns rows, `sql` when it runs a
+     * query language. Nothing reads it yet.
+     */
+    kind: LiveIntegrationKind;
+    connection: LiveConnection<C>;
+    model: LiveModel<C, Catalog>;
+    query: LiveQuery<C, Request>;
+    spec: LiveIntegrationSpec;
+};
+
+/** What an admin enters, what a source may call, and how its sign-in is checked. */
+export type LiveConnection<C extends ApiConnectorType = ApiConnectorType> = {
     /** The shape stored on the connection. */
     settings: z.ZodType<ApiSourceOf<C>>;
     /** The hosts a source may call; several when the API has regions. */
@@ -41,23 +64,11 @@ export type LiveIntegration<
      */
     acceptsOrigin?: (origin: string) => boolean;
     /** What a source may call on its origin, whatever its stored connection says. */
-    access: (settings: ApiSourceOf<C>) => {
-        pathPrefixes: string[];
-        methods: Array<'GET' | 'POST'>;
-        headers?: Record<string, string> | null;
-    };
-    limits: LiveLimits;
-    /** A source's own rate limits, when its settings set them; omitted, every source gets `rateLimits`. */
-    rateLimitsFor?: (settings: ApiSourceOf<C>) => LiveRateLimits;
-    capabilities: LiveCapabilities;
-    /** The first is the wide model; scans and field edits apply to it and to `scan.models`. */
-    explores: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
-    /** Explore names reserved for models not built yet. */
-    plannedModelNames: readonly string[];
-    /** Throws a ParameterError naming the setting the admin has to change. */
-    validate: (settings: ApiSourceOf<C>) => void;
+    access: (settings: ApiSourceOf<C>) => LiveAccess;
     /** Throws a ParameterError when the connection signs in the wrong way. */
     checkAuth: (connection: LiveConnectionCheck) => void;
+    /** Throws a ParameterError naming the setting the admin has to change. */
+    validate?: (settings: ApiSourceOf<C>) => void;
     /**
      * Says what a source reads, for the AI agent. `targetLabel` is the name
      * the connection picker showed, absent on sources connected without one.
@@ -68,20 +79,6 @@ export type LiveIntegration<
         targetLabel: string | null;
     }) => string;
     /**
-     * Reads one query, as compile writes it and as an agent may send it raw.
-     * Throws a ParameterError saying what to fix; `jsonRequest` covers JSON.
-     */
-    parseRequest: (query: string) => Request;
-    compile: (args: LiveCompileArgs) => LiveCompiledRequest;
-    /**
-     * Time grains the API returns as compact periods (e.g. GA4's YYYYWW);
-     * their columns are turned into the period's first day.
-     */
-    periodFormats?: Partial<Record<TimeFrames, LivePeriodFormat>>;
-    run: (args: LiveRunArgs<C, Request>) => Promise<LiveRunResult>;
-    /** Turns a response outside 2xx into an error that says what to change. */
-    toError: (response: LiveHttpResponse, settings: ApiSourceOf<C>) => Error;
-    /**
      * Reads the setup dialog's test response into what an admin checks: the
      * account it reached and a few counts. Null when the body is not the
      * test's shape; omitted, a 2xx reads as plain "Connected to <label>".
@@ -90,41 +87,91 @@ export type LiveIntegration<
         body: unknown,
         settings: ApiSourceOf<C>,
     ) => LiveTestSummary | null;
+};
+
+/** The explores a source offers. */
+export type LiveModel<
+    C extends ApiConnectorType = ApiConnectorType,
+    Catalog extends LiveCatalog = LiveCatalog,
+> = {
+    /** The first is the wide model; discovered fields and field edits apply to it and to `discovery.models`. */
+    explores: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
+    /** Explore names reserved for models not built yet. */
+    plannedNames?: readonly string[];
     /** Reads fields the API reports itself; omitted when every field is built in. */
-    scan?: {
-        read: (args: {
-            settings: ApiSourceOf<C>;
-            calls: LiveCalls;
-        }) => Promise<LiveScanResult>;
-        withScannedFields: (
-            definition: LiveExploreDefinition,
-            scan: LiveScanResult,
-        ) => LiveExploreDefinition;
-        /** Scanned fields kept out of the default field list. */
-        isInternalField?: (apiName: string) => boolean;
-        /**
-         * A new source starts with every scanned field in use, for
-         * integrations whose explore is only what the scan finds.
-         */
-        inUseByDefault?: true;
-        /**
-         * Names of the explores besides the first that scans add fields to,
-         * each curated on its own. Omitted, only the first explore is scanned.
-         */
-        models?: readonly string[];
-    };
+    discovery?: LiveDiscovery<C, Catalog>;
+};
+
+export type LiveDiscovery<
+    C extends ApiConnectorType = ApiConnectorType,
+    Catalog extends LiveCatalog = LiveCatalog,
+> = {
+    /** Reads what the API has now; the service runs it when a source is created or refreshed. */
+    discover: (args: {
+        settings: ApiSourceOf<C>;
+        runtime: LiveRuntime;
+    }) => Promise<Catalog>;
+    /**
+     * Names of the explores besides the first that discovered fields are
+     * added to, each curated on its own. Omitted, only the first is.
+     */
+    models?: readonly string[];
+    /** One explore with the fields `discover` found; the service applies it to the first explore and `models`. */
+    withFields: (
+        definition: LiveExploreDefinition,
+        catalog: Catalog,
+    ) => LiveExploreDefinition;
+    /** Discovered fields kept out of the default field list. */
+    isInternalField?: (apiName: string) => boolean;
+    /**
+     * A new source starts with every discovered field in use, for
+     * integrations whose explore is only what discovery finds.
+     */
+    inUseByDefault?: true;
+};
+
+/** How a metric query becomes calls and rows. */
+export type LiveQuery<
+    C extends ApiConnectorType = ApiConnectorType,
+    Request = unknown,
+> = {
+    /**
+     * The request compile writes and an agent may send raw: a zod schema for
+     * a JSON body, or a parser for a query language. A parser throws a
+     * ParameterError saying what to fix.
+     */
+    request: z.ZodType<Request> | ((query: string) => Request);
+    compile: (args: LiveCompileArgs) => LiveCompiledRequest;
+    run: (args: LiveRunArgs<C, Request>) => Promise<LiveRunResult>;
+    /** Turns a response outside 2xx into an error that says what to change. */
+    toError: (response: LiveHttpResponse, settings: ApiSourceOf<C>) => Error;
+    capabilities: LiveCapabilities;
+    limits: LiveLimits;
+    /** A source's own limits, when its settings set them; omitted, every source gets `limits`. */
+    limitsFor?: (settings: ApiSourceOf<C>) => LiveLimits;
+    /**
+     * Time grains the API returns as compact periods (e.g. GA4's YYYYWW);
+     * their columns are turned into the period's first day.
+     */
+    periodFormats?: Partial<Record<TimeFrames, LivePeriodFormat>>;
     /** Defaults to DuckDB, which only runs the compiled explore's SQL shape. */
     warehouseSqlBuilder?: WarehouseSqlBuilder;
 };
 
-/** How much one query may read, and how long one call may run. Rate limits are in the spec's `rateLimits`. */
-export type LiveLimits = {
-    /** Calls one query may make; APIs that page need several. */
-    callsPerQuery: number;
+/**
+ * How much one query may do, then how fast a source may call the API. The
+ * query fields are ours; the rate limits are the vendor's, and an admin can
+ * lower them per source.
+ */
+export type LiveLimits = LiveRateLimits & {
     /** How long the API lets one call run before failing it. */
     timeoutMs: number;
     /** Most rows one query can return; named in the too-many-rows error. */
     maxRows: number;
+    /** Rows one call returns when the API pages; omitted when one call answers the query. */
+    pageSize?: number;
+    /** Calls one query may make. Omitted, the pages `maxRows` takes at `pageSize`, or 1. */
+    callsPerQuery?: number;
 };
 
 /**
@@ -148,7 +195,7 @@ export type LiveRunArgs<C extends ApiConnectorType, Request> = {
      * `run` caps or refuses it the way its API needs.
      */
     limit: number;
-    calls: LiveCalls;
+    runtime: LiveRuntime;
 };
 
 export type LiveColumn = {
@@ -165,8 +212,12 @@ export type LiveRunResult = {
     bytesRead?: number;
 };
 
-/** The calls `run` makes, with the connection's credentials and limits applied. */
-export type LiveCalls = {
+/**
+ * The only way an integration reaches its API. The service attaches the
+ * connection's credentials and applies its rate limits; integrations never
+ * see either.
+ */
+export type LiveRuntime = {
     /** Sends one call; a status outside 2xx throws the integration's `toError`. */
     send(request: LiveHttpRequest): Promise<LiveHttpResponse>;
     /**
@@ -205,16 +256,26 @@ export type LiveConnectionCheck = {
     oauthTokenUrl?: string | null;
 };
 
-/** What an integration reports about its own fields; absent when not scanned. */
-export type LiveScanResult = {
-    ga4Metadata?: unknown;
-    posthogProperties?: Record<'event' | 'person', unknown>;
-    /** Each standard object's attribute list, by slug, as Attio returns it. */
-    attioAttributes?: unknown;
-    /** HubSpot's property list for the source's object, as it returns it. */
-    hubspotProperties?: unknown;
-    /** Salesforce's describe of the source's object, as it returns it. */
-    salesforceDescribe?: unknown;
-    /** The source's table under `definitions` in the Supabase Data API's OpenAPI description. */
-    supabaseTable?: unknown;
+/**
+ * What `discover` read, as plain JSON. Each integration gives it its own
+ * type; the service only passes it back to `describe`.
+ */
+export type LiveCatalog = Record<string, unknown>;
+
+/**
+ * One request a source may send. `path` matches as a segment-aware prefix;
+ * exact and templated paths come with stored catalogs. Only reads exist.
+ */
+export type LiveAccessRule = {
+    method: 'GET' | 'POST';
+    path: string;
+    effect: 'read';
+    /** The explore model the rule serves; recorded, not checked yet. */
+    entry?: string;
+};
+
+export type LiveAccess = {
+    rules: LiveAccessRule[];
+    /** Headers the service sends with every request; null clears stored ones. */
+    headers?: Record<string, string> | null;
 };

@@ -8,7 +8,7 @@ const INTEGRATIONS = Object.values(ApiConnectorType).map(getLiveIntegration);
 describe('live integration specs', () => {
     test('use case ids are unique', () => {
         const ids = [
-            ...INTEGRATIONS.map(({ useCases }) => useCases),
+            ...INTEGRATIONS.map(({ spec }) => spec.useCases),
             crossToolUseCases,
         ].flatMap(({ questions, dashboards }) => [
             ...questions.map(({ id }) => id),
@@ -23,27 +23,29 @@ describe('live integration specs', () => {
     });
 
     test('rate limits are whole positive numbers with unique bucket ids', () => {
-        const problems = INTEGRATIONS.flatMap(({ connector, rateLimits }) => {
-            const ids = rateLimits.buckets.map(({ id }) => id);
-            const counts = [
-                rateLimits.concurrentCalls,
-                ...(rateLimits.callsPerSecond === null
-                    ? []
-                    : [rateLimits.callsPerSecond]),
-                ...rateLimits.buckets.flatMap(({ windowMs, capacity }) => [
-                    windowMs,
-                    capacity,
-                ]),
-            ];
-            return [
-                ...(new Set(ids).size === ids.length
-                    ? []
-                    : [`${connector}: duplicate bucket id`]),
-                ...(counts.every((n) => Number.isInteger(n) && n > 0)
-                    ? []
-                    : [`${connector}: a limit is not a positive integer`]),
-            ];
-        });
+        const problems = INTEGRATIONS.flatMap(
+            ({ connector, query: { limits: rateLimits } }) => {
+                const ids = rateLimits.buckets.map(({ id }) => id);
+                const counts = [
+                    rateLimits.concurrentCalls,
+                    ...(rateLimits.callsPerSecond === null
+                        ? []
+                        : [rateLimits.callsPerSecond]),
+                    ...rateLimits.buckets.flatMap(({ windowMs, capacity }) => [
+                        windowMs,
+                        capacity,
+                    ]),
+                ];
+                return [
+                    ...(new Set(ids).size === ids.length
+                        ? []
+                        : [`${connector}: duplicate bucket id`]),
+                    ...(counts.every((n) => Number.isInteger(n) && n > 0)
+                        ? []
+                        : [`${connector}: a limit is not a positive integer`]),
+                ];
+            },
+        );
         expect(problems).toEqual([]);
     });
 
@@ -52,7 +54,7 @@ describe('live integration specs', () => {
             Object.fromEntries(
                 INTEGRATIONS.map((integration) => [
                     integration.connector,
-                    getLiveAuthScore(integration),
+                    getLiveAuthScore(integration.spec),
                 ]),
             ),
         ).toMatchInlineSnapshot(`

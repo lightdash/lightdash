@@ -20,9 +20,10 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { createHash } from 'crypto';
 import { isPlainObject, memoize } from 'es-toolkit/compat';
+import { describeLiveExplores } from '../integration';
 import { tooManyRowsError } from '../query/rows';
 import { getLiveIntegration, isLiveIntegrationRegistered } from '../registry';
-import { type LiveCapabilities, type LiveScanResult } from '../types';
+import { type LiveCapabilities, type LiveCatalog } from '../types';
 import {
     buildLiveExplore,
     getApiName,
@@ -81,13 +82,12 @@ export type LiveBaseLayer = {
 export const getLiveBaseLayer = (
     connector: ApiConnectorType,
 ): LiveBaseLayer => {
-    const { capabilities, explores, plannedModelNames } =
-        getLiveIntegration(connector);
+    const { query, model } = getLiveIntegration(connector);
     return {
         baseVersion: 1,
-        capabilities,
-        definitions: explores,
-        plannedModelNames,
+        capabilities: query.capabilities,
+        definitions: model.explores,
+        plannedModelNames: model.plannedNames ?? [],
     };
 };
 
@@ -122,7 +122,9 @@ export const getLiveScannedModels = (
     const {
         definitions: [wide, ...others],
     } = getLiveBaseLayer(connector);
-    const models = new Set(getLiveIntegration(connector).scan?.models ?? []);
+    const models = new Set(
+        getLiveIntegration(connector).model.discovery?.models ?? [],
+    );
     return [
         { model: null, definition: wide },
         ...others
@@ -134,14 +136,19 @@ export const getLiveScannedModels = (
 /** The fields a scan found beyond the integration's built-in ones. */
 export const toScannedLiveSourceFields = (
     connector: ApiConnectorType,
-    scan: LiveScanResult,
+    catalog: LiveCatalog,
 ): ScannedLiveSourceField[] => {
-    const { scan: scanning } = getLiveIntegration(connector);
+    const integrationModel = getLiveIntegration(connector).model;
     const isInternal = (apiName: string) =>
-        scanning?.isInternalField?.(apiName) ?? false;
+        integrationModel.discovery?.isInternalField?.(apiName) ?? false;
+    const described = new Map(
+        describeLiveExplores(integrationModel, catalog).map((definition) => [
+            definition.name,
+            definition,
+        ]),
+    );
     return getLiveScannedModels(connector).flatMap(({ model, definition }) => {
-        const scanned =
-            scanning?.withScannedFields(definition, scan) ?? definition;
+        const scanned = described.get(definition.name) ?? definition;
         const builtInNames = new Set([
             ...definition.dimensions.map(({ name }) => name),
             ...definition.metrics.map(({ name }) => name),
@@ -193,7 +200,7 @@ const buildDefinitionExplore = (
         baseVersion,
         capabilities,
         warehouseSqlBuilder:
-            getLiveIntegration(connector).warehouseSqlBuilder ??
+            getLiveIntegration(connector).query.warehouseSqlBuilder ??
             DEFAULT_SQL_BUILDER,
     });
 };
@@ -304,7 +311,7 @@ export const describeLiveTarget = (
     origin: string,
     targetLabel: string | null,
 ): string =>
-    getLiveIntegration(apiSource.connector).describeTarget({
+    getLiveIntegration(apiSource.connector).connection.describeTarget({
         settings: apiSource,
         origin,
         targetLabel,
@@ -439,9 +446,9 @@ export const compileLiveMetricQuery = ({
             `"${explore.name}" isn't a live data source explore`,
         );
     }
-    const { compile, limits, periodFormats } = getLiveIntegration(
-        apiSource.integration,
-    );
+    const {
+        query: { compile, limits, periodFormats },
+    } = getLiveIntegration(apiSource.integration);
     const {
         query,
         localSorts = [],

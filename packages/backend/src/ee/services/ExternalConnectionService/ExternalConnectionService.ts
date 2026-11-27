@@ -97,7 +97,7 @@ import type { UserAttributesModel } from '../../../models/UserAttributesModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
 import {
-    createLiveCalls,
+    createLiveRuntime,
     readLiveRateLimit,
     type LiveCallUsage,
     type LiveTransport,
@@ -126,26 +126,27 @@ import {
     isLiveExploreInUse,
     listLiveSourceFields,
 } from '../../../services/QuerySourceService/live/explores/fields';
+import { getLiveLimits } from '../../../services/QuerySourceService/live/integration';
 import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
 import {
     getLinkedInAdsAccountPath,
     LINKEDIN_ADS_ORIGIN,
     LINKEDIN_ADS_REQUEST_HEADERS,
     LINKEDIN_ADS_TOKEN_URL,
-} from '../../../services/QuerySourceService/live/integrations/linkedInAds/run';
-import { getPostHogOAuthEndpoints } from '../../../services/QuerySourceService/live/integrations/postHog/run';
+} from '../../../services/QuerySourceService/live/integrations/linkedInAds/api';
+import { getPostHogOAuthEndpoints } from '../../../services/QuerySourceService/live/integrations/postHog/api';
 import {
     scanPostHogSchema,
     toFailedScan,
     toPostHogSchemaTable,
-} from '../../../services/QuerySourceService/live/integrations/postHog/scan';
+} from '../../../services/QuerySourceService/live/integrations/postHog/model';
 import { refuseLiveQuery } from '../../../services/QuerySourceService/live/query/refuse';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { LIVE_RATE_LIMIT_DEADLINES_MS } from '../../../services/QuerySourceService/live/rateLimitDeadlines';
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
 import { type LiveRateLimits } from '../../../services/QuerySourceService/live/spec/types';
 import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
-import { type LiveScanResult } from '../../../services/QuerySourceService/live/types';
+import { type LiveCatalog } from '../../../services/QuerySourceService/live/types';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { checkUserAttributesAccess } from '../../../services/UserAttributesService/UserAttributeUtils';
 import {
@@ -1995,18 +1996,18 @@ export class ExternalConnectionService extends BaseService {
         if (connection.kind !== 'live_source' || !apiSource) {
             return;
         }
-        const getScan = async (): Promise<LiveScanResult | null> => {
+        const getScan = async (): Promise<LiveCatalog | null> => {
             try {
-                const { integration, settings, calls } = this.createLiveSource(
-                    account,
-                    connection,
-                    {
+                const { integration, settings, runtime } =
+                    this.createLiveSource(account, connection, {
                         isPerQuery: false,
                         rateLimitDeadlineMs: LIVE_RATE_LIMIT_DEADLINES_MS.sync,
-                    },
-                );
+                    });
                 return (
-                    (await integration.scan?.read({ settings, calls })) ?? {}
+                    (await integration.model.discovery?.discover({
+                        settings,
+                        runtime,
+                    })) ?? {}
                 );
             } catch (error) {
                 if (onScanError === 'throw') {
@@ -2039,7 +2040,7 @@ export class ExternalConnectionService extends BaseService {
                     scannedFields,
                     // An explore made only of scanned fields starts with all of them
                     isExistingSource:
-                        getLiveIntegration(apiSource.connector).scan
+                        getLiveIntegration(apiSource.connector).model.discovery
                             ?.inUseByDefault === true ||
                         (await this.projectModel.hasApiSourceExplores(
                             projectUuid,
@@ -3233,8 +3234,9 @@ export class ExternalConnectionService extends BaseService {
     private static getDeclaredRateLimits(
         apiSource: ExternalConnectionApiSource,
     ): LiveRateLimits {
-        const integration = getLiveIntegration(apiSource.connector);
-        return integration.rateLimitsFor?.(apiSource) ?? integration.rateLimits;
+        const { concurrentCalls, callsPerSecond, buckets, note, cardNote } =
+            getLiveLimits(getLiveIntegration(apiSource.connector), apiSource);
+        return { concurrentCalls, callsPerSecond, buckets, note, cardNote };
     }
 
     /** What the rate-limit gate limits for a live source: the lower of the integration's limits and the admin's. */
@@ -3293,7 +3295,7 @@ export class ExternalConnectionService extends BaseService {
             isPerQuery,
             rateLimitDeadlineMs,
         }: { isPerQuery: boolean; rateLimitDeadlineMs: number },
-    ): Pick<MeteredLiveSource, 'integration' | 'settings' | 'calls'> & {
+    ): Pick<MeteredLiveSource, 'integration' | 'settings' | 'runtime'> & {
         usage: LiveCallUsage;
     } {
         const { apiSource } = storedConnection;
@@ -3308,7 +3310,7 @@ export class ExternalConnectionService extends BaseService {
         let callsThisQuery = 0;
         const integration = getLiveIntegration(apiSource.connector);
         const { label } = integration;
-        const { limits } = integration;
+        const limits = getLiveLimits(integration);
         const usage: LiveCallUsage = {
             apiCalls: 0,
             responseBytes: 0,
@@ -3393,7 +3395,7 @@ export class ExternalConnectionService extends BaseService {
         return {
             integration,
             settings: apiSource,
-            calls: createLiveCalls(integration, apiSource, send),
+            runtime: createLiveRuntime(integration, apiSource, send),
             usage,
         };
     }

@@ -3,7 +3,7 @@ import {
     hydraServer,
     HydraTimeoutError,
     type HydraServer,
-} from '../../../services/QuerySourceService/live/integrations/hydra/server';
+} from '../../../services/QuerySourceService/live/integrations/hydra/fake/server';
 import {
     SecureFetchError,
     type SecureFetchResult,

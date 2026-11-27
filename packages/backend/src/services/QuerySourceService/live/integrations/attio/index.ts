@@ -1,155 +1,16 @@
-import {
-    ApiConnectorType,
-    ATTIO_OBJECTS,
-    ATTIO_ORIGIN,
-    ATTIO_WORKSPACE_MEMBERS_PATH,
-    getAttioAttributesPath,
-    getAttioRecordsQueryPath,
-    LIVE_INTEGRATION_CATALOG,
-    ParameterError,
-    TimeFrames,
-} from '@lightdash/common';
-import {
-    ALL_PUSHDOWN_REFUSED,
-    defineLiveIntegration,
-    jsonRequest,
-} from '../../integration';
-import { getIsoDateInTimeZone } from '../../query/dateRange';
-import { ATTIO_MAX_PAGES, ATTIO_MAX_RECORDS } from './api';
-import { isInternalAttioField } from './attributes';
-import { compileAttioQuery } from './compile';
-import { toAttioError } from './errors';
-import { ATTIO_EXPLORES } from './explores';
-import {
-    ATTIO_BOOLEAN_FILTERS,
-    ATTIO_DATE_FILTERS,
-    ATTIO_NUMBER_FILTERS,
-    ATTIO_TEXT_FILTERS,
-} from './filters';
-import { attioRequestSchema, runAttioQuery, scanAttioAttributes } from './run';
-import {
-    ATTIO_SCANNED_MODELS,
-    readAttioAttributes,
-    toAttioObject,
-    withAttioAttributeFields,
-} from './scanFields';
-import { attioUseCases } from './useCases';
-
-const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.ATTIO];
-const LABEL = CATALOG.messageLabel;
+import { ApiConnectorType, LIVE_INTEGRATION_CATALOG } from '@lightdash/common';
+import { defineLiveIntegration } from '../../sdk';
+import { attioConnection } from './connection';
+import { attioModel } from './model';
+import { attioQuery } from './query';
+import { attioSpec } from './spec';
 
 export const attioIntegration = defineLiveIntegration({
     connector: ApiConnectorType.ATTIO,
-    label: LABEL,
-    settings: CATALOG.settings,
-    origins: [ATTIO_ORIGIN],
-    access: () => ({
-        pathPrefixes: [
-            ...ATTIO_OBJECTS.flatMap((object) => [
-                getAttioAttributesPath(object),
-                getAttioRecordsQueryPath(object),
-            ]),
-            ATTIO_WORKSPACE_MEMBERS_PATH,
-        ],
-        // Records are read with POST, attributes with GET
-        methods: ['GET', 'POST'],
-    }),
-    limits: {
-        // The record pages, plus one call for owner names when they're selected
-        callsPerQuery: ATTIO_MAX_PAGES + 1,
-        timeoutMs: 30_000,
-        maxRows: ATTIO_MAX_RECORDS,
-    },
-    // Attio's filter takes any mix of $and, $or and $not. Dates are UTC days.
-    capabilities: {
-        filters: {
-            operators: {
-                string: ATTIO_TEXT_FILTERS,
-                number: ATTIO_NUMBER_FILTERS,
-                boolean: ATTIO_BOOLEAN_FILTERS,
-                date: ATTIO_DATE_FILTERS,
-                timestamp: ATTIO_DATE_FILTERS,
-            },
-            multipleValues: true,
-            or: true,
-            nestedGroups: true,
-        },
-        metricFilters: false,
-        dates: {
-            rangeRequired: false,
-            operators: ATTIO_DATE_FILTERS,
-            grains: [TimeFrames.DAY],
-            timezone: 'fixed',
-        },
-        pushdown: ALL_PUSHDOWN_REFUSED,
-    },
-    explores: ATTIO_EXPLORES,
-    plannedModelNames: [],
-    level: {
-        value: 2,
-        description: 'Attio has no aggregates; it returns records only.',
-    },
-    auth: {
-        description: 'No vendor review is needed.',
-        testWith: 'test_account',
-        needs: ['gmail'],
-        token: true,
-        oauth: 'no_review',
-    },
-    paging: { description: 'Up to 500 records a page, with limit and offset.' },
-    // Attio allows 100 reads a second per workspace, and scores list
-    // queries by their filters and sorts over a 10-second window.
-    rateLimits: {
-        concurrentCalls: 3,
-        callsPerSecond: 50,
-        buckets: [
-            {
-                id: 'minute',
-                label: 'per minute',
-                windowMs: 60_000,
-                capacity: 600,
-            },
-            {
-                id: 'hour',
-                label: 'per hour',
-                windowMs: 3_600_000,
-                capacity: 20_000,
-            },
-        ],
-        note: 'List queries are also scored by their filters and sorts over 10 seconds; Attio publishes no threshold.',
-    },
-    useCases: attioUseCases,
-    validate: () => {},
-    checkAuth: ({ type }) => {
-        if (type !== 'bearer_token') {
-            throw new ParameterError(
-                'Attio connections authenticate with an access token',
-            );
-        }
-    },
-    describeTarget: () =>
-        'Attio workspace: companies, people, deals, users and workspaces',
-    parseRequest: jsonRequest(LABEL, attioRequestSchema),
-    compile: ({ explore, metricQuery, now }) =>
-        compileAttioQuery({
-            explore,
-            metricQuery,
-            today: getIsoDateInTimeZone(now, 'UTC'),
-        }),
-    run: runAttioQuery,
-    toError: (response) => toAttioError(response),
-    scan: {
-        read: scanAttioAttributes,
-        withScannedFields: (definition, scan) =>
-            withAttioAttributeFields(
-                definition,
-                readAttioAttributes(
-                    scan.attioAttributes,
-                    toAttioObject(definition.name),
-                ),
-            ),
-        isInternalField: isInternalAttioField,
-        // Companies is the first explore; the other objects are scanned too
-        models: ATTIO_SCANNED_MODELS,
-    },
+    label: LIVE_INTEGRATION_CATALOG[ApiConnectorType.ATTIO].messageLabel,
+    kind: 'records',
+    connection: attioConnection,
+    model: attioModel,
+    query: attioQuery,
+    spec: attioSpec,
 });
