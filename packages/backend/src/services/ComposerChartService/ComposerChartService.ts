@@ -22,7 +22,6 @@ import {
     NotSupportedError,
     ParameterError,
     parseComposerChartInput,
-    parseComposerChartRunRequest,
     parseComposerPipeline,
     parseComposerStoredChart,
     parseDashboardComposerChartRunRequest,
@@ -832,39 +831,6 @@ export class ComposerChartService extends BaseService {
     ): Promise<ComposerChartRunResults> {
         const { composerChartUuid, ...request } =
             parseDashboardComposerChartRunRequest(body);
-        return this.runTileRequest(
-            account,
-            projectUuid,
-            composerChartUuid,
-            request,
-            context,
-        );
-    }
-
-    /** The deprecated run route's entry: the chart comes from the path. */
-    async run(
-        account: RegisteredAccount,
-        projectUuid: UUID,
-        composerChartUuid: UUID,
-        body: ComposerChartRunRequest,
-        context: ComposerChartRunContext,
-    ): Promise<ComposerChartRunResults> {
-        return this.runTileRequest(
-            account,
-            projectUuid,
-            composerChartUuid,
-            parseComposerChartRunRequest(body),
-            context,
-        );
-    }
-
-    private async runTileRequest(
-        account: RegisteredAccount,
-        projectUuid: UUID,
-        composerChartUuid: UUID,
-        request: ComposerChartRunRequest,
-        context: ComposerChartRunContext,
-    ): Promise<ComposerChartRunResults> {
         return this.runOnTile(account, projectUuid, composerChartUuid, {
             dashboardUuid: request.dashboardUuid,
             tileUuid: request.tileUuid,
@@ -878,6 +844,22 @@ export class ComposerChartService extends BaseService {
                 excludedParameterKeys: request.excludedParameterKeys,
             },
         });
+    }
+
+    /** The deprecated run route: the chart comes from the path. */
+    async run(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        body: ComposerChartRunRequest,
+        context: ComposerChartRunContext,
+    ): Promise<ComposerChartRunResults> {
+        return this.runTile(
+            account,
+            projectUuid,
+            { ...body, composerChartUuid },
+            context,
+        );
     }
 
     /** As the tile runs on its dashboard opened unchanged: saved filters and parameter controls, resolved here. */
@@ -936,22 +918,23 @@ export class ComposerChartService extends BaseService {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
         // The tile decides, not ownership: a dashboard can show a chart a space owns
+        const notOnTile = new ForbiddenError(
+            'This composer chart is not on that dashboard tile',
+        );
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             request.dashboardUuid,
             { projectUuid },
         );
-        const dashboardUuid = dashboard.uuid;
+        // A uuid only, as before: a slug resolving here is refused
+        if (dashboard.uuid !== request.dashboardUuid) throw notOnTile;
+        const { dashboardUuid } = request;
         const shown = dashboard.tiles.some(
             (tile) =>
                 tile.uuid === request.tileUuid &&
                 isDashboardComposerChartTile(tile) &&
                 tile.properties.composerChartUuid === composerChartUuid,
         );
-        if (!shown) {
-            throw new ForbiddenError(
-                'This composer chart is not on that dashboard tile',
-            );
-        }
+        if (!shown) throw notOnTile;
         const chart = await this.composerChartModel.get(composerChartUuid);
         const exploreByNodeId = await this.getNodeExplores(
             account,

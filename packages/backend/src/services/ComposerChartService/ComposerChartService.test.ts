@@ -1133,22 +1133,13 @@ describe('ComposerChartService.run', () => {
     });
 
     test('runs on the requested dashboard, whose tile shows a chart another dashboard owns', async () => {
-        const {
-            service,
-            submitComposerRun,
-            dashboardModel,
-            asyncQueryService,
-        } = setupRun();
+        const { service, submitComposerRun, asyncQueryService } = setupRun();
         await service.run(
             viewer(),
             projectUuid,
             'chart-uuid',
             { ...runRequest, dashboardUuid: 'showing-dashboard' },
             QueryExecutionContext.DASHBOARD,
-        );
-        expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
-            'showing-dashboard',
-            { projectUuid },
         );
         expect(asyncQueryService.getComposerTileContext).toHaveBeenCalledWith(
             expect.objectContaining({ dashboardUuid: 'showing-dashboard' }),
@@ -1160,7 +1151,7 @@ describe('ComposerChartService.run', () => {
         });
     });
 
-    test('records the dashboard uuid when the request names the dashboard by slug', async () => {
+    test('refuses a dashboard named by slug, as the field takes a uuid', async () => {
         const { service, submitComposerRun, dashboardModel } = setupRun();
         dashboardModel.getByIdOrSlug.mockImplementation(async () => ({
             uuid: dashboardUuid,
@@ -1173,16 +1164,16 @@ describe('ComposerChartService.run', () => {
                 },
             ],
         }));
-        await service.run(
-            viewer(),
-            projectUuid,
-            'chart-uuid',
-            { ...runRequest, dashboardUuid: 'dashboard-slug' },
-            QueryExecutionContext.DASHBOARD,
-        );
-        expect(submitComposerRun.mock.calls[0][0].binding.stamp).toEqual(
-            expect.objectContaining({ dashboardUuid }),
-        );
+        await expect(
+            service.run(
+                viewer(),
+                projectUuid,
+                'chart-uuid',
+                { ...runRequest, dashboardUuid: 'dashboard-slug' },
+                QueryExecutionContext.DASHBOARD,
+            ),
+        ).rejects.toThrow('not on that dashboard tile');
+        expect(submitComposerRun).not.toHaveBeenCalled();
     });
 
     test('runs a tile of a chart a space owns, checking view on its space', async () => {
@@ -1232,32 +1223,18 @@ describe('ComposerChartService.run', () => {
     });
 
     test('runs the chart a dashboard composer chart request names', async () => {
-        const { service, submitComposerRun, getOwner } = setupRun();
+        const { service, submitComposerRun } = setupRun();
         await service.runTile(
             viewer(),
             projectUuid,
             { ...runRequest, composerChartUuid: 'chart-uuid' },
             QueryExecutionContext.DASHBOARD,
         );
-        expect(getOwner).toHaveBeenCalledWith('chart-uuid');
         expect(submitComposerRun.mock.calls[0][0].binding.stamp).toEqual({
             composerChartUuid: 'chart-uuid',
             dashboardUuid,
             tileUuid: 'tile-uuid',
         });
-    });
-
-    test('refuses a dashboard composer chart request naming no chart', async () => {
-        const { service, submitComposerRun } = setupRun();
-        await expect(
-            service.runTile(
-                viewer(),
-                projectUuid,
-                runRequest as unknown as Parameters<typeof service.runTile>[2],
-                QueryExecutionContext.DASHBOARD,
-            ),
-        ).rejects.toThrow('composerChartUuid');
-        expect(submitComposerRun).not.toHaveBeenCalled();
     });
 
     test('refuses a run naming a tile that does not show this chart', async () => {

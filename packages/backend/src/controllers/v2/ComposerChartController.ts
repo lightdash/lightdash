@@ -11,6 +11,7 @@ import {
 import {
     Body,
     Deprecated,
+    Extension,
     Get,
     Middlewares,
     OperationId,
@@ -87,12 +88,19 @@ export class ComposerChartController extends BaseController {
     }
 
     /**
-     * Runs a composer chart's stored pipeline where a dashboard shows it, for
-     * anyone who can view the chart. The request carries no nodes; each node's
-     * query is polled with the standard results endpoint.
+     * Deprecated — use the v2 Execute dashboard composer chart endpoint instead.
+     *
+     * This endpoint was deprecated on 27 November 2026 and will be removed after 27 February 2027. It runs a composer chart where a dashboard tile shows it; Execute dashboard composer chart takes the same request with composerChartUuid in the body.
      * @summary Run composer chart
      * @deprecated Use POST /api/v2/projects/{projectUuid}/query/dashboard-composer-chart instead
      */
+    @Extension('x-mint', {
+        content: `<Warning>
+**This endpoint is deprecated and will be removed after 27 February 2027.**
+
+Use [Execute dashboard composer chart](https://docs.lightdash.com/api-reference/v2/execute-dashboard-composer-chart) (\`POST /api/v2/projects/{projectUuid}/query/dashboard-composer-chart\`) instead: the same request with \`composerChartUuid\` in the body, and the same response.
+</Warning>`,
+    })
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
