@@ -5895,6 +5895,14 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError('Organization not found');
         }
 
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
         const { enabled: deletionDisabled } = await this.featureFlagService.get(
             {
                 user,
@@ -5905,14 +5913,6 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError(
                 'Thread deletion is disabled for this organization',
             );
-        }
-
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
 
         const thread = await this.aiAgentModel.getThread({
