@@ -6,6 +6,10 @@ import {
     SEED_ORG_1_EDITOR,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import {
+    GroupUserAttributesTable,
+    UserAttributesTable,
+} from '../../entities/userAttributes';
 
 export async function seed(knex: Knex): Promise<void> {
     const [org] = await knex('organizations')
@@ -35,5 +39,15 @@ export async function seed(knex: Knex): Promise<void> {
         group_uuid: SEED_GROUP_2.groupUuid,
         user_id: editor.user_id,
         organization_id: org.organization_id,
+    });
+    const attribute = await knex(UserAttributesTable)
+        .where({ organization_id: org.organization_id, name: 'is_admin' })
+        .first('user_attribute_uuid');
+    if (!attribute) throw new Error('Missing is_admin seed attribute');
+    await knex(GroupUserAttributesTable).insert({
+        user_attribute_uuid: attribute.user_attribute_uuid,
+        group_uuid: SEED_GROUP_2.groupUuid,
+        value: 'true',
+        values: ['true'],
     });
 }
