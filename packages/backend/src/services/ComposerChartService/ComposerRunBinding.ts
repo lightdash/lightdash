@@ -31,6 +31,7 @@ export class ComposerRunBinding {
     static forAuthorizedViewer({
         account,
         chart,
+        dashboardUuid,
         tileUuid,
         resolved,
         dashboardFilters,
@@ -38,6 +39,8 @@ export class ComposerRunBinding {
     }: {
         account: RegisteredAccount;
         chart: ComposerChart;
+        /** The dashboard the tile is on, checked against the chart's owner by the caller. */
+        dashboardUuid: string;
         tileUuid: string;
         /** The stored nodes with the dashboard's filters and parameters written on, and the shared parameter map. */
         resolved: {
@@ -56,7 +59,7 @@ export class ComposerRunBinding {
             dashboardFilters,
             {
                 composerChartUuid: chart.uuid,
-                dashboardUuid: chart.dashboardUuid,
+                dashboardUuid,
                 tileUuid,
             },
             stage?.nodeId ?? null,

@@ -14,7 +14,7 @@ import {
 const stored: ComposerChart = {
     uuid: 'chart-uuid',
     projectUuid: 'project-uuid',
-    dashboardUuid: 'dashboard-uuid',
+    owner: { type: 'dashboard', dashboardUuid: 'dashboard-uuid' },
     name: 'Orders by status',
     description: null,
     slug: 'orders-by-status',

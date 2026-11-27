@@ -252,7 +252,7 @@ describe('Composer charts', () => {
         tracker.trackDashboard(dashboard.uuid);
         expect(chart).toMatchObject({
             projectUuid,
-            dashboardUuid: dashboard.uuid,
+            owner: { type: 'dashboard', dashboardUuid: dashboard.uuid },
             name: 'Orders by status',
             slug: expect.stringMatching(/^orders-by-status/),
             pipeline: composerChartBody(dashboard.uuid).pipeline,
@@ -478,7 +478,7 @@ describe('Composer charts', () => {
             expect(copiedChartUuid).not.toBe(chart.uuid);
             const copied = await getChart(copiedChartUuid!);
             expect(copied.body.results).toMatchObject({
-                dashboardUuid: copy.uuid,
+                owner: { type: 'dashboard', dashboardUuid: copy.uuid },
                 name: chart.name,
                 pipeline: chart.pipeline,
                 chart: chart.chart,
@@ -1319,7 +1319,7 @@ describe('Composer charts', () => {
             ).body.results;
             expect(stored).toMatchObject({
                 slug: file.slug,
-                dashboardUuid: dashboard.uuid,
+                owner: { type: 'dashboard', dashboardUuid: dashboard.uuid },
                 pipeline: file.pipeline,
             });
 
@@ -1350,8 +1350,11 @@ describe('Composer charts', () => {
             const stored = (
                 await getChart(created.body.results.composerChartUuid)
             ).body.results;
-            tracker.trackDashboard(stored.dashboardUuid);
-            const placeholder = await getDashboard(stored.dashboardUuid);
+            if (stored.owner.type !== 'dashboard') {
+                throw new Error('Expected the chart on a dashboard');
+            }
+            tracker.trackDashboard(stored.owner.dashboardUuid);
+            const placeholder = await getDashboard(stored.owner.dashboardUuid);
             expect(placeholder).toMatchObject({
                 slug: dashboardSlug,
                 tiles: [],
@@ -1377,7 +1380,7 @@ describe('Composer charts', () => {
             expect(stored.versionUuid).not.toBe(chart.versionUuid);
             expect(stored).toMatchObject({
                 name: 'Renamed from code',
-                dashboardUuid: dashboard.uuid,
+                owner: { type: 'dashboard', dashboardUuid: dashboard.uuid },
                 chart: { pivotConfig: { columns: ['orders_status'] } },
             });
             // A group-by round-trips like any other chart

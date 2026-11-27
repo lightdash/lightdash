@@ -14,6 +14,7 @@ import {
     QueryExecutionContext,
     QuerySourceType,
     TableCalculationType,
+    type ComposerChartOwner,
     type ComposerChartPipelineNode,
     type CreateComposerChart,
     type DashboardFilters,
@@ -659,12 +660,13 @@ describe('ComposerChartService.run', () => {
         } = setup(options);
         const body = createBody(options.nodes ?? PIPELINES.python);
         const stored = body.pipeline;
+        const owner: ComposerChartOwner = { type: 'dashboard', dashboardUuid };
         Object.assign(composerChartModel, {
-            getOwner: vi.fn(async () => ({ projectUuid, dashboardUuid })),
+            getOwner: vi.fn(async () => ({ projectUuid, owner })),
             get: vi.fn(async () => ({
                 uuid: 'chart-uuid',
                 projectUuid,
-                dashboardUuid,
+                owner,
                 pipeline: stored,
                 chart: options.chart ?? body.chart,
             })),
@@ -1009,7 +1011,10 @@ describe('ComposerChartService.getParameterReferences', () => {
             },
         ] satisfies ComposerChartPipelineNode[];
         Object.assign(composerChartModel, {
-            getOwner: vi.fn(async () => ({ projectUuid, dashboardUuid })),
+            getOwner: vi.fn(async () => ({
+                projectUuid,
+                owner: { type: 'dashboard', dashboardUuid },
+            })),
             get: vi.fn(async () => ({
                 uuid: 'chart-uuid',
                 pipeline: { schemaVersion: 1, terminalNodeId: 'raw', nodes },

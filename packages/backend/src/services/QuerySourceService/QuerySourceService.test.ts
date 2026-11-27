@@ -1796,7 +1796,7 @@ describe('composer bound run', () => {
             chart: {
                 uuid: 'composer-chart-uuid',
                 projectUuid,
-                dashboardUuid: 'dashboard-uuid',
+                owner: { type: 'dashboard', dashboardUuid: 'dashboard-uuid' },
                 pipeline: {
                     schemaVersion: 1,
                     terminalNodeId: 'forecast',
@@ -1807,6 +1807,7 @@ describe('composer bound run', () => {
                     chartConfig: { type: ChartType.TABLE },
                 },
             } as ComposerChart,
+            dashboardUuid: 'dashboard-uuid',
             tileUuid: 'tile-uuid',
             resolved: { nodes: storedNodes, parameters: {} },
             dashboardFilters: {
