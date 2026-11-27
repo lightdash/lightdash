@@ -94,6 +94,7 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                 return item.data.parentSpaceUuid ?? undefined;
             case ResourceViewItemType.CHART:
             case ResourceViewItemType.DASHBOARD:
+            case ResourceViewItemType.COMPOSER_CHART:
                 return item.data.spaceUuid;
             case ResourceViewItemType.DOCUMENT:
                 return item.data.spaceUuid ?? personalSpace?.uuid;

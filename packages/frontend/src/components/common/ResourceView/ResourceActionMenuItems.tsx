@@ -5,6 +5,7 @@ import {
     ResourceViewItemType,
     type DirectAccessResourceType,
     type Project,
+    type ResourceViewComposerChartItem,
     type ResourceViewItem,
 } from '@lightdash/common';
 import { Menu, Tooltip } from '@mantine/core';
@@ -37,7 +38,7 @@ import {
 } from './types';
 
 type ResourceActionMenuItemsProps = {
-    item: ResourceViewItem;
+    item: Exclude<ResourceViewItem, ResourceViewComposerChartItem>;
     projectUuid: string | undefined;
     project: Project | undefined;
     favoritesContext: FavoritesContextType | null;

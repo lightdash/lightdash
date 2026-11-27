@@ -85,9 +85,10 @@ import { ContentLayoutControl } from './ContentLayoutControl';
 import { PageGrid, PageGridItem } from './PageGrid';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
-const toItemRef = (content: SummaryContent): HomepageCollectionItemRef => {
-    return { contentType: content.contentType, uuid: content.uuid };
-};
+const toItemRef = (content: SummaryContent): HomepageCollectionItemRef | null =>
+    content.contentType === ContentType.COMPOSER_CHART
+        ? null
+        : { contentType: content.contentType, uuid: content.uuid };
 
 type SortKey = 'name' | 'updated' | 'type';
 
@@ -372,8 +373,9 @@ const CollectionPicker: FC<{
     const toggleItem = (content: SummaryContent) =>
         setSelected((prev) => {
             const next = new Map(prev);
+            const ref = toItemRef(content);
             if (next.has(content.uuid)) next.delete(content.uuid);
-            else next.set(content.uuid, toItemRef(content));
+            else if (ref) next.set(content.uuid, ref);
             return next;
         });
 
@@ -396,8 +398,9 @@ const CollectionPicker: FC<{
                 next.has(content.uuid),
             );
             items.forEach((content) => {
+                const ref = toItemRef(content);
                 if (allSelected) next.delete(content.uuid);
-                else next.set(content.uuid, toItemRef(content));
+                else if (ref) next.set(content.uuid, ref);
             });
             return next;
         });

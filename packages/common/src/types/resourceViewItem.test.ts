@@ -74,6 +74,8 @@ describe('Document content presentation', () => {
             ...content,
             pinnedList: { uuid: 'homepage-pins' },
         });
+        if (!isResourceViewDocumentItem(item))
+            throw new Error('not a Document');
         expect(item.data.pinnedListUuid).toBe('homepage-pins');
     });
 });
