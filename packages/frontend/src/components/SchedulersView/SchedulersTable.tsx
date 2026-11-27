@@ -11,10 +11,8 @@ import {
 import { Anchor, Badge, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
-    IconChartBar,
     IconClock,
     IconCodeDots,
-    IconLayoutDashboard,
     IconMail,
     IconRadar,
     IconRun,
@@ -38,6 +36,7 @@ import { useProject } from '../../hooks/useProject';
 import GSheetsSvg from '../../svgs/google-sheets.svg?react';
 import GoogleChatSvg from '../../svgs/googlechat.svg?react';
 import SlackSvg from '../../svgs/slack.svg?react';
+import { BarChartIcon, DashboardIcon } from '../common/ContentIcons';
 import {
     ContentTable,
     useContentTable,
@@ -310,7 +309,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                 {item.savedChartName ? (
                                     <Group gap="two">
                                         <MantineIcon
-                                            icon={IconChartBar}
+                                            icon={BarChartIcon}
                                             color="dimmed"
                                             size={12}
                                             strokeWidth={1.5}
@@ -334,7 +333,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                 ) : item.dashboardName ? (
                                     <Group gap="two">
                                         <MantineIcon
-                                            icon={IconLayoutDashboard}
+                                            icon={DashboardIcon}
                                             color="dimmed"
                                             strokeWidth={1.5}
                                             size={12}
@@ -384,10 +383,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                 size: 150,
                 Header: ({ column }) => (
                     <Group gap="two" wrap="nowrap">
-                        <MantineIcon
-                            icon={IconLayoutDashboard}
-                            color="dimmed"
-                        />
+                        <MantineIcon icon={DashboardIcon} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),

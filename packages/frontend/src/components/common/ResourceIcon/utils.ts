@@ -1,58 +1,58 @@
 import { ChartKind } from '@lightdash/common';
 import {
-    IconChartArea,
-    IconChartAreaLine,
-    IconChartBar,
-    IconChartDots,
-    IconChartLine,
-    IconChartPie,
-    IconChartTreemap,
-    IconCode,
-    IconFilter,
-    IconGauge,
-    IconGitMerge,
-    IconMap,
-    IconPuzzle,
-    IconSquareNumber1,
-    IconTable,
-} from '@tabler/icons-react';
+    AreaChartIcon,
+    BarChartIcon,
+    BigNumberIcon,
+    CustomChartTypeIcon,
+    FunnelChartIcon,
+    GaugeChartIcon,
+    LineChartIcon,
+    MapChartIcon,
+    MixedChartIcon,
+    PieChartIcon,
+    SankeyChartIcon,
+    ScatterChartIcon,
+    TableIcon,
+    TreemapChartIcon,
+    VegaChartIcon,
+} from '../ContentIcons';
 
 export const getChartIcon = (chartKind: ChartKind | undefined) => {
     switch (chartKind) {
         case undefined:
         case ChartKind.VERTICAL_BAR:
-            return IconChartBar;
+            return BarChartIcon;
         case ChartKind.HORIZONTAL_BAR:
-            return IconChartBar;
+            return BarChartIcon;
         case ChartKind.LINE:
-            return IconChartLine;
+            return LineChartIcon;
         case ChartKind.SCATTER:
-            return IconChartDots;
+            return ScatterChartIcon;
         case ChartKind.AREA:
-            return IconChartArea;
+            return AreaChartIcon;
         case ChartKind.MIXED:
-            return IconChartAreaLine;
+            return MixedChartIcon;
         case ChartKind.PIE:
-            return IconChartPie;
+            return PieChartIcon;
         case ChartKind.FUNNEL:
-            return IconFilter;
+            return FunnelChartIcon;
         case ChartKind.TREEMAP:
-            return IconChartTreemap;
+            return TreemapChartIcon;
         case ChartKind.GAUGE:
-            return IconGauge;
+            return GaugeChartIcon;
         case ChartKind.TABLE:
-            return IconTable;
+            return TableIcon;
         case ChartKind.BIG_NUMBER:
-            return IconSquareNumber1;
+            return BigNumberIcon;
         case ChartKind.CUSTOM:
-            return IconCode;
+            return VegaChartIcon;
         case ChartKind.MAP:
-            return IconMap;
+            return MapChartIcon;
         case ChartKind.SANKEY:
-            return IconGitMerge;
+            return SankeyChartIcon;
         case ChartKind.DATA_APP_VIZ:
-            return IconPuzzle;
+            return CustomChartTypeIcon;
         default:
-            return IconChartBar;
+            return BarChartIcon;
     }
 };

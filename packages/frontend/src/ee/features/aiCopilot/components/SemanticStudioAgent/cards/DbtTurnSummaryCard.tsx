@@ -21,10 +21,10 @@ import {
     IconFileCode,
     IconGitBranch,
     IconInfoCircle,
-    IconTable,
 } from '@tabler/icons-react';
 import { useContext, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { TableIcon } from '../../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import {
     type ChangeKind,
@@ -342,7 +342,7 @@ export const DbtTurnSummaryCard: FC<{
                           action: 'Changed the model',
                           icon: (
                               <MantineIcon
-                                  icon={IconTable}
+                                  icon={TableIcon}
                                   size={14}
                                   color="dimmed"
                               />

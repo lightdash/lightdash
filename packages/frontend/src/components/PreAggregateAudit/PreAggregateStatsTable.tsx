@@ -2,14 +2,12 @@ import { type PreAggregateDailyStatResult } from '@lightdash/common';
 import { Anchor, Group, Text, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconChartBar,
     IconClock,
     IconCube,
-    IconLayoutDashboard,
-    IconTable,
     IconTarget,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { BarChartIcon, DashboardIcon, TableIcon } from '../common/ContentIcons';
 import {
     ContentTable,
     useContentTable,
@@ -128,7 +126,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 size: 160,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconTable} color="dimmed" />
+                        <MantineIcon icon={TableIcon} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -167,7 +165,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 size: 200,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconChartBar} color="dimmed" />
+                        <MantineIcon icon={BarChartIcon} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -193,10 +191,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 size: 180,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon
-                            icon={IconLayoutDashboard}
-                            color="dimmed"
-                        />
+                        <MantineIcon icon={DashboardIcon} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),

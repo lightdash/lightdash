@@ -14,10 +14,10 @@ import {
     IconCircleMinus,
     IconGitBranch,
     IconGitPullRequest,
-    IconTable,
 } from '@tabler/icons-react';
 import { lazy, Suspense, useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { TableIcon } from '../../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { cannotApply } from '../../../../../../features/semanticStudio/draftState';
 import { FieldChangeIcon } from '../../../../../../features/semanticStudio/KindTypeIcon';
@@ -461,7 +461,7 @@ export const TurnSummaryCard: FC<{
                                 />
                             ) : (
                                 <MantineIcon
-                                    icon={IconTable}
+                                    icon={TableIcon}
                                     size={14}
                                     color="green"
                                 />

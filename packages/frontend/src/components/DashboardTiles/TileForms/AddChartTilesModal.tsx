@@ -19,7 +19,6 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconChartAreaLine } from '@tabler/icons-react';
 import { uniqBy } from 'es-toolkit/compat';
 import React, {
     useEffect,
@@ -37,6 +36,7 @@ import {
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { BarChartIcon } from '../../common/ContentIcons';
 import MantineModal from '../../common/MantineModal';
 import { MultiSelectCombobox } from '../../common/MultiSelectCombobox/MultiSelectCombobox';
 import { ChartIcon } from '../../common/ResourceIcon';
@@ -241,7 +241,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
             opened
             onClose={onClose}
             title="Add saved charts"
-            icon={IconChartAreaLine}
+            icon={BarChartIcon}
             size="lg"
             modalRootProps={{ closeOnClickOutside: false }}
             actions={

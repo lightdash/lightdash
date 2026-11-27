@@ -39,10 +39,10 @@ import {
     IconSearch,
     IconTicket,
     IconLayoutKanban,
-    IconTable,
 } from '@tabler/icons-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
+import { TableIcon } from '../../../components/common/ContentIcons';
 import { ContentTableSearchInput } from '../../../components/common/ContentTable';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import FilterFacet from '../../../components/common/FilterFacet';
@@ -1075,7 +1075,7 @@ export function RoadmapProjects({
                                 label: (
                                     <Group gap="xs" wrap="nowrap">
                                         <MantineIcon
-                                            icon={IconTable}
+                                            icon={TableIcon}
                                             size="sm"
                                         />
                                         Table

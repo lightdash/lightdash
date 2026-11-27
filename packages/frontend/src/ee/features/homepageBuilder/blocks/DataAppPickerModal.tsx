@@ -15,8 +15,9 @@ import {
     TextInput,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconAppWindow, IconSearch } from '@tabler/icons-react';
+import { IconSearch } from '@tabler/icons-react';
 import { useMemo, useRef, useState, type FC } from 'react';
+import { DataAppIcon } from '../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
@@ -186,7 +187,7 @@ export const DataAppPickerModal: FC<{
             opened={opened}
             onClose={onClose}
             title="Add data apps"
-            icon={IconAppWindow}
+            icon={DataAppIcon}
             size="lg"
             confirmLabel="Add"
             onConfirm={() => {

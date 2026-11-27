@@ -8,13 +8,14 @@ import {
     type ResourceViewItem,
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
-import { IconChartBar, IconPlus } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useVerifiedContentForHomepage } from '../../../hooks/useVerifiedContentList';
 import useApp from '../../../providers/App/useApp';
+import { BarChartIcon } from '../../common/ContentIcons';
 import MantineIcon from '../../common/MantineIcon';
 import MantineLinkButton from '../../common/MantineLinkButton';
 import ResourceView from '../../common/ResourceView';
@@ -139,7 +140,7 @@ export const HomepageContentPanel: FC<Props> = ({
                     : undefined
             }
             emptyStateProps={{
-                icon: <MantineIcon icon={IconChartBar} size={30} />,
+                icon: <MantineIcon icon={BarChartIcon} size={30} />,
                 title: userCanCreateCharts
                     ? 'Feels a little bit empty over here'
                     : 'No items added yet',

@@ -1,17 +1,14 @@
 import { ManagedAgentRunStatus } from '@lightdash/common';
 import { Text } from '@mantine/core';
 import {
-    IconAppWindow,
     IconChartAreaLine,
     IconCheckbox,
     IconFileText,
     IconFolders,
     IconHash,
     IconHome,
-    IconLayoutDashboard,
     IconPuzzle,
     IconStack2,
-    IconTable,
     IconTerminal2,
     IconWand,
 } from '@tabler/icons-react';
@@ -24,6 +21,7 @@ import {
     formatAutopilotActionCount,
     useAutopilotNavState,
 } from '../../ee/features/managedAgent/hooks/useAutopilotNavState';
+import { DashboardIcon, DataAppIcon, TableIcon } from '../common/ContentIcons';
 import MantineIcon from '../common/MantineIcon';
 import {
     useCanExplore,
@@ -64,11 +62,11 @@ const ITEM_ICONS: Record<AppSidebarItemKey, ReactNode> = {
     home: <MantineIcon icon={IconHome} />,
     askAi: <AiAgentIcon size={16} muted />,
     spaces: <MantineIcon icon={IconFolders} />,
-    dashboards: <MantineIcon icon={IconLayoutDashboard} />,
+    dashboards: <MantineIcon icon={DashboardIcon} />,
     charts: <MantineIcon icon={IconChartAreaLine} />,
     documents: <MantineIcon icon={IconFileText} />,
-    dataApps: <MantineIcon icon={IconAppWindow} />,
-    tables: <MantineIcon icon={IconTable} />,
+    dataApps: <MantineIcon icon={DataAppIcon} />,
+    tables: <MantineIcon icon={TableIcon} />,
     sqlRunner: <MantineIcon icon={IconTerminal2} />,
     metrics: <MantineIcon icon={IconHash} />,
     semanticLayer: <MantineIcon icon={IconStack2} />,

@@ -1,12 +1,12 @@
 import { type AiBillableFeature } from '@lightdash/common';
 import {
-    IconAppWindow,
     IconCrop,
     IconListDetails,
     IconTelescope,
     type Icon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { DataAppIcon } from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { AiAgentIcon } from '../aiCopilot/components/AiAgentIcon';
 
@@ -15,7 +15,7 @@ const FEATURE_ICONS: Record<Exclude<AiBillableFeature, 'agent'>, Icon> = {
     'agent-subtask': IconListDetails,
     compaction: IconCrop,
     'deep-research': IconTelescope,
-    'data-app': IconAppWindow,
+    'data-app': DataAppIcon,
 };
 
 const ICON_SIZE = 14;

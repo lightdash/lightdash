@@ -7,23 +7,23 @@ import {
     type ContentReviewSimilarContentItem,
     type SpaceSummary,
 } from '@lightdash/common';
+import { IconTerminal2 } from '@tabler/icons-react';
 import {
-    IconChartBar,
-    IconFileText,
-    IconLayoutDashboard,
-    IconTerminal2,
-} from '@tabler/icons-react';
+    BarChartIcon,
+    DashboardIcon,
+    DocumentIcon,
+} from '../../../components/common/ContentIcons';
 
 export const getContentTypeIcon = (contentType: ContentReviewContentType) => {
     switch (contentType) {
         case ContentReviewContentType.CHART:
-            return IconChartBar;
+            return BarChartIcon;
         case ContentReviewContentType.SQL_CHART:
             return IconTerminal2;
         case ContentReviewContentType.DASHBOARD:
-            return IconLayoutDashboard;
+            return DashboardIcon;
         case ContentReviewContentType.DOCUMENT:
-            return IconFileText;
+            return DocumentIcon;
         default:
             return assertUnreachable(
                 contentType,

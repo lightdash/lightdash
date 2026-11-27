@@ -4,17 +4,16 @@ import {
     type PromotionChanges,
 } from '@lightdash/common';
 import { Accordion, Button, Flex, Loader, Stack, Text } from '@mantine/core';
-import {
-    IconAppWindow,
-    IconChartAreaLine,
-    IconDatabase,
-    IconFileText,
-    IconFolder,
-    IconLayoutDashboard,
-    IconRocket,
-} from '@tabler/icons-react';
+import { IconDatabase, IconRocket } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
+import {
+    BarChartIcon,
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    SpaceIcon,
+} from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
     type MantineModalProps,
@@ -297,7 +296,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
                                 </Text>
                                 <Flex gap="xs" align="center">
                                     <MantineIcon
-                                        icon={IconFolder}
+                                        icon={SpaceIcon}
                                         color="violet.8"
                                     />
                                     <Text fw={600}>Spaces:</Text>
@@ -316,7 +315,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
                                 </Text>
                                 <Flex gap="xs" align="center">
                                     <MantineIcon
-                                        icon={IconLayoutDashboard}
+                                        icon={DashboardIcon}
                                         color="green.8"
                                     />
                                     <Text fw={600}>Dashboards:</Text>
@@ -334,7 +333,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
                                 </Text>
                                 <Flex gap="xs" align="center">
                                     <MantineIcon
-                                        icon={IconFileText}
+                                        icon={DocumentIcon}
                                         color="indigo.7"
                                     />
                                     <Text fw={600}>Documents:</Text>
@@ -352,7 +351,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
                                 </Text>
                                 <Flex gap="xs" align="center">
                                     <MantineIcon
-                                        icon={IconChartAreaLine}
+                                        icon={BarChartIcon}
                                         color="blue.7"
                                     />
                                     <Text fw={600}>Charts:</Text>
@@ -388,7 +387,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
                                 </Text>
                                 <Flex gap="xs" align="center">
                                     <MantineIcon
-                                        icon={IconChartAreaLine}
+                                        icon={BarChartIcon}
                                         color="blue.7"
                                     />
                                     <Text fw={600}>Composer charts:</Text>
@@ -406,7 +405,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
                                 </Text>
                                 <Flex gap="xs" align="center">
                                     <MantineIcon
-                                        icon={IconAppWindow}
+                                        icon={DataAppIcon}
                                         color="orange.6"
                                     />
                                     <Text fw={600}>Data apps:</Text>

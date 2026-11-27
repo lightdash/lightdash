@@ -25,7 +25,6 @@ import {
     IconClock,
     IconCopy,
     IconEye,
-    IconFolder,
     IconHash,
     IconHistory,
     IconInfoCircle,
@@ -36,6 +35,7 @@ import { Link } from 'react-router';
 import ManagedFromRepositoryRow from '../../../features/contentAsCode/components/ManagedFromRepositoryRow';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import { SpaceIcon } from '../ContentIcons';
 import MantineIcon from '../MantineIcon';
 import InfoRow from '../PageHeader/InfoRow';
 import ViewsCountPopover from '../ViewsCountPopover';
@@ -183,7 +183,7 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
                 ) : null}
 
                 {spaceName && spaceUuid && (
-                    <InfoRow icon={IconFolder} label="Space">
+                    <InfoRow icon={SpaceIcon} label="Space">
                         <Anchor
                             component={Link}
                             to={`/projects/${projectUrlIdentifier}/spaces/${spaceUuid}`}

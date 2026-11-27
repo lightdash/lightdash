@@ -42,7 +42,7 @@ import { formatDuration, formatFileSize } from '../../utils/formatters';
 import Callout from '../common/Callout';
 import { filterOperatorLabel } from '../common/Filters/FilterInputs/constants';
 import MantineIcon from '../common/MantineIcon';
-import { IconBox } from '../common/ResourceIcon';
+import { ContentIcon } from '../common/ResourceIcon';
 import TruncatedText from '../common/TruncatedText';
 import classes from './PreAggregateMaterializations.module.css';
 
@@ -271,7 +271,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
             zIndex={getDefaultZIndex('max') + 1}
             title={
                 <Group gap="xs">
-                    <IconBox
+                    <ContentIcon
                         icon={
                             summary.externalTable
                                 ? IconDatabaseExport
@@ -486,7 +486,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
                         <Box className={classes.detailSection} pt="md">
                             <Group justify="space-between" mb="sm">
                                 <Group gap="xs">
-                                    <IconBox
+                                    <ContentIcon
                                         icon={IconDatabase}
                                         color="ldDark.9"
                                         fill={undefined}

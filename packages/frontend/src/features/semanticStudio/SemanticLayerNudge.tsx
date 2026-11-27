@@ -1,6 +1,6 @@
 import { Box, Button, Group, Paper, Text } from '@mantine/core';
-import { IconTable } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { TableIcon } from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import classes from './SemanticLayerNudge.module.css';
 
@@ -11,7 +11,7 @@ export const SemanticLayerNudge: FC<{ onBuild: () => void }> = ({
     <Paper className={classes.nudge}>
         <Group gap="sm" wrap="nowrap" miw={0}>
             <Box className={classes.nudgeIcon}>
-                <MantineIcon icon={IconTable} />
+                <MantineIcon icon={TableIcon} />
             </Box>
             <Box miw={0}>
                 <Text fz="sm" fw={500}>

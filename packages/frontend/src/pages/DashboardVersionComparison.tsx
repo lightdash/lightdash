@@ -30,15 +30,14 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconChartBar,
     IconChevronDown,
     IconChevronRight,
     IconFilter,
     IconFolders,
-    IconLayoutDashboard,
     IconSearch,
 } from '@tabler/icons-react';
 import { useMemo, useRef, useState } from 'react';
+import { BarChartIcon, DashboardIcon } from '../components/common/ContentIcons';
 import {
     ContentTable,
     useContentTable,
@@ -1058,7 +1057,7 @@ const DashboardVersionComparison = ({
             <Stack gap="md">
                 <ExpandableSection
                     title="Tiles"
-                    icon={IconLayoutDashboard}
+                    icon={DashboardIcon}
                     color="blue"
                     badge={
                         comparison.tileDiff !== 0 ? (
@@ -1078,7 +1077,7 @@ const DashboardVersionComparison = ({
 
                 <ExpandableSection
                     title="Charts"
-                    icon={IconChartBar}
+                    icon={BarChartIcon}
                     color="violet"
                     badge={(() => {
                         const totalChanges = comparison.alignedCharts.filter(

@@ -4,12 +4,8 @@ import {
     type AiPromptContextItem,
 } from '@lightdash/common';
 import { ActionIcon, Group, Loader, Pill, Stack, Tooltip } from '@mantine/core';
-import {
-    IconFileText,
-    IconSitemap,
-    IconTable,
-    IconX,
-} from '@tabler/icons-react';
+import { IconFileText, IconSitemap, IconX } from '@tabler/icons-react';
+import { TableIcon } from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ElementRefPill } from '../../../../../features/apps/components/ElementRefPill';
 import {
@@ -151,7 +147,7 @@ export const PromptAttachments = <T extends ElementRef>({
                                         isTabularThreadFileName(
                                             attachment.fileName,
                                         )
-                                            ? IconTable
+                                            ? TableIcon
                                             : IconFileText
                                     }
                                     size={12}

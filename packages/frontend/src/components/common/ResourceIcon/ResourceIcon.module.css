@@ -1,10 +1,6 @@
-.iconBox {
+.contentIcon {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-grow: 0;
-    flex-shrink: 0;
-    background-color: var(--mantine-color-ldGray-0);
+    flex: none;
 }
 
 .tooltipPointerEvents {

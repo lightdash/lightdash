@@ -1,7 +1,8 @@
 import { ChartKind, ChartType, type DataAppViz } from '@lightdash/common';
-import { IconChartScatter3d, IconPuzzle } from '@tabler/icons-react';
+import { IconChartScatter3d } from '@tabler/icons-react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderHookWithProviders } from '../../../testing/testUtils';
+import { CustomChartTypeIcon } from '../../common/ContentIcons';
 import { useChartTypeOptions } from './useChartTypeOptions';
 
 vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
@@ -61,15 +62,15 @@ describe('getSelectedChartTypeItem', () => {
         });
     });
 
-    it('keeps a generic label and the puzzle piece while the custom chart type loads', () => {
+    it('keeps a generic label and the fallback icon while the custom chart type loads', () => {
         expect(getSelectedItem(ChartType.DATA_APP_VIZ, null)).toMatchObject({
             id: ChartKind.DATA_APP_VIZ,
             label: 'Custom chart type',
-            icon: IconPuzzle,
+            icon: CustomChartTypeIcon,
         });
     });
 
-    it('falls back to the puzzle piece for a custom chart type with no icon chosen', () => {
+    it('falls back to the fallback icon for a custom chart type with no icon chosen', () => {
         expect(
             getSelectedItem(ChartType.DATA_APP_VIZ, {
                 ...projectChartType,
@@ -77,7 +78,7 @@ describe('getSelectedChartTypeItem', () => {
             }),
         ).toMatchObject({
             id: ChartKind.DATA_APP_VIZ,
-            icon: IconPuzzle,
+            icon: CustomChartTypeIcon,
         });
     });
 

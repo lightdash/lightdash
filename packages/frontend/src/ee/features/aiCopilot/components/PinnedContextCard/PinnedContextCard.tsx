@@ -4,8 +4,9 @@ import {
     isTabularThreadFileName,
     type AiPromptContextItem,
 } from '@lightdash/common';
-import { IconTable, IconWindowMaximize, type Icon } from '@tabler/icons-react';
+import { IconWindowMaximize, type Icon } from '@tabler/icons-react';
 import { type FC, type MouseEvent } from 'react';
+import { TableIcon } from '../../../../../components/common/ContentIcons';
 import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 import { elementRefChipLabel } from '../../../../../features/apps/utils/elementRefs';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -96,7 +97,7 @@ const getItemMeta = (
                 label: item.fileName,
                 href: null,
                 icon: isTabularThreadFileName(item.fileName)
-                    ? IconTable
+                    ? TableIcon
                     : undefined,
             };
         // The app's source is not browsable from the thread, so no link.

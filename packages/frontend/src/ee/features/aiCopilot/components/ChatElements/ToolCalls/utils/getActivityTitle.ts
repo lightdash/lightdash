@@ -4,11 +4,11 @@ import {
 } from '@lightdash/common';
 import {
     IconChartLine,
-    IconLayoutDashboard,
     IconRoute,
     IconSearch,
     type TablerIcon,
 } from '@tabler/icons-react';
+import { DashboardIcon } from '../../../../../../../components/common/ContentIcons';
 import { type LiveActivityToolGroup } from '../LiveActivityCard';
 import { isToolCallFailed, isToolCallUnapproved } from './toolCallFailure';
 
@@ -83,13 +83,13 @@ export const getActivityTitle = (
     if (hasDashboard) {
         return {
             title: 'How this dashboard was built',
-            icon: IconLayoutDashboard,
+            icon: DashboardIcon,
         };
     }
     if (hasCreateContent) {
         return {
             title: 'How this content was created',
-            icon: IconLayoutDashboard,
+            icon: DashboardIcon,
         };
     }
     // A change to the semantic layer reads the same however it was checked.

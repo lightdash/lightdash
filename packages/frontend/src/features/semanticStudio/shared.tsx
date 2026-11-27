@@ -8,11 +8,11 @@ import {
     IconFileTypeCsv,
     IconFolder,
     IconSql,
-    IconTable,
     type Icon,
 } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { type FC } from 'react';
+import { TableIcon } from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import dbtLogo from '../../components/ProjectConnection/ProjectConnectFlow/Assets/dbt.svg';
 import { WarehouseTypeLabels } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
@@ -152,7 +152,7 @@ export const NodeIcon: FC<{
             // A live source shows its logo on the source row above its
             // explores, however many it has
             return source.type === 'dbt' || source.type === 'live' ? (
-                <MantineIcon icon={IconTable} size={size} color="dimmed" />
+                <MantineIcon icon={TableIcon} size={size} color="dimmed" />
             ) : (
                 <SourceLogo source={source} size={size} />
             );

@@ -25,12 +25,7 @@ import {
     useHotkeys,
     useScrollIntoView,
 } from '@mantine/hooks';
-import {
-    IconSearch,
-    IconSettings,
-    IconTable,
-    IconX,
-} from '@tabler/icons-react';
+import { IconSearch, IconSettings, IconX } from '@tabler/icons-react';
 import {
     useEffect,
     useMemo,
@@ -41,6 +36,7 @@ import {
     type ReactNode,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { TableIcon } from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { AiAgentIcon } from '../../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
@@ -662,7 +658,7 @@ const Omnibar: FC<Props> = ({ projectUuid, renderTarget }) => {
                                         color="gray"
                                         leftSection={
                                             <MantineIcon
-                                                icon={IconTable}
+                                                icon={TableIcon}
                                                 strokeWidth={1.5}
                                             />
                                         }

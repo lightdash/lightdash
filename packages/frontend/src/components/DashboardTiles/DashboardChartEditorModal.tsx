@@ -5,7 +5,7 @@ import {
     type SavedChart,
 } from '@lightdash/common';
 import { ActionIcon, Anchor, Group, Text, Tooltip } from '@mantine/core';
-import { IconChartBar, IconHistory, IconPencil } from '@tabler/icons-react';
+import { IconHistory, IconPencil } from '@tabler/icons-react';
 import {
     useCallback,
     useEffect,
@@ -37,6 +37,7 @@ import { useExplorerQueryEffects } from '../../hooks/useExplorerQueryEffects';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { ModalHostedContext } from '../../providers/Explorer/useIsModalHosted';
 import ChartHistoryPanel from '../ChartHistory/ChartHistoryPanel';
+import { BarChartIcon } from '../common/ContentIcons';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { useMantineModalClose } from '../common/MantineModal/useMantineModalClose';
@@ -494,7 +495,7 @@ const DashboardChartEditorModal: FC<Props> = ({
                     )}
                 </Group>
             }
-            icon={IconChartBar}
+            icon={BarChartIcon}
             fullScreen
             cancelLabel={false}
             modalBodyProps={{ px: 0, py: 0 }}

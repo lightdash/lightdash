@@ -14,11 +14,7 @@ import {
     TextInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import {
-    IconArrowLeft,
-    IconLayoutDashboard,
-    IconPlus,
-} from '@tabler/icons-react';
+import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
@@ -37,6 +33,7 @@ import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../hooks/useSpaces';
+import { DashboardIcon } from '../common/ContentIcons';
 import DashboardTabSelect from '../common/Dashboard/DashboardTabSelect';
 import { getDestinationDashboardTab } from '../common/Dashboard/destinationDashboardTab';
 import MantineIcon from '../common/MantineIcon';
@@ -347,7 +344,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
             opened={isOpen}
             onClose={() => onClose?.()}
             title="Add chart to dashboard"
-            icon={IconLayoutDashboard}
+            icon={DashboardIcon}
             actions={
                 <Button
                     type="submit"

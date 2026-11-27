@@ -12,11 +12,11 @@ import {
     IconCheck,
     IconChevronDown,
     IconChevronRight,
-    IconTable,
 } from '@tabler/icons-react';
 import { upperFirst } from 'es-toolkit/compat';
 import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { TableIcon } from '../../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import {
     CHANGE_KIND_STYLE,
@@ -188,7 +188,7 @@ const ModelStep: FC<{
                 rows.length === 1 && subtitle === null ? (
                     rows[0].icon
                 ) : (
-                    <MantineIcon icon={IconTable} size={14} color="green" />
+                    <MantineIcon icon={TableIcon} size={14} color="green" />
                 )
             }
             title={title}

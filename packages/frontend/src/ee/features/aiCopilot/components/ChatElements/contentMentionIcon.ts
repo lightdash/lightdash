@@ -3,11 +3,11 @@ import {
     ContentType,
     type ChartKind,
 } from '@lightdash/common';
+import { type Icon } from '@tabler/icons-react';
 import {
-    IconAppWindow,
-    IconLayoutDashboard,
-    type Icon,
-} from '@tabler/icons-react';
+    DashboardIcon,
+    DataAppIcon,
+} from '../../../../../components/common/ContentIcons';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 
 export const getContentMentionIcon = (
@@ -19,9 +19,9 @@ export const getContentMentionIcon = (
 ): { icon: Icon; color: string } => {
     switch (contentType) {
         case ContentType.DASHBOARD:
-            return { icon: IconLayoutDashboard, color: 'green.7' };
+            return { icon: DashboardIcon, color: 'green.7' };
         case ContentType.DATA_APP:
-            return { icon: IconAppWindow, color: 'orange.6' };
+            return { icon: DataAppIcon, color: 'orange.6' };
         case ContentType.CHART:
             return {
                 icon: getChartIcon(chartKind ?? undefined),

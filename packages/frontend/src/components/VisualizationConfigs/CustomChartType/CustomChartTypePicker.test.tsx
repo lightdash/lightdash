@@ -134,20 +134,24 @@ describe('CustomChartTypePicker', () => {
         const { container } = render();
         openDropdown();
 
-        expect(container.querySelector('.tabler-icon-code')).not.toBeNull();
+        expect(
+            container.querySelector('.content-icon-vega-chart'),
+        ).not.toBeNull();
         expect(
             container.querySelector('.tabler-icon-chart-bar'),
         ).not.toBeNull();
     });
 
-    it('shows the puzzle piece in the field when nothing is selected', () => {
+    it('shows the fallback icon in the field when nothing is selected', () => {
         setData([]);
         const { container } = render({}, { selected: null });
 
-        expect(container.querySelector('.tabler-icon-puzzle')).not.toBeNull();
+        expect(
+            container.querySelector('.content-icon-custom-chart-type'),
+        ).not.toBeNull();
     });
 
-    it('shows the selected project type icon in the field instead of the puzzle piece', () => {
+    it('shows the selected project type icon in the field instead of the fallback icon', () => {
         const onProject = makeDataAppViz({
             dataAppVizUuid: 'a',
             name: 'Bar race',
@@ -165,7 +169,9 @@ describe('CustomChartTypePicker', () => {
         expect(
             container.querySelector('.tabler-icon-chart-bar'),
         ).not.toBeNull();
-        expect(container.querySelector('.tabler-icon-puzzle')).toBeNull();
+        expect(
+            container.querySelector('.content-icon-custom-chart-type'),
+        ).toBeNull();
     });
 
     it('reports going back to Vega separately: it is a different chart type', () => {

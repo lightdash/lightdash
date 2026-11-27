@@ -10,12 +10,10 @@ import {
 import { ActionIcon, Menu } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconChartBar,
     IconDeviceFloppy,
     IconDots,
     IconExternalLink,
     IconEye,
-    IconLayoutDashboard,
     IconSend,
     IconTableExport,
     IconTableShortcut,
@@ -24,6 +22,10 @@ import {
 import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../../../components/common/ChartDownload/chartDownloadUtils';
+import {
+    BarChartIcon,
+    DashboardIcon,
+} from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
@@ -598,9 +600,7 @@ export const AiChartQuickOptions = ({
                                             isSavingToDashboard
                                         }
                                         leftSection={
-                                            <MantineIcon
-                                                icon={IconLayoutDashboard}
-                                            />
+                                            <MantineIcon icon={DashboardIcon} />
                                         }
                                     >
                                         Save to current dashboard
@@ -672,7 +672,7 @@ export const AiChartQuickOptions = ({
                 opened={opened && authoringEnabled}
                 onClose={closeSave}
                 title="Save chart"
-                icon={IconChartBar}
+                icon={BarChartIcon}
                 size="lg"
                 modalBodyProps={{
                     px: 0,

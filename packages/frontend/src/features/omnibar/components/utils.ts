@@ -8,15 +8,17 @@ import {
 import {
     IconNumber123,
     IconAbc,
-    IconAppWindow,
     IconBrowser,
-    IconFolder,
-    IconFileText,
-    IconLayoutDashboard,
     IconLayoutNavbarInactive,
     IconSettings,
-    IconTable,
 } from '@tabler/icons-react';
+import {
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    SpaceIcon,
+    TableIcon,
+} from '../../../components/common/ContentIcons';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import { type SearchItem } from '../types/searchItem';
 import { type SearchResultMap } from '../types/searchResultMap';
@@ -63,9 +65,9 @@ export const getOmnibarItemIcon = (item: SearchItem) => {
                 return IconNumber123;
             }
         case SearchItemType.DOCUMENT:
-            return IconFileText;
+            return DocumentIcon;
         case SearchItemType.DASHBOARD:
-            return IconLayoutDashboard;
+            return DashboardIcon;
         case SearchItemType.CHART:
         case SearchItemType.SQL_CHART:
             return getChartIcon(
@@ -73,15 +75,15 @@ export const getOmnibarItemIcon = (item: SearchItem) => {
                 (item.item as SavedChartSearchResult)?.chartType,
             );
         case SearchItemType.SPACE:
-            return IconFolder;
+            return SpaceIcon;
         case SearchItemType.TABLE:
-            return IconTable;
+            return TableIcon;
         case SearchItemType.PAGE:
             return IconBrowser;
         case SearchItemType.DASHBOARD_TAB:
             return IconLayoutNavbarInactive;
         case SearchItemType.DATA_APP:
-            return IconAppWindow;
+            return DataAppIcon;
         case SearchItemType.SETTINGS:
             return IconSettings;
         default:

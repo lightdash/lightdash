@@ -16,11 +16,11 @@ import {
 } from '@mantine/core';
 import {
     IconClock,
-    IconLayoutDashboard,
     IconPointer,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { DashboardIcon } from '../../../components/common/ContentIcons';
 import { ContentTableSearchInput } from '../../../components/common/ContentTable';
 import FilterFacet from '../../../components/common/FilterFacet';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -38,7 +38,7 @@ const TRIGGER_OPTIONS: (QueryTrigger | undefined)[] = [
 
 const TRIGGER_ICONS: Record<QueryTrigger, TablerIcon> = {
     [QueryTrigger.INTERACTIVE]: IconPointer,
-    [QueryTrigger.APPS]: IconLayoutDashboard,
+    [QueryTrigger.APPS]: DashboardIcon,
     [QueryTrigger.SCHEDULED]: IconClock,
 };
 

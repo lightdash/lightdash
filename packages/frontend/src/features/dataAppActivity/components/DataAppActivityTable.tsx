@@ -5,10 +5,13 @@ import {
     type DataAppGenerationUsage,
 } from '@lightdash/common';
 import { Anchor, Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { IconAppWindow, IconPuzzle } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
 import { Link } from 'react-router';
+import {
+    CustomChartTypeIcon,
+    DataAppIcon,
+} from '../../../components/common/ContentIcons';
 import {
     ContentTable,
     useContentTable,
@@ -192,7 +195,9 @@ export const DataAppActivityTable: FC = () => {
                             >
                                 <MantineIcon
                                     icon={
-                                        isChartType ? IconPuzzle : IconAppWindow
+                                        isChartType
+                                            ? CustomChartTypeIcon
+                                            : DataAppIcon
                                     }
                                     color="dimmed"
                                     className={classes.typeIcon}

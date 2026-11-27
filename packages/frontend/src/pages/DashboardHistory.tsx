@@ -12,15 +12,12 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import {
-    IconDots,
-    IconHistory,
-    IconLayoutDashboard,
-} from '@tabler/icons-react';
+import { IconDots, IconHistory } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import AgentAttribution from '../components/common/AgentAttribution/AgentAttribution';
 import Callout from '../components/common/Callout';
+import { DashboardIcon } from '../components/common/ContentIcons';
 import { EmptyState } from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -111,7 +108,7 @@ const DashboardHistory = () => {
                                     version.versionUuid === selectedVersionUuid
                                 }
                                 leftSection={
-                                    <MantineIcon icon={IconLayoutDashboard} />
+                                    <MantineIcon icon={DashboardIcon} />
                                 }
                                 label={formatTimestamp(
                                     version.createdAt,

@@ -33,7 +33,6 @@ import {
     IconRefreshDot,
     IconRowInsertBottom,
     IconSearch,
-    IconTable,
 } from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
@@ -47,6 +46,7 @@ import { useTimeAgo } from '../../hooks/useTimeAgo';
 import useSchedulerJobsContext from '../../providers/SchedulerJobs/useSchedulerJobsContext';
 import { formatDuration, formatFileSize } from '../../utils/formatters';
 import Callout from '../common/Callout';
+import { TableIcon } from '../common/ContentIcons';
 import {
     ContentTable,
     useContentTable,
@@ -391,7 +391,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 size: 160,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
-                        <MantineIcon icon={IconTable} color="dimmed" />
+                        <MantineIcon icon={TableIcon} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),

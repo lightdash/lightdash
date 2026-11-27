@@ -20,13 +20,8 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
-    IconAppWindow,
     IconCalendar,
     IconClock,
-    IconFolder,
-    IconFileText,
-    IconLayoutDashboard,
-    IconPuzzle,
     IconRefresh,
     IconSearch,
     IconTextCaption,
@@ -36,13 +31,23 @@ import {
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import {
+    CustomChartTypeIcon,
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    SpaceIcon,
+} from '../../../components/common/ContentIcons';
+import {
     ContentTable,
     useContentTable,
     type ContentTableColumnDef,
     type ContentTableVirtualizer,
 } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { ChartIcon, IconBox } from '../../../components/common/ResourceIcon';
+import {
+    ChartIcon,
+    ContentIcon,
+} from '../../../components/common/ResourceIcon';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
@@ -259,22 +264,22 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                 );
                             case ContentType.DASHBOARD:
                                 return (
-                                    <IconBox
-                                        icon={IconLayoutDashboard}
+                                    <ContentIcon
+                                        icon={DashboardIcon}
                                         color="green.6"
                                     />
                                 );
                             case ContentType.DOCUMENT:
                                 return (
-                                    <IconBox
-                                        icon={IconFileText}
+                                    <ContentIcon
+                                        icon={DocumentIcon}
                                         color="dimmed"
                                     />
                                 );
                             case ContentType.SPACE:
                                 return (
-                                    <IconBox
-                                        icon={IconFolder}
+                                    <ContentIcon
+                                        icon={SpaceIcon}
                                         color="violet.6"
                                     />
                                 );
@@ -283,13 +288,13 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                 // give them their own icon so rows read right.
                                 return row.original.template ===
                                     DATA_APP_VIZ_TEMPLATE ? (
-                                    <IconBox
-                                        icon={IconPuzzle}
+                                    <ContentIcon
+                                        icon={CustomChartTypeIcon}
                                         color="indigo.6"
                                     />
                                 ) : (
-                                    <IconBox
-                                        icon={IconAppWindow}
+                                    <ContentIcon
+                                        icon={DataAppIcon}
                                         color="orange.6"
                                     />
                                 );

@@ -3,7 +3,7 @@ import { Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconCircleCheckFilled, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { IconBox } from '../../../../components/common/ResourceIcon';
+import { ContentIcon } from '../../../../components/common/ResourceIcon';
 import {
     getContentTypeColor,
     getContentTypeIcon,
@@ -49,10 +49,9 @@ const ContentReviewItemRow: FC<Props> = ({
                     color={getContentTypeColor(contentType)}
                 />
             ) : (
-                <IconBox
+                <ContentIcon
                     icon={getContentTypeIcon(contentType)}
                     color={getContentTypeColor(contentType)}
-                    boxSize={28}
                     size="md"
                 />
             )}

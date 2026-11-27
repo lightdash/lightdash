@@ -1,6 +1,6 @@
 import { isSummaryExploreError, type SummaryExplore } from '@lightdash/common';
-import { IconTable } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { TableIcon } from '../../../../components/common/ContentIcons';
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../../components/common/FilterFacet';
@@ -57,7 +57,7 @@ const TableFilter: FC<TableFilterProps> = ({
     return (
         <FilterFacet
             label="Tables"
-            icon={IconTable}
+            icon={TableIcon}
             options={options}
             selected={selectedTables}
             onChange={setSelectedTables}

@@ -1,7 +1,7 @@
 import { type DataAppVizContext } from '@lightdash/common';
 import { Button } from '@mantine/core';
-import { IconTable } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { TableIcon } from '../../../components/common/ContentIcons';
 import {
     ContentTable,
     useContentTable,
@@ -127,7 +127,7 @@ export const ChartTypeSampleData: FC<Props> = ({
                 variant="subtle"
                 size="compact-xs"
                 className={classes.launcher}
-                leftSection={<MantineIcon icon={IconTable} size={14} />}
+                leftSection={<MantineIcon icon={TableIcon} size={14} />}
                 onClick={() => setOpened(true)}
             >
                 {launcherLabel}

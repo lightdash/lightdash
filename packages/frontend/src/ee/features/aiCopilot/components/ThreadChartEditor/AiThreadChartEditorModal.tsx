@@ -1,9 +1,10 @@
 import { subject } from '@casl/ability';
 import { canMutateVerifiedContent, type SavedChart } from '@lightdash/common';
 import { Button } from '@mantine/core';
-import { IconChartBar, IconPencil } from '@tabler/icons-react';
+import { IconPencil } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Provider } from 'react-redux';
+import { BarChartIcon } from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import Page from '../../../../../components/common/Page/Page';
@@ -98,7 +99,7 @@ const ThreadChartModalInner: FC<{ chart: SavedChart; onClose: () => void }> = ({
             opened
             onClose={onClose}
             title={chart.name}
-            icon={IconChartBar}
+            icon={BarChartIcon}
             fullScreen
             cancelLabel={false}
             modalBodyProps={{ px: 0, py: 0 }}

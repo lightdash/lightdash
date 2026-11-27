@@ -20,8 +20,9 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconCheck, IconPencil, IconTable } from '@tabler/icons-react';
+import { IconCheck, IconPencil } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { TableIcon } from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import {
@@ -138,7 +139,7 @@ export const LiveExploreRows: FC<
         <>
             <EditableSettingsCard
                 title="Explores"
-                icon={IconTable}
+                icon={TableIcon}
                 isEditing={isEditing}
                 onEdit={() => setDraft({})}
                 onCancel={() => setDraft(null)}

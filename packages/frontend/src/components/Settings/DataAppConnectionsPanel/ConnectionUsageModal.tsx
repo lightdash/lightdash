@@ -13,18 +13,16 @@ import {
     Text,
     ThemeIcon,
 } from '@mantine/core';
-import {
-    IconAppWindow,
-    IconFolder,
-    IconLink,
-    IconUnlink,
-    IconPuzzle,
-    IconUser,
-} from '@tabler/icons-react';
+import { IconLink, IconUnlink, IconUser } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useExternalConnectionLinkedApps } from '../../../features/externalConnections/hooks/useExternalConnectionLinkedApps';
 import { useUnlinkAppExternalConnection } from '../../../features/externalConnections/hooks/useUnlinkAppExternalConnection';
+import {
+    CustomChartTypeIcon,
+    DataAppIcon,
+    SpaceIcon,
+} from '../../common/ContentIcons';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import classes from './ConnectionUsageModal.module.css';
@@ -59,7 +57,7 @@ const UsageRow: FC<{
             >
                 <ThemeIcon variant="light" size="lg" color="orange">
                     <MantineIcon
-                        icon={isDataApp ? IconAppWindow : IconPuzzle}
+                        icon={isDataApp ? DataAppIcon : CustomChartTypeIcon}
                     />
                 </ThemeIcon>
 
@@ -70,7 +68,7 @@ const UsageRow: FC<{
                     {isDataApp && (
                         <Group gap={4} wrap="wrap">
                             <MantineIcon
-                                icon={item.spaceName ? IconFolder : IconUser}
+                                icon={item.spaceName ? SpaceIcon : IconUser}
                                 size={14}
                                 color="dimmed"
                             />

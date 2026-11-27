@@ -20,9 +20,9 @@ import {
     IconKey,
     IconListNumbers,
     IconRepeat,
-    IconTable,
 } from '@tabler/icons-react';
 import { Fragment, useMemo, useState, type FC, type ReactNode } from 'react';
+import { TableIcon } from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { type PipelineNode } from './groupPipeline';
@@ -171,7 +171,7 @@ const StepDetails: FC<{
         <Stack gap={4}>
             {exploreLabel !== null && (
                 <Group gap={6} wrap="nowrap">
-                    <MantineIcon icon={IconTable} size={12} />
+                    <MantineIcon icon={TableIcon} size={12} />
                     <Text component="span" inherit>
                         {interpolateUiString(
                             getUiString(

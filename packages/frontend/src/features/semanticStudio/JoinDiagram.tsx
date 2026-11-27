@@ -15,7 +15,7 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { IconTable, IconX } from '@tabler/icons-react';
+import { IconX } from '@tabler/icons-react';
 import {
     Background,
     Controls,
@@ -33,6 +33,7 @@ import {
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
 import '@xyflow/react/dist/style.css';
+import { TableIcon } from '../../components/common/ContentIcons';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import DefaultEdge from '../../components/common/ReactFlow/DefaultEdge';
@@ -159,7 +160,7 @@ const TableNode: FC<NodeProps<TableFlowNode>> = ({ data }) => (
             className={classes.nodeHead}
         >
             <Box className={classes.nodeIcon}>
-                <MantineIcon icon={IconTable} size={14} />
+                <MantineIcon icon={TableIcon} size={14} />
             </Box>
             <Box className={classes.nodeText}>
                 <Text component="span" className={classes.nodeTitle} truncate>
@@ -233,7 +234,7 @@ const ModelNode: FC<NodeProps<ModelFlowNode>> = ({ data }) => (
             className={classes.nodeHead}
         >
             <Box className={classes.nodeIcon}>
-                <MantineIcon icon={IconTable} size={14} />
+                <MantineIcon icon={TableIcon} size={14} />
             </Box>
             <Box className={classes.nodeText}>
                 <Text component="span" className={classes.nodeTitle} truncate>
@@ -287,7 +288,7 @@ const JoinDetails: FC<{
             className={classes.detailsHead}
         >
             <Box className={classes.nodeIcon}>
-                <MantineIcon icon={IconTable} size={14} />
+                <MantineIcon icon={TableIcon} size={14} />
             </Box>
             <Box miw={0} flex={1}>
                 <Text fz="sm" fw={500} className={classes.wrap}>

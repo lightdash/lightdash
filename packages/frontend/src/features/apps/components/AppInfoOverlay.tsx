@@ -13,12 +13,12 @@ import {
     IconClock,
     IconCopy,
     IconEye,
-    IconFolder,
     IconHash,
     IconUser,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { SpaceIcon } from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import InfoRow from '../../../components/common/PageHeader/InfoRow';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
@@ -83,7 +83,7 @@ const AppInfoOverlay: FC<Props> = ({
             )}
 
             {spaceUuid ? (
-                <InfoRow icon={IconFolder} label="Space">
+                <InfoRow icon={SpaceIcon} label="Space">
                     <Anchor
                         component={Link}
                         to={`/projects/${projectUuid}/spaces/${spaceUuid}`}

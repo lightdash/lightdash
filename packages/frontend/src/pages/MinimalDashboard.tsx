@@ -17,7 +17,6 @@ import {
 } from '@lightdash/common';
 import { Stack, Text, Title } from '@mantine/core';
 import { useSessionStorage } from '@mantine/hooks';
-import { IconLayoutDashboard } from '@tabler/icons-react';
 import {
     Fragment,
     useCallback,
@@ -29,6 +28,7 @@ import {
 import { type Layout } from 'react-grid-layout';
 import { useParams } from 'react-router';
 import { validate as isUuidString } from 'uuid';
+import { DashboardIcon } from '../components/common/ContentIcons';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -62,9 +62,9 @@ import {
 import { useProjects } from '../hooks/useProjects';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import useSearchParams from '../hooks/useSearchParams';
-import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import '../styles/export-paged-tabs.css';
 import '../styles/react-grid.css';
+import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import { getProjectUrlIdentifier } from '../utils/projectUrl';
 
@@ -242,7 +242,7 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
             <div className={DASHBOARD_GRID_CLASS}>
                 {isTabEmpty ? (
                     <SuboptimalState
-                        icon={IconLayoutDashboard}
+                        icon={DashboardIcon}
                         title="Tab is empty"
                         mt="40px"
                     />
@@ -255,7 +255,7 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
                         const grid =
                             group.tiles.length === 0 ? (
                                 <SuboptimalState
-                                    icon={IconLayoutDashboard}
+                                    icon={DashboardIcon}
                                     title="Tab is empty"
                                     mt="40px"
                                 />

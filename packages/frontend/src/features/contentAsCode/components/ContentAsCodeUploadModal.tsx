@@ -14,11 +14,9 @@ import {
 import {
     IconAlertCircle,
     IconArrowRight,
-    IconChartBar,
     IconCheck,
     IconFile,
     IconFolder,
-    IconLayoutDashboard,
     IconPlayerStop,
     IconRefresh,
     IconUpload,
@@ -26,6 +24,10 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
+import {
+    BarChartIcon,
+    DashboardIcon,
+} from '../../../components/common/ContentIcons';
 import FileDropzone from '../../../components/common/FileDropzone/FileDropzone';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -52,8 +54,8 @@ type Props = {
 
 const typeIcons = {
     space: IconFolder,
-    chart: IconChartBar,
-    dashboard: IconLayoutDashboard,
+    chart: BarChartIcon,
+    dashboard: DashboardIcon,
 };
 
 const statusLabels = {

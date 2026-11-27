@@ -8,13 +8,13 @@ import { Button, Center, Group, Loader, Stack, Text } from '@mantine/core';
 import {
     IconNumber123,
     IconAbc,
-    IconChartBar,
     IconCircle,
     IconColumns,
     IconMinus,
     IconPlus,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { BarChartIcon } from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../../../hooks/useExplorerRoute';
@@ -131,7 +131,7 @@ export const ReviewFieldsModal: FC<Props> = ({
                         size="compact-xs"
                         variant="subtle"
                         leftSection={
-                            <MantineIcon icon={IconChartBar} size="sm" />
+                            <MantineIcon icon={BarChartIcon} size="sm" />
                         }
                         onClick={() => handleCreateChart(field)}
                     >

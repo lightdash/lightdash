@@ -6,7 +6,6 @@ import {
 import { Button, HoverCard } from '@mantine/core';
 import {
     IconArrowRight,
-    IconChartBar,
     IconShieldCheck,
     IconTarget,
     IconTrendingUp,
@@ -21,6 +20,7 @@ import {
 } from '../../ee/features/managedAgent/hooks/useAutopilotNavState';
 import { ManagedAgentSetupModal } from '../../ee/features/managedAgent/ManagedAgentSetupModal';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { BarChartIcon } from '../common/ContentIcons';
 import MantineIcon from '../common/MantineIcon';
 import AppColorSchemeScope from './AppColorSchemeScope';
 import classes from './AutopilotNavButton.module.css';
@@ -71,7 +71,7 @@ const summarizeActionCounts = (
 const CAPABILITIES = [
     { icon: IconShieldCheck, label: 'Fixes broken charts' },
     { icon: IconTrendingUp, label: 'Flags stale content' },
-    { icon: IconChartBar, label: 'Creates fresh visualizations' },
+    { icon: BarChartIcon, label: 'Creates fresh visualizations' },
 ];
 
 /**

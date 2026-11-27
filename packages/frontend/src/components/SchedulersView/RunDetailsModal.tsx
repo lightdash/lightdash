@@ -22,14 +22,13 @@ import {
 } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
-    IconChartBar,
     IconChevronLeft,
-    IconLayoutDashboard,
     IconPlayerSkipForwardFilled,
     IconX,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type ComponentProps, type FC } from 'react';
+import { BarChartIcon, DashboardIcon } from '../common/ContentIcons';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import classes from './RunDetailsModal.module.css';
@@ -852,8 +851,8 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                                 <MantineIcon
                                     icon={
                                         run.resourceType === 'chart'
-                                            ? IconChartBar
-                                            : IconLayoutDashboard
+                                            ? BarChartIcon
+                                            : DashboardIcon
                                     }
                                     size="sm"
                                     color="dimmed"

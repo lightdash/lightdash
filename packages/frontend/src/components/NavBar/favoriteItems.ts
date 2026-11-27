@@ -5,12 +5,11 @@ import {
     type ResourceViewItem,
 } from '@lightdash/common';
 import {
-    IconAppWindow,
     IconChartAreaLine,
     IconFileText,
     IconFolder,
-    IconLayoutDashboard,
 } from '@tabler/icons-react';
+import { DashboardIcon, DataAppIcon } from '../common/ContentIcons';
 
 const FAVORITE_ROUTE_SEGMENT: Record<ResourceViewItemType, string> = {
     [ResourceViewItemType.DASHBOARD]: 'dashboards',
@@ -48,13 +47,13 @@ export const getFavoriteItemUrl = (
 export const getFavoriteItemIcon = (item: ResourceViewItem) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
-            return IconLayoutDashboard;
+            return DashboardIcon;
         case ResourceViewItemType.CHART:
             return IconChartAreaLine;
         case ResourceViewItemType.SPACE:
             return IconFolder;
         case ResourceViewItemType.DATA_APP:
-            return IconAppWindow;
+            return DataAppIcon;
         case ResourceViewItemType.DOCUMENT:
             return IconFileText;
         default:

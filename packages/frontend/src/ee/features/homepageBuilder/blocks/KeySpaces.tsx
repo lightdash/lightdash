@@ -1,7 +1,8 @@
 import { Box, Text } from '@mantine/core';
-import { IconFolder, IconFolders } from '@tabler/icons-react';
+import { IconFolders } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { SpaceIcon } from '../../../../components/common/ContentIcons';
 import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { type KeySpace } from '../hooks/rankKeySpaces';
 import { BlockHeader, IconSquare } from './BlockShell';
@@ -19,7 +20,7 @@ const KeySpaceCard: FC<{
             to={`/projects/${projectUrlIdentifier}/spaces/${space.uuid}`}
             className={`${classes.hoverCard} ${classes.clickable} ${classes.plainLink} ${classes.contentTile}`}
         >
-            <IconSquare icon={IconFolder} />
+            <IconSquare icon={SpaceIcon} />
             <Box className={classes.tileBody}>
                 <Text size="sm" fw={600} truncate>
                     {space.name}

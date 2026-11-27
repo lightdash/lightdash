@@ -1,13 +1,13 @@
 import { Box, Button, Group, Skeleton, Text } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconAppWindow,
     IconCircleCheckFilled,
     IconCircleDashed,
     IconHandStop,
     IconRefresh,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { DataAppIcon } from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { BUILD_STAGES } from '../utils/buildStage';
 import classes from './BuildCards.module.css';
@@ -122,7 +122,7 @@ export const PreviewEmpty: FC<{
 }> = ({ failed, onRetry, disabled }) => (
     <Box className={classes.previewEmptyState}>
         <MantineIcon
-            icon={IconAppWindow}
+            icon={DataAppIcon}
             size={40}
             stroke={1.2}
             className={classes.previewEmptyIcon}

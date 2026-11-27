@@ -1,8 +1,8 @@
 import { SQL_CHART_KINDS, type SqlChartKind } from '@lightdash/common';
 import { Group, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconChartBar } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { BarChartIcon } from '../../../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import { useCanViewAiAgentSql } from '../../../../../../../features/composerCharts/hooks/useCanViewAiAgentSql';
 import { AiSqlModal } from '../../AiSqlModal';
@@ -82,7 +82,7 @@ export const SqlChartToolCallDescription: FC<Props> = ({
                   onClose: closeReview,
                   sql: chart.sql,
                   title,
-                  icon: IconChartBar,
+                  icon: BarChartIcon,
                   subtitle: reviewSubtitle,
               }
             : null;
@@ -91,7 +91,7 @@ export const SqlChartToolCallDescription: FC<Props> = ({
         <Stack gap={6} w="100%">
             <Group gap={6} wrap="nowrap" align="flex-start">
                 <Group gap={6} wrap="wrap" align="center" flex={1}>
-                    <MantineIcon icon={IconChartBar} size={13} stroke={1.6} />
+                    <MantineIcon icon={BarChartIcon} size={13} stroke={1.6} />
                     <Text size="xs" c="dimmed">
                         {title}
                     </Text>

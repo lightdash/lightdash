@@ -12,15 +12,9 @@ import {
 } from '@mantine/core';
 import {
     IconCategory,
-    IconChartAreaLine,
     IconChevronDown,
     IconChevronRight,
-    IconAppWindow,
-    IconFileText,
-    IconFolder,
     IconFolders,
-    IconLayoutDashboard,
-    IconPuzzle,
     IconStack2,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
@@ -31,6 +25,14 @@ import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import scrollAreaClasses from '../../styles/ScrollArea.module.css';
+import {
+    BarChartIcon,
+    CustomChartTypeIcon,
+    DashboardIcon,
+    DataAppIcon,
+    DocumentIcon,
+    SpaceIcon,
+} from '../common/ContentIcons';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import TruncatedText from '../common/TruncatedText';
@@ -132,7 +134,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 <Menu.Item
                     component={Link}
                     to={`/projects/${projectUrlIdentifier}/dashboards`}
-                    leftSection={<MantineIcon icon={IconLayoutDashboard} />}
+                    leftSection={<MantineIcon icon={DashboardIcon} />}
                     data-tour-nav="all-dashboards"
                     data-tour-hint="Open All dashboards"
                 >
@@ -142,7 +144,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 <Menu.Item
                     component={Link}
                     to={`/projects/${projectUrlIdentifier}/saved`}
-                    leftSection={<MantineIcon icon={IconChartAreaLine} />}
+                    leftSection={<MantineIcon icon={BarChartIcon} />}
                     data-tour-nav="all-charts"
                     data-tour-hint="Open All saved charts"
                 >
@@ -152,7 +154,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 <Menu.Item
                     component={Link}
                     to={`/projects/${projectUrlIdentifier}/documents`}
-                    leftSection={<MantineIcon icon={IconFileText} />}
+                    leftSection={<MantineIcon icon={DocumentIcon} />}
                     data-tour-nav="all-documents"
                     data-tour-hint="Open All documents"
                 >
@@ -163,7 +165,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     <Menu.Item
                         component={Link}
                         to={`/projects/${projectUuid}/apps`}
-                        leftSection={<MantineIcon icon={IconAppWindow} />}
+                        leftSection={<MantineIcon icon={DataAppIcon} />}
                         // Anchor for scope walkthroughs (data-tour-via)
                         data-tour-nav="all-apps"
                         data-tour-hint="Open All data apps"
@@ -176,7 +178,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     <Menu.Item
                         component={Link}
                         to={`/projects/${projectUrlIdentifier}/chart-studio`}
-                        leftSection={<MantineIcon icon={IconPuzzle} />}
+                        leftSection={<MantineIcon icon={CustomChartTypeIcon} />}
                     >
                         Chart Studio
                     </Menu.Item>
@@ -289,7 +291,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                                     to={`/projects/${projectUrlIdentifier}/spaces/${space.uuid}`}
                                                     leftSection={
                                                         <MantineIcon
-                                                            icon={IconFolder}
+                                                            icon={SpaceIcon}
                                                         />
                                                     }
                                                 >

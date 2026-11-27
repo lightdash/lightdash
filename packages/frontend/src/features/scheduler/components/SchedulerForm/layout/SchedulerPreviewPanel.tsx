@@ -23,14 +23,16 @@ import {
 } from '@mantine/core';
 import {
     IconBell,
-    IconChartBar,
     IconFileTypePdf,
     IconPaperclip,
     IconRefresh,
     IconSparkles,
-    IconTable,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC, type ReactNode } from 'react';
+import {
+    BarChartIcon,
+    TableIcon,
+} from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useExportDashboardContentPreview } from '../../../../../hooks/dashboard/useDashboard';
 import { CUSTOM_WIDTH_OPTIONS } from '../../../constants';
@@ -196,8 +198,8 @@ export const SchedulerPreviewPanel: FC<Props> = ({
         format === SchedulerFormat.PDF
             ? IconFileTypePdf
             : format === SchedulerFormat.IMAGE
-              ? IconChartBar
-              : IconTable;
+              ? BarChartIcon
+              : TableIcon;
 
     const exportPreviewMutation = useExportDashboardContentPreview();
     const [previewUrl, setPreviewUrl] = useState<string>();

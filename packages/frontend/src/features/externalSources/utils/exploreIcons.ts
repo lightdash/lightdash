@@ -3,7 +3,8 @@ import {
     assertUnreachable,
     type SummaryExplore,
 } from '@lightdash/common';
-import { IconFileSpreadsheet, IconTable } from '@tabler/icons-react';
+import { IconFileSpreadsheet } from '@tabler/icons-react';
+import { TableIcon } from '../../../components/common/ContentIcons';
 
 const getExternalSourceRef = (explore: SummaryExplore) =>
     'externalSource' in explore ? explore.externalSource : undefined;
@@ -11,7 +12,7 @@ const getExternalSourceRef = (explore: SummaryExplore) =>
 /** Sidebar icon for an explore row; external tables show their source type. */
 export const getExploreIcon = (explore: SummaryExplore) => {
     const ref = getExternalSourceRef(explore);
-    if (!ref) return IconTable;
+    if (!ref) return TableIcon;
     switch (ref.sourceType) {
         case ExternalSourceType.CSV:
             return IconFileSpreadsheet;

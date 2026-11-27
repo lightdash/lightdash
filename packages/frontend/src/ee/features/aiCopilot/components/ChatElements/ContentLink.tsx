@@ -4,13 +4,13 @@ import {
     type AiAgentMessageAssistant,
 } from '@lightdash/common';
 import { Anchor, Button, Text } from '@mantine/core';
-import {
-    IconChartBar,
-    IconLayoutDashboard,
-    IconTerminal2,
-} from '@tabler/icons-react';
+import { IconTerminal2 } from '@tabler/icons-react';
 import { type FC, type MouseEvent, type ReactNode } from 'react';
 import { Link, createPath, useLocation, useNavigate } from 'react-router';
+import {
+    BarChartIcon,
+    DashboardIcon,
+} from '../../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
@@ -331,10 +331,10 @@ export const ContentLink: FC<ContentLinkProps> = ({
 
             const artifactIcon =
                 artifactType === 'chart'
-                    ? IconChartBar
+                    ? BarChartIcon
                     : artifactType === 'dashboard'
-                      ? IconLayoutDashboard
-                      : IconChartBar;
+                      ? DashboardIcon
+                      : BarChartIcon;
 
             const isActive =
                 currentPreview?.type === 'artifact' &&

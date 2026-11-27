@@ -10,9 +10,10 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconCheck, IconTable } from '@tabler/icons-react';
+import { IconCheck } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
+import { TableIcon } from '../../components/common/ContentIcons';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import Page from '../../components/common/Page/Page';
@@ -284,7 +285,7 @@ export const TryItModal: FC<{
                     value={model}
                     onChange={(next) => next && switchModel(next)}
                     allowDeselect={false}
-                    leftSection={<MantineIcon icon={IconTable} size={14} />}
+                    leftSection={<MantineIcon icon={TableIcon} size={14} />}
                     data={models.map((name) => ({
                         value: name,
                         label: labelOf(name),
@@ -302,7 +303,7 @@ export const TryItModal: FC<{
                 />
             ) : (
                 <span className={classes.tryModel}>
-                    <MantineIcon icon={IconTable} size={14} />
+                    <MantineIcon icon={TableIcon} size={14} />
                     {labelOf(model)}
                 </span>
             )}

@@ -6,10 +6,11 @@ import {
 } from '@lightdash/common';
 import { Button, Stack, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconChartBar, IconPlus } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
+import { BarChartIcon } from '../../../components/common/ContentIcons';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
     type MantineModalProps,
@@ -306,7 +307,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
             opened={opened}
             onClose={onClose}
             title="Save Chart"
-            icon={IconChartBar}
+            icon={BarChartIcon}
             leftActions={renderLeftActions()}
             actions={renderActions()}
         >

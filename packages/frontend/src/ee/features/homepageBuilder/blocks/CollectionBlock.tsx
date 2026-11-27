@@ -46,18 +46,18 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
-    IconFolder,
     IconLayoutGrid,
     IconPin,
     IconPlus,
     IconSearch,
 } from '@tabler/icons-react';
 import { useMemo, useRef, useState, type FC, type ReactNode } from 'react';
+import { SpaceIcon } from '../../../../components/common/ContentIcons';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { NumberInput } from '../../../../components/common/NumberInput';
 import {
-    IconBox,
+    ContentIcon,
     ResourceIcon,
 } from '../../../../components/common/ResourceIcon';
 import SpaceSelector from '../../../../components/common/SpaceSelector/SpaceSelector';
@@ -149,7 +149,7 @@ const SpaceItselfRow: FC<{
         onClick={onToggle}
     >
         <Checkbox size="xs" checked={checked} readOnly />
-        <IconBox icon={IconFolder} color="violet.6" />
+        <ContentIcon icon={SpaceIcon} color="violet.6" />
         <Text size="sm" truncate flex={1}>
             {spaceName}
         </Text>
