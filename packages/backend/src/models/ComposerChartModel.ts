@@ -258,23 +258,31 @@ export class ComposerChartModel {
         });
     }
 
-    /** Live charts on live dashboards whose current version renders the custom chart type. */
+    /** Live charts with a live owner in a live space whose current version renders the custom chart type. */
     private usingDataAppVizQuery(
         database: Knex,
         projectUuid: string,
         dataAppVizUuid: string,
     ) {
         return database(ComposerChartsTableName)
-            .innerJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${ComposerChartsTableName}.dashboard_uuid`,
-            )
-            .innerJoin(
-                SpaceTableName,
-                `${SpaceTableName}.space_id`,
-                `${DashboardsTableName}.space_id`,
-            )
+            .leftJoin(DashboardsTableName, function joinLiveDashboard() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${ComposerChartsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
+            .innerJoin(SpaceTableName, function joinOwnerSpace() {
+                this.on(
+                    `${SpaceTableName}.space_uuid`,
+                    '=',
+                    `${ComposerChartsTableName}.space_uuid`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                );
+            })
             .joinRaw(
                 `CROSS JOIN LATERAL (
                     SELECT pipeline, chart FROM ${ComposerChartVersionsTableName}
@@ -285,7 +293,6 @@ export class ComposerChartModel {
             )
             .where(`${ComposerChartsTableName}.project_uuid`, projectUuid)
             .whereNull(`${ComposerChartsTableName}.deleted_at`)
-            .whereNull(`${DashboardsTableName}.deleted_at`)
             .whereNull(`${SpaceTableName}.deleted_at`)
             .whereRaw(`current_version.chart #>> '{chartConfig,type}' = ?`, [
                 ChartType.DATA_APP_VIZ,

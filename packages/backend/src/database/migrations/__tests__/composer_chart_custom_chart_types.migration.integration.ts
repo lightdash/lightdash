@@ -2,6 +2,7 @@ import {
     ChartType,
     FieldType,
     QuerySourceType,
+    type ComposerChartPipeline,
     type ComposerStoredChart,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -33,6 +34,19 @@ const customChart = (dataAppVizUuid: string): ComposerStoredChart => ({
     pivotConfig: null,
     tableConfig: { columnOrder: ['status', 'total'] },
 });
+
+const pipeline: ComposerChartPipeline = {
+    schemaVersion: 1,
+    terminalNodeId: 'orders',
+    nodes: [
+        {
+            sourceType: QuerySourceType.SQL,
+            nodeId: 'orders',
+            title: 'Orders',
+            sql: 'select status, total from orders',
+        },
+    ],
+};
 
 const tableChart: ComposerStoredChart = {
     ...customChart(VIZ),
@@ -70,21 +84,59 @@ describe('composer charts using a custom chart type, on the real schema', () => 
             dashboardUuid,
             name: 'Orders by status',
             description: null,
-            pipeline: {
-                schemaVersion: 1,
-                terminalNodeId: 'orders',
-                nodes: [
-                    {
-                        sourceType: QuerySourceType.SQL,
-                        nodeId: 'orders',
-                        title: 'Orders',
-                        sql: 'select status, total from orders',
-                    },
-                ],
-            },
+            pipeline,
             chart,
             createdByUserUuid: fixture.userUuid,
         });
+
+    // Nothing creates a space-owned chart yet, so these rows are written by hand
+    const createSpaceChart = async (
+        spaceUuid: string,
+        chart: ComposerStoredChart,
+    ) => {
+        const [{ composer_chart_uuid: uuid }] = await database(
+            'composer_charts',
+        )
+            .insert({
+                project_uuid: fixture.projectUuid,
+                dashboard_uuid: null,
+                space_uuid: spaceUuid,
+                name: 'Orders by status',
+                slug: `space-chart-${randomUUID()}`,
+                created_by_user_uuid: fixture.userUuid,
+            })
+            .returning('composer_chart_uuid');
+        await database('composer_chart_versions').insert({
+            composer_chart_uuid: uuid,
+            pipeline: JSON.stringify(pipeline),
+            chart: JSON.stringify(chart),
+            created_by_user_uuid: fixture.userUuid,
+        });
+        return uuid;
+    };
+
+    const createDeletedSpace = async () => {
+        const [{ project_id: projectId }] = await database('projects')
+            .where('project_uuid', fixture.projectUuid)
+            .select('project_id');
+        const slug = `deleted-${randomUUID()}`;
+        const [{ space_uuid: spaceUuid }] = await database('spaces')
+            .insert({
+                name: 'Deleted',
+                slug,
+                path: slug.replace(/-/g, '_'),
+                project_id: projectId,
+                parent_space_uuid: null,
+                inherit_parent_permissions: true,
+                is_default_user_space: false,
+            })
+            .returning('space_uuid');
+        await database('spaces').where('space_uuid', spaceUuid).update({
+            deleted_at: new Date(),
+            deleted_by_user_uuid: fixture.userUuid,
+        });
+        return spaceUuid;
+    };
 
     const versionsOf = (composerChartUuid: string) =>
         database('composer_chart_versions')
@@ -168,6 +220,40 @@ describe('composer charts using a custom chart type, on the real schema', () => 
         expect(
             (await composerChartModel.get(counted)).chart.chartConfig,
         ).toMatchObject({ config: { dataAppVizVersion: 3 } });
+    });
+
+    it('counts and moves a chart owned by a live space, not one in a deleted space', async () => {
+        const viz = randomUUID();
+        const counted = await createSpaceChart(
+            fixture.spaceUuid,
+            customChart(viz),
+        );
+        const inDeletedSpace = await createSpaceChart(
+            await createDeletedSpace(),
+            customChart(viz),
+        );
+
+        expect(
+            await composerChartModel.countUsingDataAppViz(
+                fixture.projectUuid,
+                viz,
+            ),
+        ).toBe(1);
+        expect(
+            await composerChartModel.repinUsingDataAppViz(
+                fixture.projectUuid,
+                viz,
+                3,
+                admin.userUuid,
+            ),
+        ).toBe(1);
+
+        const versions = await versionsOf(counted);
+        expect(versions).toHaveLength(2);
+        expect(versions[1].chart.chartConfig).toMatchObject({
+            config: { dataAppVizUuid: viz, dataAppVizVersion: 3 },
+        });
+        expect(await versionsOf(inDeletedSpace)).toHaveLength(1);
     });
 
     it('appends nothing for a chart already on the version', async () => {

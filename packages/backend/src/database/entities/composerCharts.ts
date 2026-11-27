@@ -26,6 +26,7 @@ export type ComposerChartsTable = Knex.CompositeTableType<
             Pick<
                 DbComposerChart,
                 | 'composer_chart_uuid'
+                | 'space_uuid'
                 | 'description'
                 | 'created_at'
                 | 'created_by_user_uuid'
@@ -37,6 +38,7 @@ export type ComposerChartsTable = Knex.CompositeTableType<
             | 'name'
             | 'description'
             | 'dashboard_uuid'
+            | 'space_uuid'
             | 'deleted_at'
             | 'deleted_by_user_uuid'
         >
