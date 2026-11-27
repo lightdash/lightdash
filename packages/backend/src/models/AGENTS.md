@@ -57,7 +57,7 @@ const user = await userModel.findUserByEmail('john.doe@example.com');
 - Models handle database transactions internally when needed
 - Authentication and authorization checks are typically performed in the Express middleware level
 - Models use the Knex.js query builder for database operations
-- When a join selects `table.*`, alias every selected joined-table column whose name also exists on `table` (two `space_uuid` columns collide silently)
+- In a query that joins tables, select columns by name, never `table.*`: two columns with the same name (such as `space_uuid`) silently overwrite each other in the row
 - The ModelRepository supports dependency injection through model providers
 - Some models require additional dependencies beyond the database connection
 - When adding a new model, add it to the ModelManifest type in ModelRepository.ts
