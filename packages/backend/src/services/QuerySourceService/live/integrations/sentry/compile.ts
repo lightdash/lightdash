@@ -33,8 +33,11 @@ const OPERATORS: Partial<Record<FilterOperator, SentryFilter['operator']>> = {
     [FilterOperator.NOT_INCLUDE]: 'not_contains',
 };
 
-/** Errors sort in Sentry by any selected column but the list of error types. */
-const UNSORTABLE_ERROR_COLUMNS = new Set(['error_type']);
+/**
+ * Errors sort in Sentry by any selected column but two: the list of error
+ * types, and the issue, which Sentry orders by its number and not its ID.
+ */
+const UNSORTABLE_ERROR_COLUMNS = new Set(['error_type', 'issue']);
 
 /** Sentry's own issue orders, each newest or highest first. */
 const ISSUE_SORTS: Record<string, IssuesRequest['sort']> = {

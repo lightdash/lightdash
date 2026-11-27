@@ -66,6 +66,14 @@ const ERROR_COLUMNS = Object.keys(ERROR_FIELDS) as [
 ];
 const ERROR_METRICS: ErrorColumn[] = ['events', 'issues', 'users_affected'];
 
+/**
+ * Sentry refuses to order by an issue's short ID, so the issue's numeric ID
+ * is read with it and ordered by instead.
+ */
+const ISSUE_ORDER_FIELD = 'issue.id';
+const toErrorOrderField = (column: ErrorColumn) =>
+    column === 'issue' ? ISSUE_ORDER_FIELD : ERROR_FIELDS[column];
+
 const ISSUE_COLUMNS = [
     'short_id',
     'title',
@@ -481,20 +489,27 @@ const runErrors = async ({
         ...(columns.some((column) => ERROR_METRICS.includes(column))
             ? []
             : [ERROR_FIELDS.events]),
+        ...(columns.includes('issue') ? [ISSUE_ORDER_FIELD] : []),
+    ];
+    // Pages are cut by row offset, so rows that tie in the order can repeat
+    // on the next page. Every other selected dimension breaks the ties.
+    const sorts = [
+        ...(sort
+            ? [`${sort.descending ? '-' : ''}${toErrorOrderField(sort.column)}`]
+            : []),
+        ...columns
+            .filter(
+                (column) =>
+                    !ERROR_METRICS.includes(column) && column !== sort?.column,
+            )
+            .map(toErrorOrderField),
     ];
     const params: Params = [
         ['dataset', 'errors'],
         ...fields.map((field): [string, string] => ['field', field]),
         ...toRangeParams(request),
         ...toFilterParams('errors', settings, request.filters),
-        ...(sort
-            ? ([
-                  [
-                      'sort',
-                      `${sort.descending ? '-' : ''}${ERROR_FIELDS[sort.column]}`,
-                  ],
-              ] as Params)
-            : []),
+        ...sorts.map((field): [string, string] => ['sort', field]),
     ];
     const { rows, hasMoreRows } = await readRowsWithinCap({
         label: LABEL,
@@ -644,8 +659,8 @@ const runIssues = async ({
         ]),
         ['statsPeriod', `${SENTRY_RETENTION_DAYS}d`],
         ['sort', request.sort ?? 'date'],
-        // The hourly counts and lifetime totals of each issue are not read
-        ['collapse', 'stats'],
+        // Lifetime totals are not read. Collapsing "stats" too would drop
+        // the events, users, first seen and last seen of each issue.
         ['collapse', 'lifetime'],
     ];
     const { rows, hasMoreRows } = await readRowsWithinCap({

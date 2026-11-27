@@ -139,7 +139,15 @@ describe('sentryIntegration errors', () => {
         expect(call.get('query')).toEqual([
             '!level:["info","debug"] title:"*App \\"Hang\\"\\**" error.unhandled:true',
         ]);
-        expect(call.get('sort')).toEqual(['-count_unique(issue)']);
+        // The other dimensions break ties, so pages can't repeat a row
+        expect(call.get('sort')).toEqual([
+            '-count_unique(issue)',
+            'timestamp.to_day',
+            'release',
+            'error.type',
+            'error.unhandled',
+            'os.name',
+        ]);
         expect(call.get('per_page')).toEqual(['11']);
 
         expect(result.rows).toEqual([
@@ -169,7 +177,42 @@ describe('sentryIntegration errors', () => {
         });
 
         expect(sent(send).get('field')).toEqual(['release', 'count()']);
+        expect(sent(send).get('sort')).toEqual(['release']);
         expect(result.rows).toEqual([{ release: '1.0.7' }]);
+    });
+
+    it('orders by the numeric ID of an issue, which Sentry can order by', async () => {
+        const { source, send } = connect(
+            response({
+                data: [
+                    {
+                        issue: 'MOBILE-IOS-1A',
+                        'issue.id': 42,
+                        level: 'error',
+                        'count()': 3,
+                    },
+                ],
+            }),
+        );
+
+        const result = await run(source, {
+            kind: 'errors',
+            columns: ['issue', 'level', 'events'],
+            ...RANGE,
+            sort: { column: 'events', descending: true },
+        });
+
+        const call = sent(send);
+        expect(call.get('field')).toEqual([
+            'issue',
+            'level',
+            'count()',
+            'issue.id',
+        ]);
+        expect(call.get('sort')).toEqual(['-count()', 'issue.id', 'level']);
+        expect(result.rows).toEqual([
+            { issue: 'MOBILE-IOS-1A', level: 'error', events: 3 },
+        ]);
     });
 
     it("names the source's projects on every call, so Sentry reads no other", async () => {
@@ -349,7 +392,8 @@ describe('sentryIntegration issues', () => {
         ]);
         expect(call.get('statsPeriod')).toEqual(['90d']);
         expect(call.get('sort')).toEqual(['user']);
-        expect(call.get('collapse')).toEqual(['stats', 'lifetime']);
+        // Not "stats": that drops the counts and dates of each issue
+        expect(call.get('collapse')).toEqual(['lifetime']);
         expect(call.get('limit')).toEqual(['11']);
         expect(result.rows).toEqual([
             {

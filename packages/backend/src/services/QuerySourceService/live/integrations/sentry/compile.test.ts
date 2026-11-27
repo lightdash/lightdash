@@ -182,7 +182,7 @@ describe('compileSentryQuery on errors', () => {
         ]);
     });
 
-    it('sorts here when Sentry cannot: several sorts, or a list column', () => {
+    it('sorts here when Sentry cannot: several sorts, a list column or the issue', () => {
         const several = [
             { fieldId: error('release'), descending: false },
             { fieldId: error('events'), descending: true },
@@ -209,6 +209,18 @@ describe('compileSentryQuery on errors', () => {
         );
         expect(request.sort).toBeUndefined();
         expect(localSorts).toEqual(byType);
+
+        const byIssue = [{ fieldId: error('issue'), descending: false }];
+        expect(
+            compile(
+                ERRORS,
+                query('sentry_errors', {
+                    dimensions: [error('issue')],
+                    metrics: [error('events')],
+                    sorts: byIssue,
+                }),
+            ).localSorts,
+        ).toEqual(byIssue);
     });
 
     it('reads every row it may when the sort is ours', () => {
