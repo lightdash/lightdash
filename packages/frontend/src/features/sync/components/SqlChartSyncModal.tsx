@@ -59,8 +59,10 @@ const SqlChartSyncModalContent: FC<Props> = ({
     return null;
 };
 
-export const SqlChartSyncModal: FC<Props> = (props) => (
-    <SyncModalProvider>
+export const SqlChartSyncModal: FC<
+    Props & { initialSchedulerUuid?: string }
+> = ({ initialSchedulerUuid, ...props }) => (
+    <SyncModalProvider initialSchedulerUuid={initialSchedulerUuid}>
         <SqlChartSyncModalContent {...props} />
     </SyncModalProvider>
 );

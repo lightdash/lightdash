@@ -544,6 +544,7 @@ export class SchedulerService extends BaseService {
             resourceUuids?: string[];
             destinations?: string[];
             needsAttention?: boolean;
+            enabled?: boolean;
         },
         includeLatestRun?: boolean,
     ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
@@ -920,6 +921,7 @@ export class SchedulerService extends BaseService {
             resourceUuids?: string[];
             destinations?: string[];
             needsAttention?: boolean;
+            enabled?: boolean;
         },
         includeLatestRun?: boolean,
     ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {

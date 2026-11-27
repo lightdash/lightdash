@@ -46,6 +46,7 @@ import {
     type ContentTableVirtualizer,
 } from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
+import DeliveryStatusBadge from './DeliveryStatusBadge';
 import ReassignSchedulerOwnerModal from './ReassignSchedulerOwnerModal';
 import classes from './SchedulersTable.module.css';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
@@ -84,6 +85,8 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     const [, setSearchParams] = useSearchParams();
 
     const {
+        deliveryStatus,
+        setDeliveryStatus,
         needsAttention,
         setNeedsAttention,
         search,
@@ -346,23 +349,25 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         </Text>
                                     </Group>
                                 ) : null}
-                                {!item.enabled &&
-                                    item.automaticallyDisabledReason && (
-                                        <>
-                                            <Badge size="xs" color="yellow">
-                                                Automatically paused
-                                            </Badge>
-                                            <Text fz="xs" c="dimmed">
-                                                {
-                                                    item.automaticallyDisabledReason
-                                                }
-                                            </Text>
-                                        </>
-                                    )}
                             </Stack>
                         </Group>
                     );
                 },
+            },
+            {
+                accessorKey: 'enabled',
+                header: 'Status',
+                enableSorting: false,
+                size: 210,
+                minSize: 200,
+                Cell: ({ row }) => (
+                    <DeliveryStatusBadge
+                        enabled={row.original.enabled}
+                        automaticallyDisabledReason={
+                            row.original.automaticallyDisabledReason
+                        }
+                    />
+                ),
             },
         ];
 
@@ -787,7 +792,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         getRowId: (row) => row.schedulerUuid,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            mah: 'calc(100dvh - 420px)',
+            mah: 'max(18rem, calc(100dvh - 420px))',
             onScroll,
         },
         mantineTableProps: {
@@ -813,6 +818,8 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
             return (
                 <SchedulerTopToolbar
                     projectUuid={projectUuid ?? ''}
+                    deliveryStatus={deliveryStatus}
+                    setDeliveryStatus={setDeliveryStatus}
                     needsAttention={needsAttention}
                     setNeedsAttention={setNeedsAttention}
                     search={search}

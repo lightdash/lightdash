@@ -4,6 +4,7 @@ import {
     Checkbox,
     Divider,
     Group,
+    Select,
     Text,
     Tooltip,
     useMantineTheme,
@@ -23,6 +24,8 @@ import classes from './SchedulerTopToolbar.module.css';
 type SchedulerTopToolbarProps = GroupProps &
     Pick<
         ReturnType<typeof useSchedulerFilters>,
+        | 'deliveryStatus'
+        | 'setDeliveryStatus'
         | 'needsAttention'
         | 'setNeedsAttention'
         | 'search'
@@ -52,6 +55,8 @@ type SchedulerTopToolbarProps = GroupProps &
 
 export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
     ({
+        deliveryStatus,
+        setDeliveryStatus,
         needsAttention,
         setNeedsAttention,
         search,
@@ -130,6 +135,28 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                     <DestinationFilter
                         selectedDestinations={selectedDestinations}
                         setSelectedDestinations={setSelectedDestinations}
+                    />
+
+                    <Select
+                        aria-label="Delivery status"
+                        size="xs"
+                        w={124}
+                        allowDeselect={false}
+                        value={deliveryStatus}
+                        data={[
+                            { value: 'all', label: 'All statuses' },
+                            { value: 'scheduled', label: 'Scheduled' },
+                            { value: 'paused', label: 'Paused' },
+                        ]}
+                        onChange={(value) => {
+                            if (
+                                value === 'all' ||
+                                value === 'scheduled' ||
+                                value === 'paused'
+                            ) {
+                                setDeliveryStatus(value);
+                            }
+                        }}
                     />
 
                     <Checkbox

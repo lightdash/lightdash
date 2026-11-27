@@ -68,6 +68,7 @@ import { useSchedulersEnabledUpdateMutation } from '../../../hooks/useSchedulers
 import ConfirmPauseSchedulerModal from '../../ConfirmPauseSchedulerModal';
 import ConfirmSendNowModal from '../../ConfirmSendNowModal';
 import { SchedulerDeleteModal } from '../../SchedulerDeleteModal';
+import { SchedulerPauseReason } from '../../SchedulerPauseReason';
 import { getSchedulerDeliveryType } from '../../types';
 import { isDeliveryListScheduler } from './deliveryListFilter';
 import { getNextRuns } from './nextRuns';
@@ -316,6 +317,8 @@ const SchedulerDetail: FC<{
                         )}
                     </Group>
                 </Stack>
+
+                <SchedulerPauseReason scheduler={scheduler} />
 
                 <Stack gap="lg" mt="sm">
                     <SchedulerDetailConditions scheduler={scheduler} />

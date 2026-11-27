@@ -658,6 +658,7 @@ export class SchedulerModel {
             resourceUuids?: string[];
             destinations?: string[];
             needsAttention?: boolean;
+            enabled?: boolean;
         };
     }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         // Resolve organization_id once — used to scope all sub-queries
@@ -717,6 +718,13 @@ export class SchedulerModel {
                     column: `${SchedulerTableName}.name`,
                     searchQuery: `%${escapeLikeWildcards(trimmedSearchQuery)}%`,
                 },
+            );
+        }
+
+        if (filters?.enabled !== undefined) {
+            baseQuery = baseQuery.where(
+                `${SchedulerTableName}.enabled`,
+                filters.enabled,
             );
         }
 

@@ -142,6 +142,9 @@ const getPaginatedSchedulers = async (
         ...(filters?.destinations
             ? { destinations: filters.destinations.join(',') }
             : {}),
+        ...(filters?.enabled !== undefined
+            ? { enabled: String(filters.enabled) }
+            : {}),
         ...(filters?.needsAttention ? { needsAttention: 'true' } : {}),
         ...(includeLatestRun ? { includeLatestRun: 'true' } : {}),
     }).toString();
@@ -177,6 +180,9 @@ const getUserPaginatedSchedulers = async (
             : {}),
         ...(filters?.destinations
             ? { destinations: filters.destinations.join(',') }
+            : {}),
+        ...(filters?.enabled !== undefined
+            ? { enabled: String(filters.enabled) }
             : {}),
         ...(filters?.needsAttention ? { needsAttention: 'true' } : {}),
         ...(includeLatestRun ? { includeLatestRun: 'true' } : {}),

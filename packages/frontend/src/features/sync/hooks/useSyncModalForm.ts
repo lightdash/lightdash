@@ -223,6 +223,7 @@ export const useSyncModalForm = (resource: SyncResource) => {
 
     return {
         form,
+        savedScheduler: isEditing ? schedulerData : undefined,
         handleSubmit,
         isLoading,
         isEditing,
