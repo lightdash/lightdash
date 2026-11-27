@@ -7,10 +7,10 @@
 # supervisor kill it before scheduler jobs release their locks.
 [[app.service]]
 name = "dev"
-command = "cd packages/backend && exec node --import tsx src/index.ts"
+command = """cd packages/backend && { if [ -n "$${GOOGLE_SHEETS_DEV_REFRESH_TOKEN:-}" ]; then timeout --kill-after=2s 10s pnpm seed --specific=19_google_sheets_dev_grant.ts || echo "Google Sheets dev grant seed skipped" >&2; fi; unset GOOGLE_SHEETS_DEV_REFRESH_TOKEN && exec node --import tsx src/index.ts; }"""
 port = 8080
 serve = true
-restart_on_inject = true           # re-exec on fork to read the injected SITE_URL (see [origin])
+restart_on_inject = true           # read the fork's SITE_URL and run only the Sheets grant seed when the secret is set
 
 # The Snowflake AI OAuth/SDK stub the API tests drive. Plain node, no deps;
 # it reads only PORT, and the recipe's PORT is the backend's, so the stub's
@@ -544,14 +544,13 @@ S3_HOST = "host"
 UPLOADS_S3_BUCKET = "config"
 # Google Sheets sync: the OAuth client a user connects Google with, and the
 # key for the sheet picker. The client belongs to the shared Google test
-# account (team password manager, Shared vault), and its consent screen is
-# in testing with that account as the only test user, so Google refuses
-# every other account. Envs are public: treat the token as
-# public and never connect your own account. Testing tokens expire after
-# 7 days; reconnect when a sync fails with invalid_grant. Google needs an
-# exact redirect URI per host, so connecting works only on the fixed envs
-# gsheets, gsheets-2 and gsheets-3. Without AUTH_GOOGLE_ENABLED the login
-# page keeps no Google button.
+# account (team password manager). Google accepts only this account for the
+# client. Envs are public: treat the token as public and never connect your
+# own account. Google needs an exact redirect URI to connect, but not to use
+# the seeded grant. Without AUTH_GOOGLE_ENABLED the login page keeps no
+# Google button.
 AUTH_GOOGLE_OAUTH2_CLIENT_ID = "oauth-client"
 AUTH_GOOGLE_OAUTH2_CLIENT_SECRET = "oauth-client"
 GOOGLE_DRIVE_API_KEY = "api-key"
+# Shared test account refresh token for the development database seed.
+GOOGLE_SHEETS_DEV_REFRESH_TOKEN = "oauth-refresh-token"

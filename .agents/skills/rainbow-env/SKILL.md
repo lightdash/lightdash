@@ -63,14 +63,23 @@ Done when every claim you report names the env, the commit it served (`list_envs
 
 ## Google Sheets
 
-Google needs an exact redirect URI per host, so Google Sheets sync works only on three fixed env names: `gsheets`, `gsheets-2` and `gsheets-3` (`https://<name>.lightdash.rainbowmachine.dev`). Other envs show the option, and Google refuses the redirect. Pick a free name with `list_envs`.
+With `GOOGLE_SHEETS_DEV_REFRESH_TOKEN` set, the seeded admin can sync to Sheets on any new preview. The development seed adds the grant; forks inherit it. To connect Google in the UI, use `gsheets`, `gsheets-2` or `gsheets-3` and only the shared test account.
 
-Connect only the shared Google test account. Its sign-in, with a one-time code, is in the team password manager's Shared vault. Never connect your own account. The consent screen is in testing with that account as the only test user, so Google refuses every other account. Envs are public, so treat the token as public.
+To rotate, sign in as the seeded admin on `gsheets`, open `/api/v1/login/gdrive`, and reconnect the test account. Ask a Rainbow operator to run this on the Rainbow host in Bash. Set `gsheets_env_id` to the ID for `gsheets` from `rainbow ls`. Keep the pipe intact: agents must never fetch or pass the token through MCP `exec`, `set_env` or chat.
 
-1. `create_env({repo: "lightdash/lightdash", branch, name: "gsheets"})`. The same call serves another branch at the same URL.
-2. Sign in to Lightdash, open a chart's Google Sheets sync and connect Google once per env, as the test account. The env stores the refresh token in its database.
-3. `fork_env` the env for each experiment. A fork keeps the database, so it keeps the token: no new consent. `kill_env` the fork after.
-4. For charts above the default 5,000-row limit, `set_env` `LIGHTDASH_QUERY_MAX_LIMIT` on the fork. Read the sync in `logs` with service `dev`, and check `egress` for refused hosts.
-5. Testing tokens expire after 7 days. When a sync fails with `invalid_grant`, connect Google again on the env.
+```bash
+set -o pipefail
+rainbow exec "$gsheets_env_id" "$(cat <<'GUEST'
+systemd-run --quiet --pipe --wait --collect -p EnvironmentFile=/etc/lightdash.env -p EnvironmentFile=-/run/rainbow/secrets.env --working-directory=/usr/app/packages/backend /usr/local/bin/node --import tsx -e '
+const {SEED_ORG_1_ADMIN}=require("@lightdash/common"), {lightdashConfig}=require("./src/config/lightdashConfig.ts"), {EncryptionUtil}=require("./src/utils/EncryptionUtil/EncryptionUtil.ts"), db=require("knex")(require("./src/knexfile.ts").default.development);
+(async()=>{let token; try {const grant=await db("user_oauth_grants").where({user_uuid:SEED_ORG_1_ADMIN.user_uuid,provider:"google"}).whereNot("provider_subject","rainbow-sheets-test").first("encrypted_refresh_token"); if(!grant) throw Error(); token=new EncryptionUtil({lightdashConfig}).decrypt(grant.encrypted_refresh_token);} finally {await db.destroy();} if(!token) throw Error(); process.stdout.write(token);})().catch(()=>{console.error("Could not export the connected Google grant");process.exitCode=1;});
+'
+GUEST
+)" | rainbow secrets set -repo lightdash/lightdash GOOGLE_SHEETS_DEV_REFRESH_TOKEN
+```
 
-The OAuth client and the picker key belong to the test account's own Google Cloud project, and are in the same Shared vault. A new pool name needs its redirect URI and JavaScript origin added to that client.
+Let Rainbow restart services, then recreate previews that still have the old token.
+
+**Treat the token as public.** `GET /api/v1/gdrive/get-access-token` accepts API-key auth and returns a raw Google bearer token. `spreadsheets` covers every sheet the test account can open. `drive.file` covers files this client created, including sharing them. Anyone with the access token can revoke the grant and break every preview's sync. Use only test data. Rotation is not revocation: remove the app's access in Google to revoke a leaked grant. Removing the Rainbow secret does not delete existing rows.
+
+For the Picker, allow `https://*.lightdash.rainbowmachine.dev/*` and `https://docs.google.com/*` in the [key's website restrictions](https://developers.google.com/workspace/drive/picker/guides/web-picker#create_an_api_key). API syncs with a spreadsheet ID do not need the Picker. On a replacement OAuth client, register `https://<env>.lightdash.rainbowmachine.dev` as a JavaScript origin and `/api/v1/oauth/redirect/google` on that origin as a redirect URI for each fixed host before reconnecting.
