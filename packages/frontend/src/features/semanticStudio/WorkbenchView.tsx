@@ -1125,6 +1125,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             <MarkPublishedContext.Provider value={markPublished}>
                 <LiveSourceManager
                     projectUuid={view.project.id}
+                    available={view.isLiveAvailable}
                     enabled={view.permissions.live}
                     onRemoved={() =>
                         view.select(

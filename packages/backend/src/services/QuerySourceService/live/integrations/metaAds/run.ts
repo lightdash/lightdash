@@ -5,21 +5,21 @@ import {
     LIVE_INTEGRATION_CATALOG,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
-import { readRowsWithinCap } from '../../query/rows';
 import {
+    assertMaxRows,
+    readRowsWithinCap,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../types';
-import { META_ADS_BREAKDOWNS } from './explores';
+} from '../../sdk';
+import { META_ADS_BREAKDOWNS } from './api';
 
 const LABEL = LIVE_INTEGRATION_CATALOG[ApiConnectorType.META_ADS].messageLabel;
-const INSIGHTS_PAGE_SIZE = 500;
+export const META_ADS_PAGE_SIZE = 500;
 export const META_ADS_CALLS_PER_QUERY = 10;
 /** The most rows one query can read: every page it may fetch. */
 export const META_ADS_MAX_QUERY_ROWS =
-    INSIGHTS_PAGE_SIZE * META_ADS_CALLS_PER_QUERY;
+    META_ADS_PAGE_SIZE * META_ADS_CALLS_PER_QUERY;
 
 const OBJECT_FIELDS = [
     'campaign_id',
@@ -218,7 +218,7 @@ export const runMetaAdsQuery = async ({
     settings: { adAccountId },
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.META_ADS,
     MetaAdsRequest
@@ -244,10 +244,10 @@ export const runMetaAdsQuery = async ({
         label: LABEL,
         requestedRows: Math.min(limit, request.limit ?? limit),
         maxRows: META_ADS_MAX_QUERY_ROWS,
-        pageSize: INSIGHTS_PAGE_SIZE,
+        pageSize: META_ADS_PAGE_SIZE,
         maxPages: META_ADS_CALLS_PER_QUERY,
         fetchPage: async ({ limit: pageLimit, cursor }) => {
-            const { data, paging } = await calls.fetch(
+            const { data, paging } = await runtime.fetch(
                 {
                     method: 'GET',
                     path: getMetaAdsInsightsPath(adAccountId),

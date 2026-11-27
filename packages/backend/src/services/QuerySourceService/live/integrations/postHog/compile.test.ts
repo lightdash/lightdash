@@ -19,7 +19,7 @@ import {
     POSTHOG_EVENTS_EXPLORE,
     POSTHOG_MAX_SCANNED_PROPERTIES,
     withPostHogPropertyFields,
-} from './explores';
+} from './model';
 
 const EXPLORE = 'posthog_events';
 const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -34,7 +34,7 @@ const buildExplore = (definition = POSTHOG_EVENTS_EXPLORE) =>
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.POSTHOG,
         baseVersion: 1,
-        capabilities: postHogIntegration.capabilities,
+        capabilities: postHogIntegration.query.capabilities,
         warehouseSqlBuilder,
     });
 

@@ -9,9 +9,8 @@ import {
 import { attioIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
+import { ATTIO_MAX_RECORDS, ATTIO_PAGE_SIZE, toAttioError } from './api';
 import { ATTIO_DEAL_ATTRIBUTES, attioDeal } from './attio.fixtures';
-import { toAttioError } from './errors';
-import { ATTIO_MAX_RECORDS, ATTIO_PAGE_SIZE } from './explores';
 
 const response = (
     body: unknown,
@@ -252,7 +251,7 @@ describe('attioIntegration scan', () => {
             ...ATTRIBUTES_PATHS.map(() => response(ATTIO_DEAL_ATTRIBUTES)),
         );
 
-        const scan = await source.scan();
+        const scan = await source.discover();
 
         expect(send.mock.calls.map(([call]) => call.path)).toEqual(
             ATTRIBUTES_PATHS,
@@ -283,7 +282,7 @@ describe('attioIntegration scan', () => {
             response({ message: 'Forbidden' }, 403),
         );
 
-        const scan = await source.scan();
+        const scan = await source.discover();
 
         expect(Object.keys(scan.attioAttributes as object)).toEqual([
             'companies',
@@ -301,7 +300,7 @@ describe('attioIntegration scan', () => {
             response(ATTIO_DEAL_ATTRIBUTES),
         );
 
-        await expect(source.scan()).rejects.toBeInstanceOf(
+        await expect(source.discover()).rejects.toBeInstanceOf(
             TooManyRequestsError,
         );
     });
@@ -313,7 +312,9 @@ describe('attioIntegration scan', () => {
             ),
         );
 
-        await expect(source.scan()).rejects.toThrow('record_permission:read');
+        await expect(source.discover()).rejects.toThrow(
+            'record_permission:read',
+        );
     });
 });
 

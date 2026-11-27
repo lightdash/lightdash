@@ -22,7 +22,7 @@ import {
     AMPLITUDE_RETENTION_EXPLORE,
     AMPLITUDE_SESSIONS_EXPLORE,
     AMPLITUDE_USERS_EXPLORE,
-} from './explores';
+} from './model';
 
 const TODAY = '2026-11-09';
 
@@ -35,7 +35,7 @@ const build = (definition: LiveExploreDefinition) => {
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.AMPLITUDE,
         baseVersion: 1,
-        capabilities: amplitudeIntegration.capabilities,
+        capabilities: amplitudeIntegration.query.capabilities,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),

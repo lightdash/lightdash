@@ -15,12 +15,13 @@ import {
 import {
     getActiveFilterRules,
     getApiName,
+    getLiveDateRange,
     getLiveDefinitionName,
     getLiveExplore,
+    refuseLiveQuery,
+    toAbsoluteDateRange,
     type LiveCompiledRequest,
-} from '../../explores/definition';
-import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
-import { refuseLiveQuery } from '../../query/refuse';
+} from '../../sdk';
 import {
     HUBSPOT_COUNT_REASON,
     HUBSPOT_LABEL_SUFFIX,
@@ -28,9 +29,9 @@ import {
     HUBSPOT_OBJECT_LABELS,
     HUBSPOT_PIPELINE_STAGES,
     toHubspotObject,
-    toHubspotPropertyName,
     type HubspotPipelineColumn,
-} from './explores';
+} from './api';
+import { toHubspotPropertyName } from './model';
 import { type HubspotFilter, type HubspotRequest } from './run';
 
 // Placeholder for the open side of a one-sided date filter; never sent

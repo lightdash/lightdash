@@ -8,7 +8,7 @@ import {
 import { linkedInAdsIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpRequest, type LiveHttpResponse } from '../../types';
-import { LINKEDIN_ADS_ANALYTICS_PATH } from './run';
+import { LINKEDIN_ADS_ANALYTICS_PATH } from './api';
 
 const ACCOUNT = '507404993';
 

@@ -3,6 +3,7 @@
 Render [canonical JSON](json.md) as one segmented card, using [assets/template.html](../assets/template.html) as the template.
 Copy its markup, class names and tokens, and replace its reference content with the review.
 Show inline with `show_widget`; publish with the Artifact tool when a shareable link is requested.
+Render only through this spec and the template, from the full review JSON with every segment; never show a hand-written summary in its place.
 
 ## Segments
 

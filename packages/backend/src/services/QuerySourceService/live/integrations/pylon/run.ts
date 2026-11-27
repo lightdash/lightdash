@@ -8,26 +8,27 @@ import {
     PYLON_USERS_PATH,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
-import { readRowsWithinCap, tooManyRowsError } from '../../query/rows';
 import {
-    type LiveCalls,
+    assertMaxRows,
+    readRowsWithinCap,
+    tooManyRowsError,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../types';
+    type LiveRuntime,
+} from '../../sdk';
 
 const LABEL = 'Pylon';
 
 /** Search reads at most 1,000 records a page. */
-const PAGE_SIZE = 1_000;
+export const PYLON_PAGE_SIZE = 1_000;
 const MAX_PAGES = 10;
 
 /**
  * The most rows one query reads: one fewer than ten full pages, so reading
  * every page detects truncation.
  */
-export const PYLON_MAX_QUERY_ROWS = PAGE_SIZE * MAX_PAGES - 1;
+export const PYLON_MAX_QUERY_ROWS = PYLON_PAGE_SIZE * MAX_PAGES - 1;
 
 /** Account names are read 1,000 IDs a call, up to this many calls. */
 const MAX_NAME_CALLS = MAX_PAGES;
@@ -633,14 +634,14 @@ const toPylonFilter = (filters: PylonFilter[]) => {
 };
 
 const searchPage = async ({
-    calls,
+    runtime,
     kind,
     filters,
     sort,
     limit,
     cursor,
 }: {
-    calls: LiveCalls;
+    runtime: LiveRuntime;
     kind: PylonKind;
     filters: PylonFilter[];
     sort?: PylonRequest['sort'];
@@ -648,7 +649,7 @@ const searchPage = async ({
     cursor: string | undefined;
 }) => {
     const { path, schema } = KINDS[kind];
-    const response = await calls.fetch(
+    const response = await runtime.fetch(
         {
             method: 'POST',
             path,
@@ -677,19 +678,19 @@ const chunk = <T>(values: T[], size: number): T[][] =>
     );
 
 /** Account IDs by name; names match exactly, as Pylon shows them. */
-const findAccountIds = async (calls: LiveCalls, names: string[]) => {
+const findAccountIds = async (runtime: LiveRuntime, names: string[]) => {
     const { records } = await searchPage({
-        calls,
+        runtime,
         kind: 'accounts',
         filters: [{ field: 'name', operator: 'in', values: names }],
-        limit: PAGE_SIZE,
+        limit: PYLON_PAGE_SIZE,
         cursor: undefined,
     });
     return records.map((account) => (account as PylonAccount).id);
 };
 
-const readUsers = async (calls: LiveCalls) => {
-    const { data } = await calls.fetch(
+const readUsers = async (runtime: LiveRuntime) => {
+    const { data } = await runtime.fetch(
         { method: 'GET', path: PYLON_USERS_PATH, body: undefined },
         usersSchema,
     );
@@ -697,9 +698,9 @@ const readUsers = async (calls: LiveCalls) => {
 };
 
 /** Teammate IDs by email, including their secondary emails. */
-const findUserIds = async (calls: LiveCalls, emails: string[]) => {
+const findUserIds = async (runtime: LiveRuntime, emails: string[]) => {
     const wanted = new Set(emails.map((email) => email.trim().toLowerCase()));
-    const users = await readUsers(calls);
+    const users = await readUsers(runtime);
     return users
         .filter((user) =>
             [user.email, ...(user.emails ?? [])].some((email) =>
@@ -715,7 +716,7 @@ const findUserIds = async (calls: LiveCalls, emails: string[]) => {
  */
 const resolveLookups = async (
     filters: PylonFilter[],
-    calls: LiveCalls,
+    runtime: LiveRuntime,
 ): Promise<PylonFilter[] | null> => {
     const resolved: PylonFilter[] = [];
     for (const filter of filters) {
@@ -730,9 +731,9 @@ const resolveLookups = async (
             const ids =
                 filter.field === 'account_name'
                     ? // eslint-disable-next-line no-await-in-loop
-                      await findAccountIds(calls, values)
+                      await findAccountIds(runtime, values)
                     : // eslint-disable-next-line no-await-in-loop
-                      await findUserIds(calls, values);
+                      await findUserIds(runtime, values);
             if (ids.length === 0 && filter.operator === 'in') {
                 return null;
             }
@@ -753,21 +754,21 @@ const resolveLookups = async (
 
 /** Account names by ID, 1,000 IDs a call. */
 const readAccountNames = async (
-    calls: LiveCalls,
+    runtime: LiveRuntime,
     ids: string[],
 ): Promise<Map<string, string>> => {
     const values = new Map<string, string>();
-    const batches = chunk([...new Set(ids)], PAGE_SIZE);
+    const batches = chunk([...new Set(ids)], PYLON_PAGE_SIZE);
     if (batches.length > MAX_NAME_CALLS) {
         throw tooManyRowsError({ label: LABEL, maxRows: PYLON_MAX_QUERY_ROWS });
     }
     for (const batch of batches) {
         // eslint-disable-next-line no-await-in-loop
         const { records } = await searchPage({
-            calls,
+            runtime,
             kind: 'accounts',
             filters: [{ field: 'account_id', operator: 'in', values: batch }],
-            limit: PAGE_SIZE,
+            limit: PYLON_PAGE_SIZE,
             cursor: undefined,
         });
         records.forEach((record) => {
@@ -788,17 +789,19 @@ const accountIdsOf = (records: PylonRecord[]) =>
 
 /** Reads the names behind the IDs of the records, for the columns asked for. */
 const readNames = async (
-    calls: LiveCalls,
+    runtime: LiveRuntime,
     records: PylonRecord[],
     columns: string[],
 ): Promise<Names> => ({
     accounts: columns.includes('account_name')
-        ? await readAccountNames(calls, accountIdsOf(records))
+        ? await readAccountNames(runtime, accountIdsOf(records))
         : new Map(),
     users: columns.some(
         (column) => column === 'assignee_email' || column === 'owner_email',
     )
-        ? new Map((await readUsers(calls)).map(({ id, email }) => [id, email]))
+        ? new Map(
+              (await readUsers(runtime)).map(({ id, email }) => [id, email]),
+          )
         : new Map(),
 });
 
@@ -850,7 +853,7 @@ const matchesLocalFilter = (issue: PylonIssue, filter: PylonLocalFilter) => {
 export const runPylonQuery = async ({
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.PYLON,
     PylonRequest
@@ -858,7 +861,7 @@ export const runPylonQuery = async ({
     assertMaxRows(limit, PYLON_MAX_QUERY_ROWS);
     const { kind, columns, sort, localFilters = [] } = request;
     const resultColumns = toColumns(columns);
-    const filters = await resolveLookups(request.filters, calls);
+    const filters = await resolveLookups(request.filters, runtime);
     if (!filters) {
         return { columns: resultColumns, rows: [], hasMoreRows: false };
     }
@@ -869,11 +872,11 @@ export const runPylonQuery = async ({
             label: LABEL,
             requestedRows: rowsToRead,
             maxRows: PYLON_MAX_QUERY_ROWS,
-            pageSize: Math.min(PAGE_SIZE, rowsToRead + 1),
+            pageSize: Math.min(PYLON_PAGE_SIZE, rowsToRead + 1),
             maxPages: MAX_PAGES,
             fetchPage: async ({ limit: pageLimit, cursor }) => {
                 const page = await searchPage({
-                    calls,
+                    runtime,
                     kind,
                     filters,
                     sort,
@@ -895,7 +898,7 @@ export const runPylonQuery = async ({
     const typedRecords = keptRecords.slice(0, limit);
     const hasMoreRows =
         localFilters.length > 0 ? keptRecords.length > limit : hasMoreRead;
-    const names = await readNames(calls, typedRecords, columns);
+    const names = await readNames(runtime, typedRecords, columns);
     return {
         columns: resultColumns,
         rows: typedRecords.map((record) =>

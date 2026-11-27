@@ -9,8 +9,8 @@ import {
 import { hubspotIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { toHubspotError } from './errors';
-import { HUBSPOT_MAX_ROWS } from './explores';
+import { HUBSPOT_MAX_ROWS, toHubspotError } from './api';
+import { summarizeHubspotTest } from './connection';
 import {
     HUBSPOT_DEAL_PIPELINES,
     HUBSPOT_DEAL_PROPERTIES,
@@ -18,7 +18,6 @@ import {
     hubspotDeal,
     hubspotSearchPage,
 } from './hubspot.fixtures';
-import { summarizeHubspotTest } from './testSummary';
 
 const response = (
     body: unknown,
@@ -338,7 +337,7 @@ describe('hubspotIntegration scan and test', () => {
             response({ results: [] }),
         );
 
-        await expect(source.scan()).resolves.toEqual({
+        await expect(source.discover()).resolves.toEqual({
             hubspotProperties: {
                 deals: HUBSPOT_DEAL_PROPERTIES,
                 contacts: { results: [] },
@@ -366,7 +365,7 @@ describe('hubspotIntegration scan and test', () => {
             response(MISSING_LEADS_SCOPE, 403),
         );
 
-        const scan = await source.scan();
+        const scan = await source.discover();
 
         expect(scan.hubspotProperties).toEqual({
             deals: HUBSPOT_DEAL_PROPERTIES,
@@ -386,7 +385,7 @@ describe('hubspotIntegration scan and test', () => {
                 ),
             ),
         );
-        await expect(source.scan()).rejects.toThrow('access token');
+        await expect(source.discover()).rejects.toThrow('access token');
     });
 
     it('fails the scan when HubSpot is briefly unavailable, keeping the last one', async () => {
@@ -398,7 +397,7 @@ describe('hubspotIntegration scan and test', () => {
             response({ results: [] }),
             response({ results: [] }),
         );
-        await expect(source.scan()).rejects.toBeInstanceOf(
+        await expect(source.discover()).rejects.toBeInstanceOf(
             TooManyRequestsError,
         );
     });
@@ -408,7 +407,7 @@ describe('hubspotIntegration scan and test', () => {
         send.mockResolvedValueOnce(response(HUBSPOT_DEAL_PROPERTIES))
             .mockRejectedValueOnce(new Error('HubSpot timed out'))
             .mockResolvedValue(response({ results: [] }));
-        await expect(source.scan()).rejects.toThrow('HubSpot timed out');
+        await expect(source.discover()).rejects.toThrow('HubSpot timed out');
     });
 
     it.each([

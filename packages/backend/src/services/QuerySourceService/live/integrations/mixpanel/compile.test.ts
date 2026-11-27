@@ -21,7 +21,7 @@ import {
     MIXPANEL_FUNNEL_EXPLORE,
     MIXPANEL_RETENTION_EXPLORE,
     MIXPANEL_TOP_EVENTS_EXPLORE,
-} from './explores';
+} from './model';
 
 const TODAY = '2026-11-09';
 
@@ -34,7 +34,7 @@ const build = (definition: LiveExploreDefinition) => {
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.MIXPANEL,
         baseVersion: 1,
-        capabilities: mixpanelIntegration.capabilities,
+        capabilities: mixpanelIntegration.query.capabilities,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),
