@@ -711,6 +711,22 @@ describe('promoting a dashboard showing a chart a space owns', () => {
         expect(spaceModel.createSpace).not.toHaveBeenCalled();
     });
 
+    test('promotes without the chart write check on the upstream dashboard when the dashboard owns no composer chart', async () => {
+        const { service, composerChartService } = setup({
+            sourceChart: referenced,
+            upstreamDashboardExists: true,
+        });
+        composerChartService.preflightDashboard.mockRejectedValue(
+            new ForbiddenError(
+                "You don't have permission to save composer charts here",
+            ),
+        );
+
+        await service.promoteDashboard(account, sourceDashboard.uuid, scoped);
+
+        expect(composerChartService.writeFromCode).toHaveBeenCalledOnce();
+    });
+
     test("a chart in the dashboard's own space lists that space once", async () => {
         const { service } = setup({
             sourceChart: composerChart({

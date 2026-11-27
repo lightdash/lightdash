@@ -33,6 +33,7 @@ import {
     SpaceGroup,
     UnexpectedServerError,
     UpdateSqlChart,
+    type ComposerChartOwner,
     type Document,
     type DocumentChartContent,
     type DocumentContent,
@@ -3012,8 +3013,26 @@ export class PromoteService extends BaseService {
         ) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
-        // The promote checks match the upstream space by path, not where the dashboard is now
-        if (upstreamDashboard.dashboard) {
+        const sourceOwners = new Map(
+            await Promise.all(
+                dashboard.tiles
+                    .filter(isDashboardComposerChartTile)
+                    .flatMap((tile) => tile.properties.composerChartUuid ?? [])
+                    .map(
+                        async (uuid) =>
+                            [
+                                uuid,
+                                (await this.composerChartModel.getOwner(uuid))
+                                    .owner,
+                            ] as const,
+                    ),
+            ),
+        );
+        const ownsComposerCharts = [...sourceOwners.values()].some(
+            (owner) => owner.type === 'dashboard',
+        );
+        // The promote checks match the upstream space by path; space-owned charts are checked in their own space
+        if (ownsComposerCharts && upstreamDashboard.dashboard) {
             await this.getComposerChartService().preflightDashboard(
                 account,
                 upstreamDashboard.projectUuid,
@@ -3021,6 +3040,7 @@ export class PromoteService extends BaseService {
             );
         } else if (
             // A new dashboard has no grants yet, so an existing space decides; a new space's creation check covers it, as for classic charts
+            ownsComposerCharts &&
             upstreamDashboard.space &&
             this.createAuditedAbility(account).cannot(
                 'create',
@@ -3052,6 +3072,7 @@ export class PromoteService extends BaseService {
             account,
             upstreamDashboard.projectUuid,
             changes,
+            sourceOwners,
         );
         await preflightComposerChartChanges(
             this.composerChartModel,
@@ -3072,23 +3093,17 @@ export class PromoteService extends BaseService {
      */
     private async getReferencedComposerChartSpaceChanges(
         account: RegisteredAccount,
-        upstreamProjectUuid: string,
+        upstreamProjectUuid: UUID,
         changes: NonNullable<PromotionChanges['composerCharts']>,
+        sourceOwners: ReadonlyMap<string, ComposerChartOwner>,
     ): Promise<PromotionChanges['spaces']> {
         const ability = this.createAuditedAbility(account);
         const organizationUuid = account.organization.organizationUuid!;
         let spaceChanges: PromotionChanges['spaces'] = [];
         for (const { action, data } of changes) {
             /* eslint-disable no-await-in-loop, no-continue */
-            if (data.spacePath === null) continue;
-            const { owner } = await this.composerChartModel.getOwner(
-                data.oldUuid,
-            );
-            if (owner.type !== 'space') {
-                throw new UnexpectedServerError(
-                    `Composer chart "${data.slug}" no longer belongs to a space`,
-                );
-            }
+            const owner = sourceOwners.get(data.oldUuid);
+            if (owner?.type !== 'space') continue;
             const sourceAccess =
                 await this.spacePermissionService.resolveAccess(
                     account.user.userUuid,
@@ -3131,37 +3146,41 @@ export class PromoteService extends BaseService {
                         owner.spaceUuid,
                         upstreamProjectUuid,
                     );
-                const target = pathChanges.find(
-                    (change) => change.data.path === data.spacePath,
-                );
-                if (target?.action === PromotionAction.CREATE) {
-                    // As for classic charts, the new space's own access decides the chart write
-                    PromoteService.checkPromoteSpacePermissions(
-                        ability,
-                        organizationUuid,
-                        {
-                            projectUuid: upstreamProjectUuid,
-                            space: undefined,
-                            spaceAccessContext: undefined,
-                        },
-                    );
-                } else if (target) {
-                    const upstreamAccess =
-                        await this.spacePermissionService.resolveAccess(
-                            account.user.userUuid,
-                            { type: 'space', spaceUuid: target.data.uuid },
-                        );
-                    if (target.action === PromotionAction.UPDATE) {
+                for (const change of pathChanges) {
+                    if (change.action === PromotionAction.CREATE) {
                         PromoteService.checkPromoteSpacePermissions(
                             ability,
                             organizationUuid,
                             {
                                 projectUuid: upstreamProjectUuid,
-                                space: target.data,
-                                spaceAccessContext: upstreamAccess,
+                                space: undefined,
+                                spaceAccessContext: undefined,
+                            },
+                        );
+                    } else if (change.action === PromotionAction.UPDATE) {
+                        PromoteService.checkPromoteSpacePermissions(
+                            ability,
+                            organizationUuid,
+                            {
+                                projectUuid: upstreamProjectUuid,
+                                space: change.data,
+                                spaceAccessContext:
+                                    await this.spacePermissionService.resolveAccess(
+                                        account.user.userUuid,
+                                        {
+                                            type: 'space',
+                                            spaceUuid: change.data.uuid,
+                                        },
+                                    ),
                             },
                         );
                     }
+                }
+                const target = pathChanges.find(
+                    (change) => change.data.path === data.spacePath,
+                );
+                // As for classic charts, a new space's own access decides the chart write
+                if (target && target.action !== PromotionAction.CREATE) {
                     await this.getComposerChartService().preflightSpaceWrite(
                         account,
                         upstreamProjectUuid,

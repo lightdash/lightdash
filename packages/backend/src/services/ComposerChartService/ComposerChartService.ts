@@ -392,9 +392,9 @@ export class ComposerChartService extends BaseService {
     /** The chart write check on a space: create, or update of the chart given. */
     async preflightSpaceWrite(
         account: RegisteredAccount,
-        projectUuid: string,
-        spaceUuid: string,
-        composerChartUuid: string | null,
+        projectUuid: UUID,
+        spaceUuid: UUID,
+        composerChartUuid: UUID | null,
     ): Promise<void> {
         await this.assertChartPermission(
             account,
