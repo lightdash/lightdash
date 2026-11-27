@@ -342,7 +342,7 @@ const makeMcpService = ({
     };
     const mcpToolCallModel = {
         createToolCall: vi.fn().mockResolvedValue(undefined),
-        findClientInfo: vi.fn().mockResolvedValue(undefined),
+        findSessionClientInfo: vi.fn().mockResolvedValue(undefined),
     };
 
     const shareService = {

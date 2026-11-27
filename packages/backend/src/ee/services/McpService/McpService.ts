@@ -207,7 +207,7 @@ import {
 import { wrapSentryTransaction } from '../../../utils';
 import { VERSION } from '../../../version';
 import { composerSessionScope } from '../../database/entities/composerQueryNodes';
-import { DbMcpClientInfo } from '../../database/entities/mcpToolCall';
+import { DbMcpSessionClientInfo } from '../../database/entities/mcpToolCall';
 import type { AiAgentModel } from '../../models/AiAgentModel';
 import { McpToolCallModel } from '../../models/McpToolCallModel';
 import {
@@ -7133,7 +7133,7 @@ export class McpService extends BaseService {
         let agentUuid: string | null = explicitScope.success
             ? (explicitScope.data.agentUuid ?? null)
             : null;
-        let clientInfo: DbMcpClientInfo | undefined;
+        let clientInfo: DbMcpSessionClientInfo | undefined;
         try {
             if (!explicitScope.success) {
                 const contextRow = await this.mcpContextModel.getContext(
@@ -7149,11 +7149,11 @@ export class McpService extends BaseService {
                         : (contextRow?.context.agentUuid ?? null);
             }
 
-            clientInfo = userAgent
-                ? await this.mcpToolCallModel.findClientInfo(
+            clientInfo = sessionId
+                ? await this.mcpToolCallModel.findSessionClientInfo(
+                      sessionId,
                       user.userUuid,
                       organizationUuid,
-                      userAgent,
                   )
                 : undefined;
         } catch (error) {
@@ -7220,29 +7220,28 @@ export class McpService extends BaseService {
     }
 
     /**
-     * Stores the client identity from an MCP initialize handshake. The
-     * transport is stateless, so this is the only request that carries
-     * clientInfo — tool calls attach it later by matching user agent.
+     * Stores the clientInfo of an MCP initialize under the session id minted
+     * for it; tool calls echoing that id record this client.
      */
     public async captureClientInfo({
         user,
+        sessionId,
         clientName,
         clientVersion,
-        userAgent,
     }: {
         user: SessionUser;
+        sessionId: string;
         clientName: string;
         clientVersion: string | null;
-        userAgent: string;
     }): Promise<void> {
         try {
             if (!user.organizationUuid) {
                 return;
             }
-            await this.mcpToolCallModel.upsertClientInfo({
+            await this.mcpToolCallModel.createSessionClientInfo({
+                sessionId,
                 userUuid: user.userUuid,
                 organizationUuid: user.organizationUuid,
-                userAgent,
                 clientName,
                 clientVersion,
             });

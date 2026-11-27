@@ -436,16 +436,15 @@ mcpRouter.all(
                     res.setHeader(MCP_SESSION_ID_HEADER, sessionId);
                 }
 
-                // The transport is stateless, so clientInfo only ever appears
-                // on initialize requests; store it so later tool calls can
-                // attach the client identity by matching user agent.
+                // clientInfo only appears on initialize; store it under the
+                // minted session id so tool calls of that session record it.
                 const clientInfo = extractClientInfoFromInitialize(req);
-                if (clientInfo && userAgent && req.user) {
+                if (clientInfo && sessionId && req.user) {
                     await mcpService.captureClientInfo({
                         user: req.user,
+                        sessionId,
                         clientName: clientInfo.name,
                         clientVersion: clientInfo.version,
-                        userAgent,
                     });
                 }
                 // Content-write tools are only registered when the org-level
