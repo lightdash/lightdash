@@ -36,9 +36,9 @@ import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel, type CascadedDocument } from '../../models/SpaceModel';
 import {
-    assertHumanManagedMutation,
-    getManagedAgentPolicy,
-} from '../AgentPermissionService/assertHumanManagedMutation';
+    assertHumanOnlyMutation,
+    getRestrictingAgentPolicy,
+} from '../AgentPermissionService/assertHumanOnlyMutation';
 import { BaseService } from '../BaseService';
 import type { DashboardService } from '../DashboardService/DashboardService';
 import type { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -481,7 +481,7 @@ export class SpaceService
         if (
             (updateSpace.inheritParentPermissions !== undefined ||
                 updateSpace.projectMemberAccessRole !== undefined) &&
-            (await getManagedAgentPolicy({
+            (await getRestrictingAgentPolicy({
                 organizationUuid: space.organizationUuid,
                 ability: user.ability,
                 oauth: false,
@@ -575,7 +575,7 @@ export class SpaceService
         user: SessionUser,
         organizationUuid: string | undefined,
     ): Promise<void> {
-        await assertHumanManagedMutation({
+        await assertHumanOnlyMutation({
             organizationUuid,
             ability: user.ability,
             oauth: false,

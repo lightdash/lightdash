@@ -36,7 +36,7 @@ export const evaluateAgentPermissionOperations = async (
         ...new Set(args.operations.map((op) => op.projectUuid)),
     ];
     let scoped = deps;
-    if (request.enforcementMode === 'managed') {
+    if (request.enforcementMode === 'restricted') {
         const projects = await loaders.projectModel.getSummaries(
             projectUuids.filter((uuid): uuid is string => uuid !== null),
         );

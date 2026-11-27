@@ -161,8 +161,6 @@ exports[`existing refusal snapshot: human 1`] = `
 }
 `;
 
-exports[`existing refusal snapshot: legacy 1`] = `null`;
-
 exports[`existing refusal snapshot: off 1`] = `null`;
 
 exports[`existing refusal snapshot: publish 1`] = `
@@ -244,3 +242,5 @@ exports[`existing refusal snapshot: unmapped 1`] = `
   "settingsUrl": null,
 }
 `;
+
+exports[`existing refusal snapshot: unrestricted 1`] = `null`;

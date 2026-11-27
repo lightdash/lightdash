@@ -43,7 +43,7 @@ import {
     REST_OPERATION_CAPABILITIES,
     type RequiredAgentCapabilities,
 } from './capabilityMap';
-import { HUMAN_ONLY_IN_MANAGED } from './humanOnlyInManaged';
+import { HUMAN_ONLY_WHEN_RESTRICTED } from './humanOnlyWhenRestricted';
 
 const registeredMcpToolSets = new WeakMap<object, string[]>();
 
@@ -539,16 +539,16 @@ it('covers every role, membership and token controller operation with a human-on
     expect(
         operations.filter(
             (key) =>
-                !HUMAN_ONLY_IN_MANAGED.has(key) &&
+                !HUMAN_ONLY_WHEN_RESTRICTED.has(key) &&
                 !Object.hasOwn(humanOnlyReadExceptions, key),
         ),
     ).toEqual([]);
     for (const [key, reason] of Object.entries(humanOnlyReadExceptions)) {
         expect(operations).toContain(key);
-        expect(HUMAN_ONLY_IN_MANAGED.has(key)).toBe(false);
+        expect(HUMAN_ONLY_WHEN_RESTRICTED.has(key)).toBe(false);
         expect(reason.length).toBeGreaterThan(20);
     }
-    for (const key of HUMAN_ONLY_IN_MANAGED)
+    for (const key of HUMAN_ONLY_WHEN_RESTRICTED)
         expect(Object.hasOwn(REST_OPERATION_CAPABILITIES, key)).toBe(true);
 });
 
@@ -646,7 +646,7 @@ it.each(compositeFixtures)(
         const requiredCapabilities = getRequiredAgentCapabilities(kind, key);
         expect(requiredCapabilities).toEqual(expected);
         const policy = {
-            mode: 'managed' as const,
+            mode: 'restricted' as const,
             capabilities: new Set<AgentCapability>(expected),
             allowedCapabilities: null,
             allowedGroupUuids: null,
@@ -686,7 +686,7 @@ it.each([
 ])(
     'records the reviewed human-only operation %s in the OAuth inventory',
     (key) => {
-        expect(HUMAN_ONLY_IN_MANAGED.has(key)).toBe(true);
+        expect(HUMAN_ONLY_WHEN_RESTRICTED.has(key)).toBe(true);
         expect(Object.hasOwn(REST_OPERATION_CAPABILITIES, key)).toBe(true);
         expect(routes.some((route) => route.id === key)).toBe(true);
     },

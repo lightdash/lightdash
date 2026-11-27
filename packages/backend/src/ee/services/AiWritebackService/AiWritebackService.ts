@@ -276,7 +276,7 @@ type DbtTargetCandidate = {
 type AiWritebackServiceDeps = {
     agentPermissionService: Pick<
         AgentPermissionService,
-        | 'isManaged'
+        | 'isRestricted'
         | 'assertOperation'
         | 'loadRequest'
         | 'assertOperationWithRequest'
@@ -2276,7 +2276,7 @@ export class AiWritebackService extends BaseService {
             if (
                 ran.edits.some(({ after }) => after === null) &&
                 args.agentPermissionsApply &&
-                (await this.agentPermissionService.isManaged(
+                (await this.agentPermissionService.isRestricted(
                     turn.organizationUuid,
                 ))
             ) {
@@ -3348,7 +3348,7 @@ export class AiWritebackService extends BaseService {
             const checkStagedDeletions =
                 hasChanges &&
                 args.agentPermissionsApply &&
-                (await this.agentPermissionService.isManaged(
+                (await this.agentPermissionService.isRestricted(
                     turn.organizationUuid,
                 ));
             const sandboxForCommit = sandbox;

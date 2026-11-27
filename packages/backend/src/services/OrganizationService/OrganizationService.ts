@@ -58,7 +58,7 @@ import {
     getOrganizationSystemRoleScopes,
     validateOrganizationScopesCanBeGranted,
 } from '../../utils/organizationRolePermissions';
-import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
+import { assertHumanOnlyMutation } from '../AgentPermissionService/assertHumanOnlyMutation';
 import { BaseService } from '../BaseService';
 import { getOrganizationSettingsInstanceDefaults } from '../OrganizationSettingsService/getInstanceDefaults';
 
@@ -560,7 +560,7 @@ export class OrganizationService extends BaseService {
         memberUserUuid: string,
         data: OrganizationMemberProfileUpdate,
     ): Promise<OrganizationMemberProfile> {
-        await assertHumanManagedMutation({
+        await assertHumanOnlyMutation({
             organizationUuid: authenticatedUser.organizationUuid,
             ability: authenticatedUser.ability,
             oauth: false,

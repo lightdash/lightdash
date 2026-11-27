@@ -210,7 +210,7 @@ test('connected tools require external_tools and recheck revocation', async () =
     );
 });
 
-test.each(['off', 'legacy'] as const)(
+test.each(['off', 'unrestricted'] as const)(
     '%s preserves execution without capabilities',
     async (mode) => {
         const h = setup();
@@ -311,7 +311,7 @@ test('agent tool execution refuses unlisted users before running SQL', async () 
     expect(h.runSqlJob).not.toHaveBeenCalled();
 });
 
-test('legacy group admission is rechecked by the tool wrapper', async () => {
+test('unrestricted group admission is rechecked by the tool wrapper', async () => {
     const h = setup();
     h.policy.allowedCapabilities = null;
     h.policy.allowedGroupUuids = ['group'];

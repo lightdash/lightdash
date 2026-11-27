@@ -40,7 +40,7 @@ import {
     getSnowflakeServiceAccountTestError,
     getUserPasswordServiceAccountTestErrorMessage,
 } from '../../utils/aiServiceAccountErrors';
-import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
+import { assertHumanOnlyMutation } from '../AgentPermissionService/assertHumanOnlyMutation';
 import { BaseService } from '../BaseService';
 import { type ProjectService } from '../ProjectService/ProjectService';
 import {
@@ -387,7 +387,7 @@ export class AiServiceAccountService extends BaseService {
         connectionUuid: string | null,
         input: AiServiceAccountCredentialInput,
     ): Promise<Omit<ApiAiServiceAccountSaveResponse, 'status'>> {
-        await assertHumanManagedMutation({
+        await assertHumanOnlyMutation({
             organizationUuid: account.organization.organizationUuid,
             ability: account.user.ability,
             oauth: account.authentication.type === 'oauth',
@@ -499,7 +499,7 @@ export class AiServiceAccountService extends BaseService {
         projectUuid: string,
         connectionUuid: string | null,
     ): Promise<void> {
-        await assertHumanManagedMutation({
+        await assertHumanOnlyMutation({
             organizationUuid: account.organization.organizationUuid,
             ability: account.user.ability,
             oauth: account.authentication.type === 'oauth',

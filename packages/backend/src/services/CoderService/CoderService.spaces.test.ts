@@ -950,9 +950,9 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
             expect(spacePermissionService.can).toHaveBeenCalledTimes(2);
         });
         test.each([
-            'managed',
+            'restricted',
             'agent',
-            'legacy',
+            'unrestricted',
             'off',
             'pat',
             'session',
@@ -969,7 +969,7 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                     allowedGroupUuids: null,
                     version: 1,
                     allowedCapabilities:
-                        mode === 'legacy'
+                        mode === 'unrestricted'
                             ? null
                             : Object.values(AgentCapability),
                 });
@@ -1020,7 +1020,7 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                                     publicSpaceCreate,
                                 ),
                         );
-                        if (mode === 'managed' || mode === 'agent') {
+                        if (mode === 'restricted' || mode === 'agent') {
                             await expect(result).rejects.toMatchObject({
                                 refusal: { reason: 'agent_capability_denied' },
                             });
@@ -1040,9 +1040,9 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
             },
         );
         test.each([
-            'managed',
+            'restricted',
             'agent',
-            'legacy',
+            'unrestricted',
             'off',
             'pat',
             'session',
@@ -1059,7 +1059,7 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                     allowedGroupUuids: null,
                     version: 1,
                     allowedCapabilities:
-                        mode === 'legacy'
+                        mode === 'unrestricted'
                             ? null
                             : Object.values(AgentCapability),
                 });
@@ -1108,7 +1108,7 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                 ).resolves.toEqual({ action: SpaceAsCodeAction.UPDATE });
                 const [metadataWrite] =
                     spaceModel.applySpaceAsCode.mock.calls[0];
-                if (mode === 'managed' || mode === 'agent') {
+                if (mode === 'restricted' || mode === 'agent') {
                     expect(metadataWrite).not.toHaveProperty('access');
                     expect(persistedAccess?.users).toEqual([]);
                 } else {
@@ -1125,7 +1125,7 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                         groups: [],
                     },
                 });
-                if (mode === 'managed' || mode === 'agent') {
+                if (mode === 'restricted' || mode === 'agent') {
                     await expect(upsert(changed)).rejects.toMatchObject({
                         refusal: { reason: 'agent_capability_denied' },
                     });

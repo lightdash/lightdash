@@ -21,7 +21,7 @@ import {
     type RegisteredAccount,
 } from '@lightdash/common';
 import { getRequiredAgentCapabilities } from '../../auth/agentPermissions/capabilityMap';
-import { HUMAN_ONLY_IN_MANAGED } from '../../auth/agentPermissions/humanOnlyInManaged';
+import { HUMAN_ONLY_WHEN_RESTRICTED } from '../../auth/agentPermissions/humanOnlyWhenRestricted';
 import { getOAuthScopeContext } from '../../auth/oauthScopes/scopedAbility';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import {
@@ -50,7 +50,7 @@ import {
 } from './agentPermissionEvaluation';
 
 export interface ResolvedAgentPolicy {
-    mode: 'off' | 'legacy' | 'managed';
+    mode: 'off' | 'unrestricted' | 'restricted';
     capabilities: Set<AgentCapability> | null;
     allowedCapabilities: AgentCapability[] | null;
     allowedGroupUuids: string[] | null;
@@ -215,13 +215,13 @@ class AgentPermissionRequestHandle {
         Object.freeze(this);
     }
 
-    get enforcementMode(): 'off' | 'admission' | 'managed' {
+    get enforcementMode(): 'off' | 'admission' | 'restricted' {
         if (this.policy === null) return 'off';
-        if (this.policy.allowedCapabilities !== null) return 'managed';
+        if (this.policy.allowedCapabilities !== null) return 'restricted';
         // A project that restricts agents needs the full check even when the
         // organization itself has no restrictions.
         if ([...this.projectLimits.values()].some((limit) => limit !== null))
-            return 'managed';
+            return 'restricted';
         return this.policy.storedAllowedGroupUuids === null
             ? 'off'
             : 'admission';
@@ -335,16 +335,16 @@ export class AgentPermissionService extends BaseService {
         );
     }
 
-    async isManaged(organizationUuid: string): Promise<boolean> {
+    async isRestricted(organizationUuid: string): Promise<boolean> {
         return (
             (await this.loadRequest(organizationUuid)).enforcementMode ===
-            'managed'
+            'restricted'
         );
     }
 
     async getEnforcementMode(
         organizationUuid: string,
-    ): Promise<'off' | 'admission' | 'managed'> {
+    ): Promise<'off' | 'admission' | 'restricted'> {
         return (await this.loadRequest(organizationUuid)).enforcementMode;
     }
 
@@ -396,10 +396,10 @@ export class AgentPermissionService extends BaseService {
         if (policy.allowedCapabilities === null)
             return {
                 ...policy,
-                mode: 'legacy',
+                mode: 'unrestricted',
                 capabilities: null,
             };
-        return this.resolveManagedPolicy({ ...operation, policy });
+        return this.resolveRestrictedPolicy({ ...operation, policy });
     }
 
     async resolvePolicy({
@@ -432,10 +432,10 @@ export class AgentPermissionService extends BaseService {
         if (policy.allowedCapabilities === null)
             return {
                 ...policy,
-                mode: 'legacy',
+                mode: 'unrestricted',
                 capabilities: null,
             };
-        return this.resolveManagedPolicy({
+        return this.resolveRestrictedPolicy({
             account,
             organizationUuid,
             projectUuid,
@@ -443,7 +443,7 @@ export class AgentPermissionService extends BaseService {
         });
     }
 
-    private async resolveManagedPolicy({
+    private async resolveRestrictedPolicy({
         account,
         organizationUuid,
         projectUuid,
@@ -469,7 +469,7 @@ export class AgentPermissionService extends BaseService {
             policy.allowedCapabilities ?? Object.values(AgentCapability),
         );
         return {
-            mode: 'managed',
+            mode: 'restricted',
             version: policy.version,
             allowedCapabilities: policy.allowedCapabilities,
             allowedGroupUuids: policy.allowedGroupUuids,
@@ -521,7 +521,7 @@ export class AgentPermissionService extends BaseService {
         request: AgentPermissionRequest,
     ): AgentPermissionEvaluation {
         const requiredCapabilities =
-            policy.mode === 'managed'
+            policy.mode === 'restricted'
                 ? requiredCapabilitiesForOperation(
                       args.kind,
                       args.key,
@@ -534,7 +534,7 @@ export class AgentPermissionService extends BaseService {
             userUuid: args.account.user.id,
             humanOnly:
                 args.kind === 'rest_operation' &&
-                HUMAN_ONLY_IN_MANAGED.has(args.key),
+                HUMAN_ONLY_WHEN_RESTRICTED.has(args.key),
         };
         const steps = agentPermissionChecks(policy, operation);
         const checks: AgentPermissionCheck[] = [];
@@ -627,7 +627,8 @@ export class AgentPermissionService extends BaseService {
         });
         if (
             policy.mode === 'off' ||
-            (policy.mode === 'legacy' && policy.allowedGroupUuids === null)
+            (policy.mode === 'unrestricted' &&
+                policy.allowedGroupUuids === null)
         )
             return;
         const evaluation = this.createEvaluation(policy, args, request);
@@ -638,7 +639,7 @@ export class AgentPermissionService extends BaseService {
             policyVersion: policy.version,
             projectUuid: args.projectUuid,
         });
-        if (policy.mode === 'legacy') {
+        if (policy.mode === 'unrestricted') {
             Object.assign(error.refusal, {
                 requiredCapabilities: [],
                 blockers: permissionBlockers(evaluation.checks),
@@ -908,7 +909,7 @@ export class AgentPermissionService extends BaseService {
             );
     }
 
-    async resetToLegacy(
+    async resetPolicy(
         account: Account,
         version: number | undefined,
     ): Promise<AgentCapabilityPolicy> {

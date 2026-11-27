@@ -1065,8 +1065,12 @@ describe('AiAccessService', () => {
         ]);
 
         test.each(
-            (['managed', 'admission', 'people-only'] as const).flatMap((mode) =>
-                (['oauth', 'agent'] as const).map((actor) => ({ mode, actor })),
+            (['restricted', 'admission', 'people-only'] as const).flatMap(
+                (mode) =>
+                    (['oauth', 'agent'] as const).map((actor) => ({
+                        mode,
+                        actor,
+                    })),
             ),
         )(
             'refuses $actor identity changes in $mode mode with human admin access',
@@ -1080,7 +1084,7 @@ describe('AiAccessService', () => {
                             mode === 'admission' ? ['allowed-group'] : null,
                         version: 1,
                         allowedCapabilities:
-                            mode !== 'managed'
+                            mode !== 'restricted'
                                 ? null
                                 : Object.values(AgentCapability),
                     });

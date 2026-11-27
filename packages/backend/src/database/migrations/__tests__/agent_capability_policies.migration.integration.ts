@@ -243,11 +243,9 @@ test('departed allowed members do not block a policy edit or reset to legacy', a
 
         agentActionLogModel: { insert: vi.fn() },
     });
-    expect(await service.resetToLegacy(account, current.version)).toMatchObject(
-        {
-            allowedCapabilities: null,
-        },
-    );
+    expect(await service.resetPolicy(account, current.version)).toMatchObject({
+        allowedCapabilities: null,
+    });
     const latest = await model.get(org.organization_uuid);
     expect(
         await service.saveCeiling(account, {
@@ -258,8 +256,8 @@ test('departed allowed members do not block a policy edit or reset to legacy', a
         allowedCapabilities: [AgentCapability.Export],
     });
     const beforeStaleReset = await model.get(org.organization_uuid);
-    await expect(
-        service.resetToLegacy(account, current.version),
-    ).rejects.toThrow('Agent permissions changed.');
+    await expect(service.resetPolicy(account, current.version)).rejects.toThrow(
+        'Agent permissions changed.',
+    );
     expect(await model.get(org.organization_uuid)).toEqual(beforeStaleReset);
 });

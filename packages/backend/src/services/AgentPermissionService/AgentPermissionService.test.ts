@@ -14,7 +14,7 @@ import {
     buildAccount,
     defaultSessionUser,
 } from '../../auth/account/account.mock';
-import { HUMAN_ONLY_IN_MANAGED } from '../../auth/agentPermissions/humanOnlyInManaged';
+import { HUMAN_ONLY_WHEN_RESTRICTED } from '../../auth/agentPermissions/humanOnlyWhenRestricted';
 import { AgentPermissionService, evaluate } from './AgentPermissionService';
 
 const setup = () => {
@@ -65,7 +65,7 @@ const setup = () => {
     return { account, policy, deps, service, operation };
 };
 
-test.each(['off', 'legacy'] as const)(
+test.each(['off', 'unrestricted'] as const)(
     '%s leaves existing behavior unchanged',
     async (mode) => {
         const { service, deps, operation, policy } = setup();
@@ -299,15 +299,15 @@ test('allows connected tools only with the external_tools capability', async () 
     ).resolves.toBeUndefined();
 });
 
-test.each(['off', 'legacy', 'managed'] as const)(
-    'checks an unverified actor only in managed mode: %s',
+test.each(['off', 'unrestricted', 'restricted'] as const)(
+    'checks an unverified actor only in restricted mode: %s',
     async (mode) => {
         const { service, policy, deps, operation } = setup();
         if (mode === 'off')
             deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
         else
             policy.allowedCapabilities =
-                mode === 'legacy'
+                mode === 'unrestricted'
                     ? null
                     : (policy.allowedCapabilities ??
                       Object.values(AgentCapability));
@@ -316,7 +316,7 @@ test.each(['off', 'legacy', 'managed'] as const)(
             surface: AgentActorSurface.SLACK_AGENT,
             actorVerified: false,
         });
-        if (mode === 'managed') {
+        if (mode === 'restricted') {
             await expect(result).rejects.toMatchObject({
                 refusal: {
                     reason: AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED,
@@ -355,21 +355,21 @@ test('logs the capability, operation, policy, project and surface without argume
     );
 });
 
-test.each(['off', 'legacy', 'managed'] as const)(
-    'resolves managed activation without project lookups: %s',
+test.each(['off', 'unrestricted', 'restricted'] as const)(
+    'resolves restricted activation without project lookups: %s',
     async (mode) => {
         const { service, deps, policy, operation } = setup();
         if (mode === 'off')
             deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
         else
             policy.allowedCapabilities =
-                mode === 'legacy'
+                mode === 'unrestricted'
                     ? null
                     : (policy.allowedCapabilities ??
                       Object.values(AgentCapability));
         await expect(
-            service.isManaged(operation.organizationUuid),
-        ).resolves.toBe(mode === 'managed');
+            service.isRestricted(operation.organizationUuid),
+        ).resolves.toBe(mode === 'restricted');
         expect(deps.projectModel.getSummary).not.toHaveBeenCalled();
         if (mode === 'off')
             expect(
@@ -393,7 +393,7 @@ test('resolves a resource project using the trusted resource lookup', async () =
     });
 });
 
-test.each([...HUMAN_ONLY_IN_MANAGED])(
+test.each([...HUMAN_ONLY_WHEN_RESTRICTED])(
     'keeps %s human-only even when every capability is granted',
     async (key) => {
         const { policy, service, operation, deps } = setup();
@@ -426,12 +426,14 @@ const admissionSurfaces = [
 describe.each(admissionSurfaces)(
     '%s %s on %s admission',
     (kind, key, surface) => {
-        test.each(['legacy', 'managed'] as const)(
+        test.each(['unrestricted', 'restricted'] as const)(
             'ignores historical lists in %s',
             async (mode) => {
                 const { service, policy, operation, deps } = setup();
                 policy.allowedCapabilities =
-                    mode === 'legacy' ? null : [AgentCapability.ReadDiscover];
+                    mode === 'unrestricted'
+                        ? null
+                        : [AgentCapability.ReadDiscover];
                 deps.agentCapabilityPolicyModel.getForEnforcement.mockImplementation(
                     async () => ({
                         ...policy,
@@ -592,8 +594,8 @@ test.each(['unknown', 'toString', 'constructor', '__proto__'])(
     },
 );
 
-test.each(['off', 'legacy'] as const)(
-    '%s bypasses every new managed check',
+test.each(['off', 'unrestricted'] as const)(
+    '%s bypasses every new restricted check',
     async (mode) => {
         const { service, operation, policy, deps } = setup();
         if (mode === 'off')
@@ -627,7 +629,7 @@ test.each(['off', 'legacy'] as const)(
 const parityCases = [
     'allowed',
     'off',
-    'legacy',
+    'unrestricted',
     'admission',
     'human',
     'disabled',
@@ -642,7 +644,7 @@ const paritySetup = (scenario: (typeof parityCases)[number]) => {
     operation.key = 'SchedulerController.post';
     if (scenario === 'off')
         deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
-    if (scenario === 'legacy') policy.allowedCapabilities = null;
+    if (scenario === 'unrestricted') policy.allowedCapabilities = null;
     if (scenario === 'admission') policy.allowedGroupUuids = [];
     if (scenario === 'human')
         operation.key = 'AgentPermissionController.saveCeiling';
@@ -849,12 +851,12 @@ test('hidden project diagnostics retain the primary capability refusal', async (
     });
 });
 
-test.each(['allowed', 'off', 'legacy'] as const)(
+test.each(['allowed', 'off', 'unrestricted'] as const)(
     'preserves read counts: %s',
     async (scenario) => {
         const { service, deps, operation } = paritySetup(scenario);
         await refusalFrom(service.assertOperation(operation));
-        const managed = scenario !== 'off' && scenario !== 'legacy';
+        const managed = scenario !== 'off' && scenario !== 'unrestricted';
         expect(deps.featureFlagModel.get).toHaveBeenCalledTimes(1);
         expect(
             deps.agentCapabilityPolicyModel.getForEnforcement,
@@ -920,7 +922,7 @@ test('content writes do not need an organization settings read', async () => {
 });
 
 test.each([true, false])(
-    'legacy group admission checks membership once (member %s)',
+    'unrestricted group admission checks membership once (member %s)',
     async (member) => {
         const { service, deps, operation, policy } = setup();
         policy.allowedCapabilities = null;
@@ -976,12 +978,12 @@ test('an all-deleted group restriction refuses without a membership query', asyn
     expect(deps.groupsModel.findUserInGroups).not.toHaveBeenCalled();
 });
 
-test.each(['legacy', 'managed'] as const)(
+test.each(['unrestricted', 'restricted'] as const)(
     'membership failures never admit a person in %s',
     async (mode) => {
         const { service, deps, operation, policy } = setup();
         policy.allowedCapabilities =
-            mode === 'legacy'
+            mode === 'unrestricted'
                 ? null
                 : (policy.allowedCapabilities ??
                   Object.values(AgentCapability));
@@ -996,7 +998,7 @@ test.each(['legacy', 'managed'] as const)(
 );
 
 test.each([true, false])(
-    'managed group admission precedes capability refusals (member %s)',
+    'restricted group admission precedes capability refusals (member %s)',
     async (member) => {
         const { service, deps, operation, policy } = setup();
         policy.allowedGroupUuids = ['group'];
@@ -1015,7 +1017,7 @@ test.each([true, false])(
     },
 );
 
-test('legacy restriction requires a verified actor and records the refusal', async () => {
+test('unrestricted restriction requires a verified actor and records the refusal', async () => {
     const { service, deps, operation, policy } = setup();
     policy.allowedCapabilities = null;
     policy.allowedGroupUuids = ['group'];
@@ -1050,7 +1052,7 @@ test.each([
         managed: 0,
     },
     {
-        mode: 'legacy',
+        mode: 'unrestricted',
         restricted: false,
         member: false,
         policies: 1,
@@ -1058,7 +1060,7 @@ test.each([
         managed: 0,
     },
     {
-        mode: 'legacy',
+        mode: 'unrestricted',
         restricted: true,
         member: true,
         policies: 1,
@@ -1066,7 +1068,7 @@ test.each([
         managed: 0,
     },
     {
-        mode: 'legacy',
+        mode: 'unrestricted',
         restricted: true,
         member: false,
         policies: 1,
@@ -1074,7 +1076,7 @@ test.each([
         managed: 0,
     },
     {
-        mode: 'managed',
+        mode: 'restricted',
         restricted: false,
         member: false,
         policies: 1,
@@ -1082,7 +1084,7 @@ test.each([
         managed: 1,
     },
     {
-        mode: 'managed',
+        mode: 'restricted',
         restricted: true,
         member: true,
         policies: 1,
@@ -1090,7 +1092,7 @@ test.each([
         managed: 1,
     },
     {
-        mode: 'managed',
+        mode: 'restricted',
         restricted: true,
         member: false,
         policies: 1,
@@ -1102,7 +1104,7 @@ test.each([
     async ({ mode, restricted, member, policies, memberships, managed }) => {
         const h = setup();
         h.policy.allowedCapabilities =
-            mode === 'legacy'
+            mode === 'unrestricted'
                 ? null
                 : (h.policy.allowedCapabilities ??
                   Object.values(AgentCapability));
@@ -1211,9 +1213,9 @@ test('diagnostic evaluation failure retains the group refusal', async () => {
     });
     vi.spyOn(
         service as unknown as {
-            resolveManagedPolicy: AgentPermissionService['resolvePolicy'];
+            resolveRestrictedPolicy: AgentPermissionService['resolvePolicy'];
         },
-        'resolveManagedPolicy',
+        'resolveRestrictedPolicy',
     ).mockResolvedValue(resolved);
     await expect(service.assertOperation(operation)).rejects.toMatchObject({
         refusal: {
@@ -1274,7 +1276,7 @@ describe('project restrictions', () => {
         expect(
             (await service.loadRequest(operation.organizationUuid))
                 .enforcementMode,
-        ).toBe('managed');
+        ).toBe('restricted');
         await expect(
             service.assertOperation({ ...operation, ...rawSql('open') }),
         ).resolves.toBeUndefined();

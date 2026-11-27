@@ -54,7 +54,7 @@ import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemb
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../../models/RolesModel';
 import { UserModel } from '../../../models/UserModel';
-import { assertHumanAgentPolicyMutation } from '../../../services/AgentPermissionService/assertHumanManagedMutation';
+import { assertHumanAgentPolicyMutation } from '../../../services/AgentPermissionService/assertHumanOnlyMutation';
 import { BaseService } from '../../../services/BaseService';
 import { recordGroupMembershipChange } from '../../../services/groupMembershipAudit';
 import type { UserService } from '../../../services/UserService';

@@ -12,7 +12,7 @@ import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyMo
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
 
-interface HumanManagedMutationContext {
+interface HumanOnlyMutationContext {
     organizationUuid: string | null | undefined;
     ability: MemberAbility;
     oauth: boolean;
@@ -26,7 +26,7 @@ const getAgentPolicyForMutation = async ({
     oauth,
     database,
     featureFlagModel,
-}: HumanManagedMutationContext): Promise<AgentCapabilityPolicy | null> => {
+}: HumanOnlyMutationContext): Promise<AgentCapabilityPolicy | null> => {
     if (
         !organizationUuid ||
         (!oauth &&
@@ -42,8 +42,8 @@ const getAgentPolicyForMutation = async ({
     return new AgentCapabilityPolicyModel({ database }).get(organizationUuid);
 };
 
-export const getManagedAgentPolicy = async (
-    context: HumanManagedMutationContext,
+export const getRestrictingAgentPolicy = async (
+    context: HumanOnlyMutationContext,
 ): Promise<AgentCapabilityPolicy | null> => {
     const policy = await getAgentPolicyForMutation(context);
     return policy && policy.allowedCapabilities !== null ? policy : null;
@@ -66,15 +66,15 @@ const assertHumanPolicyMutation = (
     );
 };
 
-export const assertHumanManagedMutation = async (
-    context: HumanManagedMutationContext,
+export const assertHumanOnlyMutation = async (
+    context: HumanOnlyMutationContext,
 ): Promise<void> => {
-    const policy = await getManagedAgentPolicy(context);
+    const policy = await getRestrictingAgentPolicy(context);
     assertHumanPolicyMutation(policy);
 };
 
 export const assertHumanAgentPolicyMutation = async (
-    context: HumanManagedMutationContext,
+    context: HumanOnlyMutationContext,
 ): Promise<void> => {
     const policy = await getAgentPolicyForMutation(context);
     assertHumanPolicyMutation(policy);

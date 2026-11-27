@@ -72,7 +72,7 @@ const operations = [
             allowedGroupUuids: null,
         }),
     (c: AgentPermissionController, req: Request) =>
-        c.resetToLegacy(req, { version: 0 }),
+        c.resetPolicy(req, { version: 0 }),
     (c: AgentPermissionController, req: Request) => c.getProjectPolicies(req),
     (c: AgentPermissionController, req: Request) =>
         c.saveProjectPolicy(req, 'project', { allowedCapabilities: [] }),
@@ -195,14 +195,14 @@ test.each([-1, 1.5, NaN])(
             controller.saveCeiling(req, { version }),
         ).rejects.toMatchObject({ name: 'ParameterError' });
         await expect(
-            controller.resetToLegacy(req, { version }),
+            controller.resetPolicy(req, { version }),
         ).rejects.toMatchObject({ name: 'ParameterError' });
     },
 );
 
 test('reset clears the capability list and omits groups without a role matrix', async () => {
     const { controller, req, deps } = setup();
-    await controller.resetToLegacy(req, { version: 7 });
+    await controller.resetPolicy(req, { version: 7 });
     expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
         expect.objectContaining({
             version: 7,
@@ -316,7 +316,7 @@ test('reset omits the group column so even an all-deleted restriction is preserv
         allowedGroupUuids: [],
         allowedCapabilities: Object.values(AgentCapability),
     });
-    await controller.resetToLegacy(req, { version: 2 });
+    await controller.resetPolicy(req, { version: 2 });
     expect(
         deps.agentCapabilityPolicyModel.save.mock.calls[0][0].allowedGroupUuids,
     ).toBeUndefined();

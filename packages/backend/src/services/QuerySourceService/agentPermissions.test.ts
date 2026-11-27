@@ -56,13 +56,14 @@ const sqlQuery: SourceQuery = {
 };
 
 const setup = (
-    mode: 'off' | 'legacy' | 'managed' = 'managed',
+    mode: 'off' | 'unrestricted' | 'restricted' = 'restricted',
     account: Account = buildAccount(),
 ) => {
     const organizationUuid = account.organization.organizationUuid!;
     const policy: AgentCapabilityPolicy = {
         version: 1,
-        allowedCapabilities: mode === 'legacy' ? null : [AgentCapability.Query],
+        allowedCapabilities:
+            mode === 'unrestricted' ? null : [AgentCapability.Query],
         allowedGroupUuids: null,
     };
     const featureFlagModel = {
@@ -323,7 +324,7 @@ describe('OAuth REST source dispatch', () => {
         expect(projectService.getWarehouseTables).toHaveBeenCalledOnce();
     });
 
-    it.each(['off', 'legacy'] as const)(
+    it.each(['off', 'unrestricted'] as const)(
         '%s leaves SQL dispatch unchanged',
         async (mode) => {
             const { controller, request, asyncQueryService } = setup(mode);
@@ -390,7 +391,7 @@ describe.each(['pat', 'service-account', 'oauth'] as const)(
                 request,
                 asyncQueryService,
                 projectService,
-            } = setup('managed', account);
+            } = setup('restricted', account);
             const scan = () =>
                 agentExecutionContext.run(
                     createAgentExecutionContext({
@@ -443,7 +444,7 @@ describe.each(['pat', 'service-account', 'oauth'] as const)(
 test.each([AgentActorSurface.MCP, AgentActorSurface.IN_APP_AGENT])(
     'legacy group admission protects %s composer before dispatch',
     async (surface) => {
-        const h = setup('legacy');
+        const h = setup('unrestricted');
         h.policy.allowedGroupUuids = ['group'];
         await expect(
             h.composer(surface, [semanticQuery, sqlQuery]),
@@ -463,7 +464,7 @@ test.each([AgentActorSurface.MCP, AgentActorSurface.IN_APP_AGENT])(
 );
 
 test('legacy group admission protects OAuth source dispatch and scans', async () => {
-    const h = setup('legacy');
+    const h = setup('unrestricted');
     h.policy.allowedGroupUuids = ['group'];
     await expect(
         h.controller.executeSourceQueries(
@@ -495,7 +496,7 @@ afterAll(async () => admissionDatabase.destroy());
 test.each(['scan', 'dispatch', 'semantic'] as const)(
     'SQL admission shares the query-source %s gate',
     async (surface) => {
-        const h = setup('legacy');
+        const h = setup('unrestricted');
         const sql = setupPermissionSql(
             admissionDatabase,
             admissionTracker,
@@ -558,7 +559,7 @@ test.each([
     },
 );
 
-describe.each(['off', 'managed'] as const)(
+describe.each(['off', 'restricted'] as const)(
     'ordinary REST queries with flag mode %s',
     (mode) => {
         test.each(['session', 'pat', 'service-account'] as const)(

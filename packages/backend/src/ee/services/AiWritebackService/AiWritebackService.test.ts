@@ -162,7 +162,7 @@ const buildService = (overrides: Record<string, AnyType> = {}) => {
     const { projectModel: projectModelOverride, ...otherOverrides } = overrides;
     return new AiWritebackService({
         agentPermissionService: {
-            isManaged: vi.fn().mockResolvedValue(false),
+            isRestricted: vi.fn().mockResolvedValue(false),
             assertOperation: vi.fn().mockResolvedValue(undefined),
             loadRequest: vi.fn().mockResolvedValue({}),
             assertOperationWithRequest: vi.fn().mockResolvedValue(undefined),
@@ -1907,7 +1907,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 get: vi.fn().mockResolvedValue({ enabled: true }),
             };
             const agentPermissionService = {
-                isManaged: vi.fn().mockResolvedValue(false),
+                isRestricted: vi.fn().mockResolvedValue(false),
                 assertOperation: vi.fn(),
                 loadRequest: vi.fn(),
                 assertOperationWithRequest: vi.fn(),
@@ -1943,7 +1943,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 userModel.findServiceAccountByUserUuid,
             ).not.toHaveBeenCalled();
             expect(featureFlagModel.get).not.toHaveBeenCalled();
-            expect(agentPermissionService.isManaged).toHaveBeenCalledTimes(1);
+            expect(agentPermissionService.isRestricted).toHaveBeenCalledTimes(
+                1,
+            );
             expect(agentPermissionService.loadRequest).not.toHaveBeenCalled();
             expect(
                 agentPermissionService.assertOperationWithRequest,
@@ -1992,7 +1994,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     new InvalidUser('No membership'),
                 );
             const agentPermissionService = {
-                isManaged: vi.fn().mockResolvedValue(false),
+                isRestricted: vi.fn().mockResolvedValue(false),
                 assertOperation: vi.fn(),
                 loadRequest: vi.fn().mockResolvedValue({}),
                 assertOperationWithRequest: vi.fn(async ({ operation }) => {
@@ -2081,7 +2083,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     .mockResolvedValue({ organizationUuid: ORG }),
             };
             const agentPermissionService = {
-                isManaged: vi.fn().mockResolvedValue(false),
+                isRestricted: vi.fn().mockResolvedValue(false),
                 assertOperation: vi.fn(),
                 loadRequest: vi.fn().mockResolvedValue({}),
                 assertOperationWithRequest: vi
@@ -2220,7 +2222,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         findServiceAccountByUserUuid: vi.fn(),
                     },
                     agentPermissionService: {
-                        isManaged: vi.fn().mockResolvedValue(false),
+                        isRestricted: vi.fn().mockResolvedValue(false),
                         loadRequest,
                         assertOperationWithRequest: vi.fn(),
                     },
@@ -2271,7 +2273,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 findServiceAccountByUserUuid: vi.fn(),
             };
             const agentPermissionService = {
-                isManaged: vi.fn().mockResolvedValue(false),
+                isRestricted: vi.fn().mockResolvedValue(false),
                 assertOperation: vi.fn(),
                 loadRequest: vi.fn().mockResolvedValue({}),
                 assertOperationWithRequest: vi.fn(),
@@ -2377,7 +2379,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 userModel.findServiceAccountByUserUuid,
             ).not.toHaveBeenCalled();
             expect(featureFlagModel.get).not.toHaveBeenCalled();
-            expect(agentPermissionService.isManaged).toHaveBeenCalledTimes(1);
+            expect(agentPermissionService.isRestricted).toHaveBeenCalledTimes(
+                1,
+            );
             expect(agentPermissionService.loadRequest).toHaveBeenCalledTimes(
                 marked ? 5 : 0,
             );
@@ -2561,7 +2565,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             source: 'mcp',
             change: 'deleted',
             diff: 'D\0models/old.sql\0',
-            mode: 'managed',
+            mode: 'restricted',
             capabilities: [AgentCapability.DbtWriteback],
             denied: true,
         },
@@ -2570,7 +2574,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             source: 'mcp',
             change: 'deleted',
             diff: 'D\0models/old.sql\0',
-            mode: 'managed',
+            mode: 'restricted',
             capabilities: [
                 AgentCapability.Delete,
                 AgentCapability.DbtWriteback,
@@ -2582,7 +2586,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             source: 'mcp',
             change: 'deleted without dbt',
             diff: 'D\0models/old.sql\0',
-            mode: 'managed',
+            mode: 'restricted',
             capabilities: [AgentCapability.Delete],
             denied: true,
         },
@@ -2591,7 +2595,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             source: 'mcp',
             change: 'modified/added',
             diff: 'M\0models/old.sql\0A\0models/new.sql\0',
-            mode: 'managed',
+            mode: 'restricted',
             capabilities: [AgentCapability.DbtWriteback],
             denied: false,
         },
@@ -2600,7 +2604,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             source: 'mcp',
             change: 'renamed',
             diff: 'D\0models/old.sql\0A\0models/new.sql\0',
-            mode: 'managed',
+            mode: 'restricted',
             capabilities: [AgentCapability.DbtWriteback],
             denied: true,
         },
@@ -2609,7 +2613,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             source: 'mcp',
             change: 'deleted',
             diff: 'D\0models/old.sql\0',
-            mode: 'legacy',
+            mode: 'unrestricted',
             capabilities: [],
             denied: false,
         },
@@ -2627,7 +2631,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             source: 'mcp',
             change: 'deleted by MCP PAT',
             diff: 'D\0models/old.sql\0',
-            mode: 'managed',
+            mode: 'restricted',
             capabilities: [AgentCapability.DbtWriteback],
             denied: false,
         },
@@ -2636,7 +2640,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             source: 'changeset',
             change: 'deleted by changeset',
             diff: 'D\0models/old.sql\0',
-            mode: 'managed',
+            mode: 'restricted',
             capabilities: [],
             denied: false,
         },
@@ -2703,13 +2707,15 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             );
             const markError = vi.fn().mockResolvedValue(true);
             const claimForFinalize = vi.fn().mockResolvedValue(true);
-            const isManaged = vi.fn().mockResolvedValue(mode === 'managed');
+            const isRestricted = vi
+                .fn()
+                .mockResolvedValue(mode === 'restricted');
             const result = runService(
                 sandbox,
                 { aiWritebackRunUuid: 'run-1', agentPermissionsApply, source },
                 {
                     agentPermissionService: {
-                        isManaged,
+                        isRestricted,
                         assertOperation,
                     },
                     aiWritebackRunModel: {
@@ -2766,7 +2772,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     }),
                 );
                 expect(createBranch).toHaveBeenCalledOnce();
-                if (mode === 'managed' && agentPermissionsApply) {
+                if (mode === 'restricted' && agentPermissionsApply) {
                     expect(
                         sandbox.git.add.mock.invocationCallOrder[0],
                     ).toBeLessThan(
@@ -2779,20 +2785,22 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 }
             }
             expect(inspect).toHaveBeenCalledTimes(
-                mode === 'managed' && agentPermissionsApply && !denied ? 2 : 1,
+                mode === 'restricted' && agentPermissionsApply && !denied
+                    ? 2
+                    : 1,
             );
             expect(assertOperation).toHaveBeenCalledTimes(
-                mode === 'managed' &&
+                mode === 'restricted' &&
                     agentPermissionsApply &&
                     diff.startsWith('D')
                     ? 1
                     : 0,
             );
-            expect(isManaged).toHaveBeenCalledTimes(
+            expect(isRestricted).toHaveBeenCalledTimes(
                 agentPermissionsApply ? 1 : 0,
             );
             if (agentPermissionsApply)
-                expect(isManaged.mock.invocationCallOrder[0]).toBeLessThan(
+                expect(isRestricted.mock.invocationCallOrder[0]).toBeLessThan(
                     claimForFinalize.mock.invocationCallOrder[0],
                 );
             expect(
@@ -2800,7 +2808,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     command.includes('--name-status'),
                 ),
             ).toHaveLength(
-                mode === 'managed' && agentPermissionsApply && !denied ? 2 : 1,
+                mode === 'restricted' && agentPermissionsApply && !denied
+                    ? 2
+                    : 1,
             );
             expect(sandbox.git.add).toHaveBeenCalledOnce();
             expect(
@@ -2942,7 +2952,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         }),
                     },
                     agentPermissionService: {
-                        isManaged: vi.fn().mockResolvedValue(true),
+                        isRestricted: vi.fn().mockResolvedValue(true),
                         assertOperation,
                     },
                     aiWritebackRunModel: {
@@ -3044,7 +3054,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     { aiWritebackRunUuid: 'run-1' },
                     {
                         agentPermissionService: {
-                            isManaged: vi.fn().mockResolvedValue(true),
+                            isRestricted: vi.fn().mockResolvedValue(true),
                             assertOperation: vi.fn(),
                         },
                         aiWritebackRunModel: {
@@ -3075,18 +3085,21 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         },
     );
 
-    it('skips managed lookup and inspection when the working tree is unchanged', async () => {
+    it('skips the restriction lookup and inspection when the working tree is unchanged', async () => {
         const sandbox = fakeSandbox(0, false);
         fakeSandboxProvider.create.mockResolvedValue(sandbox);
-        const isManaged = vi.fn().mockResolvedValue(true);
+        const isRestricted = vi.fn().mockResolvedValue(true);
         await runService(
             sandbox,
             {},
             {
-                agentPermissionService: { isManaged, assertOperation: vi.fn() },
+                agentPermissionService: {
+                    isRestricted,
+                    assertOperation: vi.fn(),
+                },
             },
         );
-        expect(isManaged).not.toHaveBeenCalled();
+        expect(isRestricted).not.toHaveBeenCalled();
         expect(sandbox.git.add).not.toHaveBeenCalled();
         expect(
             sandbox.commands.run.mock.calls
@@ -3172,7 +3185,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         {
                             ...resumedRunModels(PR_7),
                             agentPermissionService: {
-                                isManaged: vi.fn().mockResolvedValue(true),
+                                isRestricted: vi.fn().mockResolvedValue(true),
                                 assertOperation,
                             },
                             aiWritebackRunModel: {
@@ -3523,7 +3536,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                                         }),
                                 },
                                 agentPermissionService: {
-                                    isManaged: vi.fn().mockResolvedValue(true),
+                                    isRestricted: vi
+                                        .fn()
+                                        .mockResolvedValue(true),
                                     assertOperation,
                                 },
                             },
@@ -6595,7 +6610,7 @@ describe('AiWritebackService.saveWithScript compile check', () => {
         const denied = new Error('Deleting files is not allowed');
         Object.assign(service, {
             agentPermissionService: {
-                isManaged: vi.fn().mockResolvedValue(true),
+                isRestricted: vi.fn().mockResolvedValue(true),
                 assertOperation: vi.fn().mockRejectedValue(denied),
             },
         });

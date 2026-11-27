@@ -52,7 +52,7 @@ const setup = (
                 operation: unknown;
             }) => assertOperation(operation),
             loadRequest: vi.fn().mockResolvedValue({
-                enforcementMode: managed ? 'managed' : 'off',
+                enforcementMode: managed ? 'restricted' : 'off',
             }),
         },
         aiOrganizationSettingsService: {

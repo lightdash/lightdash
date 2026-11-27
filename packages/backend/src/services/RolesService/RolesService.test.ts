@@ -180,7 +180,7 @@ describe('RolesService', () => {
             expect(mockRolesModel.addScopesToRole).not.toHaveBeenCalled();
         });
 
-        test.each(['off', 'legacy'] as const)(
+        test.each(['off', 'unrestricted'] as const)(
             'preserves OAuth scope writes in %s mode',
             async (mode) => {
                 mockFeatureFlagModel.get.mockResolvedValue({

@@ -163,7 +163,7 @@ import {
     validateOrganizationScopesCanBeGranted,
 } from '../utils/organizationRolePermissions';
 import { processAvatarImage } from '../utils/processAvatarImage';
-import { assertHumanManagedMutation } from './AgentPermissionService/assertHumanManagedMutation';
+import { assertHumanOnlyMutation } from './AgentPermissionService/assertHumanOnlyMutation';
 import {
     type ResolvedSnowflakeAgentClient,
     type SnowflakeAgentClientResolver,
@@ -797,7 +797,7 @@ export class UserService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        await assertHumanManagedMutation({
+        await assertHumanOnlyMutation({
             organizationUuid,
             ability: user.ability,
             oauth: false,
@@ -2856,7 +2856,7 @@ export class UserService extends BaseService {
     }
 
     async joinOrg(user: SessionUser, orgUuid: string): Promise<void> {
-        await assertHumanManagedMutation({
+        await assertHumanOnlyMutation({
             organizationUuid: orgUuid,
             ability: user.ability,
             oauth: false,

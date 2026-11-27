@@ -24,8 +24,8 @@ import { GroupsModel } from '../models/GroupsModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import {
     assertHumanAgentPolicyMutation,
-    assertHumanManagedMutation,
-} from './AgentPermissionService/assertHumanManagedMutation';
+    assertHumanOnlyMutation,
+} from './AgentPermissionService/assertHumanOnlyMutation';
 import { BaseService } from './BaseService';
 import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
 import { recordGroupMembershipChange } from './groupMembershipAudit';
@@ -501,7 +501,7 @@ export class GroupsService extends BaseService {
         user: SessionUser,
         { groupUuid, projectUuid, role }: ProjectGroupAccess,
     ): Promise<ProjectGroupAccess> {
-        await assertHumanManagedMutation({
+        await assertHumanOnlyMutation({
             organizationUuid: user.organizationUuid,
             ability: user.ability,
             oauth: false,
@@ -564,7 +564,7 @@ export class GroupsService extends BaseService {
             projectUuid,
         }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
     ) {
-        await assertHumanManagedMutation({
+        await assertHumanOnlyMutation({
             organizationUuid: user.organizationUuid,
             ability: user.ability,
             oauth: false,
@@ -623,7 +623,7 @@ export class GroupsService extends BaseService {
         }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
         updateAttributes: UpdateDBProjectGroupAccess,
     ): Promise<ProjectGroupAccess> {
-        await assertHumanManagedMutation({
+        await assertHumanOnlyMutation({
             organizationUuid: user.organizationUuid,
             ability: user.ability,
             oauth: false,

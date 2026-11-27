@@ -4483,7 +4483,7 @@ describe('AiAgentToolsService', () => {
                             {
                                 agentPermissionService: {
                                     loadRequest: vi.fn().mockResolvedValue({
-                                        enforcementMode: 'managed',
+                                        enforcementMode: 'restricted',
                                     }),
                                     assertOperationWithRequest,
                                 },
@@ -4564,7 +4564,7 @@ describe('AiAgentToolsService', () => {
                 );
 
                 it.each([true, false])(
-                    'saves SQL content when the effect is allowed (managed=%s)',
+                    'saves SQL content when the effect is allowed (restricted=%s)',
                     async (managed) => {
                         const assertOperationWithRequest = vi
                             .fn()
@@ -4574,7 +4574,7 @@ describe('AiAgentToolsService', () => {
                                 agentPermissionService: {
                                     loadRequest: vi.fn().mockResolvedValue({
                                         enforcementMode: managed
-                                            ? 'managed'
+                                            ? 'restricted'
                                             : 'off',
                                     }),
                                     assertOperationWithRequest,
@@ -9315,7 +9315,7 @@ test.each([
             agentPermissionService: {
                 assertOperationWithRequest,
                 loadRequest: vi.fn().mockResolvedValue({
-                    enforcementMode: 'managed',
+                    enforcementMode: 'restricted',
                 }),
             },
         });
@@ -9342,7 +9342,7 @@ test.each([
     },
 );
 
-test.each(['off', 'legacy', 'query-only managed'])(
+test.each(['off', 'unrestricted', 'query-only restricted'])(
     'content query catches synchronous validation errors in %s mode',
     async (mode) => {
         const assertOperationWithRequest = vi
@@ -9360,7 +9360,7 @@ test.each(['off', 'legacy', 'query-only managed'])(
                 assertOperationWithRequest,
                 loadRequest: vi.fn().mockResolvedValue({
                     enforcementMode:
-                        mode === 'query-only managed' ? 'managed' : 'off',
+                        mode === 'query-only restricted' ? 'restricted' : 'off',
                 }),
             },
             aiAgentContentValidation: new AiAgentContentValidation(),
@@ -9404,7 +9404,7 @@ test('gates effectful runtime operations before their implementations run', asyn
         agentPermissionService: {
             assertOperationWithRequest,
             loadRequest: vi.fn().mockResolvedValue({
-                enforcementMode: 'managed',
+                enforcementMode: 'restricted',
             }),
         },
     });

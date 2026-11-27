@@ -3,7 +3,7 @@ import {
     AgentCapability,
 } from '@lightdash/common';
 import { getRequiredAgentCapabilities } from '../agentPermissions/capabilityMap';
-import { HUMAN_ONLY_IN_MANAGED } from '../agentPermissions/humanOnlyInManaged';
+import { HUMAN_ONLY_WHEN_RESTRICTED } from '../agentPermissions/humanOnlyWhenRestricted';
 import { evaluateGrant } from './evaluateGrant';
 import {
     grantFixture,
@@ -71,7 +71,7 @@ it('denies unknown operations', () =>
     expect(evaluate('unknown', Object.values(AgentCapability))).toContain(
         'operation',
     ));
-it.each([...HUMAN_ONLY_IN_MANAGED])('denies people-only %s', (key) =>
+it.each([...HUMAN_ONLY_WHEN_RESTRICTED])('denies people-only %s', (key) =>
     expect(evaluate(key, Object.values(AgentCapability))).toContain('person'),
 );
 it('requires all capabilities of composite operations', () => {

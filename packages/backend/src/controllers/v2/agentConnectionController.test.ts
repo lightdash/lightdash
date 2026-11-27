@@ -153,7 +153,7 @@ it('runs own status and revoke through real authentication despite lost admissio
         f.grant.revokedAt ? null : auth.grant,
     );
     auth.permissions.loadRequest.mockResolvedValue({
-        enforcementMode: 'managed',
+        enforcementMode: 'restricted',
     });
     auth.permissions.assertOperationWithRequest.mockRejectedValue(
         new Error('Agent admission removed'),

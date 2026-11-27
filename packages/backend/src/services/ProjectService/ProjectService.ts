@@ -522,7 +522,7 @@ import { stripSensitiveWarehouseCredentials } from '../../utils/stripSensitiveWa
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
-import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
+import { assertHumanOnlyMutation } from '../AgentPermissionService/assertHumanOnlyMutation';
 import {
     agentExecutionContext,
     buildQueryAgentIdentity,
@@ -17262,7 +17262,7 @@ export class ProjectService
         projectUuid: string,
         data: CreateProjectMember,
     ): Promise<void> {
-        await assertHumanManagedMutation({
+        await assertHumanOnlyMutation({
             organizationUuid: user.organizationUuid,
             ability: user.ability,
             oauth: false,
@@ -17312,7 +17312,7 @@ export class ProjectService
         userUuid: string,
         data: UpdateProjectMember,
     ): Promise<void> {
-        await assertHumanManagedMutation({
+        await assertHumanOnlyMutation({
             organizationUuid: user.organizationUuid,
             ability: user.ability,
             oauth: false,

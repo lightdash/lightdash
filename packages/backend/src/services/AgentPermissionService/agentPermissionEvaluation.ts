@@ -81,7 +81,7 @@ export const agentPermissionChecks = (
         );
     if (
         policy.mode === 'off' ||
-        (policy.mode === 'legacy' && policy.allowedGroupUuids === null)
+        (policy.mode === 'unrestricted' && policy.allowedGroupUuids === null)
     )
         return [];
     const admission: ReturnType<typeof agentPermissionChecks>[number] = {
@@ -112,7 +112,7 @@ export const agentPermissionChecks = (
             );
         },
     };
-    if (policy.mode === 'legacy') return [admission];
+    if (policy.mode === 'unrestricted') return [admission];
     return [
         admission,
         {

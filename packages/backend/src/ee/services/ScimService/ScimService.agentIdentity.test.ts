@@ -14,7 +14,7 @@ import { ScimService } from './ScimService';
 import { mockScimAccount, ScimServiceArgumentsMock } from './ScimService.mock';
 
 const setup = (
-    mode: 'managed' | 'admission' | 'people-only',
+    mode: 'restricted' | 'admission' | 'people-only',
     enabled = true,
 ) => {
     const account = {
@@ -49,7 +49,7 @@ const setup = (
         version: 1,
         allowedGroupUuids: mode === 'people-only' ? null : [group.uuid],
         allowedCapabilities:
-            mode !== 'managed' ? null : Object.values(AgentCapability),
+            mode !== 'restricted' ? null : Object.values(AgentCapability),
     });
     const service = new ScimService({
         ...ScimServiceArgumentsMock,
@@ -95,7 +95,7 @@ const setup = (
 
 afterEach(() => vi.restoreAllMocks());
 
-describe.each(['managed', 'admission', 'people-only'] as const)(
+describe.each(['restricted', 'admission', 'people-only'] as const)(
     'SCIM policy changes in %s mode',
     (mode) => {
         test.each(['replace', 'patch', 'delete'] as const)(

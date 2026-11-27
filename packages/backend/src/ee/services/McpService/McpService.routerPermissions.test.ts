@@ -57,7 +57,7 @@ test.each(['oauth', 'pat', 'service-account'] as const)(
         const permissions = {
             loadRequest: vi
                 .fn()
-                .mockResolvedValue({ enforcementMode: 'managed' }),
+                .mockResolvedValue({ enforcementMode: 'restricted' }),
             assertOperationWithRequest: vi.fn().mockRejectedValue(refusal),
         };
         const getAgentPermissionService = vi.fn(() => permissions);
@@ -173,7 +173,9 @@ test('records handler identity refusals against the explicit project instead of 
         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
     );
     const permissions = {
-        loadRequest: vi.fn().mockResolvedValue({ enforcementMode: 'managed' }),
+        loadRequest: vi
+            .fn()
+            .mockResolvedValue({ enforcementMode: 'restricted' }),
         assertOperationWithRequest: vi.fn().mockResolvedValue(undefined),
     };
     const mcpToolCallModel = {

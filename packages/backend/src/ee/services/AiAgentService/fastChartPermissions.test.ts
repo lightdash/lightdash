@@ -218,7 +218,7 @@ test.each(denials.slice(1))(
     },
 );
 
-test.each(['off', 'legacy', 'managed'] as const)(
+test.each(['off', 'unrestricted', 'restricted'] as const)(
     '%s permits the existing chart effects when allowed',
     async (mode) => {
         const h = setup();
@@ -226,7 +226,7 @@ test.each(['off', 'legacy', 'managed'] as const)(
             h.featureFlagModel.get.mockResolvedValue({ enabled: false });
             h.policy.allowedCapabilities = [AgentCapability.ReadDiscover];
         }
-        if (mode === 'legacy') h.policy.allowedCapabilities = null;
+        if (mode === 'unrestricted') h.policy.allowedCapabilities = null;
         await h.privateService.tryApplyChartEdit(h.args);
         await h.privateService.searchFilterValueCandidates({
             ...h.args,
@@ -241,7 +241,7 @@ test.each(['off', 'legacy', 'managed'] as const)(
     },
 );
 
-test('legacy group admission stops the agent turn and every fast chart path', async () => {
+test('unrestricted group admission stops the agent turn and every fast chart path', async () => {
     const h = setup();
     h.policy.allowedCapabilities = null;
     h.policy.allowedGroupUuids = ['group'];
