@@ -626,19 +626,13 @@ describe('promoting a dashboard showing a chart a space owns', () => {
         });
     });
 
-    test('creates the chart in the matching upstream space, checked there, and points the tile at it', async () => {
+    test('creates the chart in the matching upstream space and points the tile at it', async () => {
         const { service, dashboardModel, composerChartService } = setup({
             sourceChart: referenced,
         });
 
         await service.promoteDashboard(account, sourceDashboard.uuid, scoped);
 
-        expect(composerChartService.preflightSpaceWrite).toHaveBeenCalledWith(
-            account,
-            upstreamProjectUuid,
-            upstreamSharedSpaceUuid,
-            null,
-        );
         expect(composerChartService.writeFromCode).toHaveBeenCalledWith(
             account,
             upstreamProjectUuid,
@@ -708,9 +702,32 @@ describe('promoting a dashboard showing a chart a space owns', () => {
         expect(composerChartService.writeFromCode).toHaveBeenCalledWith(
             account,
             upstreamProjectUuid,
-            expect.objectContaining({ slug: 'revenue', owner: null, pipeline }),
+            expect.objectContaining({
+                slug: 'revenue',
+                owner: { type: 'space', spaceUuid: upstreamSharedSpaceUuid },
+                pipeline,
+            }),
         );
         expect(spaceModel.createSpace).not.toHaveBeenCalled();
+    });
+
+    test("a chart in the dashboard's own space lists that space once", async () => {
+        const { service } = setup({
+            sourceChart: composerChart({
+                owner: { type: 'space', spaceUuid: 'preview-space' },
+            }),
+        });
+
+        const changes = await service.getPromoteDashboardDiff(
+            account,
+            sourceDashboard.uuid,
+            scoped,
+        );
+
+        expect(
+            changes.spaces.filter((change) => change.data.path === 'reports'),
+        ).toHaveLength(1);
+        expect(changes.composerCharts?.[0].data.spacePath).toBe('reports');
     });
 
     test.each([

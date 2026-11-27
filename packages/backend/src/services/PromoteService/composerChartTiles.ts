@@ -41,7 +41,7 @@ const getComposerChartUuids = (tiles: DashboardTile[]) => [
     ),
 ];
 
-/** Owned charts match by slug on the upstream dashboard; a chart a space owns matches a chart a space owns upstream. */
+/** Matched by slug: a dashboard-owned chart to one on the upstream dashboard, a space-owned chart to a space-owned one. */
 export const getComposerChartChanges = async (
     composerChartModel: PromoteComposerChartModel,
     tiles: DashboardTile[],
@@ -80,14 +80,14 @@ export const getComposerChartChanges = async (
             const { owner } = await composerChartModel.getOwner(identity.uuid);
             switch (owner.type) {
                 case 'dashboard':
-                    if (
-                        promoted.spacePath !== null ||
-                        owner.dashboardUuid !== upstream.dashboardUuid
-                    ) {
+                    if (promoted.spacePath !== null) {
                         throw new AlreadyExistsError(
-                            `Composer chart "${source.slug}" already belongs to ${
-                                promoted.spacePath === null ? 'another' : 'a'
-                            } dashboard in the upstream project`,
+                            `Composer chart "${source.slug}" already belongs to a dashboard in the upstream project`,
+                        );
+                    }
+                    if (owner.dashboardUuid !== upstream.dashboardUuid) {
+                        throw new AlreadyExistsError(
+                            `Composer chart "${source.slug}" already belongs to another dashboard in the upstream project`,
                         );
                     }
                     break;
@@ -156,18 +156,26 @@ export const upsertComposerCharts = async (
     const changes = promotionChanges.composerCharts ?? [];
     if (changes.length === 0) return promotionChanges;
     const [dashboardChange] = promotionChanges.dashboards;
-    // A live chart keeps its owner; a new one goes on this dashboard, or in the space matching its path
-    const getOwner = ({
+    // A new chart goes on this dashboard or in the space matching its path; a live one stays where it is
+    const getOwner = async ({
         action,
         data,
-    }: ComposerChartChange): ComposerChartOwner | null => {
+    }: ComposerChartChange): Promise<ComposerChartOwner> => {
         if (data.spacePath === null) {
             return {
                 type: 'dashboard',
                 dashboardUuid: dashboardChange.data.uuid,
             };
         }
-        if (action !== PromotionAction.CREATE) return null;
+        if (action !== PromotionAction.CREATE) {
+            const { owner } = await composerChartModel.getOwner(data.uuid);
+            if (owner.type !== 'space') {
+                throw new AlreadyExistsError(
+                    `Composer chart "${data.slug}" already belongs to a dashboard in the upstream project`,
+                );
+            }
+            return owner;
+        }
         const space = promotionChanges.spaces.find(
             (change) => change.data.path === data.spacePath,
         );
@@ -192,7 +200,7 @@ export const upsertComposerCharts = async (
                 data.projectUuid,
                 {
                     slug: data.slug,
-                    owner: getOwner(change),
+                    owner: await getOwner(change),
                     name: data.name,
                     description: data.description,
                     pipeline,

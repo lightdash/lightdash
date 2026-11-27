@@ -562,7 +562,7 @@ export class ComposerChartService extends BaseService {
         projectUuid: string,
         data: Omit<CreateComposerChart, 'dashboardUuid' | 'spaceUuid'> & {
             slug: string;
-            /** Owner of a new or revived chart; null only for a live chart. */
+            /** Owner of a new or revived chart; null only for a live chart a dashboard owns. */
             owner: ComposerChartOwner | null;
         },
     ): Promise<string> {
@@ -574,7 +574,7 @@ export class ComposerChartService extends BaseService {
         const liveOwner = live
             ? (await this.composerChartModel.getOwner(live.uuid)).owner
             : null;
-        if (liveOwner && data.owner && liveOwner.type !== data.owner.type) {
+        if (liveOwner && liveOwner.type !== (data.owner?.type ?? 'dashboard')) {
             throw new AlreadyExistsError(
                 `Composer chart "${data.slug}" already belongs to a ${liveOwner.type}`,
             );

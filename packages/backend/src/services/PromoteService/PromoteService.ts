@@ -3077,7 +3077,7 @@ export class PromoteService extends BaseService {
     ): Promise<PromotionChanges['spaces']> {
         const ability = this.createAuditedAbility(account);
         const organizationUuid = account.organization.organizationUuid!;
-        const spaceChanges: PromotionChanges['spaces'] = [];
+        let spaceChanges: PromotionChanges['spaces'] = [];
         for (const { action, data } of changes) {
             /* eslint-disable no-await-in-loop, no-continue */
             if (data.spacePath === null) continue;
@@ -3114,14 +3114,17 @@ export class PromoteService extends BaseService {
                 const upstreamOwner = (
                     await this.composerChartModel.getOwner(data.uuid)
                 ).owner;
-                if (upstreamOwner.type === 'space') {
-                    await this.getComposerChartService().preflightSpaceWrite(
-                        account,
-                        upstreamProjectUuid,
-                        upstreamOwner.spaceUuid,
-                        data.uuid,
+                if (upstreamOwner.type !== 'space') {
+                    throw new AlreadyExistsError(
+                        `Composer chart "${data.slug}" already belongs to a dashboard in the upstream project`,
                     );
                 }
+                await this.getComposerChartService().preflightSpaceWrite(
+                    account,
+                    upstreamProjectUuid,
+                    upstreamOwner.spaceUuid,
+                    data.uuid,
+                );
             } else if (action === PromotionAction.CREATE) {
                 const { spaceChanges: pathChanges } =
                     await this.getUpstreamSpaceChanges(
@@ -3166,13 +3169,9 @@ export class PromoteService extends BaseService {
                         null,
                     );
                 }
-                spaceChanges.push(
-                    ...pathChanges.filter(
-                        (change) =>
-                            !spaceChanges.some(
-                                (known) => known.data.path === change.data.path,
-                            ),
-                    ),
+                spaceChanges = PromoteService.mergeSpaceChanges(
+                    spaceChanges,
+                    pathChanges,
                 );
             }
             /* eslint-enable no-await-in-loop, no-continue */
