@@ -1,7 +1,6 @@
 import {
     ApiConnectorType,
     HYDRA_DEFAULT_SOURCE,
-    HYDRA_ENABLED_ENV,
     ParameterError,
     type ExternalConnectionApiSource,
     type MetricQuery,
@@ -95,6 +94,11 @@ const SAMPLE_SETTINGS: {
     [ApiConnectorType.HYDRA]: HYDRA_DEFAULT_SOURCE,
 };
 
+/** Integrations that answer from their own data, so they call nothing. */
+const CALLS_NOTHING: ReadonlySet<ApiConnectorType> = new Set([
+    ApiConnectorType.HYDRA,
+]);
+
 const SERVER_ERROR: LiveHttpResponse = {
     status: 500,
     headers: {},
@@ -123,7 +127,6 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         });
 
         test('reads a stored source that carries the engine keys too', () => {
-            vi.stubEnv(HYDRA_ENABLED_ENV, 'true');
             expect(
                 parseStoredApiSource({
                     ...settings,
@@ -132,7 +135,6 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
                     lastScan: { fields: [], scannedAt: '2026-11-23' },
                 }),
             ).toEqual(settings);
-            vi.unstubAllEnvs();
         });
 
         test('declares at least one explore, each under its own name', () => {
@@ -208,6 +210,11 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
                 query: compiled.query,
                 limit: compiled.requestLimit,
             });
+            if (CALLS_NOTHING.has(settings.connector)) {
+                await expect(run).resolves.toBeDefined();
+                expect(send).not.toHaveBeenCalled();
+                return;
+            }
 
             await expect(run).rejects.toThrow();
             await expect(run).rejects.not.toBeInstanceOf(ParameterError);
@@ -227,7 +234,9 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
                 settings,
                 integration.model.explores,
             );
-            expect(rules.length).toBeGreaterThan(0);
+            expect(rules.length > 0).toBe(
+                !CALLS_NOTHING.has(settings.connector),
+            );
             rules.forEach((rule) => {
                 expect(rule.effect).toBe('read');
                 expect(rule.path).toMatch(/^\//);
@@ -235,26 +244,3 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         });
     },
 );
-
-describe('Hydra, the test integration', () => {
-    afterEach(() => {
-        vi.unstubAllEnvs();
-    });
-
-    test('is absent from the registry unless turned on', () => {
-        vi.stubEnv(HYDRA_ENABLED_ENV, '');
-        expect(isLiveIntegrationRegistered(ApiConnectorType.HYDRA)).toBe(false);
-        expect(() => getLiveIntegration(ApiConnectorType.HYDRA)).toThrow(
-            ParameterError,
-        );
-        // A source saved while it was on reads as no live source
-        expect(parseStoredApiSource(HYDRA_DEFAULT_SOURCE)).toBeNull();
-        expect(isLiveIntegrationRegistered(ApiConnectorType.PYLON)).toBe(true);
-
-        vi.stubEnv(HYDRA_ENABLED_ENV, 'true');
-        expect(isLiveIntegrationRegistered(ApiConnectorType.HYDRA)).toBe(true);
-        expect(parseStoredApiSource(HYDRA_DEFAULT_SOURCE)).toEqual(
-            HYDRA_DEFAULT_SOURCE,
-        );
-    });
-});

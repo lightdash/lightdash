@@ -6,9 +6,9 @@ import { hydraQuery } from './query';
 import { hydraSpec } from './spec';
 
 /**
- * Hydra, the test integration: a normal integration run by the shared
- * engine, whose API is answered in-process (see `fake/server.ts`). Registered
- * only when LIVE_SOURCES_HYDRA_ENABLED is true.
+ * Hydra, an integration with seeded data and no vendor behind it: it
+ * answers from rows it makes itself, so nothing is called. An organization
+ * has it until its feature flag is turned off.
  */
 export const hydraIntegration = defineLiveIntegration({
     connector: ApiConnectorType.HYDRA,

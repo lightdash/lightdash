@@ -4,7 +4,6 @@ import {
     ApiConnectorType,
     ForbiddenError,
     getLiveSourceFeatureFlag,
-    HYDRA_ENABLED_ENV,
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
@@ -3647,13 +3646,6 @@ describe('ExternalConnectionService explores found by a Refresh, through Hydra',
             [{ exploreName, inUse: true }],
         );
 
-    beforeEach(() => {
-        vi.stubEnv(HYDRA_ENABLED_ENV, 'true');
-    });
-    afterEach(() => {
-        vi.unstubAllEnvs();
-    });
-
     it('starts an object it finds off, under the name it keeps, and reports it', async () => {
         const connection = hydraConnection([]);
         const { service, externalConnectionModel } = buildService({
@@ -3782,7 +3774,7 @@ describe('ExternalConnectionService explores found by a Refresh, through Hydra',
         await expect(turnOn(service, 'crm_x')).rejects.toThrow(ParameterError);
     });
 
-    it('queries an object explore through its own path, and refuses an object it did not find', async () => {
+    it('queries an object explore, and refuses an object it does not have', async () => {
         const connection = hydraConnection([DEALS]);
         const { service } = buildService({ connections: [connection] });
         await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
@@ -3811,7 +3803,6 @@ describe('ExternalConnectionService explores found by a Refresh, through Hydra',
         );
         expect(total).toBe(20);
 
-        // An object the Refresh did not find is outside the source's access
         await expect(
             runLiveRequest(source, {
                 query: JSON.stringify({
@@ -3824,7 +3815,7 @@ describe('ExternalConnectionService explores found by a Refresh, through Hydra',
                 }),
                 limit: 10,
             }),
-        ).rejects.toThrow(/not allowed|allowed paths/i);
+        ).rejects.toThrow('Hydra has no object Other');
     });
 
     it('drops the explore of an object a Refresh no longer finds, and reports it', async () => {

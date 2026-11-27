@@ -164,8 +164,10 @@ export const getLiveSourceTestRequest = (
     values: LiveSourceAccessValues,
 ): Omit<ApiTestExternalConnectionRequest, 'config'> | null => {
     if (access.kind === 'token')
-        return access.form.getTestRequest(
-            normalizeAccountId(access.form, values.accountId),
+        return (
+            access.form.getTestRequest?.(
+                normalizeAccountId(access.form, values.accountId),
+            ) ?? null
         );
     const { apiSource } = connection;
     switch (apiSource.connector) {
