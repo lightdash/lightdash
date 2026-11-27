@@ -371,8 +371,8 @@ describe('composer charts follow their dashboard on the real schema', () => {
         await expect(
             database('dashboard_tile_composer_charts')
                 .where('composer_chart_uuid', composerChartUuid)
-                .count({ count: '*' }),
-        ).resolves.toEqual([{ count: '1' }]);
+                .pluck('composer_chart_uuid'),
+        ).resolves.toEqual([composerChartUuid]);
         await expect(
             composerChartModel.deleteFromSpace(
                 composerChartUuid,
