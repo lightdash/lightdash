@@ -11,6 +11,7 @@ For REST or MCP changes with no external callers, add an advisory declaration:
 - Set `requiredStop: false`. Add `impact: { "kind": "no-external-callers", "featureFlag": "agent-identity", "covers": { "rest": ["DELETE /api/v2/example/{exampleUuid}"], "mcp": [] } }`. Use a `FeatureFlags` enum value, not its key. List exact REST operations or MCP tool names in `covers`.
 - Supply exactly one evidence field: `featureFlag` or a substantive `firstPartyOnly` statement that names the only Lightdash client.
 - With `featureFlag`, the reason must say whether the flag is off by default on Cloud and on self-hosted. Off by default is a reviewed claim; release-safety checks that the flag exists, not its defaults or endpoint gating.
+- `featureFlag` evidence holds only when every operation in `covers` refuses with the flag off.
 - With `firstPartyOnly`, the reason must say what an old UI pod, browser tab or client sees during a rolling update. For example: "the old settings page shows an error until refresh". Explain why the accepted behaviour is safe.
 - Advisories keep covered API findings rolling-safe. They never cover migrations, config changes or required stops. The author and reviewer accept the no-external-callers claim; release-safety does not verify it.
 
