@@ -3733,6 +3733,48 @@ describe('AsyncQueryService', () => {
             ]);
         });
 
+        test('a compose SQL query asked to refresh records the refresh on its execution', async () => {
+            const queryHistoryModel = inMemoryDuckdbHistory({
+                queryUuid: 'queryUuid',
+                account: sessionAccount,
+                overrides: {
+                    get: vi.fn(async () => referencedQueryHistory),
+                    pollForQueryCompletion: vi.fn(
+                        async () => referencedQueryHistory,
+                    ),
+                },
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: composeFlags,
+                composeEngineClient: {
+                    createExecutionWarehouseClient: vi.fn(
+                        () => warehouseClientMock,
+                    ),
+                } as unknown as ComposeEngineClient,
+                queryHistoryModel,
+                resultsStorageClient: {
+                    isEnabled: true,
+                    configuration: { bucket: 'mock_bucket' },
+                } as unknown as S3ResultsFileStorageClient,
+            } as never);
+            vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+                undefined,
+            );
+
+            await service.executeAsyncComposeSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.SQL_RUNNER,
+                sql: 'SELECT one FROM orders',
+                references: { orders: referencedQueryHistory.queryUuid },
+                invalidateCache: true,
+            });
+
+            expect(
+                await queryHistoryModel.getDuckdbExecution('queryUuid'),
+            ).toMatchObject({ invalidateCache: true });
+        });
+
         test('refuses a compose SQL query that references no results before writing a row', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 featureFlagModel: composeFlags,

@@ -12250,6 +12250,7 @@ export class AsyncQueryService extends ProjectService {
         references,
         parameters,
         pivotConfiguration,
+        invalidateCache,
         authority = REQUEST_AUTHORITY,
     }: ExecuteAsyncComposeSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         await this.assertCanRunComposeQueries(
@@ -12278,6 +12279,7 @@ export class AsyncQueryService extends ProjectService {
             references,
             parameters,
             pivotConfiguration,
+            invalidateCache,
             authority,
             plan: {
                 columns: { mode: 'discover' },
