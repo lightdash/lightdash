@@ -1,3 +1,10 @@
+## [3.423.1](https://github.com/lightdash/lightdash/compare/3.423.0...3.423.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **ai-agent:** list tool links SQL charts to the SQL runner ([#33549](https://github.com/lightdash/lightdash/issues/33549)) ([bf8a8f7](https://github.com/lightdash/lightdash/commit/bf8a8f7b26e0f0eb6996b537aaaeef86115b6957))
+
 # [3.423.0](https://github.com/lightdash/lightdash/compare/3.422.0...3.423.0) (2026-11-27)
 
 
