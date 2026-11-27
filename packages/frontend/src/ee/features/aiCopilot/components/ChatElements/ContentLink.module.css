@@ -4,9 +4,10 @@
     justify-content: center;
     gap: 6px;
     padding: 1px 7px 1px 5px;
-    border-radius: 6px;
-    border: 1px solid var(--mantine-color-ldGray-2);
-    background-color: transparent !important;
+    border-radius: var(--mantine-radius-sm);
+    /* Transparent until a chip is marked active, which tints it. */
+    border: 1px solid transparent;
+    background-color: var(--mantine-color-default-hover) !important;
     cursor: pointer;
     transition:
         background-color 160ms ease,
@@ -20,8 +21,7 @@
 }
 
 .contentLink:hover {
-    background-color: var(--mantine-color-ldGray-1) !important;
-    border-color: var(--mantine-color-ldGray-3);
+    background-color: var(--mantine-color-ldGray-2) !important;
 }
 
 .arrow {
@@ -29,12 +29,15 @@
     flex-shrink: 0;
 }
 
-/* Chips above a sent message stay quiet until hovered: no outline, and the
+/* Chips above a sent message stay quiet until hovered: no fill, and the
    arrow only appears with the highlight. Its space is always kept, so the
    chip, and the message under it, never change size. */
-.quietLinks .contentLink,
+.quietLinks .contentLink {
+    background-color: transparent !important;
+}
+
 .quietLinks .contentLink:hover {
-    border-color: transparent;
+    background-color: var(--mantine-color-default-hover) !important;
 }
 
 .quietLinks .contentLink .arrow {
@@ -59,8 +62,7 @@
 }
 
 .static:hover {
-    background-color: transparent !important;
-    border-color: var(--mantine-color-ldGray-2);
+    background-color: var(--mantine-color-default-hover) !important;
 }
 
 .contentLink[data-artifact-active='true'] {
