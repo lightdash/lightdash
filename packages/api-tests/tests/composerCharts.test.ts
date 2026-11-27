@@ -1978,10 +1978,14 @@ describe('Composer charts', () => {
             ).toBe(201);
 
             const viewer = await loginAsViewer();
-            const list = async (spaceUuid: string, types: ContentType[]) => {
+            const list = async (
+                spaceUuid: string,
+                types: ContentType[],
+                search = '',
+            ) => {
                 const query = types.map((t) => `contentTypes=${t}`).join('&');
                 const resp = await viewer.get<Body<{ data: SummaryContent[] }>>(
-                    `/api/v2/content?projectUuids=${projectUuid}&spaceUuids=${spaceUuid}&${query}&pageSize=100`,
+                    `/api/v2/content?projectUuids=${projectUuid}&spaceUuids=${spaceUuid}&${query}&pageSize=100&search=${encodeURIComponent(search)}`,
                 );
                 expect(resp.status).toBe(200);
                 return resp.body.results.data;
@@ -2012,6 +2016,10 @@ describe('Composer charts', () => {
                 }),
             ]);
             expect(await list(child.uuid, [ContentType.CHART])).toEqual([]);
+            expect(
+                (await list(child.uuid, charts, 'by stat')).map((c) => c.uuid),
+            ).toEqual([chart.uuid]);
+            expect(await list(child.uuid, charts, 'no such chart')).toEqual([]);
             expect(await childChartCount()).toMatchObject({ chartCount: 1 });
             expect(await impact()).toMatchObject({
                 chartCount: 1,
