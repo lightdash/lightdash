@@ -171,7 +171,7 @@ const toError = (response: LiveHttpResponse): Error => {
                 ? ` This call needs ${requiredScopes.join(' or ')}.`
                 : '';
         return new WarehouseConnectionError(
-            `The HubSpot private app is missing a scope${detail}.${needed} Each explore needs its object's read scopes (${READ_SCOPES}); leads also need Sales Hub Professional or Enterprise. Explores whose scopes are granted keep working.`,
+            `The HubSpot private app is missing a scope${detail}.${needed} Each explore needs its object's read scopes (${READ_SCOPES}); leads also need Sales Hub Professional or Enterprise, and custom objects need crm.objects.custom.read. Explores whose scopes are granted keep working.`,
         );
     }
     if (response.status >= 400 && response.status < 500) {
