@@ -108,7 +108,6 @@ const LockedAddLiveSourceModal: FC<{
     canUseGoogle: boolean;
     canUseLinkedInAds: boolean;
     canUseSalesforce: boolean;
-    canUseHydra: boolean;
 }> = ({ onClose, ...props }) => {
     const { data: enabledIntegrations, isError: isEnabledIntegrationsError } =
         useEnabledLiveIntegrations();
@@ -144,7 +143,6 @@ export const LiveSourceManager: FC<{
     const canUseGoogle = health?.hasGoogleLiveSources ?? false;
     const canUseLinkedInAds = health?.hasLinkedInAdsOAuth ?? false;
     const canUseSalesforce = health?.hasSalesforceOAuth ?? false;
-    const canUseHydra = health?.hasHydraLiveSource ?? false;
 
     const actions = useMemo(
         (): LiveSourceActions => ({
@@ -252,7 +250,6 @@ export const LiveSourceManager: FC<{
                     canUseGoogle={canUseGoogle}
                     canUseLinkedInAds={canUseLinkedInAds}
                     canUseSalesforce={canUseSalesforce}
-                    canUseHydra={canUseHydra}
                 />
             </AddLiveSourceContext.Provider>
         );
@@ -270,7 +267,6 @@ export const LiveSourceManager: FC<{
                     canUseGoogle={canUseGoogle}
                     canUseLinkedInAds={canUseLinkedInAds}
                     canUseSalesforce={canUseSalesforce}
-                    canUseHydra={canUseHydra}
                     onRemoved={onRemoved}
                 />
             </LiveSourceActionsContext.Provider>
@@ -375,7 +371,6 @@ const LiveSourceDialogs: FC<{
     canUseGoogle: boolean;
     canUseLinkedInAds: boolean;
     canUseSalesforce: boolean;
-    canUseHydra: boolean;
     onRemoved: () => void;
 }> = ({
     projectUuid,
@@ -386,7 +381,6 @@ const LiveSourceDialogs: FC<{
     canUseGoogle,
     canUseLinkedInAds,
     canUseSalesforce,
-    canUseHydra,
     onRemoved,
 }) => {
     const navigate = useNavigate();
@@ -420,7 +414,6 @@ const LiveSourceDialogs: FC<{
                 canUseGoogle={canUseGoogle}
                 canUseLinkedInAds={canUseLinkedInAds}
                 canUseSalesforce={canUseSalesforce}
-                canUseHydra={canUseHydra}
                 enabledIntegrations={enabledIntegrations}
                 isEnabledIntegrationsError={isEnabledIntegrationsError}
                 onPick={(picked) =>

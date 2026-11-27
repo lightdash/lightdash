@@ -11,8 +11,11 @@ import {
 import { z } from 'zod';
 import {
     ADDITIVE,
+    defineLiveModel,
     dimension,
     metric,
+    pickLiveFields,
+    withFieldsOffByDefault,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveMetricDefinition,
@@ -456,11 +459,6 @@ const GRAINS = [
 const GRAIN_AI_HINT =
     'Salesforce groups it with CALENDAR_* functions in UTC. Filter the base date field, not this one.';
 
-/** Names of the explores scans add fields to besides the first. */
-export const SALESFORCE_SCANNED_MODELS = SALESFORCE_EXPLORES.slice(1).map(
-    ({ name }) => name,
-);
-
 /** One object's describe from a scan; anything else reads as none. */
 export const readSalesforceDescribe = (
     scanned: unknown,
@@ -509,8 +507,8 @@ const MAX_SCANNED_FIELDS = 400;
 
 const MAX_LISTED_VALUES = 25;
 
-/** Fields the built-in ones already read. */
-const BUILT_IN_API_NAMES = new Set(['Id', 'CreatedDate']);
+/** Fields the declared ones already read. */
+const DECLARED_API_NAMES = new Set(['Id', 'CreatedDate']);
 
 /** Lookups whose target always has a Name field, so `Owner.Name` reads. */
 const NAMED_OBJECTS = new Set([
@@ -546,14 +544,14 @@ const SYSTEM_FIELDS = new Set([
 ]);
 
 /** Minimums and maximums, and system fields, start hidden from the field list. */
-export const isInternalSalesforceField = (apiName: string) => {
+export const isSalesforceSystemField = (apiName: string) => {
     if (/^(MIN|MAX)\(/.test(apiName)) return true;
     const field = apiName.replace(/^[A-Z_]+\((.*)\)$/, '$1').split('.')[0];
     return SYSTEM_FIELDS.has(field) || SYSTEM_FIELDS.has(`${field}Id`);
 };
 
 const RESERVED_NAMES = new Set([
-    // Every object's explore has the same built-in fields
+    // Every object's explore has the same declared fields
     ...SALESFORCE_OPPORTUNITIES_EXPLORE.dimensions.map(({ name }) => name),
     ...SALESFORCE_OPPORTUNITIES_EXPLORE.metrics.map(({ name }) => name),
 ]);
@@ -803,10 +801,10 @@ const toMetrics = (field: DescribeField): LiveMetricDefinition[] =>
  * group (long text, multi-select picklists, decimals) are left out of
  * dimensions so every dimension works with metrics too.
  */
-export const withSalesforceFields = (
-    definition: LiveExploreDefinition,
+export const withSalesforceFields = <D extends LiveExploreDefinition>(
+    definition: D,
     describeBody: unknown,
-): LiveExploreDefinition => {
+): D => {
     const parsed = describeSchema.safeParse(describeBody);
     if (!parsed.success) {
         return definition;
@@ -815,11 +813,11 @@ export const withSalesforceFields = (
         ({ name, deprecatedAndHidden }) =>
             !deprecatedAndHidden &&
             FIELD_NAME.test(name) &&
-            !BUILT_IN_API_NAMES.has(name),
+            !DECLARED_API_NAMES.has(name),
     );
     const people = [
-        ...fields.filter(({ name }) => !isInternalSalesforceField(name)),
-        ...fields.filter(({ name }) => isInternalSalesforceField(name)),
+        ...fields.filter(({ name }) => !isSalesforceSystemField(name)),
+        ...fields.filter(({ name }) => isSalesforceSystemField(name)),
     ];
     const dimensions = people
         .flatMap(toDimensions)
@@ -834,12 +832,9 @@ export const withSalesforceFields = (
     };
 };
 
-/** Each object's describe, as Salesforce returns it. */
-export type SalesforceCatalog = { salesforceDescribe?: unknown };
-
 /**
  * Reads each object's describe, whose fields become its explore's fields.
- * An object the signed-in user can't read keeps its built-in fields; any
+ * An object the signed-in user can't read keeps its declared fields; any
  * other failed call, such as a throttled one, fails the scan so the last
  * good scan stays.
  */
@@ -847,7 +842,7 @@ export const scanSalesforceDescribe = async ({
     runtime,
 }: {
     runtime: LiveRuntime;
-}): Promise<SalesforceCatalog> => {
+}): Promise<unknown> => {
     const results = await Promise.allSettled(
         SALESFORCE_OBJECTS.map((object) =>
             runtime.fetch(
@@ -876,26 +871,38 @@ export const scanSalesforceDescribe = async ({
     if (read.length === 0) {
         throw failed[0];
     }
-    return { salesforceDescribe: Object.fromEntries(read) };
+    return { objects: Object.fromEntries(read) };
 };
 
-export const salesforceModel: LiveModel<
-    ApiConnectorType.SALESFORCE,
-    SalesforceCatalog
-> = {
-    explores: SALESFORCE_EXPLORES,
-    discovery: {
-        discover: scanSalesforceDescribe,
-        withFields: (definition, catalog: SalesforceCatalog) =>
-            withSalesforceFields(
-                definition,
-                readSalesforceDescribe(
-                    catalog.salesforceDescribe,
-                    toSalesforceObject(definition.name),
-                ),
+export const salesforceModel: LiveModel<ApiConnectorType.SALESFORCE> =
+    defineLiveModel({
+        explores: SALESFORCE_EXPLORES,
+        // Every object's explore gets the fields the org has
+        scan: scanSalesforceDescribe,
+        metadata: z.object({
+            objects: z.record(
+                z.string(),
+                describeSchema.optional().catch(undefined),
             ),
-        isInternalField: isInternalSalesforceField,
-        // Opportunities is the first explore; the other objects are scanned too
-        models: SALESFORCE_SCANNED_MODELS,
-    },
-};
+        }),
+        extend: ({ objects }) => ({
+            fields: Object.fromEntries(
+                SALESFORCE_EXPLORES.map((definition) => [
+                    definition.name,
+                    pickLiveFields(
+                        withFieldsOffByDefault(
+                            definition,
+                            withSalesforceFields(
+                                definition,
+                                readSalesforceDescribe(
+                                    objects,
+                                    toSalesforceObject(definition.name),
+                                ),
+                            ),
+                            isSalesforceSystemField,
+                        ),
+                    ),
+                ]),
+            ),
+        }),
+    });

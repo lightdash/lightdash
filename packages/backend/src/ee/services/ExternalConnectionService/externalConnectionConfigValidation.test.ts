@@ -428,6 +428,19 @@ describe('validateExternalConnectionConfig', () => {
             ).toThrow(ParameterError);
         });
 
+        it('accepts no methods on a live data source, whose integration may call nothing', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        allowedMethods: [],
+                        apiSource: { connector: 'hydra' },
+                    },
+                    false,
+                ),
+            ).not.toThrow();
+        });
+
         it('rejects an unsupported method', () => {
             expect(() =>
                 validateExternalConnectionConfig(

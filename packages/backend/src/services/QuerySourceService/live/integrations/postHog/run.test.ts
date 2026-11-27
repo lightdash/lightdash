@@ -10,9 +10,11 @@ import {
 } from '@lightdash/common';
 import { postHogIntegration } from '.';
 import { type LiveTransport } from '../../calls';
+import { type LiveExploreDefinition } from '../../explores/definition';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
 import { getPostHogPropertyDefinitionsPrefix } from './api';
+import { POSTHOG_EVENTS_EXPLORE } from './model';
 import { clickHouseTypeToDimensionType } from './run';
 
 // Trimmed from real PostHog responses; values replaced with neutral ones.
@@ -255,7 +257,13 @@ describe('postHogIntegration run', () => {
     });
 });
 
-describe('postHogIntegration scan', () => {
+/** The dimensions discovery added to the events explore. */
+const addedDimensions = ([events]: LiveExploreDefinition[]) =>
+    events.dimensions
+        .slice(POSTHOG_EVENTS_EXPLORE.dimensions.length)
+        .map(({ name }) => name);
+
+describe('postHogIntegration discover', () => {
     const scanWith = (send: LiveTransport) =>
         connectLiveSource(
             postHogIntegration,
@@ -275,14 +283,12 @@ describe('postHogIntegration scan', () => {
             ),
         );
 
-        await expect(scanWith(send)).resolves.toEqual({
-            posthogProperties: {
-                event: { results: [{ name: 'event_1' }, { name: 'event_2' }] },
-                person: {
-                    results: [{ name: 'person_1' }, { name: 'person_2' }],
-                },
-            },
-        });
+        expect(addedDimensions(await scanWith(send))).toEqual([
+            'property_event_1',
+            'property_event_2',
+            'person_person_1',
+            'person_person_2',
+        ]);
         expect(send).toHaveBeenCalledWith({
             method: 'GET',
             path: getPostHogPropertyDefinitionsPrefix('303731'),
@@ -294,12 +300,7 @@ describe('postHogIntegration scan', () => {
     it('reads an unreadable page as no properties', async () => {
         const send = vi.fn().mockResolvedValue(jsonResponse({ nope: true }));
 
-        await expect(scanWith(send)).resolves.toEqual({
-            posthogProperties: {
-                event: { results: [] },
-                person: { results: [] },
-            },
-        });
+        expect(addedDimensions(await scanWith(send))).toEqual([]);
     });
 
     it('maps a failed call to the PostHog error', async () => {

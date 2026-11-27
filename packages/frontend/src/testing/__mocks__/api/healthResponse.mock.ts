@@ -122,7 +122,6 @@ export default function mockHealthResponse(
         hasPostHogOAuth: false,
         hasLinkedInAdsOAuth: false,
         hasSalesforceOAuth: false,
-        hasHydraLiveSource: false,
         hasGoogleLiveSources: false,
         hasCacheAutocompleResults: false,
         hasMicrosoftTeams: false,

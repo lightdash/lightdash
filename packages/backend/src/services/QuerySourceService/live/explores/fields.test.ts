@@ -1,18 +1,20 @@
 import { ApiConnectorType, DimensionType } from '@lightdash/common';
+import { HYDRA_USERS_EXPLORE } from '../integrations/hydra/model';
 import { getLiveBaseLayer } from './build';
+import { type LiveExploreDefinition } from './definition';
 import {
     applyLiveSourceExploreChanges,
-    getInitialLiveSourceFieldEdits,
     getLiveFieldEditKey,
-    getLiveModelFieldInputs,
+    getLiveModelEdits,
     isLiveExploreInUse,
-    parseLiveSourceFieldState,
-    type ScannedLiveSourceField,
+    listLiveSourceFields,
+    type LiveSourceFieldEdits,
 } from './fields';
+import { parseLiveSourceFieldState } from './source';
 
-describe('built-in live source fields', () => {
+describe('declared live source fields', () => {
     test.each(Object.values(ApiConnectorType))(
-        'every built-in %s field tells people and agents what it means',
+        'every declared %s field tells people and agents what it means',
         (connector) => {
             const { definitions } = getLiveBaseLayer(connector);
             const undescribed = definitions
@@ -27,105 +29,78 @@ describe('built-in live source fields', () => {
     );
 });
 
-describe('fields of several scanned explores', () => {
-    const scanned = (name: string, model?: string): ScannedLiveSourceField => ({
-        kind: 'dimension',
-        definition: {
-            name,
-            apiName: name,
-            label: name,
-            type: DimensionType.STRING,
-            filterOperators: [],
-        },
-        isInternal: false,
-        ...(model ? { model } : {}),
-    });
-    const fields = [
-        scanned('amount'),
-        scanned('email', 'contacts'),
-        scanned('createdate', 'contacts'),
-        scanned('createdate', 'companies'),
-    ];
+describe('field edits of several explores', () => {
+    const edits = {
+        amount: { inUse: true, lastEdit: null },
+        'contacts.createdate': { inUse: true, lastEdit: null },
+        'companies.createdate': { inUse: false, lastEdit: null },
+    };
 
     it('keeps the first explore’s edits under bare names, as stored before', () => {
         expect(getLiveFieldEditKey(null, 'amount')).toBe('amount');
         expect(getLiveFieldEditKey('contacts', 'email')).toBe('contacts.email');
     });
 
-    it('gives each explore only its own fields and edits', () => {
-        const edits = {
-            amount: { inUse: true, lastEdit: null },
-            'contacts.createdate': { inUse: true, lastEdit: null },
-            'companies.createdate': { inUse: false, lastEdit: null },
-        };
-        const contacts = getLiveModelFieldInputs({
-            model: 'contacts',
-            scannedFields: fields,
-            edits,
-        });
-        expect(contacts.scannedFields.map((f) => f.definition.name)).toEqual([
-            'email',
-            'createdate',
-        ]);
-        expect(contacts.edits).toEqual({
+    it('gives each explore only its own edits', () => {
+        expect(getLiveModelEdits(edits, 'contacts')).toEqual({
             createdate: { inUse: true, lastEdit: null },
         });
-        const first = getLiveModelFieldInputs({
-            model: null,
-            scannedFields: fields,
-            edits,
-        });
-        expect(first.scannedFields.map((f) => f.definition.name)).toEqual([
-            'amount',
-        ]);
-        expect(first.edits).toEqual({
+        expect(getLiveModelEdits(edits, null)).toEqual({
             amount: { inUse: true, lastEdit: null },
         });
-    });
-
-    it('keeps every explore’s scanned fields in use for a source built before curation', () => {
-        expect(
-            Object.keys(
-                getInitialLiveSourceFieldEdits({
-                    scannedFields: fields,
-                    isExistingSource: true,
-                }),
-            ),
-        ).toEqual([
-            'amount',
-            'contacts.email',
-            'contacts.createdate',
-            'companies.createdate',
-        ]);
     });
 });
 
-describe('stored live source field state', () => {
-    it('keeps a scanned field’s value labels', () => {
-        const valueLabels = { closedwon: 'Closed Won' };
-        const state = parseLiveSourceFieldState({
-            lastScan: {
-                scannedAt: '2026-11-24T10:00:00.000Z',
-                fields: [
-                    {
-                        kind: 'dimension',
-                        definition: {
-                            name: 'dealstage_label',
-                            apiName: 'dealstage:label',
-                            label: 'Deal Stage',
-                            filterOperators: [],
-                            type: DimensionType.STRING,
-                            valueLabels,
-                        },
-                        isInternal: false,
-                    },
-                ],
+describe('fields in use', () => {
+    const definition: LiveExploreDefinition = {
+        ...HYDRA_USERS_EXPLORE,
+        dimensions: [
+            ...HYDRA_USERS_EXPLORE.dimensions,
+            {
+                name: 'internal_id',
+                apiName: 'internal_id',
+                label: 'Internal id',
+                type: DimensionType.STRING,
+                filterOperators: [],
+                onByDefault: false,
             },
-            fields: null,
-        });
-        expect(state.lastScan?.fields[0].definition).toMatchObject({
-            valueLabels,
-        });
+            {
+                name: 'region',
+                apiName: 'region',
+                label: 'Region',
+                type: DimensionType.STRING,
+                filterOperators: [],
+            },
+        ],
+    };
+    const declaredNames = new Set(
+        [...HYDRA_USERS_EXPLORE.dimensions, ...HYDRA_USERS_EXPLORE.metrics].map(
+            ({ name }) => name,
+        ),
+    );
+    const inUse = (edits: LiveSourceFieldEdits) =>
+        Object.fromEntries(
+            listLiveSourceFields({
+                definition,
+                declaredNames,
+                edits,
+                usageByFieldName: {},
+            })
+                .filter(({ name }) => ['internal_id', 'region'].includes(name))
+                .map(({ name, inUse: isInUse }) => [name, isInUse]),
+        );
+
+    it('starts a field as its definition says, on when it says nothing', () => {
+        expect(inUse({})).toEqual({ internal_id: false, region: true });
+    });
+
+    it('keeps the state an admin set over the default', () => {
+        expect(
+            inUse({
+                internal_id: { inUse: true, lastEdit: null },
+                region: { inUse: false, lastEdit: null },
+            }),
+        ).toEqual({ internal_id: true, region: false });
     });
 });
 
@@ -142,9 +117,10 @@ describe('explore edits', () => {
         });
         expect(isLiveExploreInUse(explores, 'users')).toBe(false);
         expect(isLiveExploreInUse(explores, 'events')).toBe(true);
+        expect(isLiveExploreInUse(explores, 'events', false)).toBe(false);
     });
 
-    it('stores only explores that are off, and clears texts set to null', () => {
+    it('stores whether an explore is on as set, and clears texts set to null', () => {
         const off = applyLiveSourceExploreChanges({
             current: {},
             changes: [{ model: 'users', inUse: false, label: ' People ' }],
@@ -159,7 +135,7 @@ describe('explore edits', () => {
                 changes: [{ model: 'users', inUse: true, label: null }],
                 editor,
             }),
-        ).toEqual({ users: { lastEdit: editor } });
+        ).toEqual({ users: { inUse: true, lastEdit: editor } });
     });
 
     it('refuses an empty label or text over the limit', () => {
