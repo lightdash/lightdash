@@ -1760,22 +1760,22 @@ export class SearchModel {
         // request. The pre-aggregate exclusion is pushed into SQL so those rows never leave
         // Postgres. Explores with no type predate the column and must be kept, hence
         // IS DISTINCT FROM rather than <>.
-        const getRows = () =>
-            this.database(CachedExploreTableName)
-                .modify((rowsQuery) => {
-                    if (excludedIntegrations.size > 0) {
-                        void rowsQuery.whereRaw(
-                            excludeLiveIntegrationsSql('explore'),
-                            [[...excludedIntegrations]],
-                        );
-                    }
-                })
+        const getRows = () => {
+            const rowsQuery = this.database(CachedExploreTableName)
                 .select<{ explore: Explore | ExploreError }[]>('explore')
                 .where('project_uuid', projectUuid)
                 .whereRaw("explore->>'type' IS DISTINCT FROM ?", [
                     ExploreType.PRE_AGGREGATE,
-                ])
-                .orderBy('name');
+                ]);
+            return (
+                excludedIntegrations.size > 0
+                    ? rowsQuery.whereRaw(
+                          excludeLiveIntegrationsSql('explore'),
+                          [[...excludedIntegrations]],
+                      )
+                    : rowsQuery
+            ).orderBy('name');
+        };
         const rows = await timeOmnibarSearch(timing, 'exploreRows', getRows);
 
         const filterRows = () =>

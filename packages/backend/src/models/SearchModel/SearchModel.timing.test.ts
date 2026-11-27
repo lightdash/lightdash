@@ -38,6 +38,7 @@ const emptyResults: SearchResults = {
 type SearchModelInternals = {
     getProjectExplores: (
         projectUuid: string,
+        excludedIntegrations: ReadonlySet<string>,
         timing?: OmnibarSearchTiming,
     ) => Promise<Explore[]>;
     searchDashboardTabs: () => Promise<SearchResults['dashboardTabs']>;
@@ -303,9 +304,9 @@ describe('SearchModel omnibar timing', () => {
             model as unknown as SearchModelInternals
         ).getProjectExplores.bind(model);
 
-        await expect(getProjectExplores('project', timing)).resolves.toEqual([
-            explore,
-        ]);
+        await expect(
+            getProjectExplores('project', new Set(), timing),
+        ).resolves.toEqual([explore]);
 
         const snapshot = timing.snapshot('success');
         expect(database).toHaveBeenNthCalledWith(1, ProjectTableName);
