@@ -178,7 +178,7 @@ import {
 import { withVersionAgentIdentity } from '../VersionAgentIdentity';
 import {
     duplicateComposerChartTiles,
-    lockComposerChartsForRollback,
+    lockAndCheckComposerChartRollback,
     rollbackComposerCharts,
 } from './composerChartTiles';
 
@@ -5086,7 +5086,7 @@ export class DashboardService
             // Dashboard before its charts, the order permanent delete takes them in
             await this.dashboardModel.lockForVersioning(dashboardDao.uuid, tx);
             await this.savedChartService.lockCheckedRestores(chartRestores, tx);
-            const composerChartUuids = await lockComposerChartsForRollback(
+            const composerChartUuids = await lockAndCheckComposerChartRollback(
                 this.composerChartModel,
                 this.getComposerChartService,
                 account,

@@ -67,7 +67,7 @@ export const duplicateComposerChartTiles = async (
  * Locks the dashboard's own charts for a rollback and checks the user can save each pipeline it changes.
  * Returns them to roll back; a space's chart is left alone.
  */
-export const lockComposerChartsForRollback = async (
+export const lockAndCheckComposerChartRollback = async (
     composerChartModel: Pick<ComposerChartModel, 'lockRollbackPipelines'>,
     getComposerChartService: () => Pick<
         ComposerChartService,
