@@ -27,6 +27,10 @@ export const HYDRA_DEFAULT_SETTINGS: HydraSettings = {
     onLimit: { status: 429, retryAfterFormat: 'seconds' },
     declaredLimits: 'vendor',
     mockResponses: [],
+    tokenTtlSeconds: 3_600,
+    revokedViewers: [],
+    viewerScopes: {},
+    denyConsent: false,
 };
 
 /** A Hydra source with no settings, so every one takes its default. */
@@ -53,6 +57,10 @@ export const withHydraDefaults = (source: HydraApiSource): HydraSettings => ({
 const MAX_BUCKETS = 5;
 const MAX_BUCKET_ID_LENGTH = 40;
 const MAX_MOCK_RESPONSES = 50;
+const MAX_VIEWERS = 50;
+
+const viewerSchema = z.string().min(1).max(254);
+const scopeSchema = z.enum(['events:read', 'users:read', 'revenue:read']);
 
 const count = z.number().int().min(1);
 const errorStatus = z.number().int().min(400).max(599);
@@ -146,6 +154,16 @@ const SETTING_SCHEMAS = {
         .array(mockResponseSchema)
         .max(MAX_MOCK_RESPONSES)
         .optional(),
+    tokenTtlSeconds: z.number().int().min(1).max(86_400).optional(),
+    revokedViewers: z.array(viewerSchema).max(MAX_VIEWERS).optional(),
+    viewerScopes: z
+        .record(viewerSchema, z.array(scopeSchema))
+        .refine(
+            (scopes) => Object.keys(scopes).length <= MAX_VIEWERS,
+            `must have at most ${MAX_VIEWERS} people`,
+        )
+        .optional(),
+    denyConsent: z.boolean().optional(),
 };
 
 /** What the API accepts for a Hydra source; anything else is refused. */

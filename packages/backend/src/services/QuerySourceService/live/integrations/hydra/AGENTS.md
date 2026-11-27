@@ -54,8 +54,24 @@ Set these in `apiSource` through the API; keys left out keep their defaults.
 | `onLimit` | 429, Retry-After in seconds | How Hydra refuses: `status` (400 to 599), `retryAfterFormat` (`seconds`, `date` or `none`) and an optional `body`. A body with `"code": "rate_limited"` marks a throttle under any status | `Hydra rate limit reached…` once retries run out |
 | `declaredLimits` | `"vendor"` | The limits Lightdash's rate-limit gate keeps calls under, in the `vendorLimits` shape: `"vendor"` copies them, an object sets tighter or looser ones, null declares none. The gate's window opens when it charges a call, a moment before Hydra's, so a test that runs right at the limit declares a slightly longer window | Calls wait their turn; past the deadline, `…reached its limit…` |
 | `mockResponses` | none | Fake answers a test sets by call number, counted per source from 1; at most 50, the first match wins. Each names `call`, or `fromCall` with an optional `toCall`, and a `status`: 200 answers as usual, skipping `errorRate`; 400 to 599 is answered as given, with optional `retryAfterSeconds` and `body`. `[{"call": 2, "status": 429, "retryAfterSeconds": 5}, {"fromCall": 3, "status": 503}]` | Whatever the mock answers |
+| `tokenTtlSeconds` | 3600 | How long a viewer's access token lasts before it must be refreshed | `Sign in to … again` once refresh fails |
+| `revokedViewers` | none | People (by sign-in email, at most 50) whose sign-ins Hydra revokes: their tokens answer 401, refresh fails and consent is declined. Others keep working | That person is asked to sign in again |
+| `viewerScopes` | everyone reads everything | What each listed person (at most 50) may read: `events:read`, `users:read`, `revenue:read` (the `revenue` metric). A call needing more answers 403 `insufficient_scope` to that person only | A permission error for that person |
+| `denyConsent` | false | The consent screen declines, as a person clicking Deny would | The sign-in returns cancelled |
 
-Each call is refused at once past `vendorLimits`, then waits, then answers its mock response, `failAuth`, `errorRate` or the data, in that order.
+Each call is refused at once past `vendorLimits`, then waits, then answers its mock response, `failAuth`, the token check, the scope check, `errorRate` or the data, in that order.
+
+## Each viewer's own sign-in
+
+Hydra is a strict OAuth 2.0 vendor (`oauth.ts`), so per-viewer sign-in is tested against the rules a careful vendor enforces:
+
+- **Consent:** `hydraServer.authorize` stands in for the vendor's consent screen. It needs client `HYDRA_OAUTH_CLIENT_ID`, `response_type=code` and PKCE with S256, and redirects back with a code and the state, or `error=access_denied`.
+- **Codes:** single use, valid for 60 seconds, bound to the client, the redirect URI and the source that asked. A failed exchange does not use the code up.
+- **Token endpoint** (`hydraServer.token`, reached through `fetchHydraToken`): needs `HYDRA_OAUTH_CLIENT_SECRET`; answers `invalid_client` or `invalid_grant` as the spec says.
+- **Tokens:** an access token works only on the source it was issued for. Each viewer reads rows seeded from their own email, so two viewers see different totals, and the same viewer sees the same totals after signing in again. Any other token is a shared sign-in and seeds its own rows, as before.
+- **Refresh rotation:** every refresh returns a new refresh token. Presenting one already rotated revokes that sign-in, including the newest tokens, as Okta and Auth0 do.
+- **Request log:** `hydraServer.getRequestLog(connectionUuid)` lists the latest 200 calls and whose sign-in made each (`subject`, or null for a shared token), so tests prove a call ran as the right person.
+- **Per process:** used codes, rotated refresh tokens and the log live in the backend process that saw them. Another process can miss a replayed code or refresh token, but never refuses a valid one. Tokens carry what they grant, unsigned, since Hydra is test data.
 
 ## Recipes
 
@@ -74,7 +90,7 @@ Use a new source for each scenario: call numbers and API calls count per source,
 
 ## Stats
 
-`hydraServer.getStats(connectionUuid)` (in `server.ts`) returns Hydra's own view of a source: `{ calls, refused, maxInFlight, minGapMs, peakPerBucket }`. `hydraServer.reset(connectionUuid)` forgets its counts, windows and call numbers. They are in-process only, for backend tests: reading them over HTTP would go through the gate and use up its limits, and each backend process keeps its own. Against an env, use API calls instead (see Recipes).
+`hydraServer.getStats(connectionUuid)` (in `server.ts`) returns Hydra's own view of a source: `{ calls, refused, maxInFlight, minGapMs, peakPerBucket }`. `hydraServer.reset(connectionUuid)` forgets its counts, windows, call numbers and request log; `reset()` with no source also forgets used codes and rotated refresh tokens. They are in-process only, for backend tests: reading them over HTTP would go through the gate and use up its limits, and each backend process keeps its own. Against an env, use API calls instead (see Recipes).
 
 ## What to check
 
@@ -84,5 +100,5 @@ Use a new source for each scenario: call numbers and API calls count per source,
 
 ## Automated tests
 
-- Unit: `hydra.test.ts` (compile, the engine path, mock responses, paging, declared limits), `server.test.ts` (vendor limits, refusals, stats), `ExternalConnectionService/hydraFetch.test.ts` (fetch seam).
+- Unit: `hydra.test.ts` (compile, the engine path, mock responses, paging, declared limits), `server.test.ts` (vendor limits, refusals, stats), `oauth.test.ts` (consent, codes, PKCE, rotation, source binding, revocation, scopes, the request log), `ExternalConnectionService/hydraFetch.test.ts` (fetch and token seams).
 - API: `packages/api-tests/tests/hydraLiveSource.test.ts`, run against a preview env.

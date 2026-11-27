@@ -56,3 +56,33 @@ export const fetchFromHydra = async ({
         truncated: false,
     };
 };
+
+/**
+ * Answers a Hydra token request in-process, in the shape the guarded fetch
+ * returns, so the OAuth token client runs as it does for a real vendor.
+ * Codes and tokens are bound to the source that asked for them.
+ */
+export const fetchHydraToken = async ({
+    connectionUuid,
+    settings,
+    body,
+    server = hydraServer,
+}: {
+    connectionUuid: string;
+    settings: HydraApiSource;
+    body: string | undefined;
+    server?: HydraServer;
+}): Promise<SecureFetchResult> => {
+    const response = server.token({
+        sourceKey: connectionUuid,
+        settings,
+        form: new URLSearchParams(body ?? ''),
+    });
+    return {
+        status: response.status,
+        contentType: 'application/json',
+        headers: response.headers,
+        bodyText: JSON.stringify(response.body),
+        truncated: false,
+    };
+};

@@ -1,7 +1,13 @@
-import { HYDRA_DEFAULT_SOURCE, type HydraApiSource } from '@lightdash/common';
+import {
+    HYDRA_DEFAULT_SOURCE,
+    HYDRA_OAUTH_CLIENT_ID,
+    HYDRA_OAUTH_CLIENT_SECRET,
+    type HydraApiSource,
+} from '@lightdash/common';
+import { createHash } from 'node:crypto';
 import { createHydraServer } from '../../../services/QuerySourceService/live/integrations/hydra/server';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
-import { fetchFromHydra } from './hydraFetch';
+import { fetchFromHydra, fetchHydraToken } from './hydraFetch';
 
 const NOW = Date.parse('2026-11-23T12:00:20Z');
 
@@ -74,5 +80,60 @@ describe('fetchFromHydra', () => {
         });
         await expect(call).rejects.toMatchObject({ reason: 'timeout' });
         expect(sleep).toHaveBeenCalledWith(5_000);
+    });
+});
+
+describe('fetchHydraToken', () => {
+    it('answers a token request in-process, bound to the source', async () => {
+        const server = createHydraServer({ now: () => new Date(NOW) });
+        const verifier = 'a-verifier-that-is-long-enough-for-pkce-0123456789';
+        const answer = server.authorize({
+            sourceKey: 'connection-1',
+            settings: settingsWith(),
+            subject: 'alice@example.com',
+            params: {
+                response_type: 'code',
+                client_id: HYDRA_OAUTH_CLIENT_ID,
+                redirect_uri: 'https://app.example.com/callback',
+                state: 'state',
+                code_challenge: createHash('sha256')
+                    .update(verifier)
+                    .digest('base64url'),
+                code_challenge_method: 'S256',
+            },
+        });
+        if (answer.kind !== 'redirect') throw new Error(answer.message);
+        const code = new URL(answer.location).searchParams.get('code') ?? '';
+        const body = new URLSearchParams({
+            grant_type: 'authorization_code',
+            code,
+            redirect_uri: 'https://app.example.com/callback',
+            code_verifier: verifier,
+            client_id: HYDRA_OAUTH_CLIENT_ID,
+            client_secret: HYDRA_OAUTH_CLIENT_SECRET,
+        }).toString();
+
+        const elsewhere = await fetchHydraToken({
+            connectionUuid: 'connection-2',
+            settings: settingsWith(),
+            body,
+            server,
+        });
+        expect(elsewhere.status).toBe(400);
+
+        const fetched = await fetchHydraToken({
+            connectionUuid: 'connection-1',
+            settings: settingsWith(),
+            body,
+            server,
+        });
+        expect(fetched).toMatchObject({
+            status: 200,
+            contentType: 'application/json',
+            truncated: false,
+        });
+        expect(JSON.parse(fetched.bodyText)).toMatchObject({
+            token_type: 'Bearer',
+        });
     });
 });
