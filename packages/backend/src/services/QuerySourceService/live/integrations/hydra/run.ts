@@ -59,7 +59,7 @@ export const runHydraQuery = async ({
         ? []
         : HYDRA_REPORTS[request.report].dates;
     return {
-        // A custom object's column types come from its explore's fields
+        // An object's column types come from its explore's fields
         columns: [
             ...request.dimensions.map((name) => ({
                 name,

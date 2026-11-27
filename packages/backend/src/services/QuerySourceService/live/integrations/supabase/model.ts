@@ -11,6 +11,7 @@ import {
     type LiveExploreDefinition,
     type LiveModel,
     type LiveRuntime,
+    type NamedLiveExploreDefinition,
 } from '../../sdk';
 
 /** "is" and "is not" take several values: PostgREST's in.(…) and not.in.(…). */
@@ -73,7 +74,7 @@ export const SUPABASE_STRUCTURED_FILTERS = SUPABASE_SET_FILTERS;
  * The one explore of a source: the rows of its table. Its columns come from
  * the scan, so the definition itself has none.
  */
-export const SUPABASE_TABLE_EXPLORE: LiveExploreDefinition = {
+export const SUPABASE_TABLE_EXPLORE: NamedLiveExploreDefinition = {
     name: 'table',
     label: 'Table',
     description:
@@ -190,10 +191,10 @@ const toDescription = ({ name, description, format }: SupabaseColumn) => {
 };
 
 /** The explore with one dimension per column of the table. */
-export const withSupabaseColumns = (
-    definition: LiveExploreDefinition,
+export const withSupabaseColumns = <D extends LiveExploreDefinition>(
+    definition: D,
     columns: SupabaseColumn[],
-): LiveExploreDefinition => {
+): D => {
     const taken = new Set<string>();
     const dimensions = columns
         .slice(0, SUPABASE_MAX_COLUMNS)
@@ -220,7 +221,7 @@ const openApiSchema = z.object({
 });
 
 /** The source's table under `definitions` in the Supabase Data API's OpenAPI description. */
-export type SupabaseCatalog = { supabaseTable?: unknown };
+export type SupabaseScan = { supabaseTable?: unknown };
 
 /**
  * Reads the table's columns from the Data API's OpenAPI description. Only
@@ -233,7 +234,7 @@ export const scanSupabaseTable = async ({
 }: {
     settings: { table: string };
     runtime: LiveRuntime;
-}): Promise<SupabaseCatalog> => {
+}): Promise<SupabaseScan> => {
     const description = await runtime.fetch(
         { method: 'GET', path: SUPABASE_REST_PATH, body: undefined },
         openApiSchema,
@@ -250,19 +251,15 @@ export const scanSupabaseTable = async ({
     return { supabaseTable: definitions[settings.table] };
 };
 
-export const supabaseModel: LiveModel<
-    ApiConnectorType.SUPABASE,
-    SupabaseCatalog
-> = {
+export const supabaseModel: LiveModel<ApiConnectorType.SUPABASE> = {
     explores: SUPABASE_EXPLORES,
-    discovery: {
-        discover: scanSupabaseTable,
-        withFields: (definition, catalog: SupabaseCatalog) =>
-            withSupabaseColumns(
-                definition,
-                readSupabaseColumns(catalog.supabaseTable),
-            ),
-        // The columns are the explore, so a new source starts with all of them
-        inUseByDefault: true,
+    // The table's columns are the explore, every one in use from the start
+    discover: async (args) => {
+        const { supabaseTable } = await scanSupabaseTable(args);
+        const [table, ...others] = SUPABASE_EXPLORES;
+        return [
+            withSupabaseColumns(table, readSupabaseColumns(supabaseTable)),
+            ...others,
+        ];
     },
 };

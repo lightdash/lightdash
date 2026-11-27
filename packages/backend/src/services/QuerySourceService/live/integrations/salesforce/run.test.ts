@@ -8,8 +8,11 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { salesforceIntegration } from '.';
-import { EMPTY_LIVE_CATALOG, validateLiveConnection } from '../../integration';
-import { connectLiveSource } from '../../liveSource.mock';
+import { validateLiveConnection } from '../../integration';
+import {
+    connectLiveSource,
+    getExploresWithDiscoveredFields,
+} from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
 import {
     SALESFORCE_MAX_AGGREGATE_ROWS,
@@ -17,6 +20,7 @@ import {
     toSalesforceError,
 } from './api';
 import { summarizeSalesforceTest } from './connection';
+import { SALESFORCE_EXPLORES } from './model';
 import {
     AGGREGATE_RESPONSE,
     LIMITS_RESPONSE,
@@ -303,7 +307,7 @@ describe('salesforceIntegration requests', () => {
     });
 });
 
-describe('salesforceIntegration scan and setup test', () => {
+describe('salesforceIntegration discover and setup test', () => {
     it('reads every object describe in one scan', async () => {
         const { source, send } = connect(
             response(OPPORTUNITY_DESCRIBE),
@@ -312,7 +316,7 @@ describe('salesforceIntegration scan and setup test', () => {
             response({ name: 'Contact', fields: [] }),
         );
 
-        const scan = await source.discover();
+        const explores = await source.discover();
 
         expect(send.mock.calls.map(([call]) => call.path)).toEqual([
             '/services/data/v62.0/sobjects/Opportunity/describe',
@@ -320,10 +324,9 @@ describe('salesforceIntegration scan and setup test', () => {
             '/services/data/v62.0/sobjects/Lead/describe',
             '/services/data/v62.0/sobjects/Contact/describe',
         ]);
-        expect(scan.salesforceDescribe).toMatchObject({
-            Opportunity: OPPORTUNITY_DESCRIBE,
-            Contact: { name: 'Contact' },
-        });
+        expect(
+            getExploresWithDiscoveredFields(SALESFORCE_EXPLORES, explores),
+        ).toEqual(['opportunities']);
     });
 
     it('skips objects the user cannot read, and fails only when none can be read', async () => {
@@ -338,11 +341,11 @@ describe('salesforceIntegration scan and setup test', () => {
             forbidden,
         );
         expect(
-            Object.keys(
-                ((await partial.source.discover()).salesforceDescribe ??
-                    {}) as Record<string, unknown>,
+            getExploresWithDiscoveredFields(
+                SALESFORCE_EXPLORES,
+                await partial.source.discover(),
             ),
-        ).toEqual(['Opportunity']);
+        ).toEqual(['opportunities']);
 
         const none = connect(forbidden, forbidden, forbidden, forbidden);
         await expect(none.source.discover()).rejects.toThrow('read access');
@@ -435,7 +438,7 @@ describe('salesforceIntegration access', () => {
         expect(
             salesforceIntegration.connection.access(
                 SETTINGS,
-                EMPTY_LIVE_CATALOG,
+                SALESFORCE_EXPLORES,
             ),
         ).toEqual({
             rules: [

@@ -12,6 +12,7 @@ import {
     NON_ADDITIVE,
     type LiveExploreDefinition,
     type LiveModel,
+    type NamedLiveExploreDefinition,
 } from '../../sdk';
 
 export const YOUTUBE_ANALYTICS_DATE_FILTERS = [
@@ -28,7 +29,7 @@ export const YOUTUBE_ANALYTICS_EXACT_FILTERS = [FilterOperator.EQUALS];
  * One channel's activity. Field combinations follow YouTube's documented
  * channel reports; anything else is refused by the compiler.
  */
-export const YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE: LiveExploreDefinition = {
+export const YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE: NamedLiveExploreDefinition = {
     name: 'activity',
     label: 'Channel activity',
     description:

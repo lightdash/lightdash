@@ -13,6 +13,7 @@ import {
     ratio,
     type LiveExploreDefinition,
     type LiveModel,
+    type NamedLiveExploreDefinition,
 } from '../../sdk';
 import { AMPLITUDE_INTERVALS } from './api';
 
@@ -38,7 +39,7 @@ export const AMPLITUDE_NUMBER_FILTERS = [FilterOperator.EQUALS];
 
 // Event segmentation (/api/2/events/segmentation). Totals add up across days
 // and property values; uniques count each user once per row, so they don't.
-export const AMPLITUDE_EVENTS_EXPLORE: LiveExploreDefinition = {
+export const AMPLITUDE_EVENTS_EXPLORE: NamedLiveExploreDefinition = {
     name: 'events',
     label: 'Events',
     description:
@@ -202,7 +203,7 @@ export const AMPLITUDE_EVENTS_EXPLORE: LiveExploreDefinition = {
 
 // Active and new users (/api/2/users). A user is new once, so new users add
 // up; active users are counted once per period and don't.
-export const AMPLITUDE_USERS_EXPLORE: LiveExploreDefinition = {
+export const AMPLITUDE_USERS_EXPLORE: NamedLiveExploreDefinition = {
     name: 'users',
     label: 'Active users',
     description:
@@ -336,7 +337,7 @@ export const AMPLITUDE_USERS_EXPLORE: LiveExploreDefinition = {
 
 // Funnels (/api/2/funnels). Amplitude computes each step's users and
 // conversion; nothing is summed here.
-export const AMPLITUDE_FUNNEL_EXPLORE: LiveExploreDefinition = {
+export const AMPLITUDE_FUNNEL_EXPLORE: NamedLiveExploreDefinition = {
     name: 'funnel',
     label: 'Funnel',
     description:
@@ -496,7 +497,7 @@ export const AMPLITUDE_FUNNEL_EXPLORE: LiveExploreDefinition = {
 
 // Retention (/api/2/retention). Amplitude counts each cohort's returning
 // users per period after it started; nothing is summed here.
-export const AMPLITUDE_RETENTION_EXPLORE: LiveExploreDefinition = {
+export const AMPLITUDE_RETENTION_EXPLORE: NamedLiveExploreDefinition = {
     name: 'retention',
     label: 'Retention',
     description:
@@ -627,7 +628,7 @@ export const AMPLITUDE_RETENTION_EXPLORE: LiveExploreDefinition = {
 };
 
 // Sessions (/api/2/sessions/average and /api/2/sessions/peruser), per day.
-export const AMPLITUDE_SESSIONS_EXPLORE: LiveExploreDefinition = {
+export const AMPLITUDE_SESSIONS_EXPLORE: NamedLiveExploreDefinition = {
     name: 'sessions',
     label: 'Sessions',
     description:

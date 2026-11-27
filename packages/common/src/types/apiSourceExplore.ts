@@ -103,10 +103,10 @@ export type ApiSourceExplore = {
      */
     definitionHash?: string;
     /**
-     * The vendor's id of the custom object the explore reads, e.g.
-     * Salesforce `Invoice__c`. Absent on built-in explores.
+     * The vendor's id of what the explore reads, e.g. Salesforce
+     * `Invoice__c`, when its integration gave one.
      */
-    object?: string;
+    apiName?: string;
     filterGroups: {
         or: boolean;
         nested: boolean;

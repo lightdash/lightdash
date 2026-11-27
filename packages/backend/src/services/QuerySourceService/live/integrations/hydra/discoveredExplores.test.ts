@@ -3,7 +3,7 @@ import {
     HYDRA_DEFAULT_SOURCE,
     HYDRA_ENABLED_ENV,
     type HydraApiSource,
-    type HydraCustomObject,
+    type HydraObject,
     type MetricQuery,
 } from '@lightdash/common';
 import { hydraIntegration } from '.';
@@ -11,17 +11,25 @@ import {
     buildLiveExplores,
     compileLiveMetricQuery,
 } from '../../explores/build';
-import { getLiveCustomModels } from '../../explores/catalog';
-import { assertLiveQuery } from '../../explores/definition';
-import { getInitialLiveSourceFieldEdits } from '../../explores/fields';
+import {
+    assertLiveQuery,
+    type LiveExploreDefinition,
+} from '../../explores/definition';
+import { type LiveSourceExploreEdits } from '../../explores/fields';
+import {
+    checkDiscoveredExplores,
+    nameLiveExplores,
+} from '../../explores/source';
 import { findAccessRule } from '../../integration';
-import { connectLiveSource } from '../../liveSource.mock';
-import { type LiveCatalog, type LiveObjectCatalog } from '../../types';
+import {
+    connectLiveSource,
+    getRefreshedLiveState,
+} from '../../liveSource.mock';
 import { createHydraServer } from './fake/server';
 
 const NOW = new Date('2026-11-23T12:00:00Z');
 
-const DEALS: HydraCustomObject = {
+const DEALS: HydraObject = {
     id: 'Deals',
     label: 'Deals',
     recordCount: 30,
@@ -32,14 +40,14 @@ const DEALS: HydraCustomObject = {
             id: 'sync_token',
             label: 'Sync token',
             type: 'string',
-            internal: true,
+            system: true,
         },
     ],
 };
 
-const settingsWith = (customObjects: HydraCustomObject[]): HydraApiSource => ({
+const settingsWith = (objects: HydraObject[]): HydraApiSource => ({
     ...HYDRA_DEFAULT_SOURCE,
-    customObjects,
+    objects,
 });
 
 const connect = (settings: HydraApiSource) => {
@@ -58,36 +66,39 @@ const connect = (settings: HydraApiSource) => {
     };
 };
 
-// What a Refresh stores of a discovered catalog
-const toObjectCatalog = (catalog: LiveCatalog): LiveObjectCatalog => ({
-    entries: catalog.entries ?? [],
-});
-
-const buildDeals = (catalog: LiveObjectCatalog) => {
-    const apiSource = settingsWith([DEALS]);
-    const customModels = getLiveCustomModels({
+/** What a Refresh stores: the explores, checked, and a name for each unnamed one. */
+const refresh = async (objects: HydraObject[]) => {
+    const { source } = connect(settingsWith(objects));
+    const explores = checkDiscoveredExplores(
+        ApiConnectorType.HYDRA,
+        await source.discover(),
+    );
+    const modelNames = nameLiveExplores({
         connector: ApiConnectorType.HYDRA,
-        catalog,
-        configured: { objects: { Deals: { name: 'deals' } } },
+        explores,
+        modelNames: {},
     });
-    const explores = buildLiveExplores({
+    return { explores, modelNames };
+};
+
+const build = (
+    { explores, modelNames }: Awaited<ReturnType<typeof refresh>>,
+    exploreEdits: LiveSourceExploreEdits = {},
+) =>
+    buildLiveExplores({
         connectionUuid: '9b0c3f6e-0d0a-4c55-9a26-5e6d4b7c2a11',
         sourceName: 'crm',
         name: 'CRM',
-        apiSource,
-        scannedFields: [],
-        customModels,
-        edits: getInitialLiveSourceFieldEdits({
-            scannedFields: [],
-            isExistingSource: true,
+        apiSource: settingsWith([DEALS]),
+        state: getRefreshedLiveState(explores, {
+            modelNames,
+            explores: exploreEdits,
         }),
     });
-    const deals = explores.find(({ name }) => name === 'crm_deals');
-    if (!deals) throw new Error('No deals explore');
-    return { explores, deals };
-};
 
-describe('Hydra custom objects', () => {
+const DEALS_ON = { deals: { inUse: true } };
+
+describe('Hydra explores found by a Refresh', () => {
     beforeEach(() => {
         vi.stubEnv(HYDRA_ENABLED_ENV, 'true');
     });
@@ -95,49 +106,43 @@ describe('Hydra custom objects', () => {
         vi.unstubAllEnvs();
     });
 
-    it('discovers nothing, without a call, when it has no custom objects', async () => {
+    it('finds only its declared explores, without a call, when it has no objects', async () => {
         const { send, source } = connect(settingsWith([]));
-        expect(await source.discover()).toEqual({ entries: [] });
+        expect(await source.discover()).toEqual([
+            ...hydraIntegration.model.explores,
+        ]);
         expect(send).not.toHaveBeenCalled();
     });
 
-    it('discovers each object with a record id and its fields', async () => {
-        const { source } = connect(settingsWith([DEALS]));
-        const { entries } = toObjectCatalog(await source.discover());
-        expect(entries).toEqual([
-            {
-                id: 'Deals',
-                label: 'Deals',
-                builtIn: false,
-                recordIdField: 'id',
-                fields: [
-                    { id: 'id', label: 'ID', vendorType: 'string' },
-                    { id: 'stage', label: 'Stage', vendorType: 'string' },
-                    { id: 'amount', label: 'Amount', vendorType: 'number' },
-                    {
-                        id: 'sync_token',
-                        label: 'Sync token',
-                        vendorType: 'string',
-                        internal: true,
-                    },
-                ],
-            },
+    it('finds one explore per object, keyed by its id, with a record id field', async () => {
+        const { explores } = await refresh([DEALS]);
+        const deals = explores.find(({ apiName }) => apiName === 'Deals');
+        expect(deals?.name).toBeUndefined();
+        expect(
+            deals?.dimensions.map(({ name, onByDefault }) => [
+                name,
+                onByDefault,
+            ]),
+        ).toEqual([
+            ['id', undefined],
+            ['stage', undefined],
+            ['amount', undefined],
+            ['sync_token', false],
         ]);
     });
 
-    it('grants a report path per object in its catalog, and no other', async () => {
-        const { source } = connect(settingsWith([DEALS]));
-        const catalog = toObjectCatalog(await source.discover());
+    it('grants a report path per object it found, and no other', async () => {
+        const { explores } = await refresh([DEALS]);
         const { rules } = hydraIntegration.connection.access(
             settingsWith([DEALS]),
-            catalog,
+            explores,
         );
         expect(
             findAccessRule(rules, {
                 method: 'POST',
                 path: '/v1/objects/Deals/report',
             }),
-        ).toMatchObject({ entry: 'Deals' });
+        ).toBeDefined();
         expect(
             findAccessRule(rules, {
                 method: 'POST',
@@ -146,17 +151,26 @@ describe('Hydra custom objects', () => {
         ).toBeUndefined();
     });
 
-    it('builds an object explore, with internal fields hidden, and runs it', async () => {
-        const { send, source } = connect(settingsWith([DEALS]));
-        const catalog = toObjectCatalog(await source.discover());
-        const { explores, deals } = buildDeals(catalog);
+    it('starts an object explore off', async () => {
+        const refreshed = await refresh([DEALS]);
+        expect(build(refreshed).map(({ name }) => name)).toEqual([
+            'crm_events',
+            'crm_users',
+        ]);
+    });
 
-        // Built-in explores come first and keep their names
+    it('builds an object explore an admin turns on, with system fields hidden, and runs it', async () => {
+        const refreshed = await refresh([DEALS]);
+        const explores = build(refreshed, DEALS_ON);
+
+        // Declared explores come first and keep their names
         expect(explores.map(({ name }) => name)).toEqual([
-            ...hydraIntegration.model.explores.map(({ name }) => `crm_${name}`),
+            'crm_events',
+            'crm_users',
             'crm_deals',
         ]);
-        expect(deals.apiSource?.object).toBe('Deals');
+        const deals = explores[2];
+        expect(deals.apiSource?.apiName).toBe('Deals');
         const { dimensions } = deals.tables.crm_deals;
         expect(Object.keys(dimensions)).toEqual(
             expect.arrayContaining(['id', 'stage', 'amount']),
@@ -179,7 +193,7 @@ describe('Hydra custom objects', () => {
             timezone: 'UTC',
             now: NOW,
         });
-        send.mockClear();
+        const { send, source } = connect(settingsWith([DEALS]));
         const { rows } = await source.run({
             query: compiled.query,
             limit: compiled.requestLimit,
@@ -191,6 +205,20 @@ describe('Hydra custom objects', () => {
         expect(
             rows.reduce((sum, row) => sum + Number(row.record_count), 0),
         ).toBe(30);
+    });
+
+    it('drops the explore of an object a later Refresh no longer finds', async () => {
+        const { modelNames } = await refresh([DEALS]);
+        const { explores } = await refresh([]);
+        expect(
+            build({ explores, modelNames }, DEALS_ON).map(({ name }) => name),
+        ).toEqual(['crm_events', 'crm_users']);
+    });
+
+    it('numbers an object whose name another explore has', async () => {
+        const users: HydraObject = { ...DEALS, id: 'Users', label: 'Users' };
+        const { modelNames } = await refresh([users]);
+        expect(modelNames).toEqual({ Users: 'users_2' });
     });
 
     it('answers 404 for an object it does not have, and 400 for a field it does not know', async () => {

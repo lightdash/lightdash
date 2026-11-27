@@ -153,8 +153,8 @@ const describeLiveSourceRefresh = (
     const fieldCount = (byExplore: Record<string, string[]>) =>
         Object.values(byExplore).reduce((sum, names) => sum + names.length, 0);
     const parts = [
-        [summary.addedObjects.length, 'new object'],
-        [summary.removedObjects.length, 'removed object'],
+        [summary.addedExplores.length, 'new explore'],
+        [summary.removedExplores.length, 'removed explore'],
         [fieldCount(summary.addedFields), 'new field'],
         [fieldCount(summary.removedFields), 'removed field'],
     ] as const;
@@ -164,7 +164,7 @@ const describeLiveSourceRefresh = (
     return changes.length > 0 ? changes.join(', ') : null;
 };
 
-/** Reads what the integration offers now: new fields and objects, and ones gone. */
+/** Reads what the integration offers now: new explores and fields, and ones gone. */
 export const useRefreshLiveSourceFields = (params: LiveSourceParams) => {
     const lightdashApi = useLightdashApi();
     const applyFields = useApplyFields(params);
@@ -180,7 +180,7 @@ export const useRefreshLiveSourceFields = (params: LiveSourceParams) => {
             showToastSuccess({
                 title: 'Fields refreshed',
                 subtitle: changes
-                    ? `Found ${changes}.${summary.addedObjects.length > 0 ? ' New objects start switched off.' : ''}`
+                    ? `Found ${changes}.`
                     : 'Nothing changed since the last refresh.',
             });
         },

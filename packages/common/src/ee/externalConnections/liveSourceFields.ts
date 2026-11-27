@@ -18,9 +18,9 @@ export type LiveSourceField = {
     description: string;
     aiHint: string | null;
     group: string | null;
-    /** Written by Lightdash for the integration, not found by a scan. */
+    /** Declared in the integration's code; false for a field a Refresh found. */
     isBuiltIn: boolean;
-    /** The integration's own bookkeeping field, hidden by default. */
+    /** Off unless an admin turns it on, so lists hide it until it is in use. */
     isInternal: boolean;
     /** Every query needs it, so it can't be taken out of use. */
     isRequired: boolean;
@@ -31,13 +31,7 @@ export type LiveSourceField = {
 
 /** One explore of a live data source, with its fields when they can be curated. */
 export type LiveSourceExploreFields = {
-    /**
-     * For a custom object never turned on, the name it would get now; the
-     * name is fixed when an admin first turns it on.
-     */
     exploreName: string;
-    /** The vendor's id of a custom object; null for a built-in explore. */
-    objectId: string | null;
     label: string;
     description: string;
     aiHint: string | null;
@@ -46,7 +40,7 @@ export type LiveSourceExploreFields = {
     /** Saved charts on the explore. */
     usedByChartCount: number;
     lastEdit: LiveSourceFieldEditor | null;
-    /** False for an explore scans add no fields to; its `fields` is then empty. */
+    /** Always true: every explore's fields can be curated. */
     canEditFields: boolean;
     fields: LiveSourceField[];
 };
@@ -83,11 +77,6 @@ export type LiveSourceFieldChange = {
 /** One explore change; unset keys stay as they are, null clears an override. */
 export type LiveSourceExploreChange = {
     exploreName: string;
-    /**
-     * Names a custom object instead of `exploreName`, for one never turned
-     * on: turning it on gives it its explore name.
-     */
-    objectId?: string;
     inUse?: boolean;
     label?: string | null;
     description?: string | null;
@@ -115,12 +104,12 @@ export type ApiLiveSourceContentUsageResponse = {
     results: LiveSourceContentUsage;
 };
 
-/** What a Refresh changed: objects and fields the integration added or removed. */
+/** What a Refresh changed: explores and fields the integration added or removed. */
 export type LiveSourceRefreshSummary = {
-    /** Custom objects found for the first time; an admin turns them on. */
-    addedObjects: string[];
-    /** Custom objects gone from the integration; their explores are removed. */
-    removedObjects: string[];
+    /** Explores found for the first time, by explore name. */
+    addedExplores: string[];
+    /** Explores gone from the integration, by explore name; they are no longer built. */
+    removedExplores: string[];
     /** Fields new on the source's explores, by explore name. */
     addedFields: Record<string, string[]>;
     /** Fields gone from the source's explores, by explore name. */

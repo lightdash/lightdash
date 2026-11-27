@@ -268,7 +268,7 @@ export const createHydraServer = ({
         objectId: string,
         body: unknown,
     ): LiveHttpResponse => {
-        const object = settings.customObjects.find(({ id }) => id === objectId);
+        const object = settings.objects.find(({ id }) => id === objectId);
         if (!object) {
             return json(404, { message: `Hydra has no object ${objectId}` });
         }
@@ -314,7 +314,7 @@ export const createHydraServer = ({
         request: HydraCall['request'],
     ): LiveHttpResponse => {
         if (request.method === 'GET' && request.path === HYDRA_OBJECTS_PATH) {
-            return json(200, listHydraObjects(settings.customObjects));
+            return json(200, listHydraObjects(settings.objects));
         }
         const objectReport = request.path.match(
             /^\/v1\/objects\/([^/]+)\/report$/,

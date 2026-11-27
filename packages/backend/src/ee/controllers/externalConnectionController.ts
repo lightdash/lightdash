@@ -317,8 +317,8 @@ export class ExternalConnectionController extends BaseController {
 
     /**
      * Read what a live data source's integration offers now, such as GA4
-     * custom dimensions, PostHog properties or a CRM's custom objects, and
-     * rebuild its explores. Returns the objects and fields that appeared or
+     * custom dimensions, PostHog properties or a CRM's own objects, and
+     * rebuild its explores. Returns the explores and fields that appeared or
      * went away
      * @summary Refresh live data source explores
      */

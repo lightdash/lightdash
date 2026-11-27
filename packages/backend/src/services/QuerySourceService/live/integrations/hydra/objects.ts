@@ -1,11 +1,11 @@
-import { type HydraCustomObject } from '@lightdash/common';
+import { type HydraObject } from '@lightdash/common';
 import { z } from 'zod';
 import { addDays, createRandom, toSeed } from './fake/data';
 
 /**
- * Hydra's custom objects, as its vendor side keeps them: the objects a
- * source declares in `customObjects`, listed with their fields, and records
- * seeded from the sign-in token that a report groups and counts.
+ * Hydra's workspace objects, as its vendor side keeps them: the objects a
+ * source declares in `objects`, listed with their fields, and records seeded
+ * from the sign-in token that a report groups and counts.
  */
 
 /** Records seeded per object when the object doesn't say. */
@@ -31,7 +31,7 @@ export const hydraObjectsResponseSchema = z.object({
                     id: z.string(),
                     label: z.string(),
                     type: z.enum(['string', 'number', 'date', 'boolean']),
-                    internal: z.boolean(),
+                    system: z.boolean(),
                 }),
             ),
         }),
@@ -42,7 +42,7 @@ export type HydraObjectsResponse = z.infer<typeof hydraObjectsResponseSchema>;
 
 /** The objects a source declares, with the record id field each has. */
 export const listHydraObjects = (
-    objects: HydraCustomObject[],
+    objects: HydraObject[],
 ): HydraObjectsResponse => ({
     objects: objects.map((object) => ({
         id: object.id,
@@ -53,13 +53,13 @@ export const listHydraObjects = (
                 id: HYDRA_RECORD_ID_FIELD,
                 label: 'ID',
                 type: 'string' as const,
-                internal: false,
+                system: false,
             },
             ...object.fields
                 .filter(({ id }) => id !== HYDRA_RECORD_ID_FIELD)
                 .map((field) => ({
                     ...field,
-                    internal: field.internal ?? false,
+                    system: field.system ?? false,
                 })),
         ],
     })),
@@ -111,7 +111,7 @@ export const buildHydraObjectRecords = ({
     today,
 }: {
     token: string;
-    object: HydraCustomObject;
+    object: HydraObject;
     today: string;
 }): HydraRecord[] => {
     const random = createRandom(toSeed(`${token}:${object.id}`));

@@ -40,9 +40,15 @@ type ApiSourceFieldDefinition = {
     sql?: string;
     /** Guidance only the AI agent reads; an admin's hint replaces it. */
     aiHint?: string;
-    /** Display labels by internal value, for fields that show an option's label. */
+    /** Display labels by stored value, for fields that show an option's label. */
     valueLabels?: Record<string, string>;
     groups?: string[];
+    /**
+     * Whether a source starts with the field in use; absent means it does.
+     * Read only the first time a source sees the field: after that, its
+     * on/off state is the admin's.
+     */
+    onByDefault?: boolean;
 };
 
 export type LiveDimensionDefinition = ApiSourceFieldDefinition & {
@@ -62,12 +68,26 @@ export type LiveMetricDefinition = ApiSourceFieldDefinition & {
     aggregation?: ApiSourceMetricAggregation;
 };
 
-/** One explore of an integration's semantic layer, written by hand or found by a scan. */
+/** One explore of an integration's semantic layer, written by hand or found by `discover`. */
 export type LiveExploreDefinition = {
-    /** The model name; the explore is `<source prefix>_<name>`. */
-    name: string;
-    /** The vendor id of the custom object it reads; absent on built-in explores. */
-    object?: string;
+    /**
+     * The model name; the explore is `<source prefix>_<name>`. Absent, the
+     * core names it once from `apiName` (numbered past names taken) and
+     * keeps that name.
+     */
+    name?: string;
+    /**
+     * The vendor's stable id of what the explore reads, e.g. Salesforce
+     * `Invoice__c`. A Refresh tells explores apart by it (by `name` when
+     * absent), and the built explore carries it for `compile`.
+     */
+    apiName?: string;
+    /**
+     * Whether a source starts with the explore on; absent means it does.
+     * Read only the first time a source sees the explore: after that, its
+     * on/off state is the admin's.
+     */
+    onByDefault?: boolean;
     label: string;
     /** What the explore holds, written for people browsing it. */
     description: string;
@@ -87,6 +107,11 @@ export type LiveExploreDefinition = {
     }[];
 };
 
+/** An explore with its model name: as declared in `model.explores`, or once the core named it. */
+export type NamedLiveExploreDefinition = LiveExploreDefinition & {
+    name: string;
+};
+
 /** Builds a live data source explore whose field ids are `<exploreName>_<field name>`. */
 export const buildLiveExplore = ({
     definition,
@@ -102,7 +127,7 @@ export const buildLiveExplore = ({
     aiHint,
     tags = [],
 }: {
-    definition: LiveExploreDefinition;
+    definition: NamedLiveExploreDefinition;
     exploreName: string;
     label: string;
     /** The source's name, when its integration has several explores. */
@@ -218,8 +243,8 @@ export const buildLiveExplore = ({
             integration,
             baseVersion,
             definitionHash,
-            ...(definition.object !== undefined
-                ? { object: definition.object }
+            ...(definition.apiName !== undefined
+                ? { apiName: definition.apiName }
                 : {}),
             // Kept for readers of explores built before capabilities
             filterGroups: {
@@ -318,14 +343,14 @@ export const getLiveExplore = (explore: Explore): ApiSourceExplore => {
     return apiSource;
 };
 
+/** The vendor's id of what a live explore reads, or null when its integration gave none. */
+export const getLiveExploreApiName = (explore: Explore): string | null =>
+    getLiveExplore(explore).apiName ?? null;
+
 /**
  * The name of the definition a live explore was built from, such as
  * `pull_requests`, for integrations with more than one explore.
  */
-/** The vendor id of the custom object a live explore reads, or null for a built-in one. */
-export const getLiveObjectId = (explore: Explore): string | null =>
-    getLiveExplore(explore).object ?? null;
-
 export const getLiveDefinitionName = (explore: Explore): string => {
     getLiveExplore(explore);
     const { sqlTable } = explore.tables[explore.baseTable];

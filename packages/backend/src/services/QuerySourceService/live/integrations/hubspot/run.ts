@@ -17,7 +17,6 @@ import {
     type LiveRuntime,
 } from '../../sdk';
 import {
-    HUBSPOT_BUILT_IN_COLUMNS,
     HUBSPOT_LABEL_SUFFIX,
     HUBSPOT_MAX_FILTERS,
     HUBSPOT_MAX_PAGES,
@@ -25,35 +24,36 @@ import {
     HUBSPOT_OBJECT_LABELS,
     HUBSPOT_PAGE_SIZE,
     HUBSPOT_PIPELINE_COLUMNS,
+    HUBSPOT_RECORD_COLUMNS,
     isUnreadableObjectError,
-    type HubspotBuiltInColumn,
     type HubspotPipelineColumn,
+    type HubspotRecordColumn,
 } from './api';
 import { toHubspotPropertyName } from './model';
 
 const PROPERTY_NAME = /^[a-z][a-z0-9_]*$/;
 
-const isBuiltInColumn = (name: string): name is HubspotBuiltInColumn =>
-    (HUBSPOT_BUILT_IN_COLUMNS as readonly string[]).includes(name);
+const isRecordColumn = (name: string): name is HubspotRecordColumn =>
+    (HUBSPOT_RECORD_COLUMNS as readonly string[]).includes(name);
 
-/** A property's internal name, or a built-in field (id, createdAt, updatedAt). */
+/** A property's internal name, or a declared field (id, createdAt, updatedAt). */
 const nameSchema = z
     .string()
-    .refine((name) => isBuiltInColumn(name) || PROPERTY_NAME.test(name), {
-        message: `names are HubSpot property names (lowercase, digits, underscores) or ${HUBSPOT_BUILT_IN_COLUMNS.join(
+    .refine((name) => isRecordColumn(name) || PROPERTY_NAME.test(name), {
+        message: `names are HubSpot property names (lowercase, digits, underscores) or ${HUBSPOT_RECORD_COLUMNS.join(
             ', ',
         )}`,
     });
 
-/** A column: a property or built-in field, or a property's labels (`dealstage:label`). */
+/** A column: a property or declared field, or a property's labels (`dealstage:label`). */
 const columnNameSchema = z
     .string()
     .refine(
         (name) =>
-            isBuiltInColumn(name) ||
+            isRecordColumn(name) ||
             PROPERTY_NAME.test(toHubspotPropertyName(name)),
         {
-            message: `columns are HubSpot property names, a property name followed by ${HUBSPOT_LABEL_SUFFIX}, or ${HUBSPOT_BUILT_IN_COLUMNS.join(
+            message: `columns are HubSpot property names, a property name followed by ${HUBSPOT_LABEL_SUFFIX}, or ${HUBSPOT_RECORD_COLUMNS.join(
                 ', ',
             )}`,
         },
@@ -173,7 +173,7 @@ const searchResponseSchema = z.object({
         .optional(),
 });
 
-/** The property a built-in field filters and sorts by, per object. */
+/** The property a declared field filters and sorts by, per object. */
 const toPropertyName = (name: string, object: HubspotObject): string => {
     switch (name) {
         case 'id':
@@ -191,7 +191,7 @@ const toPropertyName = (name: string, object: HubspotObject): string => {
     }
 };
 
-/** Search filters with built-in fields named as properties; none sends no group. */
+/** Search filters with declared fields named as properties; none sends no group. */
 const toFilterGroups = (filters: HubspotFilter[], object: HubspotObject) =>
     filters.length === 0
         ? {}
@@ -316,7 +316,7 @@ const runRecords = async (
         ...new Set(
             request.columns
                 .map(({ name }) => toHubspotPropertyName(name))
-                .filter((name) => !isBuiltInColumn(name)),
+                .filter((name) => !isRecordColumn(name)),
         ),
     ];
     const results: HubspotResult[] = [];

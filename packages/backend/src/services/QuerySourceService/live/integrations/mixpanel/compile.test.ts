@@ -13,7 +13,7 @@ import { mixpanelIntegration } from '.';
 import { compileLiveMetricQuery } from '../../explores/build';
 import {
     buildLiveExplore,
-    type LiveExploreDefinition,
+    type NamedLiveExploreDefinition,
 } from '../../explores/definition';
 import { compileMixpanelQuery } from './compile';
 import {
@@ -25,7 +25,7 @@ import {
 
 const TODAY = '2026-11-09';
 
-const build = (definition: LiveExploreDefinition) => {
+const build = (definition: NamedLiveExploreDefinition) => {
     const name = `mixpanel_${definition.name}`;
     const explore = buildLiveExplore({
         definition,

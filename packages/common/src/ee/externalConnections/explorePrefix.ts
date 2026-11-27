@@ -39,24 +39,24 @@ export const getNumberedExploreName = (name: string, n: number): string => {
 const MAX_NUMBERED_NAMES = 1_000;
 
 /**
- * The model name a custom object's explore gets under its source's prefix:
- * its vendor id as a slug (`Invoice__c` → `invoice__c`), numbered on a clash
+ * The model name the core gives an explore its integration left unnamed:
+ * the vendor id as a slug (`Invoice__c` → `invoice__c`), numbered on a clash
  * with `isTaken`, cut to 40 characters.
  */
-export const getLiveObjectModelName = (
-    objectId: string,
+export const getLiveModelName = (
+    apiName: string,
     isTaken: (name: string) => boolean,
 ): string => {
-    const slug = objectId
+    const slug = apiName
         .toLowerCase()
         .replace(/[^a-z0-9_]+/g, '_')
         .replace(/^[_0-9]+|_+$/g, '');
-    const base = slug.length > 0 ? slug : 'object';
+    const base = slug.length > 0 ? slug : 'explore';
     const name = Array.from({ length: MAX_NUMBERED_NAMES }, (_, index) =>
         getNumberedExploreName(base, index + 1),
     ).find((candidate) => !isTaken(candidate));
     if (!name) {
-        throw new Error(`No free explore name for object "${objectId}"`);
+        throw new Error(`No free explore name for "${apiName}"`);
     }
     return name;
 };

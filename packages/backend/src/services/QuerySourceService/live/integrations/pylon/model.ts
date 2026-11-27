@@ -8,6 +8,7 @@ import {
     dimension,
     type LiveExploreDefinition,
     type LiveModel,
+    type NamedLiveExploreDefinition,
 } from '../../sdk';
 
 /** Search takes a list of values per field, so "is" and "is not" take several. */
@@ -41,7 +42,7 @@ export const PYLON_DATE_FILTERS = [
     FilterOperator.LESS_THAN_OR_EQUAL,
 ];
 
-export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
+export const PYLON_ISSUES_EXPLORE: NamedLiveExploreDefinition = {
     name: 'issues',
     label: 'Issues',
     description:
@@ -364,7 +365,7 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
     metrics: [],
 };
 
-export const PYLON_ACCOUNTS_EXPLORE: LiveExploreDefinition = {
+export const PYLON_ACCOUNTS_EXPLORE: NamedLiveExploreDefinition = {
     name: 'accounts',
     label: 'Accounts',
     description:
@@ -443,7 +444,7 @@ export const PYLON_ACCOUNTS_EXPLORE: LiveExploreDefinition = {
     metrics: [],
 };
 
-export const PYLON_CONTACTS_EXPLORE: LiveExploreDefinition = {
+export const PYLON_CONTACTS_EXPLORE: NamedLiveExploreDefinition = {
     name: 'contacts',
     label: 'Contacts',
     description:

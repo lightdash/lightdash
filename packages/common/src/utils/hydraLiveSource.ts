@@ -27,7 +27,7 @@ export const HYDRA_DEFAULT_SETTINGS: HydraSettings = {
     onLimit: { status: 429, retryAfterFormat: 'seconds' },
     declaredLimits: 'vendor',
     mockResponses: [],
-    customObjects: [],
+    objects: [],
 };
 
 /** A Hydra source with no settings, so every one takes its default. */
@@ -54,9 +54,9 @@ export const withHydraDefaults = (source: HydraApiSource): HydraSettings => ({
 const MAX_BUCKETS = 5;
 const MAX_BUCKET_ID_LENGTH = 40;
 const MAX_MOCK_RESPONSES = 50;
-const MAX_CUSTOM_OBJECTS = 10;
-const MAX_CUSTOM_FIELDS = 20;
-const MAX_CUSTOM_RECORDS = 10_000;
+const MAX_OBJECTS = 10;
+const MAX_OBJECT_FIELDS = 20;
+const MAX_OBJECT_RECORDS = 10_000;
 
 const vendorId = z
     .string()
@@ -66,11 +66,11 @@ const vendorId = z
     );
 const label = z.string().trim().min(1).max(100);
 
-const customObjectSchema = z
+const objectSchema = z
     .object({
         id: vendorId,
         label,
-        recordCount: z.number().int().min(0).max(MAX_CUSTOM_RECORDS).optional(),
+        recordCount: z.number().int().min(0).max(MAX_OBJECT_RECORDS).optional(),
         fields: z
             .array(
                 z
@@ -78,12 +78,12 @@ const customObjectSchema = z
                         id: vendorId,
                         label,
                         type: z.enum(['string', 'number', 'date', 'boolean']),
-                        internal: z.boolean().optional(),
+                        system: z.boolean().optional(),
                     })
                     .strict(),
             )
             .min(1)
-            .max(MAX_CUSTOM_FIELDS)
+            .max(MAX_OBJECT_FIELDS)
             .refine(
                 (fields) =>
                     new Set(fields.map(({ id }) => id)).size === fields.length,
@@ -184,9 +184,9 @@ const SETTING_SCHEMAS = {
         .array(mockResponseSchema)
         .max(MAX_MOCK_RESPONSES)
         .optional(),
-    customObjects: z
-        .array(customObjectSchema)
-        .max(MAX_CUSTOM_OBJECTS)
+    objects: z
+        .array(objectSchema)
+        .max(MAX_OBJECTS)
         .refine(
             (objects) =>
                 new Set(objects.map(({ id }) => id)).size === objects.length,

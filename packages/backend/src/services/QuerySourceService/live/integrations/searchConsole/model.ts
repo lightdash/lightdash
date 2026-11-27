@@ -12,6 +12,7 @@ import {
     ratio,
     type LiveExploreDefinition,
     type LiveModel,
+    type NamedLiveExploreDefinition,
 } from '../../sdk';
 
 export const SEARCH_CONSOLE_STRING_FILTERS = [
@@ -37,7 +38,7 @@ export const SEARCH_CONSOLE_DATE_FILTERS = [
     FilterOperator.LESS_THAN_OR_EQUAL,
 ];
 
-export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
+export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: NamedLiveExploreDefinition = {
     name: 'performance',
     label: 'Search performance',
     description:

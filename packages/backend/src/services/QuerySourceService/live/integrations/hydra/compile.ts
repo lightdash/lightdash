@@ -9,7 +9,7 @@ import {
     getApiName,
     getLiveDefinitionName,
     getLiveExplore,
-    getLiveObjectId,
+    getLiveExploreApiName,
     resolveAbsoluteDateRange,
     type LiveCompiledRequest,
 } from '../../sdk';
@@ -48,7 +48,7 @@ export const compileHydraQuery = ({
         field: apiName(fieldId),
         descending,
     }));
-    const object = getLiveObjectId(explore);
+    const object = getLiveExploreApiName(explore);
     if (object !== null) {
         const request: HydraObjectReportRequest = {
             object,

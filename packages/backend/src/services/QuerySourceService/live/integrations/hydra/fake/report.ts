@@ -112,7 +112,7 @@ export const hydraReportSchema = z
 
 export type HydraReportRequest = z.infer<typeof hydraReportSchema>;
 
-/** A report on a built-in explore, or on one custom object (`object`). */
+/** A report on the events or users explore, or on one workspace object (`object`). */
 export type HydraRequest = HydraReportRequest | HydraObjectReportRequest;
 
 export const isHydraObjectRequest = (
@@ -122,7 +122,7 @@ export const isHydraObjectRequest = (
 const readReport = jsonRequest('Hydra', hydraReportSchema);
 const readObjectReport = jsonRequest('Hydra object', hydraObjectReportSchema);
 
-/** Reads a report on a built-in explore, or on a custom object when it names one. */
+/** Reads a report on the events or users explore, or on an object when it names one. */
 export const parseHydraRequest = (query: string): HydraRequest => {
     let json: unknown;
     try {

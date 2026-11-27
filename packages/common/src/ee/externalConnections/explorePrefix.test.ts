@@ -2,7 +2,7 @@ import { ApiConnectorType } from '../../types/querySources';
 import {
     getDefaultExplorePrefix,
     getExplorePrefixError,
-    getLiveObjectModelName,
+    getLiveModelName,
     getNumberedExploreName,
 } from './explorePrefix';
 
@@ -58,7 +58,7 @@ describe('getNumberedExploreName', () => {
     });
 });
 
-describe('getLiveObjectModelName', () => {
+describe('getLiveModelName', () => {
     const free = () => false;
 
     it.each([
@@ -66,24 +66,24 @@ describe('getLiveObjectModelName', () => {
         ['Invoice__c', 'invoice__c'],
         ['p_123_deal-stage', 'p_123_deal_stage'],
         ['2024 Orders', 'orders'],
-        ['___', 'object'],
-        ['é', 'object'],
-    ])('slugs %s as %s', (objectId, name) => {
-        expect(getLiveObjectModelName(objectId, free)).toBe(name);
+        ['___', 'explore'],
+        ['é', 'explore'],
+    ])('slugs %s as %s', (apiName, name) => {
+        expect(getLiveModelName(apiName, free)).toBe(name);
     });
 
     it('numbers past taken names', () => {
         const taken = new Set(['deals', 'deals_2']);
-        expect(getLiveObjectModelName('Deals', (name) => taken.has(name))).toBe(
+        expect(getLiveModelName('Deals', (name) => taken.has(name))).toBe(
             'deals_3',
         );
     });
 
     it('cuts a long id to 40 characters, numbered too', () => {
         const id = 'x'.repeat(60);
-        expect(getLiveObjectModelName(id, free)).toBe('x'.repeat(40));
-        expect(
-            getLiveObjectModelName(id, (name) => name === 'x'.repeat(40)),
-        ).toBe(`${'x'.repeat(38)}_2`);
+        expect(getLiveModelName(id, free)).toBe('x'.repeat(40));
+        expect(getLiveModelName(id, (name) => name === 'x'.repeat(40))).toBe(
+            `${'x'.repeat(38)}_2`,
+        );
     });
 });

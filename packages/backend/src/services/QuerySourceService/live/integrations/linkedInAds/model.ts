@@ -12,6 +12,7 @@ import {
     NON_ADDITIVE,
     type LiveExploreDefinition,
     type LiveModel,
+    type NamedLiveExploreDefinition,
 } from '../../sdk';
 import { LINKEDIN_ADS_DEFAULT_DAYS, LINKEDIN_ADS_MAX_METRICS } from './api';
 
@@ -30,7 +31,7 @@ export const LINKEDIN_ADS_ID_FILTERS = [FilterOperator.EQUALS];
  * ads only: organic Company Page analytics come from a different API,
  * permission and account (see the planned model names).
  */
-export const LINKEDIN_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
+export const LINKEDIN_ADS_PERFORMANCE_EXPLORE: NamedLiveExploreDefinition = {
     name: 'performance',
     label: 'Performance',
     description:

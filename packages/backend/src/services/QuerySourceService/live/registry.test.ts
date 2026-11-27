@@ -6,32 +6,35 @@ import {
     type ExternalConnectionApiSource,
     type MetricQuery,
 } from '@lightdash/common';
+import { buildLiveExplores, compileLiveMetricQuery } from './explores/build';
+import { type LiveExploreDefinition } from './explores/definition';
+import { getLiveSourceModels } from './explores/source';
+import { findAccessRule } from './integration';
 import {
-    buildLiveExplores,
-    compileLiveMetricQuery,
-    toScannedLiveSourceFields,
-} from './explores/build';
-import { getInitialLiveSourceFieldEdits } from './explores/fields';
-import {
-    describeLiveExplores,
-    EMPTY_LIVE_CATALOG,
-    findAccessRule,
-} from './integration';
+    readSupabaseColumns,
+    SUPABASE_TABLE_EXPLORE,
+    withSupabaseColumns,
+} from './integrations/supabase/model';
 import { connectLiveSource } from './liveSource.mock';
 import {
     getLiveIntegration,
     isLiveIntegrationRegistered,
     parseStoredApiSource,
 } from './registry';
-import { type LiveCatalog, type LiveHttpResponse } from './types';
+import { type LiveHttpResponse } from './types';
 
-/** A scan for integrations whose explore has no fields until scanned. */
-const SAMPLE_SCANS: Partial<Record<ApiConnectorType, LiveCatalog>> = {
-    [ApiConnectorType.SUPABASE]: {
-        supabaseTable: {
-            properties: { id: { type: 'integer', format: 'bigint' } },
-        },
-    },
+/** What a Refresh finds, for integrations whose explore has no fields until then. */
+const SAMPLE_DISCOVERIES: Partial<
+    Record<ApiConnectorType, LiveExploreDefinition[]>
+> = {
+    [ApiConnectorType.SUPABASE]: [
+        withSupabaseColumns(
+            SUPABASE_TABLE_EXPLORE,
+            readSupabaseColumns({
+                properties: { id: { type: 'integer', format: 'bigint' } },
+            }),
+        ),
+    ],
 };
 
 /**
@@ -138,14 +141,10 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
             vi.unstubAllEnvs();
         });
 
-        test('discovers fields only for explores it has, besides its first', () => {
-            const [first, ...others] = integration.model.explores.map(
-                ({ name }) => name,
-            );
-            (integration.model.discovery?.models ?? []).forEach((model) => {
-                expect(others).toContain(model);
-                expect(model).not.toBe(first);
-            });
+        test('declares at least one explore, each under its own name', () => {
+            const names = integration.model.explores.map(({ name }) => name);
+            expect(names.length).toBeGreaterThan(0);
+            expect(new Set(names).size).toBe(names.length);
         });
 
         test('refuses a limit that is not a positive number before calling', async () => {
@@ -171,28 +170,27 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         });
 
         test('runs what it compiles, and explains a failed call', async () => {
-            const scan = SAMPLE_SCANS[settings.connector];
-            const scannedFields = scan
-                ? toScannedLiveSourceFields(settings.connector, scan)
-                : [];
+            const explores = SAMPLE_DISCOVERIES[settings.connector];
+            const state = {
+                discovered: explores
+                    ? { refreshedAt: '2026-11-06T12:00:00Z', explores }
+                    : null,
+                modelNames: {},
+                fields: {},
+                explores: {},
+            };
             const [explore] = buildLiveExplores({
                 connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
                 sourceName: settings.connector,
                 name: 'Source',
                 apiSource: settings,
-                scannedFields,
-                edits: getInitialLiveSourceFieldEdits({
-                    scannedFields,
-                    isExistingSource: true,
-                }),
+                state,
             });
             // A metric where the explore has one, else a dimension
-            const [builtIn] = integration.model.explores;
-            const definition = scan
-                ? (describeLiveExplores(integration.model, scan).find(
-                      ({ name }) => name === builtIn.name,
-                  ) ?? builtIn)
-                : builtIn;
+            const [{ definition }] = getLiveSourceModels(
+                settings.connector,
+                state,
+            );
             const [metric] = definition.metrics;
             const [dimension] = definition.dimensions;
             const metricQuery: MetricQuery = {
@@ -223,7 +221,7 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
             // Every call it makes is one its access rules allow
             const { rules } = integration.connection.access(
                 settings,
-                EMPTY_LIVE_CATALOG,
+                integration.model.explores,
             );
             send.mock.calls.forEach(([request]) => {
                 expect(findAccessRule(rules, request)).toBeDefined();
@@ -233,7 +231,7 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         test('states its access as read rules', () => {
             const { rules } = integration.connection.access(
                 settings,
-                EMPTY_LIVE_CATALOG,
+                integration.model.explores,
             );
             expect(rules.length).toBeGreaterThan(0);
             rules.forEach((rule) => {

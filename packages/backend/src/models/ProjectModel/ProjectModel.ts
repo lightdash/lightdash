@@ -3673,20 +3673,17 @@ export class ProjectModel {
         const [{ findSwitchedOffLiveExplore }, { parseLiveSourceFieldState }] =
             await Promise.all([
                 import('../../services/QuerySourceService/live/explores/build'),
-                import('../../services/QuerySourceService/live/explores/fields'),
+                import('../../services/QuerySourceService/live/explores/source'),
             ]);
         return findSwitchedOffLiveExplore(
             rows.flatMap((row) => {
                 if (!row.source_name) return [];
-                const state = parseLiveSourceFieldState(row.api_source);
                 return [
                     {
                         name: row.name,
                         sourceName: row.source_name,
                         connector: row.connector,
-                        exploreEdits: state.explores,
-                        objects: state.objects,
-                        catalogEntries: state.catalog?.entries,
+                        state: parseLiveSourceFieldState(row.api_source),
                     },
                 ];
             }),
@@ -9108,42 +9105,27 @@ export class ProjectModel {
     }
 
     /** The stored definition hash of every live data source explore in these projects. */
-    async listApiSourceExploreHashes(projectUuids: string[]): Promise<
-        {
-            connectionUuid: string;
-            definitionHash: string | null;
-            /** Set on a custom object's explore, which has no hash. */
-            object: string | null;
-        }[]
-    > {
+    async listApiSourceExploreHashes(
+        projectUuids: string[],
+    ): Promise<{ connectionUuid: string; definitionHash: string | null }[]> {
         if (projectUuids.length === 0) {
             return [];
         }
         const rows = await this.database(CachedExploreTableName)
             .whereIn('project_uuid', projectUuids)
             .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
-            .select<
-                {
-                    connection_uuid: string;
-                    hash: string | null;
-                    object: string | null;
-                }[]
-            >(
+            .select<{ connection_uuid: string; hash: string | null }[]>(
                 this.database.raw(
                     "explore->'apiSource'->>'connectionUuid' as connection_uuid",
                 ),
                 this.database.raw(
                     "explore->'apiSource'->>'definitionHash' as hash",
                 ),
-                this.database.raw("explore->'apiSource'->>'object' as object"),
             );
-        return rows.map(
-            ({ connection_uuid: connectionUuid, hash, object }) => ({
-                connectionUuid,
-                definitionHash: hash,
-                object,
-            }),
-        );
+        return rows.map(({ connection_uuid: connectionUuid, hash }) => ({
+            connectionUuid,
+            definitionHash: hash,
+        }));
     }
 
     /** Every field id stored on one live data source's explores. */

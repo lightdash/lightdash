@@ -11,16 +11,14 @@ import {
     TimeoutError,
     type CreateExternalConnection,
     type ExternalConnection,
-    type HydraCustomObject,
+    type HydraObject,
     type LiveSourceAccessRule,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
 import { getLiveDefinitionHashes } from '../../../services/QuerySourceService/live/explores/build';
-import {
-    type LiveSourceFieldEdits,
-    type LiveSourceFieldState,
-} from '../../../services/QuerySourceService/live/explores/fields';
+import { type LiveSourceFieldEdits } from '../../../services/QuerySourceService/live/explores/fields';
+import { type LiveSourceFieldState } from '../../../services/QuerySourceService/live/explores/source';
 import { POSTHOG_EVENTS_EXPLORE } from '../../../services/QuerySourceService/live/integrations/postHog/model';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
@@ -118,10 +116,9 @@ const buildService = ({
     disabledIntegrations?: ApiConnectorType[];
 } = {}) => {
     let fieldState: LiveSourceFieldState = {
-        lastScan: null,
-        catalog: null,
-        objects: {},
-        fields: null,
+        discovered: null,
+        modelNames: {},
+        fields: {},
         explores: {},
         aiHint: null,
         targetLabel: null,
@@ -193,8 +190,15 @@ const buildService = ({
                     _uuid: string,
                     _name: string,
                     fields: LiveSourceFieldEdits,
+                    explores: LiveSourceFieldState['explores'] = {},
+                    modelNames: Record<string, string> = {},
                 ) => {
-                    fieldState = { ...fieldState, fields };
+                    fieldState = {
+                        ...fieldState,
+                        fields,
+                        explores,
+                        modelNames,
+                    };
                     return true;
                 },
             ),
@@ -251,24 +255,6 @@ const buildService = ({
         getLiveSourceFieldState: vi
             .fn()
             .mockImplementation(async () => fieldState),
-        saveLiveSourceScan: vi
-            .fn()
-            .mockImplementation(async (_uuid: string, lastScan) => {
-                fieldState = { ...fieldState, lastScan };
-            }),
-        saveLiveSourceCatalog: vi
-            .fn()
-            .mockImplementation(async (_uuid: string, catalog) => {
-                fieldState = { ...fieldState, catalog };
-            }),
-        initLiveSourceFieldEdits: vi
-            .fn()
-            .mockImplementation(async (_uuid: string, fields) => {
-                fieldState = {
-                    ...fieldState,
-                    fields: fieldState.fields ?? fields,
-                };
-            }),
         updateLiveSourceEdits: vi
             .fn()
             .mockImplementation(
@@ -277,11 +263,13 @@ const buildService = ({
                     update: (current: LiveSourceEdits) => LiveSourceEdits,
                 ) => {
                     const next = update({
-                        fields: fieldState.fields ?? {},
+                        discovered: fieldState.discovered,
+                        modelNames: fieldState.modelNames,
+                        fields: fieldState.fields,
                         explores: fieldState.explores,
-                        objects: fieldState.objects,
                     });
                     fieldState = { ...fieldState, ...next };
+                    return next;
                 },
             ),
     };
@@ -1461,16 +1449,14 @@ describe('ExternalConnectionService live source explores', () => {
         return Object.keys(explores[0].apiSource.fields);
     };
 
-    it('offers scanned properties as available, not in use, when a source is created', async () => {
+    it('puts the properties it found in use when a source is created', async () => {
         respondToScan('ok');
         const { service, projectModel } = buildService();
         await service.create(account, 'proj-1', postHogSource);
 
         const fieldIds = savedFieldIds(projectModel);
         expect(fieldIds).toContain('product_analytics_events_event');
-        expect(fieldIds).not.toContain(
-            'product_analytics_events_property_plan',
-        );
+        expect(fieldIds).toContain('product_analytics_events_property_plan');
         expect(mockSecureFetch.mock.calls.map(([url]) => url)).toEqual([
             `https://eu.posthog.com${PROPERTY_DEFINITIONS}?type=event&limit=500`,
             `https://eu.posthog.com${PROPERTY_DEFINITIONS}?type=person&limit=500`,
@@ -1482,10 +1468,10 @@ describe('ExternalConnectionService live source explores', () => {
         );
         expect(
             fields.find((field) => field.name === 'property_plan'),
-        ).toMatchObject({ inUse: false, isBuiltIn: false });
+        ).toMatchObject({ inUse: true, isBuiltIn: false });
     });
 
-    it('keeps every scanned property in use on a source built before fields could be curated', async () => {
+    it('keeps every property it found in use on a source built before fields could be curated', async () => {
         respondToScan('ok');
         const { service, projectModel } = buildService({ hasExplores: true });
         await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
@@ -1668,7 +1654,9 @@ describe('ExternalConnectionService live source explores', () => {
             const { service, projectModel, externalConnectionModel } =
                 buildService();
             externalConnectionModel.getLiveSourceFieldState.mockResolvedValue({
-                lastScan: null,
+                discovered: null,
+                modelNames: {},
+                explores: {},
                 fields: {},
                 aiHint: 'EU project',
                 targetLabel: null,
@@ -1718,7 +1706,9 @@ describe('ExternalConnectionService live source explores', () => {
             const { service, projectModel, externalConnectionModel } =
                 buildService();
             externalConnectionModel.getLiveSourceFieldState.mockResolvedValue({
-                lastScan: null,
+                discovered: null,
+                modelNames: {},
+                explores: {},
                 fields: {},
                 aiHint: null,
                 targetLabel: null,
@@ -2008,7 +1998,9 @@ describe('ExternalConnectionService live source explores', () => {
             ]);
 
             const editTrx =
-                externalConnectionModel.updateLiveSourceEdits.mock.calls[0][2];
+                externalConnectionModel.updateLiveSourceEdits.mock.calls.at(
+                    -1,
+                )?.[2];
             expect(editTrx).toBeDefined();
             expect(projectModel.replaceApiSourceExplores.mock.calls[0][3]).toBe(
                 editTrx,
@@ -2392,9 +2384,9 @@ describe('ExternalConnectionService live source explores', () => {
         origin: 'https://eu.posthog.com',
         apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '303731' },
         sourceName: 'posthog',
-        fieldEdits: null,
+        fieldEdits: {},
         exploreEdits: {},
-        objects: {},
+        modelNames: {},
         tags: [],
         aiHint: null,
         targetLabel: null,
@@ -2665,7 +2657,9 @@ describe('ExternalConnectionService live source explores', () => {
             async () => {
                 externalConnectionModel.getLiveSourceFieldState.mockResolvedValue(
                     {
-                        lastScan: null,
+                        discovered: null,
+                        modelNames: {},
+                        explores: {},
                         fields: {},
                         aiHint: 'EU project',
                         targetLabel: 'Default project',
@@ -3335,8 +3329,8 @@ describe('ExternalConnectionService integration feature flags', () => {
     });
 });
 
-describe('ExternalConnectionService live source catalog, through Hydra', () => {
-    const DEALS: HydraCustomObject = {
+describe('ExternalConnectionService explores found by a Refresh, through Hydra', () => {
+    const DEALS: HydraObject = {
         id: 'Deals',
         label: 'Deals',
         recordCount: 20,
@@ -3347,34 +3341,52 @@ describe('ExternalConnectionService live source catalog, through Hydra', () => {
                 id: 'sync_token',
                 label: 'Sync token',
                 type: 'string',
-                internal: true,
+                system: true,
             },
         ],
     };
-    const EVENTS: HydraCustomObject = {
+    const EVENTS: HydraObject = {
         id: 'Events',
         label: 'Events',
         fields: [{ id: 'kind', label: 'Kind', type: 'string' as const }],
     };
-    const hydraConnection = (customObjects: HydraCustomObject[]) =>
+    const hydraConnection = (objects: HydraObject[]) =>
         posthogConnection({
             origin: 'https://hydra.lightdash.dev',
             allowedPathPrefixes: ['/v1/'],
             allowedMethods: ['GET', 'POST'],
             liveSourceName: 'crm',
-            apiSource: { connector: ApiConnectorType.HYDRA, customObjects },
+            apiSource: { connector: ApiConnectorType.HYDRA, objects },
         });
+    /** Changes the objects Hydra's workspace has, as the next Refresh sees them. */
+    const setObjects = (
+        connection: ExternalConnection,
+        objects: HydraObject[],
+    ) => {
+        Object.assign(connection.apiSource ?? {}, { objects });
+    };
     const lastExplores = (
         projectModel: ReturnType<typeof buildService>['projectModel'],
     ) =>
         projectModel.replaceApiSourceExplores.mock.calls.at(-1)?.[2] as {
             name: string;
-            apiSource?: { object?: string; fields?: Record<string, unknown> };
+            apiSource?: { apiName?: string; fields?: Record<string, unknown> };
             tables: Record<
                 string,
                 { dimensions: Record<string, { hidden?: boolean }> }
             >;
         }[];
+    const turnOn = (
+        service: ReturnType<typeof buildService>['service'],
+        exploreName: string,
+    ) =>
+        service.updateLiveSourceFields(
+            account,
+            'proj-1',
+            'conn-1',
+            [],
+            [{ exploreName, inUse: true }],
+        );
 
     beforeEach(() => {
         vi.stubEnv(HYDRA_ENABLED_ENV, 'true');
@@ -3383,9 +3395,13 @@ describe('ExternalConnectionService live source catalog, through Hydra', () => {
         vi.unstubAllEnvs();
     });
 
-    it('lists a new object on Refresh, off and with the name it would get', async () => {
-        const connection = hydraConnection([DEALS]);
-        const { service } = buildService({ connections: [connection] });
+    it('starts an object it finds off, under the name it keeps, and reports it', async () => {
+        const connection = hydraConnection([]);
+        const { service, externalConnectionModel } = buildService({
+            connections: [connection],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+        setObjects(connection, [DEALS]);
 
         const summary = await service.refreshApiSourceExplores(
             account,
@@ -3393,133 +3409,89 @@ describe('ExternalConnectionService live source catalog, through Hydra', () => {
             'conn-1',
         );
 
-        expect(summary.addedObjects).toEqual(['Deals']);
+        expect(summary.addedExplores).toEqual(['crm_deals']);
         const { explores } = await service.getLiveSourceFields(
             account,
             'proj-1',
             'conn-1',
         );
         expect(
-            explores.find(({ objectId }) => objectId === 'Deals'),
-        ).toMatchObject({ exploreName: 'crm_deals', inUse: false });
-    });
-
-    it('builds the explore of an object turned on, with its name stored once', async () => {
-        const connection = hydraConnection([DEALS]);
-        const { service, projectModel, externalConnectionModel } = buildService(
-            { connections: [connection] },
-        );
-        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
-
-        await service.updateLiveSourceFields(
-            account,
-            'proj-1',
-            'conn-1',
-            [],
-            [{ exploreName: 'crm_deals', objectId: 'Deals', inUse: true }],
-        );
-
+            explores.find(({ exploreName }) => exploreName === 'crm_deals'),
+        ).toMatchObject({ inUse: false });
         const state =
             await externalConnectionModel.getLiveSourceFieldState('conn-1');
-        expect(state.objects).toEqual({ Deals: { name: 'deals' } });
+        expect(state.modelNames).toEqual({ Deals: 'deals' });
+    });
+
+    it('builds the explore of an object an admin turns on, with off-by-default fields hidden', async () => {
+        const connection = hydraConnection([DEALS]);
+        const { service, projectModel } = buildService({
+            connections: [connection],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+        expect(
+            lastExplores(projectModel).map(({ name }) => name),
+        ).not.toContain('crm_deals');
+
+        await turnOn(service, 'crm_deals');
+
         const deals = lastExplores(projectModel).find(
             ({ name }) => name === 'crm_deals',
         );
-        expect(deals?.apiSource?.object).toBe('Deals');
+        expect(deals?.apiSource?.apiName).toBe('Deals');
         const { dimensions } = deals!.tables.crm_deals;
         expect(Object.keys(dimensions)).toEqual(
             expect.arrayContaining(['id', 'stage', 'amount']),
         );
-        // Internal fields start hidden
         expect(dimensions.sync_token).toBeUndefined();
     });
 
-    it('numbers an object whose name another explore holds', async () => {
+    it('numbers an object whose name another explore of the project holds', async () => {
         const connection = hydraConnection([DEALS]);
         const { service, externalConnectionModel } = buildService({
             connections: [connection],
             takenExploreNames: ['crm_deals'],
         });
         await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
-        // The list shows the name it will get, past the project's explores
+
         const { explores } = await service.getLiveSourceFields(
             account,
             'proj-1',
             'conn-1',
         );
-        expect(
-            explores.find(({ objectId }) => objectId === 'Deals')?.exploreName,
-        ).toBe('crm_deals_2');
-
-        await service.updateLiveSourceFields(
-            account,
-            'proj-1',
-            'conn-1',
-            [],
-            [{ exploreName: 'crm_deals_2', objectId: 'Deals', inUse: true }],
+        expect(explores.map(({ exploreName }) => exploreName)).toContain(
+            'crm_deals_2',
         );
-
         const state =
             await externalConnectionModel.getLiveSourceFieldState('conn-1');
-        expect(state.objects).toEqual({ Deals: { name: 'deals_2' } });
+        expect(state.modelNames).toEqual({ Deals: 'deals_2' });
     });
 
-    it('numbers an object whose slug a built-in explore holds', async () => {
+    it('numbers an object whose name a declared explore holds', async () => {
         const connection = hydraConnection([EVENTS]);
         const { service, externalConnectionModel } = buildService({
             connections: [connection],
         });
         await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
 
-        await service.updateLiveSourceFields(
-            account,
-            'proj-1',
-            'conn-1',
-            [],
-            [{ exploreName: 'crm_events_2', objectId: 'Events', inUse: true }],
-        );
-
         const state =
             await externalConnectionModel.getLiveSourceFieldState('conn-1');
-        expect(state.objects).toEqual({ Events: { name: 'events_2' } });
+        expect(state.modelNames).toEqual({ Events: 'events_2' });
     });
 
-    it('refuses to edit an object never turned on, or one not in the catalog', async () => {
+    it('refuses to edit an explore the source does not have', async () => {
         const connection = hydraConnection([DEALS]);
         const { service } = buildService({ connections: [connection] });
         await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
 
-        await expect(
-            service.updateLiveSourceFields(
-                account,
-                'proj-1',
-                'conn-1',
-                [],
-                [{ exploreName: 'crm_deals', objectId: 'Deals', label: 'X' }],
-            ),
-        ).rejects.toThrow(ParameterError);
-        await expect(
-            service.updateLiveSourceFields(
-                account,
-                'proj-1',
-                'conn-1',
-                [],
-                [{ exploreName: 'crm_x', objectId: 'Missing', inUse: true }],
-            ),
-        ).rejects.toThrow(ParameterError);
+        await expect(turnOn(service, 'crm_x')).rejects.toThrow(ParameterError);
     });
 
-    it('queries an object explore through its own path, and refuses one outside the catalog', async () => {
+    it('queries an object explore through its own path, and refuses an object it did not find', async () => {
         const connection = hydraConnection([DEALS]);
         const { service } = buildService({ connections: [connection] });
         await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
-        await service.updateLiveSourceFields(
-            account,
-            'proj-1',
-            'conn-1',
-            [],
-            [{ exploreName: 'crm_deals', objectId: 'Deals', inUse: true }],
-        );
+        await turnOn(service, 'crm_deals');
         const source = await service.getLiveSource(
             account,
             'proj-1',
@@ -3544,7 +3516,7 @@ describe('ExternalConnectionService live source catalog, through Hydra', () => {
         );
         expect(total).toBe(20);
 
-        // An object the catalog does not list is outside the source's access
+        // An object the Refresh did not find is outside the source's access
         await expect(
             runLiveRequest(source, {
                 query: JSON.stringify({
@@ -3560,27 +3532,19 @@ describe('ExternalConnectionService live source catalog, through Hydra', () => {
         ).rejects.toThrow(/not allowed|allowed paths/i);
     });
 
-    it('drops an object Refresh no longer finds, and reports it', async () => {
+    it('drops the explore of an object a Refresh no longer finds, and reports it', async () => {
         const connection = hydraConnection([DEALS]);
         const { service, projectModel } = buildService({
             connections: [connection],
         });
         await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
-        await service.updateLiveSourceFields(
-            account,
-            'proj-1',
-            'conn-1',
-            [],
-            [{ exploreName: 'crm_deals', objectId: 'Deals', inUse: true }],
-        );
+        await turnOn(service, 'crm_deals');
         projectModel.getApiSourceFieldIds.mockResolvedValue(
             lastExplores(projectModel).flatMap(({ apiSource }) =>
                 Object.keys(apiSource?.fields ?? {}),
             ),
         );
-        if (connection.apiSource?.connector === ApiConnectorType.HYDRA) {
-            connection.apiSource.customObjects = [];
-        }
+        setObjects(connection, []);
 
         const summary = await service.refreshApiSourceExplores(
             account,
@@ -3588,53 +3552,48 @@ describe('ExternalConnectionService live source catalog, through Hydra', () => {
             'conn-1',
         );
 
-        expect(summary.removedObjects).toEqual(['Deals']);
-        expect(summary.removedFields.crm_deals).toEqual(
-            expect.arrayContaining(['stage', 'amount']),
-        );
+        expect(summary.removedExplores).toEqual(['crm_deals']);
         expect(
             lastExplores(projectModel).map(({ name }) => name),
         ).not.toContain('crm_deals');
     });
 
-    it('shows new fields of an object turned on, but not internal ones', async () => {
+    it('starts new fields of an explore it has as their definition says', async () => {
         const connection = hydraConnection([DEALS]);
         const { service } = buildService({ connections: [connection] });
         await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
-        await service.updateLiveSourceFields(
+        await turnOn(service, 'crm_deals');
+        setObjects(connection, [
+            {
+                ...DEALS,
+                fields: [
+                    ...DEALS.fields,
+                    { id: 'owner', label: 'Owner', type: 'string' },
+                    {
+                        id: 'etag',
+                        label: 'Etag',
+                        type: 'string',
+                        system: true,
+                    },
+                ],
+            },
+        ]);
+
+        const summary = await service.refreshApiSourceExplores(
             account,
             'proj-1',
             'conn-1',
-            [],
-            [{ exploreName: 'crm_deals', objectId: 'Deals', inUse: true }],
         );
-        if (connection.apiSource?.connector === ApiConnectorType.HYDRA) {
-            connection.apiSource.customObjects = [
-                {
-                    ...DEALS,
-                    fields: [
-                        ...DEALS.fields,
-                        { id: 'owner', label: 'Owner', type: 'string' },
-                        {
-                            id: 'etag',
-                            label: 'Etag',
-                            type: 'string',
-                            internal: true,
-                        },
-                    ],
-                },
-            ];
-        }
 
-        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
-
+        expect(summary.addedFields).toEqual({ crm_deals: ['owner', 'etag'] });
         const { explores } = await service.getLiveSourceFields(
             account,
             'proj-1',
             'conn-1',
         );
         const deals =
-            explores.find(({ objectId }) => objectId === 'Deals')?.fields ?? [];
+            explores.find(({ exploreName }) => exploreName === 'crm_deals')
+                ?.fields ?? [];
         expect(deals.find(({ name }) => name === 'owner')).toMatchObject({
             inUse: true,
         });

@@ -11,23 +11,16 @@ import { refuseLiveQuery } from './query/refuse';
 import type {
     LiveAccessRule,
     LiveCapabilities,
-    LiveCatalog,
     LiveIntegration,
     LiveLimits,
-    LiveModel,
-    LiveObjectCatalog,
 } from './types';
 
 /**
  * Checks an integration against the contract. Its request type stays
  * inside it: everything outside sends the query text through `parseLiveRequest`.
  */
-export const defineLiveIntegration = <
-    C extends ApiConnectorType,
-    Request,
-    Catalog extends LiveCatalog,
->(
-    integration: LiveIntegration<C, Request, Catalog>,
+export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
+    integration: LiveIntegration<C, Request>,
 ): LiveIntegration<C> => integration as unknown as LiveIntegration<C>;
 
 /**
@@ -59,6 +52,30 @@ export const jsonRequest =
         return parsed.data;
     };
 
+/**
+ * `merged` with each field `declared` lacks starting off when `isOff` says
+ * so by its `apiName`: the vendor's own bookkeeping, which most people never
+ * chart.
+ */
+export const withFieldsOffByDefault = <D extends LiveExploreDefinition>(
+    declared: LiveExploreDefinition,
+    merged: D,
+    isOff: (apiName: string) => boolean,
+): D => {
+    const declaredNames = new Set(
+        [...declared.dimensions, ...declared.metrics].map(({ name }) => name),
+    );
+    const mark = <F extends { name: string; apiName: string }>(field: F) =>
+        !declaredNames.has(field.name) && isOff(field.apiName)
+            ? { ...field, onByDefault: false }
+            : field;
+    return {
+        ...merged,
+        dimensions: merged.dimensions.map(mark),
+        metrics: merged.metrics.map(mark),
+    };
+};
+
 /** Refuses a limit past what one query can read, for APIs that can't cap it. */
 export const assertMaxRows = (limit: number, maxRows: number) => {
     if (limit > maxRows) {
@@ -68,21 +85,6 @@ export const assertMaxRows = (limit: number, maxRows: number) => {
         );
     }
 };
-
-/**
- * The explores a source offers once `discover` has run: the first explore
- * and `discovery.models` with the discovered fields, the rest as written.
- */
-export const describeLiveExplores = (
-    model: LiveModel,
-    catalog: LiveCatalog,
-): LiveExploreDefinition[] =>
-    model.explores.map((definition, index) =>
-        model.discovery &&
-        (index === 0 || model.discovery.models?.includes(definition.name))
-            ? model.discovery.withFields(definition, catalog)
-            : definition,
-    );
 
 /**
  * A source's limits: its own when its settings set them, with
@@ -154,9 +156,6 @@ const getStaticPathPrefix = (path: string) => {
         : segments.slice(0, templated).join('/') || '/';
 };
 
-/** A source's catalog before its first Refresh: no custom objects. */
-export const EMPTY_LIVE_CATALOG: LiveObjectCatalog = { entries: [] };
-
 /**
  * What a source can reach, as the connection stores it. The proxy checks a
  * live source's requests against its rules (`findAccessRule`); these lists
@@ -165,9 +164,9 @@ export const EMPTY_LIVE_CATALOG: LiveObjectCatalog = { entries: [] };
 export const getLiveAccessRules = <C extends ApiConnectorType>(
     integration: LiveIntegration<C>,
     settings: ApiSourceOf<C>,
-    catalog: LiveObjectCatalog = EMPTY_LIVE_CATALOG,
+    explores: readonly LiveExploreDefinition[] = integration.model.explores,
 ): LiveAccessRules => {
-    const access = integration.connection.access(settings, catalog);
+    const access = integration.connection.access(settings, explores);
     const unique = <T>(values: T[]) => [...new Set(values)];
     return {
         allowedPathPrefixes: unique(
@@ -217,7 +216,7 @@ export const validateLiveConnection = <C extends ApiConnectorType>(
 /**
  * A request a source may send to read data: `path` and the paths under it,
  * or only `path` itself when `exact`. A `{name}` segment matches any one
- * segment; `entry` names the catalog entry the rule serves.
+ * segment; `entry` names the explore model the rule serves.
  */
 export const readRule = (
     method: LiveAccessRule['method'],

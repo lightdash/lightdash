@@ -13,6 +13,7 @@ export {
     formatTestCount,
     jsonRequest,
     readRule,
+    withFieldsOffByDefault,
 } from './integration';
 export type {
     LiveIntegrationSpec,
@@ -20,18 +21,13 @@ export type {
     LiveUseCases,
 } from './spec/types';
 export type {
-    LiveCatalog,
-    LiveCatalogEntry,
-    LiveCatalogField,
     LiveColumn,
-    LiveConfiguredCatalog,
     LiveConnection,
     LiveModel,
     LiveQuery,
     LiveHttpRequest,
     LiveHttpResponse,
     LiveLimits,
-    LiveObjectCatalog,
     LiveRunArgs,
     LiveRunResult,
     LiveRuntime,
@@ -51,7 +47,7 @@ export {
     getApiName,
     getLiveDefinitionName,
     getLiveExplore,
-    getLiveObjectId,
+    getLiveExploreApiName,
     getLiveRequestLimit,
     toFieldCombinationIssue,
     toLiveQueryError,
@@ -60,6 +56,7 @@ export {
     type LiveExploreDefinition,
     type LiveMetricDefinition,
     type LivePeriodFormat,
+    type NamedLiveExploreDefinition,
 } from './explores/definition';
 
 // Compiling and running queries

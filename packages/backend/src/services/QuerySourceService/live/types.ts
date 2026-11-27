@@ -15,6 +15,7 @@ import type {
     LiveCompiledRequest,
     LiveExploreDefinition,
     LivePeriodFormat,
+    NamedLiveExploreDefinition,
 } from './explores/definition';
 import type {
     LiveIntegrationKind,
@@ -30,12 +31,11 @@ import type {
  *
  * Integrations hold no state. A function that takes `runtime` may call the
  * API; every other function is pure. The service owns credentials, rate
- * limits, stored catalogs and field edits.
+ * limits, what each source's last Refresh found, and field edits.
  */
 export type LiveIntegration<
     C extends ApiConnectorType = ApiConnectorType,
     Request = unknown,
-    Catalog extends LiveCatalog = LiveCatalog,
 > = {
     connector: C;
     label: string;
@@ -46,7 +46,7 @@ export type LiveIntegration<
      */
     kind: LiveIntegrationKind;
     connection: LiveConnection<C>;
-    model: LiveModel<C, Catalog>;
+    model: LiveModel<C>;
     query: LiveQuery<C, Request>;
     spec: LiveIntegrationSpec;
 };
@@ -65,13 +65,13 @@ export type LiveConnection<C extends ApiConnectorType = ApiConnectorType> = {
     acceptsOrigin?: (origin: string) => boolean;
     /**
      * What a source may call on its origin, whatever its stored connection
-     * says. `catalog` holds the source's custom objects as its last Refresh
-     * found them, so each object's paths can be allowed one by one; it has
-     * none before the first Refresh.
+     * says. `explores` are the source's explores as its last Refresh found
+     * them (`model.explores` before the first), so an explore's own paths
+     * can be allowed by its `apiName`.
      */
     access: (
         settings: ApiSourceOf<C>,
-        catalog: LiveObjectCatalog,
+        explores: readonly LiveExploreDefinition[],
     ) => LiveAccess;
     /** Throws a ParameterError when the connection signs in the wrong way. */
     checkAuth: (connection: LiveConnectionCheck) => void;
@@ -97,59 +97,32 @@ export type LiveConnection<C extends ApiConnectorType = ApiConnectorType> = {
     ) => LiveTestSummary | null;
 };
 
-/** The explores a source offers. */
-export type LiveModel<
-    C extends ApiConnectorType = ApiConnectorType,
-    Catalog extends LiveCatalog = LiveCatalog,
-> = {
-    /** The first is the wide model; discovered fields and field edits apply to it and to `discovery.models`. */
-    explores: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
+/**
+ * The explores a source offers: one list, whether written by hand or found
+ * by `discover`. The core treats every explore and field in it the same.
+ */
+export type LiveModel<C extends ApiConnectorType = ApiConnectorType> = {
+    /**
+     * The explores every source has, each with its fixed name. The first
+     * one's field edits are stored under bare field names.
+     */
+    explores: readonly [
+        NamedLiveExploreDefinition,
+        ...NamedLiveExploreDefinition[],
+    ];
     /** Explore names reserved for models not built yet. */
     plannedNames?: readonly string[];
-    /** Reads fields the API reports itself; omitted when every field is built in. */
-    discovery?: LiveDiscovery<C, Catalog>;
-};
-
-export type LiveDiscovery<
-    C extends ApiConnectorType = ApiConnectorType,
-    Catalog extends LiveCatalog = LiveCatalog,
-> = {
     /**
-     * Reads what the API has now; the service runs it when a source is
-     * created and on Refresh. Custom objects go in `entries`
-     * (`builtIn: false`); other keys are the integration's own, read by
-     * `withFields` at Refresh and not stored.
+     * Reads what the API offers now, as the source's whole explore list:
+     * `explores` with the fields the API reports merged in, then any explore
+     * only the API knows, keyed by its `apiName`. The service runs it when a
+     * source is created and on Refresh, and stores the list. Omitted,
+     * `explores` is the list.
      */
-    discover: (args: {
+    discover?: (args: {
         settings: ApiSourceOf<C>;
         runtime: LiveRuntime;
-    }) => Promise<Catalog>;
-    /**
-     * Names of the explores besides the first that discovered fields are
-     * added to, each curated on its own. Omitted, only the first is.
-     */
-    models?: readonly string[];
-    /** One explore with the fields `discover` found; the service applies it to the first explore and `models`. */
-    withFields: (
-        definition: LiveExploreDefinition,
-        catalog: Catalog,
-    ) => LiveExploreDefinition;
-    /**
-     * The explore of one custom object, from its catalog entry alone: its
-     * fields' `apiName` are the entry's field ids. The service names it
-     * (the name an admin's first switch-on fixed) and builds it; omitted,
-     * the integration has no custom objects.
-     */
-    describeObject?: (
-        entry: LiveCatalogEntry,
-    ) => Omit<LiveExploreDefinition, 'name' | 'object'>;
-    /** Discovered fields kept out of the default field list. */
-    isInternalField?: (apiName: string) => boolean;
-    /**
-     * A new source starts with every discovered field in use, for
-     * integrations whose explore is only what discovery finds.
-     */
-    inUseByDefault?: true;
+    }) => Promise<LiveExploreDefinition[]>;
 };
 
 /** How a metric query becomes calls and rows. */
@@ -279,66 +252,6 @@ export type LiveConnectionCheck = {
 };
 
 /**
- * What `discover` read, as plain JSON: custom objects in `entries`, plus
- * keys of the integration's own (GA4's metadata, HubSpot's properties) that
- * `withFields` reads at Refresh. Only `entries` is stored.
- */
-export type LiveCatalog = Record<string, unknown> & {
-    entries?: LiveCatalogEntry[];
-};
-
-export type LiveCatalogField = {
-    /** The vendor's id, e.g. Salesforce `Amount__c`. */
-    id: string;
-    label: string;
-    /** The vendor's own type name, e.g. `currency` or `picklist`. */
-    vendorType: string;
-    description?: string;
-    /** The vendor's bookkeeping; its column starts hidden. */
-    internal?: boolean;
-};
-
-/**
- * One object a source can read: a built-in explore's object, or a custom
- * object a workspace made (`builtIn: false`).
- */
-export type LiveCatalogEntry = {
-    /** The vendor's id, e.g. Salesforce `Invoice__c` or Attio `invoices`. */
-    id: string;
-    label: string;
-    builtIn: boolean;
-    /** The field holding each record's id. */
-    recordIdField?: string;
-    /** The date field a query on the object filters by default. */
-    defaultDateField?: string;
-    fields: LiveCatalogField[];
-};
-
-/**
- * The objects a source can read, as the service stores them: replaced on
- * every Refresh, never edited by admins.
- */
-export type LiveObjectCatalog = { entries: LiveCatalogEntry[] };
-
-/** A custom object an admin turned on, as the configured catalog keeps it. */
-export type LiveConfiguredObject = {
-    /**
-     * The explore model it was named when first turned on; never changes,
-     * so charts on it keep working.
-     */
-    name: string;
-};
-
-/**
- * The admin's choices for a source, which Refresh never touches. Explore and
- * field edits sit beside it.
- */
-export type LiveConfiguredCatalog = {
-    /** Custom objects an admin turned on at least once, by vendor id. */
-    objects: Record<string, LiveConfiguredObject>;
-};
-
-/**
  * One request a source may send. Only reads exist. A `{name}` segment
  * matches any one segment; an `exact` path matches itself only, any other
  * path also covers the paths under it, segment by segment.
@@ -348,7 +261,7 @@ export type LiveAccessRule = {
     path: string;
     effect: 'read';
     exact?: true;
-    /** The catalog entry (vendor object id) the rule serves; recorded, not checked yet. */
+    /** The explore model the rule serves; recorded, not checked yet. */
     entry?: string;
 };
 

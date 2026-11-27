@@ -13,11 +13,13 @@ import {
     dimension,
     metric,
     NON_ADDITIVE,
+    withFieldsOffByDefault,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveModel,
     type LiveQueryResult,
     type LiveRuntime,
+    type NamedLiveExploreDefinition,
 } from '../../sdk';
 import {
     getPostHogPropertyDefinitionsPrefix,
@@ -80,7 +82,7 @@ export const POSTHOG_METRIC_FILTERS = POSTHOG_NUMBER_FILTERS.filter(
     (operator) => !POSTHOG_NULL_FILTERS.includes(operator),
 );
 
-export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
+export const POSTHOG_EVENTS_EXPLORE: NamedLiveExploreDefinition = {
     name: 'events',
     label: 'Events',
     description:
@@ -291,7 +293,7 @@ const AD_CLICK_ID_PROPERTIES = new Set([
 ]);
 
 /** PostHog's own bookkeeping properties (`$lib_version`) and ad click ids. */
-export const isInternalPostHogProperty = (apiName: string) => {
+export const isPostHogSystemProperty = (apiName: string) => {
     const property = apiName.split('.').at(-1) ?? apiName;
     return property.startsWith('$') || AD_CLICK_ID_PROPERTIES.has(property);
 };
@@ -355,10 +357,10 @@ export type PostHogPropertyKind = 'event' | 'person';
  * its property definitions. Properties the hand-written fields already cover
  * are skipped; unreadable definitions add nothing.
  */
-export const withPostHogPropertyFields = (
-    definition: LiveExploreDefinition,
+export const withPostHogPropertyFields = <D extends LiveExploreDefinition>(
+    definition: D,
     propertyDefinitions: Record<PostHogPropertyKind, unknown>,
-): LiveExploreDefinition => {
+): D => {
     const taken = new Set([
         ...definition.dimensions.map(({ name }) => name),
         ...definition.metrics.map(({ name }) => name),
@@ -571,7 +573,7 @@ const readPropertyDefinitions = async (
 };
 
 /** The project's event and person property definitions, as PostHog returns them. */
-export type PostHogCatalog = {
+export type PostHogScan = {
     posthogProperties?: Record<'event' | 'person', unknown>;
 };
 
@@ -582,7 +584,7 @@ export const scanPostHogProperties = async ({
 }: {
     settings: PostHogSettings;
     runtime: LiveRuntime;
-}): Promise<PostHogCatalog> => {
+}): Promise<PostHogScan> => {
     const [event, person] = await Promise.all([
         readPropertyDefinitions(projectId, 'event', runtime),
         readPropertyDefinitions(projectId, 'person', runtime),
@@ -590,19 +592,22 @@ export const scanPostHogProperties = async ({
     return { posthogProperties: { event, person } };
 };
 
-export const postHogModel: LiveModel<ApiConnectorType.POSTHOG, PostHogCatalog> =
-    {
-        explores: POSTHOG_EXPLORES,
-        plannedNames: ['persons', 'sessions'],
-        discovery: {
-            discover: scanPostHogProperties,
-            withFields: (definition, catalog: PostHogCatalog) =>
-                catalog.posthogProperties
-                    ? withPostHogPropertyFields(
-                          definition,
-                          catalog.posthogProperties,
-                      )
-                    : definition,
-            isInternalField: isInternalPostHogProperty,
-        },
-    };
+export const postHogModel: LiveModel<ApiConnectorType.POSTHOG> = {
+    explores: POSTHOG_EXPLORES,
+    plannedNames: ['persons', 'sessions'],
+    // The first explore gets the project's event and person properties
+    discover: async (args) => {
+        const { posthogProperties } = await scanPostHogProperties(args);
+        const [events, ...others] = POSTHOG_EXPLORES;
+        return [
+            posthogProperties
+                ? withFieldsOffByDefault(
+                      events,
+                      withPostHogPropertyFields(events, posthogProperties),
+                      isPostHogSystemProperty,
+                  )
+                : events,
+            ...others,
+        ];
+    },
+};

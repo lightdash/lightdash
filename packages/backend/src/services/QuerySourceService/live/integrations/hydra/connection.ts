@@ -15,7 +15,7 @@ import {
     formatTestCount,
     readRule,
     type LiveConnection,
-    type LiveObjectCatalog,
+    type LiveExploreDefinition,
     type LiveTestSummary,
 } from '../../sdk';
 
@@ -38,23 +38,26 @@ export const summarizeHydraTest = (body: unknown): LiveTestSummary | null => {
     };
 };
 
-/** The reports and account, the object list, and each custom object's report path. */
+/** The reports and account, the object list, and the report path of each object explore. */
 export const getHydraAccess = (
     _settings: HydraApiSource,
-    catalog: LiveObjectCatalog,
+    explores: readonly LiveExploreDefinition[],
 ) => ({
     rules: [
         readRule('POST', HYDRA_REPORT_PATH),
         readRule('GET', HYDRA_ACCOUNT_PATH),
         readRule('GET', HYDRA_OBJECTS_PATH, { exact: true }),
-        ...catalog.entries
-            .filter(({ builtIn }) => !builtIn)
-            .map(({ id }) =>
-                readRule('POST', getHydraObjectReportPath(id), {
-                    exact: true,
-                    entry: id,
-                }),
-            ),
+        // An object's explore carries the object's id as its `apiName`
+        ...explores.flatMap(({ apiName }) =>
+            apiName === undefined
+                ? []
+                : [
+                      readRule('POST', getHydraObjectReportPath(apiName), {
+                          exact: true,
+                          entry: apiName,
+                      }),
+                  ],
+        ),
     ],
 });
 

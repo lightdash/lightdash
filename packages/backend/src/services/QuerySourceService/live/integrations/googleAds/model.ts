@@ -13,6 +13,7 @@ import {
     ratio,
     type LiveExploreDefinition,
     type LiveModel,
+    type NamedLiveExploreDefinition,
 } from '../../sdk';
 
 export const GOOGLE_ADS_STRING_FILTERS = [
@@ -50,7 +51,7 @@ export const GOOGLE_ADS_METRIC_FILTERS = [
  * one row per resource and segment, so `googleAdsCompiler` picks the resource
  * from the fields selected: see its comment for what it has to refuse.
  */
-export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
+export const GOOGLE_ADS_PERFORMANCE_EXPLORE: NamedLiveExploreDefinition = {
     name: 'performance',
     label: 'Ad performance',
     description:
