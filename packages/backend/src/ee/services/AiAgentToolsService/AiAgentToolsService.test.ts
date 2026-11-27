@@ -7,6 +7,7 @@ import {
     AiAccessRefusedError,
     AppVizBuildContext,
     CatalogType,
+    ChartSourceType,
     ChartType,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     ContentType,
@@ -819,6 +820,14 @@ describe('AiAgentToolsService', () => {
                         uuid: 'chart-uuid',
                         name: 'Chart',
                         slug: 'chart',
+                        source: ChartSourceType.DBT_EXPLORE,
+                    },
+                    {
+                        contentType: ContentType.CHART,
+                        uuid: 'sql-chart-uuid',
+                        name: 'SQL chart',
+                        slug: 'sql-chart',
+                        source: ChartSourceType.SQL,
                     },
                     {
                         contentType: ContentType.DATA_APP,
@@ -841,7 +850,7 @@ describe('AiAgentToolsService', () => {
                 pagination: {
                     page: 1,
                     pageSize: 25,
-                    totalResults: 4,
+                    totalResults: 5,
                     totalPageCount: 1,
                 },
             }),
@@ -872,6 +881,10 @@ describe('AiAgentToolsService', () => {
             {
                 contentType: ContentType.CHART,
                 href: `/projects/${projectUuid}/saved/chart-uuid/view#chart-link`,
+            },
+            {
+                contentType: ContentType.CHART,
+                href: `/projects/${projectUuid}/sql-runner/sql-chart#chart-link`,
             },
             {
                 contentType: ContentType.DATA_APP,
