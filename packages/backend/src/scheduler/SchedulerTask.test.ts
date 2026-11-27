@@ -1862,6 +1862,7 @@ describe('uploadGsheets — pivot routing', () => {
         const appendCsvToSheet = vi.fn().mockResolvedValue(undefined);
         const uploadMetadata = vi.fn().mockResolvedValue(undefined);
         const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+        const recordBigQueryTableOutcome = vi.fn().mockResolvedValue(undefined);
         const executeSavedChartQueryAndGetResults = vi.fn().mockResolvedValue({
             rows: pivotDetails ? pivotedRows : flatRows,
             fields: itemMap,
@@ -1912,6 +1913,7 @@ describe('uploadGsheets — pivot routing', () => {
                 },
                 getSchedulerDefaultTimezone: vi.fn().mockResolvedValue('UTC'),
                 logSchedulerJob,
+                recordBigQueryTableOutcome,
             }),
             userService: asDep<'userService'>({
                 getSessionByUserUuid: vi.fn().mockResolvedValue({}),
@@ -1971,23 +1973,17 @@ describe('uploadGsheets — pivot routing', () => {
             }),
         });
 
-        const run = () =>
+        const run = (cronScheduledAt?: string) =>
             (
                 task as unknown as {
                     uploadGsheets(
                         jobId: string,
-                        notification: {
-                            schedulerUuid: string;
-                            scheduledTime: Date;
-                            jobGroup: string;
-                            userUuid: string;
-                            organizationUuid: string;
-                            projectUuid: string;
-                        },
+                        notification: GsheetsNotificationPayload,
                     ): Promise<void>;
                 }
             ).uploadGsheets('job-1', {
                 schedulerUuid: scheduler.schedulerUuid,
+                cronScheduledAt,
                 scheduledTime: new Date('2026-08-04T07:00:00Z'),
                 jobGroup: 'scheduled_delivery',
                 userUuid: 'user-1',
@@ -2000,6 +1996,7 @@ describe('uploadGsheets — pivot routing', () => {
             appendCsvToSheet,
             uploadMetadata,
             logSchedulerJob,
+            recordBigQueryTableOutcome,
             executeSavedChartQueryAndGetResults,
             executeDashboardChartQueryAndGetResults,
             run,
@@ -2037,6 +2034,25 @@ describe('uploadGsheets — pivot routing', () => {
         );
     });
 
+    it('resets the streak on a real scheduled upload and ignores a manual success', async () => {
+        const result = setup({
+            source: 'saved-chart',
+            hasPivotConfig: false,
+            pivotDetails: null,
+        });
+        const dueTime = '2026-08-04T06:00:00Z';
+        await result.run();
+        expect(result.recordBigQueryTableOutcome).not.toHaveBeenCalled();
+        await result.run(dueTime);
+        expect(
+            result.recordBigQueryTableOutcome,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'scheduler-1',
+            new Date(dueTime),
+            null,
+        );
+    });
+
     // One tab: a newer run of the same sync took over the tab. Not a
     // failure, so no retry, no email and the sync stays on, but the run
     // does not claim to have completed either.
@@ -2050,7 +2066,10 @@ describe('uploadGsheets — pivot routing', () => {
             new GoogleSheetsSupersededError('A newer run took over the tab'),
         );
 
-        await expect(result.run()).resolves.toBeUndefined();
+        await expect(
+            result.run('2026-08-04T07:00:00Z'),
+        ).resolves.toBeUndefined();
+        expect(result.recordBigQueryTableOutcome).not.toHaveBeenCalled();
         expect(result.logSchedulerJob).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 status: SchedulerJobStatus.ERROR,

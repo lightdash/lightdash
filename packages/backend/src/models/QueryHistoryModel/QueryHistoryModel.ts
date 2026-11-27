@@ -2,6 +2,7 @@ import {
     Account,
     AgentIdentityClaim,
     assertUnreachable,
+    BigqueryMissingTableError,
     DuckdbExecutionSpec,
     ForbiddenError,
     getContextsForTrigger,
@@ -32,6 +33,7 @@ import {
     sleep,
     SQL_LANGUAGE_REQUEST_PARAMETER_KEYS,
     type AgentConnectionGrantRef,
+    type BigQueryWarehouseQueryMetadata,
 } from '@lightdash/common';
 import crypto from 'crypto';
 import { Knex } from 'knex';
@@ -575,6 +577,7 @@ export class QueryHistoryModel {
         account: Pick<Account, 'isRegisteredUser'> & {
             user: Pick<Account['user'], 'id'>;
         },
+        warehouseQueryMetadata?: BigQueryWarehouseQueryMetadata,
     ) {
         return this.update(
             queryUuid,
@@ -583,6 +586,9 @@ export class QueryHistoryModel {
                 status: QueryHistoryStatus.ERROR,
                 error,
                 errored_at: new Date(),
+                ...(warehouseQueryMetadata && {
+                    warehouse_query_metadata: warehouseQueryMetadata,
+                }),
             },
             account,
         );
@@ -1054,6 +1060,7 @@ export class QueryHistoryModel {
         throwOnCancelled = true,
         throwOnError = true,
         abortSignal,
+        source = 'other',
     }: {
         queryUuid: string;
         account: Account | null;
@@ -1064,6 +1071,7 @@ export class QueryHistoryModel {
         throwOnCancelled?: boolean;
         throwOnError?: boolean;
         abortSignal?: AbortSignal;
+        source?: QueryPollingSource;
     }): Promise<QueryHistory> {
         const startTime = Date.now();
         const getQueryHistory = () =>
@@ -1094,9 +1102,21 @@ export class QueryHistoryModel {
                 case QueryHistoryStatus.ERROR:
                 case QueryHistoryStatus.EXPIRED:
                     if (throwOnError) {
-                        throw new Error(
-                            queryHistory.error ?? 'Warehouse query failed',
-                        );
+                        const message =
+                            queryHistory.error ?? 'Warehouse query failed';
+                        const metadata = queryHistory.warehouseQueryMetadata;
+                        if (
+                            source === 'scheduler' &&
+                            queryHistory.status === QueryHistoryStatus.ERROR &&
+                            metadata?.missingTable
+                        ) {
+                            throw new BigqueryMissingTableError(
+                                message,
+                                metadata.missingTable,
+                                metadata.jobLocation,
+                            );
+                        }
+                        throw new Error(message);
                     }
                     return queryHistory;
                 case QueryHistoryStatus.PENDING:

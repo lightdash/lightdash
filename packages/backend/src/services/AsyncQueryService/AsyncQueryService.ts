@@ -16,6 +16,7 @@ import {
     assertIsAccountWithOrg,
     assertRegisteredAccount,
     assertUnreachable,
+    BigqueryMissingTableError,
     BigqueryTokenError,
     buildMergeQueryFromMergeDefinition,
     buildWarehouseColumnTotals,
@@ -5095,6 +5096,7 @@ export class AsyncQueryService extends ProjectService {
         connectionRoute,
         connectionWarehouseType,
         inheritedFromProjectUuid,
+        missingTableError,
     }: Pick<
         RunAsyncWarehouseQueryArgs,
         | 'queryUuid'
@@ -5109,6 +5111,7 @@ export class AsyncQueryService extends ProjectService {
     > & {
         inheritedFromProjectUuid: string | null;
         errorMessage: string;
+        missingTableError?: BigqueryMissingTableError;
         executionSource: WarehouseExecutionSource | 'pre_aggregate_warehouse';
         warehouseType: WarehouseTypes | null;
         warehouseConnectionUuid?: string | null;
@@ -5145,6 +5148,13 @@ export class AsyncQueryService extends ProjectService {
                 isRegisteredUser: () => isRegisteredUser,
                 user: { id: userUuid },
             },
+            missingTableError
+                ? {
+                      type: WarehouseTypes.BIGQUERY,
+                      jobLocation: missingTableError.location,
+                      missingTable: missingTableError.table,
+                  }
+                : undefined,
         );
         this.analytics.track({
             ...analyticsIdentity,
@@ -6322,6 +6332,16 @@ export class AsyncQueryService extends ProjectService {
                 warehouseConnectionUuid,
                 connectionRoute,
                 connectionWarehouseType,
+                missingTableError:
+                    e instanceof BigqueryMissingTableError &&
+                    (queryTags.query_context ===
+                        QueryExecutionContext.SCHEDULED_GSHEETS_CHART ||
+                        queryTags.query_context ===
+                            QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD ||
+                        queryTags.query_context ===
+                            QueryExecutionContext.SCHEDULED_GSHEETS_SQL_CHART)
+                        ? e
+                        : undefined,
             });
         }
 
@@ -17208,6 +17228,7 @@ export class AsyncQueryService extends ProjectService {
                 maxBackoffMs,
                 timeoutMs,
                 abortSignal,
+                source,
             });
         } catch (error) {
             if (error instanceof QueryPollingTimeoutError) {

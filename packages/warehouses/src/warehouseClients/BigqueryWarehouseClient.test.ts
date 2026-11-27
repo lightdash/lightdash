@@ -8,6 +8,7 @@ import {
 import {
     BIGQUERY_UNSUPPORTED_KEYFILE_MESSAGE,
     BigqueryAuthenticationType,
+    BigqueryMissingTableError,
     BigqueryTokenError,
     DimensionType,
     getBigqueryWorkloadIdentityStsAudience,
@@ -1425,6 +1426,42 @@ describe('BigqueryWarehouseClient Google Drive access', () => {
             }).message,
         ).toBe('Access Denied: Table x: User does not have permission');
     });
+});
+
+describe('BigQuery missing source tables', () => {
+    const warehouse = new BigqueryWarehouseClient(credentials);
+    const message =
+        'Not found: Table my-project:Sales.Orders was not found in location US';
+
+    it('preserves the case-sensitive table, location, and existing warehouse error message', () => {
+        const error = warehouse.parseError({ reason: 'notFound', message });
+        expect(error).toBeInstanceOf(BigqueryMissingTableError);
+        expect(error).toMatchObject({
+            message: `Bigquery warehouse error: notFound - ${message}`,
+            table: 'my-project:Sales.Orders',
+            location: 'US',
+        });
+    });
+
+    it.each([
+        { reason: 'invalidQuery', message },
+        { message },
+        {
+            reason: 'notFound',
+            message:
+                'Not found: Dataset my-project:Sales was not found in location US',
+        },
+        { reason: 'notFound', message: 'Not found: Job my-project:job-id' },
+        { reason: 'notFound', message: '404 Not Found' },
+        { reason: 'notFound', message: `Other resource: ${message}` },
+    ])(
+        'leaves other provider errors on their existing paths',
+        (providerError) => {
+            expect(warehouse.parseError(providerError)).not.toBeInstanceOf(
+                BigqueryMissingTableError,
+            );
+        },
+    );
 });
 
 describe('BigQuery agent job options', () => {

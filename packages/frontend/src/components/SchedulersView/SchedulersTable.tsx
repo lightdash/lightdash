@@ -312,6 +312,26 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         </Text>
                                     </Tooltip>
                                 </Anchor>
+                                {item.enabled && item.missingTableWarning && (
+                                    <>
+                                        <Badge size="xs" color="yellow">
+                                            Still running
+                                        </Badge>
+                                        <Text fz="xs" c="dimmed">
+                                            BigQuery source table missing for{' '}
+                                            {
+                                                item.missingTableWarning
+                                                    .consecutiveFailures
+                                            }{' '}
+                                            scheduled{' '}
+                                            {item.missingTableWarning
+                                                .consecutiveFailures === 1
+                                                ? 'run'
+                                                : 'runs'}
+                                            .
+                                        </Text>
+                                    </>
+                                )}
                                 {item.savedChartName ? (
                                     <Group gap="two">
                                         <MantineIcon

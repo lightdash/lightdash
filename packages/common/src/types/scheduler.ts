@@ -146,6 +146,7 @@ export type SchedulerBase = {
     thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
     enabled: boolean;
     automaticallyDisabledReason?: string;
+    missingTableWarning?: { consecutiveFailures: number; firstFailedAt: Date };
     notificationFrequency?: NotificationFrequency;
     includeLinks: boolean;
     /**
@@ -357,6 +358,7 @@ export type CreateSchedulerAndTargets = Omit<
     | 'updatedAt'
     | 'createdByName'
     | 'automaticallyDisabledReason'
+    | 'missingTableWarning'
     | 'savedChartName'
     | 'dashboardName'
     | 'savedSqlName'

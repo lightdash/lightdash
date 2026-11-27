@@ -1178,6 +1178,32 @@ export class SchedulerService extends BaseService {
         return scheduler;
     }
 
+    async notifyBigQueryTableAttempt(
+        schedulerUuid: string,
+        jobId: string,
+        attempt: number,
+        scheduledTime: Date,
+    ): Promise<void> {
+        await this.schedulerModel.enqueueBigQueryTableAttempt(
+            schedulerUuid,
+            jobId,
+            attempt,
+            scheduledTime,
+        );
+    }
+
+    async recordBigQueryTableOutcome(
+        schedulerUuid: string,
+        scheduledTime: Date,
+        missingTable: string | null,
+    ): Promise<void> {
+        await this.schedulerModel.recordBigQueryTableOutcome(
+            schedulerUuid,
+            scheduledTime,
+            missingTable,
+        );
+    }
+
     async deliverSheetsFailureNotice({
         schedulerUuid,
         event,
@@ -1191,7 +1217,18 @@ export class SchedulerService extends BaseService {
             needsAttention: 'true',
             nameSearch: scheduler.name,
         });
-        const deliveryUrl = `${this.lightdashConfig.siteUrl}/generalSettings/projectManagement/${projectUuid}/scheduledDeliveries?${search}`;
+        let deliveryUrl = `${this.lightdashConfig.siteUrl}/generalSettings/projectManagement/${projectUuid}/scheduledDeliveries?${search}`;
+        if (event.type === 'attempt') {
+            const { resourceType, resourceId } =
+                getSchedulerResourceTypeAndId(scheduler);
+            const paths = {
+                [SchedulerResourceType.CHART]: `saved/${resourceId}/view`,
+                [SchedulerResourceType.DASHBOARD]: `dashboards/${resourceId}/view`,
+                [SchedulerResourceType.SQL_CHART]: `sql-runner/${resourceId}`,
+                [SchedulerResourceType.APP]: `apps/${resourceId}/view`,
+            };
+            deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/${paths[resourceType]}?scheduler_uuid=${schedulerUuid}&isSync=true`;
+        }
         await this.sendSheetsNotice(
             {
                 organizationUuid,

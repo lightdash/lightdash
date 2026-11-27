@@ -4,7 +4,10 @@ describeContentAsCodeSchemaContract({
     resource: 'google_sheets_sync',
     modelSchema: 'SchedulerAndTargets',
     documentSchema: 'GoogleSheetsSyncAsCode',
-    serverMetadataFields: ['automaticallyDisabledReason'],
+    serverMetadataFields: [
+        'automaticallyDisabledReason',
+        'missingTableWarning',
+    ],
     skippedModelFields: [
         'appName',
         'appState',

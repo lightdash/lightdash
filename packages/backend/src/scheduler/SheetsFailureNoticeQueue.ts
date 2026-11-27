@@ -6,7 +6,10 @@ export async function enqueueSheetsFailureNotice(
     notice: SheetsFailureNotice,
 ): Promise<void> {
     const { schedulerUuid, event } = notice;
-    const eventKey = `paused:${event.scheduledTime}`;
+    const eventKey =
+        event.type === 'paused'
+            ? `paused:${event.scheduledTime}`
+            : `attempt:${event.jobId}:${event.attempt}`;
     // Use the same transaction as the pause. Each transport retries independently.
     await database.raw(
         `SELECT graphile_worker.add_job(
@@ -14,7 +17,9 @@ export async function enqueueSheetsFailureNotice(
             max_attempts => 6, job_key => (? || channel), job_key_mode => 'unsafe_dedupe'
         ) FROM unnest(ARRAY['email', 'slack']) AS channels(channel)`,
         [
-            SCHEDULER_TASKS.NOTIFY_SHEETS_FAILURE,
+            event.type === 'attempt'
+                ? SCHEDULER_TASKS.NOTIFY_SHEETS_MISSING_TABLE_ATTEMPT
+                : SCHEDULER_TASKS.NOTIFY_SHEETS_FAILURE,
             JSON.stringify(notice),
             `sheets-notice:${schedulerUuid}:${eventKey}:`,
         ],

@@ -532,6 +532,16 @@ export class WarehouseQueryError extends LightdashError {
     }
 }
 
+export class BigqueryMissingTableError extends WarehouseQueryError {
+    constructor(
+        message: string,
+        readonly table: string,
+        readonly location: string,
+    ) {
+        super(message);
+    }
+}
+
 export type WarehouseQueryTimeoutDetails = {
     step: WarehouseQueryPhase;
     stepElapsedMs: number;

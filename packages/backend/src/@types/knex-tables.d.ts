@@ -488,6 +488,8 @@ import {
     SavedSqlUserAccessTableName,
 } from '../database/entities/savedSqlAccess';
 import {
+    SchedulerBigQueryAttemptsTable,
+    SchedulerBigQueryAttemptsTableName,
     SchedulerEmailTargetTable,
     SchedulerEmailTargetTableName,
     SchedulerGoogleChatTargetTable,
@@ -959,6 +961,7 @@ declare module 'knex/types/tables' {
         [PinnedSpaceTableName]: PinnedSpaceTable;
         [PinnedAppTableName]: PinnedAppTable;
         [PinnedDocumentTableName]: PinnedDocumentTable;
+        [SchedulerBigQueryAttemptsTableName]: SchedulerBigQueryAttemptsTable;
         [SchedulerTableName]: SchedulerTable;
         [SchedulerSlackTargetTableName]: SchedulerSlackTargetTable;
         [SchedulerEmailTargetTableName]: SchedulerEmailTargetTable;

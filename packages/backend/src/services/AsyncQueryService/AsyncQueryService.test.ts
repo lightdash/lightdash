@@ -11,6 +11,7 @@ import {
     assertUnreachable,
     BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     BigqueryAuthenticationType,
+    BigqueryMissingTableError,
     BigqueryTokenError,
     BinType,
     buildAgentIdentityClaim,
@@ -10261,6 +10262,7 @@ describe('AsyncQueryService', () => {
                 expect.objectContaining({
                     user: { id: sessionAccount.user.id },
                 }),
+                undefined,
             );
             expect(
                 service.queryHistoryModel.updateStatusToError,
@@ -10269,6 +10271,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 expect.stringContaining('HTTP 404: missing parquet'),
                 expect.anything(),
+                undefined,
             );
             expect(mockStrategy.recordExecutionFallback).not.toHaveBeenCalled();
             expect(service.queryHistoryModel.update).not.toHaveBeenCalledWith(
@@ -13155,6 +13158,50 @@ describe('AsyncQueryService', () => {
             ).not.toHaveBeenCalled();
         });
 
+        test.each([
+            [QueryExecutionContext.SCHEDULED_GSHEETS_CHART, true],
+            [QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD, true],
+            [QueryExecutionContext.SCHEDULED_GSHEETS_SQL_CHART, true],
+            [QueryExecutionContext.EXPLORE, false],
+        ] as const)(
+            'records missing table metadata for %s: %s',
+            async (queryContext, recordsMetadata) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const table = 'project:dataset.orders';
+                const location = 'US';
+                const error = new BigqueryMissingTableError(
+                    'Table not found',
+                    table,
+                    location,
+                );
+                vi.spyOn(
+                    AsyncQueryService,
+                    'runQueryAndTransformRows',
+                ).mockRejectedValueOnce(error);
+
+                await service.runAsyncWarehouseQuery({
+                    ...args,
+                    queryTags: { query_context: queryContext },
+                });
+
+                expect(
+                    service.queryHistoryModel.updateStatusToError,
+                ).toHaveBeenCalledWith(
+                    args.queryUuid,
+                    projectUuid,
+                    error.message,
+                    expect.any(Object),
+                    recordsMetadata
+                        ? {
+                              type: WarehouseTypes.BIGQUERY,
+                              jobLocation: location,
+                              missingTable: table,
+                          }
+                        : undefined,
+                );
+            },
+        );
+
         test('stores the safe analytics message and logs the storage status', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             const error = new warehouses.AnalyticsQueryError(
@@ -13182,6 +13229,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 'Access to analytics storage was denied.',
                 expect.any(Object),
+                undefined,
             );
             expect(log).toHaveBeenCalledWith(
                 `Query ${args.queryUuid} execution error: Access to analytics storage was denied.`,

@@ -19,6 +19,21 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
+export const SchedulerBigQueryAttemptsTableName = 'scheduler_bigquery_attempts';
+
+type SchedulerBigQueryAttemptDb = {
+    scheduler_uuid: string;
+    source_job_id: string;
+    scheduled_time: Date;
+    highest_queued_attempt: number;
+};
+
+export type SchedulerBigQueryAttemptsTable = Knex.CompositeTableType<
+    SchedulerBigQueryAttemptDb,
+    SchedulerBigQueryAttemptDb,
+    Pick<SchedulerBigQueryAttemptDb, 'highest_queued_attempt'>
+>;
+
 export const SchedulerTableName = 'scheduler';
 export const SchedulerSlackTargetTableName = 'scheduler_slack_target';
 export const SchedulerEmailTargetTableName = 'scheduler_email_target';
@@ -28,7 +43,14 @@ export const SchedulerGoogleChatTargetTableName =
 
 export const SchedulerLogTableName = 'scheduler_log';
 
-export type SchedulerDb = {
+type BigQueryTableOutcomeDb = {
+    bigquery_last_scheduled_time: Date | null;
+    bigquery_missing_table_hash: string | null;
+    bigquery_missing_table_first_at: Date | null;
+    bigquery_missing_table_count: number | null;
+};
+
+export type SchedulerDb = BigQueryTableOutcomeDb & {
     scheduler_uuid: string;
     project_uuid: string | null;
     slug: string | null;
@@ -160,6 +182,7 @@ export type SchedulerInsert = Omit<
     | 'deleted_at'
     | 'deleted_by_user_uuid'
     | 'automatically_disabled_reason'
+    | keyof BigQueryTableOutcomeDb
     | 'filters'
     | 'parameters'
     | 'thresholds'
@@ -191,6 +214,14 @@ export type SchedulerTable = Knex.CompositeTableType<
           SchedulerDb,
           'updated_at' | 'enabled' | 'automatically_disabled_reason'
       >
+    | (Omit<BigQueryTableOutcomeDb, 'bigquery_last_scheduled_time'> & {
+          bigquery_last_scheduled_time: Date | Knex.Raw<Date>;
+      } & Partial<
+              Pick<
+                  SchedulerDb,
+                  'updated_at' | 'enabled' | 'automatically_disabled_reason'
+              >
+          >)
     | Pick<SchedulerDb, 'created_by' | 'updated_at'>
     | Pick<SchedulerDb, 'cron'>
     | Pick<SchedulerDb, 'deleted_at' | 'deleted_by_user_uuid'>

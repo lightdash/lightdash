@@ -107,8 +107,14 @@ export async function notifySheetsFailure(
     channel: SheetsFailureNoticePayload['channel'],
 ): Promise<void> {
     const { event, schedulerName, deliveryUrl } = notice;
-    const subject = `Scheduled delivery paused: ${schedulerName}`;
-    const message = `${event.reason} Review the delivery settings before resuming it.`;
+    const subject =
+        event.type === 'paused'
+            ? `Scheduled delivery paused: ${schedulerName}`
+            : `Scheduled delivery attempt failed: ${schedulerName}`;
+    const message =
+        event.type === 'paused'
+            ? `${event.reason} Review the delivery settings before resuming it.`
+            : `BigQuery could not find a source table on attempt ${event.attempt} of job ${event.jobId}. Check that the source table exists and that the query references the correct dataset and location.`;
     if (channel === 'slack') {
         if (!deps.slackClient.isEnabled) return;
         const slackChannel = await deps.slackClient.getNotificationChannel(

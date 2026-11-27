@@ -18,6 +18,8 @@ export interface IWarehouseQueryMetadata {
 export interface BigQueryWarehouseQueryMetadata extends IWarehouseQueryMetadata {
     type: WarehouseTypes.BIGQUERY;
     jobLocation: string;
+    /** Present only when BigQuery reported this source table missing. */
+    missingTable?: string;
 }
 
 export type WarehouseQueryMetadata = BigQueryWarehouseQueryMetadata;

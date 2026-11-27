@@ -9,7 +9,7 @@ import {
 } from './SheetsFailureNotifications';
 
 const org = mockOrgAdmin1.organizationUuid;
-const notice: SheetsFailureNotification = {
+const notice = {
     organizationUuid: org,
     ownerUuid: mockOrgAdmin1.userUuid,
     schedulerUuid: 'delivery-id',
@@ -21,7 +21,7 @@ const notice: SheetsFailureNotification = {
         scheduledTime: '2026-11-26T12:00:00Z',
         reason: 'Google Sheets rejected the upload.',
     },
-};
+} satisfies SheetsFailureNotification;
 
 function fixture() {
     return {
@@ -58,6 +58,24 @@ function fixture() {
 }
 
 describe('Google Sheets failure notifications', () => {
+    it('identifies the failed worker attempt and links the verified owner to the delivery', async () => {
+        const deps = fixture();
+        await notifySheetsFailure(
+            deps,
+            {
+                ...notice,
+                event: { type: 'attempt', jobId: '1398', attempt: 2 },
+            },
+            'email',
+        );
+        const [[to, subject, , body]] =
+            deps.emailClient.sendGenericNotificationEmail.mock.calls;
+        expect(to).toEqual([mockOrgAdmin1.email]);
+        expect(subject).toContain('attempt failed');
+        expect(body).toContain('attempt 2 of job 1398');
+        expect(body).toContain(notice.deliveryUrl);
+    });
+
     it('sends the pause reason and settings link to the verified owner', async () => {
         const deps = fixture();
         await notifySheetsFailure(deps, notice, 'email');

@@ -263,7 +263,9 @@ export const EE_SCHEDULER_TASKS = {
 
 export type SheetsFailureNotice = {
     schedulerUuid: string;
-    event: { type: 'paused'; scheduledTime: string; reason: string };
+    event:
+        | { type: 'attempt'; jobId: string; attempt: number }
+        | { type: 'paused'; scheduledTime: string; reason: string };
 };
 
 export type SheetsFailureNoticePayload = SheetsFailureNotice &
@@ -273,6 +275,7 @@ export type SheetsFailureNoticePayload = SheetsFailureNotice &
 
 export const SCHEDULER_TASKS = {
     NOTIFY_SHEETS_FAILURE: 'notifySheetsFailure',
+    NOTIFY_SHEETS_MISSING_TABLE_ATTEMPT: 'notifySheetsMissingTableAttempt',
     HANDLE_SCHEDULED_DELIVERY: 'handleScheduledDelivery',
     // Legacy individual notification tasks (deprecated, kept for backwards compatibility)
     SEND_SLACK_NOTIFICATION: 'sendSlackNotification',
@@ -347,6 +350,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SEND_MSTEAMS_BATCH_NOTIFICATION]: MsTeamsBatchNotificationPayload;
     [SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION]: GoogleChatBatchNotificationPayload;
     [SCHEDULER_TASKS.NOTIFY_SHEETS_FAILURE]: SheetsFailureNoticePayload;
+    [SCHEDULER_TASKS.NOTIFY_SHEETS_MISSING_TABLE_ATTEMPT]: SheetsFailureNoticePayload;
     [SCHEDULER_TASKS.UPLOAD_GSHEETS]: GsheetsNotificationPayload;
     [SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY]: UploadGsheetPayload;
     [SCHEDULER_TASKS.VALIDATE_PROJECT]: ValidateProjectPayload;

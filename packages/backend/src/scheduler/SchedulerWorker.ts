@@ -1,7 +1,9 @@
 import {
+    BigqueryMissingTableError,
     GenerateDailySchedulerJobError,
     getErrorMessage,
     getSchedulerUuid,
+    isCreateScheduler,
     isSchedulerTaskName,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
@@ -1082,6 +1084,11 @@ export class SchedulerWorker extends SchedulerTask {
 
     protected getFullTaskList(): TypedTaskList {
         return {
+            [SCHEDULER_TASKS.NOTIFY_SHEETS_MISSING_TABLE_ATTEMPT]: async (
+                payload,
+            ) => {
+                await this.schedulerService.deliverSheetsFailureNotice(payload);
+            },
             [SCHEDULER_TASKS.NOTIFY_SHEETS_FAILURE]: async (payload) => {
                 await this.schedulerService.deliverSheetsFailureNotice(payload);
             },
@@ -1193,12 +1200,25 @@ export class SchedulerWorker extends SchedulerTask {
                         helpers.job.run_at,
                         payload,
                         async () => {
-                            await this.handleScheduledDelivery(
-                                helpers.job.id,
-                                helpers.job.run_at,
-                                payload,
-                                isFinalAttempt,
-                            );
+                            try {
+                                await this.handleScheduledDelivery(
+                                    helpers.job.id,
+                                    helpers.job.run_at,
+                                    payload,
+                                    isFinalAttempt,
+                                );
+                            } catch (error) {
+                                if (
+                                    isFinalAttempt &&
+                                    !isCreateScheduler(payload)
+                                ) {
+                                    await this.recordScheduledSheetsOutcome(
+                                        payload,
+                                        null,
+                                    );
+                                }
+                                throw error;
+                            }
                         },
                     ),
                     helpers.job,
@@ -1217,6 +1237,12 @@ export class SchedulerWorker extends SchedulerTask {
                                 createdByUserUuid: payload.userUuid,
                             },
                         });
+                        if (!isCreateScheduler(payload)) {
+                            await this.recordScheduledSheetsOutcome(
+                                payload,
+                                null,
+                            );
+                        }
                     },
                 );
             },
@@ -1560,6 +1586,10 @@ export class SchedulerWorker extends SchedulerTask {
                                     createdByUserUuid: payload.userUuid,
                                 },
                             });
+                            await this.recordScheduledSheetsOutcome(
+                                payload,
+                                null,
+                            );
                         },
                     );
                 } catch (e) {
@@ -1569,6 +1599,32 @@ export class SchedulerWorker extends SchedulerTask {
                         deliveryError,
                         isFinalAttempt,
                     );
+
+                    const missingTable = deliveryError?.cause;
+                    if (
+                        payload.cronScheduledAt &&
+                        missingTable instanceof BigqueryMissingTableError
+                    ) {
+                        await this.schedulerService
+                            .notifyBigQueryTableAttempt(
+                                payload.schedulerUuid,
+                                helpers.job.id,
+                                helpers.job.attempts,
+                                new Date(payload.cronScheduledAt),
+                            )
+                            .catch((error) => {
+                                Logger.error(
+                                    `Failed to notify about scheduled Sheets attempt: ${getErrorMessage(error)}`,
+                                );
+                            });
+                        if (isFinalAttempt) {
+                            await this.recordScheduledSheetsOutcome(
+                                payload,
+                                `${missingTable.table} in ${missingTable.location}`,
+                            );
+                        }
+                        throw missingTable;
+                    }
 
                     if (action.disableReason !== null && deliveryError) {
                         await this.disableGsheetsScheduler(
@@ -1580,6 +1636,9 @@ export class SchedulerWorker extends SchedulerTask {
                         return; // Swallow so graphile does not retry
                     }
 
+                    if (isFinalAttempt) {
+                        await this.recordScheduledSheetsOutcome(payload, null);
+                    }
                     if (action.notify && deliveryError) {
                         await this.notifyGsheetsDeliveryFailure(
                             deliveryError,
