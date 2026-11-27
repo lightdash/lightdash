@@ -7,6 +7,7 @@ import {
     NON_ADDITIVE,
     ratio,
 } from '../../explores/declare';
+import { META_ADS_DEFAULT_DAYS } from './api';
 import {
     META_ADS_DATE_FILTERS,
     META_ADS_ID_FILTERS,
@@ -18,8 +19,8 @@ export const META_ADS_INSIGHTS_EXPLORE = explore({
     label: 'Insights',
     description:
         'Facebook and Instagram ad performance for one Meta ad account: spend, reach, impressions, clicks and conversions, by campaign, ad set, ad, date, audience and placement. Dates are in the ad account time zone and money is in the ad account currency.',
-    aiHint: "Without a Date filter the query reads the last 30 days. Meta reports Age and Gender only on their own, without Country, Platform or Placement; and Country only without Platform or Placement. Add Platform whenever you use Placement. Reach and Frequency count each person once per row: never sum or average rows; split or filter the query instead. With a breakdown, Meta only reports reach for the last 13 months. Conversion metrics use Meta's default attribution (7-day click, 1-day view). Spend, reach and frequency are Meta estimates.",
-    dateRange: { dimension: 'date', defaultDays: 30 },
+    aiHint: `Without a Date filter the query reads the last ${META_ADS_DEFAULT_DAYS} days. Meta reports Age and Gender only on their own, without Country, Platform or Placement; and Country only without Platform or Placement. Add Platform whenever you use Placement. Reach and Frequency count each person once per row: never sum or average rows; split or filter the query instead. With a breakdown, Meta only reports reach for the last 13 months. Conversion metrics use Meta's default attribution (7-day click, 1-day view). Spend, reach and frequency are Meta estimates.`,
+    dateRange: { dimension: 'date', defaultDays: META_ADS_DEFAULT_DAYS },
     incompatible: [
         {
             fields: ['age', 'gender'],
@@ -40,7 +41,7 @@ export const META_ADS_INSIGHTS_EXPLORE = explore({
             type: DimensionType.DATE,
             filterOperators: META_ADS_DATE_FILTERS,
             description: 'Day of the activity, in the ad account time zone.',
-            aiHint: 'Without a date filter the query reads the last 30 days.',
+            aiHint: `Without a date filter the query reads the last ${META_ADS_DEFAULT_DAYS} days.`,
             timeInterval: { base: 'date', grain: TimeFrames.DAY },
         }),
         dimension({

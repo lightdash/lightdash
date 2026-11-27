@@ -7,6 +7,7 @@ import {
     NON_ADDITIVE,
     ratio,
 } from '../../explores/declare';
+import { AMPLITUDE_INTERVALS } from './api';
 import {
     AMPLITUDE_DATE_FILTERS,
     AMPLITUDE_EVENT_FILTERS,
@@ -41,7 +42,7 @@ export const AMPLITUDE_EVENTS_EXPLORE = explore({
             filterOperators: [],
             description:
                 "Week of the activity, shown as its first day in the project time zone. Weeks start on the day Amplitude's project settings use.",
-            aiHint: 'Filter Date, not this field, to choose the weeks. Amplitude groups the weeks itself (interval 7).',
+            aiHint: `Filter Date, not this field, to choose the weeks. Amplitude groups the weeks itself (interval ${AMPLITUDE_INTERVALS.week}).`,
             timeInterval: { base: 'date', grain: TimeFrames.WEEK },
         }),
         dimension({
@@ -52,7 +53,7 @@ export const AMPLITUDE_EVENTS_EXPLORE = explore({
             filterOperators: [],
             description:
                 'Month of the activity, shown as its first day in the project time zone.',
-            aiHint: 'Filter Date, not this field, to choose the months. Amplitude groups the months itself (interval 30).',
+            aiHint: `Filter Date, not this field, to choose the months. Amplitude groups the months itself (interval ${AMPLITUDE_INTERVALS.month}).`,
             timeInterval: { base: 'date', grain: TimeFrames.MONTH },
         }),
         dimension({
@@ -202,7 +203,7 @@ export const AMPLITUDE_USERS_EXPLORE = explore({
             filterOperators: [],
             description:
                 "Week of the activity, shown as its first day in the project time zone. Weeks start on the day Amplitude's project settings use.",
-            aiHint: 'Filter Date, not this field, to choose the weeks. Amplitude groups the weeks itself (interval 7).',
+            aiHint: `Filter Date, not this field, to choose the weeks. Amplitude groups the weeks itself (interval ${AMPLITUDE_INTERVALS.week}).`,
             timeInterval: { base: 'date', grain: TimeFrames.WEEK },
         }),
         dimension({
@@ -213,7 +214,7 @@ export const AMPLITUDE_USERS_EXPLORE = explore({
             filterOperators: [],
             description:
                 'Month of the activity, shown as its first day in the project time zone.',
-            aiHint: 'Filter Date, not this field, to choose the months. Amplitude groups the months itself (interval 30).',
+            aiHint: `Filter Date, not this field, to choose the months. Amplitude groups the months itself (interval ${AMPLITUDE_INTERVALS.month}).`,
             timeInterval: { base: 'date', grain: TimeFrames.MONTH },
         }),
         dimension({

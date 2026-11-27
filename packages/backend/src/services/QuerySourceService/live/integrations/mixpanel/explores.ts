@@ -7,6 +7,7 @@ import {
     NON_ADDITIVE,
     ratio,
 } from '../../explores/declare';
+import { MIXPANEL_MAX_RETENTION_PERIODS } from './api';
 import {
     MIXPANEL_DATE_FILTERS,
     MIXPANEL_EVENT_FILTERS,
@@ -309,7 +310,7 @@ export const MIXPANEL_RETENTION_EXPLORE = explore({
     label: 'Retention',
     description:
         'Of the users in each cohort, how many came back in each later day, week or month, as Mixpanel computes it.',
-    aiHint: 'Required: add one cohort grain (Cohort, Cohort week or Cohort month) and the matching Days, Weeks or Months after start. Filter Start event (equals) to put users in a cohort the first time they did it; without it a cohort is everyone who did the return event that period. Without Return event any event counts as coming back. Without a Cohort filter the query reads the last 30 days. Mixpanel reads at most 90 days, 52 weeks or 24 months after start.',
+    aiHint: `Required: add one cohort grain (Cohort, Cohort week or Cohort month) and the matching Days, Weeks or Months after start. Filter Start event (equals) to put users in a cohort the first time they did it; without it a cohort is everyone who did the return event that period. Without Return event any event counts as coming back. Without a Cohort filter the query reads the last 30 days. Mixpanel reads at most ${MIXPANEL_MAX_RETENTION_PERIODS.day} days, 52 weeks or 24 months after start.`,
     dateRange: { dimension: 'cohort', defaultDays: 30 },
     dimensions: [
         dimension({
@@ -350,7 +351,7 @@ export const MIXPANEL_RETENTION_EXPLORE = explore({
             filterOperators: [],
             description:
                 "Days after the cohort started; 0 is the cohort's own day, where every user of the cohort counts.",
-            aiHint: 'Pick it with the Cohort grain. Mixpanel reads at most 90 days after start.',
+            aiHint: `Pick it with the Cohort grain. Mixpanel reads at most ${MIXPANEL_MAX_RETENTION_PERIODS.day} days after start.`,
             groups: ['Retention period'],
         }),
         dimension({
@@ -361,7 +362,7 @@ export const MIXPANEL_RETENTION_EXPLORE = explore({
             filterOperators: [],
             description:
                 "Weeks after the cohort started; 0 is the cohort's own week, where every user of the cohort counts.",
-            aiHint: 'Pick it with the Cohort week grain. Mixpanel reads at most 52 weeks after start.',
+            aiHint: `Pick it with the Cohort week grain. Mixpanel reads at most ${MIXPANEL_MAX_RETENTION_PERIODS.week} weeks after start.`,
             groups: ['Retention period'],
         }),
         dimension({
@@ -372,7 +373,7 @@ export const MIXPANEL_RETENTION_EXPLORE = explore({
             filterOperators: [],
             description:
                 "Months after the cohort started; 0 is the cohort's own month, where every user of the cohort counts.",
-            aiHint: 'Pick it with the Cohort month grain. Mixpanel reads at most 24 months after start.',
+            aiHint: `Pick it with the Cohort month grain. Mixpanel reads at most ${MIXPANEL_MAX_RETENTION_PERIODS.month} months after start.`,
             groups: ['Retention period'],
         }),
         dimension({

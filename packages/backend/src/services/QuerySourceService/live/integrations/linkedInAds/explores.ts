@@ -6,6 +6,7 @@ import {
     metric,
     NON_ADDITIVE,
 } from '../../explores/declare';
+import { LINKEDIN_ADS_DEFAULT_DAYS, LINKEDIN_ADS_MAX_METRICS } from './api';
 import { LINKEDIN_ADS_DATE_FILTERS, LINKEDIN_ADS_ID_FILTERS } from './filters';
 
 /**
@@ -18,11 +19,9 @@ export const LINKEDIN_ADS_PERFORMANCE_EXPLORE = explore({
     label: 'Performance',
     description:
         'Spend, impressions, clicks, leads and conversions for one LinkedIn Ads account, by day and by campaign or campaign group. Covers paid (sponsored) activity only, not organic Company Page analytics. Dates are in UTC and money is in the account currency.',
-    aiHint: 'Without a Date filter the query reads the last 28 days. At most 18 metrics per query. LinkedIn reports campaigns without their campaign group: Campaign group ID and Campaign ID cannot both be selected; filter by Campaign group ID instead. Reach is deduplicated per row and only reported for date ranges of 92 days or less: never sum it. Grains are day, month and year only (no week).',
-    // adAnalytics takes 20 fields, and every query spends two on dateRange and
-    // pivotValues (https://learn.microsoft.com/linkedin/marketing/integrations/ads-reporting/ads-reporting)
-    maxMetrics: 18,
-    dateRange: { dimension: 'date', defaultDays: 28 },
+    aiHint: `Without a Date filter the query reads the last ${LINKEDIN_ADS_DEFAULT_DAYS} days. At most ${LINKEDIN_ADS_MAX_METRICS} metrics per query. LinkedIn reports campaigns without their campaign group: Campaign group ID and Campaign ID cannot both be selected; filter by Campaign group ID instead. Reach is deduplicated per row and only reported for date ranges of 92 days or less: never sum it. Grains are day, month and year only (no week).`,
+    maxMetrics: LINKEDIN_ADS_MAX_METRICS,
+    dateRange: { dimension: 'date', defaultDays: LINKEDIN_ADS_DEFAULT_DAYS },
     incompatible: [
         {
             fields: ['campaign_group_id'],
@@ -39,7 +38,7 @@ export const LINKEDIN_ADS_PERFORMANCE_EXPLORE = explore({
             type: DimensionType.DATE,
             filterOperators: LINKEDIN_ADS_DATE_FILTERS,
             description: 'Day of the activity, in UTC.',
-            aiHint: 'Without a date filter the query reads the last 28 days.',
+            aiHint: `Without a date filter the query reads the last ${LINKEDIN_ADS_DEFAULT_DAYS} days.`,
             timeInterval: { base: 'date', grain: TimeFrames.DAY },
         }),
         dimension({

@@ -41,3 +41,6 @@ export const META_ADS_BREAKDOWNS = [
     'publisher_platform',
     'platform_position',
 ] as const;
+
+/** Days a query reads without a date filter. */
+export const META_ADS_DEFAULT_DAYS = 30;
