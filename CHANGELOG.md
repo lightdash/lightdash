@@ -1,3 +1,10 @@
+## [3.420.1](https://github.com/lightdash/lightdash/compare/3.420.0...3.420.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* keep half-typed security contact addresses in the field ([#33516](https://github.com/lightdash/lightdash/issues/33516)) ([8ef7caf](https://github.com/lightdash/lightdash/commit/8ef7caf7b1f23cd8f4ea8b814b6d00a1daa23666))
+
 # [3.420.0](https://github.com/lightdash/lightdash/compare/3.419.1...3.420.0) (2026-11-27)
 
 
