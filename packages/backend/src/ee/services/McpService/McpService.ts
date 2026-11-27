@@ -7177,12 +7177,21 @@ export class McpService extends BaseService {
     }): Promise<void> {
         const { user, account, organizationUuid } =
             McpService.getAccount(context);
-        const { userAgent, protocolVersion, headerProjectUuid, sessionId } =
-            context.authInfo?.extra ?? {};
-        // Rejected arguments never passed the tool schema, so they attribute nothing
-        const argsValidated =
-            errorKind === null || McpService.ranToolHandler(errorKind);
-        const attributableArgs = argsValidated ? toolArgs : {};
+        const {
+            userAgent,
+            protocolVersion,
+            headerProjectUuid,
+            headerAgentUuid,
+            sessionId,
+        } = context.authInfo?.extra ?? {};
+        // Rejected arguments never passed the tool schema: only the pinned scope attributes them
+        const pinnedScope = headerProjectUuid
+            ? { projectUuid: headerProjectUuid, agentUuid: headerAgentUuid }
+            : {};
+        const attributableArgs =
+            errorKind === null || McpService.ranToolHandler(errorKind)
+                ? toolArgs
+                : pinnedScope;
 
         // Prefer the explicit tool scope. Legacy global/context tools fall
         // back to stored context for activity enrichment only.

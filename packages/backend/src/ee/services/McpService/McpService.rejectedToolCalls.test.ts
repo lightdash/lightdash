@@ -11,9 +11,10 @@ vi.mock('@sentry/node', () => ({
 }));
 
 const pinnedProjectUuid = '11111111-1111-4111-8111-111111111111';
+const pinnedAgentUuid = '44444444-4444-4444-8444-444444444444';
 const argsProjectUuid = '22222222-2222-4222-8222-222222222222';
 
-const connect = async () => {
+const connect = async (headerAgentUuid?: string) => {
     const createToolCall = vi.fn().mockResolvedValue(undefined);
     const track = vi.fn();
     const service = new McpService({
@@ -55,13 +56,18 @@ const connect = async () => {
                     user,
                     account: fromApiKey(user, 'token'),
                     headerProjectUuid: pinnedProjectUuid,
+                    headerAgentUuid,
                     sessionId: '33333333-3333-4333-8333-333333333333',
                 },
             },
         });
     await server.connect(serverTransport);
     await client.connect(clientTransport);
-    return { client, createToolCall, track };
+    const recordToolCall = vi.spyOn(
+        service as unknown as { recordToolCall: () => void },
+        'recordToolCall',
+    );
+    return { client, createToolCall, track, recordToolCall };
 };
 
 describe('MCP calls rejected before a handler runs', () => {
@@ -107,6 +113,32 @@ describe('MCP calls rejected before a handler runs', () => {
         },
     );
 
+    it('attributes a rejected call to the pinned agent', async () => {
+        const { client, createToolCall, track } =
+            await connect(pinnedAgentUuid);
+        await client.callTool({
+            name: 'run_metric_query',
+            arguments: {
+                projectUuid: argsProjectUuid,
+                agentUuid: '55555555-5555-4555-8555-555555555555',
+            },
+        });
+        await vi.waitFor(() =>
+            expect(createToolCall).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    project_uuid: pinnedProjectUuid,
+                    agent_uuid: pinnedAgentUuid,
+                    error_kind: 'unavailable_tool',
+                }),
+            ),
+        );
+        expect(track.mock.calls[0][0].properties).toMatchObject({
+            projectId: pinnedProjectUuid,
+            agentId: pinnedAgentUuid,
+        });
+        await client.close();
+    });
+
     it('caps an arbitrary tool name', async () => {
         const { client, createToolCall } = await connect();
         await client.callTool({ name: 'x'.repeat(10_000), arguments: {} });
@@ -122,17 +154,16 @@ describe('MCP calls rejected before a handler runs', () => {
     });
 
     it('records a handled call once, whether it succeeds or fails', async () => {
-        const { client, createToolCall } = await connect();
+        const { client, createToolCall, recordToolCall } = await connect();
         await client.callTool({ name: 'get_lightdash_version' });
         const failed = await client.callTool({
             name: 'read_skill',
             arguments: { name: 'missing' },
         });
         expect(failed.isError).toBe(true);
+        // Recording starts before the reply, so the count is final here
+        expect(recordToolCall).toHaveBeenCalledTimes(2);
         await vi.waitFor(() => expect(createToolCall).toHaveBeenCalledTimes(2));
-        await new Promise((resolve) => {
-            setTimeout(resolve, 20);
-        });
         expect(
             createToolCall.mock.calls.map(([row]) => [
                 row.tool_name,
