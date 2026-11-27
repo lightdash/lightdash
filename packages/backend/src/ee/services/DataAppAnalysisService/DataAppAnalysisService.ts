@@ -3,8 +3,8 @@ import {
     assertRegisteredAccount,
     assertUnreachable,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
-    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
-    DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS,
+    DATA_APP_ANALYSIS_TEXT_MAX_CHARS_CEILING,
+    DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT,
     EE_SCHEDULER_TASKS,
     FeatureFlags,
     ForbiddenError,
@@ -153,7 +153,6 @@ const mapStoredQueryUuids = (
     }
     return mapping;
 };
-const MAX_PROMPT_CHARS = 2000;
 const MAX_FOCUS_ENTRIES = 30;
 const MAX_FOCUS_VALUE_CHARS = 200;
 // Model runs per viewer and app per minute, counted in the database so
@@ -694,17 +693,49 @@ export class DataAppAnalysisService extends BaseService {
         }
     }
 
-    /** App-author guidance is untrusted model input; keep it short. */
+    /** Rejects text no org can send, before any lookup. */
+    private static assertTextBelowCeiling(text: string, label: string): void {
+        if (text.length > DATA_APP_ANALYSIS_TEXT_MAX_CHARS_CEILING) {
+            throw new ParameterError(
+                `${label} are limited to ${DATA_APP_ANALYSIS_TEXT_MAX_CHARS_CEILING} characters`,
+            );
+        }
+    }
+
+    /**
+     * Author text is untrusted model input, capped per org. Text within the
+     * default always passes, so the common case costs no settings read.
+     */
+    private async assertTextWithinOrgCap(
+        organizationUuid: string,
+        text: string | null,
+        label: string,
+    ): Promise<void> {
+        if (
+            text === null ||
+            text.length <= DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT
+        ) {
+            return;
+        }
+        const maxChars =
+            await this.aiOrganizationSettingsService.getDataAppAnalysisTextMaxChars(
+                organizationUuid,
+            );
+        if (text.length > maxChars) {
+            throw new ParameterError(
+                `${label} are limited to ${maxChars} characters`,
+            );
+        }
+    }
+
     private static validateInstructions(
         raw: string | undefined,
     ): string | null {
         const instructions = raw?.trim() || null;
-        if (
-            instructions !== null &&
-            instructions.length > DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS
-        ) {
-            throw new ParameterError(
-                `Analysis instructions are limited to ${DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS} characters`,
+        if (instructions !== null) {
+            DataAppAnalysisService.assertTextBelowCeiling(
+                instructions,
+                'Analysis instructions',
             );
         }
         return instructions;
@@ -866,6 +897,11 @@ export class DataAppAnalysisService extends BaseService {
             projectUuid,
             locator,
         );
+        await this.assertTextWithinOrgCap(
+            user.organizationUuid!,
+            appInstructions,
+            'Analysis instructions',
+        );
         const instructions = await this.withOrgDefaultInstructions(
             user.organizationUuid!,
             appInstructions,
@@ -960,6 +996,11 @@ export class DataAppAnalysisService extends BaseService {
             account,
             projectUuid,
             locator,
+        );
+        await this.assertTextWithinOrgCap(
+            user.organizationUuid!,
+            appInstructions,
+            'Analysis instructions',
         );
         const instructions = await this.withOrgDefaultInstructions(
             user.organizationUuid!,
@@ -1233,11 +1274,7 @@ export class DataAppAnalysisService extends BaseService {
         if (prompt.length === 0) {
             throw new ParameterError('A prompt is required');
         }
-        if (prompt.length > MAX_PROMPT_CHARS) {
-            throw new ParameterError(
-                `Prompts are limited to ${MAX_PROMPT_CHARS} characters`,
-            );
-        }
+        DataAppAnalysisService.assertTextBelowCeiling(prompt, 'Prompts');
         if (body.sources.length === 0) {
             throw new ParameterError('At least one source query is required');
         }
@@ -1330,6 +1367,11 @@ export class DataAppAnalysisService extends BaseService {
             appUuid,
         );
         note({ appVersion });
+        await this.assertTextWithinOrgCap(
+            user.organizationUuid!,
+            prompt,
+            'Prompts',
+        );
         await this.assertRate(user.userUuid, appUuid, 'prompt');
         note({
             keyManagement: await this.assertDailyBudget(
@@ -1619,11 +1661,10 @@ export class DataAppAnalysisService extends BaseService {
         if (instruction.length === 0) {
             throw new ParameterError('An instruction is required');
         }
-        if (instruction.length > DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS) {
-            throw new ParameterError(
-                `Instructions are limited to ${DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS} characters`,
-            );
-        }
+        DataAppAnalysisService.assertTextBelowCeiling(
+            instruction,
+            'Instructions',
+        );
         if (body.sources.length === 0) {
             throw new ParameterError('At least one source query is required');
         }
@@ -1643,6 +1684,11 @@ export class DataAppAnalysisService extends BaseService {
     ): Promise<{ jobId: string }> {
         const instruction = DataAppAnalysisService.validateInstruction(body);
         const { user } = await this.assertViewer(account, projectUuid, locator);
+        await this.assertTextWithinOrgCap(
+            user.organizationUuid!,
+            instruction,
+            'Instructions',
+        );
         await this.assertAgentUsable(user, projectUuid, body.agentUuid);
         // Instruction runs share the anomaly investigations' buckets: one
         // agent run is one agent run, whatever asked for it.

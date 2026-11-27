@@ -393,6 +393,8 @@ export type ComputedAiOrganizationSettings = {
     configurableModelOptions?: AiModelOption[] | null;
     // True when a BYO key is set that can't serve the review model, so reviews are paused.
     aiAgentReviewsPausedByByok?: boolean;
+    // True when AI analysis runs on the org's own key, so its text cap can be raised.
+    dataAppAnalysisTextMaxCharsConfigurable?: boolean;
 };
 
 // AI Organization Settings Types
@@ -711,6 +713,8 @@ export type AiOrganizationRuntimeSettings = {
     dataAppRuntimeAiEnabled?: boolean;
     // Whether viewers may continue a data-app investigation in Ask AI.
     dataAppContinueInAskAiEnabled?: boolean;
+    // Effective cap on prompts and analysis instructions for this org.
+    dataAppAnalysisTextMaxChars?: number;
     // Org retention ceiling, surfaced so agent editors can see what caps
     // their agent-level window. Optional for backwards compatibility.
     threadRetentionHours?: number | null;

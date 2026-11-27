@@ -180,6 +180,7 @@ function buildService(
         getDataAppAnalysisDefaultInstructions: vi
             .fn()
             .mockResolvedValue(overrides.orgDefaultInstructions ?? null),
+        getDataAppAnalysisTextMaxChars: vi.fn().mockResolvedValue(2000),
     };
     const aiAgentModel = { deleteThread: vi.fn().mockResolvedValue(undefined) };
     const analytics = { track: vi.fn() };
@@ -1000,6 +1001,25 @@ describe('DataAppAnalysisService reuse', () => {
         expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
     });
 
+    it('accepts longer instructions once the organization raised its limit', async () => {
+        const { service, aiService, aiOrganizationSettingsService } =
+            buildService();
+        aiOrganizationSettingsService.getDataAppAnalysisTextMaxChars.mockResolvedValue(
+            5000,
+        );
+        const instructions = 'x'.repeat(2001);
+        await service.detect(
+            account(),
+            'proj-1',
+            { kind: 'app', appUuid: 'app-1' },
+            { ...request, instructions, force: true },
+        );
+        expect(aiService.detectDataAppAnomalies).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ instructions }),
+        );
+    });
+
     it("serves the viewer's own analysis of identical rows without the model, rebound to the current queries", async () => {
         const { service, dataAppAnalysisModel, aiService } = buildService();
         await service.detect(
@@ -1257,6 +1277,39 @@ describe('DataAppAnalysisService.prompt', () => {
                 },
             }),
         );
+    });
+
+    it('caps the prompt at the organization limit', async () => {
+        const { service, aiService, aiOrganizationSettingsService } =
+            buildService();
+        const prompt = 'x'.repeat(2001);
+        const ask = () =>
+            service.prompt(
+                buildAccount({ accountType: 'session' }),
+                'proj-1',
+                'app-1',
+                { prompt, sources: request.sources },
+            );
+        await expect(ask()).rejects.toThrow('limited to 2000 characters');
+        expect(aiService.answerDataAppPrompt).not.toHaveBeenCalled();
+
+        aiOrganizationSettingsService.getDataAppAnalysisTextMaxChars.mockResolvedValue(
+            5000,
+        );
+        await expect(ask()).resolves.toMatchObject({ prompt });
+    });
+
+    it('skips the limit lookup for a prompt within the default', async () => {
+        const { service, aiOrganizationSettingsService } = buildService();
+        await service.prompt(
+            buildAccount({ accountType: 'session' }),
+            'proj-1',
+            'app-1',
+            { prompt: 'x'.repeat(2000), sources: request.sources },
+        );
+        expect(
+            aiOrganizationSettingsService.getDataAppAnalysisTextMaxChars,
+        ).not.toHaveBeenCalled();
     });
 
     it('reports a prompt outcome with tokens', async () => {

@@ -9,7 +9,8 @@ import {
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
-    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
+    DATA_APP_ANALYSIS_TEXT_MAX_CHARS_CEILING,
+    DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT,
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
@@ -17,6 +18,7 @@ import {
     isValidRetentionWindowHours,
     LightdashUser,
     ParameterError,
+    resolveDataAppAnalysisTextMaxChars,
     RETENTION_WINDOW_HOURS_ERROR,
     UpdateAiOrganizationSettings,
     UpdateAiProviderApiKeys,
@@ -55,6 +57,8 @@ import {
     getDefaultModel,
     getOrgModelCatalogue,
     getOrgModelOptions,
+    pickAmbientProvider,
+    resolveKeyManagement,
 } from './ai/models';
 import {
     matchesPreset,
@@ -165,6 +169,10 @@ const DATA_APP_ANALYSIS_LIMIT_BOUNDS = {
     dailyDetectCap: { min: 1, max: 100_000 },
     dailyInvestigateCap: { min: 1, max: 100_000 },
     dailyPromptCap: { min: 1, max: 100_000 },
+    textMaxChars: {
+        min: DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT,
+        max: DATA_APP_ANALYSIS_TEXT_MAX_CHARS_CEILING,
+    },
 } as const;
 
 export const validateDataAppAnalysisLimits = (
@@ -172,7 +180,7 @@ export const validateDataAppAnalysisLimits = (
 ): void => {
     (
         Object.entries(limits) as Array<
-            [keyof DataAppAnalysisLimits, number | null]
+            [keyof DataAppAnalysisLimits, number | null | undefined]
         >
     ).forEach(([key, value]) => {
         const bounds = DATA_APP_ANALYSIS_LIMIT_BOUNDS[key];
@@ -181,6 +189,8 @@ export const validateDataAppAnalysisLimits = (
         }
         // Daily caps may be null (no cap); per-run limits may not.
         if (value === null && key.startsWith('daily')) return;
+        // Clients that predate the text cap omit it; the stored value stays.
+        if (value === undefined && key === 'textMaxChars') return;
         if (typeof value !== 'number' || !Number.isInteger(value)) {
             throw new ParameterError(`${key} must be a positive integer`);
         }
@@ -195,14 +205,12 @@ export const validateDataAppAnalysisLimits = (
 /** Normalizes a submitted org default to trimmed text or null (cleared). */
 export const normalizeAnalysisDefaultInstructions = (
     raw: string | null,
+    maxChars: number = DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT,
 ): string | null => {
     const instructions = raw?.trim() || null;
-    if (
-        instructions !== null &&
-        instructions.length > DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS
-    ) {
+    if (instructions !== null && instructions.length > maxChars) {
         throw new ParameterError(
-            `Analysis instructions are limited to ${DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS} characters`,
+            `Analysis instructions are limited to ${maxChars} characters`,
         );
     }
     return instructions;
@@ -464,11 +472,16 @@ export class AiOrganizationSettingsService extends BaseService {
         const organizationUuid = user.organizationUuid!;
         const { isCopilotEnabled, isTrial } = availability;
 
-        const [settings, aiAgentMemoryEnabled] = await Promise.all([
+        const [
+            settings,
+            aiAgentMemoryEnabled,
+            dataAppAnalysisTextMaxCharsConfigurable,
+        ] = await Promise.all([
             this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 organizationUuid,
             ),
             this.isAiAgentMemoryEnabled(user),
+            this.isAmbientKeySelfManaged(organizationUuid),
         ]);
 
         const [
@@ -540,6 +553,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 configurableModelOptions: configurableOptions,
                 bedrockModelOptions,
                 aiAgentReviewsPausedByByok,
+                dataAppAnalysisTextMaxCharsConfigurable,
                 isTrial,
             };
         }
@@ -559,6 +573,7 @@ export class AiOrganizationSettingsService extends BaseService {
             configurableModelOptions: configurableOptions,
             bedrockModelOptions,
             aiAgentReviewsPausedByByok,
+            dataAppAnalysisTextMaxCharsConfigurable,
         };
     }
 
@@ -608,6 +623,8 @@ export class AiOrganizationSettingsService extends BaseService {
                 ),
                 dataAppRuntimeAiEnabled: false,
                 dataAppContinueInAskAiEnabled: true,
+                dataAppAnalysisTextMaxChars:
+                    DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT,
                 threadRetentionHours: null,
             };
         }
@@ -632,6 +649,10 @@ export class AiOrganizationSettingsService extends BaseService {
             dataAppRuntimeAiEnabled: settings.dataAppRuntimeAiEnabled ?? false,
             dataAppContinueInAskAiEnabled:
                 settings.dataAppContinueInAskAiEnabled ?? true,
+            dataAppAnalysisTextMaxChars: resolveDataAppAnalysisTextMaxChars(
+                settings.dataAppAnalysisLimits,
+                settings.dataAppAnalysisTextMaxCharsConfigurable === true,
+            ),
             threadRetentionHours: settings.threadRetentionHours ?? null,
         };
     }
@@ -677,6 +698,35 @@ export class AiOrganizationSettingsService extends BaseService {
         return (
             settings?.dataAppAnalysisLimits ?? DATA_APP_ANALYSIS_DEFAULT_LIMITS
         );
+    }
+
+    /** Whether AI analysis runs on a key the org pays for itself. */
+    private async isAmbientKeySelfManaged(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                organizationUuid,
+                projectUuid: null,
+                credentialUuid: null,
+            });
+        return (
+            resolveKeyManagement(
+                copilotConfig,
+                pickAmbientProvider(copilotConfig),
+            ) === 'self-managed'
+        );
+    }
+
+    /** Cap on each prompt and on analysis instructions; raisable on the org's own key only. */
+    async getDataAppAnalysisTextMaxChars(
+        organizationUuid: string,
+    ): Promise<number> {
+        const [limits, isSelfManaged] = await Promise.all([
+            this.getDataAppAnalysisLimits(organizationUuid),
+            this.isAmbientKeySelfManaged(organizationUuid),
+        ]);
+        return resolveDataAppAnalysisTextMaxChars(limits, isSelfManaged);
     }
 
     /** Org-wide guidance for AI analysis summaries; app instructions append to it. */
@@ -825,17 +875,46 @@ export class AiOrganizationSettingsService extends BaseService {
         if (aiSettingsUpdate.deepResearchLimits !== undefined) {
             validateDeepResearchLimits(aiSettingsUpdate.deepResearchLimits);
         }
+        let dataAppAnalysisLimits: DataAppAnalysisLimits | undefined;
         if (aiSettingsUpdate.dataAppAnalysisLimits !== undefined) {
             validateDataAppAnalysisLimits(
                 aiSettingsUpdate.dataAppAnalysisLimits,
             );
+            const storedTextMaxChars =
+                (await this.getDataAppAnalysisLimits(organizationUuid))
+                    .textMaxChars ?? DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT;
+            const textMaxChars =
+                aiSettingsUpdate.dataAppAnalysisLimits.textMaxChars ??
+                storedTextMaxChars;
+            // Unchanged values pass so clients can round-trip the limits.
+            if (
+                textMaxChars !== storedTextMaxChars &&
+                textMaxChars > DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT &&
+                !(await this.isAmbientKeySelfManaged(organizationUuid))
+            ) {
+                throw new ForbiddenError(
+                    'The character limit can only be raised when AI analysis runs on your own AI key',
+                );
+            }
+            dataAppAnalysisLimits = {
+                ...aiSettingsUpdate.dataAppAnalysisLimits,
+                textMaxChars,
+            };
         }
-        const normalizedDefaultInstructions =
-            aiSettingsUpdate.dataAppAnalysisDefaultInstructions === undefined
-                ? undefined
-                : normalizeAnalysisDefaultInstructions(
-                      aiSettingsUpdate.dataAppAnalysisDefaultInstructions,
-                  );
+        let normalizedDefaultInstructions: string | null | undefined;
+        if (aiSettingsUpdate.dataAppAnalysisDefaultInstructions !== undefined) {
+            normalizedDefaultInstructions =
+                normalizeAnalysisDefaultInstructions(
+                    aiSettingsUpdate.dataAppAnalysisDefaultInstructions,
+                    resolveDataAppAnalysisTextMaxChars(
+                        dataAppAnalysisLimits ??
+                            (await this.getDataAppAnalysisLimits(
+                                organizationUuid,
+                            )),
+                        await this.isAmbientKeySelfManaged(organizationUuid),
+                    ),
+                );
+        }
 
         if (aiSettingsUpdate.threadRetentionHours !== undefined) {
             // No-op writes stay allowed: clients that round-trip the settings
@@ -1040,6 +1119,9 @@ export class AiOrganizationSettingsService extends BaseService {
         const update = {
             ...aiSettingsUpdate,
             ...(mcpProjectAccess !== undefined ? { mcpProjectAccess } : {}),
+            ...(dataAppAnalysisLimits !== undefined
+                ? { dataAppAnalysisLimits }
+                : {}),
             ...(reconciledDefaultModelConfig !== undefined
                 ? { defaultAiAgentModelConfig: reconciledDefaultModelConfig }
                 : {}),

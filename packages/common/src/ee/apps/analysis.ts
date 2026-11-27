@@ -30,8 +30,9 @@ export type AnalysisTargetLocator =
 /**
  * Org-configurable ceilings for AI analysis in data apps. Per-run limits
  * bound one investigation; daily caps bound model runs per organization per
- * UTC day (null = no cap). On a Lightdash-managed key the daily caps cannot
- * exceed the defaults.
+ * UTC day (null = no cap). `textMaxChars` bounds each prompt, analysis
+ * instructions and instruction-button text. On a Lightdash-managed key the
+ * daily caps and `textMaxChars` cannot exceed the defaults.
  */
 export type DataAppAnalysisLimits = {
     investigateMaxSteps: number;
@@ -39,7 +40,13 @@ export type DataAppAnalysisLimits = {
     dailyDetectCap: number | null;
     dailyInvestigateCap: number | null;
     dailyPromptCap: number | null;
+    // Optional so settings stored or sent before it existed stay valid.
+    textMaxChars?: number;
 };
+
+export const DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT = 2000;
+/** Sanity bound for the setting, not a product limit. */
+export const DATA_APP_ANALYSIS_TEXT_MAX_CHARS_CEILING = 100_000;
 
 export const DATA_APP_ANALYSIS_DEFAULT_LIMITS: DataAppAnalysisLimits = {
     investigateMaxSteps: 12,
@@ -47,6 +54,22 @@ export const DATA_APP_ANALYSIS_DEFAULT_LIMITS: DataAppAnalysisLimits = {
     dailyDetectCap: 300,
     dailyInvestigateCap: 100,
     dailyPromptCap: 500,
+    textMaxChars: DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT,
+};
+
+/**
+ * The text cap that applies to an org: the configured value on its own AI
+ * key, the default on a Lightdash-managed key.
+ */
+export const resolveDataAppAnalysisTextMaxChars = (
+    limits: DataAppAnalysisLimits | null | undefined,
+    isSelfManagedKey: boolean,
+): number => {
+    const configured =
+        limits?.textMaxChars ?? DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT;
+    return isSelfManagedKey
+        ? Math.min(configured, DATA_APP_ANALYSIS_TEXT_MAX_CHARS_CEILING)
+        : Math.min(configured, DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT);
 };
 
 export type DataAppAnalysisSource = {
@@ -83,9 +106,6 @@ export type DataAppDetectResult = {
     /** Period or snapshot the analysed data covers, in the model's words. */
     dataAsOf: string | null;
 };
-
-/** App-author guidance is untrusted input to the model; keep it short. */
-export const DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS = 2000;
 
 export type DataAppDetectRequest = {
     sources: DataAppAnalysisSource[];
@@ -152,9 +172,6 @@ export type DataAppInvestigateJobPayload = TraceTaskBase & {
 };
 
 export type ApiDataAppInvestigateResponse = ApiSuccess<{ jobId: string }>;
-
-/** Author instructions are untrusted input to the agent; keep them short. */
-export const DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS = 2000;
 
 /**
  * An app-authored investigation: a written instruction (e.g. a recommendation

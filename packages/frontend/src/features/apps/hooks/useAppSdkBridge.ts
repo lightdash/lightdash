@@ -11,8 +11,7 @@ import {
     APP_SDK_INSIGHTS_REQUEST_MESSAGE,
     APP_SDK_MOUNTED_QUERIES_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
-    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
-    DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS,
+    DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT,
     APP_SDK_VIZ_DRILL_DOWN_PATH,
     APP_SDK_VIZ_POINT_MENU_PATH,
     APP_SDK_VIZ_SUBTOTALS_PATH,
@@ -684,6 +683,8 @@ export type UseAppSdkBridgeParams = {
     /** Author guidance for the analysis model declared in app code, or null
      *  when the running bundle declares none. */
     onInsightInstructionsChange?: (instructions: string | null) => void;
+    /** The org's cap on analysis instructions and instruction-button text. */
+    analysisTextMaxChars?: number;
     /** Whether app code asks to analyse on load, or null when the running
      *  bundle declares nothing. */
     onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
@@ -745,6 +746,7 @@ export function useAppSdkBridge({
     onInsightAction,
     onInsightsInUse,
     onInsightInstructionsChange,
+    analysisTextMaxChars = DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT,
     onInsightAnalyseOnLoadChange,
     onMountedQueriesChange,
     onCaptureHotkey,
@@ -955,12 +957,8 @@ export function useAppSdkBridge({
                 // runaway string never reaches the analysis request.
                 onInsightInstructionsChange?.(
                     typeof instructions === 'string'
-                        ? instructions
-                              .trim()
-                              .slice(
-                                  0,
-                                  DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
-                              ) || null
+                        ? instructions.trim().slice(0, analysisTextMaxChars) ||
+                              null
                         : null,
                 );
                 onInsightAnalyseOnLoadChange?.(
@@ -1006,10 +1004,7 @@ export function useAppSdkBridge({
                         requestId,
                         instruction: instruction
                             .trim()
-                            .slice(
-                                0,
-                                DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS,
-                            ),
+                            .slice(0, analysisTextMaxChars),
                         sources: sources.map((s) => ({
                             queryUuid: s.queryUuid,
                             label: typeof s.label === 'string' ? s.label : null,
@@ -1975,6 +1970,7 @@ export function useAppSdkBridge({
             onInsightAction,
             onInsightsInUse,
             onInsightInstructionsChange,
+            analysisTextMaxChars,
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             onCaptureHotkey,

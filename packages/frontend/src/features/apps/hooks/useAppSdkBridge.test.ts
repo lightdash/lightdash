@@ -2418,6 +2418,43 @@ describe('color scheme push', () => {
         );
     });
 
+    it.each([
+        [undefined, 2000],
+        [5000, 3000],
+    ])(
+        'trims analysis instructions to the organization cap (%s)',
+        async (analysisTextMaxChars, expectedLength) => {
+            const onInsightInstructionsChange = vi.fn();
+            renderHook(() =>
+                useAppSdkBridge({
+                    iframeRef,
+                    expectedPreviewOrigin: window.location.origin,
+                    projectUuid: PROJECT_UUID,
+                    appUuid: APP_UUID,
+                    previewToken: PREVIEW_TOKEN,
+                    colorScheme: 'light',
+                    onInsightInstructionsChange,
+                    analysisTextMaxChars,
+                }),
+            );
+            window.dispatchEvent(
+                new MessageEvent('message', {
+                    data: {
+                        type: APP_SDK_INSIGHTS_REQUEST_MESSAGE,
+                        instructions: 'x'.repeat(3000),
+                    },
+                    source: window,
+                    origin: window.location.origin,
+                }),
+            );
+            await vi.waitFor(() =>
+                expect(onInsightInstructionsChange).toHaveBeenCalledWith(
+                    'x'.repeat(expectedLength),
+                ),
+            );
+        },
+    );
+
     it('ignores a theme request from a window that is not the iframe', async () => {
         const postSpy = vi.spyOn(window, 'postMessage');
         renderWithColorScheme('dark');
