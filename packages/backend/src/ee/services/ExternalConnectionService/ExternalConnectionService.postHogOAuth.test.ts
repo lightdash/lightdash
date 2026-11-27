@@ -87,7 +87,12 @@ const account = buildAccount();
 const buildService = ({
     clientId = 'client-1',
     secret = storedTokens('pha_fresh', Date.now() + HOUR),
-}: { clientId?: string | null; secret?: string } = {}) => {
+    integrationEnabled = true,
+}: {
+    clientId?: string | null;
+    secret?: string;
+    integrationEnabled?: boolean;
+} = {}) => {
     let storedSecret: string | null = secret;
     const connection = signedInConnection();
     const externalConnectionModel = {
@@ -131,7 +136,9 @@ const buildService = ({
     const fetchToken = vi.fn();
     const service = new ExternalConnectionService({
         featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ id: 'flag', enabled: true }),
+            get: vi
+                .fn()
+                .mockResolvedValue({ id: 'flag', enabled: integrationEnabled }),
         },
         userAttributesModel: {
             getAttributeValuesForOrgMember: vi.fn().mockResolvedValue({}),
@@ -224,6 +231,19 @@ describe('PostHog sign-in', () => {
             }),
         ).rejects.toBeInstanceOf(MissingConfigError);
         expect(service.getPostHogClientMetadata()).toBeNull();
+    });
+
+    it('refuses to start sign-in when PostHog is turned off for the organization', async () => {
+        const { service } = buildService({ integrationEnabled: false });
+        await expect(
+            service.startPostHogOAuth(account, 'proj-1', {
+                region: 'us',
+                name: 'PostHog',
+                connectionUuid: null,
+            }),
+        ).rejects.toThrow(
+            'The PostHog integration is turned off for this organization',
+        );
     });
 
     it('asks for one project with read-only query access, bound to a PKCE verifier', async () => {

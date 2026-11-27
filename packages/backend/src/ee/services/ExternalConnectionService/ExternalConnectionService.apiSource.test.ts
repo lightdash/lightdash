@@ -3146,6 +3146,31 @@ describe('ExternalConnectionService integration feature flags', () => {
         expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
     });
 
+    it('refuses to edit, test or reattach a source of a turned-off integration', async () => {
+        const { service, externalConnectionModel } = buildService({
+            ...turnedOff,
+            deletedSources: [],
+        });
+
+        await expect(
+            service.update(account, 'proj-1', 'conn-1', { name: 'Renamed' }),
+        ).rejects.toThrow(ForbiddenError);
+        await expect(
+            service.testConnection(account, 'proj-1', 'conn-1', {
+                path: '/api/projects/303731/query/',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        await expect(
+            service.testConfig(account, 'proj-1', postHogCreate, {
+                path: '/api/projects/303731/query/',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        await expect(
+            service.reattachLiveSource(account, 'proj-1', 'conn-1', 'old-conn'),
+        ).rejects.toThrow(ForbiddenError);
+        expect(externalConnectionModel.update).not.toHaveBeenCalled();
+    });
+
     it('lists only the integrations the organization has turned on', async () => {
         const { service } = buildService({
             disabledIntegrations: [

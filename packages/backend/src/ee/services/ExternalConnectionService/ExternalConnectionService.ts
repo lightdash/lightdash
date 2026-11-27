@@ -1029,6 +1029,14 @@ export class ExternalConnectionService extends BaseService {
             connectionUuid,
         );
         const isLiveSource = existing.kind === 'live_source';
+        // Saving a live source rescans its integration, so a turned-off one
+        // can only be deleted until it is turned back on.
+        if (existing.apiSource) {
+            await this.assertLiveIntegrationEnabled(
+                existing.organizationUuid,
+                existing.apiSource.connector,
+            );
+        }
         if (!isLiveSource && data.apiSource) {
             throw new ParameterError(
                 'A data app connection cannot become a live data source',
@@ -5442,6 +5450,12 @@ export class ExternalConnectionService extends BaseService {
             storedConnection.organizationUuid,
             getConnectionKind(storedConnection),
         );
+        if (storedConnection.apiSource) {
+            await this.assertLiveIntegrationEnabled(
+                storedConnection.organizationUuid,
+                storedConnection.apiSource.connector,
+            );
+        }
         // Live data sources test against the rules their edited settings get
         const connection = withApiSourceAccessRules(
             req.config

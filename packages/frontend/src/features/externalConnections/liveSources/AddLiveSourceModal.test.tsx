@@ -33,7 +33,11 @@ const renderModal = ({
     canUseLinkedInAds = true,
     canUseSalesforce = true,
     canUseHydra = false,
-    enabledIntegrations = Object.values(ApiConnectorType),
+    // null stands for still loading, since undefined takes the default
+    enabledIntegrations = Object.values(ApiConnectorType) as
+        | ApiConnectorType[]
+        | null,
+    isEnabledIntegrationsError = false,
 } = {}) =>
     renderWithProviders(
         <MemoryRouter>
@@ -45,7 +49,8 @@ const renderModal = ({
                 canUseLinkedInAds={canUseLinkedInAds}
                 canUseSalesforce={canUseSalesforce}
                 canUseHydra={canUseHydra}
-                enabledIntegrations={enabledIntegrations}
+                enabledIntegrations={enabledIntegrations ?? undefined}
+                isEnabledIntegrationsError={isEnabledIntegrationsError}
                 onPick={onPick}
             />
         </MemoryRouter>,
@@ -97,6 +102,24 @@ describe('AddLiveSourceModal', () => {
 
         expect(screen.queryByText('HubSpot')).not.toBeInTheDocument();
         expect(screen.getByText('PostHog')).toBeInTheDocument();
+    });
+
+    it('waits for the turned-on integrations before listing any', () => {
+        renderModal({ enabledIntegrations: null });
+
+        expect(screen.queryByText('PostHog')).not.toBeInTheDocument();
+    });
+
+    it('says when the turned-on integrations could not be loaded', () => {
+        renderModal({
+            enabledIntegrations: null,
+            isEnabledIntegrationsError: true,
+        });
+
+        expect(
+            screen.getByText(/Couldn't load the integrations you can add/),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('PostHog')).not.toBeInTheDocument();
     });
 
     it('offers Hydra where the server registers it', async () => {

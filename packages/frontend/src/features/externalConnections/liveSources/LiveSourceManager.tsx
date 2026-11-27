@@ -342,7 +342,7 @@ const LiveSourceDialogs: FC<{
     onRemoved,
 }) => {
     const navigate = useNavigate();
-    const { data: enabledIntegrations = [] } =
+    const { data: enabledIntegrations, isError: isEnabledIntegrationsError } =
         useEnabledLiveIntegrations(projectUuid);
     // A new source opens on its own page, offering to reattach a deleted one
     const openConnected = (connectionUuid: string) => {
@@ -373,6 +373,7 @@ const LiveSourceDialogs: FC<{
                 canUseSalesforce={canUseSalesforce}
                 canUseHydra={canUseHydra}
                 enabledIntegrations={enabledIntegrations}
+                isEnabledIntegrationsError={isEnabledIntegrationsError}
                 onPick={(picked) =>
                     setDialog({ kind: 'create', connector: picked })
                 }
