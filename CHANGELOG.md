@@ -1,3 +1,10 @@
+## [3.427.1](https://github.com/lightdash/lightdash/compare/3.427.0...3.427.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **ai-agent:** keep a removed dashboard chip removed after the first reply ([#33563](https://github.com/lightdash/lightdash/issues/33563)) ([73660ac](https://github.com/lightdash/lightdash/commit/73660ac061f809da2b18e2c5694e0d76f40acaad))
+
 # [3.427.0](https://github.com/lightdash/lightdash/compare/3.426.0...3.427.0) (2026-11-27)
 
 
