@@ -2267,22 +2267,15 @@ export class CoderService extends BaseService {
                 };
             });
         dashboard.tiles.filter(isDashboardComposerChartTile).forEach((tile) => {
-            tilesWithoutUuids.push(
-                toComposerChartTileAsCode(tile, {
-                    tabSlug: tile.tabUuid
-                        ? getDashboardTabSlug(
-                              dashboardWithSortedTabs,
-                              tile.tabUuid,
-                          )
-                        : null,
-                    tileSlug:
-                        controlTileSlugs?.get(tile.uuid) ??
-                        CoderService.getTileSlugForTileUuid(
-                            dashboard,
-                            tile.uuid,
-                        ),
-                }),
-            );
+            const composerTile = toComposerChartTileAsCode(tile, {
+                tabSlug: tile.tabUuid
+                    ? getDashboardTabSlug(dashboardWithSortedTabs, tile.tabUuid)
+                    : null,
+                tileSlug:
+                    controlTileSlugs?.get(tile.uuid) ??
+                    CoderService.getTileSlugForTileUuid(dashboard, tile.uuid),
+            });
+            if (composerTile) tilesWithoutUuids.push(composerTile);
         });
         tilesWithoutUuids.sort(
             (left, right) =>
@@ -2428,7 +2421,7 @@ export class CoderService extends BaseService {
         tilesAsCode: DashboardTileAsCode[],
         tabUuidsBySlug: ReadonlyMap<string, string> = new Map(),
     ): Promise<{ tiles: DashboardTileWithSlug[]; warnings: string[] }> {
-        // A gone composer chart's tile is left out, as downloads once did, until a tile can hold no chart
+        // A composer tile whose chart is gone is left out until a tile can hold no chart
         const tiles = CoderService.withoutTileChartQuery(tilesAsCode).filter(
             (tile) =>
                 tile.type !== DashboardTileTypes.COMPOSER_CHART ||

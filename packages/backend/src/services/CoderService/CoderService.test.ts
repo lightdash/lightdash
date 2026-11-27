@@ -2176,7 +2176,7 @@ describe('CoderService', () => {
             ).toThrow('Space space-uuid not found');
         });
 
-        it('writes a composer chart tile by its chart slug, and one whose chart is gone with a null slug', () => {
+        it('writes a composer chart tile by its chart slug, and leaves out one whose chart is gone', () => {
             const exported = (
                 CoderService as unknown as {
                     transformDashboard: (...args: AnyType[]) => AnyType;
@@ -2257,22 +2257,7 @@ describe('CoderService', () => {
                     chartSlug: 'orders',
                 },
             });
-            expect(exported.tiles[2]).toEqual({
-                uuid: undefined,
-                type: DashboardTileTypes.COMPOSER_CHART,
-                x: 6,
-                y: 1,
-                h: 3,
-                w: 6,
-                tabSlug: null,
-                tileSlug: undefined,
-                properties: {
-                    title: 'Gone',
-                    hideTitle: undefined,
-                    chartSlug: null,
-                },
-            });
-            expect(exported.tiles).toHaveLength(3);
+            expect(exported.tiles).toHaveLength(2);
         });
 
         it('leaves the control order out of the file with the flag off', () => {

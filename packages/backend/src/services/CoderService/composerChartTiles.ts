@@ -15,24 +15,27 @@ export const isNotComposerChartTile = (
 ): tile is Exclude<DashboardTile, DashboardComposerChartTile> =>
     tile.type !== DashboardTileTypes.COMPOSER_CHART;
 
-/** A tile whose chart is gone is written with a null slug, as classic chart tiles are. */
+/** Null for a tile whose chart is gone: it has no slug to write. */
 export const toComposerChartTileAsCode = (
     { x, y, h, w, properties }: DashboardComposerChartTile,
     slugs: Pick<DashboardComposerChartTileAsCode, 'tabSlug' | 'tileSlug'>,
-): DashboardComposerChartTileAsCode => ({
-    uuid: undefined,
-    type: DashboardTileTypes.COMPOSER_CHART,
-    x,
-    y,
-    h,
-    w,
-    ...slugs,
-    properties: {
-        title: properties.title,
-        hideTitle: properties.hideTitle,
-        chartSlug: properties.chartSlug ?? null,
-    },
-});
+): DashboardComposerChartTileAsCode | null =>
+    !properties.chartSlug
+        ? null
+        : {
+              uuid: undefined,
+              type: DashboardTileTypes.COMPOSER_CHART,
+              x,
+              y,
+              h,
+              w,
+              ...slugs,
+              properties: {
+                  title: properties.title,
+                  hideTitle: properties.hideTitle,
+                  chartSlug: properties.chartSlug,
+              },
+          };
 
 /**
  * Points each uploaded composer tile at the composer chart named by its slug.
