@@ -6,6 +6,8 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import {
+    addDays,
+    addMonths,
     getActiveFilterRules,
     getApiName,
     getLiveDateRange,
@@ -14,6 +16,7 @@ import {
     toAbsoluteDateRange,
     toFieldCombinationIssue,
     toLiveQueryError,
+    toMonthStart,
     type LiveCompiledRequest,
 } from '../../sdk';
 
@@ -121,20 +124,11 @@ const toFilters = (rules: FilterRule[], apiName: (id: string) => string) =>
         return `${name}==${values.join(',')}`;
     });
 
-const getMonthStart = (today: string, monthsBack: number) => {
-    const date = new Date(`${today}T00:00:00Z`);
-    return new Date(
-        Date.UTC(date.getUTCFullYear(), date.getUTCMonth() - monthsBack, 1),
-    )
-        .toISOString()
-        .slice(0, 10);
-};
+const getMonthStart = (today: string, monthsBack: number) =>
+    addMonths(toMonthStart(today), -monthsBack);
 
-const isLastDayOfMonth = (isoDate: string) => {
-    const next = new Date(`${isoDate}T00:00:00Z`);
-    next.setUTCDate(next.getUTCDate() + 1);
-    return next.getUTCDate() === 1;
-};
+const isLastDayOfMonth = (isoDate: string) =>
+    addDays(isoDate, 1).endsWith('-01');
 
 const WHOLE_MONTHS_MESSAGE =
     'YouTube reports whole months only. Filter the date to start on the first of a month and end on the last of a month, today, or use completed months.';
@@ -160,7 +154,7 @@ const getMonthRange = (
             message: WHOLE_MONTHS_MESSAGE,
         });
     }
-    return { startDate, endDate: `${endDate.slice(0, 7)}-01` };
+    return { startDate, endDate: toMonthStart(endDate) };
 };
 
 const getTopVideoSort = (

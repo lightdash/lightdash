@@ -6,14 +6,12 @@ import {
 import {
     ALL_PUSHDOWN_REFUSED,
     getIsoDateInTimeZone,
+    LIVE_FILTERS,
     type LiveQuery,
 } from '../../sdk';
 import { toGoogleApiError } from '../google/errors';
 import { compileYoutubeAnalyticsQuery } from './compile';
-import {
-    YOUTUBE_ANALYTICS_DATE_FILTERS,
-    YOUTUBE_ANALYTICS_EXACT_FILTERS,
-} from './model';
+import { YOUTUBE_ANALYTICS_EXACT_FILTERS } from './model';
 import {
     runYoutubeAnalyticsQuery,
     YOUTUBE_ANALYTICS_MAX_QUERY_ROWS,
@@ -47,7 +45,7 @@ export const youtubeAnalyticsQuery: LiveQuery<
         filters: {
             operators: {
                 string: YOUTUBE_ANALYTICS_EXACT_FILTERS,
-                date: YOUTUBE_ANALYTICS_DATE_FILTERS,
+                date: LIVE_FILTERS.dateRange,
                 metric: [],
             },
             multipleValues: true,
@@ -57,7 +55,7 @@ export const youtubeAnalyticsQuery: LiveQuery<
         metricFilters: false,
         dates: {
             rangeRequired: true,
-            operators: YOUTUBE_ANALYTICS_DATE_FILTERS,
+            operators: LIVE_FILTERS.dateRange,
             grains: [TimeFrames.DAY, TimeFrames.MONTH],
             timezone: 'fixed',
         },

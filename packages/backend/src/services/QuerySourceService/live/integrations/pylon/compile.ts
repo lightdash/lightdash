@@ -9,6 +9,7 @@ import {
     type SortField,
 } from '@lightdash/common';
 import {
+    addDays,
     getApiName,
     getLiveDateRange,
     getLiveDefinitionName,
@@ -69,12 +70,6 @@ const DATE_FIELDS = new Set([
     'last_vendor_activity_at',
 ]);
 
-const addDay = (isoDate: string) => {
-    const date = new Date(`${isoDate}T00:00:00Z`);
-    date.setUTCDate(date.getUTCDate() + 1);
-    return date.toISOString().slice(0, 10);
-};
-
 /** Whole UTC days, as Pylon's [start, end) time range. */
 const toTimeRange = (
     field: string,
@@ -93,7 +88,7 @@ const toTimeRange = (
     return {
         field,
         operator: 'time_range',
-        values: [`${startDate}T00:00:00Z`, `${addDay(endDate)}T00:00:00Z`],
+        values: [`${startDate}T00:00:00Z`, `${addDays(endDate, 1)}T00:00:00Z`],
     };
 };
 

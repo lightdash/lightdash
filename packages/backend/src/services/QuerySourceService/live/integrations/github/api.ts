@@ -1,11 +1,6 @@
-import {
-    TooManyRequestsError,
-    UnexpectedServerError,
-    WarehouseConnectionError,
-    WarehouseQueryError,
-} from '@lightdash/common';
+import { TooManyRequestsError, WarehouseQueryError } from '@lightdash/common';
 import { z } from 'zod';
-import { type LiveHttpResponse } from '../../sdk';
+import { toLiveHttpError, type LiveHttpResponse } from '../../sdk';
 
 const errorSchema = z.object({
     message: z.string().optional(),
@@ -50,40 +45,35 @@ export const toGithubError = (
               .join(': ')
         : '';
     const detail = message ? `: ${message}` : '';
+    // GitHub's own message names the account's user ID or IP address
+    const limit = /secondary rate limit/i.test(message)
+        ? 'secondary rate limit'
+        : 'rate limit';
+    const rateLimited = (retryAfterSeconds: number | null) =>
+        `GitHub ${limit} reached. Search allows about 30 queries a minute per token; retry ${
+            retryAfterSeconds ? `in ${retryAfterSeconds} seconds` : 'shortly'
+        }.`;
+    // GitHub also limits with a 403, and says when with its own headers
     if (isRateLimited(response, message)) {
         const retryAfterSeconds = getRetryAfterSeconds(response.headers, now);
-        // GitHub's own message names the account's user ID or IP address
-        const limit = /secondary rate limit/i.test(message)
-            ? 'secondary rate limit'
-            : 'rate limit';
-        return new TooManyRequestsError(
-            `GitHub ${limit} reached. Search allows about 30 queries a minute per token; retry ${
-                retryAfterSeconds
-                    ? `in ${retryAfterSeconds} seconds`
-                    : 'shortly'
-            }.`,
-            { retryAfterSeconds },
-        );
-    }
-    if (response.status === 401) {
-        return new WarehouseConnectionError(
-            `GitHub rejected the token${detail}. Create a new personal access token and update this live data source.`,
-        );
-    }
-    if (response.status === 403 || response.status === 404) {
-        return new WarehouseConnectionError(
-            `GitHub can't read ${owner}/${repo}${detail}. Check the repository name and that the token can read it (for a fine-grained token: Metadata, Issues and Pull requests read access).`,
-        );
+        return new TooManyRequestsError(rateLimited(retryAfterSeconds), {
+            retryAfterSeconds,
+        });
     }
     if (response.status === 422) {
         return new WarehouseQueryError(
             `GitHub couldn't run this search${detail}. Check the filter values.`,
         );
     }
-    if (response.status >= 400 && response.status < 500) {
-        return new WarehouseQueryError(`GitHub rejected the request${detail}`);
-    }
-    return new UnexpectedServerError(
-        `GitHub returned ${response.status}${detail}`,
-    );
+    const unreadable = `GitHub can't read ${owner}/${repo}${detail}. Check the repository name and that the token can read it (for a fine-grained token: Metadata, Issues and Pull requests read access).`;
+    return toLiveHttpError(response, {
+        rateLimited,
+        connection: {
+            401: `GitHub rejected the token${detail}. Create a new personal access token and update this live data source.`,
+            403: unreadable,
+            404: unreadable,
+        },
+        rejected: `GitHub rejected the request${detail}`,
+        failed: `GitHub returned ${response.status}${detail}`,
+    });
 };

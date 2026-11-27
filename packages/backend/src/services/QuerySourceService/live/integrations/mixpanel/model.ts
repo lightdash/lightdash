@@ -8,6 +8,7 @@ import {
 import {
     ADDITIVE,
     dimension,
+    LIVE_FILTERS,
     metric,
     NON_ADDITIVE,
     ratio,
@@ -15,15 +16,6 @@ import {
     type LiveModel,
 } from '../../sdk';
 import { MIXPANEL_MAX_RETENTION_PERIODS } from './api';
-
-export const MIXPANEL_DATE_FILTERS = [
-    FilterOperator.IN_THE_PAST,
-    FilterOperator.IN_THE_CURRENT,
-    FilterOperator.IN_BETWEEN,
-    FilterOperator.EQUALS,
-    FilterOperator.GREATER_THAN,
-    FilterOperator.GREATER_THAN_OR_EQUAL,
-];
 
 /** Property filters, written into Mixpanel's `where` expression. */
 export const MIXPANEL_PROPERTY_FILTERS = [
@@ -33,8 +25,6 @@ export const MIXPANEL_PROPERTY_FILTERS = [
 
 /** An event name, or a saved funnel's id. */
 export const MIXPANEL_EVENT_FILTERS = [FilterOperator.EQUALS];
-
-export const MIXPANEL_NUMBER_FILTERS = [FilterOperator.EQUALS];
 
 // Today's top events (/api/query/events/top), as Mixpanel ranks them.
 export const MIXPANEL_TOP_EVENTS_EXPLORE: LiveExploreDefinition = {
@@ -97,7 +87,7 @@ export const MIXPANEL_EVENTS_EXPLORE: LiveExploreDefinition = {
             name: 'date',
             label: 'Date',
             type: DimensionType.DATE,
-            filterOperators: MIXPANEL_DATE_FILTERS,
+            filterOperators: LIVE_FILTERS.dateRangeOrFrom,
             description: 'Day of the event, in the project time zone.',
             aiHint: 'Without a date filter the query reads the last 30 days.',
             timeInterval: { base: 'date', grain: TimeFrames.DAY },
@@ -263,7 +253,7 @@ export const MIXPANEL_FUNNEL_EXPLORE: LiveExploreDefinition = {
             name: 'date',
             label: 'Date',
             type: DimensionType.DATE,
-            filterOperators: MIXPANEL_DATE_FILTERS,
+            filterOperators: LIVE_FILTERS.dateRangeOrFrom,
             description: 'Day users entered the funnel.',
             aiHint: 'Filter only, never a dimension. Without a filter the query reads the last 30 days.',
         }),
@@ -271,7 +261,7 @@ export const MIXPANEL_FUNNEL_EXPLORE: LiveExploreDefinition = {
             name: 'funnel_id',
             label: 'Funnel ID',
             type: DimensionType.NUMBER,
-            filterOperators: MIXPANEL_NUMBER_FILTERS,
+            filterOperators: LIVE_FILTERS.equals,
             description:
                 'ID of the saved funnel. Its steps and conversion window come from the funnel as saved in Mixpanel.',
             aiHint: 'Filter only (equals, one ID), never a dimension.',
@@ -352,7 +342,7 @@ export const MIXPANEL_RETENTION_EXPLORE: LiveExploreDefinition = {
             apiName: 'date',
             label: 'Cohort',
             type: DimensionType.DATE,
-            filterOperators: MIXPANEL_DATE_FILTERS,
+            filterOperators: LIVE_FILTERS.dateRangeOrFrom,
             description: 'Day the cohort started, in the project time zone.',
             aiHint: 'Filter it to choose the cohorts; without a filter the query reads the last 30 days.',
             timeInterval: { base: 'cohort', grain: TimeFrames.DAY },

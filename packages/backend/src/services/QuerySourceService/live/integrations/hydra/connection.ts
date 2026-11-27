@@ -11,8 +11,8 @@ import { z } from 'zod';
 import {
     formatTestCount,
     readRule,
+    summarizeTestWith,
     type LiveConnection,
-    type LiveTestSummary,
 } from '../../sdk';
 
 // The setup test reads the account the token's rows belong to
@@ -22,17 +22,16 @@ const testResponseSchema = z.object({
     users: z.number(),
 });
 
-export const summarizeHydraTest = (body: unknown): LiveTestSummary | null => {
-    const parsed = testResponseSchema.safeParse(body);
-    if (!parsed.success) return null;
-    return {
-        summary: `Connected to Hydra account ${parsed.data.account}`,
+export const summarizeHydraTest = summarizeTestWith(
+    testResponseSchema,
+    ({ account, events, users }) => ({
+        summary: `Connected to Hydra account ${account}`,
         facts: [
-            { label: 'Events', value: formatTestCount(parsed.data.events) },
-            { label: 'Users', value: formatTestCount(parsed.data.users) },
+            { label: 'Events', value: formatTestCount(events) },
+            { label: 'Users', value: formatTestCount(users) },
         ],
-    };
-};
+    }),
+);
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.HYDRA];
 

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { toMonthStart, toWeekStart } from '../../../sdk';
 import { type HydraDataset } from './data';
 
 /** What each of Hydra's reports groups by and totals. */
@@ -108,18 +109,10 @@ export type HydraReportRequest = z.infer<typeof hydraReportSchema>;
 
 export type HydraReportRow = Record<string, string | number>;
 
-const toMonday = (isoDate: string) => {
-    const date = new Date(`${isoDate}T00:00:00Z`);
-    date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
-    return date.toISOString().slice(0, 10);
-};
-
-const toMonthStart = (isoDate: string) => `${isoDate.slice(0, 7)}-01`;
-
 type Source = Record<string, string | number>;
 
 const readDimension = (row: Source, name: string): string => {
-    if (name === 'date_week') return toMonday(String(row.date));
+    if (name === 'date_week') return toWeekStart(String(row.date), 'monday');
     if (name === 'date_month') return toMonthStart(String(row.date));
     return String(row[name]);
 };

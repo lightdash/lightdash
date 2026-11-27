@@ -8,6 +8,7 @@ import {
 import {
     ADDITIVE,
     dimension,
+    LIVE_FILTERS,
     metric,
     NON_ADDITIVE,
     type LiveExploreDefinition,
@@ -18,15 +19,6 @@ import {
 export const HYDRA_STRING_FILTERS = [
     FilterOperator.EQUALS,
     FilterOperator.NOT_EQUALS,
-];
-
-export const HYDRA_DATE_FILTERS = [
-    FilterOperator.IN_THE_PAST,
-    FilterOperator.IN_THE_CURRENT,
-    FilterOperator.IN_BETWEEN,
-    FilterOperator.EQUALS,
-    FilterOperator.GREATER_THAN,
-    FilterOperator.GREATER_THAN_OR_EQUAL,
 ];
 
 export const HYDRA_EVENTS_EXPLORE: LiveExploreDefinition = {
@@ -44,7 +36,7 @@ export const HYDRA_EVENTS_EXPLORE: LiveExploreDefinition = {
             name: 'date',
             label: 'Date',
             type: DimensionType.DATE,
-            filterOperators: HYDRA_DATE_FILTERS,
+            filterOperators: LIVE_FILTERS.dateRangeOrFrom,
             description: 'Day of the event, in UTC.',
             aiHint: 'Without a date filter the query reads the last 30 days.',
             timeInterval: { base: 'date', grain: TimeFrames.DAY },

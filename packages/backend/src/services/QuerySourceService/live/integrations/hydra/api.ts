@@ -1,11 +1,5 @@
-import {
-    TooManyRequestsError,
-    UnexpectedServerError,
-    WarehouseConnectionError,
-    WarehouseQueryError,
-} from '@lightdash/common';
 import { z } from 'zod';
-import { parseRetryAfterSeconds, type LiveHttpResponse } from '../../sdk';
+import { toLiveHttpError, type LiveHttpResponse } from '../../sdk';
 
 const errorSchema = z.object({
     message: z.string().optional(),
@@ -21,32 +15,19 @@ export const toHydraError = (
     const parsed = errorSchema.safeParse(response.body);
     const body = parsed.success ? parsed.data : {};
     const detail = body.message ? `: ${body.message}` : '';
-    if (response.status === 429 || body.code === 'rate_limited') {
-        // Seconds or an HTTP date, as vendors send either
-        const retryAfterSeconds = parseRetryAfterSeconds(
-            response.headers['retry-after'],
-            now,
-        );
-        return new TooManyRequestsError(
-            `Hydra rate limit reached${detail}. Retry ${
-                retryAfterSeconds
-                    ? `in ${retryAfterSeconds} seconds`
-                    : 'shortly'
-            }, or loosen the source's vendorLimits or mockResponses.`,
-            { retryAfterSeconds },
-        );
-    }
-    if (response.status === 401) {
-        return new WarehouseConnectionError(
-            `Hydra rejected the sign-in token${detail}. Turn off failAuth in the source's behaviour, or set a token.`,
-        );
-    }
-    if (response.status >= 400 && response.status < 500) {
-        return new WarehouseQueryError(
-            `Hydra couldn't run this report${detail}.`,
-        );
-    }
-    return new UnexpectedServerError(
-        `Hydra returned ${response.status}${detail}`,
+    return toLiveHttpError(
+        body.code === 'rate_limited' ? { ...response, status: 429 } : response,
+        {
+            rateLimited: (seconds) =>
+                `Hydra rate limit reached${detail}. Retry ${
+                    seconds ? `in ${seconds} seconds` : 'shortly'
+                }, or loosen the source's vendorLimits or mockResponses.`,
+            connection: {
+                401: `Hydra rejected the sign-in token${detail}. Turn off failAuth in the source's behaviour, or set a token.`,
+            },
+            rejected: `Hydra couldn't run this report${detail}.`,
+            failed: `Hydra returned ${response.status}${detail}`,
+        },
+        now,
     );
 };

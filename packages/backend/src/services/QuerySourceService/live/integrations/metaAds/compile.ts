@@ -8,6 +8,7 @@ import {
     type SortField,
 } from '@lightdash/common';
 import {
+    addMonths,
     getActiveFilterRules,
     getApiName,
     getFinestLevel,
@@ -106,12 +107,6 @@ const toFilters = (apiName: string, rule: FilterRule): MetaAdsFilter[] => {
                 `"${rule.target.fieldId}" can't be filtered with "${rule.operator}".`,
             );
     }
-};
-
-const getCutoffDate = (today: string, months: number) => {
-    const date = new Date(`${today}T00:00:00Z`);
-    date.setUTCMonth(date.getUTCMonth() - months);
-    return date.toISOString().slice(0, 10);
 };
 
 /**
@@ -236,7 +231,7 @@ export const compileMetaAdsQuery = ({
     if (
         breakdowns.length > 0 &&
         metricNames.some((name) => REACH_METRICS.includes(name)) &&
-        startDate < getCutoffDate(today, REACH_BREAKDOWN_MONTHS)
+        startDate < addMonths(today, -REACH_BREAKDOWN_MONTHS)
     ) {
         throw refuse(
             null,

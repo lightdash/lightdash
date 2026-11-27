@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { addDays } from '../../../sdk';
 
 /**
  * Hydra's seeded rows. The same sign-in token, row count and day always give
@@ -54,12 +55,6 @@ const createRandom = (seed: number) => {
         state = (state * 48_271) % MODULUS;
         return (state - 1) / (MODULUS - 1);
     };
-};
-
-const addDays = (isoDate: string, days: number) => {
-    const date = new Date(`${isoDate}T00:00:00Z`);
-    date.setUTCDate(date.getUTCDate() + days);
-    return date.toISOString().slice(0, 10);
 };
 
 const pick = <T>(random: () => number, values: readonly T[]): T =>

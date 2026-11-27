@@ -2,11 +2,12 @@ import { ApiConnectorType, TimeFrames } from '@lightdash/common';
 import {
     ALL_PUSHDOWN_REFUSED,
     getIsoDateInTimeZone,
+    LIVE_FILTERS,
     type LiveQuery,
 } from '../../sdk';
 import { toLinkedInApiError } from './api';
 import { compileLinkedInAdsQuery } from './compile';
-import { LINKEDIN_ADS_DATE_FILTERS, LINKEDIN_ADS_ID_FILTERS } from './model';
+import { LINKEDIN_ADS_ID_FILTERS } from './model';
 import {
     LINKEDIN_ADS_CALLS_PER_QUERY,
     LINKEDIN_ADS_MAX_QUERY_ROWS,
@@ -38,7 +39,7 @@ export const linkedInAdsQuery: LiveQuery<
         filters: {
             operators: {
                 string: LINKEDIN_ADS_ID_FILTERS,
-                date: LINKEDIN_ADS_DATE_FILTERS,
+                date: LIVE_FILTERS.dateRange,
                 metric: [],
             },
             multipleValues: true,
@@ -48,7 +49,7 @@ export const linkedInAdsQuery: LiveQuery<
         metricFilters: false,
         dates: {
             rangeRequired: true,
-            operators: LINKEDIN_ADS_DATE_FILTERS,
+            operators: LIVE_FILTERS.dateRange,
             grains: [TimeFrames.DAY, TimeFrames.MONTH, TimeFrames.YEAR],
             timezone: 'fixed',
         },

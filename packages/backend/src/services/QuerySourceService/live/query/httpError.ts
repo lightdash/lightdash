@@ -32,10 +32,12 @@ export const toLiveHttpError = (
 ): Error => {
     const { status } = response;
     if (status === 429) {
-        const seconds = parseRetryAfterSeconds(
-            response.headers['retry-after'],
-            now,
-        );
+        const header = response.headers['retry-after']?.trim();
+        // Some APIs send fractional seconds, which an HTTP-date parse misreads
+        const seconds =
+            header && /^\d+(\.\d+)?$/.test(header)
+                ? Number(header)
+                : parseRetryAfterSeconds(header, now);
         const retryAfterSeconds =
             seconds !== null && seconds > 0 ? Math.ceil(seconds) : null;
         return new TooManyRequestsError(

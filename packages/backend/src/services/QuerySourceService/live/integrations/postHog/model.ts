@@ -11,6 +11,7 @@ import { z } from 'zod';
 import {
     ADDITIVE,
     dimension,
+    LIVE_FILTERS,
     metric,
     NON_ADDITIVE,
     type LiveDimensionDefinition,
@@ -24,19 +25,9 @@ import {
     type PostHogSettings,
 } from './api';
 
-export const POSTHOG_NULL_FILTERS = [
-    FilterOperator.NULL,
-    FilterOperator.NOT_NULL,
-];
-
 export const POSTHOG_STRING_FILTERS = [
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-    FilterOperator.INCLUDE,
-    FilterOperator.NOT_INCLUDE,
-    FilterOperator.STARTS_WITH,
-    FilterOperator.ENDS_WITH,
-    ...POSTHOG_NULL_FILTERS,
+    ...LIVE_FILTERS.text,
+    ...LIVE_FILTERS.nullChecks,
 ];
 
 export const POSTHOG_NUMBER_FILTERS = [
@@ -47,7 +38,7 @@ export const POSTHOG_NUMBER_FILTERS = [
     FilterOperator.GREATER_THAN,
     FilterOperator.GREATER_THAN_OR_EQUAL,
     FilterOperator.IN_BETWEEN,
-    ...POSTHOG_NULL_FILTERS,
+    ...LIVE_FILTERS.nullChecks,
 ];
 
 export const POSTHOG_DATE_FILTERS = [
@@ -59,12 +50,12 @@ export const POSTHOG_DATE_FILTERS = [
     FilterOperator.IN_BETWEEN,
     FilterOperator.LESS_THAN,
     FilterOperator.GREATER_THAN,
-    ...POSTHOG_NULL_FILTERS,
+    ...LIVE_FILTERS.nullChecks,
 ];
 
 export const POSTHOG_BOOLEAN_FILTERS = [
     FilterOperator.EQUALS,
-    ...POSTHOG_NULL_FILTERS,
+    ...LIVE_FILTERS.nullChecks,
 ];
 
 export const POSTHOG_FILTERS_BY_TYPE: Record<DimensionType, FilterOperator[]> =
@@ -77,7 +68,7 @@ export const POSTHOG_FILTERS_BY_TYPE: Record<DimensionType, FilterOperator[]> =
     };
 
 export const POSTHOG_METRIC_FILTERS = POSTHOG_NUMBER_FILTERS.filter(
-    (operator) => !POSTHOG_NULL_FILTERS.includes(operator),
+    (operator) => !LIVE_FILTERS.nullChecks.includes(operator),
 );
 
 export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {

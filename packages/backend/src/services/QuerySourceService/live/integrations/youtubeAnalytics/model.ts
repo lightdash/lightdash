@@ -8,18 +8,12 @@ import {
 import {
     ADDITIVE,
     dimension,
+    LIVE_FILTERS,
     metric,
     NON_ADDITIVE,
     type LiveExploreDefinition,
     type LiveModel,
 } from '../../sdk';
-
-export const YOUTUBE_ANALYTICS_DATE_FILTERS = [
-    FilterOperator.IN_THE_PAST,
-    FilterOperator.IN_THE_CURRENT,
-    FilterOperator.IN_BETWEEN,
-    FilterOperator.EQUALS,
-];
 
 // reports.query filters match whole values only
 export const YOUTUBE_ANALYTICS_EXACT_FILTERS = [FilterOperator.EQUALS];
@@ -62,7 +56,7 @@ export const YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE: LiveExploreDefinition = {
             apiName: 'day',
             label: 'Date',
             type: DimensionType.DATE,
-            filterOperators: YOUTUBE_ANALYTICS_DATE_FILTERS,
+            filterOperators: LIVE_FILTERS.dateRange,
             description: 'Day of the activity.',
             aiHint: 'Without a date filter the query reads the last 28 days. YouTube leaves out the most recent days until all their metrics are ready.',
             timeInterval: { base: 'date', grain: TimeFrames.DAY },

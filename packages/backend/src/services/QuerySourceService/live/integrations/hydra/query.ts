@@ -2,6 +2,7 @@ import { ApiConnectorType, HYDRA_DEFAULT_SOURCE } from '@lightdash/common';
 import {
     ALL_PUSHDOWN_REFUSED,
     getIsoDateInTimeZone,
+    LIVE_FILTERS,
     type LiveLimits,
     type LiveQuery,
 } from '../../sdk';
@@ -9,7 +10,7 @@ import { toHydraError } from './api';
 import { compileHydraQuery } from './compile';
 import { getHydraDeclaredLimits } from './fake/declaredLimits';
 import { hydraReportSchema, type HydraReportRequest } from './fake/report';
-import { HYDRA_DATE_FILTERS, HYDRA_STRING_FILTERS } from './model';
+import { HYDRA_STRING_FILTERS } from './model';
 import { HYDRA_MAX_QUERY_ROWS, runHydraQuery } from './run';
 
 const LIMITS: LiveLimits = {
@@ -37,7 +38,7 @@ export const hydraQuery: LiveQuery<ApiConnectorType.HYDRA, HydraReportRequest> =
             filters: {
                 operators: {
                     string: HYDRA_STRING_FILTERS,
-                    date: HYDRA_DATE_FILTERS,
+                    date: LIVE_FILTERS.dateRangeOrFrom,
                 },
                 multipleValues: true,
                 or: false,
@@ -46,7 +47,7 @@ export const hydraQuery: LiveQuery<ApiConnectorType.HYDRA, HydraReportRequest> =
             metricFilters: false,
             dates: {
                 rangeRequired: true,
-                operators: HYDRA_DATE_FILTERS,
+                operators: LIVE_FILTERS.dateRangeOrFrom,
                 grains: [],
                 timezone: 'fixed',
             },

@@ -2,6 +2,7 @@ import { ApiConnectorType } from '@lightdash/common';
 import {
     ALL_PUSHDOWN_REFUSED,
     getIsoDateInTimeZone,
+    LIVE_FILTERS,
     type LiveQuery,
 } from '../../sdk';
 import { toPylonError } from './api';
@@ -9,8 +10,6 @@ import { compilePylonQuery } from './compile';
 import {
     PYLON_DATE_FILTERS,
     PYLON_NUMBER_FILTERS,
-    PYLON_SET_FILTERS,
-    PYLON_TEXT_FILTERS,
     PYLON_VALUE_FILTERS,
 } from './model';
 import {
@@ -39,8 +38,8 @@ export const pylonQuery: LiveQuery<ApiConnectorType.PYLON, PylonRequest> = {
             operators: {
                 string: [
                     ...PYLON_VALUE_FILTERS,
-                    ...PYLON_TEXT_FILTERS,
-                    ...PYLON_SET_FILTERS,
+                    ...LIVE_FILTERS.contains,
+                    ...LIVE_FILTERS.nullChecks,
                 ],
                 number: PYLON_NUMBER_FILTERS,
                 date: PYLON_DATE_FILTERS,

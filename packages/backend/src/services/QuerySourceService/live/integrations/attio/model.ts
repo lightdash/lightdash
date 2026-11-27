@@ -10,31 +10,13 @@ import {
 import { z } from 'zod';
 import {
     dimension,
+    LIVE_FILTERS,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveModel,
     type LiveRuntime,
 } from '../../sdk';
 import { ATTIO_MAX_RECORDS, AttioObjectAccessError } from './api';
-
-export const ATTIO_TEXT_FILTERS = [
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-    FilterOperator.INCLUDE,
-    FilterOperator.NOT_INCLUDE,
-    FilterOperator.STARTS_WITH,
-    FilterOperator.ENDS_WITH,
-];
-
-export const ATTIO_NUMBER_FILTERS = [
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-    FilterOperator.GREATER_THAN,
-    FilterOperator.GREATER_THAN_OR_EQUAL,
-    FilterOperator.LESS_THAN,
-    FilterOperator.LESS_THAN_OR_EQUAL,
-    FilterOperator.IN_BETWEEN,
-];
 
 export const ATTIO_DATE_FILTERS = [
     FilterOperator.EQUALS,
@@ -52,8 +34,6 @@ export const ATTIO_CHOICE_FILTERS = [
     FilterOperator.EQUALS,
     FilterOperator.NOT_EQUALS,
 ];
-
-export const ATTIO_BOOLEAN_FILTERS = [FilterOperator.EQUALS];
 
 export const ATTIO_COMPANIES_EXPLORE: LiveExploreDefinition = {
     name: 'companies',
@@ -291,20 +271,20 @@ const rule = (
 /** Every attribute type Attio documents; any other type isn't scanned. */
 export const ATTIO_ATTRIBUTE_RULES: Record<string, AttioAttributeRule> = {
     text: rule(DimensionType.STRING, {
-        filterOperators: ATTIO_TEXT_FILTERS,
+        filterOperators: LIVE_FILTERS.text,
         sortable: true,
     }),
     number: rule(DimensionType.NUMBER, {
-        filterOperators: ATTIO_NUMBER_FILTERS,
+        filterOperators: LIVE_FILTERS.numberCompare,
         sortable: true,
     }),
     rating: rule(DimensionType.NUMBER, {
-        filterOperators: ATTIO_NUMBER_FILTERS,
+        filterOperators: LIVE_FILTERS.numberCompare,
         sortable: true,
     }),
     currency: rule(DimensionType.NUMBER, {
         property: 'currency_value',
-        filterOperators: ATTIO_NUMBER_FILTERS,
+        filterOperators: LIVE_FILTERS.numberCompare,
         sortable: true,
     }),
     date: rule(DimensionType.DATE, {
@@ -316,7 +296,7 @@ export const ATTIO_ATTRIBUTE_RULES: Record<string, AttioAttributeRule> = {
         sortable: true,
     }),
     checkbox: rule(DimensionType.BOOLEAN, {
-        filterOperators: ATTIO_BOOLEAN_FILTERS,
+        filterOperators: LIVE_FILTERS.equals,
         sortable: true,
     }),
     select: rule(DimensionType.STRING, {
@@ -329,16 +309,16 @@ export const ATTIO_ATTRIBUTE_RULES: Record<string, AttioAttributeRule> = {
     }),
     'personal-name': rule(DimensionType.STRING, {
         property: 'full_name',
-        filterOperators: ATTIO_TEXT_FILTERS,
+        filterOperators: LIVE_FILTERS.text,
         sortable: true,
     }),
     'email-address': rule(DimensionType.STRING, {
         property: 'email_address',
-        filterOperators: ATTIO_TEXT_FILTERS,
+        filterOperators: LIVE_FILTERS.text,
     }),
     domain: rule(DimensionType.STRING, {
         property: 'domain',
-        filterOperators: ATTIO_TEXT_FILTERS,
+        filterOperators: LIVE_FILTERS.text,
     }),
     'phone-number': rule(DimensionType.STRING, {
         property: 'original_phone_number',

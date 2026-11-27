@@ -15,6 +15,8 @@ import {
     refuseLiveQuery,
     splitDateRangeFilter,
     toAbsoluteDateRange,
+    toIsoDate,
+    toUtcDate,
     type LiveCompiledRequest,
 } from '../../sdk';
 
@@ -101,7 +103,7 @@ const SEARCH_CONSOLE_RETENTION_MONTHS = 16;
 
 /** The first day Search Console still reports, 16 months before `today`. */
 export const getSearchConsoleEarliestDate = (today: string): string => {
-    const date = new Date(`${today}T00:00:00Z`);
+    const date = toUtcDate(today);
     const day = date.getUTCDate();
     // From the 1st, so a 31st never rolls into the next month
     date.setUTCDate(1);
@@ -110,7 +112,7 @@ export const getSearchConsoleEarliestDate = (today: string): string => {
         Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0),
     ).getUTCDate();
     date.setUTCDate(Math.min(day, lastDay));
-    return date.toISOString().slice(0, 10);
+    return toIsoDate(date);
 };
 
 /**

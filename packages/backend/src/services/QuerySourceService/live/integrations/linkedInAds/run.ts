@@ -1,8 +1,4 @@
-import {
-    ApiConnectorType,
-    DimensionType,
-    LIVE_INTEGRATION_CATALOG,
-} from '@lightdash/common';
+import { ApiConnectorType, DimensionType } from '@lightdash/common';
 import { z } from 'zod';
 import {
     tooManyRowsError,
@@ -17,8 +13,6 @@ import {
     LINKEDIN_ADS_DATE_COLUMNS,
 } from './api';
 
-const LABEL =
-    LIVE_INTEGRATION_CATALOG[ApiConnectorType.LINKEDIN_ADS].messageLabel;
 // A response has at most 15,000 elements and adAnalytics has no pagination
 const LINKEDIN_ADS_MAX_ELEMENTS = 15_000;
 /** The most rows one query can ask for; one fewer than a response holds, to detect truncation. */
@@ -176,7 +170,7 @@ export const runLinkedInAdsQuery = async ({
     // The API stops at 15,000 with no way to read the rest
     if (elements.length >= LINKEDIN_ADS_MAX_ELEMENTS) {
         throw tooManyRowsError({
-            label: LABEL,
+            label: 'LinkedIn Ads',
             maxRows: LINKEDIN_ADS_MAX_QUERY_ROWS,
         });
     }

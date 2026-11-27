@@ -8,6 +8,7 @@ import {
 import {
     ADDITIVE,
     dimension,
+    LIVE_FILTERS,
     metric,
     NON_ADDITIVE,
     ratio,
@@ -15,20 +16,6 @@ import {
     type LiveModel,
 } from '../../sdk';
 import { META_ADS_DEFAULT_DAYS } from './api';
-
-export const META_ADS_DATE_FILTERS = [
-    FilterOperator.IN_THE_PAST,
-    FilterOperator.IN_THE_CURRENT,
-    FilterOperator.IN_BETWEEN,
-    FilterOperator.EQUALS,
-    FilterOperator.GREATER_THAN,
-    FilterOperator.GREATER_THAN_OR_EQUAL,
-];
-
-export const META_ADS_ID_FILTERS = [
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-];
 
 export const META_ADS_NAME_FILTERS = [
     FilterOperator.EQUALS,
@@ -64,7 +51,7 @@ export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
             apiName: 'date_start',
             label: 'Date',
             type: DimensionType.DATE,
-            filterOperators: META_ADS_DATE_FILTERS,
+            filterOperators: LIVE_FILTERS.dateRangeOrFrom,
             description: 'Day of the activity, in the ad account time zone.',
             aiHint: `Without a date filter the query reads the last ${META_ADS_DEFAULT_DAYS} days.`,
             timeInterval: { base: 'date', grain: TimeFrames.DAY },
@@ -84,7 +71,7 @@ export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
             name: 'campaign_id',
             label: 'Campaign ID',
             type: DimensionType.STRING,
-            filterOperators: META_ADS_ID_FILTERS,
+            filterOperators: LIVE_FILTERS.isOrIsNot,
             description: 'Meta campaign ID.',
         }),
         dimension({
@@ -106,7 +93,7 @@ export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
             name: 'adset_id',
             label: 'Ad set ID',
             type: DimensionType.STRING,
-            filterOperators: META_ADS_ID_FILTERS,
+            filterOperators: LIVE_FILTERS.isOrIsNot,
             description: 'Meta ad set ID.',
         }),
         dimension({
@@ -120,7 +107,7 @@ export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
             name: 'ad_id',
             label: 'Ad ID',
             type: DimensionType.STRING,
-            filterOperators: META_ADS_ID_FILTERS,
+            filterOperators: LIVE_FILTERS.isOrIsNot,
             description: 'Meta ad ID.',
         }),
         dimension({

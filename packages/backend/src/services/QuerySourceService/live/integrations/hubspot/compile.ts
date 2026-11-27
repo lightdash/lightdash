@@ -13,6 +13,9 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import {
+    addDays,
+    addMonths,
+    DAY_MS,
     getActiveFilterRules,
     getApiName,
     getLiveDateRange,
@@ -20,6 +23,7 @@ import {
     getLiveExplore,
     refuseLiveQuery,
     toAbsoluteDateRange,
+    toUtcDate,
     type LiveCompiledRequest,
 } from '../../sdk';
 import {
@@ -36,7 +40,6 @@ import { type HubspotFilter, type HubspotRequest } from './run';
 
 // Placeholder for the open side of a one-sided date filter; never sent
 const EARLIEST_DATE = '1900-01-01';
-const DAY_MS = 86_400_000;
 
 const COLUMN_TYPE: Partial<
     Record<
@@ -50,9 +53,6 @@ const COLUMN_TYPE: Partial<
     [DimensionType.DATE]: 'date',
     [DimensionType.TIMESTAMP]: 'timestamp',
 };
-
-const toEpochMs = (isoDate: string) =>
-    new Date(`${isoDate}T00:00:00Z`).getTime();
 
 const NEXT_MONTHS: Partial<Record<UnitOfTime, number>> = {
     [UnitOfTime.months]: 1,
@@ -79,21 +79,18 @@ const getNextDateRange = (rule: FilterRule, today: string) => {
         );
     }
     const unit = settings.unitOfTime ?? UnitOfTime.days;
-    const date = new Date(`${today}T00:00:00Z`);
     const months = NEXT_MONTHS[unit];
     if (unit === UnitOfTime.days || unit === UnitOfTime.weeks) {
-        date.setUTCDate(
-            date.getUTCDate() + count * (unit === UnitOfTime.weeks ? 7 : 1),
-        );
-    } else if (months !== undefined) {
-        date.setUTCMonth(date.getUTCMonth() + count * months);
-    } else {
+        const days = count * (unit === UnitOfTime.weeks ? 7 : 1);
+        return { startDate: today, endDate: addDays(today, days) };
+    }
+    if (months === undefined) {
         throw refuseLiveQuery(
             'live_source.refused.date_grain',
             `HubSpot filters dates by day, so "in the next" can't use ${unit}.`,
         );
     }
-    return { startDate: today, endDate: date.toISOString().slice(0, 10) };
+    return { startDate: today, endDate: addMonths(today, count * months) };
 };
 
 /**
@@ -107,14 +104,18 @@ const getCurrentDateRange = (rule: FilterRule, today: string) => {
     );
     const settings: { unitOfTime?: UnitOfTime } = rule.settings ?? {};
     const unit = settings.unitOfTime ?? UnitOfTime.days;
-    const end = new Date(`${startDate}T00:00:00Z`);
     const months = NEXT_MONTHS[unit];
     if (unit === UnitOfTime.weeks) {
-        end.setUTCDate(end.getUTCDate() + 6);
-    } else if (months !== undefined) {
-        end.setUTCMonth(end.getUTCMonth() + months, 0);
+        return { startDate, endDate: addDays(startDate, 6) };
     }
-    return { startDate, endDate: end.toISOString().slice(0, 10) };
+    // startDate is the period's first day, so this is the period's last day
+    return {
+        startDate,
+        endDate:
+            months === undefined
+                ? startDate
+                : addDays(addMonths(startDate, months), -1),
+    };
 };
 
 /** The whole UTC days a date filter covers, both ends included. */
@@ -151,12 +152,12 @@ const toDateFilters = (
     const start = {
         propertyName,
         operator: 'GTE' as const,
-        value: String(toEpochMs(startDate)),
+        value: String(toUtcDate(startDate).getTime()),
     };
     const end = {
         propertyName,
         operator: 'LT' as const,
-        value: String(toEpochMs(endDate) + DAY_MS),
+        value: String(toUtcDate(endDate).getTime() + DAY_MS),
     };
     switch (rule.operator) {
         case FilterOperator.GREATER_THAN:

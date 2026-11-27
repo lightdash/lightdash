@@ -2,16 +2,15 @@ import { ApiConnectorType } from '@lightdash/common';
 import {
     ALL_PUSHDOWN_REFUSED,
     getIsoDateInTimeZone,
+    LIVE_FILTERS,
     type LiveQuery,
 } from '../../sdk';
 import { toGithubError } from './api';
 import { compileGithubQuery } from './compile';
 import {
-    GITHUB_BOOLEAN_FILTERS,
     GITHUB_DATE_FILTERS,
     GITHUB_NUMBER_FILTERS,
     GITHUB_TEXT_FILTERS,
-    GITHUB_VALUE_FILTERS,
 } from './model';
 import {
     GITHUB_CALLS_PER_QUERY,
@@ -37,9 +36,9 @@ export const githubQuery: LiveQuery<ApiConnectorType.GITHUB, GithubRequest> = {
     capabilities: {
         filters: {
             operators: {
-                string: [...GITHUB_VALUE_FILTERS, ...GITHUB_TEXT_FILTERS],
+                string: [...LIVE_FILTERS.isOrIsNot, ...GITHUB_TEXT_FILTERS],
                 number: GITHUB_NUMBER_FILTERS,
-                boolean: GITHUB_BOOLEAN_FILTERS,
+                boolean: LIVE_FILTERS.equals,
                 date: GITHUB_DATE_FILTERS,
             },
             multipleValues: false,

@@ -13,6 +13,7 @@ import {
     type SortField,
 } from '@lightdash/common';
 import {
+    addDays,
     getApiName,
     getLiveDateRange,
     getLiveDefinitionName,
@@ -38,13 +39,6 @@ const BUILT_IN_ATTRIBUTES: Record<string, string> = {
     record_id: 'record_id',
     created_at: 'created_at',
 };
-
-const DAY_MS = 86_400_000;
-
-const nextDay = (isoDate: string) =>
-    new Date(new Date(`${isoDate}T00:00:00Z`).getTime() + DAY_MS)
-        .toISOString()
-        .slice(0, 10);
 
 const either = (conditions: AttioCondition[]): AttioCondition =>
     conditions.length === 1 ? conditions[0] : { $or: conditions };
@@ -84,9 +78,9 @@ const toDayRange = (
             return { start: startDate };
         case FilterOperator.LESS_THAN:
         case FilterOperator.LESS_THAN_OR_EQUAL:
-            return { end: nextDay(endDate) };
+            return { end: addDays(endDate, 1) };
         default:
-            return { start: startDate, end: nextDay(endDate) };
+            return { start: startDate, end: addDays(endDate, 1) };
     }
 };
 

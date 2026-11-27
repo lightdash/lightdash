@@ -10,13 +10,13 @@ import { z } from 'zod';
 import {
     assertMaxRows,
     readRowsWithinCap,
+    toIsoDate,
+    toWeekStart,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
     type LiveRuntime,
 } from '../../sdk';
-
-const LABEL = 'GitHub';
 
 /** Search reads 100 results a page and at most 1,000 in all. */
 export const GITHUB_SEARCH_PAGE_SIZE = 100;
@@ -256,7 +256,7 @@ const runSearch = async ({
     // Pages are numbered, so every page asks for the same size
     const perPage = Math.min(GITHUB_SEARCH_PAGE_SIZE, requestedRows + 1);
     const { rows, hasMoreRows } = await readRowsWithinCap({
-        label: LABEL,
+        label: 'GitHub',
         requestedRows,
         maxRows: GITHUB_MAX_QUERY_ROWS,
         pageSize: perPage,
@@ -348,16 +348,6 @@ const fetchContributorStats = async (
     }
 };
 
-const DAY_MS = 86_400_000;
-
-/** The Sunday on or before `isoDate`, the day GitHub starts its weeks. */
-const toWeekStart = (isoDate: string) => {
-    const date = new Date(`${isoDate}T00:00:00Z`);
-    return new Date(date.getTime() - date.getUTCDay() * DAY_MS)
-        .toISOString()
-        .slice(0, 10);
-};
-
 const runContributors = async ({
     settings,
     request,
@@ -375,7 +365,8 @@ const runContributors = async ({
         (column): column is 'author' | 'week' =>
             column === 'author' || column === 'week',
     );
-    const since = request.since ? toWeekStart(request.since) : null;
+    // GitHub starts its weeks on Sunday
+    const since = request.since ? toWeekStart(request.since, 'sunday') : null;
     const authors = request.authors ? new Set(request.authors) : null;
     const excluded = new Set(request.excludeAuthors ?? []);
 
@@ -387,7 +378,7 @@ const runContributors = async ({
             return;
         }
         weeks.forEach(({ w, a, d, c }) => {
-            const week = new Date(w * 1000).toISOString().slice(0, 10);
+            const week = toIsoDate(new Date(w * 1000));
             const isInRange =
                 (!since || week >= since) &&
                 (!request.until || week <= request.until);

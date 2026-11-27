@@ -1,11 +1,6 @@
-import {
-    TooManyRequestsError,
-    UnexpectedServerError,
-    WarehouseConnectionError,
-    WarehouseQueryError,
-} from '@lightdash/common';
+import { TooManyRequestsError, UnexpectedServerError } from '@lightdash/common';
 import { z } from 'zod';
-import { type LiveHttpResponse } from '../../sdk';
+import { toLiveHttpError, type LiveHttpResponse } from '../../sdk';
 
 const googleErrorSchema = z.object({
     error: z.object({
@@ -22,48 +17,43 @@ export const toGoogleApiError = (
     const parsed = googleErrorSchema.safeParse(response.body);
     const message = parsed.success ? parsed.data.error.message : undefined;
     const detail = message ? `: ${message}` : '';
-    switch (response.status) {
-        case 400:
-            return new WarehouseQueryError(
-                `${label} rejected the request${detail}`,
-            );
-        case 401:
-        case 403:
-            if (
-                parsed.success &&
-                parsed.data.error.status === 'RESOURCE_EXHAUSTED'
-            ) {
-                return new TooManyRequestsError(
-                    `${label} quota exceeded${detail}. Retry in a minute.`,
-                    { retryAfterSeconds: null },
-                );
-            }
-            return new WarehouseConnectionError(
-                `Google denied access to ${resource}${detail}. Check that the signed-in Google account can still read it, or reconnect the source.`,
-            );
-        case 404:
-            return new WarehouseConnectionError(
-                `${label} could not find ${resource}${detail}`,
-            );
-        case 429: {
-            const retryAfter = Number(
-                response.headers['retry-after'] ?? Number.NaN,
-            );
-            const retryAfterSeconds = Number.isFinite(retryAfter)
-                ? retryAfter
-                : null;
-            return new TooManyRequestsError(
-                `${label} quota exceeded${detail}. ${
-                    retryAfterSeconds !== null
-                        ? `Retry after ${retryAfterSeconds} seconds.`
-                        : 'Retry in a minute.'
-                }`,
-                { retryAfterSeconds },
-            );
-        }
-        default:
-            return new UnexpectedServerError(
-                `${label} returned ${response.status}${detail}`,
-            );
+    const quotaExceeded = (retryAfterSeconds: number | null) =>
+        `${label} quota exceeded${detail}. ${
+            retryAfterSeconds !== null
+                ? `Retry after ${retryAfterSeconds} seconds.`
+                : 'Retry in a minute.'
+        }`;
+    const denied = `Google denied access to ${resource}${detail}. Check that the signed-in Google account can still read it, or reconnect the source.`;
+    const connection = {
+        401: denied,
+        403: denied,
+        404: `${label} could not find ${resource}${detail}`,
+    };
+    const failed = `${label} returned ${response.status}${detail}`;
+    const { status } = response;
+    // Google reports some quota errors as 401 or 403
+    if (
+        (status === 401 || status === 403) &&
+        parsed.success &&
+        parsed.data.error.status === 'RESOURCE_EXHAUSTED'
+    ) {
+        return new TooManyRequestsError(quotaExceeded(null), {
+            retryAfterSeconds: null,
+        });
     }
+    // Only a 400 is the request's fault; other unlisted 4xx are Google's
+    if (
+        status > 400 &&
+        status < 500 &&
+        status !== 429 &&
+        !(status in connection)
+    ) {
+        return new UnexpectedServerError(failed);
+    }
+    return toLiveHttpError(response, {
+        rateLimited: quotaExceeded,
+        connection,
+        rejected: `${label} rejected the request${detail}`,
+        failed,
+    });
 };

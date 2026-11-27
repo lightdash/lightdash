@@ -2,11 +2,12 @@ import { ApiConnectorType } from '@lightdash/common';
 import {
     ALL_PUSHDOWN_REFUSED,
     getIsoDateInTimeZone,
+    LIVE_FILTERS,
     type LiveQuery,
 } from '../../sdk';
 import { toMetaAdsError } from './api';
 import { compileMetaAdsQuery } from './compile';
-import { META_ADS_DATE_FILTERS, META_ADS_NAME_FILTERS } from './model';
+import { META_ADS_NAME_FILTERS } from './model';
 import {
     META_ADS_CALLS_PER_QUERY,
     META_ADS_MAX_QUERY_ROWS,
@@ -37,7 +38,7 @@ export const metaAdsQuery: LiveQuery<
         filters: {
             operators: {
                 string: META_ADS_NAME_FILTERS,
-                date: META_ADS_DATE_FILTERS,
+                date: LIVE_FILTERS.dateRangeOrFrom,
             },
             multipleValues: true,
             or: false,
@@ -46,7 +47,7 @@ export const metaAdsQuery: LiveQuery<
         metricFilters: false,
         dates: {
             rangeRequired: true,
-            operators: META_ADS_DATE_FILTERS,
+            operators: LIVE_FILTERS.dateRangeOrFrom,
             grains: [],
             timezone: 'fixed',
         },

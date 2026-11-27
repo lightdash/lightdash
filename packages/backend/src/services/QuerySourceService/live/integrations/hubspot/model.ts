@@ -10,6 +10,7 @@ import { z } from 'zod';
 import {
     ADDITIVE,
     dimension,
+    LIVE_FILTERS,
     metric,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
@@ -36,16 +37,6 @@ export const HUBSPOT_CHOICE_FILTERS = [
     FilterOperator.NOT_EQUALS,
 ];
 
-export const HUBSPOT_NUMBER_FILTERS = [
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-    FilterOperator.GREATER_THAN,
-    FilterOperator.GREATER_THAN_OR_EQUAL,
-    FilterOperator.LESS_THAN,
-    FilterOperator.LESS_THAN_OR_EQUAL,
-    FilterOperator.IN_BETWEEN,
-];
-
 export const HUBSPOT_DATE_FILTERS = [
     FilterOperator.EQUALS,
     FilterOperator.IN_THE_PAST,
@@ -57,8 +48,6 @@ export const HUBSPOT_DATE_FILTERS = [
     FilterOperator.LESS_THAN,
     FilterOperator.LESS_THAN_OR_EQUAL,
 ];
-
-export const HUBSPOT_BOOLEAN_FILTERS = [FilterOperator.EQUALS];
 
 export const HUBSPOT_DEALS_EXPLORE: LiveExploreDefinition = {
     name: 'deals',
@@ -498,11 +487,11 @@ const PROPERTY_RULES: Record<
     },
     number: {
         type: DimensionType.NUMBER,
-        filterOperators: HUBSPOT_NUMBER_FILTERS,
+        filterOperators: LIVE_FILTERS.numberCompare,
     },
     bool: {
         type: DimensionType.BOOLEAN,
-        filterOperators: HUBSPOT_BOOLEAN_FILTERS,
+        filterOperators: LIVE_FILTERS.equals,
     },
     date: { type: DimensionType.DATE, filterOperators: HUBSPOT_DATE_FILTERS },
     datetime: {

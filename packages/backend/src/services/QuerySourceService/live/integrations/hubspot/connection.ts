@@ -13,27 +13,26 @@ import { z } from 'zod';
 import {
     formatTestCount,
     readRule,
+    summarizeTestWith,
     type LiveConnection,
-    type LiveTestSummary,
 } from '../../sdk';
 
 // The setup test lists the object's properties
 const testResponseSchema = z.object({ results: z.array(z.unknown()) });
 
 /** The setup test reads the deals' properties, the source's main explore. */
-export const summarizeHubspotTest = (body: unknown): LiveTestSummary | null => {
-    const parsed = testResponseSchema.safeParse(body);
-    if (!parsed.success) return null;
-    return {
+export const summarizeHubspotTest = summarizeTestWith(
+    testResponseSchema,
+    ({ results }) => ({
         summary: 'Connected to your HubSpot account',
         facts: [
             {
                 label: 'Deal properties',
-                value: formatTestCount(parsed.data.results.length),
+                value: formatTestCount(results.length),
             },
         ],
-    };
-};
+    }),
+);
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.HUBSPOT];
 

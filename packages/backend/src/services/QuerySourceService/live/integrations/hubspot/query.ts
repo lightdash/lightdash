@@ -2,16 +2,12 @@ import { ApiConnectorType, TimeFrames } from '@lightdash/common';
 import {
     ALL_PUSHDOWN_REFUSED,
     getIsoDateInTimeZone,
+    LIVE_FILTERS,
     type LiveQuery,
 } from '../../sdk';
 import { HUBSPOT_MAX_ROWS, HUBSPOT_PAGE_SIZE, toHubspotError } from './api';
 import { compileHubspotQuery } from './compile';
-import {
-    HUBSPOT_BOOLEAN_FILTERS,
-    HUBSPOT_DATE_FILTERS,
-    HUBSPOT_NUMBER_FILTERS,
-    HUBSPOT_TEXT_FILTERS,
-} from './model';
+import { HUBSPOT_DATE_FILTERS, HUBSPOT_TEXT_FILTERS } from './model';
 import {
     hubspotRequestSchema,
     runHubspotQuery,
@@ -34,8 +30,8 @@ export const hubspotQuery: LiveQuery<ApiConnectorType.HUBSPOT, HubspotRequest> =
             filters: {
                 operators: {
                     string: HUBSPOT_TEXT_FILTERS,
-                    number: HUBSPOT_NUMBER_FILTERS,
-                    boolean: HUBSPOT_BOOLEAN_FILTERS,
+                    number: LIVE_FILTERS.numberCompare,
+                    boolean: LIVE_FILTERS.equals,
                     date: HUBSPOT_DATE_FILTERS,
                     timestamp: HUBSPOT_DATE_FILTERS,
                 },

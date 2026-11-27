@@ -6,12 +6,16 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import {
+    addDays,
+    addMonths,
+    DAY_MS,
     getActiveFilterRules,
     getApiName,
     getLiveExplore,
     resolveAbsoluteDateRange,
     toFieldCombinationIssue,
     toLiveQueryError,
+    toUtcDate,
     type LiveCompiledRequest,
 } from '../../sdk';
 import {
@@ -25,7 +29,6 @@ const REACH_MAX_DAYS = 92;
 // Reports need a metric; dimension-only queries ask for this one and drop it.
 const DIMENSION_ONLY_METRIC = 'impressions';
 const NUMERIC_ID = /^\d{1,20}$/;
-const DAY_MS = 86_400_000;
 
 const TIME_GRANULARITIES: Record<string, string> = {
     day: 'DAILY',
@@ -73,22 +76,11 @@ const toIds = (rule: FilterRule) => {
 
 const daysBetween = (startDate: string, endDate: string) =>
     Math.round(
-        (new Date(`${endDate}T00:00:00Z`).getTime() -
-            new Date(`${startDate}T00:00:00Z`).getTime()) /
+        (toUtcDate(endDate).getTime() - toUtcDate(startDate).getTime()) /
             DAY_MS,
     );
 
-const getSixMonthsAgo = (today: string) => {
-    const date = new Date(`${today}T00:00:00Z`);
-    date.setUTCMonth(date.getUTCMonth() - 6);
-    return date.toISOString().slice(0, 10);
-};
-
-const isMonthEnd = (isoDate: string) => {
-    const next = new Date(`${isoDate}T00:00:00Z`);
-    next.setUTCDate(next.getUTCDate() + 1);
-    return next.getUTCDate() === 1;
-};
+const isMonthEnd = (isoDate: string) => addDays(isoDate, 1).endsWith('-01');
 
 /**
  * With no date breakdown LinkedIn widens bounds older than six months to whole
@@ -98,7 +90,7 @@ const assertNotRoundedByLinkedIn = (
     { startDate, endDate }: { startDate: string; endDate: string },
     today: string,
 ) => {
-    const cutoff = getSixMonthsAgo(today);
+    const cutoff = addMonths(today, -6);
     const startRounds = startDate < cutoff && !startDate.endsWith('-01');
     const endRounds = endDate < cutoff && !isMonthEnd(endDate);
     if (startRounds || endRounds) {

@@ -2,18 +2,18 @@ import {
     AMPLITUDE_PATHS,
     ApiConnectorType,
     DimensionType,
-    LIVE_INTEGRATION_CATALOG,
     UnexpectedServerError,
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
+    addDays,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
     type LiveRuntime,
 } from '../../sdk';
 
-const LABEL = LIVE_INTEGRATION_CATALOG[ApiConnectorType.AMPLITUDE].messageLabel;
+const LABEL = 'Amplitude';
 
 /** Rows one query may return; Amplitude returns every row in one call. */
 export const AMPLITUDE_MAX_QUERY_ROWS = 5_000;
@@ -313,12 +313,6 @@ const MONTHS = [
     'Nov',
     'Dec',
 ];
-
-const addDays = (date: string, days: number) => {
-    const value = new Date(`${date}T00:00:00Z`);
-    value.setUTCDate(value.getUTCDate() + days);
-    return value.toISOString().slice(0, 10);
-};
 
 /**
  * A cohort's start date from its label, for responses without `datetimes`:

@@ -2,12 +2,14 @@ import {
     ApiConnectorType,
     assertUnreachable,
     DimensionType,
-    LIVE_INTEGRATION_CATALOG,
     MIXPANEL_PATHS,
     UnexpectedServerError,
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
+    DAY_MS,
+    toUtcDate,
+    toWeekStart,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
@@ -19,8 +21,6 @@ import {
     MIXPANEL_PROPERTIES,
     type MixpanelProperty,
 } from './api';
-
-const LABEL = LIVE_INTEGRATION_CATALOG[ApiConnectorType.MIXPANEL].messageLabel;
 
 /** Rows one query may return; Mixpanel returns every row in one call. */
 export const MIXPANEL_MAX_QUERY_ROWS = 5_000;
@@ -149,8 +149,7 @@ export const toWhereExpression = (filters: PropertyFilter[]): string | null => {
 /** Days from start to end, both included. */
 export const countDays = (start: string, end: string) =>
     Math.round(
-        (Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) /
-            86_400_000,
+        (toUtcDate(end).getTime() - toUtcDate(start).getTime()) / DAY_MS,
     ) + 1;
 
 const toIsoDate = (value: string): string | null => {
@@ -235,7 +234,7 @@ const getSingleBucket = (
     );
     if (split.length > 0) {
         throw new UnexpectedServerError(
-            `${LABEL} split the range into periods; add a date dimension.`,
+            'Mixpanel split the range into periods; add a date dimension.',
         );
     }
     return (
@@ -426,7 +425,7 @@ const runFunnel = async (
     );
     if (buckets.length > 0 && (!bucket || others.length > 0)) {
         throw new UnexpectedServerError(
-            `${LABEL} split the funnel into ${buckets.length} periods instead of one.`,
+            `Mixpanel split the funnel into ${buckets.length} periods instead of one.`,
         );
     }
     const steps = bucket?.[1].steps ?? [];
@@ -456,11 +455,7 @@ const COHORT_COLUMNS = { day: 'date', week: 'week', month: 'month' } as const;
 type RetentionUnit = keyof typeof MIXPANEL_MAX_RETENTION_PERIODS;
 
 /** Monday of the date's week, as Mixpanel starts its weeks. */
-const toMonday = (date: string) => {
-    const day = new Date(`${date}T00:00:00Z`);
-    day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
-    return day.toISOString().slice(0, 10);
-};
+const toMonday = (date: string) => toWeekStart(date, 'monday');
 
 /** Calendar periods from the start's period to the end's, both counted. */
 const countPeriods = (start: string, end: string, unit: RetentionUnit) => {
@@ -614,7 +609,7 @@ const runRequest = (
         case 'retention':
             return runRetention(request, projectId, runtime);
         default:
-            throw new Error(`Unknown ${LABEL} endpoint`);
+            throw new Error('Unknown Mixpanel endpoint');
     }
 };
 

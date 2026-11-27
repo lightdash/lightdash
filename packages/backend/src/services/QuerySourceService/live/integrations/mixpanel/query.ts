@@ -2,15 +2,12 @@ import { ApiConnectorType, TimeFrames } from '@lightdash/common';
 import {
     ALL_PUSHDOWN_REFUSED,
     getIsoDateInTimeZone,
+    LIVE_FILTERS,
     type LiveQuery,
 } from '../../sdk';
 import { toMixpanelError } from './api';
 import { compileMixpanelQuery } from './compile';
-import {
-    MIXPANEL_DATE_FILTERS,
-    MIXPANEL_NUMBER_FILTERS,
-    MIXPANEL_PROPERTY_FILTERS,
-} from './model';
+import { MIXPANEL_PROPERTY_FILTERS } from './model';
 import {
     MIXPANEL_CALLS_PER_QUERY,
     MIXPANEL_MAX_QUERY_ROWS,
@@ -39,8 +36,8 @@ export const mixpanelQuery: LiveQuery<
         filters: {
             operators: {
                 string: MIXPANEL_PROPERTY_FILTERS,
-                number: MIXPANEL_NUMBER_FILTERS,
-                date: MIXPANEL_DATE_FILTERS,
+                number: LIVE_FILTERS.equals,
+                date: LIVE_FILTERS.dateRangeOrFrom,
             },
             multipleValues: true,
             or: false,
@@ -49,7 +46,7 @@ export const mixpanelQuery: LiveQuery<
         metricFilters: false,
         dates: {
             rangeRequired: true,
-            operators: MIXPANEL_DATE_FILTERS,
+            operators: LIVE_FILTERS.dateRangeOrFrom,
             grains: [TimeFrames.DAY, TimeFrames.WEEK, TimeFrames.MONTH],
             timezone: 'fixed',
         },

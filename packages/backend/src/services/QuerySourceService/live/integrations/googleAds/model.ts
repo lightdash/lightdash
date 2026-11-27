@@ -8,6 +8,7 @@ import {
 import {
     ADDITIVE,
     dimension,
+    LIVE_FILTERS,
     metric,
     NON_ADDITIVE,
     ratio,
@@ -15,26 +16,10 @@ import {
     type LiveModel,
 } from '../../sdk';
 
-export const GOOGLE_ADS_STRING_FILTERS = [
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-    FilterOperator.INCLUDE,
-    FilterOperator.NOT_INCLUDE,
-    FilterOperator.STARTS_WITH,
-    FilterOperator.ENDS_WITH,
-];
-
 // Ids and enums only compare whole values in GAQL
 export const GOOGLE_ADS_EXACT_FILTERS = [
     FilterOperator.EQUALS,
     FilterOperator.NOT_EQUALS,
-];
-
-export const GOOGLE_ADS_DATE_FILTERS = [
-    FilterOperator.IN_THE_PAST,
-    FilterOperator.IN_THE_CURRENT,
-    FilterOperator.IN_BETWEEN,
-    FilterOperator.EQUALS,
 ];
 
 export const GOOGLE_ADS_METRIC_FILTERS = [
@@ -66,7 +51,7 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             apiName: 'segments.date',
             label: 'Date',
             type: DimensionType.DATE,
-            filterOperators: GOOGLE_ADS_DATE_FILTERS,
+            filterOperators: LIVE_FILTERS.dateRange,
             description: 'Day of the activity, in the account time zone.',
             aiHint: 'Without a date filter the query reads the last 30 days. Day and week breakdowns only reach back 37 months.',
             timeInterval: { base: 'date', grain: TimeFrames.DAY },
@@ -154,7 +139,7 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             apiName: 'customer.descriptive_name',
             label: 'Account name',
             type: DimensionType.STRING,
-            filterOperators: GOOGLE_ADS_STRING_FILTERS,
+            filterOperators: LIVE_FILTERS.text,
             description: 'Name of the Google Ads account.',
             groups: ['Account'],
         }),
@@ -163,7 +148,7 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             apiName: 'customer.currency_code',
             label: 'Account currency',
             type: DimensionType.STRING,
-            filterOperators: GOOGLE_ADS_STRING_FILTERS,
+            filterOperators: LIVE_FILTERS.text,
             description:
                 'Currency of all money metrics, as an ISO 4217 code such as USD.',
             groups: ['Account'],
@@ -182,7 +167,7 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             apiName: 'campaign.name',
             label: 'Campaign name',
             type: DimensionType.STRING,
-            filterOperators: GOOGLE_ADS_STRING_FILTERS,
+            filterOperators: LIVE_FILTERS.text,
             description: 'Name of the campaign.',
             aiHint: 'A removed campaign can share its name with a live one; add Campaign ID to tell them apart.',
             groups: ['Campaign'],
@@ -233,7 +218,7 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             apiName: 'ad_group.name',
             label: 'Ad group name',
             type: DimensionType.STRING,
-            filterOperators: GOOGLE_ADS_STRING_FILTERS,
+            filterOperators: LIVE_FILTERS.text,
             description: 'Name of the ad group.',
             aiHint: 'Unique only within a campaign: needs Campaign name or Campaign ID in the results.',
             groups: ['Ad group'],

@@ -7,6 +7,7 @@ import {
 import {
     ADDITIVE,
     dimension,
+    LIVE_FILTERS,
     metric,
     type LiveExploreDefinition,
     type LiveModel,
@@ -18,11 +19,6 @@ export const GITHUB_TEXT_FILTERS = [
     FilterOperator.NOT_INCLUDE,
 ];
 
-export const GITHUB_VALUE_FILTERS = [
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-];
-
 // A state is one qualifier; "not merged" has no single one
 export const GITHUB_STATE_FILTERS = [FilterOperator.EQUALS];
 
@@ -31,8 +27,6 @@ export const GITHUB_NUMBER_FILTERS = [
     FilterOperator.GREATER_THAN,
     FilterOperator.LESS_THAN,
 ];
-
-export const GITHUB_BOOLEAN_FILTERS = [FilterOperator.EQUALS];
 
 export const GITHUB_DATE_FILTERS = [
     FilterOperator.IN_THE_PAST,
@@ -104,7 +98,7 @@ export const GITHUB_PULL_REQUESTS_EXPLORE: LiveExploreDefinition = {
             name: 'author',
             label: 'Author',
             type: DimensionType.STRING,
-            filterOperators: GITHUB_VALUE_FILTERS,
+            filterOperators: LIVE_FILTERS.isOrIsNot,
             description:
                 'GitHub username of the person who opened the pull request.',
         }),
@@ -112,7 +106,7 @@ export const GITHUB_PULL_REQUESTS_EXPLORE: LiveExploreDefinition = {
             name: 'assignee',
             label: 'Assignee',
             type: DimensionType.STRING,
-            filterOperators: GITHUB_VALUE_FILTERS,
+            filterOperators: LIVE_FILTERS.isOrIsNot,
             description:
                 'GitHub username of the first person assigned to the pull request.',
             aiHint: 'Only the first assignee is shown; filtering by it matches any assignee.',
@@ -121,7 +115,7 @@ export const GITHUB_PULL_REQUESTS_EXPLORE: LiveExploreDefinition = {
             name: 'labels',
             label: 'Labels',
             type: DimensionType.STRING,
-            filterOperators: GITHUB_VALUE_FILTERS,
+            filterOperators: LIVE_FILTERS.isOrIsNot,
             description: 'Labels on the pull request, separated by commas.',
             aiHint: '"Is" keeps pull requests that have the label.',
         }),
@@ -174,7 +168,7 @@ export const GITHUB_PULL_REQUESTS_EXPLORE: LiveExploreDefinition = {
             name: 'draft',
             label: 'Draft',
             type: DimensionType.BOOLEAN,
-            filterOperators: GITHUB_BOOLEAN_FILTERS,
+            filterOperators: LIVE_FILTERS.equals,
             description: 'Whether the pull request is a draft.',
         }),
         dimension({
@@ -257,14 +251,14 @@ export const GITHUB_ISSUES_EXPLORE: LiveExploreDefinition = {
             name: 'author',
             label: 'Author',
             type: DimensionType.STRING,
-            filterOperators: GITHUB_VALUE_FILTERS,
+            filterOperators: LIVE_FILTERS.isOrIsNot,
             description: 'GitHub username of the person who opened the issue.',
         }),
         dimension({
             name: 'assignee',
             label: 'Assignee',
             type: DimensionType.STRING,
-            filterOperators: GITHUB_VALUE_FILTERS,
+            filterOperators: LIVE_FILTERS.isOrIsNot,
             description:
                 'GitHub username of the first person assigned to the issue.',
             aiHint: 'Only the first assignee is shown; filtering by it matches any assignee.',
@@ -273,7 +267,7 @@ export const GITHUB_ISSUES_EXPLORE: LiveExploreDefinition = {
             name: 'labels',
             label: 'Labels',
             type: DimensionType.STRING,
-            filterOperators: GITHUB_VALUE_FILTERS,
+            filterOperators: LIVE_FILTERS.isOrIsNot,
             description: 'Labels on the issue, separated by commas.',
             aiHint: '"Is" keeps issues that have the label.',
         }),
@@ -359,7 +353,7 @@ export const GITHUB_CONTRIBUTORS_EXPLORE: LiveExploreDefinition = {
             name: 'author',
             label: 'Author',
             type: DimensionType.STRING,
-            filterOperators: GITHUB_VALUE_FILTERS,
+            filterOperators: LIVE_FILTERS.isOrIsNot,
             description: 'GitHub username of the commit author.',
         }),
         dimension({

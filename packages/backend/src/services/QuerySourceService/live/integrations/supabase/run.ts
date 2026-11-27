@@ -12,8 +12,6 @@ import {
     type LiveRunResult,
 } from '../../sdk';
 
-const LABEL = 'Supabase';
-
 /** Supabase's default max-rows: the most rows one Data API call returns. */
 export const SUPABASE_PAGE_SIZE = 1_000;
 export const SUPABASE_MAX_PAGES = 5;
@@ -206,7 +204,7 @@ export const runSupabaseQuery = async ({
     const query = toSupabaseQuery(request);
     const requestedRows = Math.min(limit, request.limit ?? limit);
     const { rows, hasMoreRows } = await readRowsWithinCap({
-        label: LABEL,
+        label: 'Supabase',
         requestedRows,
         maxRows: SUPABASE_MAX_QUERY_ROWS,
         pageSize: SUPABASE_PAGE_SIZE,

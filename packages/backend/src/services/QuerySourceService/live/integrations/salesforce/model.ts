@@ -12,6 +12,7 @@ import { z } from 'zod';
 import {
     ADDITIVE,
     dimension,
+    LIVE_FILTERS,
     metric,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
@@ -27,14 +28,8 @@ import {
 } from './api';
 
 export const SALESFORCE_TEXT_FILTERS = [
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-    FilterOperator.INCLUDE,
-    FilterOperator.NOT_INCLUDE,
-    FilterOperator.STARTS_WITH,
-    FilterOperator.ENDS_WITH,
-    FilterOperator.NULL,
-    FilterOperator.NOT_NULL,
+    ...LIVE_FILTERS.text,
+    ...LIVE_FILTERS.nullChecks,
 ];
 
 /** Picklists and ids match whole values. */
@@ -46,15 +41,8 @@ export const SALESFORCE_CHOICE_FILTERS = [
 ];
 
 export const SALESFORCE_NUMBER_FILTERS = [
-    FilterOperator.EQUALS,
-    FilterOperator.NOT_EQUALS,
-    FilterOperator.GREATER_THAN,
-    FilterOperator.GREATER_THAN_OR_EQUAL,
-    FilterOperator.LESS_THAN,
-    FilterOperator.LESS_THAN_OR_EQUAL,
-    FilterOperator.IN_BETWEEN,
-    FilterOperator.NULL,
-    FilterOperator.NOT_NULL,
+    ...LIVE_FILTERS.numberCompare,
+    ...LIVE_FILTERS.nullChecks,
 ];
 
 export const SALESFORCE_DATE_FILTERS = [
@@ -70,8 +58,6 @@ export const SALESFORCE_DATE_FILTERS = [
     FilterOperator.NULL,
     FilterOperator.NOT_NULL,
 ];
-
-export const SALESFORCE_BOOLEAN_FILTERS = [FilterOperator.EQUALS];
 
 /** HAVING compares a metric with a number. */
 export const SALESFORCE_METRIC_FILTERS = [
@@ -702,7 +688,7 @@ const toDimensions = (field: DescribeField): LiveDimensionDefinition[] => {
                           filterOperators:
                               field.filterable === false
                                   ? []
-                                  : SALESFORCE_BOOLEAN_FILTERS,
+                                  : LIVE_FILTERS.equals,
                       },
                   ]
                 : [];

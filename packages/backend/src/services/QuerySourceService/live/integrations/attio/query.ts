@@ -2,6 +2,7 @@ import { ApiConnectorType, TimeFrames } from '@lightdash/common';
 import {
     ALL_PUSHDOWN_REFUSED,
     getIsoDateInTimeZone,
+    LIVE_FILTERS,
     type LiveQuery,
 } from '../../sdk';
 import {
@@ -11,12 +12,7 @@ import {
     toAttioError,
 } from './api';
 import { compileAttioQuery } from './compile';
-import {
-    ATTIO_BOOLEAN_FILTERS,
-    ATTIO_DATE_FILTERS,
-    ATTIO_NUMBER_FILTERS,
-    ATTIO_TEXT_FILTERS,
-} from './model';
+import { ATTIO_DATE_FILTERS } from './model';
 import { attioRequestSchema, runAttioQuery, type AttioRequest } from './run';
 
 export const attioQuery: LiveQuery<ApiConnectorType.ATTIO, AttioRequest> = {
@@ -33,9 +29,9 @@ export const attioQuery: LiveQuery<ApiConnectorType.ATTIO, AttioRequest> = {
     capabilities: {
         filters: {
             operators: {
-                string: ATTIO_TEXT_FILTERS,
-                number: ATTIO_NUMBER_FILTERS,
-                boolean: ATTIO_BOOLEAN_FILTERS,
+                string: LIVE_FILTERS.text,
+                number: LIVE_FILTERS.numberCompare,
+                boolean: LIVE_FILTERS.equals,
                 date: ATTIO_DATE_FILTERS,
                 timestamp: ATTIO_DATE_FILTERS,
             },

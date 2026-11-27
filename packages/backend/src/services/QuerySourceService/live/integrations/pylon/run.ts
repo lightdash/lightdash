@@ -11,7 +11,9 @@ import { z } from 'zod';
 import {
     assertMaxRows,
     readRowsWithinCap,
+    toMonthStart,
     tooManyRowsError,
+    toWeekStart,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
@@ -385,22 +387,12 @@ const usersSchema = z.object({
 const toDay = (timestamp: string | null | undefined) =>
     timestamp ? timestamp.slice(0, 10) : null;
 
-const DAY_MS = 86_400_000;
-
 /** The Monday of a UTC day's week. */
-const toWeek = (day: string | null) => {
-    if (!day) {
-        return null;
-    }
-    const date = new Date(`${day}T00:00:00Z`);
-    const daysSinceMonday = (date.getUTCDay() + 6) % 7;
-    return new Date(date.getTime() - daysSinceMonday * DAY_MS)
-        .toISOString()
-        .slice(0, 10);
-};
+const toWeek = (day: string | null) =>
+    day ? toWeekStart(day, 'monday') : null;
 
 /** The first day of a UTC day's month. */
-const toMonth = (day: string | null) => (day ? `${day.slice(0, 7)}-01` : null);
+const toMonth = (day: string | null) => (day ? toMonthStart(day) : null);
 
 const round = (value: number, digits: number) =>
     Math.round(value * 10 ** digits) / 10 ** digits;

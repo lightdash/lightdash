@@ -2,7 +2,6 @@ import {
     ApiConnectorType,
     DimensionType,
     getMetaAdsInsightsPath,
-    LIVE_INTEGRATION_CATALOG,
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
@@ -14,7 +13,6 @@ import {
 } from '../../sdk';
 import { META_ADS_BREAKDOWNS } from './api';
 
-const LABEL = LIVE_INTEGRATION_CATALOG[ApiConnectorType.META_ADS].messageLabel;
 export const META_ADS_PAGE_SIZE = 500;
 export const META_ADS_CALLS_PER_QUERY = 10;
 /** The most rows one query can read: every page it may fetch. */
@@ -241,7 +239,7 @@ export const runMetaAdsQuery = async ({
     };
 
     const { rows, hasMoreRows } = await readRowsWithinCap({
-        label: LABEL,
+        label: 'Meta Ads',
         requestedRows: Math.min(limit, request.limit ?? limit),
         maxRows: META_ADS_MAX_QUERY_ROWS,
         pageSize: META_ADS_PAGE_SIZE,

@@ -8,19 +8,13 @@ import {
 import {
     ADDITIVE,
     dimension,
+    LIVE_FILTERS,
     metric,
     NON_ADDITIVE,
     type LiveExploreDefinition,
     type LiveModel,
 } from '../../sdk';
 import { LINKEDIN_ADS_DEFAULT_DAYS, LINKEDIN_ADS_MAX_METRICS } from './api';
-
-export const LINKEDIN_ADS_DATE_FILTERS = [
-    FilterOperator.IN_THE_PAST,
-    FilterOperator.IN_THE_CURRENT,
-    FilterOperator.IN_BETWEEN,
-    FilterOperator.EQUALS,
-];
 
 // adAnalytics facets match whole IDs
 export const LINKEDIN_ADS_ID_FILTERS = [FilterOperator.EQUALS];
@@ -53,7 +47,7 @@ export const LINKEDIN_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
             apiName: 'day',
             label: 'Date',
             type: DimensionType.DATE,
-            filterOperators: LINKEDIN_ADS_DATE_FILTERS,
+            filterOperators: LIVE_FILTERS.dateRange,
             description: 'Day of the activity, in UTC.',
             aiHint: `Without a date filter the query reads the last ${LINKEDIN_ADS_DEFAULT_DAYS} days.`,
             timeInterval: { base: 'date', grain: TimeFrames.DAY },

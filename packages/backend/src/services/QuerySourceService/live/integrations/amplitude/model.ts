@@ -8,6 +8,7 @@ import {
 import {
     ADDITIVE,
     dimension,
+    LIVE_FILTERS,
     metric,
     NON_ADDITIVE,
     ratio,
@@ -15,15 +16,6 @@ import {
     type LiveModel,
 } from '../../sdk';
 import { AMPLITUDE_INTERVALS } from './api';
-
-export const AMPLITUDE_DATE_FILTERS = [
-    FilterOperator.IN_THE_PAST,
-    FilterOperator.IN_THE_CURRENT,
-    FilterOperator.IN_BETWEEN,
-    FilterOperator.EQUALS,
-    FilterOperator.GREATER_THAN,
-    FilterOperator.GREATER_THAN_OR_EQUAL,
-];
 
 /** Segment filters on a property: Amplitude's `is` and `is not`. */
 export const AMPLITUDE_PROPERTY_FILTERS = [
@@ -33,8 +25,6 @@ export const AMPLITUDE_PROPERTY_FILTERS = [
 
 /** An event name, or the ordered steps of a funnel. */
 export const AMPLITUDE_EVENT_FILTERS = [FilterOperator.EQUALS];
-
-export const AMPLITUDE_NUMBER_FILTERS = [FilterOperator.EQUALS];
 
 // Event segmentation (/api/2/events/segmentation). Totals add up across days
 // and property values; uniques count each user once per row, so they don't.
@@ -53,7 +43,7 @@ export const AMPLITUDE_EVENTS_EXPLORE: LiveExploreDefinition = {
             name: 'date',
             label: 'Date',
             type: DimensionType.DATE,
-            filterOperators: AMPLITUDE_DATE_FILTERS,
+            filterOperators: LIVE_FILTERS.dateRangeOrFrom,
             description: 'Day of the events, in the project time zone.',
             aiHint: 'Without a date filter the query reads the last 30 days.',
             timeInterval: { base: 'date', grain: TimeFrames.DAY },
@@ -217,7 +207,7 @@ export const AMPLITUDE_USERS_EXPLORE: LiveExploreDefinition = {
             name: 'date',
             label: 'Date',
             type: DimensionType.DATE,
-            filterOperators: AMPLITUDE_DATE_FILTERS,
+            filterOperators: LIVE_FILTERS.dateRangeOrFrom,
             description: 'Day of the activity, in the project time zone.',
             aiHint: 'Without a date filter the query reads the last 30 days.',
             timeInterval: { base: 'date', grain: TimeFrames.DAY },
@@ -351,7 +341,7 @@ export const AMPLITUDE_FUNNEL_EXPLORE: LiveExploreDefinition = {
             name: 'date',
             label: 'Date',
             type: DimensionType.DATE,
-            filterOperators: AMPLITUDE_DATE_FILTERS,
+            filterOperators: LIVE_FILTERS.dateRangeOrFrom,
             description:
                 'Day a user entered the funnel, in the project time zone.',
             aiHint: 'Filter only, never select it. Without a filter, users who entered in the last 30 days.',
@@ -375,7 +365,7 @@ export const AMPLITUDE_FUNNEL_EXPLORE: LiveExploreDefinition = {
             name: 'conversion_window_days',
             label: 'Conversion window (days)',
             type: DimensionType.NUMBER,
-            filterOperators: AMPLITUDE_NUMBER_FILTERS,
+            filterOperators: LIVE_FILTERS.equals,
             description:
                 'Number of days a user has to complete the funnel after the first step. Defaults to 30.',
             aiHint: 'Filter only (equals); never select it.',
@@ -512,7 +502,7 @@ export const AMPLITUDE_RETENTION_EXPLORE: LiveExploreDefinition = {
             apiName: 'date',
             label: 'Cohort',
             type: DimensionType.DATE,
-            filterOperators: AMPLITUDE_DATE_FILTERS,
+            filterOperators: LIVE_FILTERS.dateRangeOrFrom,
             description:
                 'Day the users in the cohort did the start event, in the project time zone.',
             aiHint: 'Without a cohort filter the query reads the last 30 days. Use with Days after start.',
@@ -642,7 +632,7 @@ export const AMPLITUDE_SESSIONS_EXPLORE: LiveExploreDefinition = {
             name: 'date',
             label: 'Date',
             type: DimensionType.DATE,
-            filterOperators: AMPLITUDE_DATE_FILTERS,
+            filterOperators: LIVE_FILTERS.dateRangeOrFrom,
             description: 'Day of the sessions, in the project time zone.',
             aiHint: 'Without a date filter the query reads the last 30 days.',
             timeInterval: { base: 'date', grain: TimeFrames.DAY },

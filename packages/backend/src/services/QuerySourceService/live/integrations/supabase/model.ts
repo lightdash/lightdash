@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
+    LIVE_FILTERS,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveModel,
@@ -17,11 +18,6 @@ import {
 export const SUPABASE_VALUE_FILTERS = [
     FilterOperator.EQUALS,
     FilterOperator.NOT_EQUALS,
-];
-
-export const SUPABASE_SET_FILTERS = [
-    FilterOperator.NULL,
-    FilterOperator.NOT_NULL,
 ];
 
 export const SUPABASE_RANGE_FILTERS = [
@@ -37,18 +33,18 @@ export const SUPABASE_TEXT_FILTERS = [
     FilterOperator.NOT_INCLUDE,
     FilterOperator.STARTS_WITH,
     FilterOperator.ENDS_WITH,
-    ...SUPABASE_SET_FILTERS,
+    ...LIVE_FILTERS.nullChecks,
 ];
 
 export const SUPABASE_NUMBER_FILTERS = [
     ...SUPABASE_VALUE_FILTERS,
     ...SUPABASE_RANGE_FILTERS,
-    ...SUPABASE_SET_FILTERS,
+    ...LIVE_FILTERS.nullChecks,
 ];
 
 export const SUPABASE_BOOLEAN_FILTERS = [
     FilterOperator.EQUALS,
-    ...SUPABASE_SET_FILTERS,
+    ...LIVE_FILTERS.nullChecks,
 ];
 
 export const SUPABASE_DATE_FILTERS = [
@@ -56,18 +52,18 @@ export const SUPABASE_DATE_FILTERS = [
     FilterOperator.NOT_EQUALS,
     ...SUPABASE_RANGE_FILTERS,
     FilterOperator.IN_BETWEEN,
-    ...SUPABASE_SET_FILTERS,
+    ...LIVE_FILTERS.nullChecks,
 ];
 
 /** A timestamp "is" a day only as a range, so timestamps take ranges. */
 export const SUPABASE_TIMESTAMP_FILTERS = [
     ...SUPABASE_RANGE_FILTERS,
     FilterOperator.IN_BETWEEN,
-    ...SUPABASE_SET_FILTERS,
+    ...LIVE_FILTERS.nullChecks,
 ];
 
 /** JSON and arrays read as text; they can only be checked for being empty. */
-export const SUPABASE_STRUCTURED_FILTERS = SUPABASE_SET_FILTERS;
+export const SUPABASE_STRUCTURED_FILTERS = LIVE_FILTERS.nullChecks;
 
 /**
  * The one explore of a source: the rows of its table. Its columns come from

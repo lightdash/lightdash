@@ -2,6 +2,7 @@ import { ApiConnectorType, TimeFrames } from '@lightdash/common';
 import {
     ALL_PUSHDOWN_REFUSED,
     getIsoDateInTimeZone,
+    LIVE_FILTERS,
     type LiveQuery,
 } from '../../sdk';
 import {
@@ -11,7 +12,6 @@ import {
 } from './api';
 import { compileSalesforceQuery } from './compile';
 import {
-    SALESFORCE_BOOLEAN_FILTERS,
     SALESFORCE_DATE_FILTERS,
     SALESFORCE_METRIC_FILTERS,
     SALESFORCE_NUMBER_FILTERS,
@@ -40,7 +40,7 @@ export const salesforceQuery: LiveQuery<
             operators: {
                 string: SALESFORCE_TEXT_FILTERS,
                 number: SALESFORCE_NUMBER_FILTERS,
-                boolean: SALESFORCE_BOOLEAN_FILTERS,
+                boolean: LIVE_FILTERS.equals,
                 date: SALESFORCE_DATE_FILTERS,
                 timestamp: SALESFORCE_DATE_FILTERS,
                 metric: SALESFORCE_METRIC_FILTERS,

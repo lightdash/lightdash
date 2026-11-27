@@ -1,11 +1,10 @@
 import {
     TooManyRequestsError,
-    UnexpectedServerError,
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { type LiveHttpResponse } from '../../sdk';
+import { toLiveHttpError, type LiveHttpResponse } from '../../sdk';
 
 export type MetaAdsLevel = 'account' | 'campaign' | 'adset' | 'ad';
 
@@ -92,11 +91,12 @@ export const toMetaAdsError = (
             `Meta denied access to ad account ${adAccountId}${detail}. Check that the token has ads_read and its system user is assigned to this ad account.`,
         );
     }
+    const rateLimited = `Meta Ads rate limit reached${detail}. Retry in a few minutes.`;
+    // Meta throttles with error codes too, and never says for how long
     if (isMetaThrottle(code) || response.status === 429) {
-        return new TooManyRequestsError(
-            `Meta Ads rate limit reached${detail}. Retry in a few minutes.`,
-            { retryAfterSeconds: null },
-        );
+        return new TooManyRequestsError(rateLimited, {
+            retryAfterSeconds: null,
+        });
     }
     if (
         subcode === META_TOO_MUCH_DATA_SUBCODE ||
@@ -112,12 +112,9 @@ export const toMetaAdsError = (
             `Meta Ads keeps 37 months of history${detail}. Choose a more recent date range.`,
         );
     }
-    if (response.status >= 400 && response.status < 500) {
-        return new WarehouseQueryError(
-            `Meta Ads rejected the request${detail}`,
-        );
-    }
-    return new UnexpectedServerError(
-        `Meta Ads returned ${response.status}${detail}`,
-    );
+    return toLiveHttpError(response, {
+        rateLimited: () => rateLimited,
+        rejected: `Meta Ads rejected the request${detail}`,
+        failed: `Meta Ads returned ${response.status}${detail}`,
+    });
 };

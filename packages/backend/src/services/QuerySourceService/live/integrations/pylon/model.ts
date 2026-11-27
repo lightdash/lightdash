@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import {
     dimension,
+    LIVE_FILTERS,
     type LiveExploreDefinition,
     type LiveModel,
 } from '../../sdk';
@@ -14,13 +15,6 @@ import {
 export const PYLON_VALUE_FILTERS = [
     FilterOperator.EQUALS,
     FilterOperator.NOT_EQUALS,
-];
-
-export const PYLON_SET_FILTERS = [FilterOperator.NULL, FilterOperator.NOT_NULL];
-
-export const PYLON_TEXT_FILTERS = [
-    FilterOperator.INCLUDE,
-    FilterOperator.NOT_INCLUDE,
 ];
 
 export const PYLON_NUMBER_FILTERS = [
@@ -63,7 +57,7 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
             name: 'title',
             label: 'Title',
             type: DimensionType.STRING,
-            filterOperators: PYLON_TEXT_FILTERS,
+            filterOperators: LIVE_FILTERS.contains,
             description: 'Title of the issue.',
             aiHint: 'Filters match part of the title.',
         }),
@@ -108,14 +102,20 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
             name: 'account_id',
             label: 'Account ID',
             type: DimensionType.STRING,
-            filterOperators: [...PYLON_VALUE_FILTERS, ...PYLON_SET_FILTERS],
+            filterOperators: [
+                ...PYLON_VALUE_FILTERS,
+                ...LIVE_FILTERS.nullChecks,
+            ],
             description: 'Pylon ID of the customer account.',
         }),
         dimension({
             name: 'assignee_email',
             label: 'Assignee',
             type: DimensionType.STRING,
-            filterOperators: [...PYLON_VALUE_FILTERS, ...PYLON_SET_FILTERS],
+            filterOperators: [
+                ...PYLON_VALUE_FILTERS,
+                ...LIVE_FILTERS.nullChecks,
+            ],
             description: 'Email of the teammate assigned to the issue.',
         }),
         dimension({
@@ -386,14 +386,14 @@ export const PYLON_ACCOUNTS_EXPLORE: LiveExploreDefinition = {
             name: 'name',
             label: 'Name',
             type: DimensionType.STRING,
-            filterOperators: [...PYLON_VALUE_FILTERS, ...PYLON_TEXT_FILTERS],
+            filterOperators: [...PYLON_VALUE_FILTERS, ...LIVE_FILTERS.contains],
             description: 'Name of the account.',
         }),
         dimension({
             name: 'domain',
             label: 'Domain',
             type: DimensionType.STRING,
-            filterOperators: [...PYLON_VALUE_FILTERS, ...PYLON_TEXT_FILTERS],
+            filterOperators: [...PYLON_VALUE_FILTERS, ...LIVE_FILTERS.contains],
             description: 'Primary domain of the account.',
         }),
         dimension({
@@ -465,14 +465,14 @@ export const PYLON_CONTACTS_EXPLORE: LiveExploreDefinition = {
             name: 'name',
             label: 'Name',
             type: DimensionType.STRING,
-            filterOperators: [...PYLON_VALUE_FILTERS, ...PYLON_TEXT_FILTERS],
+            filterOperators: [...PYLON_VALUE_FILTERS, ...LIVE_FILTERS.contains],
             description: 'Name of the contact.',
         }),
         dimension({
             name: 'email',
             label: 'Email',
             type: DimensionType.STRING,
-            filterOperators: [...PYLON_VALUE_FILTERS, ...PYLON_TEXT_FILTERS],
+            filterOperators: [...PYLON_VALUE_FILTERS, ...LIVE_FILTERS.contains],
             description: 'Email address of the contact.',
         }),
         dimension({

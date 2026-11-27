@@ -14,6 +14,8 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import {
+    addDays,
+    addMonths,
     getApiName,
     getLiveDateRange,
     getLiveDefinitionName,
@@ -42,18 +44,6 @@ const COLUMN_TYPE: Partial<Record<DimensionType, SalesforceColumnType>> = {
     [DimensionType.BOOLEAN]: 'boolean',
     [DimensionType.DATE]: 'date',
     [DimensionType.TIMESTAMP]: 'timestamp',
-};
-
-const addDays = (isoDate: string, days: number) => {
-    const date = new Date(`${isoDate}T00:00:00Z`);
-    date.setUTCDate(date.getUTCDate() + days);
-    return date.toISOString().slice(0, 10);
-};
-
-const addMonths = (isoDate: string, months: number) => {
-    const date = new Date(`${isoDate}T00:00:00Z`);
-    date.setUTCMonth(date.getUTCMonth() + months);
-    return date.toISOString().slice(0, 10);
 };
 
 /** The last day of the current period, which may be in the future. */

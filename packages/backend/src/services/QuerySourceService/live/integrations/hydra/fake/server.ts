@@ -8,7 +8,11 @@ import {
     type HydraSettings,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { type LiveHttpRequest, type LiveHttpResponse } from '../../../sdk';
+import {
+    toIsoDate,
+    type LiveHttpRequest,
+    type LiveHttpResponse,
+} from '../../../sdk';
 import {
     buildHydraDataset,
     getHydraAccountId,
@@ -143,7 +147,7 @@ export const createHydraServer = ({
     };
 
     const getDataset = (token: string, rowCount: number) => {
-        const today = now().toISOString().slice(0, 10);
+        const today = toIsoDate(now());
         const key = JSON.stringify([token, rowCount, today]);
         const cached = datasets.get(key);
         if (cached) return cached;

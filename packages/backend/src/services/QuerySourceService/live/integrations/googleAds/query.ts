@@ -2,15 +2,12 @@ import { ApiConnectorType, TimeFrames } from '@lightdash/common';
 import {
     ALL_PUSHDOWN_REFUSED,
     getIsoDateInTimeZone,
+    LIVE_FILTERS,
     type LiveQuery,
 } from '../../sdk';
 import { toGoogleAdsApiError } from './api';
 import { compileGoogleAdsQuery } from './compile';
-import {
-    GOOGLE_ADS_DATE_FILTERS,
-    GOOGLE_ADS_METRIC_FILTERS,
-    GOOGLE_ADS_STRING_FILTERS,
-} from './model';
+import { GOOGLE_ADS_METRIC_FILTERS } from './model';
 import {
     GOOGLE_ADS_MAX_QUERY_ROWS,
     parseGoogleAdsRequest,
@@ -35,8 +32,8 @@ export const googleAdsQuery: LiveQuery<
     capabilities: {
         filters: {
             operators: {
-                string: GOOGLE_ADS_STRING_FILTERS,
-                date: GOOGLE_ADS_DATE_FILTERS,
+                string: LIVE_FILTERS.text,
+                date: LIVE_FILTERS.dateRange,
                 metric: GOOGLE_ADS_METRIC_FILTERS,
             },
             multipleValues: true,
@@ -46,7 +43,7 @@ export const googleAdsQuery: LiveQuery<
         metricFilters: true,
         dates: {
             rangeRequired: true,
-            operators: GOOGLE_ADS_DATE_FILTERS,
+            operators: LIVE_FILTERS.dateRange,
             grains: [
                 TimeFrames.DAY,
                 TimeFrames.WEEK,
