@@ -1,0 +1,61 @@
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: rem(6px);
+}
+
+.chip {
+    display: flex;
+    align-items: center;
+    gap: rem(6px);
+    max-width: rem(200px);
+    height: rem(24px);
+    padding: 0 rem(4px) 0 rem(8px);
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+}
+
+.label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.more {
+    height: rem(24px);
+    padding: 0 rem(8px);
+    border-radius: var(--mantine-radius-sm);
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+}
+
+.more:hover,
+.more[aria-expanded='true'] {
+    background: var(--mantine-color-default-hover);
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    max-height: rem(240px);
+    overflow-y: auto;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: rem(6px);
+    height: rem(26px);
+    padding: 0 rem(4px) 0 rem(6px);
+}
+
+.rowText {
+    flex: 1;
+    min-width: 0;
+}

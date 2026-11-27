@@ -124,6 +124,8 @@ type Props = {
     header?: ReactNode;
     /** Attached resources rendered between the editor and the toolbar. */
     attachments?: ReactNode;
+    /** Content pinned to the prompt, rendered above the editor. */
+    pinned?: ReactNode;
     toolbarLeft?: ReactNode;
     toolbarRight?: ReactNode;
     /** Card only: a drag handle on one edge that lets the editor grow away
@@ -156,6 +158,7 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
             shouldBlockSubmit,
             header,
             attachments,
+            pinned,
             toolbarLeft,
             toolbarRight,
             resizeHandle,
@@ -375,6 +378,7 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 data-variant={variant}
                 data-size={size}
                 data-has-attachments={attachments ? true : undefined}
+                data-has-pinned={pinned ? true : undefined}
                 data-accent={accent}
                 data-disabled={disabled || undefined}
                 data-resized={editorHeight !== null || undefined}
@@ -405,6 +409,10 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 )}
                 {header && <Box className={classes.header}>{header}</Box>}
 
+                {isInline && pinned && (
+                    <Box className={classes.pinned}>{pinned}</Box>
+                )}
+
                 {isInline && toolbarLeft && (
                     <Box className={classes.inlineActions}>{toolbarLeft}</Box>
                 )}
@@ -429,7 +437,12 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                         )}
                     </Box>
                 ) : (
-                    editorSurface
+                    <>
+                        {pinned && (
+                            <Box className={classes.pinned}>{pinned}</Box>
+                        )}
+                        {editorSurface}
+                    </>
                 )}
 
                 {!isInline && attachments && (

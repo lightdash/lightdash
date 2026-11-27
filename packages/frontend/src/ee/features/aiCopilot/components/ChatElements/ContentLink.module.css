@@ -24,6 +24,34 @@
     border-color: var(--mantine-color-ldGray-3);
 }
 
+.arrow {
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+/* Chips above a sent message stay quiet until hovered: no outline, and the
+   arrow only appears with the highlight. Its space is always kept, so the
+   chip, and the message under it, never change size. */
+.quietLinks .contentLink,
+.quietLinks .contentLink:hover {
+    border-color: transparent;
+}
+
+.quietLinks .contentLink .arrow {
+    opacity: 0;
+    transition: opacity 160ms ease;
+}
+
+.quietLinks .contentLink:is(:hover, :focus-visible) .arrow {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .quietLinks .contentLink .arrow {
+        transition: none;
+    }
+}
+
 /* Non-interactive reference chip (e.g. file/repository) — same chrome, but no
    pointer or hover since there is nowhere to navigate. */
 .static {

@@ -22,6 +22,8 @@ import TrackingProvider from '../providers/Tracking/TrackingProvider';
 import mockHealthResponse from '../testing/__mocks__/api/healthResponse.mock';
 import { mockUserResponse } from '../testing/__mocks__/api/userResponse.mock';
 import AppProviderMock from '../testing/__mocks__/providers/AppProvider.mock';
+import { manyPinnedItems } from './fixtures/pinnedContextData';
+import { StatefulPinnedContextChips } from './fixtures/StatefulPinnedContextChips';
 
 const projectUuid = '3675b69e-8324-4110-bdca-059031aa8da3';
 const agentUuid = 'agent-story';
@@ -308,6 +310,30 @@ const ThreadInputScenario = () => (
     </Surface>
 );
 
+const PinnedContextScenario = () => (
+    <Surface>
+        <Section
+            title="Pinned context"
+            description="Dashboards and charts pinned to the next prompt sit inside the composer, at the docked chat's width. Past three, the rest open from the count."
+        >
+            <Providers>
+                <Box maw={400} pt={200}>
+                    <StatefulInput
+                        {...threadInputProps}
+                        placeholder="Ask, or use @ to pin more content"
+                        fullWidth
+                        pinnedContext={
+                            <StatefulPinnedContextChips
+                                initialItems={manyPinnedItems}
+                            />
+                        }
+                    />
+                </Box>
+            </Providers>
+        </Section>
+    </Surface>
+);
+
 const NewThreadScenario = () => (
     <Surface>
         <Section
@@ -439,6 +465,10 @@ export const ThreadInput: Story = {};
 
 export const NewThreadCard: Story = {
     render: () => <NewThreadScenario />,
+};
+
+export const PinnedContext: Story = {
+    render: () => <PinnedContextScenario />,
 };
 
 export const FooterRowVariants: Story = {
