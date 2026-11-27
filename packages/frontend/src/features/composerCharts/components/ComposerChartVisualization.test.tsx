@@ -44,8 +44,7 @@ vi.mock('../../../hooks/useQueryResults', () => ({
     }),
 }));
 
-const chart = {
-    versionUuid: 'v1',
+const chart: Pick<ComposerChart, 'pipeline' | 'chart'> = {
     pipeline: {
         schemaVersion: 1,
         terminalNodeId: 'orders',
@@ -71,9 +70,9 @@ const chart = {
         pivotConfig: null,
         tableConfig: { columnOrder: ['status', 'revenue'] },
     },
-} as unknown as ComposerChart;
+};
 
-const run = {
+const run: ComposerChartRunResults = {
     queries: [
         {
             nodeId: 'orders',
@@ -83,8 +82,19 @@ const run = {
     ],
     fields: {},
     chartStageQueryUuid: null,
+    appliedDashboardFilters: {
+        dimensions: [],
+        metrics: [],
+        tableCalculations: [],
+    },
+    appliedDashboardFiltersByNodeId: {},
+    parameterReferences: [],
+    sqlColumns: [],
+    usedParameterValuesByNodeId: {},
+    dateZoomApplied: false,
+    zoomableFields: [],
     zoomedFieldLabels: {},
-} as unknown as ComposerChartRunResults;
+};
 
 const StandaloneChart: FC = () => {
     const { draw, results, rows } = useComposerChartDraw({

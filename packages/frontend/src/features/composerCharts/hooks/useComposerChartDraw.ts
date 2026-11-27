@@ -23,7 +23,7 @@ type DrawState =
     | { status: 'error'; message: string };
 
 export type ComposerChartDrawResult = {
-    /** Null until the chart, its run and the terminal columns are in, or when drawing failed. */
+    /** Null while loading or when the run no longer fits the chart. */
     draw: ComposerChartDraw | null;
     /** The displayed query's results, fetched to the last row. */
     results: InfiniteQueryResults;
@@ -43,7 +43,7 @@ export const useComposerChartDraw = ({
     title,
 }: {
     projectUuid: string | undefined;
-    chart: ComposerChart | null;
+    chart: Pick<ComposerChart, 'pipeline' | 'chart'> | null;
     run: ComposerChartRunResults | null;
     title: string;
 }): ComposerChartDrawResult => {
