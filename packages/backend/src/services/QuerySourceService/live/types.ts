@@ -87,6 +87,14 @@ export type LiveConnection<C extends ApiConnectorType = ApiConnectorType> = {
         body: unknown,
         settings: ApiSourceOf<C>,
     ) => LiveTestSummary | null;
+    /**
+     * The one request the setup test sends, written from the source's
+     * settings. With it, an admin's test sends this request whatever the
+     * dialog asked for, and answers with the check alone, without the API's
+     * body or headers. For APIs whose token reads more than the source may.
+     * Omitted, the test sends the dialog's request and returns the answer.
+     */
+    testRequest?: (settings: ApiSourceOf<C>) => LiveHttpRequest;
 };
 
 /** The explores a source offers. */

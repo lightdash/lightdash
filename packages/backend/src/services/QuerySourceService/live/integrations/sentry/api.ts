@@ -4,7 +4,20 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
-import { type LiveHttpResponse } from '../../types';
+import { type LiveHttpResponse } from '../../sdk';
+
+/** Sentry keeps events and sessions for 90 days. */
+export const SENTRY_RETENTION_DAYS = 90;
+
+export type Params = [string, string][];
+
+export const toRawQuery = (params: Params) =>
+    params
+        .map(
+            ([key, value]) =>
+                `${encodeURIComponent(key)}=${encodeURIComponent(value)}`,
+        )
+        .join('&');
 
 /** Seconds until Sentry accepts calls again, from its rate limit headers. */
 const getRetryAfterSeconds = (

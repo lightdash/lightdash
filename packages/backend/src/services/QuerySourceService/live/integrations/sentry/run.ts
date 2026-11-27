@@ -7,28 +7,29 @@ import {
     type ApiConnectorType,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
-import { refuseLiveQuery } from '../../query/refuse';
-import { readRowsWithinCap, tooManyRowsError } from '../../query/rows';
 import {
-    type LiveCalls,
+    assertMaxRows,
+    readRowsWithinCap,
+    refuseLiveQuery,
+    tooManyRowsError,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../types';
-import { SENTRY_RETENTION_DAYS } from './explores';
+    type LiveRuntime,
+} from '../../sdk';
+import { SENTRY_RETENTION_DAYS, toRawQuery, type Params } from './api';
 
 const LABEL = 'Sentry';
 
 /** Events and issues return 100 rows a page; sessions, 100 groups. */
-const PAGE_SIZE = 100;
+export const SENTRY_PAGE_SIZE = 100;
 const MAX_PAGES = 10;
 
 /**
  * The most rows one query can return: one fewer than ten pages hold, so
  * reading every page detects truncation.
  */
-export const SENTRY_MAX_QUERY_ROWS = PAGE_SIZE * MAX_PAGES - 1;
+export const SENTRY_MAX_QUERY_ROWS = SENTRY_PAGE_SIZE * MAX_PAGES - 1;
 
 /** Sessions by project are read one project a call, each over its pages. */
 export const SENTRY_CALLS_PER_QUERY = MAX_PAGES + SENTRY_MAX_PROJECTS;
@@ -286,16 +287,6 @@ type SentryIssuesRequest = z.infer<typeof issuesRequestSchema>;
 type SentrySessionsRequest = z.infer<typeof sessionsRequestSchema>;
 export type SentryFilter = NonNullable<SentryErrorsRequest['filters']>[number];
 
-export type Params = [string, string][];
-
-export const toRawQuery = (params: Params) =>
-    params
-        .map(
-            ([key, value]) =>
-                `${encodeURIComponent(key)}=${encodeURIComponent(value)}`,
-        )
-        .join('&');
-
 /**
  * The cursor of the next page, when the Link header says it has results.
  * Sentry writes it in the link's target and may repeat it as an attribute.
@@ -322,12 +313,12 @@ export const getNextCursor = (link: string | undefined): string | undefined => {
 };
 
 const get = async <T>(
-    calls: LiveCalls,
+    runtime: LiveRuntime,
     path: string,
     params: Params,
     schema: z.ZodType<T>,
 ): Promise<{ data: T; nextCursor: string | undefined }> => {
-    const response = await calls.send({
+    const response = await runtime.send({
         method: 'GET',
         path,
         rawQuery: toRawQuery(params),
@@ -644,12 +635,12 @@ const runErrors = async ({
     settings,
     request,
     limit,
-    calls,
+    runtime,
 }: {
     settings: SentrySettings;
     request: SentryErrorsRequest;
     limit: number;
-    calls: LiveCalls;
+    runtime: LiveRuntime;
 }): Promise<LiveRunResult> => {
     const { columns } = request;
     // Sentry refuses to count a field it also groups by. Grouped by issue,
@@ -701,10 +692,10 @@ const runErrors = async ({
     ];
     const { rows, hasMoreRows } = await readSentryRows({
         requestedRows: Math.min(limit, request.limit ?? limit),
-        pageSize: PAGE_SIZE,
+        pageSize: SENTRY_PAGE_SIZE,
         fetchPage: async ({ limit: perPage, cursor }) => {
             const { data, nextCursor } = await get(
-                calls,
+                runtime,
                 getSentryPaths(settings.organizationSlug).events,
                 [
                     ...params,
@@ -828,12 +819,12 @@ const runIssues = async ({
     settings,
     request,
     limit,
-    calls,
+    runtime,
 }: {
     settings: SentrySettings;
     request: SentryIssuesRequest;
     limit: number;
-    calls: LiveCalls;
+    runtime: LiveRuntime;
 }): Promise<LiveRunResult> => {
     const { columns } = request;
     const params: Params = [
@@ -854,10 +845,10 @@ const runIssues = async ({
     ];
     const { rows, hasMoreRows } = await readSentryRows({
         requestedRows: Math.min(limit, request.limit ?? limit),
-        pageSize: PAGE_SIZE,
+        pageSize: SENTRY_PAGE_SIZE,
         fetchPage: async ({ limit: perPage, cursor }) => {
             const { data, nextCursor } = await get(
-                calls,
+                runtime,
                 getSentryPaths(settings.organizationSlug).issues,
                 [
                     ...params,
@@ -984,7 +975,7 @@ const DAY_MS = 86_400_000;
  */
 const getSessionGroupsPerPage = (days: number) => {
     const groups = Math.min(
-        PAGE_SIZE,
+        SENTRY_PAGE_SIZE,
         Math.floor(SESSIONS_MAX_DATA_POINTS / (days + 1)) - 1,
     );
     if (groups < 1) {
@@ -1000,12 +991,12 @@ const runSessions = async ({
     settings,
     request,
     limit,
-    calls,
+    runtime,
 }: {
     settings: SentrySettings;
     request: SentrySessionsRequest;
     limit: number;
-    calls: LiveCalls;
+    runtime: LiveRuntime;
 }): Promise<LiveRunResult> => {
     const { columns } = request;
     const byDay = columns.includes('date');
@@ -1065,7 +1056,7 @@ const runSessions = async ({
             pageSize: groupsPerPage,
             fetchPage: async ({ limit: perPage, cursor }) => {
                 const { data, nextCursor } = await get(
-                    calls,
+                    runtime,
                     getSentryPaths(settings.organizationSlug).sessions,
                     [
                         ...params,
@@ -1129,7 +1120,7 @@ export const runSentryQuery = async ({
     settings,
     request,
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.SENTRY,
     SentryRequest
@@ -1147,11 +1138,11 @@ export const runSentryQuery = async ({
     }
     switch (request.kind) {
         case 'errors':
-            return runErrors({ settings, request, limit, calls });
+            return runErrors({ settings, request, limit, runtime });
         case 'issues':
-            return runIssues({ settings, request, limit, calls });
+            return runIssues({ settings, request, limit, runtime });
         case 'sessions':
-            return runSessions({ settings, request, limit, calls });
+            return runSessions({ settings, request, limit, runtime });
         default:
             throw new ParameterError('The Sentry request kind is unknown.');
     }

@@ -21,7 +21,7 @@ import {
     SENTRY_ERRORS_EXPLORE,
     SENTRY_ISSUES_EXPLORE,
     SENTRY_SESSIONS_EXPLORE,
-} from './explores';
+} from './model';
 import { SENTRY_MAX_QUERY_ROWS } from './run';
 
 const build = (definition: LiveExploreDefinition) =>
@@ -32,7 +32,7 @@ const build = (definition: LiveExploreDefinition) =>
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.SENTRY,
         baseVersion: 1,
-        capabilities: sentryIntegration.capabilities,
+        capabilities: sentryIntegration.query.capabilities,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),

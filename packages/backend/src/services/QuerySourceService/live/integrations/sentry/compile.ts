@@ -9,16 +9,14 @@ import {
 import {
     getActiveFilterRules,
     getApiName,
+    getLiveDateRange,
     getLiveDefinitionName,
     getLiveExplore,
-    type LiveCompiledRequest,
-} from '../../explores/definition';
-import {
-    getLiveDateRange,
     splitDateRangeFilter,
     toAbsoluteDateRange,
-} from '../../query/dateRange';
-import { SENTRY_RETENTION_DAYS } from './explores';
+    type LiveCompiledRequest,
+} from '../../sdk';
+import { SENTRY_RETENTION_DAYS } from './api';
 import { type SentryFilter, type SentryRequest } from './run';
 
 type SentryKind = SentryRequest['kind'];

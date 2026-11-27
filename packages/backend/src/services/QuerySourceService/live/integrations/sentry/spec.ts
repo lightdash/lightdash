@@ -1,7 +1,7 @@
 // What people expect to ask this integration and the dashboards they expect
 // to build, and whether each is possible today. Flip `possible` in the same PR
 // as the code that changes the answer.
-import type { LiveUseCases } from '../../spec/types';
+import { type LiveIntegrationSpec, type LiveUseCases } from '../../sdk';
 
 export const sentryUseCases: LiveUseCases = {
     questions: [
@@ -155,4 +155,16 @@ export const sentryUseCases: LiveUseCases = {
             ],
         },
     ],
+};
+
+export const sentrySpec: LiveIntegrationSpec = {
+    auth: {
+        description:
+            'A token from an internal integration needs no vendor review. OAuth needs a public integration, and Sentry must publish it before another organization can install it.',
+        testWith: 'test_account',
+        needs: ['gmail'],
+        token: true,
+        oauth: 'needs_review',
+    },
+    useCases: sentryUseCases,
 };

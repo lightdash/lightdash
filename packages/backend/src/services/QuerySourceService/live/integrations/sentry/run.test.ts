@@ -9,8 +9,8 @@ import {
 } from '@lightdash/common';
 import { sentryIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
-import { type LiveHttpRequest, type LiveHttpResponse } from '../../types';
-import { toSentryError } from './errors';
+import { type LiveHttpRequest, type LiveHttpResponse } from '../../sdk';
+import { toSentryError } from './api';
 import { getNextCursor, SENTRY_MAX_QUERY_ROWS } from './run';
 
 const response = (
@@ -820,7 +820,7 @@ describe('sentryIntegration setup test', () => {
     };
 
     it('sends one request that names only the projects of the source', () => {
-        const request = sentryIntegration.testRequest?.(settings);
+        const request = sentryIntegration.connection.testRequest?.(settings);
 
         expect(request).toMatchObject({
             method: 'GET',
@@ -836,7 +836,11 @@ describe('sentryIntegration setup test', () => {
     });
 
     it('can call no path that lists the projects of the organization', () => {
-        expect(sentryIntegration.access(settings).pathPrefixes).toEqual([
+        expect(
+            sentryIntegration.connection
+                .access(settings)
+                .rules.map(({ path }) => path),
+        ).toEqual([
             '/api/0/organizations/acme/events/',
             '/api/0/organizations/acme/issues/',
             '/api/0/organizations/acme/sessions/',
@@ -845,7 +849,7 @@ describe('sentryIntegration setup test', () => {
 
     it('says what it reached: the projects it names, and a count', () => {
         expect(
-            sentryIntegration.summarizeTest?.(
+            sentryIntegration.connection.summarizeTest?.(
                 { data: [{ 'count()': 1204 }] },
                 settings,
             ),
@@ -860,8 +864,10 @@ describe('sentryIntegration setup test', () => {
 
     it('refuses a slug of digits only, which Sentry reads as an ID', () => {
         const parse = (overrides: Record<string, unknown>) =>
-            sentryIntegration.settings.safeParse({ ...settings, ...overrides })
-                .success;
+            sentryIntegration.connection.settings.safeParse({
+                ...settings,
+                ...overrides,
+            }).success;
 
         expect(parse({})).toBe(true);
         expect(parse({ projectSlugs: ['12345'] })).toBe(false);
