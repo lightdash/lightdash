@@ -5542,7 +5542,7 @@ export class AiAgentToolsService extends BaseService {
             await this.findComposerChartForAgent(context, chartSlug, 'read');
         if (composerChart.dashboardSlug) {
             throw new ParameterError(
-                `Composer chart "${chartSlug}" belongs to the dashboard "${composerChart.dashboardSlug}". Run it with source dashboardChart and dashboardSlug "${composerChart.dashboardSlug}".`,
+                `Composer chart "${chartSlug}" belongs to the dashboard "${composerChart.dashboardSlug}". To run it, use source type "dashboardChart" with dashboardSlug "${composerChart.dashboardSlug}".`,
             );
         }
         return { composerChartUuid, tile: null };

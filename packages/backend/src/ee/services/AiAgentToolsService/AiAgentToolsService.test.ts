@@ -3815,7 +3815,7 @@ describe('AiAgentToolsService', () => {
                         dashboardSlug: null,
                     }),
             ).rejects.toThrow(
-                'belongs to the dashboard "sales". Run it with source dashboardChart',
+                'belongs to the dashboard "sales". To run it, use source type "dashboardChart"',
             );
             expect(runChart).not.toHaveBeenCalled();
             expect(run).not.toHaveBeenCalled();
