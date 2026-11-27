@@ -30,13 +30,19 @@ vi.mock('../hooks/useExplores', () => ({
 }));
 const integrations = vi.hoisted(() => ({
     enabled: [] as string[] | undefined,
+    isError: false,
+    refetch: vi.fn(),
 }));
 vi.mock(
     '../features/externalConnections/hooks/useEnabledLiveIntegrations',
     () => ({
         useEnabledLiveIntegrations: () => ({
             data: integrations.enabled,
-            isInitialLoading: integrations.enabled === undefined,
+            isInitialLoading:
+                integrations.enabled === undefined && !integrations.isError,
+            isError: integrations.isError,
+            isFetching: false,
+            refetch: integrations.refetch,
         }),
     }),
 );
@@ -96,6 +102,7 @@ describe('OnboardingTools', () => {
         project.data = undefined;
         project.explores = [];
         project.isLoadingExplores = false;
+        integrations.isError = false;
         integrations.enabled = [
             ApiConnectorType.POSTHOG,
             ApiConnectorType.GA4,
@@ -180,6 +187,22 @@ describe('OnboardingTools', () => {
         ).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Back' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('offers a retry instead of skipping when the integration list fails to load', async () => {
+        integrations.enabled = undefined;
+        integrations.isError = true;
+        project.data = { warehouseConnection: null };
+        renderPage({ ...LICENSED, hasGoogleLiveSources: true });
+
+        expect(
+            await screen.findByText("Couldn't load the tools you can connect."),
+        ).toBeInTheDocument();
+        screen.getByRole('button', { name: 'Try again' }).click();
+        expect(integrations.refetch).toHaveBeenCalled();
+        expect(
+            screen.queryByRole('heading', { name: 'Bring in your team' }),
         ).not.toBeInTheDocument();
     });
 

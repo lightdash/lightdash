@@ -601,6 +601,30 @@ const OnboardingToolsContent: FC<{
         );
     }
 
+    // Without the list we can't tell which tools to offer; skipping would strand projects with no warehouse
+    if (!isTeamStep && canManageLiveSources && enabledIntegrations.isError) {
+        return (
+            <OnboardingLayout
+                journey={{ currentStep: 3, steps: ONBOARDING_DATA_STEPS }}
+                stackDepth={2}
+                aside={<StepVisual step="tools" />}
+            >
+                <Stack gap="md" align="flex-start">
+                    <Text c="dimmed">
+                        Couldn't load the tools you can connect.
+                    </Text>
+                    <Button
+                        variant="default"
+                        loading={enabledIntegrations.isFetching}
+                        onClick={() => enabledIntegrations.refetch()}
+                    >
+                        Try again
+                    </Button>
+                </Stack>
+            </OnboardingLayout>
+        );
+    }
+
     if (isTeamStep) {
         return (
             <TeamStep
