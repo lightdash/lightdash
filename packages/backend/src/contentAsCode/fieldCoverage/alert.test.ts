@@ -4,6 +4,7 @@ describeContentAsCodeSchemaContract({
     resource: 'alert',
     modelSchema: 'SchedulerAndTargets',
     documentSchema: 'AlertAsCode',
+    serverMetadataFields: ['automaticallyDisabledReason'],
     skippedModelFields: [
         'appName',
         'appState',

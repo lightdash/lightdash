@@ -1,28 +1,56 @@
-import { SchedulerFormat, SEED_ORG_1 } from '@lightdash/common';
-import { type Knex } from 'knex';
+import {
+    SchedulerFormat,
+    SEED_ORG_1,
+    SEED_ORG_1_ADMIN,
+    SEED_PROJECT,
+} from '@lightdash/common';
+import knex, { type Knex } from 'knex';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import { SchedulerTableName } from '../../database/entities/scheduler';
-import { getTestContext } from '../../vitest.setup.integration';
 import { SchedulerModel } from './index';
 
 describe('SchedulerModel automatically disabled deliveries', () => {
+    let database: Knex;
     let transaction: Knex.Transaction;
     let model: SchedulerModel;
     let dashboardUuid: string;
 
-    beforeEach(async () => {
-        const { db, testProjectUuid } = getTestContext();
-        transaction = await db.transaction();
-        model = new SchedulerModel({ database: transaction });
-        const dashboard = await transaction(DashboardsTableName)
-            .where({ project_uuid: testProjectUuid, slug: 'jaffle-dashboard' })
+    beforeAll(async () => {
+        if (!process.env.PGDATABASE && !process.env.PGCONNECTIONURI) {
+            throw new Error('Set a seeded PostgreSQL database for this test');
+        }
+        database = knex({
+            client: 'pg',
+            connection: process.env.PGCONNECTIONURI ?? {
+                host: process.env.PGHOST,
+                port: Number(process.env.PGPORT ?? 5432),
+                user: process.env.PGUSER,
+                password: process.env.PGPASSWORD,
+                database: process.env.PGDATABASE,
+            },
+            pool: { min: 0, max: 1 },
+        });
+        const dashboard = await database(DashboardsTableName)
+            .where({
+                project_uuid: SEED_PROJECT.project_uuid,
+                slug: 'jaffle-dashboard',
+            })
             .first('dashboard_uuid');
         if (!dashboard) throw new Error('Seeded Jaffle dashboard is missing');
         dashboardUuid = dashboard.dashboard_uuid;
     });
 
+    beforeEach(async () => {
+        transaction = await database.transaction();
+        model = new SchedulerModel({ database: transaction });
+    });
+
     afterEach(async () => {
-        await transaction.rollback();
+        await transaction?.rollback();
+    });
+
+    afterAll(async () => {
+        await database?.destroy();
     });
 
     const createScheduler = (name: string) =>
@@ -33,7 +61,7 @@ describe('SchedulerModel automatically disabled deliveries', () => {
             savedSqlUuid: null,
             appUuid: null,
             appName: null,
-            createdBy: getTestContext().testUser.userUuid,
+            createdBy: SEED_ORG_1_ADMIN.user_uuid,
             format: SchedulerFormat.IMAGE,
             cron: '0 9 * * *',
             options: {},
@@ -45,7 +73,7 @@ describe('SchedulerModel automatically disabled deliveries', () => {
     const getPage = (page: number) =>
         model.getSchedulers({
             organizationUuid: SEED_ORG_1.organization_uuid,
-            projectUuid: getTestContext().testProjectUuid,
+            projectUuid: SEED_PROJECT.project_uuid,
             searchQuery: 'Attention fixture',
             filters: { needsAttention: true },
             paginateArgs: { page, pageSize: 1 },
