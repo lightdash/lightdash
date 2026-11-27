@@ -60,6 +60,10 @@ export const recordServerBuildHash = (response: Response): void => {
     }
 
     skewDetected = true;
+    // A page that starts on an old build, such as a restored tab, has nothing to lose by reloading now.
+    if (!convergenceObserved) {
+        refreshForBuildSkew();
+    }
 };
 
 const parseSkewReloadState = (value: string): SkewReloadState | null => {
