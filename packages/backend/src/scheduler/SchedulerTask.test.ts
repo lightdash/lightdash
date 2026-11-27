@@ -5364,6 +5364,47 @@ describe('handleScheduledDelivery — app delivery capture', () => {
             ]);
         });
 
+        it('records a partial failure when another channel delivered its export', async () => {
+            const failures = [chartFailure('a')];
+            const { task, getNotificationPageData } = setup();
+            const base = {
+                url: 'https://lightdash.example.com/dashboard',
+                details: { name: 'Sales', description: undefined },
+                pageType: LightdashPage.DASHBOARD,
+                organizationUuid: 'org-1',
+            };
+            // Email (expiry 100) exports first and fails; Slack (200) succeeds
+            getNotificationPageData
+                .mockResolvedValueOnce({ ...base, csvUrls: [], failures })
+                .mockResolvedValueOnce({
+                    ...base,
+                    csvUrls: [
+                        {
+                            path: 'https://lightdash.example.com/a.csv',
+                            filename: 'a',
+                            localPath: 's3://bucket/a.csv',
+                            truncated: false,
+                        },
+                    ],
+                });
+
+            await run(
+                task,
+                appScheduler({
+                    appUuid: null,
+                    appName: null,
+                    dashboardUuid: 'dashboard-1',
+                    targets: [{ recipient: 'a@b.com' }, { channel: 'C123' }],
+                }),
+            );
+
+            expect(getNotificationPageData).toHaveBeenCalledTimes(2);
+            const [log] = finalLog(task);
+            expect(log.status).toBe(SchedulerJobStatus.COMPLETED);
+            expect(log.details.partialFailures).toEqual(failures);
+            expect(log.details.error).toBeUndefined();
+        });
+
         it('records a partial failure when at least one chart was delivered', async () => {
             const failures = [chartFailure('a')];
             const { task } = setup({
