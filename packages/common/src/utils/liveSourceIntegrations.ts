@@ -4,8 +4,8 @@ import {
     HUBSPOT_OBJECTS,
     isSentrySlug,
     isSupabaseTableName,
-    STRIPE_QUERIES_PERMISSION,
     SENTRY_MAX_PROJECTS,
+    STRIPE_QUERIES_PERMISSION,
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';

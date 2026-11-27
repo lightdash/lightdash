@@ -34,8 +34,8 @@ import youtubeAnalyticsIcon from './icons/youtube-analytics.svg';
 import iconClasses from './LiveSourceIcon.module.css';
 import { META_ADS_TOKEN_FORM } from './metaAdsConnection';
 import { PYLON_TOKEN_FORM } from './pylonConnection';
-import { STRIPE_TOKEN_FORM } from './stripeConnection';
 import { SENTRY_TOKEN_FORM } from './sentryConnection';
+import { STRIPE_TOKEN_FORM } from './stripeConnection';
 import { type TokenLiveSourceForm } from './tokenLiveSource';
 
 /** How an admin connects a source, which decides the dialog it opens. */
