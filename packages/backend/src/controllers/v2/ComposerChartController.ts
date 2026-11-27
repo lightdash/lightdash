@@ -96,9 +96,10 @@ export class ComposerChartController extends BaseController {
 
     /**
      * Renames a composer chart that a space owns, or changes its description.
-     * Makes no new version and keeps the slug. Omitted fields keep their
-     * value. Requires permission to save charts in the chart's space. A chart
-     * that a dashboard owns is refused; it changes with its dashboard.
+     * Does not create a new version and keeps the slug. Omitted fields keep
+     * their current value. Requires permission to save charts in the chart's
+     * space. Returns 400 for a composer chart that a dashboard owns, because
+     * that chart is edited through its dashboard.
      * @summary Update composer chart
      */
     @Middlewares([

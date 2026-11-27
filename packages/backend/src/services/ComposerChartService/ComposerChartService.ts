@@ -689,7 +689,7 @@ export class ComposerChartService extends BaseService {
                 return;
             case 'dashboard':
                 throw new ParameterError(
-                    'This composer chart belongs to a dashboard and changes with it',
+                    'This composer chart belongs to a dashboard. Edit it from the dashboard.',
                 );
             default:
                 return assertUnreachable(owner, 'Unknown composer chart owner');
@@ -705,7 +705,7 @@ export class ComposerChartService extends BaseService {
     ): Promise<ComposerChart> {
         const name = data.name?.trim();
         if (name === '') {
-            throw new ParameterError('A composer chart needs a name');
+            throw new ParameterError('Composer chart name is required');
         }
         await this.assertCanWriteSpaceChart(
             account,
@@ -735,9 +735,7 @@ export class ComposerChartService extends BaseService {
         { tx }: { tx?: Knex } = {},
     ): Promise<void> {
         if (targetSpaceUuid === null) {
-            throw new ParameterError(
-                'A composer chart cannot be moved outside of a space',
-            );
+            throw new ParameterError('A composer chart must stay in a space');
         }
         await this.assertCanWriteSpaceChart(
             account,
