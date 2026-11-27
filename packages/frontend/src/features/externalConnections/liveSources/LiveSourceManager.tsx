@@ -21,6 +21,7 @@ import { GoogleSourcePickerModal } from './GoogleSourcePickerModal';
 import { getLinkedInAdsSignInUrl } from './linkedInAdsConnection';
 import { LinkedInAdsConnectionModal } from './LinkedInAdsConnectionModal';
 import {
+    AddLiveSourceContext,
     LiveSourceActionsContext,
     type LiveSourceActions,
 } from './liveSourceActions';
@@ -100,12 +101,17 @@ const RemoveLiveSourceModal: FC<{
 
 export const LiveSourceManager: FC<{
     projectUuid: string;
-    /** Whether the person manages live data sources; otherwise a no-op. */
+    /** Whether live data sources are on here; otherwise a no-op. */
+    available: boolean;
+    /**
+     * Whether the person manages live data sources; otherwise they only get
+     * the add dialog, which tells them who can add one.
+     */
     enabled: boolean;
     /** Where to go after a source is deleted, so its page doesn't linger. */
     onRemoved: () => void;
     children: ReactNode;
-}> = ({ projectUuid, enabled, onRemoved, children }) => {
+}> = ({ projectUuid, available, enabled, onRemoved, children }) => {
     const [dialog, setDialog] = useState<Dialog>({ kind: 'closed' });
     const close = () => setDialog({ kind: 'closed' });
     const { data: health } = useHealth();
@@ -209,23 +215,43 @@ export const LiveSourceManager: FC<{
         ],
     );
 
-    if (!enabled) return <>{children}</>;
+    if (!enabled) {
+        if (!available) return <>{children}</>;
+        return (
+            <AddLiveSourceContext.Provider value={actions.add}>
+                {children}
+                <AddLiveSourceModal
+                    opened={dialog.kind === 'pick'}
+                    onClose={close}
+                    projectUuid={projectUuid}
+                    canAdd={false}
+                    canUseGoogle={canUseGoogle}
+                    canUseLinkedInAds={canUseLinkedInAds}
+                    canUseSalesforce={canUseSalesforce}
+                    canUseHydra={canUseHydra}
+                    onPick={close}
+                />
+            </AddLiveSourceContext.Provider>
+        );
+    }
     return (
-        <LiveSourceActionsContext.Provider value={actions}>
-            {children}
-            <LiveSourceDialogs
-                projectUuid={projectUuid}
-                dialog={dialog}
-                setDialog={setDialog}
-                close={close}
-                canSignIn={canSignIn}
-                canUseGoogle={canUseGoogle}
-                canUseLinkedInAds={canUseLinkedInAds}
-                canUseSalesforce={canUseSalesforce}
-                canUseHydra={canUseHydra}
-                onRemoved={onRemoved}
-            />
-        </LiveSourceActionsContext.Provider>
+        <AddLiveSourceContext.Provider value={actions.add}>
+            <LiveSourceActionsContext.Provider value={actions}>
+                {children}
+                <LiveSourceDialogs
+                    projectUuid={projectUuid}
+                    dialog={dialog}
+                    setDialog={setDialog}
+                    close={close}
+                    canSignIn={canSignIn}
+                    canUseGoogle={canUseGoogle}
+                    canUseLinkedInAds={canUseLinkedInAds}
+                    canUseSalesforce={canUseSalesforce}
+                    canUseHydra={canUseHydra}
+                    onRemoved={onRemoved}
+                />
+            </LiveSourceActionsContext.Provider>
+        </AddLiveSourceContext.Provider>
     );
 };
 
@@ -365,6 +391,7 @@ const LiveSourceDialogs: FC<{
                 opened={dialog.kind === 'pick'}
                 onClose={close}
                 projectUuid={projectUuid}
+                canAdd
                 canUseGoogle={canUseGoogle}
                 canUseLinkedInAds={canUseLinkedInAds}
                 canUseSalesforce={canUseSalesforce}

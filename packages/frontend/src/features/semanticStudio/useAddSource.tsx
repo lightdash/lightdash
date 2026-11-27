@@ -2,7 +2,7 @@
 import { type ReactNode } from 'react';
 import useHealth from '../../hooks/health/useHealth';
 import { useProject } from '../../hooks/useProject';
-import { useLiveSourceActions } from '../externalConnections/liveSources/liveSourceActions';
+import { useAddLiveSource } from '../externalConnections/liveSources/liveSourceActions';
 import { useExternalSourceActions } from '../externalSources/hooks/externalSourceActions';
 import { type Kind } from './model';
 import { KindIcon } from './shared';
@@ -60,13 +60,14 @@ const ADD_OPTIONS: {
 type AddOption = (typeof ADD_OPTIONS)[number];
 
 /**
- * What a person can add: one warehouse per project, only kinds they manage,
- * and only through flows they can open. Files and live data sources are
+ * What a person can add: one warehouse per project, only kinds they manage
+ * (live data sources aside, whose dialog explains who can add one), and only
+ * through flows they can open. Files and live data sources are
  * added in place, through the dialogs their managers own.
  */
 export const useAddSource = (view: ViewModel, kind?: Kind) => {
     const { data: health } = useHealth();
-    const liveSources = useLiveSourceActions();
+    const addLiveSource = useAddLiveSource();
     const externalSources = useExternalSourceActions();
     const isAvailable = (option: AddOption) => {
         switch (option.key) {
@@ -76,7 +77,7 @@ export const useAddSource = (view: ViewModel, kind?: Kind) => {
                     health?.externalSources.engineAvailable === true
                 );
             case 'live':
-                return liveSources !== null;
+                return addLiveSource !== null;
             default:
                 return true;
         }
@@ -95,7 +96,8 @@ export const useAddSource = (view: ViewModel, kind?: Kind) => {
             (!kind || option.kind === kind) &&
             (!option.inSettings || view.canOpenSettings) &&
             isAvailable(option) &&
-            view.permissions[option.kind],
+            // Anyone opens the live dialog; it says who can add one
+            (option.key === 'live' || view.permissions[option.kind]),
     );
     // One warehouse per project, and a virtual view runs its SQL on it
     const options = allowed.filter((option) =>
@@ -106,7 +108,7 @@ export const useAddSource = (view: ViewModel, kind?: Kind) => {
     const pathOf = (option: AddOption) =>
         option.path ? addPath(view, option.path) : null;
     const addInPlace = (option: AddOption) =>
-        option.key === 'live' ? liveSources?.add() : externalSources?.add();
+        option.key === 'live' ? addLiveSource?.() : externalSources?.add();
     return { options, pathOf, addInPlace, hasWarehouse };
 };
 

@@ -32,6 +32,7 @@ const renderModal = ({
     canUseLinkedInAds = true,
     canUseSalesforce = true,
     canUseHydra = false,
+    canAdd = true,
 } = {}) =>
     renderWithProviders(
         <MemoryRouter>
@@ -39,6 +40,7 @@ const renderModal = ({
                 opened
                 onClose={vi.fn()}
                 projectUuid="project-1"
+                canAdd={canAdd}
                 canUseGoogle
                 canUseLinkedInAds={canUseLinkedInAds}
                 canUseSalesforce={canUseSalesforce}
@@ -185,6 +187,33 @@ describe('AddLiveSourceModal', () => {
             expect(track).not.toHaveBeenCalled();
         },
     );
+
+    it('greys out every integration for someone who cannot add one', async () => {
+        renderModal({ canAdd: false });
+
+        expect(screen.getByRole('note')).toHaveTextContent(
+            "You can't add live data sources in this project",
+        );
+        const postHog = screen.getByRole('button', { name: /PostHog/ });
+        expect(postHog).toBeDisabled();
+        await userEvent.click(postHog);
+        expect(onPick).not.toHaveBeenCalled();
+    });
+
+    it('still takes a request from someone who cannot add one', async () => {
+        renderModal({ canAdd: false });
+        await openRequest();
+
+        await userEvent.type(customInput(), 'Hubspot{Enter}');
+
+        expect(track).toHaveBeenCalledOnce();
+    });
+
+    it('shows no notice to someone who can add one', () => {
+        renderModal();
+
+        expect(screen.queryByRole('note')).not.toBeInTheDocument();
+    });
 
     it('still opens setup for an available source', async () => {
         renderModal();

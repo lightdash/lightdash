@@ -8,7 +8,7 @@ import { type FC } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
-import { LiveSourceActionsContext } from '../externalConnections/liveSources/liveSourceActions';
+import { AddLiveSourceContext } from '../externalConnections/liveSources/liveSourceActions';
 import { ExternalSourceActionsContext } from '../externalSources/hooks/externalSourceActions';
 import { BuildFirstModel, EmptyProject } from './EmptyProject';
 import { type StudioPermissions } from './permissions';
@@ -109,6 +109,7 @@ const Harness: FC<{
         },
         permissions,
         canOpenSettings: permissions.live,
+        isLiveAvailable: permissions.live,
         route: { ref: null },
         onNavigate: () => {},
     });
@@ -144,16 +145,8 @@ const renderEmpty = ({
     });
     renderWithProviders(
         <MemoryRouter>
-            <LiveSourceActionsContext.Provider
-                value={
-                    permissions.live
-                        ? {
-                              add: vi.fn(),
-                              getReconnect: () => null,
-                              remove: vi.fn(),
-                          }
-                        : null
-                }
+            <AddLiveSourceContext.Provider
+                value={permissions.live ? vi.fn() : null}
             >
                 <ExternalSourceActionsContext.Provider
                     value={
@@ -175,7 +168,7 @@ const renderEmpty = ({
                         onAsk={onAsk}
                     />
                 </ExternalSourceActionsContext.Provider>
-            </LiveSourceActionsContext.Provider>
+            </AddLiveSourceContext.Provider>
         </MemoryRouter>,
     );
 };
