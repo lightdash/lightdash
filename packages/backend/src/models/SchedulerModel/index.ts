@@ -147,6 +147,11 @@ export class SchedulerModel {
             options: scheduler.options,
             thresholds: scheduler.thresholds ?? undefined,
             enabled: scheduler.enabled,
+            ...(scheduler.automatically_disabled_reason &&
+                !scheduler.enabled && {
+                    automaticallyDisabledReason:
+                        scheduler.automatically_disabled_reason,
+                }),
             notificationFrequency:
                 scheduler.notification_frequency ?? undefined,
             includeLinks: scheduler.include_links,
@@ -651,6 +656,7 @@ export class SchedulerModel {
             resourceType?: 'chart' | 'dashboard' | 'sqlChart' | 'app';
             resourceUuids?: string[];
             destinations?: string[];
+            needsAttention?: boolean;
         };
     }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         // Resolve organization_id once — used to scope all sub-queries
@@ -711,6 +717,14 @@ export class SchedulerModel {
                     searchQuery: `%${escapeLikeWildcards(trimmedSearchQuery)}%`,
                 },
             );
+        }
+
+        if (filters?.needsAttention) {
+            baseQuery = baseQuery
+                .where(`${SchedulerTableName}.enabled`, false)
+                .whereNotNull(
+                    `${SchedulerTableName}.automatically_disabled_reason`,
+                );
         }
 
         if (
@@ -1226,13 +1240,23 @@ export class SchedulerModel {
     async setSchedulerEnabled(
         schedulerUuid: string,
         enabled: boolean,
+        automaticallyDisabledReason: string | null = null,
     ): Promise<SchedulerAndTargets> {
-        await this.database(SchedulerTableName)
-            .update({
-                enabled,
-                updated_at: new Date(),
-            })
-            .where('scheduler_uuid', schedulerUuid);
+        const scheduler = this.database(SchedulerTableName).where(
+            'scheduler_uuid',
+            schedulerUuid,
+        );
+        if (automaticallyDisabledReason !== null) {
+            // A delayed worker must not relabel a schedule that was already paused.
+            scheduler.andWhere('enabled', true);
+        }
+        await scheduler.update({
+            enabled,
+            automatically_disabled_reason: enabled
+                ? null
+                : automaticallyDisabledReason,
+            updated_at: new Date(),
+        });
 
         return this.getSchedulerAndTargets(schedulerUuid);
     }

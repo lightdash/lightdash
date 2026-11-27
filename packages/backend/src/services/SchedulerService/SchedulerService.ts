@@ -531,6 +531,7 @@ export class SchedulerService extends BaseService {
             resourceType?: 'chart' | 'dashboard';
             resourceUuids?: string[];
             destinations?: string[];
+            needsAttention?: boolean;
         },
         includeLatestRun?: boolean,
     ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
@@ -906,6 +907,7 @@ export class SchedulerService extends BaseService {
             resourceType?: 'chart' | 'dashboard';
             resourceUuids?: string[];
             destinations?: string[];
+            needsAttention?: boolean;
         },
         includeLatestRun?: boolean,
     ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
@@ -1166,6 +1168,7 @@ export class SchedulerService extends BaseService {
         user: SessionUser,
         schedulerUuid: string,
         enabled: boolean,
+        automaticallyDisabledReason: string | null = null,
     ): Promise<SchedulerAndTargets> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1185,6 +1188,7 @@ export class SchedulerService extends BaseService {
         const scheduler = await this.schedulerModel.setSchedulerEnabled(
             schedulerUuid,
             enabled,
+            automaticallyDisabledReason,
         );
 
         if (enabled) {

@@ -1,4 +1,42 @@
-import { getErrorMessage } from '@lightdash/common';
+import {
+    FieldReferenceError,
+    ForbiddenError,
+    getErrorMessage,
+    MissingConfigError,
+    NotFoundError,
+    ParameterError,
+    UnexpectedGoogleSheetsError,
+    WarehouseConnectionError,
+} from '@lightdash/common';
+
+const warehouseConnectionReason =
+    'The delivery could not connect to the warehouse. Check the project connection.';
+
+export function getScheduledDeliveryDisableReason(
+    error: unknown,
+): string | null {
+    if (error instanceof FieldReferenceError)
+        return 'The delivery references a field that is no longer available.';
+    if (error instanceof WarehouseConnectionError)
+        return warehouseConnectionReason;
+    if (error instanceof ParameterError)
+        return 'The delivery has an invalid setting. Review its configuration.';
+    return null;
+}
+
+function getSheetsDisableReason(error: unknown): string | null {
+    if (error instanceof NotFoundError)
+        return 'A resource required by this Google Sheets sync could not be found.';
+    if (error instanceof ForbiddenError)
+        return 'This Google Sheets sync does not have access to a required resource.';
+    if (error instanceof MissingConfigError)
+        return 'Configuration required by this Google Sheets sync is missing.';
+    if (error instanceof UnexpectedGoogleSheetsError)
+        return 'Google Sheets rejected the upload.';
+    if (error instanceof WarehouseConnectionError)
+        return warehouseConnectionReason;
+    return null;
+}
 
 export type SchedulerDeliveryNotificationContext = {
     organizationUuid: string | undefined;
@@ -13,7 +51,11 @@ export type SchedulerDeliveryNotificationContext = {
  * the envelope never reaches graphile, so logs/Sentry keep the real error type.
  */
 export class SchedulerDeliveryError extends Error {
-    readonly isNonRetryable: boolean;
+    readonly disableReason: string | null;
+
+    get isNonRetryable(): boolean {
+        return this.disableReason !== null;
+    }
 
     readonly createdByUserUuid: string;
 
@@ -21,13 +63,12 @@ export class SchedulerDeliveryError extends Error {
 
     constructor(args: {
         cause: unknown;
-        isNonRetryable: boolean;
         createdByUserUuid: string;
         notification: SchedulerDeliveryNotificationContext;
     }) {
         super(getErrorMessage(args.cause), { cause: args.cause });
         this.name = 'SchedulerDeliveryError';
-        this.isNonRetryable = args.isNonRetryable;
+        this.disableReason = getSheetsDisableReason(args.cause);
         this.createdByUserUuid = args.createdByUserUuid;
         this.notification = args.notification;
     }
@@ -35,7 +76,7 @@ export class SchedulerDeliveryError extends Error {
 
 export type SchedulerDeliveryFailureAction = {
     notify: boolean;
-    disable: boolean;
+    disableReason: string | null;
 };
 
 /**
@@ -48,11 +89,11 @@ export const resolveSchedulerDeliveryFailureAction = (
     isFinalAttempt: boolean,
 ): SchedulerDeliveryFailureAction => {
     if (!deliveryError) {
-        return { notify: false, disable: false };
+        return { notify: false, disableReason: null };
     }
     const { isNonRetryable } = deliveryError;
     return {
         notify: isNonRetryable || isFinalAttempt,
-        disable: isNonRetryable,
+        disableReason: deliveryError.disableReason,
     };
 };

@@ -1574,10 +1574,11 @@ export class SchedulerWorker extends SchedulerTask {
                         );
                     }
 
-                    if (action.disable && deliveryError) {
+                    if (action.disableReason !== null && deliveryError) {
                         await this.disableGsheetsScheduler(
                             payload.schedulerUuid,
                             deliveryError.createdByUserUuid,
+                            action.disableReason,
                         );
                         return; // Swallow so graphile does not retry
                     }

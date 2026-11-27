@@ -37,6 +37,7 @@ import {
     VizAggregationOptions,
     VizIndexType,
     WarehouseConnectionError,
+    WarehouseQueryError,
     XlsxExportContent,
     type Account,
     type CapturedQuery,
@@ -3190,6 +3191,7 @@ describe('handleScheduledDelivery execution identity', () => {
             { userUuid: 'scheduler-owner' },
             persistedScheduler.schedulerUuid,
             false,
+            'The delivery has no recipients or destinations.',
         );
     });
 
@@ -4222,6 +4224,21 @@ describe('uploadGsheets — app branch', () => {
         await expect(run()).rejects.toMatchObject({
             name: 'SchedulerDeliveryError',
             isNonRetryable: false,
+        } satisfies Partial<SchedulerDeliveryError>);
+    });
+
+    it('keeps a Sheets delivery retryable when its BigQuery table is temporarily missing', async () => {
+        const { run, getRawAsyncQueryResults } = setup();
+        getRawAsyncQueryResults.mockRejectedValue(
+            new WarehouseQueryError(
+                'Not found: Table example:dataset.daily_orders',
+            ),
+        );
+
+        await expect(run()).rejects.toMatchObject({
+            name: 'SchedulerDeliveryError',
+            isNonRetryable: false,
+            disableReason: null,
         } satisfies Partial<SchedulerDeliveryError>);
     });
 

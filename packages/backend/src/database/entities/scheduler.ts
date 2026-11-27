@@ -51,6 +51,7 @@ export type SchedulerDb = {
     custom_viewport_width: number | null;
     thresholds: ThresholdOptions[] | null;
     enabled: boolean;
+    automatically_disabled_reason: string | null;
     notification_frequency: NotificationFrequency | null;
     selected_tabs: string[] | null;
     include_links: boolean;
@@ -158,6 +159,7 @@ export type SchedulerInsert = Omit<
     | 'created_at'
     | 'deleted_at'
     | 'deleted_by_user_uuid'
+    | 'automatically_disabled_reason'
     | 'filters'
     | 'parameters'
     | 'thresholds'
@@ -185,7 +187,10 @@ export type SchedulerTable = Knex.CompositeTableType<
           | 'use_cached_results'
       > &
           SchedulerJsonWrite)
-    | Pick<SchedulerDb, 'updated_at' | 'enabled'>
+    | Pick<
+          SchedulerDb,
+          'updated_at' | 'enabled' | 'automatically_disabled_reason'
+      >
     | Pick<SchedulerDb, 'created_by' | 'updated_at'>
     | Pick<SchedulerDb, 'cron'>
     | Pick<SchedulerDb, 'deleted_at' | 'deleted_by_user_uuid'>

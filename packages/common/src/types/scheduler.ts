@@ -145,6 +145,7 @@ export type SchedulerBase = {
     options: SchedulerOptions;
     thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
     enabled: boolean;
+    automaticallyDisabledReason?: string;
     notificationFrequency?: NotificationFrequency;
     includeLinks: boolean;
     /**
@@ -355,6 +356,7 @@ export type CreateSchedulerAndTargets = Omit<
     | 'createdAt'
     | 'updatedAt'
     | 'createdByName'
+    | 'automaticallyDisabledReason'
     | 'savedChartName'
     | 'dashboardName'
     | 'savedSqlName'

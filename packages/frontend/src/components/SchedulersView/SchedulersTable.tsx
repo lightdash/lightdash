@@ -84,6 +84,8 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     const [, setSearchParams] = useSearchParams();
 
     const {
+        needsAttention,
+        setNeedsAttention,
         search,
         selectedFormats,
         selectedResourceType,
@@ -344,6 +346,19 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         </Text>
                                     </Group>
                                 ) : null}
+                                {!item.enabled &&
+                                    item.automaticallyDisabledReason && (
+                                        <>
+                                            <Badge size="xs" color="yellow">
+                                                Automatically paused
+                                            </Badge>
+                                            <Text fz="xs" c="dimmed">
+                                                {
+                                                    item.automaticallyDisabledReason
+                                                }
+                                            </Text>
+                                        </>
+                                    )}
                             </Stack>
                         </Group>
                     );
@@ -798,6 +813,8 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
             return (
                 <SchedulerTopToolbar
                     projectUuid={projectUuid ?? ''}
+                    needsAttention={needsAttention}
+                    setNeedsAttention={setNeedsAttention}
                     search={search}
                     setSearch={setSearch}
                     selectedFormats={selectedFormats}

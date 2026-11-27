@@ -6,6 +6,7 @@ export type DestinationType = 'slack' | 'email' | 'msteams' | 'googlechat';
 
 export type SchedulerFilters = {
     search?: string;
+    needsAttention?: boolean;
     createdByUserUuids?: string[];
     formats?: SchedulerFormat[];
     resourceType?: 'chart' | 'dashboard';
@@ -42,6 +43,8 @@ const DEFAULT_FILTERS: SchedulerFiltersState = {
  */
 export const useSchedulerFilters = () => {
     const [searchParams, setSearchParams] = useSearchParams();
+
+    const needsAttention = searchParams.get('needsAttention') === 'true';
 
     // Initialize from URL params
     const initialSearch = searchParams.get('nameSearch') ?? undefined;
@@ -164,6 +167,19 @@ export const useSchedulerFilters = () => {
         [searchParams, setSearchParams],
     );
 
+    const setNeedsAttention = useCallback(
+        (selected: boolean) => {
+            const newParams = new URLSearchParams(searchParams);
+            if (selected) {
+                newParams.set('needsAttention', 'true');
+            } else {
+                newParams.delete('needsAttention');
+            }
+            setSearchParams(newParams);
+        },
+        [searchParams, setSearchParams],
+    );
+
     const setSorting = useCallback(
         (
             newSortField: SchedulerFiltersState['sortField'],
@@ -190,6 +206,7 @@ export const useSchedulerFilters = () => {
         // Clear filter-related URL params
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('nameSearch');
+        newParams.delete('needsAttention');
         newParams.delete('format');
         newParams.delete('type');
         newParams.delete('creator');
@@ -199,6 +216,7 @@ export const useSchedulerFilters = () => {
 
     const hasActiveFilters = useMemo(() => {
         return (
+            needsAttention ||
             search !== DEFAULT_FILTERS.search ||
             selectedCreatedByUserUuids.length !==
                 DEFAULT_FILTERS.selectedCreatedByUserUuids.length ||
@@ -212,6 +230,7 @@ export const useSchedulerFilters = () => {
             sortDirection !== DEFAULT_FILTERS.sortDirection
         );
     }, [
+        needsAttention,
         search,
         selectedCreatedByUserUuids,
         selectedFormats,
@@ -224,6 +243,10 @@ export const useSchedulerFilters = () => {
 
     const apiFilters = useMemo(() => {
         const result: SchedulerFilters = {};
+
+        if (needsAttention) {
+            result.needsAttention = true;
+        }
 
         if (search) {
             result.search = search;
@@ -251,6 +274,7 @@ export const useSchedulerFilters = () => {
 
         return result;
     }, [
+        needsAttention,
         search,
         selectedCreatedByUserUuids,
         selectedFormats,
@@ -260,6 +284,8 @@ export const useSchedulerFilters = () => {
     ]);
 
     return {
+        needsAttention,
+        setNeedsAttention,
         search,
         selectedCreatedByUserUuids,
         selectedFormats,

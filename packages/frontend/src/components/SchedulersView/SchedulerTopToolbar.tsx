@@ -1,6 +1,7 @@
 import {
     ActionIcon,
     Button,
+    Checkbox,
     Divider,
     Group,
     Text,
@@ -22,6 +23,8 @@ import classes from './SchedulerTopToolbar.module.css';
 type SchedulerTopToolbarProps = GroupProps &
     Pick<
         ReturnType<typeof useSchedulerFilters>,
+        | 'needsAttention'
+        | 'setNeedsAttention'
         | 'search'
         | 'selectedFormats'
         | 'selectedResourceType'
@@ -49,6 +52,8 @@ type SchedulerTopToolbarProps = GroupProps &
 
 export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
     ({
+        needsAttention,
+        setNeedsAttention,
         search,
         setSearch,
         selectedFormats,
@@ -81,13 +86,7 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                 wrap="nowrap"
                 {...props}
             >
-                <Group
-                    className={classes.filters}
-                    gap="xs"
-                    wrap="nowrap"
-                    flex={1}
-                    miw={0}
-                >
+                <Group className={classes.filters} gap="xs" flex={1} miw={0}>
                     <SearchFilter search={search} setSearch={setSearch} />
 
                     <Divider
@@ -131,6 +130,15 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                     <DestinationFilter
                         selectedDestinations={selectedDestinations}
                         setSelectedDestinations={setSelectedDestinations}
+                    />
+
+                    <Checkbox
+                        size="xs"
+                        label="Needs attention"
+                        checked={needsAttention}
+                        onChange={(event) =>
+                            setNeedsAttention(event.currentTarget.checked)
+                        }
                     />
                 </Group>
 
