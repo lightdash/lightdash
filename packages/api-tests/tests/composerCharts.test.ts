@@ -53,6 +53,7 @@ import {
     createComposerDashboard,
     createComposerSpaceChart,
 } from '../helpers/composerDashboard';
+import { mcpText, openMcpSession, personalAccessTokens } from '../helpers/mcp';
 import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 
 const projectUuid = SEED_PROJECT.project_uuid;
@@ -2103,6 +2104,76 @@ describe('Composer charts', () => {
                 ).body.results.data.map((item) => item.uuid);
             expect(await listedFor(admin)).toEqual([hidden.body.results.uuid]);
             expect(await listedFor(editor)).toEqual([]);
+        });
+
+        it('MCP find_content finds a chart for a viewer of its space with its page link, not one in a space they cannot see, and none with the flag off', async () => {
+            const publicSpace = await createSpace();
+            const privateSpace = await createSpace(false);
+            const named = async (spaceUuid: string, name: string) => {
+                const created = await postChart({
+                    ...composerSpaceChartBody(spaceUuid),
+                    name,
+                });
+                expect(created.status).toBe(201);
+                return created.body.results;
+            };
+            const shown = await named(
+                publicSpace.uuid,
+                uniqueName('Findable composer chart'),
+            );
+            const hidden = await named(
+                privateSpace.uuid,
+                uniqueName('Hidden composer chart'),
+            );
+            const viewerMcp = await openMcpSession(await loginAsViewer());
+            const adminMcp = await openMcpSession(admin);
+            const found = async (
+                callTool: typeof adminMcp,
+                name: string,
+            ): Promise<string> => {
+                const result = await callTool('find_content', {
+                    projectUuid,
+                    searchQueries: [{ label: name }],
+                    spaceSlug: null,
+                    verifiedOnly: false,
+                });
+                expect(result.isError).toBeFalsy();
+                return mcpText(result);
+            };
+            try {
+                const viewerFinds = await found(viewerMcp, shown.name);
+                expect(viewerFinds).toContain(`chartUuid="${shown.uuid}"`);
+                expect(viewerFinds).toMatch(
+                    new RegExp(
+                        `chartUuid="${shown.uuid}"[^>]*chartSource="composer"[^>]*href="[^"]*/projects/${projectUuid}/composer-charts/${shown.uuid}"`,
+                    ),
+                );
+                expect(await found(adminMcp, hidden.name)).toContain(
+                    `chartUuid="${hidden.uuid}"`,
+                );
+                expect(await found(viewerMcp, hidden.name)).not.toContain(
+                    hidden.uuid,
+                );
+
+                expect(
+                    (await admin.post(flagUrl, { enabled: false })).status,
+                ).toBe(200);
+                try {
+                    expect(await found(viewerMcp, shown.name)).not.toContain(
+                        shown.uuid,
+                    );
+                } finally {
+                    expect(
+                        (await admin.post(flagUrl, { enabled: true })).status,
+                    ).toBe(200);
+                }
+            } finally {
+                for (const { client, uuid } of personalAccessTokens.splice(0)) {
+                    await client.delete(
+                        `/api/v1/user/me/personal-access-tokens/${uuid}`,
+                    );
+                }
+            }
         });
 
         it('creates a chart the space owns, which a viewer of the space reads and no one from another organization', async () => {
