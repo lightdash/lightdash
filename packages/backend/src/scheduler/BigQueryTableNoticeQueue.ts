@@ -1,4 +1,4 @@
-import { type BigQueryTableNotice, SCHEDULER_TASKS } from '@lightdash/common';
+import { SCHEDULER_TASKS, type BigQueryTableNotice } from '@lightdash/common';
 import { type Knex } from 'knex';
 
 export async function enqueueBigQueryTableNotice(

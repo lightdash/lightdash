@@ -488,6 +488,8 @@ import {
     SavedSqlUserAccessTableName,
 } from '../database/entities/savedSqlAccess';
 import {
+    SchedulerBigQueryAttemptsTable,
+    SchedulerBigQueryAttemptsTableName,
     SchedulerEmailTargetTable,
     SchedulerEmailTargetTableName,
     SchedulerGoogleChatTargetTable,
@@ -498,8 +500,6 @@ import {
     SchedulerMsTeamsTargetTableName,
     SchedulerSlackTargetTable,
     SchedulerSlackTargetTableName,
-    SchedulerBigQueryAttemptsTable,
-    SchedulerBigQueryAttemptsTableName,
     SchedulerTable,
     SchedulerTableName,
 } from '../database/entities/scheduler';

@@ -1,10 +1,10 @@
 import {
     AgentActorSurface,
     BigqueryMissingTableError,
-    WarehouseTypes,
     buildAgentIdentityClaim,
     QueryExecutionContext,
     QueryHistoryStatus,
+    WarehouseTypes,
     type AgentIdentityClaim,
     type QueryHistory,
 } from '@lightdash/common';

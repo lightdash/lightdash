@@ -1,10 +1,10 @@
 import {
+    SCHEDULER_TASKS,
     SchedulerFormat,
     SchedulerJobStatus,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
-    SCHEDULER_TASKS,
     type BigQueryTableNoticePayload,
 } from '@lightdash/common';
 import { runMigrations as runGraphileMigrations } from 'graphile-worker';
@@ -417,13 +417,13 @@ describe('SchedulerModel automatically disabled deliveries', () => {
                 return job.id;
             };
             const future = new Date(Date.now() + 3_600_000);
-            const removed = await addJob(prefix + 'future', future);
-            const locked = await addJob(prefix + 'locked', future);
+            const removed = await addJob(`${prefix}future`, future);
+            const locked = await addJob(`${prefix}locked`, future);
             await transaction('graphile_worker.jobs')
                 .where('id', locked)
                 .update({ locked_at: new Date(), locked_by: 'active-worker' });
-            const manual = await addJob(prefix + 'manual', future, false);
-            const due = await addJob(prefix + 'due', day(0));
+            const manual = await addJob(`${prefix}manual`, future, false);
+            const due = await addJob(`${prefix}due`, day(0));
             await transaction(SchedulerLogTableName).insert({
                 task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
                 scheduler_uuid: schedulerUuid,

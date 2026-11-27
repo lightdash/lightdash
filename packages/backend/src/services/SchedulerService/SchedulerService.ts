@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     assertIsAccountWithOrg,
-    type BigQueryTableNoticePayload,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     DATA_APP_VIZ_TEMPLATE,
@@ -55,6 +54,7 @@ import {
     UpdateSchedulerAndTargetsWithoutId,
     UserSchedulersSummary,
     type Account,
+    type BigQueryTableNoticePayload,
     type SchedulerAppState,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
