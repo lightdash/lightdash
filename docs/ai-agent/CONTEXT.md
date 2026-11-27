@@ -122,8 +122,9 @@ body, and optional resource files. Built-in skills ship with Lightdash and
 are declared by the add-on whose tools they explain, so a loadout lists only
 the built-in skills of its add-ons; custom skills are authored by an
 organization and enabled on an agent one by one. A skill reaches the model
-two ways: the agent loads it when a request matches its description, or a
-user invokes it directly with a slash command and optional arguments.
+three ways: the agent loads it when a request matches its description, a
+user invokes it directly with a slash command and optional arguments, or the
+model of an external MCP client reads it on request.
 _Avoid_: command (for the unit), prompt template, action, macro
 
 **Skill proposal**:

@@ -131,6 +131,48 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
 }
 `;
 
+exports[`MCP tool contracts > matches the composer with SQL Runner MCP server instructions snapshot 1`] = `
+"Before your first query call, read the query pipeline rules and examples: call read_skill with name "query-pipelines".
+
+## Query Building Workflow
+
+For raw SQL or a named warehouse table, follow step 0, then skip steps 1–3 and call \`query\` with a sql node. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
+
+0. \`get_context\`: pick the project, and the agent when agent-scoped, per its production/preview and pinned-scope rules.
+1. \`grep_fields\`: find fields and the explores at the right grain.
+2. \`get_metadata\`: confirm fields; use only exact field IDs from discovery or your custom metrics.
+3. \`search_field_values\`: find valid filter values.
+4. \`query\`: query governed metrics, then combine and transform them.
+5. \`get_query_result\`: poll a running query instead of resubmitting it.
+6. \`list_content\` and \`find_content\`: browse and search dashboards, charts, and Data Apps.
+
+## Rules
+
+- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
+- Before writing semanticLayer filters, read the \`filter-expressions\` skill
+"
+`;
+
+exports[`MCP tool contracts > matches the composer without SQL Runner MCP server instructions snapshot 1`] = `
+"Before your first query call, read the query pipeline rules and examples: call read_skill with name "query-pipelines".
+
+## Query Building Workflow
+
+0. \`get_context\`: pick the project, and the agent when agent-scoped, per its production/preview and pinned-scope rules.
+1. \`grep_fields\`: find fields and the explores at the right grain.
+2. \`get_metadata\`: confirm fields; use only exact field IDs from discovery or your custom metrics.
+3. \`search_field_values\`: find valid filter values.
+4. \`query\`: query governed metrics, then combine and transform them.
+5. \`get_query_result\`: poll a running query instead of resubmitting it.
+6. \`list_content\` and \`find_content\`: browse and search dashboards, charts, and Data Apps.
+
+## Rules
+
+- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
+- Before writing semanticLayer filters, read the \`filter-expressions\` skill
+"
+`;
+
 exports[`MCP tool contracts > matches the current MCP tool and prompt contract snapshot 1`] = `
 {
   "prompts": [
@@ -142,26 +184,24 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
       },
       "description": "Guidelines for querying Lightdash data using MCP tools. Call get_context first, pass projectUuid to every project-scoped tool, and pass route_agent results as agentUuid when scoped agent behavior is desired. Includes explore selection, query building, and visualization rules. Inject this into your system prompt for best results.",
       "name": "lightdash-analyst",
-      "prompt": "## Query Building Workflow
+      "prompt": "Before your first query call, read the query pipeline rules and examples: call read_skill with name "query-pipelines".
 
-For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
+## Query Building Workflow
 
-0. \`get_context\`: select the project, and the agent when agent-scoped; follow production/preview and pinned-scope rules.
-1. \`grep_fields\`: discover fields and select one explore at the right grain.
-2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
-3. \`search_field_values\`: find valid filter values when needed.
-4. \`run_metric_query\`: query governed metrics.
-5. \`get_query_result\`: poll running queries; never resubmit the original query.
-6. \`render_chart\`: render completed metric queries when a chart is wanted.
-7. \`list_content\`: browse accessible content.
-8. \`find_content\`: search dashboards, charts, and Data Apps.
+For raw SQL or a named warehouse table, follow step 0, then skip steps 1–3 and call \`query\` with a sql node. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
+
+0. \`get_context\`: pick the project, and the agent when agent-scoped, per its production/preview and pinned-scope rules.
+1. \`grep_fields\`: find fields and the explores at the right grain.
+2. \`get_metadata\`: confirm fields; use only exact field IDs from discovery or your custom metrics.
+3. \`search_field_values\`: find valid filter values.
+4. \`query\`: query governed metrics, then combine and transform them.
+5. \`get_query_result\`: poll a running query instead of resubmitting it.
+6. \`list_content\` and \`find_content\`: browse and search dashboards, charts, and Data Apps.
 
 ## Rules
 
-- \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect; never substitute \`run_sql\` for it
 - Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
-- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
-- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
+- Before writing semanticLayer filters, read the \`filter-expressions\` skill
 ",
       "title": "Lightdash Data Analyst",
     },
@@ -10838,13 +10878,15 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "readOnlyHint": true,
         "title": "Run composer queries",
       },
-      "description": "Run one query, or a pipeline of up to 25 nodes submitted together, where duckdb and python nodes join or transform other nodes' results.
+      "description": "Before your first query call, read the query pipeline rules and examples: call read_skill with name "query-pipelines".
+
+Run one query, or a pipeline of up to 25 nodes submitted together, where duckdb and python nodes join or transform other nodes' results.
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
 - "sql": raw SQL against the project warehouse; needs SQL Runner access.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
-- "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice. Prefer it to a duckdb join of semanticLayer nodes.
+- "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice.
 - "duckdb": DuckDB SQL over other results declared in "references".
 - "python": pandas code over other results declared in "references".
 
@@ -10853,6 +10895,16 @@ A node reads only the rows its references returned, so a referenced result that 
 A duckdb node that only reshapes another duckdb node's result (adds a column, filters, renames, re-sorts) belongs in that node's SQL: write one duckdb node over the original's references, under a new node id if the original is from an earlier call. Each duckdb step waits for the one it reads.
 
 A python node's "code" defines \`def run(inputs, params)\`; semanticLayer "filters" are flat expression strings.
+
+Plan the pipeline:
+- Query each explore with one semanticLayer node.
+- Combine semanticLayer nodes that meet on dimensions they share at the same grain (both by month, both by customer) with a merge node.
+- When a merge is refused, fix the merge: narrow a source with a filter, raise its limit, or add the missing join key. If you answer another way instead, your answer says so and why.
+- Combine results any other way with a duckdb node: a join key that has to be computed or truncated to a shared grain, a union, or filtering and aggregating after the join.
+- Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.
+- Explores are governed and reusable, so use a \`sql\` node only when the user points you at a raw table or asks for SQL, or when the semantic layer cannot produce the result: a table outside every explore, a join key no explore exposes as a dimension, a computation whose row-level inputs would exceed a node's row limit, or warehouse-specific syntax.
+- When no explore covers the request and the user names no warehouse table, say so and offer alternatives when there are any. When they ask for raw SQL without the table or column names it needs, ask for them.
+- When a follow-up needs a new query, plan its pipeline as for a first question: the fewest nodes from source to result, counting the earlier nodes it reads, and among such plans the one that reads earlier nodes unchanged.
 
 Reuse earlier nodes: if a node succeeds before query returns, the result has a sessionId that saves finished nodes. On a follow-up, pass it and read saved nodes by node id in "references" or merge "sources", submitting only the new nodes; they bring what they read, cached when possible. A saved node id names one node for the whole session, so give a changed node a new node id; resubmit a failed or unfinished node under the same id.
 

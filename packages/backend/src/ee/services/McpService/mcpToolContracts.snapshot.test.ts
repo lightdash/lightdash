@@ -4,10 +4,18 @@ import {
     FeatureFlags,
     mcpToolDefinitions,
     OrganizationMemberRole,
+    parseFilterExpression,
     ProjectMemberRole,
+    QUERY_PIPELINE_EXAMPLES,
+    QUERY_PIPELINES_SKILL_POINTER,
+    QuerySourceType,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
+import {
+    normalizeObjectSchema,
+    safeParse,
+} from '@modelcontextprotocol/sdk/server/zod-compat.js';
 import type { ZodRawShape, ZodType } from 'zod';
 import { z } from 'zod';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
@@ -226,6 +234,12 @@ const mcpQueryPaths: McpQueryPath[] = Object.values(mcpQueryPathsByType).flat();
 
 // Observed in Claude Code 2.1.263; this is not an MCP protocol limit.
 const MCP_CLIENT_TEXT_MAX_CHARS = 2048;
+// Budget chosen for the core composer rules on the query description (ADR 0010).
+const MCP_QUERY_DESCRIPTION_MAX_CHARS = 4096;
+const getMcpToolDescriptionMaxChars = (name: string) =>
+    name === McpToolName.QUERY
+        ? MCP_QUERY_DESCRIPTION_MAX_CHARS
+        : MCP_CLIENT_TEXT_MAX_CHARS;
 
 // Classify new features explicitly: registration-only or text-changing.
 const registrationOnlyFeatures = {
@@ -537,25 +551,37 @@ describe('MCP tool contracts', () => {
         },
     );
 
-    it.each([
+    it.each<{ name: string; queryPath: McpQueryPath }>([
         {
             name: 'structured-filter',
-            filterExpressionsEnabled: false,
+            queryPath: classicQueryPath(true, false),
         },
         {
             name: 'filter-expression',
-            filterExpressionsEnabled: true,
+            queryPath: classicQueryPath(true, true),
+        },
+        {
+            name: 'composer with SQL Runner',
+            queryPath: {
+                type: 'composer',
+                sqlRunnerEnabled: true,
+                filterExpressionsEnabled: false,
+            },
+        },
+        {
+            name: 'composer without SQL Runner',
+            queryPath: {
+                type: 'composer',
+                sqlRunnerEnabled: false,
+                filterExpressionsEnabled: false,
+            },
         },
     ])(
         'matches the $name MCP server instructions snapshot',
-        async ({ filterExpressionsEnabled }) => {
+        async ({ queryPath }) => {
             const mcpService = makeMcpService();
 
-            await mcpService.createServer(
-                makeMcpServerOptions({
-                    queryPath: classicQueryPath(true, filterExpressionsEnabled),
-                }),
-            );
+            await mcpService.createServer(makeMcpServerOptions({ queryPath }));
 
             expect(getLatestMcpServerInstructions()).toMatchSnapshot();
         },
@@ -573,7 +599,7 @@ describe('MCP tool contracts', () => {
     });
 
     it.each(mcpTextConfigurations)(
-        `keeps registered MCP tool descriptions within ${MCP_CLIENT_TEXT_MAX_CHARS} chars: $queryPath docs=$documentsEnabled agent=$agentIdentityEnabled`,
+        `keeps registered MCP tool descriptions within their char budget: $queryPath docs=$documentsEnabled agent=$agentIdentityEnabled`,
         async (options) => {
             const configuration = JSON.stringify(options);
             const mcpService = makeMcpService();
@@ -585,13 +611,55 @@ describe('MCP tool contracts', () => {
             );
             mockRegisteredMcpTools.forEach(({ name, config }) => {
                 const { length } = config.description;
+                const maxChars = getMcpToolDescriptionMaxChars(name);
                 expect
                     .soft(
                         length,
-                        `${configuration}: ${name} is ${length} chars, exceeding ${MCP_CLIENT_TEXT_MAX_CHARS}; shorten the text instead of updating snapshots`,
+                        `${configuration}: ${name} is ${length} chars, exceeding ${maxChars}; shorten the text instead of updating snapshots`,
                     )
-                    .toBeLessThanOrEqual(MCP_CLIENT_TEXT_MAX_CHARS);
+                    .toBeLessThanOrEqual(maxChars);
             });
+        },
+    );
+
+    it.each(mcpQueryPathsByType.composer)(
+        'accepts every query skill example as query input: %o',
+        async (queryPath) => {
+            const service = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await service.createServer(makeMcpServerOptions({ queryPath }));
+            const inputSchema = normalizeObjectSchema(
+                mockRegisteredMcpTools.find(
+                    ({ name }) => name === McpToolName.QUERY,
+                )?.config.inputSchema,
+            );
+            if (!inputSchema) throw new Error('query tool not registered');
+            const projectUuid = '00000000-0000-0000-0000-000000000000';
+            QUERY_PIPELINE_EXAMPLES.forEach(({ intro, args }) => {
+                const parsed = safeParse(inputSchema, { projectUuid, ...args });
+                if (!parsed.success) {
+                    throw new Error(`${intro}\n${String(parsed.error)}`);
+                }
+            });
+            const filters = QUERY_PIPELINE_EXAMPLES.flatMap(({ args }) =>
+                args.queries.flatMap((node) =>
+                    node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                        ? [
+                              node.filters?.dimensions,
+                              node.filters?.metrics,
+                              ...(node.customMetrics ?? []).map(
+                                  ({ filter }) => filter,
+                              ),
+                          ].filter((filter) => typeof filter === 'string')
+                        : [],
+                ),
+            );
+            expect(filters.length).toBeGreaterThan(0);
+            expect(
+                filters.filter(
+                    (filter) => !parseFilterExpression(filter).success,
+                ),
+            ).toEqual([]);
         },
     );
 
@@ -1087,7 +1155,7 @@ describe('MCP tool contracts', () => {
                 filterExpressionsEnabled: false,
             },
             tools: [...classicQueryTools, McpToolName.GET_QUERY_RESULT],
-            instructions: '## Query Building Workflow',
+            instructions: '4. `run_metric_query`',
         },
         {
             name: 'classic with SQL Runner',
@@ -1101,7 +1169,7 @@ describe('MCP tool contracts', () => {
                 McpToolName.RUN_SQL,
                 McpToolName.GET_QUERY_RESULT,
             ],
-            instructions: '## Query Building Workflow',
+            instructions: '4. `run_metric_query`',
         },
         {
             name: 'composer',
@@ -1115,7 +1183,7 @@ describe('MCP tool contracts', () => {
                 McpToolName.QUERY,
                 McpToolName.GET_QUERY_RESULT,
             ],
-            instructions: '## Query Building Workflow',
+            instructions: '4. `query`',
         },
     ])(
         'registers the query tools and instructions of the $name query path',
@@ -1133,6 +1201,29 @@ describe('MCP tool contracts', () => {
             expect(getLatestMcpServerInstructions()).toContain(instructions);
         },
     );
+
+    it('points composer clients to the query-pipelines skill first', async () => {
+        const mcpService = makeMcpService();
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer(
+            makeMcpServerOptions({
+                queryPath: {
+                    type: 'composer',
+                    sqlRunnerEnabled: true,
+                    filterExpressionsEnabled: false,
+                },
+            }),
+        );
+        const query = mockRegisteredMcpTools.find(
+            ({ name }) => name === McpToolName.QUERY,
+        );
+        expect(query?.config.description.split('\n')[0]).toBe(
+            QUERY_PIPELINES_SKILL_POINTER,
+        );
+        expect(getLatestMcpServerInstructions().split('\n')[0]).toBe(
+            QUERY_PIPELINES_SKILL_POINTER,
+        );
+    });
 
     describe('isRunSqlEnabled', () => {
         const ORG_UUID = 'org-1';
