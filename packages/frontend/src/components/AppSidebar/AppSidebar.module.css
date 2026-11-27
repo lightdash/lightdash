@@ -434,6 +434,10 @@
    with the sidebar in place of the navbar that height is zero. */
 :global(body):has(.shell) {
     --navbar-height: 0px;
+
+    /* The page scrolls inside the shell. Chart tooltips are appended here and
+       keep their place while hidden, which would make the window scroll too. */
+    overflow: hidden;
 }
 
 .gutter {
