@@ -4,11 +4,18 @@ import {
     FeatureFlags,
     mcpToolDefinitions,
     OrganizationMemberRole,
+    parseFilterExpression,
     ProjectMemberRole,
+    QUERY_PIPELINE_EXAMPLES,
     QUERY_PIPELINES_SKILL_POINTER,
+    QuerySourceType,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
+import {
+    normalizeObjectSchema,
+    safeParse,
+} from '@modelcontextprotocol/sdk/server/zod-compat.js';
 import type { ZodRawShape, ZodType } from 'zod';
 import { z } from 'zod';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
@@ -612,6 +619,47 @@ describe('MCP tool contracts', () => {
                     )
                     .toBeLessThanOrEqual(maxChars);
             });
+        },
+    );
+
+    it.each(mcpQueryPathsByType.composer)(
+        'accepts every query skill example as query input: %o',
+        async (queryPath) => {
+            const service = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await service.createServer(makeMcpServerOptions({ queryPath }));
+            const inputSchema = normalizeObjectSchema(
+                mockRegisteredMcpTools.find(
+                    ({ name }) => name === McpToolName.QUERY,
+                )?.config.inputSchema,
+            );
+            if (!inputSchema) throw new Error('query tool not registered');
+            const projectUuid = '00000000-0000-0000-0000-000000000000';
+            QUERY_PIPELINE_EXAMPLES.forEach(({ intro, args }) => {
+                const parsed = safeParse(inputSchema, { projectUuid, ...args });
+                if (!parsed.success) {
+                    throw new Error(`${intro}\n${String(parsed.error)}`);
+                }
+            });
+            const filters = QUERY_PIPELINE_EXAMPLES.flatMap(({ args }) =>
+                args.queries.flatMap((node) =>
+                    node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                        ? [
+                              node.filters?.dimensions,
+                              node.filters?.metrics,
+                              ...(node.customMetrics ?? []).map(
+                                  ({ filter }) => filter,
+                              ),
+                          ].filter((filter) => typeof filter === 'string')
+                        : [],
+                ),
+            );
+            expect(filters.length).toBeGreaterThan(0);
+            expect(
+                filters.filter(
+                    (filter) => !parseFilterExpression(filter).success,
+                ),
+            ).toEqual([]);
         },
     );
 

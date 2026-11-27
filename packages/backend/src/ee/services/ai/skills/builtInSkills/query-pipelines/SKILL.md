@@ -28,3 +28,41 @@ availability: [mcp]
 - Field `hints` are written for you and override the field description.
 - For date dimensions, pick the granularity the user asked for (`order_date_month` over `order_date` for "by month").
 - When base and joined tables have similar field names, use the one at the node's semantic level.
+
+# Examples
+
+Every call takes `projectUuid` (from `get_context`). Every node takes `sourceType`, `nodeId`, `title` and `description`; `limit` is optional. Names below are placeholders.
+
+Two `semanticLayer` nodes → `merge` → `python`:
+
+```
+{"terminalNodeId": "rate_trend", "queries": [
+  {"sourceType":"semanticLayer","nodeId":"inv_mo","title":"Invoices by month","description":"Monthly invoiced amount, prior-year amount, paid count.","exploreName":"invoices","dimensions":["invoices_date_month"],"metrics":["invoices_amount"],"customMetrics":[{"table":"invoices","name":"paid_count","label":"Paid invoices","aggregation":"count_distinct","dimensionFieldId":"invoices_id","filter":"invoices_status equals=\"paid\""}],"periodComparisons":[{"metricFieldId":"invoices_amount","timeDimensionFieldId":"invoices_date_month","periodOffset":12}],"filters":{"dimensions":"invoices_date_month inThePast=12{unit:months,completed:true}","metrics":null}},
+  {"sourceType":"semanticLayer","nodeId":"tkt_mo","title":"Tickets by month","description":"Counts tickets opened per month.","exploreName":"tickets","dimensions":["tickets_date_month"],"metrics":["tickets_count"]},
+  {"sourceType":"merge","nodeId":"inv_tkt","title":"Monthly ticket rate","description":"Joins invoices and tickets by month with rate.","sources":[{"nodeId":"inv_mo"},{"nodeId":"tkt_mo"}],"joinKey":[{"name":"month","fields":[{"nodeId":"inv_mo","fieldId":"invoices_date_month"},{"nodeId":"tkt_mo","fieldId":"tickets_date_month"}]}],"joinType":"left","tableCalculations":[{"name":"ticket_rate","displayName":"Ticket rate","formula":"COALESCE(tkt_mo_tickets_count, 0) / inv_mo_invoices_paid_count","format":{"type":"number","decimals":2}}],"sorts":[{"fieldId":"merge_month","descending":false}]},
+  {"sourceType":"python","nodeId":"rate_trend","title":"Ticket rate trend","description":"Fits linear slope to ticket rate.","references":["inv_tkt"],"code":"import numpy as np\nimport pandas as pd\ndef run(inputs, params):\n    df = inputs[\"inv_tkt\"].sort_values(\"merge_month\")\n    y = pd.to_numeric(df[\"merge_ticket_rate\"], errors=\"coerce\")\n    x = np.flatnonzero(y.notna())\n    s = float(np.polyfit(x, y.iloc[x].astype(float), 1)[0]) if len(x) > 1 else np.nan\n    return df.assign(trend_slope=s)"}
+]}
+```
+
+Follow-up reusing the saved `inv_mo` through `sessionId`, with `external` → `duckdb`:
+
+```
+{"sessionId": "<from earlier result>", "queries": [
+  {"sourceType":"external","nodeId":"targets_mo","title":"Monthly targets","description":"Reads uploaded monthly targets.","tables":["targets"],"sql":"SELECT month AS mo, target AS goal FROM targets"},
+  {"sourceType":"duckdb","nodeId":"inv_target","title":"Invoices vs target","description":"Joins saved invoices to targets with running total.","references":["inv_mo","targets_mo"],"sql":"SELECT i.invoices_date_month AS mo, i.invoices_amount AS amount, t.goal AS target, SUM(i.invoices_amount) OVER (ORDER BY i.invoices_date_month) AS running_total FROM inv_mo AS i LEFT JOIN targets_mo AS t ON i.invoices_date_month = t.mo","limit":100}
+]}
+```
+
+`sql` on a table the user named:
+
+```
+{"queries": [
+  {"sourceType":"sql","nodeId":"refunds","title":"Refunds by reason","description":"Counts refunds per reason in billing.refunds.","sql":"SELECT reason, COUNT(*) AS refunds FROM billing.refunds GROUP BY reason"}
+]}
+```
+
+Options:
+
+- `customMetrics[].aggregation`: `sum|average|count|count_distinct|min|max|median|percentile` (`percentile`: 0–100). A custom metric's id is `<table>_<name>`.
+- `merge.joinType`: `full|left|inner`. Merged columns are `<nodeId>_<fieldId>` and `merge_<name>`. `format`: `{"type":"number"|"percent"|"currency","currency":"USD","decimals":0..6}`. `sources[].repeatValues: true` on every source but the one that keeps an extra dimension (a monthly target beside daily sales).
+- `references` and `tables`: an array of ids, or `{alias: id}`. `semanticLayer.parameters`: `{name: value}` when a field requires parameters.

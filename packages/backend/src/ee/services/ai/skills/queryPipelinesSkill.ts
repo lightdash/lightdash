@@ -1,5 +1,6 @@
 import {
     COMPOSER_RULES,
+    formatQueryPipelineExamples,
     getComposerFollowUpChangeRule,
     QUERY_PIPELINES_SKILL_NAME,
     toComposerRuleBullets,
@@ -39,4 +40,16 @@ ${toComposerRuleBullets([
     COMPOSER_RULES.dateGranularity,
     "When base and joined tables have similar field names, use the one at the node's semantic level.",
 ])}
+
+# Examples
+
+Every call takes \`projectUuid\` (from \`get_context\`). Every node takes \`sourceType\`, \`nodeId\`, \`title\` and \`description\`; \`limit\` is optional. Names below are placeholders.
+
+${formatQueryPipelineExamples()}
+
+Options:
+
+- \`customMetrics[].aggregation\`: \`sum|average|count|count_distinct|min|max|median|percentile\` (\`percentile\`: 0–100). A custom metric's id is \`<table>_<name>\`.
+- \`merge.joinType\`: \`full|left|inner\`. Merged columns are \`<nodeId>_<fieldId>\` and \`merge_<name>\`. \`format\`: \`{"type":"number"|"percent"|"currency","currency":"USD","decimals":0..6}\`. \`sources[].repeatValues: true\` on every source but the one that keeps an extra dimension (a monthly target beside daily sales).
+- \`references\` and \`tables\`: an array of ids, or \`{alias: id}\`. \`semanticLayer.parameters\`: \`{name: value}\` when a field requires parameters.
 `;
