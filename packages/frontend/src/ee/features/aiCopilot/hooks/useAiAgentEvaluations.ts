@@ -14,6 +14,7 @@ import type {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import {
+    useIsMutating,
     useMutation,
     useQuery,
     useQueryClient,
@@ -176,14 +177,21 @@ export const useAiAgentEvaluation = (
     });
 };
 
+export const hasActiveEvaluationRun = (
+    runs: AiAgentEvaluationRunSummary[] | undefined,
+) => runs?.some(({ status }) => status === 'pending' || status === 'running');
+
 export const useAiAgentEvaluationRuns = (
     projectUuid: string | undefined,
     agentUuid: string | undefined,
     evalUuid: string | undefined,
-    options?: UseQueryOptions<
+    {
+        pollWhileActive,
+        ...options
+    }: UseQueryOptions<
         ApiAiAgentEvaluationRunSummaryListResponse['results'],
         ApiError
-    >,
+    > & { pollWhileActive?: boolean } = {},
 ) => {
     const lightdashApi = useLightdashApi();
     const handleError = useEvaluationErrorHandler(
@@ -217,6 +225,10 @@ export const useAiAgentEvaluationRuns = (
             !!agentUuid &&
             !!evalUuid &&
             options?.enabled !== false,
+        refetchInterval: (response) =>
+            pollWhileActive && hasActiveEvaluationRun(response?.data?.runs)
+                ? POLLING_INTERVAL
+                : false,
         ...options,
     });
 };
@@ -226,10 +238,13 @@ export const useAiAgentEvaluationRunResults = (
     agentUuid: string | undefined,
     evalUuid: string | undefined,
     runUuid: string | undefined,
-    options?: UseQueryOptions<
+    {
+        pollWhileActive,
+        ...options
+    }: UseQueryOptions<
         ApiAiAgentEvaluationRunResultsResponse['results'],
         ApiError
-    >,
+    > & { pollWhileActive?: boolean } = {},
 ) => {
     const lightdashApi = useLightdashApi();
     const handleError = useEvaluationErrorHandler(
@@ -266,6 +281,10 @@ export const useAiAgentEvaluationRunResults = (
             !!evalUuid &&
             !!runUuid &&
             options?.enabled !== false,
+        refetchInterval: (run) =>
+            pollWhileActive && (!run || hasActiveEvaluationRun([run]))
+                ? POLLING_INTERVAL
+                : false,
         ...options,
     });
 };
@@ -407,6 +426,63 @@ export const useRunEvaluation = (
         },
         onError: handleError,
     });
+};
+
+export const useRunAllEvaluations = (
+    projectUuid: string,
+    agentUuid: string,
+) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    const mutationKey = ['runAllEvaluations', projectUuid, agentUuid];
+    const isSubmitting = useIsMutating({ mutationKey }) > 0;
+
+    const mutation = useMutation({
+        mutationKey,
+        mutationFn: async (evalUuids: string[]) => {
+            const failures: string[] = [];
+            let skipped = 0;
+            let queued = 0;
+
+            // Submit one suite at a time to limit concurrent scheduling requests.
+            for (const evalUuid of evalUuids) {
+                try {
+                    const { data } = await getEvaluationRuns(
+                        lightdashApi,
+                        projectUuid,
+                        agentUuid,
+                        evalUuid,
+                    );
+                    if (hasActiveEvaluationRun(data?.runs)) {
+                        skipped += 1;
+                    } else {
+                        await runEvaluation(
+                            lightdashApi,
+                            projectUuid,
+                            agentUuid,
+                            evalUuid,
+                        );
+                        queued += 1;
+                    }
+                } catch {
+                    failures.push(evalUuid);
+                } finally {
+                    void queryClient.invalidateQueries({
+                        queryKey: [
+                            AI_AGENT_EVALUATION_RUNS_KEY,
+                            projectUuid,
+                            agentUuid,
+                            evalUuid,
+                        ],
+                    });
+                }
+            }
+
+            return { failures, skipped, queued };
+        },
+    });
+
+    return { ...mutation, isSubmitting };
 };
 
 export const useUpdateEvaluation = (

@@ -1,44 +1,28 @@
 import { Anchor, Center, Group, Text } from '@mantine/core';
 import { IconArrowLeft, IconTool } from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
-import { useNavigate } from 'react-router';
-import { useUpdateActiveProjectMutation } from '../../hooks/useActiveProject';
-import { getProjectUrlIdentifier } from '../../utils/projectUrl';
+import { type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import { BANNER_HEIGHT } from '../common/Page/constants';
 import classes from './PreviewBanner.module.css';
+import { formatExpiresIn, getExpiresInDays } from './previewExpiry';
+import {
+    useBackToUpstreamProject,
+    type UpstreamProject,
+} from './useBackToUpstreamProject';
 
 const formatExpirationSuffix = (expiresAt: Date): string => {
-    const expiresAtDate = new Date(expiresAt);
-    const diffMs = expiresAtDate.getTime() - Date.now();
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    const formatted = expiresAtDate.toLocaleString(undefined, {
+    const formatted = new Date(expiresAt).toLocaleString(undefined, {
         dateStyle: 'medium',
         timeStyle: 'short',
     });
-    if (diffDays <= 0) return ` Expires today (${formatted}).`;
-    if (diffDays === 1) return ` Expires in 1 day (${formatted}).`;
-    return ` Expires in ${diffDays} days (${formatted}).`;
+    return ` ${formatExpiresIn(getExpiresInDays(expiresAt))} (${formatted}).`;
 };
 
 export const PreviewBanner: FC<{
     expiresAt: Date | null;
-    upstreamProject: {
-        projectUuid: string;
-        slug?: string;
-        name: string;
-    } | null;
+    upstreamProject: UpstreamProject | null;
 }> = ({ expiresAt, upstreamProject }) => {
-    const navigate = useNavigate();
-    const { mutate: setActiveProject } = useUpdateActiveProjectMutation();
-
-    const handleBackToUpstream = useCallback(() => {
-        if (!upstreamProject) return;
-        setActiveProject(upstreamProject.projectUuid);
-        void navigate(
-            `/projects/${getProjectUrlIdentifier(upstreamProject)}/home`,
-        );
-    }, [navigate, setActiveProject, upstreamProject]);
+    const handleBackToUpstream = useBackToUpstreamProject(upstreamProject);
 
     return (
         <Center

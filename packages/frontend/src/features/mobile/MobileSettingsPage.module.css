@@ -125,3 +125,10 @@
         display: none;
     }
 }
+
+/* Stands in for the button where a layout opens sign-in from a menu instead. */
+.signInAnchor {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}

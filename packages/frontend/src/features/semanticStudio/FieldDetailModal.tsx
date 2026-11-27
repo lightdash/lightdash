@@ -24,6 +24,7 @@ import {
 import MantineIcon from '../../components/common/MantineIcon';
 import { ItemDetailMarkdown } from '../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
 import { useUpdateLiveSourceFields } from '../externalConnections/hooks/useLiveSourceFields';
+import { LiveSourceSwitchOffModal } from '../externalConnections/liveSources/LiveSourceSwitchOffModal';
 import classes from './FieldDetailModal.module.css';
 import {
     isSameDraft,
@@ -273,7 +274,8 @@ export const FieldDetailModal: FC<{
         projectUuid: view.project.id,
         connectionUuid: source.connectionUuid ?? '',
     });
-    const save = () => {
+    const [isConfirming, setIsConfirming] = useState(false);
+    const commit = () => {
         update.mutate(
             [
                 {
@@ -282,9 +284,20 @@ export const FieldDetailModal: FC<{
                 },
             ],
             {
-                onSuccess: () => setCommitted(draft),
+                onSuccess: () => {
+                    setCommitted(draft);
+                    setIsConfirming(false);
+                },
             },
         );
+    };
+    // Switching off a field that saved charts use asks first
+    const save = () => {
+        if (saved.inUse && !draft.inUse && (field.chartUsage ?? 0) > 0) {
+            setIsConfirming(true);
+            return;
+        }
+        commit();
     };
     const facts = [
         field.table !== explore.name
@@ -349,6 +362,20 @@ export const FieldDetailModal: FC<{
             </Group>
         ) : null;
 
+    if (isConfirming) {
+        return (
+            <LiveSourceSwitchOffModal
+                projectUuid={view.project.id}
+                connectionUuid={source.connectionUuid ?? ''}
+                exploreName={explore.name}
+                fieldName={field.name}
+                label={field.label}
+                isSaving={update.isLoading}
+                onConfirm={commit}
+                onClose={() => setIsConfirming(false)}
+            />
+        );
+    }
     return (
         <DetailModal
             icon={<FieldTypeIcon field={field} size="lg" />}

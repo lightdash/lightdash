@@ -103,6 +103,11 @@ export type LiveIntegration<
         /** Scanned fields kept out of the default field list. */
         isInternalField?: (apiName: string) => boolean;
         /**
+         * A new source starts with every scanned field in use, for
+         * integrations whose explore is only what the scan finds.
+         */
+        inUseByDefault?: true;
+        /**
          * Names of the explores besides the first that scans add fields to,
          * each curated on its own. Omitted, only the first explore is scanned.
          */
@@ -210,4 +215,6 @@ export type LiveScanResult = {
     hubspotProperties?: unknown;
     /** Salesforce's describe of the source's object, as it returns it. */
     salesforceDescribe?: unknown;
+    /** The source's table under `definitions` in the Supabase Data API's OpenAPI description. */
+    supabaseTable?: unknown;
 };

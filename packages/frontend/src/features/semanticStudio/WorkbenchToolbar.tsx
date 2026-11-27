@@ -87,7 +87,8 @@ export const DraftToolbar: FC<ToolbarProps> = ({
 }) => (
     <ToolbarLayout
         picker={
-            canEditModels ? (
+            // Nothing is published before the first model, so there is nothing to switch between
+            canEditModels && pane !== 'buildFirst' ? (
                 <StudioCheckoutPicker
                     projectUuid={projectUuid}
                     onShowChanges={onShowChanges}

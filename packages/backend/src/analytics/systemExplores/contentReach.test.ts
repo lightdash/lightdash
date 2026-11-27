@@ -174,7 +174,7 @@ describe('Content reach', () => {
             `CREATE TABLE content_views (${contentViewsColumns.map(({ name, type }) => `"${name}" ${type}`).join(',')})`,
         );
         await db.run(
-            'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR)',
+            'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, is_active BOOLEAN)',
         );
         await db.run(
             "INSERT INTO lightdash_users (org_id, user_id, name) VALUES ('org','reader','Alex'), ('other','reader','Other tenant')",

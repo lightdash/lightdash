@@ -14,10 +14,9 @@ const roleTableQueries = () =>
 beforeEach(() => tracker.reset());
 afterAll(async () => database.destroy());
 
-test('defaults a missing policy to legacy without granting capabilities', async () => {
+test('defaults a missing policy to no restrictions', async () => {
     tracker.on.select('organization_agent_capability_policies').response([]);
     expect(await model.get('org')).toEqual({
-        mode: 'legacy',
         version: 0,
         allowedCapabilities: null,
         allowedGroupUuids: null,
@@ -25,18 +24,21 @@ test('defaults a missing policy to legacy without granting capabilities', async 
     expect(tracker.history.select[0].bindings).toContain('org');
 });
 
-test.each([null, [], [AgentCapability.Query]])(
-    'preserves capability limit %j without reading role rows',
-    async (allowedCapabilities) => {
+test.each([
+    { allowedCapabilities: null, stored: 'managed' },
+    { allowedCapabilities: [], stored: 'legacy' },
+    { allowedCapabilities: [AgentCapability.Query], stored: 'managed' },
+])(
+    'reads capability limit $allowedCapabilities whatever the stored mode',
+    async ({ allowedCapabilities, stored }) => {
         tracker.on.select('organization_agent_capability_policies').response([
             {
-                mode: 'managed',
+                mode: stored,
                 version: 3,
                 allowed_capabilities: allowedCapabilities,
             },
         ]);
         expect(await model.get('org')).toEqual({
-            mode: 'managed',
             version: 3,
             allowedGroupUuids: null,
             allowedCapabilities,
@@ -47,7 +49,7 @@ test.each([null, [], [AgentCapability.Query]])(
 );
 
 test('increments the stored version without writing role rows', async () => {
-    tracker.on.insert('organization_agent_capability_policies').response([
+    const stored = [
         {
             mode: 'managed',
             version: 4,
@@ -55,18 +57,22 @@ test('increments the stored version without writing role rows', async () => {
             allowed_group_uuids: null,
             allowed_capabilities: [AgentCapability.Query],
         },
-    ]);
+    ];
+    tracker.on
+        .insert('organization_agent_capability_policies')
+        .response(stored);
+    tracker.on
+        .select('organization_agent_capability_policies')
+        .response(stored);
     expect(
         await model.save({
             organizationUuid: 'org',
-            mode: 'managed',
             version: 3,
             allowedGroupUuids: null,
             allowedCapabilities: [AgentCapability.Query],
             updatedByUserUuid: 'user',
         }),
     ).toEqual({
-        mode: 'managed',
         version: 4,
         allowedGroupUuids: null,
         allowedCapabilities: [AgentCapability.Query],
@@ -76,6 +82,7 @@ test('increments the stored version without writing role rows', async () => {
     );
     expect(tracker.history.insert[0].sql).toContain('"version" + 1');
     expect(tracker.history.insert[0].bindings).toContain('user');
+    expect(tracker.history.insert[0].bindings).toContain('managed');
     expect(tracker.history.insert).toHaveLength(1);
     expect(tracker.history.delete).toHaveLength(0);
     expect(roleTableQueries()).toEqual([]);
@@ -90,10 +97,9 @@ test.each([{ rows: [] }, { rows: [{ version: 1 }] }])(
         await expect(
             model.save({
                 organizationUuid: 'org',
-                mode: 'managed',
                 version: 3,
                 allowedGroupUuids: null,
-                allowedCapabilities: null,
+                allowedCapabilities: Object.values(AgentCapability),
                 updatedByUserUuid: null,
             }),
         ).rejects.toThrow(
@@ -107,29 +113,62 @@ test.each([{ rows: [] }, { rows: [{ version: 1 }] }])(
 );
 
 test('omitted capabilities preserve the stored limit atomically', async () => {
-    tracker.on.insert('organization_agent_capability_policies').response([
+    const stored = [
         {
             mode: 'managed',
             version: 2,
             allowed_capabilities: [AgentCapability.Query],
             allowed_group_uuids: null,
         },
-    ]);
+    ];
+    tracker.on
+        .insert('organization_agent_capability_policies')
+        .response(stored);
+    tracker.on
+        .select('organization_agent_capability_policies')
+        .response(stored);
     const saved = await model.save({
         organizationUuid: 'org',
-        mode: 'managed',
         updatedByUserUuid: null,
     });
     expect(saved.allowedCapabilities).toEqual([AgentCapability.Query]);
-    expect(tracker.history.insert[0].sql).toMatch(/COALESCE/i);
-    expect(tracker.history.insert[0].sql).toContain('allowed_user_uuids');
-    expect(tracker.history.select).toHaveLength(0);
+    const { sql } = tracker.history.insert[0];
+    const update = sql.slice(sql.indexOf('do update set'));
+    expect(update).not.toContain('"allowed_capabilities"');
+    expect(update).not.toContain('"mode"');
+    expect(update).toContain('allowed_user_uuids');
+});
+
+test('clearing the capability list stores an unrestricted policy', async () => {
+    const stored = [
+        {
+            mode: 'legacy',
+            version: 2,
+            allowed_capabilities: null,
+            allowed_group_uuids: null,
+        },
+    ];
+    tracker.on
+        .insert('organization_agent_capability_policies')
+        .response(stored);
+    tracker.on
+        .select('organization_agent_capability_policies')
+        .response(stored);
+    const saved = await model.save({
+        organizationUuid: 'org',
+        allowedCapabilities: null,
+        updatedByUserUuid: null,
+    });
+    expect(saved.allowedCapabilities).toBeNull();
+    const { sql, bindings } = tracker.history.insert[0];
+    expect(sql.slice(sql.indexOf('do update set'))).toContain('"mode"');
+    expect(bindings).toContain('legacy');
+    expect(bindings).not.toContain('managed');
 });
 
 const saveGroups = (allowedGroupUuids?: string[] | null) =>
     model.save({
         organizationUuid: 'org',
-        mode: 'managed',
         allowedGroupUuids,
         updatedByUserUuid: null,
     });
@@ -137,14 +176,21 @@ const saveGroups = (allowedGroupUuids?: string[] | null) =>
 test.each([null, ['group']])(
     'saves group admission %j',
     async (allowedGroupUuids) => {
-        tracker.on.select('groups').response([{ group_uuid: 'group' }]);
-        tracker.on.insert('organization_agent_capability_policies').response([
+        const stored = [
             {
-                mode: 'managed',
+                mode: 'legacy',
                 version: 1,
+                allowed_capabilities: null,
                 allowed_group_uuids: allowedGroupUuids,
             },
-        ]);
+        ];
+        tracker.on
+            .select('from "organization_agent_capability_policies"')
+            .response(stored);
+        tracker.on.select('groups').response([{ group_uuid: 'group' }]);
+        tracker.on
+            .insert('organization_agent_capability_policies')
+            .response(stored);
         expect(await saveGroups(allowedGroupUuids)).toMatchObject({
             allowedGroupUuids,
         });
@@ -159,7 +205,7 @@ test.each([null, ['group']])(
             expect(tracker.history.select[0].sql).toContain(
                 '"organizations"."organization_uuid"',
             );
-        } else expect(tracker.history.select).toHaveLength(0);
+        } else expect(tracker.history.select).toHaveLength(1);
     },
 );
 
@@ -211,21 +257,29 @@ test('rejects an explicit empty group list', async () => {
 });
 
 test.each([{ stored: [] }, { stored: ['deleted'] }])(
-    'omitting groups preserves the exact stored value %j',
+    'omitting groups leaves the stored value %j untouched',
     async ({ stored: allowedGroupUuids }) => {
-        tracker.on.insert('organization_agent_capability_policies').response([
+        const stored = [
             {
-                mode: 'managed',
+                mode: 'legacy',
                 version: 2,
+                allowed_capabilities: null,
                 allowed_group_uuids: allowedGroupUuids,
             },
-        ]);
-        expect(await saveGroups()).toMatchObject({ allowedGroupUuids });
+        ];
+        tracker.on
+            .select('from "organization_agent_capability_policies"')
+            .response(stored);
+        tracker.on.select('groups').response([]);
+        tracker.on
+            .insert('organization_agent_capability_policies')
+            .response(stored);
+        // Reads drop deleted groups; the stored value itself is not rewritten.
+        expect(await saveGroups()).toMatchObject({ allowedGroupUuids: [] });
         const { sql } = tracker.history.insert[0];
         expect(sql.slice(sql.indexOf('do update set'))).not.toContain(
             'allowed_group_uuids',
         );
-        expect(tracker.history.select).toHaveLength(0);
     },
 );
 
@@ -235,7 +289,6 @@ describe('getForEnforcement', () => {
             .select('organization_agent_capability_policies')
             .response([]);
         expect(await model.getForEnforcement('org')).toEqual({
-            mode: 'legacy',
             version: 0,
             allowedCapabilities: null,
             storedAllowedGroupUuids: null,
@@ -266,7 +319,6 @@ describe('getForEnforcement', () => {
                     },
                 ]);
             expect(await model.getForEnforcement('org')).toEqual({
-                mode: 'managed',
                 version: 4,
                 allowedCapabilities: [AgentCapability.Query],
                 storedAllowedGroupUuids: stored,

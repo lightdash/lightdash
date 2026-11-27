@@ -33,12 +33,65 @@ export const useVoiceRecorder = ({ now }: { now: () => number }) => {
     const nowRef = useRef(now);
     nowRef.current = now;
 
-    const releaseStream = useCallback(() => {
+    // Kept open between recordings, so one starts without losing first words.
+    const warmRef = useRef(false);
+    const openingRef = useRef<Promise<MediaStream> | null>(null);
+
+    const closeStream = useCallback(() => {
         streamRef.current?.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
     }, []);
 
-    useEffect(() => releaseStream, [releaseStream]);
+    const releaseStream = useCallback(() => {
+        if (!warmRef.current) closeStream();
+    }, [closeStream]);
+
+    useEffect(
+        () => () => {
+            warmRef.current = false;
+            closeStream();
+        },
+        [closeStream],
+    );
+
+    const openStream = useCallback((): Promise<MediaStream> => {
+        const live = streamRef.current;
+        if (live?.getTracks().some((track) => track.readyState === 'live')) {
+            return Promise.resolve(live);
+        }
+        if (openingRef.current) return openingRef.current;
+        const opening = navigator.mediaDevices
+            .getUserMedia({ audio: true })
+            .then((stream) => {
+                streamRef.current = stream;
+                return stream;
+            })
+            .finally(() => {
+                openingRef.current = null;
+            });
+        openingRef.current = opening;
+        return opening;
+    }, []);
+
+    /** Opens the microphone ahead of the next recording, or lets it go. */
+    const setWarm = useCallback(
+        (warm: boolean) => {
+            warmRef.current = warm;
+            if (!warm) {
+                if (!recorderRef.current) closeStream();
+                return;
+            }
+            if (!navigator.mediaDevices?.getUserMedia) return;
+            openStream().then(
+                () => {
+                    // Let go while it was opening.
+                    if (!warmRef.current && !recorderRef.current) closeStream();
+                },
+                () => {},
+            );
+        },
+        [closeStream, openStream],
+    );
 
     const start = useCallback(
         async ({ available }: { available: boolean }): Promise<VoiceState> => {
@@ -57,27 +110,24 @@ export const useVoiceRecorder = ({ now }: { now: () => number }) => {
                 return 'off';
             }
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    audio: true,
-                });
+                const stream = await openStream();
                 const recorder = new MediaRecorder(stream);
                 recorder.ondataavailable = (event) => {
                     if (event.data.size > 0) chunksRef.current.push(event.data);
                 };
-                streamRef.current = stream;
                 recorderRef.current = recorder;
                 recorder.start();
                 startedAtMsRef.current = nowRef.current();
                 setListening(true);
                 return 'on';
             } catch (error) {
-                releaseStream();
+                closeStream();
                 recorderRef.current = null;
                 setOffReason(offReasonFor(error));
                 return 'off';
             }
         },
-        [releaseStream],
+        [closeStream, openStream],
     );
 
     const stop = useCallback(
@@ -108,5 +158,5 @@ export const useVoiceRecorder = ({ now }: { now: () => number }) => {
         [releaseStream],
     );
 
-    return { start, stop, listening, offReason };
+    return { start, stop, setWarm, listening, offReason };
 };

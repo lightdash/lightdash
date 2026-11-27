@@ -7,6 +7,7 @@ export default defineConfig({
         include: [
             'src/**/database/migrations/__tests__/*.migration.integration.ts',
             'src/models/ProjectModel/ProjectModel.membershipOrdering.integration.test.ts',
+            'src/models/ProjectModel/ProjectModel.defaultUserSpaces.integration.test.ts',
             'src/models/UsageQueryHistoryModel.integration.test.ts',
             'src/models/MobileSignInCodeModel.integration.test.ts',
             'src/models/SpaceModel.moveToSpace.integration.test.ts',

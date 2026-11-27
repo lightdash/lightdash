@@ -1,100 +1,30 @@
-import { Group, Stack, Text, Tooltip, VisuallyHidden } from '@mantine/core';
-import { useQueries } from '@tanstack/react-query';
-import { useMemo, type FC } from 'react';
+import { type Explore } from '@lightdash/common';
+import { Group, Stack, Text, VisuallyHidden } from '@mantine/core';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
+import { useEffect, type FC } from 'react';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { developmentHeadersFor, PUBLISHED_HEADERS } from './developmentView';
 import { FieldUsage } from './DraftInsights';
-import { describeShift } from './metricComparison';
 import { CHANGE_KIND_STYLE } from './modelCode';
-import { findTouchedFields, type FieldChange } from './modelFieldDiff';
-import { modelVersionQuery } from './useFieldChangesInDevelopment';
-import { useMetricShift } from './useMetricTotals';
 import {
-    describeChangedFields,
-    useModelFieldChanges,
-} from './useModelFieldChanges';
+    describeUnbuiltFields,
+    describeUnchangedFields,
+    diffModelFields,
+    findTouchedFields,
+    type FieldChange,
+} from './modelFieldDiff';
+import { MODEL_VERSION_KEY } from './studioQueryKeys';
+import {
+    modelVersionQuery,
+    useUnbuiltFields,
+} from './useFieldChangesInDevelopment';
+import { useModelFieldChanges } from './useModelFieldChanges';
 import { useSemanticLayerFieldUsage } from './useSemanticLayerModel';
 
-/** What the person's changes do to this model's fields, in plain words, with each new or changed metric's total next to it. */
-export const ModelFieldChanges: FC<{
-    projectUuid: string;
-    model: string;
-    /** The preview project that holds the changes, for a pull request that has one. */
-    previewProjectUuid: string | null;
-    /** The pull request's latest commit, so totals are read again after it moves. */
-    cacheKey: string;
-    /** Until the draft compiles its fields are the old ones, so an empty diff says nothing yet. */
-    isCompiled: boolean;
-}> = ({ projectUuid, model, previewProjectUuid, cacheKey, isCompiled }) => {
-    const { live, changes } = useModelFieldChanges(
-        projectUuid,
-        model,
-        previewProjectUuid,
-    );
-    const metricIds = useMemo(
-        () =>
-            new Map(
-                describeChangedFields(changes ?? [], {
-                    keepsHiddenMetrics: true,
-                })
-                    .filter(
-                        ({ kind, isMetric }) => isMetric && kind !== 'removed',
-                    )
-                    .map(({ key, fieldId }) => [key, fieldId]),
-            ),
-        [changes],
-    );
-    const ids = [...metricIds.values()];
-    // Asking live for a metric it does not have fails the whole query.
-    const liveIds = (changes ?? [])
-        .filter(({ key, kind }) => kind === 'changed' && metricIds.has(key))
-        .map(({ key }) => metricIds.get(key) ?? key);
-    const { after, before } = useMetricShift(projectUuid, model, {
-        ids,
-        liveIds,
-        headers: developmentHeadersFor(previewProjectUuid),
-        cacheKey,
-    });
-    if (!changes) return null;
-    if (changes.length === 0) {
-        return (
-            <Text fz="xs" c="dimmed">
-                {isCompiled
-                    ? 'No field is added, changed or removed.'
-                    : 'Fields show here once the draft compiles.'}
-            </Text>
-        );
-    }
-    const renderTotal = (key: string, kind: FieldChange['kind']) => {
-        const id = metricIds.get(key);
-        if (!id || after.isError) return null;
-        const value = after.data?.[id];
-        const old = kind === 'changed' ? before.data?.[id] : undefined;
-        const shift = old && value ? describeShift(old.raw, value.raw) : null;
-        return (
-            <Tooltip
-                label={
-                    old
-                        ? 'Total over every row, live and with your changes.'
-                        : 'Total over every row, with your changes.'
-                }
-            >
-                <Text fz="xs" flex="none">
-                    {old ? (
-                        <Text span inherit c="dimmed">
-                            {old.formatted} →{' '}
-                        </Text>
-                    ) : null}
-                    {value?.formatted ?? '…'}
-                    {shift ? (
-                        <Text span inherit c="orange" ml={6}>
-                            {shift}
-                        </Text>
-                    ) : null}
-                </Text>
-            </Tooltip>
-        );
-    };
+const FieldChangeRows: FC<{ live: Explore | null; changes: FieldChange[] }> = ({
+    live,
+    changes,
+}) => {
     return (
         <Stack gap={6}>
             {live ? null : (
@@ -127,15 +57,113 @@ export const ModelFieldChanges: FC<{
                             {attributes.join(', ')}
                         </Text>
                     ) : null}
-                    {renderTotal(key, kind)}
                 </Group>
             ))}
-            {after.isError ? (
+        </Stack>
+    );
+};
+
+/** What the person's changes do to this model's fields, in plain words. */
+export const ModelFieldChanges: FC<{
+    projectUuid: string;
+    model: string;
+    /** The preview project that holds the changes, for a pull request that has one. */
+    previewProjectUuid: string | null;
+}> = ({ projectUuid, model, previewProjectUuid }) => {
+    const { live, changes } = useModelFieldChanges(
+        projectUuid,
+        model,
+        previewProjectUuid,
+    );
+    if (!changes) return null;
+    if (changes.length === 0) {
+        return (
+            <Text fz="xs" c="dimmed">
+                No field is added, changed or removed.
+            </Text>
+        );
+    }
+    return <FieldChangeRows live={live} changes={changes} />;
+};
+
+/** What a draft does to the fields of all its models: each changed field, or one line when none is. */
+export const DraftFieldChanges: FC<{
+    projectUuid: string;
+    models: string[];
+    previewProjectUuid: string | null;
+    /** Until the draft compiles its fields are the old ones, so an empty diff says nothing yet. */
+    isCompiled: boolean;
+    fileCount: number;
+}> = ({ projectUuid, models, previewProjectUuid, isCompiled, fileCount }) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    // The fields read while the draft compiled are the old ones.
+    useEffect(() => {
+        if (!isCompiled) return;
+        void queryClient.invalidateQueries({
+            queryKey: [MODEL_VERSION_KEY, projectUuid],
+        });
+    }, [isCompiled, projectUuid, queryClient]);
+    const { data: unbuiltFields } = useUnbuiltFields(projectUuid);
+    const sides = useQueries({
+        queries: models.flatMap((model) => [
+            modelVersionQuery(
+                lightdashApi,
+                projectUuid,
+                model,
+                PUBLISHED_HEADERS,
+            ),
+            modelVersionQuery(
+                lightdashApi,
+                projectUuid,
+                model,
+                developmentHeadersFor(previewProjectUuid),
+            ),
+        ]),
+    });
+    const read = models.map((model, index) => {
+        const live = sides[index * 2].data;
+        const mine = sides[index * 2 + 1].data;
+        return {
+            model,
+            live: live ?? null,
+            // A model that is new has no live version to read.
+            changes:
+                mine && live !== undefined ? diffModelFields(live, mine) : null,
+        };
+    });
+    const unchanged = describeUnchangedFields(
+        read.map(({ changes }) => changes),
+        isCompiled && sides.every(({ isFetching }) => !isFetching),
+        fileCount,
+    );
+    const unbuilt = describeUnbuiltFields(
+        (unbuiltFields ?? [])
+            .filter(({ model }) => models.includes(model))
+            .map(({ label }) => label),
+    );
+    return (
+        <>
+            {read.map(({ model, live, changes }) =>
+                changes && changes.length > 0 ? (
+                    <FieldChangeRows
+                        key={model}
+                        live={live}
+                        changes={changes}
+                    />
+                ) : null,
+            )}
+            {unchanged ? (
                 <Text fz="xs" c="dimmed">
-                    Could not run the totals: {after.error.error.message}
+                    {unchanged}
                 </Text>
             ) : null}
-        </Stack>
+            {isCompiled && unbuilt ? (
+                <Text fz="xs" c="dimmed">
+                    {unbuilt}
+                </Text>
+            ) : null}
+        </>
     );
 };
 

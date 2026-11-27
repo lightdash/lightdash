@@ -7,6 +7,8 @@ import {
     AgentCapabilityPoliciesTableName,
     AgentSystemRoleCapabilitiesTable,
     AgentSystemRoleCapabilitiesTableName,
+    ProjectAgentCapabilityPoliciesTable,
+    ProjectAgentCapabilityPoliciesTableName,
 } from '../database/entities/agentCapabilityPolicies';
 import {
     AgentConnectionApprovalRequestsTable,
@@ -784,8 +786,8 @@ import {
     ManagedAgentSettingsTableName,
 } from '../ee/database/entities/managedAgent';
 import {
-    McpClientInfoTable,
-    McpClientInfoTableName,
+    McpSessionClientInfoTable,
+    McpSessionClientInfoTableName,
     McpToolCallTable,
     McpToolCallTableName,
 } from '../ee/database/entities/mcpToolCall';
@@ -862,6 +864,7 @@ declare module 'knex/types/tables' {
         [DbtSourceRefCatalogsTableName]: DbtSourceRefCatalogsTable;
         [ReleaseHighlightsTableName]: ReleaseHighlightsTable;
         [AgentCapabilityPoliciesTableName]: AgentCapabilityPoliciesTable;
+        [ProjectAgentCapabilityPoliciesTableName]: ProjectAgentCapabilityPoliciesTable;
         [AgentConnectionGrantsTableName]: AgentConnectionGrantsTable;
         [AgentConnectionApprovalRequestsTableName]: AgentConnectionApprovalRequestsTable;
         [AgentSystemRoleCapabilitiesTableName]: AgentSystemRoleCapabilitiesTable;
@@ -1055,7 +1058,7 @@ declare module 'knex/types/tables' {
         [AiAgentToolCallErrorTableName]: AiAgentToolCallErrorTable;
         [AiAgentToolResultTableName]: AiAgentToolResultTable;
         [McpToolCallTableName]: McpToolCallTable;
-        [McpClientInfoTableName]: McpClientInfoTable;
+        [McpSessionClientInfoTableName]: McpSessionClientInfoTable;
         [AiSqlApprovalTableName]: AiSqlApprovalTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;

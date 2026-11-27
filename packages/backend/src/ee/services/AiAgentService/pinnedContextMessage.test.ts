@@ -109,7 +109,6 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
                 },
             },
         ]);
-        expect(content).toContain('Filters applied:');
         expect(content).toContain('"values":["US"]');
         expect(content).not.toContain('country-filter-uuid');
         expect(content).not.toContain('tileTargets');
@@ -141,7 +140,7 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
                 '  Parameter values: {"region":"EU"}',
                 '  Date zoom: {"granularity":"Week"}',
                 '',
-                "Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). When runtime overrides are listed, apply them on top of the chart's saved state when querying.",
+                "Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). These overrides are what the user currently sees. Use them when the question is about what the dashboard or chart shows. Leave them out when editing a saved chart or answering a new question, unless the user asks for them.",
             ].join('\n'),
         );
     });
@@ -466,7 +465,9 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         );
         expect(content).not.toContain('artifact-1');
         expect(content).not.toContain('readContent');
-        expect(content).not.toContain('runtime overrides');
+        expect(content).not.toContain(
+            'These overrides are what the user currently sees',
+        );
     });
 
     it('renders a data app restore as one line naming both versions', () => {

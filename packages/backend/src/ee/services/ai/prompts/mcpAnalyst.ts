@@ -1,4 +1,9 @@
-import type { AiAgent } from '@lightdash/common';
+import {
+    assertUnreachable,
+    QUERY_PIPELINES_SKILL_POINTER,
+    type AiAgent,
+} from '@lightdash/common';
+import type { McpQueryPath } from '../../McpService/mcpQueryPath';
 
 const FILTER_EXPRESSION_SKILL_REMINDER =
     '- Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values';
@@ -16,6 +21,9 @@ const AGENT_CONNECT_RULE = `- If a query tool refuses with a connect link, show 
 
 const RAW_SQL_WORKFLOW_GUIDANCE = `For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
 
+`;
+
+const EXPLORE_CHOICE_RULE = `- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
 `;
 
 const CONTENT_ONLY_PROMPT = `# Lightdash MCP — Saved Content Mode
@@ -78,36 +86,65 @@ ${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: select the 
 ## Rules
 
 - \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect${runSqlEnabled ? '; never substitute `run_sql` for it' : ''}
-- Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
-${runSqlEnabled ? runSqlGuidance : ''}${filterExpressionsEnabled ? `${FILTER_EXPRESSION_SKILL_REMINDER}\n` : ''}- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
+${EXPLORE_CHOICE_RULE}${runSqlEnabled ? runSqlGuidance : ''}${filterExpressionsEnabled ? `${FILTER_EXPRESSION_SKILL_REMINDER}\n` : ''}- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
 ${agentIdentityEnabled ? AGENT_CONNECT_RULE : ''}`;
 };
 
+const COMPOSER_RAW_SQL_WORKFLOW_GUIDANCE = `For raw SQL or a named warehouse table, follow step 0, then skip steps 1–3 and call \`query\` with a sql node. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
+
+`;
+
+const buildMcpComposerPrompt = (
+    sqlRunnerEnabled: boolean,
+    documentsEnabled: boolean,
+    agentIdentityEnabled: boolean,
+): string => `${QUERY_PIPELINES_SKILL_POINTER}
+
+## Query Building Workflow
+
+${sqlRunnerEnabled ? COMPOSER_RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: pick the project, and the agent when agent-scoped, per its production/preview and pinned-scope rules.
+1. \`grep_fields\`: find fields and the explores at the right grain.
+2. \`get_metadata\`: confirm fields; use only exact field IDs from discovery or your custom metrics.
+3. \`search_field_values\`: find valid filter values.
+4. \`query\`: query governed metrics, then combine and transform them.
+5. \`get_query_result\`: poll a running query instead of resubmitting it.
+6. \`list_content\` and \`find_content\`: browse and search dashboards, charts, ${documentsEnabled ? 'Data Apps, and Documents' : 'and Data Apps'}.
+
+## Rules
+
+${EXPLORE_CHOICE_RULE}- Before writing semanticLayer filters, read the \`filter-expressions\` skill
+${agentIdentityEnabled ? AGENT_CONNECT_RULE : ''}`;
+
 export const getMcpAnalystPrompt = ({
-    runSqlEnabled,
-    runMetricQueryEnabled,
-    filterExpressionsEnabled,
+    queryPath,
     documentsEnabled,
     agentIdentityEnabled = false,
 }: {
-    runSqlEnabled: boolean;
-    runMetricQueryEnabled: boolean;
-    filterExpressionsEnabled: boolean;
+    queryPath: McpQueryPath;
     documentsEnabled: boolean;
     agentIdentityEnabled?: boolean;
 }): string => {
-    if (!runSqlEnabled && !runMetricQueryEnabled) {
-        return CONTENT_ONLY_PROMPT;
+    switch (queryPath.type) {
+        case 'contentOnly':
+            return CONTENT_ONLY_PROMPT;
+        case 'sqlOnly':
+            return buildSqlOnlyPrompt(agentIdentityEnabled);
+        case 'classic':
+            return buildMcpAnalystPrompt(
+                queryPath.sqlRunnerEnabled,
+                queryPath.filterExpressionsEnabled,
+                documentsEnabled,
+                agentIdentityEnabled,
+            );
+        case 'composer':
+            return buildMcpComposerPrompt(
+                queryPath.sqlRunnerEnabled,
+                documentsEnabled,
+                agentIdentityEnabled,
+            );
+        default:
+            return assertUnreachable(queryPath, 'Unknown MCP query path');
     }
-    if (!runMetricQueryEnabled) {
-        return buildSqlOnlyPrompt(agentIdentityEnabled);
-    }
-    return buildMcpAnalystPrompt(
-        runSqlEnabled,
-        filterExpressionsEnabled,
-        documentsEnabled,
-        agentIdentityEnabled,
-    );
 };
 
 export const getMcpPinnedAgentPrompt = (

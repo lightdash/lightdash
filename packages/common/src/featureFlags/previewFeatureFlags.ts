@@ -10,9 +10,6 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // Blocks or degrades every page.
     FeatureFlags.OrganizationTrialBlock,
     FeatureFlags.OrganizationTrialWarning,
-    // Changes the signup flow and needs SMTP for the email OTP. The register
-    // page evaluates it anonymously, so an override can't switch it back off.
-    FeatureFlags.NewOnboarding,
     // Off pending a security review.
     FeatureFlags.SsoOrganizationSettings,
     // Security hardening: previews must not accept long-lived GitHub PATs.
@@ -27,6 +24,9 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // still being built. Opt-in: previews and the dashboard E2E specs stay on
     // the shipped filter popover.
     FeatureFlags.DashboardControls,
+    // Replaces the top navbar the E2E specs navigate through. Opt-in until
+    // the sidebar has its own coverage.
+    FeatureFlags.LeftNavigation,
     // Derived from instance configuration: left to their config handler so a
     // preview never advertises a feature whose backend isn't configured.
     CommercialFeatureFlags.AiCopilot,

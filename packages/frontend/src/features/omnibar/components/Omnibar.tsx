@@ -36,7 +36,9 @@ import {
     useMemo,
     useState,
     type FC,
+    type MouseEvent,
     type MouseEventHandler,
+    type ReactNode,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -71,9 +73,13 @@ import { getSearchResultsGroupsSorted } from './utils';
 
 interface Props {
     projectUuid: string;
+    /** Draws the control that opens search; null keeps the navbar's own. */
+    renderTarget:
+        | ((onOpen: (e: MouseEvent<HTMLElement>) => void) => ReactNode)
+        | null;
 }
 
-const Omnibar: FC<Props> = ({ projectUuid }) => {
+const Omnibar: FC<Props> = ({ projectUuid, renderTarget }) => {
     const compact = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
@@ -166,9 +172,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             }),
         ) ?? false;
 
-    const handleOmnibarOpenInputClick: MouseEventHandler<HTMLInputElement> = (
-        e,
-    ) => {
+    const handleOmnibarOpenInputClick: MouseEventHandler<HTMLElement> = (e) => {
         e.currentTarget.blur();
 
         track({
@@ -384,20 +388,24 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             currentFocusedItemIndex={highlightedIndex}
             fallbackEnterItem={focusedItem}
         >
-            <Transition
-                mounted={!isOmnibarOpen}
-                transition="fade"
-                duration={400}
-                timingFunction="ease"
-            >
-                {(style) => (
-                    <OmnibarTarget
-                        placeholder="Search"
-                        transitionStyle={style}
-                        onOpen={handleOmnibarOpenInputClick}
-                    />
-                )}
-            </Transition>
+            {renderTarget ? (
+                renderTarget(handleOmnibarOpenInputClick)
+            ) : (
+                <Transition
+                    mounted={!isOmnibarOpen}
+                    transition="fade"
+                    duration={400}
+                    timingFunction="ease"
+                >
+                    {(style) => (
+                        <OmnibarTarget
+                            placeholder="Search"
+                            transitionStyle={style}
+                            onOpen={handleOmnibarOpenInputClick}
+                        />
+                    )}
+                </Transition>
+            )}
 
             {/* The navbar renders inside a forced-dark provider, but this
                 modal portals onto the page — re-anchor the subtree to the

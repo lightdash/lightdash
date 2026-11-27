@@ -1368,6 +1368,8 @@ export class AiAgentReviewClassifierService extends BaseService {
                 organizationUuid: candidate.subject.organizationUuid,
                 projectUuid: candidate.subject.projectUuid,
                 agentUuid: candidate.subject.agentUuid,
+                // A reviewed turn keeps its agent's snapshot, whichever kind ran it.
+                agentKind: 'any',
             });
             const [knowledgeDocuments, mcpServers, boundSkills] =
                 await Promise.all([

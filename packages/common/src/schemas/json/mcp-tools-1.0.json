@@ -826,7 +826,7 @@
                 "readOnlyHint": true,
                 "title": "Find content"
             },
-            "description": "Tool: \"find_content\"\nPurpose:\nFinds spaces, charts, dashboards, or Data Apps by name or description within a project, returning detailed information about each.\n\nUsage tips:\n- If results aren't relevant, retry with the full user query or more specific terms.\n- A dashboard result previews at most its first 5 charts; use \"read_content\" to see all of them.\n- If neither run_metric_query nor run_sql is available, search here first: saved charts/dashboards may answer the question. Search before claiming information is unavailable or suggesting raw SQL or elevated permissions.",
+            "description": "Tool: \"find_content\"\nPurpose:\nFinds spaces, charts, dashboards, or Data Apps by name or description within a project, returning detailed information about each.\n\nUsage tips:\n- If results aren't relevant, retry with the full user query or more specific terms.\n- A dashboard result previews at most its first 5 charts; use \"read_content\" to see all of them.\n- If this session has no query tool, search here first: saved charts/dashboards may answer the question. Search before claiming information is unavailable or suggesting raw SQL or elevated permissions.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -3481,7 +3481,7 @@
                 "readOnlyHint": true,
                 "title": "Run composer queries"
             },
-            "description": "Run a pipeline: up to 25 nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.\n\nNode kinds:\n- \"semanticLayer\": a metric query against an explore. Result columns are the requested field ids.\n- \"sql\": raw SQL against the project warehouse; available only when run_sql is.\n- \"external\": DuckDB SQL over uploaded or connected tables declared in \"tables\".\n- \"duckdb\": DuckDB SQL over other results declared in \"references\".\n- \"python\": pandas code over other results declared in \"references\".\n\nA node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.\n\nA duckdb node that only reshapes another duckdb node's result (adds a column, filters, renames, re-sorts) belongs in that node's SQL: write one duckdb node over the original's references, under a new node id if the original is from an earlier call. Each duckdb step waits for the one it reads.\n\nA python node's \"code\" defines `def run(inputs, params)`, and semanticLayer \"filters\" are flat expression strings; each field documents its contract.\n\nReuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in \"references\", submitting only the new nodes. Reused nodes bring everything they read and are served from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.\n\nReturns every row of the terminal node, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on each queryUuid it names; it also fetches every row of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
+            "description": "Before your first query call, read the query pipeline rules and examples: call read_skill with name \"query-pipelines\".\n\nRun one query, or a pipeline of up to 25 nodes submitted together, where duckdb and python nodes join or transform other nodes' results.\n\nNode kinds:\n- \"semanticLayer\": a metric query against an explore. Result columns are the requested field ids.\n- \"sql\": raw SQL against the project warehouse; needs SQL Runner access.\n- \"external\": DuckDB SQL over uploaded or connected tables declared in \"tables\".\n- \"merge\": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice.\n- \"duckdb\": DuckDB SQL over other results declared in \"references\".\n- \"python\": pandas code over other results declared in \"references\".\n\nA node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.\n\nA duckdb node that only reshapes another duckdb node's result (adds a column, filters, renames, re-sorts) belongs in that node's SQL: write one duckdb node over the original's references, under a new node id if the original is from an earlier call. Each duckdb step waits for the one it reads.\n\nA python node's \"code\" defines `def run(inputs, params)`; semanticLayer \"filters\" are flat expression strings.\n\nPlan the pipeline:\n- Query each explore with one semanticLayer node.\n- Combine semanticLayer nodes that meet on dimensions they share at the same grain (both by month, both by customer) with a merge node.\n- When a merge is refused, fix the merge: narrow a source with a filter, raise its limit, or add the missing join key. If you answer another way instead, your answer says so and why.\n- Combine results any other way with a duckdb node: a join key that has to be computed or truncated to a shared grain, a union, or filtering and aggregating after the join.\n- Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.\n- Explores are governed and reusable, so use a `sql` node only when the user points you at a raw table or asks for SQL, or when the semantic layer cannot produce the result: a table outside every explore, a join key no explore exposes as a dimension, a computation whose row-level inputs would exceed a node's row limit, or warehouse-specific syntax.\n- When no explore covers the request and the user names no warehouse table, say so and offer alternatives when there are any. When they ask for raw SQL without the table or column names it needs, ask for them.\n- When a follow-up needs a new query, plan its pipeline as for a first question: the fewest nodes from source to result, counting the earlier nodes it reads, and among such plans the one that reads earlier nodes unchanged.\n\nReuse earlier nodes: if a node succeeds before query returns, the result has a sessionId that saves finished nodes. On a follow-up, pass it and read saved nodes by node id in \"references\" or merge \"sources\", submitting only the new nodes; they bring what they read, cached when possible. A saved node id names one node for the whole session, so give a changed node a new node id; resubmit a failed or unfinished node under the same id.\n\nA result holds every row of the terminal node. While it is running, call get_query_result on each queryUuid it names, which also fetches every row of any node by its queryUuid. query computes data only; it saves and charts nothing.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -3581,7 +3581,7 @@
                                                     "type": "null"
                                                 }
                                             ],
-                                            "description": "Metrics the explore lacks, each an aggregation over one of its dimensions, computed in this query."
+                                            "description": "Metrics the explore lacks, each an aggregation over one of its dimensions. The warehouse computes them over every row, so add a missing aggregation here rather than in a transformation."
                                         },
                                         "description": {
                                             "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums completed order revenue per month over the last year.\" Shown as the node's heading in the pipeline list.",
@@ -3595,7 +3595,7 @@
                                             "type": "array"
                                         },
                                         "exploreName": {
-                                            "description": "The explore to run the metric query against.",
+                                            "description": "The explore to run the metric query against. Query each explore with one semanticLayer node.",
                                             "type": "string"
                                         },
                                         "filters": {
@@ -3702,7 +3702,7 @@
                                                     "items": {
                                                         "properties": {
                                                             "metricFieldId": {
-                                                                "description": "Metric to compare: a field id in \"metrics\" or a custom metric's.",
+                                                                "description": "Metric to compare: a field id in \"metrics\" or an unfiltered custom metric's.",
                                                                 "type": "string"
                                                             },
                                                             "periodOffset": {
@@ -3729,7 +3729,7 @@
                                                     "type": "null"
                                                 }
                                             ],
-                                            "description": "Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns."
+                                            "description": "Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it, so read a metric's earlier-period value here rather than deriving it in a transformation. The column id is generated; read it from the result columns."
                                         },
                                         "sorts": {
                                             "anyOf": [
@@ -3803,7 +3803,7 @@
                                             "type": "string"
                                         },
                                         "sql": {
-                                            "description": "A SELECT or WITH statement in the warehouse's SQL dialect.",
+                                            "description": "A SELECT or WITH statement in the warehouse's SQL dialect. Explores are governed and reusable, so use a `sql` node only when the user points you at a raw table or asks for SQL, or when the semantic layer cannot produce the result: a table outside every explore, a join key no explore exposes as a dimension, a computation whose row-level inputs would exceed a node's row limit, or warehouse-specific syntax.",
                                             "type": "string"
                                         },
                                         "title": {
@@ -3951,7 +3951,7 @@
                                             "type": "string"
                                         },
                                         "joinKey": {
-                                            "description": "The dimensions the sources share, one entry per key.",
+                                            "description": "The dimensions the sources share, one entry per key. Sources that share them at the same grain belong in a merge; a key that has to be computed or truncated to a shared grain needs a duckdb join instead.",
                                             "items": {
                                                 "properties": {
                                                     "fields": {
@@ -4035,7 +4035,7 @@
                                             "description": "Sorts by merged column id (`merge_<name>`, `<source nodeId>_<fieldId>`). null sorts by every join key, in order."
                                         },
                                         "sources": {
-                                            "description": "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused.",
+                                            "description": "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused. Fix a refused merge by narrowing a source with a filter, raising its limit or adding the missing join key, rather than joining the same nodes in a duckdb node.",
                                             "items": {
                                                 "properties": {
                                                     "nodeId": {

@@ -1,6 +1,5 @@
 import { NotFoundError, type AgentPermissionCheck } from '@lightdash/common';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { type UserModel } from '../../models/UserModel';
 import {
     type AgentPermissionRequest,
     type AgentPermissionService,
@@ -8,7 +7,6 @@ import {
 
 type Dependencies = ConstructorParameters<typeof AgentPermissionService>[0];
 export type AgentPermissionBulkLoaders = {
-    userModel: Pick<UserModel, 'getAgentRoleAssignmentsForProjects'>;
     projectModel: Pick<ProjectModel, 'getSummaries'>;
 };
 type Operation = Parameters<AgentPermissionService['assertOperation']>[0];
@@ -39,35 +37,14 @@ export const evaluateAgentPermissionOperations = async (
     ];
     let scoped = deps;
     if (request.enforcementMode === 'managed') {
-        const [assignments, projects] = await Promise.all([
-            loaders.userModel.getAgentRoleAssignmentsForProjects(
-                args.account.user.id,
-                args.organizationUuid,
-                projectUuids,
-            ),
-            loaders.projectModel.getSummaries(
-                projectUuids.filter((uuid): uuid is string => uuid !== null),
-            ),
-        ]);
+        const projects = await loaders.projectModel.getSummaries(
+            projectUuids.filter((uuid): uuid is string => uuid !== null),
+        );
         const summaries = new Map(
             projects.map((project) => [project.projectUuid, project]),
         );
         scoped = {
             ...deps,
-            userModel: {
-                getAgentRoleAssignments: async (
-                    _userUuid,
-                    _organizationUuid,
-                    projectUuid,
-                ) => {
-                    const roles = assignments.get(projectUuid);
-                    if (!roles)
-                        throw new NotFoundError(
-                            'Project roles were not loaded',
-                        );
-                    return roles;
-                },
-            },
             projectModel: {
                 getSummary: async (projectUuid) => {
                     const project = summaries.get(projectUuid);

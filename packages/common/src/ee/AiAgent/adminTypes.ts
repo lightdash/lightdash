@@ -31,6 +31,8 @@ export type AiAgentAdminFilters = {
     dateFrom?: string; // ISO date string
     dateTo?: string; // ISO date string
     search?: string; // Search by thread title
+    /** Threads whose metadata has this key, with this exact value unless value is null. */
+    metadata?: { key: string; value: string | null };
 };
 
 export type AiAgentAdminSortField = 'createdAt' | 'title';
@@ -54,7 +56,7 @@ type ThreadSummary = Pick<
             email: string | null;
         }
     >,
-    'user' | 'createdAt' | 'createdFrom' | 'title' | 'uuid'
+    'user' | 'createdAt' | 'createdFrom' | 'title' | 'uuid' | 'metadata'
 >;
 
 export type AiAgentAdminThreadSummary = ThreadSummary & {
@@ -391,6 +393,8 @@ export type ComputedAiOrganizationSettings = {
     configurableModelOptions?: AiModelOption[] | null;
     // True when a BYO key is set that can't serve the review model, so reviews are paused.
     aiAgentReviewsPausedByByok?: boolean;
+    // True when AI analysis runs on the org's own key, so its text cap can be raised.
+    dataAppAnalysisTextMaxCharsConfigurable?: boolean;
 };
 
 // AI Organization Settings Types
@@ -709,6 +713,8 @@ export type AiOrganizationRuntimeSettings = {
     dataAppRuntimeAiEnabled?: boolean;
     // Whether viewers may continue a data-app investigation in Ask AI.
     dataAppContinueInAskAiEnabled?: boolean;
+    // Effective cap on prompts and analysis instructions for this org.
+    dataAppAnalysisTextMaxChars?: number;
     // Org retention ceiling, surfaced so agent editors can see what caps
     // their agent-level window. Optional for backwards compatibility.
     threadRetentionHours?: number | null;

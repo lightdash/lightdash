@@ -93,6 +93,10 @@ describe('live integration specs', () => {
               "rating": "medium",
               "score": 3,
             },
+            "mixpanel": {
+              "rating": "medium",
+              "score": 3,
+            },
             "posthog": {
               "rating": "easy",
               "score": 7,
@@ -108,6 +112,10 @@ describe('live integration specs', () => {
             "search_console": {
               "rating": "medium",
               "score": 3,
+            },
+            "supabase": {
+              "rating": "easy",
+              "score": 7,
             },
             "youtube_analytics": {
               "rating": "medium",

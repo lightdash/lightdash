@@ -17,6 +17,11 @@ import {
 } from '../../auth/mobileAppAccess';
 import { assertOAuthCredentialOperationAllowed } from '../../auth/oauthScopes/credentials';
 import {
+    logOAuthScopeResolution,
+    OAUTH_SCOPES,
+    type OAuthRecordUser,
+} from '../../auth/oauthScopes/mode';
+import {
     oauthApiResource,
     requestedOAuthResource,
 } from '../../auth/oauthScopes/oauthResources';
@@ -117,10 +122,6 @@ export class OAuthService extends BaseService {
                 ) as unknown as typeof OAuth2Server.AbstractGrantType,
                 refresh_token: createScopeCheckedRefreshTokenGrant(
                     (user) =>
-                        this.oauthModel.getScopeMode(
-                            user as UserWithOrganizationUuid,
-                        ),
-                    (user) =>
                         this.oauthModel.isSecurityStrictForOAuthUser(
                             user as UserWithOrganizationUuid,
                         ),
@@ -136,6 +137,14 @@ export class OAuthService extends BaseService {
                                 clientId: client.id,
                             },
                         ),
+                    (client, user, requested, resolved) =>
+                        this.oauthModel.recordScopeResolution(
+                            client,
+                            user,
+                            requested,
+                            resolved,
+                            'refresh',
+                        ),
                 ) as unknown as typeof OAuth2Server.AbstractGrantType,
                 ...(getManagedSignInService
                     ? {
@@ -148,6 +157,14 @@ export class OAuthService extends BaseService {
                                       ),
                                   this.getSiteUrl(),
                                   getMobileSignInService,
+                                  (client, user, requested, resolved) =>
+                                      this.oauthModel.recordScopeResolution(
+                                          client,
+                                          user,
+                                          requested,
+                                          resolved,
+                                          'token_exchange',
+                                      ),
                               ),
                       }
                     : {}),
@@ -173,12 +190,28 @@ export class OAuthService extends BaseService {
     public async authorize(
         request: OAuth2Server.Request,
         response: OAuth2Server.Response,
-        user: UserWithOrganizationUuid,
+        user: UserWithOrganizationUuid & { userUuid?: string },
     ): Promise<OAuth2Server.AuthorizationCode> {
         const resource = await this.getAuthorizationResource(request, user);
         const model: OAuth2Server.AuthorizationCodeModel = Object.create(
             this.oauthModel,
         ) as OAuth2Server.AuthorizationCodeModel;
+        model.validateScope = async (scopeUser, client, scope) => {
+            const validated = await this.oauthModel.validateScope(
+                scopeUser as UserWithOrganizationUuid,
+                client,
+                scope,
+            );
+            if (validated)
+                await this.oauthModel.recordScopeResolution(
+                    client,
+                    scopeUser,
+                    scope ?? [],
+                    validated,
+                    'authorize',
+                );
+            return validated;
+        };
         if (
             OAuthService.isPublicDocumentClientRequest(request) ||
             (await this.isSecurityStrictForOAuthUser(user))
@@ -398,6 +431,29 @@ export class OAuthService extends BaseService {
         return this.oauthModel.deleteAccessToken(token);
     }
 
+    public async resolveAuthorizationScope(
+        clientId: string,
+        scope: string[],
+        user: OAuthRecordUser,
+    ): Promise<string[] | false> {
+        const client = await this.oauthModel.getClient(clientId);
+        if (client === false) return false;
+        const resolution = OAuth2Model.resolveScope(client, scope);
+        if (!resolution.allowed) {
+            OAuth2Model.logScopeRefusal(client, resolution.requested, user);
+            return false;
+        }
+        logOAuthScopeResolution({
+            clientId: client.id,
+            registeredScopes: client.scopes ?? [],
+            requestedScopes: scope,
+            resolvedScopes: resolution.scopes,
+            user,
+            grant: 'authorize',
+        });
+        return resolution.scopes;
+    }
+
     public async getClientDisplayName(clientId: string): Promise<string> {
         const clientName = await this.oauthModel.findClientName(clientId);
         return clientName ?? getClientName(clientId);
@@ -509,6 +565,7 @@ export class OAuthService extends BaseService {
         return this.oauthModel.createClient({
             clientName,
             redirectUris,
+            scopes: [...OAUTH_SCOPES],
             organizationUuid: account.organization.organizationUuid,
             createdByUserUuid: account.user.id,
         });

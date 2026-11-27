@@ -7,10 +7,10 @@
 # supervisor kill it before scheduler jobs release their locks.
 [[app.service]]
 name = "dev"
-command = "cd packages/backend && exec node --import tsx src/index.ts"
+command = """cd packages/backend && { if [ -n "$${GOOGLE_SHEETS_DEV_REFRESH_TOKEN:-}" ]; then timeout --kill-after=2s 10s pnpm seed --specific=19_google_sheets_dev_grant.ts || echo "Google Sheets dev grant seed skipped" >&2; fi; unset GOOGLE_SHEETS_DEV_REFRESH_TOKEN && exec node --import tsx src/index.ts; }"""
 port = 8080
 serve = true
-restart_on_inject = true           # re-exec on fork to read the injected SITE_URL (see [origin])
+restart_on_inject = true           # read the fork's SITE_URL and run only the Sheets grant seed when the secret is set
 
 # The Snowflake AI OAuth/SDK stub the API tests drive. Plain node, no deps;
 # it reads only PORT, and the recipe's PORT is the backend's, so the stub's
@@ -29,6 +29,30 @@ restart_on_inject = true           # re-exec with the fork's injected env, as th
 name = "emulate-ai"
 command = "exec emulate start --service ai --port 4014 --seed scripts/rainbow/emulate-ai.yaml"
 port = 4014
+
+# The headless browser behind image and PDF exports, scheduled deliveries
+# with images and Slack unfurls: browserless, the same server and version
+# production runs (docker/Dockerfile.headless-browser), not a Playwright
+# run-server. The backend dials it with connectOverCDP and relies on
+# browserless semantics: a fresh browser per connection, the ?timeout= and
+# ?launch= query params, and browser.close() ending only that session.
+# The image build installs it with its own Chromium (see [runtime]); this is
+# production's entrypoint without Xvfb, which only headful sessions need.
+# HOST and PORT are inline because the recipe's are the backend's
+# (0.0.0.0:8080), and the browser stays on loopback. No TOKEN: production's
+# endpoint sends none. TIMEOUT is per session and the dashboard and chart
+# captures pass none, so it covers the backend's own limits: 150s to load
+# the page, 180s for the ready wait, and its 30s session buffer
+# (UnfurlService.ts). Browserless's 30s default kills those captures
+# mid-wait, and on a busy host (40% CPU steal) one capture took 120s.
+# CONCURRENT matches the scheduler's three job slots (SCHEDULER_CONCURRENCY),
+# so deliveries never queue behind each other; each Chrome adds about
+# 0.8 GB, within max_memory. Captures beyond that wait in the queue rather
+# than fail.
+[[app.service]]
+name = "headless-browser"
+command = "cd .local/browserless && HOST=127.0.0.1 PORT=3001 TIMEOUT=360000 CONCURRENT=3 QUEUED=10 PLAYWRIGHT_BROWSERS_PATH=ms-playwright exec node node_modules/@browserless.io/browserless/build/index.js"
+port = 3001
 
 # Anyone with the URL can open an environment of this repo.
 [access]
@@ -61,6 +85,18 @@ build = [
   # emulate 0.14.0 was approved before the 3-day release-age floor: pin its tarball by
   # checksum; its dependencies keep the floor, and no install scripts run.
   "cd /tmp && curl -fsSLo emulate-0.14.0.tgz https://registry.npmjs.org/emulate/-/emulate-0.14.0.tgz && echo '9a533f3c9df8ca70f639319506fcbef3f17b8040f09075a6a6a2c6fc97ad68399aaa27e41ed0b0d953265d3281cba6706b9caf0b388bbf2caf980a157ae3d9a0  emulate-0.14.0.tgz' | sha512sum -c - && npm install -g --ignore-scripts --min-release-age=3 --no-audit --no-fund ./emulate-0.14.0.tgz",
+  # browserless for the headless-browser service, the same way: its tarball
+  # pinned by checksum, its dependencies on the floor, no install scripts. It
+  # must match docker/Dockerfile.headless-browser; bump both together. It
+  # lives in .local/ (gitignored), not the global prefix, with the Chromium
+  # its own playwright-core expects (1223). PLAYWRIGHT_BROWSERS_PATH is set
+  # for this step only: the platform's browsers are another revision and stay
+  # untouched. Playwright does not verify the download, so the binary's
+  # checksum is checked here. The npm package carries routes for every
+  # browser and refuses to start without them all; production's chromium
+  # image leaves out the other four (its Dockerfile.dockerignore), so this
+  # does too.
+  "mkdir -p .local/browserless && cd .local/browserless && echo '{\"private\":true}' > package.json && curl -fsSLo /tmp/browserless-2.49.0.tgz https://registry.npmjs.org/@browserless.io/browserless/-/browserless-2.49.0.tgz && echo '7117547fab2a5da39d34c650f37568f6b1e8b68a2403dc8af4a062a036642038bdd393575984651da71e71931e96802116f06ce13469a38d769438d4314a3c36  /tmp/browserless-2.49.0.tgz' | sha512sum -c - && npm install --ignore-scripts --min-release-age=3 --no-audit --no-fund /tmp/browserless-2.49.0.tgz && PLAYWRIGHT_BROWSERS_PATH=ms-playwright node node_modules/playwright-core/cli.js install --no-shell chromium && echo 'adc1c21ceed5c2a67184766376fe816ac03e556cc0ca3f782e8212235fe05c6f  ms-playwright/chromium-1223/chrome-linux64/chrome' | sha256sum -c - && cd node_modules/@browserless.io/browserless/build/routes && rm -rf chrome edge firefox webkit",
   "pnpm cli-build && chmod 755 packages/cli/dist/index.js && ln -sf /usr/app/packages/cli/dist/index.js /usr/local/bin/lightdash",
   "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core~=1.12.0' 'dbt-postgres~=1.10.0' 'dbt-snowflake~=1.12.0' 'dbt-bigquery~=1.12.0' 'dbt-databricks~=1.12.3' 'dbt-trino~=1.10.0' 'dbt-duckdb~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
   # The demo dbt project where the test suites expect it
@@ -175,6 +211,16 @@ AI_DEFAULT_PROVIDER = "anthropic"
 # The Snowflake AI test loop: the backend accepts only this exact account
 # origin and dials it itself, so it is the stub service above.
 SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = "http://localhost:3900"
+# Exports and image deliveries: the headless-browser service above. The
+# browser and the backend's own login call reach the app on localhost; the
+# default is SITE_URL, and the guest cannot reach its own public URL (the
+# login request times out and the export fails). Over plain http with
+# SECURE_COOKIES on, the login router sets the session cookie itself
+# (routers/headlessBrowser.ts), and Chromium treats localhost as a secure
+# context, so the pages keep their secure-context APIs.
+HEADLESS_BROWSER_HOST = "localhost"
+HEADLESS_BROWSER_PORT = "3001"
+INTERNAL_LIGHTDASH_HOST = "http://localhost:8080"
 
 # Two seeds, in the order CONTRIBUTING gives them. First the warehouse the
 # seeded project points at: dbt loads examples/full-jaffle-shop-demo into the
@@ -302,6 +348,18 @@ port = 443
 host = "extensions.duckdb.org"
 port = 80
 
+# The app's font, Inter, comes from Google Fonts (frontend index.html). A
+# visitor's browser fetches it itself; the headless-browser service fetches
+# it from inside the guest, and without these, exports and deliveries
+# render in a fallback font.
+[[egress.allow]]
+host = "fonts.googleapis.com"
+port = 443
+
+[[egress.allow]]
+host = "fonts.gstatic.com"
+port = 443
+
 # Each integration a preview can exercise, one flow per service. A key in
 # [secrets] does nothing on its own: the connect is refused unless the host
 # is listed here.
@@ -377,6 +435,12 @@ port = 443
 
 [[egress.allow]]
 host = "www.googleapis.com"
+port = 443
+
+# Google Sheets sync (the Google secrets in [secrets]). Sign-in, the token
+# refresh and Drive use the two hosts above; the sync writes the sheet here.
+[[egress.allow]]
+host = "sheets.googleapis.com"
 port = 443
 
 # Certificate revocation checks the Snowflake driver makes (fail-open when
@@ -478,3 +542,15 @@ S3_HOST = "host"
 # off. It uses the S3_* endpoint and credentials above, so the bucket must be
 # one that key can write to.
 UPLOADS_S3_BUCKET = "config"
+# Google Sheets sync: the OAuth client a user connects Google with, and the
+# key for the sheet picker. The client belongs to the shared Google test
+# account (team password manager). Google accepts only this account for the
+# client. Envs are public: treat the token as public and never connect your
+# own account. Google needs an exact redirect URI to connect, but not to use
+# the seeded grant. Without AUTH_GOOGLE_ENABLED the login page keeps no
+# Google button.
+AUTH_GOOGLE_OAUTH2_CLIENT_ID = "oauth-client"
+AUTH_GOOGLE_OAUTH2_CLIENT_SECRET = "oauth-client"
+GOOGLE_DRIVE_API_KEY = "api-key"
+# Shared test account refresh token for the development database seed.
+GOOGLE_SHEETS_DEV_REFRESH_TOKEN = "oauth-refresh-token"

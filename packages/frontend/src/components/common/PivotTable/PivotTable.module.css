@@ -38,11 +38,14 @@
     background-color: var(--mantine-color-ldGray-1);
 }
 
-.mergedDimCell {
+td.mergedDimCell {
     vertical-align: top;
-    /* nudge the top-aligned value off the border so it lines up with the first
-       row's centered content (cells are 32px tall) */
-    padding-top: var(--mantine-spacing-xs);
+    /* Nudge the top-aligned value off the border so it lines up with the first
+       row's centered content (cells are 32px tall). The value is top-aligned,
+       so the space below it is empty. Without bottom padding, 3 lines fit in
+       2 rows. MERGED_CELL_PADDING_Y_PX in index.tsx is this padding. */
+    padding-top: 8px;
+    padding-bottom: 0;
 }
 
 .groupToggleButton {

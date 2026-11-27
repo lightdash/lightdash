@@ -235,6 +235,7 @@ interface ServiceManifest {
     homepageRecommendedActionSkipsService: unknown;
     semanticStudioService: unknown;
     semanticStudioCheckoutService: unknown;
+    semanticStudioChatService: unknown;
     incrementalDbtCompileService: unknown;
     aiAgentReviewNotificationService: unknown;
     writebackPreviewService: unknown;
@@ -262,6 +263,7 @@ interface ServiceManifest {
     projectContextService: unknown;
     roadmapService: unknown;
     billingService: unknown;
+    securityContactsService: unknown;
     scimService: unknown;
     releaseHighlightsService: unknown;
     supportService: unknown;
@@ -1013,6 +1015,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     personalAccessTokenModel:
                         this.models.getPersonalAccessTokenModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -1161,12 +1164,9 @@ export class ServiceRepository
                                     .valid,
                         }),
                     groupsModel: this.models.getGroupsModel(),
-                    isCustomRolesLicensed: () =>
-                        this.getLicenseService().getLicenseStatus().valid,
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     agentCapabilityPolicyModel:
                         this.models.getAgentCapabilityPolicyModel(),
-                    userModel: this.models.getUserModel(),
                     projectModel: this.models.getProjectModel(),
                     agentActionLogModel: this.models.getAgentActionLogModel(),
                 }),
@@ -1490,6 +1490,7 @@ export class ServiceRepository
             const registry = QuerySourceRegistry.withBuiltInSources({
                 asyncQueryService: this.getAsyncQueryService(),
                 projectService: this.getProjectService(),
+                lightdashConfig: this.context.lightdashConfig,
             });
 
             return new QuerySourceService({
@@ -2227,6 +2228,12 @@ export class ServiceRepository
         return this.getService('billingService');
     }
 
+    public getSecurityContactsService<
+        SecurityContactsServiceImplT,
+    >(): SecurityContactsServiceImplT {
+        return this.getService('securityContactsService');
+    }
+
     public getEmbedService<EmbedServiceImplT>(): EmbedServiceImplT {
         return this.getService('embedService');
     }
@@ -2269,6 +2276,12 @@ export class ServiceRepository
         SemanticStudioCheckoutServiceImplT,
     >(): SemanticStudioCheckoutServiceImplT {
         return this.getService('semanticStudioCheckoutService');
+    }
+
+    public getSemanticStudioChatService<
+        SemanticStudioChatServiceImplT,
+    >(): SemanticStudioChatServiceImplT {
+        return this.getService('semanticStudioChatService');
     }
 
     public getIncrementalDbtCompileService<

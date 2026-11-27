@@ -58,7 +58,6 @@ export enum PageName {
     ONBOARDING_MODELS = 'onboarding_models',
     ONBOARDING_TOOLS = 'onboarding_tools',
     ONBOARDING_DBT = 'onboarding_dbt',
-    ONBOARDING_INVITE_EXPERT = 'onboarding_invite_expert',
     NO_PROJECT_HOMEPAGE = 'no_project_homepage',
     EMBED_DASHBOARD = 'embed_dashboard',
     EMBED_SAVED_CHART = 'embed_saved_chart',
@@ -70,6 +69,7 @@ export enum PageName {
     SEMANTIC_STUDIO = 'semantic_studio',
     ROADMAP = 'roadmap',
     BILLING = 'billing',
+    SECURITY_CONTACTS = 'security_contacts',
     LEARN = 'learn',
     LEARN_WORKSPACE = 'learn_workspace',
 }

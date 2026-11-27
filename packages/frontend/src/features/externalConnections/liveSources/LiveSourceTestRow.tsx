@@ -16,6 +16,10 @@ import { SettingsRow } from './LiveSourceSettingsRows';
 import classes from './LiveSourceSettingsRows.module.css';
 
 type Props = {
+    /** Defaults to "Status", as it reads under a card of credentials. */
+    label?: string;
+    /** Defaults to "Test". */
+    buttonLabel?: string;
     /** What the test reads with, such as the saved settings or the form's. */
     hint: string;
     /** The test mutation, from `useTestConnection` or `useTestConnectionConfig`. */
@@ -29,6 +33,9 @@ type Props = {
     /** What the test reads with; a change clears the outcome, which no longer applies. */
     inputs: unknown[];
 };
+
+/** How long a passed test stays in place of the hint. */
+const PASS_SHOWN_MS = 5000;
 
 type Outcome = { ok: true; message: string } | { ok: false; message: string };
 
@@ -53,6 +60,8 @@ const getOutcome = (
 };
 
 export const LiveSourceTestRow: FC<Props> = ({
+    label = 'Status',
+    buttonLabel = 'Test',
     hint,
     test,
     onTest,
@@ -62,9 +71,16 @@ export const LiveSourceTestRow: FC<Props> = ({
     const inputsKey = JSON.stringify(inputs);
     useEffect(() => reset(), [inputsKey, reset]);
     const outcome = test.isLoading ? null : getOutcome(test.data, test.error);
+    // A pass is only news for a moment; a failure stays until it is dealt with
+    const isPass = outcome?.ok === true;
+    useEffect(() => {
+        if (!isPass) return undefined;
+        const timer = setTimeout(reset, PASS_SHOWN_MS);
+        return () => clearTimeout(timer);
+    }, [isPass, reset]);
     return (
         <SettingsRow
-            label="Test access"
+            label={label}
             hint={
                 outcome?.ok ? (
                     <Group
@@ -72,7 +88,7 @@ export const LiveSourceTestRow: FC<Props> = ({
                         wrap="nowrap"
                         role="status"
                         c="green"
-                        className={classes.testOutcome}
+                        className={`${classes.testOutcome} ${classes.testPass}`}
                     >
                         <MantineIcon icon={IconCircleCheckFilled} size={12} />
                         <Text span inherit>
@@ -100,7 +116,7 @@ export const LiveSourceTestRow: FC<Props> = ({
                 loading={test.isLoading}
                 onClick={onTest}
             >
-                Test
+                {buttonLabel}
             </Button>
         </SettingsRow>
     );

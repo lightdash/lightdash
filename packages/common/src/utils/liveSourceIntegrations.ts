@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
     getHubspotReadScopes,
     HUBSPOT_OBJECTS,
+    isSupabaseTableName,
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';
@@ -15,7 +16,9 @@ export type LiveSourceSetupKind =
     | 'token'
     | 'linkedin_ads'
     | 'salesforce'
-    | 'amplitude';
+    | 'amplitude'
+    | 'mixpanel'
+    | 'supabase';
 
 type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
     /** Stable id, sent with analytics events. */
@@ -234,6 +237,36 @@ export const LIVE_INTEGRATION_CATALOG: {
         }),
         getTarget: () => 'Amplitude project',
     },
+    [ApiConnectorType.MIXPANEL]: {
+        id: 'mixpanel',
+        label: 'Mixpanel',
+        defaultName: 'Mixpanel',
+        messageLabel: 'Mixpanel',
+        agentLabel: 'Mixpanel',
+        description: 'Events, saved funnels and retention',
+        setup: 'mixpanel',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.MIXPANEL),
+            projectId: z.string(),
+        }),
+        getTarget: ({ projectId }) => `Project ${projectId}`,
+    },
+    [ApiConnectorType.SUPABASE]: {
+        id: 'supabase',
+        label: 'Supabase',
+        defaultName: 'Supabase',
+        messageLabel: 'Supabase',
+        agentLabel: 'Supabase',
+        description: 'Rows of one table in a Supabase project',
+        setup: 'supabase',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.SUPABASE),
+            table: z.string().refine(isSupabaseTableName, {
+                message: 'Use the name of one table or view',
+            }),
+        }),
+        getTarget: ({ table }) => `Table ${table}`,
+    },
     [ApiConnectorType.HYDRA]: {
         id: 'hydra',
         label: 'Hydra',
@@ -286,11 +319,6 @@ export const REQUESTABLE_LIVE_INTEGRATIONS = [
         id: 'stripe',
         label: 'Stripe',
         description: 'Payments, subscriptions and revenue',
-    },
-    {
-        id: 'mixpanel',
-        label: 'Mixpanel',
-        description: 'Product events, funnels and retention',
     },
     {
         id: 'jira',

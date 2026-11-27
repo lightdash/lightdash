@@ -423,30 +423,23 @@ mcpRouter.all(
                 const userAgent = req.account?.requestContext?.userAgent;
                 const protocolVersion = extractProtocolVersionFromHeader(req);
 
-                // Session ids group tool calls made over one client
-                // connection. Assigned on initialize (spec: clients MUST echo
-                // the header on all subsequent requests); the stateless
-                // transport skips session validation, so this stays a pure
-                // correlation token with no server-side session state.
+                // Minted on initialize and echoed by clients; ties tool calls to
+                // the clientInfo their session declared.
                 const isInitialize = isInitializeRequest(req);
                 const sessionId = isInitialize
                     ? randomUUID()
                     : extractSessionIdFromHeader(req);
                 if (isInitialize && sessionId) {
                     res.setHeader(MCP_SESSION_ID_HEADER, sessionId);
-                }
-
-                // The transport is stateless, so clientInfo only ever appears
-                // on initialize requests; store it so later tool calls can
-                // attach the client identity by matching user agent.
-                const clientInfo = extractClientInfoFromInitialize(req);
-                if (clientInfo && userAgent && req.user) {
-                    await mcpService.captureClientInfo({
-                        user: req.user,
-                        clientName: clientInfo.name,
-                        clientVersion: clientInfo.version,
-                        userAgent,
-                    });
+                    const clientInfo = extractClientInfoFromInitialize(req);
+                    if (clientInfo) {
+                        await mcpService.captureClientInfo({
+                            user,
+                            sessionId,
+                            clientName: clientInfo.name,
+                            clientVersion: clientInfo.version,
+                        });
+                    }
                 }
                 // Content-write tools are only registered when the org-level
                 // setting allows it, so admins can lock down MCP edits.
@@ -458,10 +451,7 @@ mcpRouter.all(
                 const [
                     mcpContentWritesEnabled,
                     scheduledDeliveryEnabled,
-                    runSqlEnabled,
-                    runMetricQueryEnabled,
-                    queryEnabled,
-                    filterExpressionsEnabled,
+                    queryPath,
                     dataAppBuildsEnabled,
                     chartTypeBuildsEnabled,
                     customChartTypesEnabled,
@@ -472,17 +462,11 @@ mcpRouter.all(
                         pinnedProjectUuid,
                     ),
                     mcpService.isCreateScheduledDeliveryEnabled(req.user!),
-                    mcpService.isRunSqlEnabled(req.user!, pinnedProjectUuid),
-                    mcpService.isRunMetricQueryEnabled(
+                    mcpService.resolveQueryPath(
                         req.user!,
-                        pinnedProjectUuid,
-                    ),
-                    mcpService.isQueryEnabled(
-                        req.user!,
-                        pinnedProjectUuid,
+                        pinnedProjectUuid ?? null,
                         pinnedAgent,
                     ),
-                    mcpService.isFilterExpressionsEnabled(req.user!),
                     mcpService.isDataAppBuildsEnabled(
                         req.user!,
                         pinnedProjectUuid,
@@ -507,10 +491,7 @@ mcpRouter.all(
                     featureAvailability: {
                         mcpContentWritesEnabled,
                         scheduledDeliveryEnabled,
-                        runSqlEnabled,
-                        runMetricQueryEnabled,
-                        queryEnabled,
-                        filterExpressionsEnabled,
+                        queryPath,
                         documentsEnabled: true,
                         dataAppBuildsEnabled,
                         chartTypeBuildsEnabled,
@@ -624,6 +605,7 @@ mcpRouter.all(
                 if (authReq.auth && isToolsListRequest(req)) {
                     mcpService.recordToolList({
                         catalogue: toolOptions,
+                        servedTools: McpService.getServedToolNames(mcpServer),
                         authInfo: authReq.auth,
                         durationMs: Date.now() - startedAt,
                     });

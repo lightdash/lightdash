@@ -7,6 +7,11 @@ import {
     LIVE_SOURCE_CATALOG,
 } from './liveSourceCatalog';
 
+const POSTHOG_SOURCE = {
+    connector: ApiConnectorType.POSTHOG,
+    projectId: '4321',
+} as const;
+
 describe('LIVE_SOURCE_CATALOG', () => {
     it('has one available entry per connector', () => {
         const connectors = LIVE_SOURCE_CATALOG.filter(
@@ -20,6 +25,14 @@ describe('LIVE_SOURCE_CATALOG', () => {
     it('keeps analytics ids unique', () => {
         const ids = LIVE_SOURCE_CATALOG.map((entry) => entry.id);
         expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it('stands in for a connector this build does not know, instead of failing', () => {
+        const connector = 'not_shipped_yet' as ApiConnectorType;
+        const entry = getLiveSource(connector);
+        expect(entry.label).toBe('Not Shipped Yet');
+        expect(entry.setup).toEqual({ kind: 'unknown' });
+        expect(entry.getTarget(POSTHOG_SOURCE)).toBe('Not Shipped Yet');
     });
 
     it('finds the entry for a connector', () => {

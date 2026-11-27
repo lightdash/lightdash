@@ -14,10 +14,12 @@ import { hubspotIntegration } from './integrations/hubspot';
 import { hydraIntegration } from './integrations/hydra';
 import { linkedInAdsIntegration } from './integrations/linkedInAds';
 import { metaAdsIntegration } from './integrations/metaAds';
+import { mixpanelIntegration } from './integrations/mixpanel';
 import { postHogIntegration } from './integrations/postHog';
 import { pylonIntegration } from './integrations/pylon';
 import { salesforceIntegration } from './integrations/salesforce';
 import { searchConsoleIntegration } from './integrations/searchConsole';
+import { supabaseIntegration } from './integrations/supabase';
 import { youtubeAnalyticsIntegration } from './integrations/youtubeAnalytics';
 import { type LiveIntegration } from './types';
 
@@ -38,6 +40,8 @@ const LIVE_INTEGRATIONS: {
     [ApiConnectorType.HUBSPOT]: hubspotIntegration,
     [ApiConnectorType.SALESFORCE]: salesforceIntegration,
     [ApiConnectorType.AMPLITUDE]: amplitudeIntegration,
+    [ApiConnectorType.MIXPANEL]: mixpanelIntegration,
+    [ApiConnectorType.SUPABASE]: supabaseIntegration,
     [ApiConnectorType.HYDRA]: hydraIntegration,
 };
 

@@ -10,6 +10,7 @@ import {
     CompiledTable,
     convertToAiHints,
     Explore,
+    ExploreType,
     FieldType,
     friendlyName,
     getItemId,
@@ -590,27 +591,35 @@ export class CatalogModel {
                     tableSelection: { type: tableSelectionType, value },
                 } = tablesConfiguration;
 
+                // Live data source explores bypass the Tables configuration,
+                // as everywhere else; their tags are for scoping AI agents
                 if (tableSelectionType === TableSelectionType.WITH_TAGS) {
                     // For tags, we need to check if ANY of the required tags exist in explore's tags array
                     void this.whereRaw(
                         `
-                        EXISTS (
+                        (explore->>'type' = ? OR EXISTS (
                             SELECT 1
                             FROM jsonb_array_elements_text(?) AS required_tag
                             WHERE required_tag = ANY(
                                 SELECT jsonb_array_elements_text(explore->'tags')
                             )
-                        )
+                        ))
                     `,
-                        [JSON.stringify(value ?? [])],
+                        [ExploreType.API_SOURCE, JSON.stringify(value ?? [])],
                     );
                 } else if (
                     tableSelectionType === TableSelectionType.WITH_NAMES
                 ) {
                     // For table names, we check if the baseTable matches any of the required names
-                    void this.whereIn(
-                        `${CatalogTableName}.table_name`,
-                        value ?? [],
+                    void this.where((names) =>
+                        names
+                            .whereIn(
+                                `${CatalogTableName}.table_name`,
+                                value ?? [],
+                            )
+                            .orWhereRaw(`explore->>'type' = ?`, [
+                                ExploreType.API_SOURCE,
+                            ]),
                     );
                 }
             })

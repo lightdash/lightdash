@@ -808,6 +808,35 @@ describe('scheduled notification payload parity', () => {
         );
     });
 
+    // The claim on the tab keeps two runs apart. A named queue would stay
+    // locked for hours after a worker crash and block later syncs.
+    test('does not put Google Sheets syncs in a named queue', async () => {
+        const client = makeClient(false);
+        await client.generateJobsForSchedulerTargets(
+            startingDateTime,
+            {
+                ...scheduler,
+                format: SchedulerFormat.GSHEETS,
+                options: {
+                    gdriveId: 'spreadsheet-1',
+                    gdriveName: 'Sheet',
+                    gdriveOrganizationName: '',
+                    url: 'https://docs.google.com/spreadsheets/d/spreadsheet-1',
+                },
+            },
+            undefined,
+            'parent',
+            traceProperties,
+        );
+
+        expect(
+            graphileAddJob.mock.calls.map(([kind, , options]) => [
+                kind,
+                options.queueName,
+            ]),
+        ).toEqual([['uploadGsheets', undefined]]);
+    });
+
     test('keeps query exports to Google Sheets unmarked', async () => {
         const client = makeClient(false);
         const payload = {

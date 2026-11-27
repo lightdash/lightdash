@@ -6,7 +6,11 @@ import {
     type ExternalConnectionApiSource,
     type MetricQuery,
 } from '@lightdash/common';
-import { buildLiveExplores, compileLiveMetricQuery } from './explores/build';
+import {
+    buildLiveExplores,
+    compileLiveMetricQuery,
+    toScannedLiveSourceFields,
+} from './explores/build';
 import { getInitialLiveSourceFieldEdits } from './explores/fields';
 import { connectLiveSource } from './liveSource.mock';
 import {
@@ -14,7 +18,16 @@ import {
     isLiveIntegrationRegistered,
     parseStoredApiSource,
 } from './registry';
-import { type LiveHttpResponse } from './types';
+import { type LiveHttpResponse, type LiveScanResult } from './types';
+
+/** A scan for integrations whose explore has no fields until scanned. */
+const SAMPLE_SCANS: Partial<Record<ApiConnectorType, LiveScanResult>> = {
+    [ApiConnectorType.SUPABASE]: {
+        supabaseTable: {
+            properties: { id: { type: 'integer', format: 'bigint' } },
+        },
+    },
+};
 
 /**
  * Checks every integration in the registry keeps the contract the rest of
@@ -62,6 +75,14 @@ const SAMPLE_SETTINGS: {
     },
     [ApiConnectorType.AMPLITUDE]: {
         connector: ApiConnectorType.AMPLITUDE,
+    },
+    [ApiConnectorType.MIXPANEL]: {
+        connector: ApiConnectorType.MIXPANEL,
+        projectId: '12345',
+    },
+    [ApiConnectorType.SUPABASE]: {
+        connector: ApiConnectorType.SUPABASE,
+        table: 'orders',
     },
     [ApiConnectorType.PYLON]: {
         connector: ApiConnectorType.PYLON,
@@ -143,19 +164,27 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         });
 
         test('runs what it compiles, and explains a failed call', async () => {
+            const scan = SAMPLE_SCANS[settings.connector];
+            const scannedFields = scan
+                ? toScannedLiveSourceFields(settings.connector, scan)
+                : [];
             const [explore] = buildLiveExplores({
                 connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
                 sourceName: settings.connector,
                 name: 'Source',
                 apiSource: settings,
-                scannedFields: [],
+                scannedFields,
                 edits: getInitialLiveSourceFieldEdits({
-                    scannedFields: [],
+                    scannedFields,
                     isExistingSource: true,
                 }),
             });
             // A metric where the explore has one, else a dimension
-            const [definition] = integration.explores;
+            const [builtIn] = integration.explores;
+            const definition =
+                scan && integration.scan
+                    ? integration.scan.withScannedFields(builtIn, scan)
+                    : builtIn;
             const [metric] = definition.metrics;
             const [dimension] = definition.dimensions;
             const metricQuery: MetricQuery = {

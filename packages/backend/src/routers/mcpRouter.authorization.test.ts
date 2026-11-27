@@ -124,23 +124,28 @@ const createMcpService = () =>
             name: 'Finance',
             instruction: 'Use finance metrics.',
         }),
-        createServer: vi.fn().mockResolvedValue({ connect: vi.fn() }),
+        createServer: vi.fn().mockResolvedValue({
+            connect: vi.fn(),
+            _registeredTools: {
+                get_context: { enabled: true },
+                create_content: { enabled: false },
+                run_metric_query: { enabled: true },
+            },
+        }),
         getLegacyToolScope: vi.fn().mockResolvedValue({
             projectUuid: PROJECT_UUID,
             agentUuid: 'agent-uuid',
         }),
         recordDisabledToolRefusal: vi.fn().mockResolvedValue(undefined),
+        captureClientInfo: vi.fn().mockResolvedValue(undefined),
         isContentToolsEnabled: vi.fn().mockResolvedValue(false),
         isCreateScheduledDeliveryEnabled: vi.fn().mockResolvedValue(false),
         isEnabled: vi.fn().mockResolvedValue(true),
-        isFilterExpressionsEnabled: vi.fn().mockResolvedValue(true),
-        isRunMetricQueryEnabled: vi.fn().mockResolvedValue(false),
+        resolveQueryPath: vi.fn().mockResolvedValue({ type: 'contentOnly' }),
         isDataAppBuildsEnabled: vi.fn().mockResolvedValue(false),
         isChartTypeBuildsEnabled: vi.fn().mockResolvedValue(false),
         isCustomChartTypesEnabled: vi.fn().mockResolvedValue(false),
         isAgentIdentityEnabled: vi.fn().mockResolvedValue(false),
-        isRunSqlEnabled: vi.fn().mockResolvedValue(false),
-        isQueryEnabled: vi.fn().mockResolvedValue(false),
         recordToolList: vi.fn(),
     }) as McpService;
 
@@ -495,12 +500,11 @@ describe('MCP tool catalogue activity', () => {
                     pinnedProjectUuid: undefined,
                 }),
                 featureAvailability: expect.objectContaining({
-                    runSqlEnabled: false,
-                    runMetricQueryEnabled: false,
-                    filterExpressionsEnabled: true,
+                    queryPath: { type: 'contentOnly' },
                     documentsEnabled: true,
                 }),
             },
+            servedTools: ['get_context', 'run_metric_query'],
             authInfo: expect.objectContaining({ clientId: 'API key' }),
             durationMs: expect.any(Number),
         });
@@ -665,14 +669,6 @@ describe('project-scoped MCP route', () => {
             body: '{"status":"ok"}',
             status: 200,
         });
-        expect(mcpService.isRunSqlEnabled).toHaveBeenCalledWith(
-            expect.objectContaining({ userUuid: 'user-uuid' }),
-            PROJECT_UUID,
-        );
-        expect(mcpService.isRunMetricQueryEnabled).toHaveBeenCalledWith(
-            expect.objectContaining({ userUuid: 'user-uuid' }),
-            PROJECT_UUID,
-        );
         expect(mcpService.isContentToolsEnabled).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: 'user-uuid' }),
             PROJECT_UUID,
@@ -681,15 +677,12 @@ describe('project-scoped MCP route', () => {
             expect.objectContaining({ userUuid: 'user-uuid' }),
             PROJECT_UUID,
         );
-        expect(mcpService.isFilterExpressionsEnabled).toHaveBeenCalledWith(
-            expect.objectContaining({ userUuid: 'user-uuid' }),
-        );
         expect(mcpService.createServer).toHaveBeenCalledWith({
             req: expect.objectContaining({
                 pinnedProjectUuid: PROJECT_UUID,
             }),
             featureAvailability: expect.objectContaining({
-                filterExpressionsEnabled: true,
+                queryPath: { type: 'contentOnly' },
             }),
         });
         expect(transport.handleRequest).toHaveBeenCalledOnce();
@@ -766,7 +759,14 @@ describe('MCP call-time OAuth scope enforcement', () => {
         async ({ mode, name, status, records }) => {
             const record = vi.fn();
             vi.mocked(getOAuthScopeContext).mockReturnValue(
-                mode === null ? null : { mode, scopes: ['mcp:read'], record },
+                mode === null
+                    ? null
+                    : {
+                          mode,
+                          clientId: 'client',
+                          scopes: ['mcp:read'],
+                          record,
+                      },
             );
             transport.handleRequest.mockImplementation(
                 async (_request, response) => {
@@ -1053,9 +1053,10 @@ describe('agent-pinned MCP route', () => {
                     }),
                 }),
             );
-            expect(mcpService.isRunSqlEnabled).toHaveBeenCalledWith(
+            expect(mcpService.resolveQueryPath).toHaveBeenCalledWith(
                 expect.objectContaining({ userUuid: 'user-uuid' }),
                 AGENT_PROJECT_UUID,
+                expect.objectContaining({ uuid: AGENT_UUID }),
             );
         },
     );

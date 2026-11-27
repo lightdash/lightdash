@@ -2,7 +2,6 @@ import {
     AgentActorSurface,
     AgentCapability,
     AiAccessRefusalReason,
-    OrganizationMemberRole,
     type AgentCapabilityPolicy,
 } from '@lightdash/common';
 import { type ToolSet } from 'ai';
@@ -20,7 +19,6 @@ import {
 const setup = () => {
     const account = buildAccount();
     const policy: AgentCapabilityPolicy = {
-        mode: 'managed',
         version: 1,
         allowedCapabilities: [AgentCapability.ReadDiscover],
         allowedGroupUuids: null,
@@ -33,7 +31,6 @@ const setup = () => {
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
         groupsModel,
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
-        isCustomRolesLicensed: () => true,
         featureFlagModel,
         agentCapabilityPolicyModel: {
             get: vi.fn().mockResolvedValue(policy),
@@ -46,12 +43,9 @@ const setup = () => {
                         : policy.allowedGroupUuids.length > 0,
             })),
             save: vi.fn(),
-        },
-        userModel: {
-            getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                systemRoles: [OrganizationMemberRole.VIEWER],
-                customRoles: [],
-            }),
+            getProjectPolicies: vi.fn().mockResolvedValue([]),
+            saveProjectPolicy: vi.fn(),
+            deleteProjectPolicy: vi.fn(),
         },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({
@@ -222,7 +216,7 @@ test.each(['off', 'legacy'] as const)(
         const h = setup();
         if (mode === 'off')
             h.featureFlagModel.get.mockResolvedValue({ enabled: false });
-        else h.policy.mode = 'legacy';
+        else h.policy.allowedCapabilities = null;
         await executeTool(h.buildTools().connected_search);
         expect(h.connectedExecute).toHaveBeenCalledOnce();
     },
@@ -319,7 +313,7 @@ test('agent tool execution refuses unlisted users before running SQL', async () 
 
 test('legacy group admission is rechecked by the tool wrapper', async () => {
     const h = setup();
-    h.policy.mode = 'legacy';
+    h.policy.allowedCapabilities = null;
     h.policy.allowedGroupUuids = ['group'];
     const tools = h.buildTools();
     await expect(

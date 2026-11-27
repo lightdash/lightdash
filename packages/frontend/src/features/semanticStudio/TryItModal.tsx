@@ -1,3 +1,4 @@
+import { assertUnreachable } from '@lightdash/common';
 import {
     Anchor,
     Badge,
@@ -11,7 +12,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconTable } from '@tabler/icons-react';
-import { useEffect, useRef, useState, type FC } from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
@@ -33,6 +34,7 @@ import {
 import { CHANGE_KIND_STYLE } from './modelCode';
 import classes from './TryItModal.module.css';
 import { pullRequestNumberOf } from './urls';
+import { useUnbuiltFields } from './useFieldChangesInDevelopment';
 import {
     useChangeSet,
     type ChangedField,
@@ -43,10 +45,16 @@ import { useSemanticLayerFieldUsage } from './useSemanticLayerModel';
 /** How many field chips show before the rest go in a menu. */
 const SHOWN = 6;
 
-const buildState = (model: string, fields: ChangedField[]) => {
+const buildState = (
+    model: string,
+    fields: ChangedField[],
+    unbuilt: Set<string>,
+) => {
     const state = buildInitialExplorerState({ isEditMode: true });
     const tried = withOneGrainPerDate(
-        fields.filter(({ kind }) => kind !== 'removed'),
+        fields.filter(
+            ({ kind, fieldId }) => kind !== 'removed' && !unbuilt.has(fieldId),
+        ),
     );
     const metrics = tried.filter(({ isMetric }) => isMetric);
     // Metrics open by one date; a change with no metric shows its dimensions.
@@ -86,36 +94,57 @@ const describeUsage = (charts: number): string | null =>
         ? `${charts} saved ${charts === 1 ? 'chart reads' : 'charts read'} it`
         : null;
 
-/** One changed field, in the query or not at a click; a removed one cannot be queried, so it only says what reads it. */
-const FieldChip: FC<{ field: ChangedField; charts: number }> = ({
-    field,
-    charts,
-}) => {
+type ChipState = 'removed' | 'unbuilt' | 'on' | 'off';
+
+const chipStateOf = (
+    isRemoved: boolean,
+    isUnbuilt: boolean,
+    isOn: boolean,
+): ChipState => {
+    if (isRemoved) return 'removed';
+    if (isUnbuilt) return 'unbuilt';
+    return isOn ? 'on' : 'off';
+};
+
+const describeChip = (state: ChipState, usage: string | null): string => {
+    switch (state) {
+        case 'removed':
+            return `Removed, so it cannot be tried.${usage ? ` ${usage}.` : ''}`;
+        case 'unbuilt':
+            return 'Not in the warehouse yet. You can try it once this merges and dbt builds the model.';
+        case 'on':
+        case 'off':
+            return `${state === 'on' ? 'Remove from' : 'Add to'} the query.${usage ? ` ${usage}, so its numbers may move.` : ''}`;
+        default:
+            return assertUnreachable(state, 'Unknown chip state');
+    }
+};
+
+/** One changed field, in the query or not at a click; a removed or unbuilt one cannot be queried, so it only says why. */
+const FieldChip: FC<{
+    field: ChangedField;
+    charts: number;
+    isUnbuilt: boolean;
+}> = ({ field, charts, isUnbuilt }) => {
     const dispatch = useExplorerDispatch();
     const { dimensions, metrics } = useExplorerSelector(selectMetricQuery);
     const isRemoved = field.kind === 'removed';
+    const isOff = isRemoved || isUnbuilt;
     const isOn =
-        !isRemoved &&
+        !isOff &&
         (field.isMetric ? metrics : dimensions).includes(field.fieldId);
     const usage = describeUsage(charts);
+    const state = chipStateOf(isRemoved, isUnbuilt, isOn);
     return (
-        <Tooltip
-            multiline
-            w={240}
-            label={
-                isRemoved
-                    ? `Removed, so it cannot be tried.${usage ? ` ${usage}.` : ''}`
-                    : `${isOn ? 'Remove from' : 'Add to'} the query.${usage ? ` ${usage}, so its numbers may move.` : ''}`
-            }
-        >
+        <Tooltip multiline w={240} label={describeChip(state, usage)}>
             <Button
                 size="compact-xs"
                 variant={isOn ? 'light' : 'default'}
                 color={isOn ? 'gray' : undefined}
                 flex="none"
-                data-disabled={isRemoved || undefined}
-                aria-disabled={isRemoved}
-                aria-pressed={isRemoved ? undefined : isOn}
+                data-disabled={isOff || undefined}
+                aria-disabled={isOff}
+                aria-pressed={isOff ? undefined : isOn}
                 leftSection={
                     <Badge
                         component="span"
@@ -130,7 +159,7 @@ const FieldChip: FC<{ field: ChangedField; charts: number }> = ({
                 }
                 td={isRemoved ? 'line-through' : undefined}
                 onClick={() => {
-                    if (isRemoved) return;
+                    if (isOff) return;
                     dispatch(
                         field.isMetric
                             ? explorerActions.toggleMetric(field.fieldId)
@@ -139,6 +168,11 @@ const FieldChip: FC<{ field: ChangedField; charts: number }> = ({
                 }}
             >
                 {field.label}
+                {isUnbuilt && !isRemoved ? (
+                    <Text span inherit c="dimmed" ml={6}>
+                        not built yet
+                    </Text>
+                ) : null}
                 {charts > 0 ? (
                     <Text span inherit c="orange" ml={6}>
                         {charts}
@@ -152,7 +186,8 @@ const FieldChip: FC<{ field: ChangedField; charts: number }> = ({
 const MoreFields: FC<{
     fields: ChangedField[];
     chartsOf: (field: ChangedField) => number;
-}> = ({ fields, chartsOf }) => (
+    unbuilt: Set<string>;
+}> = ({ fields, chartsOf, unbuilt }) => (
     <Menu position="bottom-start" closeOnItemClick={false}>
         <Menu.Target>
             <Button size="compact-xs" variant="subtle" color="gray">
@@ -166,6 +201,7 @@ const MoreFields: FC<{
                         key={field.key}
                         field={field}
                         charts={chartsOf(field)}
+                        isUnbuilt={unbuilt.has(field.fieldId)}
                     />
                 ))}
             </Group>
@@ -177,7 +213,8 @@ const MoreFields: FC<{
 const FieldChips: FC<{
     fields: ChangedField[];
     chartsOf: (field: ChangedField) => number;
-}> = ({ fields, chartsOf }) => {
+    unbuilt: Set<string>;
+}> = ({ fields, chartsOf, unbuilt }) => {
     const shown = withOneGrainPerDate(fields);
     const ordered = [
         ...shown.filter(({ kind, isMetric }) => kind !== 'removed' && isMetric),
@@ -193,10 +230,15 @@ const FieldChips: FC<{
                     key={field.key}
                     field={field}
                     charts={chartsOf(field)}
+                    isUnbuilt={unbuilt.has(field.fieldId)}
                 />
             ))}
             {ordered.length > SHOWN ? (
-                <MoreFields fields={ordered.slice(SHOWN)} chartsOf={chartsOf} />
+                <MoreFields
+                    fields={ordered.slice(SHOWN)}
+                    chartsOf={chartsOf}
+                    unbuilt={unbuilt}
+                />
             ) : null}
         </>
     );
@@ -211,6 +253,11 @@ export const TryItModal: FC<{
     onClose: () => void;
 }> = ({ projectUuid, models, previewProjectUuid, prUrl, onClose }) => {
     const changeSet = useChangeSet(projectUuid, models, previewProjectUuid);
+    const unbuiltFields = useUnbuiltFields(projectUuid);
+    const unbuilt = useMemo(
+        () => new Set((unbuiltFields.data ?? []).map(({ fieldId }) => fieldId)),
+        [unbuiltFields.data],
+    );
     const [model, setModel] = useState(models[0]);
     const [store] = useState(() =>
         createExplorerStore({
@@ -220,18 +267,21 @@ export const TryItModal: FC<{
     // The query starts from what changed once that is known, and again on each model switched to.
     const seeded = useRef(false);
     useEffect(() => {
-        if (!changeSet || seeded.current) return;
+        // Started once it is known which fields the warehouse cannot answer yet.
+        if (!changeSet || unbuiltFields.isLoading || seeded.current) return;
         seeded.current = true;
         store.dispatch(
             explorerActions.reset(
-                buildState(model, changeSet.get(model) ?? []),
+                buildState(model, changeSet.get(model) ?? [], unbuilt),
             ),
         );
-    }, [changeSet, model, store]);
+    }, [changeSet, model, store, unbuilt, unbuiltFields.isLoading]);
     const switchModel = (next: string) => {
         setModel(next);
         store.dispatch(
-            explorerActions.reset(buildState(next, changeSet?.get(next) ?? [])),
+            explorerActions.reset(
+                buildState(next, changeSet?.get(next) ?? [], unbuilt),
+            ),
         );
     };
     const touched = changeSet
@@ -310,6 +360,7 @@ export const TryItModal: FC<{
                 <FieldChips
                     fields={changeSet.get(model) ?? []}
                     chartsOf={chartsOf}
+                    unbuilt={unbuilt}
                 />
             ) : null}
         </span>

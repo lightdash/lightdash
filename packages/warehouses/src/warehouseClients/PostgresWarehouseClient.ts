@@ -159,6 +159,13 @@ export const getPostgresTimestampDomain = (
 
 const { builtins } = pg.types;
 const POSTGRES_NAME_TOO_LONG_SQLSTATE = '42622';
+// Raised for any cancelled statement, including a `statement_timeout`
+const POSTGRES_QUERY_CANCELED_SQLSTATE = '57014';
+// Postgres says which it was; Redshift words a statement timeout exactly like
+// a manual cancel, so there only the timing hints at the cause
+const POSTGRES_STATEMENT_TIMEOUT_MESSAGE = /due to statement timeout/i;
+const POSTGRES_USER_CANCEL_MESSAGE = /due to user request/i;
+const REDSHIFT_CANCELLED_MESSAGE = /cancell?ed on user'?s request/i;
 
 // Server-side ceiling for a single streamed query, bounded just under the
 // 10-min scheduler job timeout so a stalled cursor fails clearly instead of
@@ -435,6 +442,7 @@ export class PostgresClient<
         let currentStep: WarehouseQueryPhase = 'connect';
         let currentStepStartedAt = performance.now();
         let rowsFetched = 0;
+        let queryStartedAt: number | undefined;
 
         const startStep = (step: WarehouseQueryPhase) => {
             currentStep = step;
@@ -552,6 +560,7 @@ export class PostgresClient<
 
                 const runQuery = () => {
                     const queryStart = performance.now();
+                    queryStartedAt = queryStart;
                     let fetchStart: number | undefined;
                     sentQuery = true;
                     // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
@@ -666,7 +675,12 @@ export class PostgresClient<
                     throw e;
                 }
                 const error = e as pg.DatabaseError;
-                const translatedError = this.parseError(error, sql);
+                const translatedError =
+                    this.getStatementTimeoutError(
+                        error,
+                        statementTimeoutMs,
+                        queryStartedAt,
+                    ) ?? this.parseError(error, sql);
                 translatedError.cause = error;
                 throw translatedError;
             })
@@ -968,6 +982,41 @@ export class PostgresClient<
             mapFieldType,
             getPostgresTimestampDomain,
         );
+    }
+
+    /**
+     * Rewords a cancellation caused by the connection's statement timeout.
+     * Returns undefined when the warehouse's own message should be kept.
+     */
+    private getStatementTimeoutError(
+        error: pg.DatabaseError,
+        statementTimeoutMs: number,
+        queryStartedAt: number | undefined,
+    ): WarehouseQueryError | undefined {
+        const message = error?.message ?? '';
+        if (POSTGRES_USER_CANCEL_MESSAGE.test(message)) {
+            return undefined;
+        }
+        const seconds = Math.round(statementTimeoutMs / 1000);
+        if (POSTGRES_STATEMENT_TIMEOUT_MESSAGE.test(message)) {
+            return new WarehouseQueryError(
+                `Query timed out after ${seconds}s. This limit is the timeout in the project's warehouse connection settings`,
+            );
+        }
+        // A cancel issued just before the deadline can also arrive after it,
+        // so this stays a likely cause rather than a stated one
+        const reachedTimeout =
+            queryStartedAt !== undefined &&
+            performance.now() - queryStartedAt >= statementTimeoutMs;
+        const isCancellation =
+            error?.code === POSTGRES_QUERY_CANCELED_SQLSTATE ||
+            REDSHIFT_CANCELLED_MESSAGE.test(message);
+        if (reachedTimeout && isCancellation) {
+            return new WarehouseQueryError(
+                `Query was cancelled after running for ${seconds}s. This is likely the timeout in the project's warehouse connection settings`,
+            );
+        }
+        return undefined;
     }
 
     parseError(error: pg.DatabaseError, query: string = '') {

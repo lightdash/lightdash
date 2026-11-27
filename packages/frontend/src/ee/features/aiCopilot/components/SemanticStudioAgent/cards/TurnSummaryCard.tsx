@@ -6,7 +6,7 @@ import {
     type SemanticLayerDraftImpact,
     type SemanticLayerProposal,
 } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Button, Loader, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconArrowsJoin,
@@ -21,10 +21,6 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { cannotApply } from '../../../../../../features/semanticStudio/draftState';
 import { FieldChangeIcon } from '../../../../../../features/semanticStudio/KindTypeIcon';
-import {
-    MetricPreview,
-    type MetricPreviewModel,
-} from '../../../../../../features/semanticStudio/MetricPreview';
 import {
     describeModelChange,
     DRAFT_PARAM,
@@ -45,8 +41,12 @@ import {
     useSemanticLayerDraftImpact,
 } from '../../../../../../features/semanticStudio/useSemanticLayerModel';
 import { useDraftPullRequest } from '../../../../../../features/semanticStudio/useStudioCheckout';
-import { listTurnIssues } from './proposalIssues';
-import { draftActions, fixAction } from './turnActions';
+import {
+    AGENT_WORKING_HINT,
+    useStudioAgentWorking,
+} from '../useSemanticStudioChat';
+import { getDiscardedLabel, listTurnIssues } from './proposalIssues';
+import { draftActions, fixFailureAction } from './turnActions';
 import { TurnCard, type Safety } from './TurnCard';
 import { useRefreshUnknownDraftChanges } from './useRefreshUnknownDraftChanges';
 
@@ -187,7 +187,7 @@ const getPhase = (
         case 'undone':
             return { kind: 'gone', label: 'Undone' };
         case 'discarded':
-            return { kind: 'gone', label: 'Discarded' };
+            return { kind: 'gone', label: getDiscardedLabel(phase.by) };
         default:
             return assertUnreachable(phase, 'Unknown proposal phase');
     }
@@ -197,16 +197,8 @@ const getPhase = (
 const getSafety = (
     error: string | null,
     impact: SemanticLayerDraftImpact | undefined,
-    conflicts: number,
 ): Safety => {
     if (error) return { state: 'failed', text: "Doesn't compile", why: error };
-    if (conflicts > 0) {
-        return {
-            state: 'failed',
-            text: `${conflicts} ${conflicts === 1 ? 'conflict' : 'conflicts'}`,
-            why: 'choose a version',
-        };
-    }
     if (!impact) {
         return { state: 'running', text: 'Checking saved charts', why: null };
     }
@@ -277,41 +269,8 @@ export const TurnSummaryCard: FC<{
         return modelUrl(model);
     };
     const issues = listTurnIssues(proposals);
-    // The latest clean draft shows its metrics working, so trying it needs no Explore.
-    const previews: MetricPreviewModel[] =
-        isLatest && phase.kind === 'draft' && !phase.error
-            ? groups.flatMap(
-                  ({
-                      model,
-                      change,
-                      removed,
-                      fields,
-                  }): MetricPreviewModel[] => {
-                      if (removed) return [];
-                      if (change === 'new') {
-                          return [{ model, isNew: true, metrics: null }];
-                      }
-                      const metrics = fields
-                          .filter(
-                              (field) =>
-                                  field.kind === 'metric' &&
-                                  field.change !== 'removed',
-                          )
-                          .map(({ name, change: kind }) => ({
-                              name,
-                              isNew: kind === 'new',
-                          }));
-                      return metrics.length > 0
-                          ? [{ model, isNew: false, metrics }]
-                          : [];
-                  },
-              )
-            : [];
     const isDraft = phase.kind === 'draft';
-    const conflicts = (draft?.models ?? []).filter(
-        ({ reconciliation }) => reconciliation?.state === 'conflict',
-    ).length;
-    const safety = isDraft ? getSafety(phase.error, impact, conflicts) : null;
+    const safety = isDraft ? getSafety(phase.error, impact) : null;
     const [publishing, setPublishing] = useState(false);
     const publishMode = usePublishMode(projectUuid);
     const asPullRequest = publishMode === 'pull_request';
@@ -323,6 +282,7 @@ export const TurnSummaryCard: FC<{
               ? modelUrl(groups[0].model)
               : `${studioUrl}?${VIEW_PARAM}=models`;
     const isSent = useDraftPullRequest() !== null;
+    const isAgentWorking = useStudioAgentWorking(projectUuid);
     // A clean draft can go out from where it was made, as the toolbar's button would send it.
     const canPublish =
         safety?.state === 'done' &&
@@ -331,13 +291,7 @@ export const TurnSummaryCard: FC<{
         !issues.some(({ kind }) => kind === 'failed');
     const publishLabel = isSent ? 'Update pull request' : 'Open pull request';
     // A model the agent could not add, and did not go on to fix, is one more thing to hand back to it.
-    const failure = issues.find(({ kind }) => kind === 'failed');
-    const fixFailure = failure
-        ? fixAction(
-              `${failure.model} was not added: ${failure.detail}. Fix it.`,
-              onAsk,
-          )
-        : null;
+    const fixFailure = fixFailureAction(issues, onAsk);
     const actions = (() => {
         switch (phase.kind) {
             case 'draft':
@@ -349,13 +303,31 @@ export const TurnSummaryCard: FC<{
                     }),
                     phase.error ? null : fixFailure,
                     canPublish ? (
-                        <Button
+                        <Tooltip
                             key="publish"
-                            size="compact-xs"
-                            onClick={() => setPublishing(true)}
+                            label={AGENT_WORKING_HINT}
+                            disabled={!isAgentWorking}
+                            events={{ hover: true, focus: true, touch: false }}
                         >
-                            {asPullRequest ? publishLabel : 'Publish'}
-                        </Button>
+                            <Button
+                                size="compact-xs"
+                                leftSection={
+                                    isAgentWorking ? (
+                                        <Loader
+                                            size={10}
+                                            color="currentColor"
+                                        />
+                                    ) : null
+                                }
+                                aria-disabled={isAgentWorking}
+                                aria-busy={isAgentWorking}
+                                onClick={() => {
+                                    if (!isAgentWorking) setPublishing(true);
+                                }}
+                            >
+                                {asPullRequest ? publishLabel : 'Publish'}
+                            </Button>
+                        </Tooltip>
                     ) : null,
                 ];
             case 'published':
@@ -473,6 +445,7 @@ export const TurnSummaryCard: FC<{
                     subtitle,
                     rows: fields.map((field) => ({
                         id: `${field.kind}:${field.name}`,
+                        kind: field.kind,
                         change: field.change,
                         action: ACTIONS[field.kind][field.change],
                         // A field keeps the Explorer's own icon and colour; a join is blue and a table green.
@@ -521,17 +494,6 @@ export const TurnSummaryCard: FC<{
             safety={safety}
             isLatest={isLatest}
             actions={actions}
-            preview={
-                previews.length > 0 && draft ? (
-                    <MetricPreview
-                        projectUuid={projectUuid}
-                        models={previews}
-                        cacheKey={draft.changes
-                            .map(({ draftChangeUuid }) => draftChangeUuid)
-                            .join()}
-                    />
-                ) : null
-            }
             isGone={phase.kind === 'gone'}
             isSettled={
                 phase.kind === 'published' ||

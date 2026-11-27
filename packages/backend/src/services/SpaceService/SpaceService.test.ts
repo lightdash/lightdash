@@ -1,6 +1,7 @@
 import {
     AbilityAction,
     AgentActorSurface,
+    AgentCapability,
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
@@ -2129,9 +2130,9 @@ describe('managed space updates', () => {
                 'get',
             ).mockResolvedValue({
                 allowedGroupUuids: null,
-                mode: mode === 'legacy' ? 'legacy' : 'managed',
                 version: 1,
-                allowedCapabilities: null,
+                allowedCapabilities:
+                    mode === 'legacy' ? null : Object.values(AgentCapability),
             });
             const user = createTestUser({
                 organizationUuid: 'org',
@@ -2218,9 +2219,9 @@ describe('space metadata updates after a human revocation', () => {
                 'get',
             ).mockResolvedValue({
                 allowedGroupUuids: null,
-                mode: mode === 'legacy' ? 'legacy' : 'managed',
                 version: 1,
-                allowedCapabilities: null,
+                allowedCapabilities:
+                    mode === 'legacy' ? null : Object.values(AgentCapability),
             });
             const user = createTestUser({
                 organizationUuid: 'org',

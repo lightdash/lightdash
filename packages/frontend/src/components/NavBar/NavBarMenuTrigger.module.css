@@ -1,0 +1,4 @@
+.indicatorLabel {
+    /* Revert overflow so the indicator doesn't get cropped off */
+    overflow: revert;
+}

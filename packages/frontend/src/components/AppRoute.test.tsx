@@ -10,7 +10,6 @@ const organizationUuid = '172a2270-000f-42be-9c68-c4752c23ae51';
 const state = vi.hoisted(() => ({
     needsProject: true,
     isHomepageBuilderEnabled: true,
-    isNewOnboardingEnabled: true,
     canCreateProject: true,
 }));
 
@@ -43,13 +42,6 @@ vi.mock('../hooks/organization/useOrganization', () => ({
         isInitialLoading: false,
         isFetchedAfterMount: true,
         error: null,
-    }),
-}));
-
-vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: state.isNewOnboardingEnabled },
-        isLoading: false,
     }),
 }));
 
@@ -96,7 +88,6 @@ describe('AppRoute', () => {
     beforeEach(() => {
         state.needsProject = true;
         state.isHomepageBuilderEnabled = true;
-        state.isNewOnboardingEnabled = true;
         state.canCreateProject = true;
     });
 
@@ -113,21 +104,6 @@ describe('AppRoute', () => {
         expect(screen.getByText('data source')).toBeInTheDocument();
     });
 
-    it('sends an organization without new onboarding to legacy project creation', () => {
-        state.isNewOnboardingEnabled = false;
-        state.isHomepageBuilderEnabled = false;
-        renderAppRoute();
-
-        expect(screen.getByText('create project')).toBeInTheDocument();
-    });
-
-    it('keeps legacy project creation when only the enterprise surfaces are enabled', () => {
-        state.isNewOnboardingEnabled = false;
-        renderAppRoute();
-
-        expect(screen.getByText('create project')).toBeInTheDocument();
-    });
-
     it('renders its children once the organization has a project', () => {
         state.needsProject = false;
         renderAppRoute();
@@ -141,15 +117,5 @@ describe('AppRoute', () => {
 
         expect(screen.getByText('app')).toBeInTheDocument();
         expect(screen.queryByText('get started')).not.toBeInTheDocument();
-    });
-
-    it('keeps the legacy project creation redirect away from users who cannot create a project', () => {
-        state.canCreateProject = false;
-        state.isNewOnboardingEnabled = false;
-        state.isHomepageBuilderEnabled = false;
-        renderAppRoute();
-
-        expect(screen.getByText('app')).toBeInTheDocument();
-        expect(screen.queryByText('create project')).not.toBeInTheDocument();
     });
 });

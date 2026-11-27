@@ -372,7 +372,12 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
     ];
     return (
         <Affix
-            position={{ bottom: 16, left: 16 }}
+            // Stays in the page so it can clear the left sidebar's width.
+            withinPortal={false}
+            position={{
+                bottom: 16,
+                left: 'calc(var(--app-shell-navbar-offset, 0px) + 16px)',
+            }}
             zIndex={getDefaultZIndex('app')}
         >
             {isMinimized ? (

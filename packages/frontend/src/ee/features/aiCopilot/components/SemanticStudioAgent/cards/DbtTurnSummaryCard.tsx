@@ -30,7 +30,7 @@ import {
     type ChangeKind,
     VIEW_PARAM,
 } from '../../../../../../features/semanticStudio/modelCode';
-import { ModelFieldChanges } from '../../../../../../features/semanticStudio/ModelFieldChanges';
+import { DraftFieldChanges } from '../../../../../../features/semanticStudio/ModelFieldChanges';
 import { TaskIcon } from '../../../../../../features/semanticStudio/TaskRow';
 import { getSemanticStudioUrl } from '../../../../../../features/semanticStudio/urls';
 import { useCheckoutCompile } from '../../../../../../features/semanticStudio/useStudioCheckout';
@@ -95,7 +95,6 @@ const DraftTurnCard: FC<{
     projectUuid: string;
     models: string[];
     previewProjectUuid: string | null;
-    cacheKey: string;
     note: string | null;
     safety: Safety | null;
     files: DiffFile[];
@@ -106,7 +105,6 @@ const DraftTurnCard: FC<{
     projectUuid,
     models,
     previewProjectUuid,
-    cacheKey,
     note,
     safety,
     files,
@@ -151,16 +149,13 @@ const DraftTurnCard: FC<{
                 />
             </UnstyledButton>
             <Box className={classes.compactBody}>
-                {models.map((model) => (
-                    <ModelFieldChanges
-                        key={model}
-                        projectUuid={projectUuid}
-                        model={model}
-                        previewProjectUuid={previewProjectUuid}
-                        cacheKey={cacheKey}
-                        isCompiled={safety?.state === 'done'}
-                    />
-                ))}
+                <DraftFieldChanges
+                    projectUuid={projectUuid}
+                    models={models}
+                    previewProjectUuid={previewProjectUuid}
+                    isCompiled={safety?.state === 'done'}
+                    fileCount={files.length}
+                />
                 {note ? (
                     <Group gap={6} wrap="nowrap" align="flex-start">
                         <Box className={turnClasses.node} w={16}>
@@ -309,6 +304,7 @@ export const DbtTurnSummaryCard: FC<{
                               getModelsOfFiles([file]).length > 0;
                           return {
                               id: file.key,
+                              kind: 'file',
                               change,
                               action: FILE_ACTIONS[change],
                               icon: (
@@ -339,6 +335,7 @@ export const DbtTurnSummaryCard: FC<{
                   rows: [
                       {
                           id: model,
+                          kind: 'model',
                           change: 'changed',
                           action: 'Changed the model',
                           icon: (
@@ -455,7 +452,6 @@ export const DbtTurnSummaryCard: FC<{
                         : changedModels
                 }
                 previewProjectUuid={current?.previewProjectUuid ?? null}
-                cacheKey={commitSha ?? prUrl}
                 note={note}
                 safety={getSafety(latestCompile)}
                 files={files}

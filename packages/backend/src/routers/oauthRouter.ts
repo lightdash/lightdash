@@ -26,6 +26,7 @@ import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
+    unauthorisedWhileImpersonating,
 } from '../controllers/authentication';
 import Logger from '../logging/logger';
 import {
@@ -215,6 +216,9 @@ const refuseDisabledMobileOrg = async (
     return true;
 };
 
+// An authorization code issued here would belong to the impersonated user.
+oauthRouter.use('/authorize', unauthorisedWhileImpersonating);
+
 // Get authorization - use OAuth2Server
 oauthRouter.get('/authorize', async (req, res, next) => {
     try {
@@ -237,7 +241,12 @@ oauthRouter.get('/authorize', async (req, res, next) => {
             code_challenge,
             code_challenge_method,
         } = req.query;
-        if (!client_id || !redirect_uri) {
+        if (
+            typeof client_id !== 'string' ||
+            typeof redirect_uri !== 'string' ||
+            !client_id ||
+            !redirect_uri
+        ) {
             return res.status(400).send('Missing required parameters');
         }
 
@@ -299,8 +308,38 @@ oauthRouter.get('/authorize', async (req, res, next) => {
             );
         }
 
+        const requestedScope = String(
+            (Array.isArray(scope) ? scope.join(' ') : scope) ?? '',
+        ).trim();
+        const resolvedScope = await getOAuthService(
+            req,
+        ).resolveAuthorizationScope(
+            String(client_id),
+            requestedScope ? requestedScope.split(/\s+/) : [],
+            {
+                userUuid: req.user.userUuid ?? null,
+                organizationUuid: identity.organizationUuid,
+            },
+        );
+        if (resolvedScope === false) {
+            const redirectUrl = await getValidatedRedirectUrl(req, {
+                clientId: client_id,
+                redirectUri: redirect_uri,
+            });
+            if (!redirectUrl) return sendInvalidRedirectResponse(res);
+            redirectUrl.searchParams.set('error', 'invalid_scope');
+            if (typeof state === 'string' && state !== '')
+                redirectUrl.searchParams.set('state', state);
+            return await sendOAuthRedirectResponse(
+                req,
+                res,
+                redirectUrl,
+                'The requested permissions are not valid for this application. Redirecting you back to your application...',
+            );
+        }
+
         // Render authorize page using Handlebars template
-        const scopeString = (scope as string) || '';
+        const scopeString = resolvedScope.join(' ');
         const clientName = await getOAuthService(req).getClientDisplayName(
             client_id as string,
         );
@@ -331,6 +370,7 @@ oauthRouter.get('/authorize', async (req, res, next) => {
                 action: '/api/v1/oauth/authorize',
                 client_id: client_id as string,
                 client_name: clientName,
+                redirect_uri,
                 scope: scopeString,
                 scopes: parseScopeString(scopeString),
                 user: {
@@ -460,6 +500,7 @@ oauthRouter.post('/authorize', async (req, res, next) => {
                 oauthRes,
                 {
                     userId: identity.userId,
+                    userUuid: req.user.userUuid,
                     organizationUuid: identity.organizationUuid,
                 },
             );

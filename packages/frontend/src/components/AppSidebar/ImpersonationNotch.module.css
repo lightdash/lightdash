@@ -1,0 +1,23 @@
+.notch {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: rem(6px);
+    height: rem(26px);
+    padding-inline: rem(12px) rem(8px);
+    border-radius: var(--mantine-radius-md) var(--mantine-radius-md) 0 0;
+    color: var(--mantine-color-white);
+    white-space: nowrap;
+    background-color: var(--mantine-color-orange-filled);
+    transform: translateX(-50%);
+}
+
+.stop {
+    color: var(--mantine-color-white);
+
+    &:hover {
+        background-color: rgb(0 0 0 / 0.15);
+    }
+}

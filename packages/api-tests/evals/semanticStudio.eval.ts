@@ -21,7 +21,6 @@ const REPLY_TIMEOUT_MS = 840_000;
 describe('Semantic Studio agent', { concurrent: false }, () => {
     let admin: ApiClient;
     let projectUuid: string;
-    let agentUuid: string;
     let clearFlag = false;
     const flagUrl = `/api/v2/feature-flag/${FeatureFlags.SemanticStudioEditing}`;
     const studio = () => `/api/v1/projects/${projectUuid}/semantic-studio`;
@@ -32,15 +31,14 @@ describe('Semantic Studio agent', { concurrent: false }, () => {
 
     /** Asks in a new thread, waits for the reply, and returns it with the draft it left. */
     const ask = async (prompt: string) => {
-        const agent = `/api/v1/projects/${projectUuid}/aiAgents/${agentUuid}`;
-        const thread = await admin.post<Body<AiAgentThreadSummary>>(
-            `${agent}/threads`,
-            { prompt, createdFrom: 'semantic_studio' },
-        );
+        const threads = `${studio()}/chat/threads`;
+        const thread = await admin.post<Body<AiAgentThreadSummary>>(threads, {
+            prompt,
+        });
         expect(thread.status).toBe(200);
-        const threadUrl = `${agent}/threads/${thread.body.results.uuid}`;
-        // A reply can outlast the client's wait for a response, so it is started and then watched.
-        admin.post(`${threadUrl}/generate`, {}).catch(() => undefined);
+        const threadUrl = `${threads}/${thread.body.results.uuid}`;
+        // The stream ends with the turn; its body is not JSON, so the reply is read from the thread.
+        await admin.post(`${threadUrl}/stream`, {}).catch(() => undefined);
         const settled = await pollUntil<Body<AiAgentThread>>(admin, threadUrl, {
             timeout: REPLY_TIMEOUT_MS,
             interval: 5_000,
@@ -106,28 +104,6 @@ describe('Semantic Studio agent', { concurrent: false }, () => {
         });
         expect(project.status).toBe(200);
         projectUuid = project.body.results.project.projectUuid;
-        const agent = await admin.post<Body<{ uuid: string }>>(
-            `/api/v1/projects/${projectUuid}/aiAgents`,
-            {
-                projectUuid,
-                name: 'Semantic Studio eval',
-                description: null,
-                instruction: null,
-                imageUrl: null,
-                integrations: [],
-                tags: null,
-                groupAccess: [],
-                userAccess: [],
-                spaceAccess: [],
-                enableDataAccess: true,
-                // Nobody is there to approve a query, and an unanswered approval ends the reply.
-                enableSqlAutoApproval: true,
-                enableSelfImprovement: false,
-                version: 2,
-            },
-        );
-        expect(agent.status).toBe(201);
-        agentUuid = agent.body.results.uuid;
     });
 
     // Each case builds on the draft the last one left, so the first failure stops the rest.

@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { LightdashApiStreamError, type LightdashApi } from '../../../../api';
 import { getAiAccessRefusal } from '../../../../features/aiAccess/errors';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
-import { getAiAgentApiBase } from '../hooks/aiAgentRouting';
+import { useChatThreadsUrl } from '../hooks/chatEndpoints';
 import {
     addReasoning,
     addToolCall,
@@ -24,6 +24,7 @@ import {
     markFirstToken,
     markStreamRecovering,
     markToolCallDecided,
+    markTurnFinished,
     setError,
     setAccessRefusal,
     setMessage,
@@ -97,8 +98,7 @@ type StepProgressChunk = UIMessageChunk & {
 
 const getAgentThreadReadableStream = async (
     lightdashApi: LightdashApi,
-    projectUuid: string,
-    agentUuid: string,
+    threadsUrl: string,
     threadUuid: string,
     enableSqlMode: boolean | undefined,
     autoApproveSql: boolean,
@@ -111,9 +111,7 @@ const getAgentThreadReadableStream = async (
         toolHints,
     };
     const res = await lightdashApi.stream({
-        url: `${getAiAgentApiBase(
-            projectUuid,
-        )}/${agentUuid}/threads/${threadUuid}/stream`,
+        url: `${threadsUrl}/${threadUuid}/stream`,
         method: 'POST',
         body: JSON.stringify(request),
         signal,
@@ -321,6 +319,7 @@ const FIRST_TOKEN_CHUNK_TYPES = new Set<UIMessageChunk['type']>([
 
 export function useAiAgentThreadStreamMutation() {
     const lightdashApi = useLightdashApi();
+    const getThreadsUrl = useChatThreadsUrl();
 
     const dispatch = useAiAgentStoreDispatch();
     const { setAbortController, abort } =
@@ -369,8 +368,7 @@ export function useAiAgentThreadStreamMutation() {
 
                 const response = await getAgentThreadReadableStream(
                     lightdashApi,
-                    projectUuid,
-                    agentUuid,
+                    getThreadsUrl(projectUuid, agentUuid),
                     threadUuid,
                     enableSqlMode,
                     autoApproveSql,
@@ -428,6 +426,7 @@ export function useAiAgentThreadStreamMutation() {
                         inactivityMonitor.reset();
                         if (value.type === 'finish') {
                             receivedTerminalChunk = true;
+                            dispatch(markTurnFinished({ threadUuid }));
                         }
                         if (
                             !receivedFirstToken &&
@@ -747,7 +746,7 @@ export function useAiAgentThreadStreamMutation() {
                 inactivityMonitor?.stop();
             }
         },
-        [dispatch, setAbortController, lightdashApi],
+        [dispatch, setAbortController, lightdashApi, getThreadsUrl],
     );
 
     const cancelMessageStream = useCallback(

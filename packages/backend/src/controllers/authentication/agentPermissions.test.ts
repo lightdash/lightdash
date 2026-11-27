@@ -5,7 +5,6 @@ import {
     AiAccessRefusedError,
     FeatureFlags,
     ForbiddenError,
-    OrganizationMemberRole,
     type PossibleAbilities,
 } from '@lightdash/common';
 import express, {
@@ -91,11 +90,13 @@ const setup = ({
         abilityRules: ability.rules,
     };
     const getPolicy = vi.fn().mockResolvedValue({
-        mode: mode === 'managed' ? 'managed' : 'legacy',
         version: 1,
         allowed_project_uuids: allowedProjectUuids,
         allowed_user_uuids: allowedUserUuids,
-        allowedCapabilities,
+        allowedCapabilities:
+            mode === 'managed'
+                ? (allowedCapabilities ?? Object.values(AgentCapability))
+                : null,
         allowedGroupUuids,
     });
     const resolveResourceProjectUuid = vi.fn().mockResolvedValue(null);
@@ -104,7 +105,6 @@ const setup = ({
         groupsModel,
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
         resolveResourceProjectUuid,
-        isCustomRolesLicensed: () => false,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: mode !== 'off' }),
         },
@@ -122,12 +122,9 @@ const setup = ({
                 };
             },
             save: vi.fn(),
-        },
-        userModel: {
-            getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                systemRoles: [OrganizationMemberRole.ADMIN],
-                customRoles: [],
-            }),
+            getProjectPolicies: vi.fn().mockResolvedValue([]),
+            saveProjectPolicy: vi.fn(),
+            deleteProjectPolicy: vi.fn(),
         },
         projectModel: {
             getSummary: vi
@@ -279,9 +276,8 @@ describe.each([
         const get = vi
             .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
             .mockResolvedValue({
-                mode: 'managed',
                 version: 1,
-                allowedCapabilities: null,
+                allowedCapabilities: Object.values(AgentCapability),
                 allowedGroupUuids: null,
             });
         try {
@@ -588,7 +584,6 @@ it.each([
         request.body = { role: 'developer' };
         getPolicy.mockResolvedValue({
             allowedGroupUuids: null,
-            mode: 'managed',
             version: 1,
             allowedCapabilities: [
                 AgentCapability.Administration,
@@ -637,7 +632,6 @@ it('allows managed OAuth space metadata edits with content_write', async () => {
     });
     getPolicy.mockResolvedValue({
         allowedGroupUuids: null,
-        mode: 'managed',
         version: 1,
         allowedCapabilities: [AgentCapability.ContentWrite],
     });
@@ -650,7 +644,6 @@ it('checks access changes after allowing the OAuth space REST operation', async 
     });
     const policy = {
         allowedGroupUuids: null,
-        mode: 'managed' as const,
         version: 1,
         allowedCapabilities: [AgentCapability.ContentWrite],
     };
@@ -819,7 +812,7 @@ test.each([0, 1, 3])(
             admissionTracker,
             fromSession(defaultSessionUser),
         );
-        sql.state.policy.mode = 'managed';
+        sql.state.policy.allowedCapabilities ??= Object.values(AgentCapability);
         const grant = { ...grantFixture(), clientId: 'lightdash-cli' };
         const oauth = Object.assign(h.request.services.getOauthService(), {
             getSiteUrl: () => grant.resource,
@@ -860,9 +853,6 @@ test.each([0, 1, 3])(
         const assertion = vi.spyOn(sql.service, 'assertOperationWithRequest');
         await expect(h.run(allowOauthAuthentication)).resolves.toBeUndefined();
         expect(assertion).toHaveBeenCalledTimes(Math.max(1, count));
-        expect(
-            sql.deps.userModel.getAgentRoleAssignments,
-        ).toHaveBeenCalledTimes(Math.max(1, count));
         expectAdmissionSql(admissionTracker, {
             policy: 1,
             groups: 0,
@@ -879,7 +869,7 @@ test('bound REST retains every refusal and activity record in concurrent fan-out
         admissionTracker,
         fromSession(defaultSessionUser),
     );
-    sql.state.policy.mode = 'managed';
+    sql.state.policy.allowedCapabilities ??= Object.values(AgentCapability);
     sql.state.members = [];
     const grant = { ...grantFixture(), clientId: 'lightdash-cli' };
     const oauth = Object.assign(h.request.services.getOauthService(), {
@@ -940,9 +930,8 @@ it('refuses a personal CLI membership change through the registered controller m
     const policy = vi
         .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
         .mockResolvedValue({
-            mode: 'managed',
             version: 1,
-            allowedCapabilities: null,
+            allowedCapabilities: Object.values(AgentCapability),
             allowedGroupUuids: null,
         });
     const projectService = new ProjectService({

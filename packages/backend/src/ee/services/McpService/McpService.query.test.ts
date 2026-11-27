@@ -16,8 +16,9 @@ import {
     composerSessionScope,
     type ComposerQueryNodeScope,
 } from '../../database/entities/composerQueryNodes';
+import type { McpQueryPath } from './mcpQueryPath';
 import { McpService, McpToolName } from './McpService';
-import { makeMcpServerOptions } from './McpService.mock';
+import { classicQueryPath, makeMcpServerOptions } from './McpService.mock';
 
 type ToolResult = {
     isError?: boolean;
@@ -370,7 +371,7 @@ const makeService = ({
         mcpContextModel: { getContext: vi.fn().mockResolvedValue(undefined) },
         mcpToolCallModel: {
             createToolCall: vi.fn(),
-            findClientInfo: vi.fn(),
+            findSessionClientInfo: vi.fn(),
         },
         projectService: {
             getProject: vi.fn().mockResolvedValue({ organizationUuid }),
@@ -417,9 +418,17 @@ const makeService = ({
     };
 };
 
-const createServer = async (service: McpService, queryEnabled = true) => {
+const composerQueryPath: McpQueryPath = {
+    type: 'composer',
+    sqlRunnerEnabled: false,
+};
+
+const createServer = async (
+    service: McpService,
+    queryPath: McpQueryPath = composerQueryPath,
+) => {
     mockRegisteredMcpTools.clear();
-    await service.createServer(makeMcpServerOptions({ queryEnabled }));
+    await service.createServer(makeMcpServerOptions({ queryPath }));
 };
 
 const ordersNode = {
@@ -459,9 +468,9 @@ const textOf = (result: ToolResult) =>
 describe('McpService query tool', () => {
     it('is listed only where composer queries can run', async () => {
         const { service } = makeService();
-        await createServer(service, true);
+        await createServer(service, composerQueryPath);
         expect(mockRegisteredMcpTools.has(McpToolName.QUERY)).toBe(true);
-        await createServer(service, false);
+        await createServer(service, classicQueryPath(false, false));
         expect(mockRegisteredMcpTools.has(McpToolName.QUERY)).toBe(false);
     });
 
@@ -743,7 +752,7 @@ describe('McpService query tool', () => {
         expect(runComposerQueriesUntilDeadline).not.toHaveBeenCalled();
     });
 
-    it('refuses sql nodes where run_sql is not allowed', async () => {
+    it('refuses sql nodes without SQL Runner access', async () => {
         const { service, call, runComposerQueriesUntilDeadline } = makeService({
             canManageSqlRunner: false,
         });
@@ -765,6 +774,7 @@ describe('McpService query tool', () => {
 
         expect(result.isError).toBe(true);
         expect(textOf(result)).toContain('"sql" nodes');
+        expect(textOf(result)).not.toContain('run_sql');
         expect(runComposerQueriesUntilDeadline).not.toHaveBeenCalled();
     });
 

@@ -67,6 +67,7 @@ import {
     allowOauthAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
+    unauthorisedWhileImpersonating,
 } from './authentication';
 import { BaseController } from './baseController';
 
@@ -167,7 +168,11 @@ export class UserController extends BaseController {
      * @summary Create email one-time passcode
      * @param req express request
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        isAuthenticated,
+        unauthorisedInDemo,
+        unauthorisedWhileImpersonating,
+    ])
     @Put('/me/email/otp')
     @OperationId('CreateEmailOneTimePasscode')
     async createEmailOneTimePasscode(
@@ -890,9 +895,10 @@ export class UserController extends BaseController {
      */
     @Middlewares([
         // NOTE: We do NOT allow personal access tokens to be created with PAT authentication
-        allowOauthAuthentication, // Allow creating PAT from OAuth tokens
+        allowOauthAuthentication, // OAuth tokens are authenticated so the service can apply its OAuth credential rules
         isAuthenticated,
         unauthorisedInDemo,
+        unauthorisedWhileImpersonating,
     ])
     @SuccessResponse('200', 'Success')
     @Post('/me/personal-access-tokens')
@@ -947,6 +953,7 @@ export class UserController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        unauthorisedWhileImpersonating,
     ])
     @SuccessResponse('200', 'Success')
     @Patch('/me/personal-access-tokens/{personalAccessTokenUuid}/rotate')

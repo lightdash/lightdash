@@ -11,7 +11,6 @@ import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import AuthLayout from '../components/common/AuthLayout';
-import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import ErrorState from '../components/common/ErrorState';
 import PageSpinner from '../components/PageSpinner';
 import {
@@ -28,8 +27,6 @@ const PasswordReset: FC = () => {
     const { health } = useApp();
     const { isInitialLoading, error } = usePasswordResetLink(code);
     const passwordResetMutation = usePasswordResetMutation();
-    const { isNewLayout } = useAuthLayoutVariant();
-    const textAlign = isNewLayout ? 'left' : 'center';
 
     const form = useForm<ResetPasswordForm>({
         initialValues: {
@@ -49,7 +46,7 @@ const PasswordReset: FC = () => {
                 <>
                     {!passwordResetMutation.isSuccess ? (
                         <>
-                            <Title order={3} ta={textAlign} mb="md">
+                            <Title order={3} ta="left" mb="md">
                                 Reset your password
                             </Title>
                             <form
@@ -80,7 +77,7 @@ const PasswordReset: FC = () => {
                                         loading={
                                             passwordResetMutation.isLoading
                                         }
-                                        fullWidth={isNewLayout}
+                                        fullWidth
                                     >
                                         Save
                                     </Button>
@@ -99,10 +96,10 @@ const PasswordReset: FC = () => {
                         </>
                     ) : (
                         <>
-                            <Title order={3} ta={textAlign} mb="md">
+                            <Title order={3} ta="left" mb="md">
                                 Success!
                             </Title>
-                            <Text ta={textAlign} mb="lg" c="dimmed">
+                            <Text ta="left" mb="lg" c="dimmed">
                                 Your password has been successfully updated.
                                 <br /> Use your new password to log in.
                             </Text>

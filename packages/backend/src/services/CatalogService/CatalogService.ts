@@ -18,6 +18,7 @@ import {
     DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
     Explore,
     ExploreError,
+    ExploreType,
     FieldType,
     ForbiddenError,
     generateSlug,
@@ -223,8 +224,11 @@ export class CatalogService<
 
     private static isExploreFiltered(
         tablesConfiguration: TablesConfiguration,
-        explore: Pick<SummaryExplore, 'tags' | 'name'>,
+        explore: Pick<SummaryExplore, 'tags' | 'name' | 'type'>,
     ) {
+        // Live data source explores bypass the Tables configuration, as
+        // everywhere else; their tags are for scoping AI agents
+        if (explore.type === ExploreType.API_SOURCE) return true;
         // Optimization tip:
         // Perhaps we should filter these in catalog on `index` rather than in real time (requires dbt refresh on table config changes)
         const {

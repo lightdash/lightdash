@@ -89,7 +89,6 @@ import {
     QueryNodeId,
     type UUID,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import {
     Body,
     Delete,
@@ -118,12 +117,13 @@ import {
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { type ApiGetAsyncQueryResultsResponse } from '../../controllers/v2/QueryController';
-import Logger from '../../logging/logger';
+import { compressResultsPage } from '../../middlewares/responseCompression/responseCompression';
 import { parseLightdashClient } from '../../utils/clientHeader';
 import { type AiAgentCoderService } from '../services/AiAgentCoderService/AiAgentCoderService';
 import { type AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
 import { type AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { getAppThreadCreatedFrom } from '../services/AiAgentService/threadOrigin';
+import { pipeAgentResponseStream } from './pipeAgentResponseStream';
 
 const parseSuggestionContext = (context: string | undefined) => {
     if (!context) return undefined;
@@ -1526,54 +1526,7 @@ export class AiAgentController extends BaseController {
                       );
                   })();
 
-        /**
-         * @ref https://github.com/lukeautry/tsoa/issues/44#issuecomment-357784246
-         * Hack to get the response object from the request
-         */
-        stream.pipeUIMessageStreamToResponse(req.res!);
-
-        // If client disconnects, continue consuming the stream so side-effects complete
-        let hasConsumed = false;
-        const isStreamTimeoutError = (error: unknown) =>
-            error instanceof Error &&
-            (error.name === 'BodyTimeoutError' ||
-                (error.name === 'TypeError' && error.message === 'terminated'));
-
-        const handleClientDisconnect = (err: Error | undefined) => {
-            if (hasConsumed) return;
-            hasConsumed = true;
-            Logger.info(
-                `Client disconnected ${
-                    err ? `with error: ${err.message}` : ''
-                }, consuming stream`,
-            );
-            if (err && !isStreamTimeoutError(err)) {
-                Sentry.captureException(err, {
-                    tags: {
-                        errorType: 'AiAgentStreamError',
-                    },
-                });
-            }
-            void stream.consumeStream({
-                onError: (error) => {
-                    Logger.error(`Error consuming stream ${String(error)}`);
-                    if (!isStreamTimeoutError(error)) {
-                        Sentry.captureException(error, {
-                            tags: {
-                                errorType: 'AiAgentStreamError',
-                            },
-                        });
-                    }
-                },
-            });
-        };
-        req.res?.on('finish', () => {
-            // If the request is finished, we can stop consuming the stream
-            hasConsumed = true;
-        });
-        req.res?.on('close', handleClientDisconnect);
-        req.res?.on('error', handleClientDisconnect);
-        req.on('aborted', handleClientDisconnect);
+        pipeAgentResponseStream(req, stream);
     }
 
     @Middlewares([
@@ -1950,6 +1903,7 @@ export class AiAgentController extends BaseController {
      * @summary Get AI agent node citation query results
      */
     @Middlewares([
+        compressResultsPage,
         allowApiKeyAuthentication,
         isAuthenticated,
         requireOAuthScopeOperation(
@@ -2215,6 +2169,7 @@ export class AiAgentController extends BaseController {
     }
 
     @Middlewares([
+        compressResultsPage,
         allowApiKeyAuthentication,
         isAuthenticated,
         requireOAuthScopeOperation('AiAgentController.getArtifactQueryResults'),

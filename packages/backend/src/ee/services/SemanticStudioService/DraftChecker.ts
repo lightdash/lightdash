@@ -7,6 +7,7 @@ import {
     getItemId,
     isExploreError,
     JoinRelationship,
+    METRIC_VIEW_TABLE_TYPE,
     MetricType,
     parseModelDocument,
     preAggregatePostProcessor,
@@ -17,6 +18,7 @@ import {
     type Explore,
     type ExploreError,
     type MetricQuery,
+    type SemanticStudioRejection,
     type SessionUser,
     type TablePartitioning,
 } from '@lightdash/common';
@@ -60,7 +62,7 @@ type Compiled = { explores: (Explore | ExploreError)[]; quote: string };
 
 export type DraftCheck = {
     /** Why each model that failed a check was left out. */
-    rejected: Map<string, string>;
+    rejected: Map<string, SemanticStudioRejection>;
     /** What passed, with measured join relationships written in; null content removes the model. */
     writes: Map<string, string | null>;
     /** The live models with `writes` on top, compiled; null when nothing passed. */
@@ -85,6 +87,7 @@ type TableFacts = {
     /** Column types by lower-cased name. */
     columns: Map<string, DimensionType>;
     partitioning: TablePartitioning | null;
+    isMetricView: boolean;
 };
 
 // Computed over the result set, so they cannot be selected on their own.
@@ -129,6 +132,18 @@ export const usesAnyModel = (
     Object.values(explore.tables).some(({ name, originalName }) =>
         models.has(originalName ?? name),
     );
+
+/** Why a model fails on its own, as opposed to what it does to others or to access. */
+type ModelRejection = Extract<
+    SemanticStudioRejection,
+    { kind: 'query_builder' | 'warehouse_refused' | 'already_failing' }
+>;
+
+/** A failure the warehouse plan found, in the words a dbt compile check shows. */
+const describeWarehouseError = (rejection: ModelRejection) =>
+    rejection.kind === 'query_builder'
+        ? rejection.detail
+        : `The warehouse rejected this model: ${rejection.detail}`;
 
 const describeErrors = (errored: ExploreError[]): string =>
     errored
@@ -364,13 +379,14 @@ export class DraftChecker {
         if (queryError) {
             return `This model does not work in a query: ${queryError}`;
         }
-        return this.findWarehouseError(
+        const error = await this.findWarehouseError(
             user,
             projectUuid,
             explore,
             quote,
             changedDimensions,
         );
+        return error === null ? null : describeWarehouseError(error);
     }
 
     /** Has the warehouse plan a model's dimensions, metrics and joins over no rows, so it scans nothing; returns why it cannot be used, if so. */
@@ -382,7 +398,7 @@ export class DraftChecker {
         changedDimensions: Set<string>,
         /** The fields and joins to plan, with the joins those fields read; null plans them all. */
         only: Touched | null = null,
-    ): Promise<string | null> {
+    ): Promise<ModelRejection | null> {
         const base = explore.tables[explore.baseTable];
         const alias = (name: string) => `${quote}${name}${quote}`;
         const planned = ({ name }: { name: string }) =>
@@ -445,12 +461,30 @@ export class DraftChecker {
         // Misses errors only a real value raises, such as a bad cast; run one row if that matters.
         const noRows = (sqlTable: string) =>
             `(SELECT * FROM ${sqlTable} AS no_rows WHERE 1 = 0${partitionFilters.get(sqlTable) ?? ''})`;
+        const metricViews = new Set(
+            (
+                await Promise.all(
+                    tables.map(async ({ sqlTable }) =>
+                        (await this.findTableFacts(user, projectUuid, sqlTable))
+                            ?.isMetricView
+                            ? [sqlTable]
+                            : [],
+                    ),
+                )
+            ).flat(),
+        );
+        // A metric view refuses SELECT * in a subquery, so it is read directly; LIMIT 0 because measures alone still aggregate one row over zero rows
+        const source = (sqlTable: string) =>
+            metricViews.has(sqlTable) ? sqlTable : noRows(sqlTable);
         const from = [
-            `${noRows(base.sqlTable)} AS ${alias(base.name)}`,
+            `${source(base.sqlTable)} AS ${alias(base.name)}`,
             ...joins.map(
                 (join) =>
-                    `LEFT JOIN ${noRows(explore.tables[join.table].sqlTable)} AS ${alias(join.table)} ON ${join.compiledSqlOn}`,
+                    `LEFT JOIN ${source(explore.tables[join.table].sqlTable)} AS ${alias(join.table)} ON ${join.compiledSqlOn}`,
             ),
+            ...(metricViews.size > 0
+                ? ['WHERE 1 = 0', 'GROUP BY ALL', 'LIMIT 0']
+                : []),
         ].join('\n');
         const select = (expressions: string[]) =>
             `SELECT ${expressions.map((sql, index) => `${sql} AS c${index}`).join(',\n')}\nFROM ${from}`;
@@ -499,7 +533,10 @@ export class DraftChecker {
                         : [];
                 });
                 if (mistyped.length > 0) {
-                    return `${mistyped.map(({ name, columnType }) => `${name} reads a ${columnType} column`).join(', ')}, but ${mistyped.length === 1 ? 'is' : 'are'} typed differently. Use the column's type, or cast in sql to change it.`;
+                    return {
+                        kind: 'query_builder',
+                        detail: `${mistyped.map(({ name, columnType }) => `${name} reads a ${columnType} column`).join(', ')}, but ${mistyped.length === 1 ? 'is' : 'are'} typed differently. Use the column's type, or cast in sql to change it.`,
+                    };
                 }
             }
             if (metrics.length > 0) {
@@ -512,7 +549,10 @@ export class DraftChecker {
             }
             return null;
         } catch (error) {
-            return `The warehouse rejected this model: ${getErrorMessage(error)}`;
+            return {
+                kind: 'warehouse_refused',
+                detail: getErrorMessage(error),
+            };
         }
     }
 
@@ -528,7 +568,7 @@ export class DraftChecker {
         findBefore: () => Promise<Explore | null>,
         quote: string,
         changedDimensions: Set<string>,
-    ): Promise<{ error: string | null; already: string | null }> {
+    ): Promise<{ error: ModelRejection | null; already: string | null }> {
         const queryError = await this.findQueryError(
             user,
             projectUuid,
@@ -536,7 +576,7 @@ export class DraftChecker {
         );
         if (queryError) {
             return {
-                error: `This model does not work in a query: ${queryError}`,
+                error: { kind: 'query_builder', detail: queryError },
                 already: null,
             };
         }
@@ -558,18 +598,26 @@ export class DraftChecker {
             new Set(),
         );
         if (already === null) return { error, already: null };
+        const alreadyMessage = describeWarehouseError(already);
         const touched = findTouched(explore, before, changedDimensions);
-        if (touched === null) return { error: null, already };
+        if (touched === null) return { error: null, already: alreadyMessage };
+        const touchedError = await this.findWarehouseError(
+            user,
+            projectUuid,
+            explore,
+            quote,
+            changedDimensions,
+            touched,
+        );
+        // The same refusal as on what is live is the model's old failure, not one the change brought.
+        const isOldFailure =
+            touchedError?.kind === 'warehouse_refused' &&
+            touchedError.detail === already.detail;
         return {
-            error: await this.findWarehouseError(
-                user,
-                projectUuid,
-                explore,
-                quote,
-                changedDimensions,
-                touched,
-            ),
-            already,
+            error: isOldFailure
+                ? { kind: 'already_failing', detail: touchedError.detail }
+                : touchedError,
+            already: alreadyMessage,
         };
     }
 
@@ -640,7 +688,7 @@ export class DraftChecker {
                 reference,
             );
             if (!table) return null;
-            const { fields, partitioning } =
+            const { fields, partitioning, metadata } =
                 await this.projectService.describeWarehouseTable(
                     user,
                     projectUuid,
@@ -660,6 +708,7 @@ export class DraftChecker {
                     ]),
                 ),
                 partitioning,
+                isMetricView: metadata?.tableType === METRIC_VIEW_TABLE_TYPE,
             };
         })().catch(() => null);
         this.tableFacts.set(memoKey, { at: Date.now(), facts });
@@ -756,7 +805,7 @@ GROUP BY ${aliases.join(', ')}
         storedContents: string | null,
         quote: string,
     ): Promise<
-        | { error: string }
+        | { error: SemanticStudioRejection }
         | { relationships: Map<string, JoinRelationship>; notes: string[] }
     > {
         const relationships = new Map<string, JoinRelationship>();
@@ -896,7 +945,10 @@ GROUP BY ${aliases.join(', ')}
                     );
                 } else if (key.duplicates > 0) {
                     return {
-                        error: `primary_key ${primaryKey.join(', ')} is not unique, so it cannot identify a row. Remove it or name the column that does.`,
+                        error: {
+                            kind: 'query_builder',
+                            detail: `primary_key ${primaryKey.join(', ')} is not unique, so it cannot identify a row. Remove it or name the column that does.`,
+                        },
                     };
                 }
                 if (key && isEstimate(key)) {
@@ -914,7 +966,10 @@ GROUP BY ${aliases.join(', ')}
                 )
             ) {
                 return {
-                    error: `A one-to-many join on ${explore.name} multiplies its rows, and its metrics are only protected from that with a primary_key. Keep primary_key, or remove the join first.`,
+                    error: {
+                        kind: 'query_builder',
+                        detail: `A one-to-many join on ${explore.name} multiplies its rows, and its metrics are only protected from that with a primary_key. Keep primary_key, or remove the join first.`,
+                    },
                 };
             }
             const measured = await Promise.all(
@@ -923,7 +978,11 @@ GROUP BY ${aliases.join(', ')}
                     .map((join) => measureJoin(join)),
             );
             const failed = measured.find((join) => join?.error);
-            if (failed?.error) return { error: failed.error };
+            if (failed?.error) {
+                return {
+                    error: { kind: 'query_builder', detail: failed.error },
+                };
+            }
             measured.forEach((join) => {
                 if (join?.isUnchecked) {
                     notes.push(
@@ -946,7 +1005,10 @@ GROUP BY ${aliases.join(', ')}
             return { relationships, notes };
         } catch (error) {
             return {
-                error: `The warehouse could not check this model's keys: ${getErrorMessage(error)}`,
+                error: {
+                    kind: 'warehouse_refused',
+                    detail: getErrorMessage(error),
+                },
             };
         }
     }
@@ -975,14 +1037,14 @@ GROUP BY ${aliases.join(', ')}
         proposed: Map<string, string | null>,
     ): Promise<DraftCheck> {
         const writes = new Map(proposed);
-        const rejected = new Map<string, string>();
+        const rejected = new Map<string, SemanticStudioRejection>();
         const notes = new Map<string, string[]>();
-        const reject = (model: string, error: string) => {
+        const reject = (model: string, rejection: SemanticStudioRejection) => {
             writes.delete(model);
-            rejected.set(model, error);
+            rejected.set(model, rejection);
         };
-        const rejectAll = (error: string) =>
-            [...writes.keys()].forEach((model) => reject(model, error));
+        const rejectAll = (rejection: SemanticStudioRejection) =>
+            [...writes.keys()].forEach((model) => reject(model, rejection));
 
         // A model that fails to compile is dropped, then the rest compiles again because another may have joined it.
         const compile = async (): Promise<Compiled | null> => {
@@ -996,10 +1058,12 @@ GROUP BY ${aliases.join(', ')}
                 .filter(({ name }) => writes.has(name));
             if (own.length > 0) {
                 own.forEach((explore) =>
-                    reject(
-                        explore.name,
-                        explore.errors.map(({ message }) => message).join('; '),
-                    ),
+                    reject(explore.name, {
+                        kind: 'query_builder',
+                        detail: explore.errors
+                            .map(({ message }) => message)
+                            .join('; '),
+                    }),
                 );
                 return compile();
             }
@@ -1009,7 +1073,11 @@ GROUP BY ${aliases.join(', ')}
                 compiled.explores,
             );
             if (newlyBroken.length === 0) return compiled;
-            rejectAll(`This would break ${describeErrors(newlyBroken)}`);
+            rejectAll({
+                kind: 'breaks_joining_model',
+                models: newlyBroken.map(({ name }) => name),
+                detail: describeErrors(newlyBroken),
+            });
             return null;
         };
 
@@ -1030,8 +1098,12 @@ GROUP BY ${aliases.join(', ')}
             ),
         );
         changed.forEach(({ metricError }, name) => {
-            if (metricError) reject(name, metricError);
+            if (metricError) {
+                reject(name, { kind: 'query_builder', detail: metricError });
+            }
         });
+        const isMetadataOnly = (name: string) =>
+            changed.get(name)?.isMetadataOnly ?? false;
         // The catalog knows a table's columns, so a wrong name or type is caught before any query, in the same words on every warehouse.
         const inCatalog = new Set<string>();
         // Dimensions the change leaves alone that do not fit their column, which is the usual cause of a model that already fails.
@@ -1041,7 +1113,7 @@ GROUP BY ${aliases.join(', ')}
         >();
         await Promise.all(
             [...writes].map(async ([name, contents]) => {
-                if (contents === null) return;
+                if (contents === null || isMetadataOnly(name)) return;
                 const facts = await this.findTableFacts(
                     user,
                     projectUuid,
@@ -1063,7 +1135,8 @@ GROUP BY ${aliases.join(', ')}
                     facts.columns,
                     changed.get(name)?.dimensions ?? new Set(),
                 );
-                if (error) reject(name, error);
+                if (error)
+                    reject(name, { kind: 'query_builder', detail: error });
             }),
         );
         [...writes].forEach(([name, contents]) => {
@@ -1071,10 +1144,11 @@ GROUP BY ${aliases.join(', ')}
             if (contents === null || stored === undefined) return;
             const lost = findAccessLoss(stored, contents);
             if (lost.length > 0) {
-                reject(
-                    name,
-                    `This would change who can see ${lost.join(', ')}, which cannot be changed here.`,
-                );
+                reject(name, {
+                    kind: 'access_change',
+                    fields: lost,
+                    detail: null,
+                });
             }
         });
 
@@ -1088,11 +1162,39 @@ GROUP BY ${aliases.join(', ')}
             (await this.compile(projectUuid, live)).explores
                 .filter(isCompiled)
                 .find((explore) => explore.name === name) ?? null;
-        // Redefining a model can break those that join it.
+        // Redefining a model can break those that join it; relabelling one cannot, so it never reaches the warehouse.
+        const redefined = new Map(
+            [...writes].filter(([name]) => !isMetadataOnly(name)),
+        );
+        // A relabelled model still has to work in a query.
+        const relabelled = await Promise.all(
+            afterCompile.explores
+                .filter(isCompiled)
+                .filter(
+                    (explore) =>
+                        usesAnyModel(explore, writes) &&
+                        !usesAnyModel(explore, redefined),
+                )
+                .map(async (explore) => {
+                    const detail = await this.findExploreError(
+                        user,
+                        projectUuid,
+                        explore,
+                        { warehouse: false },
+                    );
+                    return {
+                        name: explore.name,
+                        error:
+                            detail === null
+                                ? null
+                                : { kind: 'query_builder' as const, detail },
+                    };
+                }),
+        );
         const usable = await Promise.all(
             afterCompile.explores
                 .filter(isCompiled)
-                .filter((explore) => usesAnyModel(explore, writes))
+                .filter((explore) => usesAnyModel(explore, redefined))
                 .map(async (explore) => ({
                     name: explore.name,
                     ...(await this.findNewModelError(
@@ -1114,12 +1216,18 @@ GROUP BY ${aliases.join(', ')}
                 error === null && already !== null ? [[name, already]] : [],
             ),
         );
-        const unusable = usable.flatMap(({ name, error }) =>
+        const unusable = [...usable, ...relabelled].flatMap(({ name, error }) =>
             error === null ? [] : [{ name, error }],
         );
         unusable.forEach(({ name, error }) => {
             if (writes.has(name)) reject(name, error);
-            else rejectAll(`This would break ${name}: ${error}`);
+            else {
+                rejectAll({
+                    kind: 'breaks_joining_model',
+                    models: [name],
+                    detail: error.detail,
+                });
+            }
         });
         const afterUse = unusable.length > 0 ? await compile() : afterCompile;
         if (!afterUse) return { rejected, writes, explores: null, notes };
@@ -1128,7 +1236,13 @@ GROUP BY ${aliases.join(', ')}
             afterUse.explores.filter(isCompiled).flatMap((explore) => {
                 const contents = writes.get(explore.name);
                 // A compiled explore is never a removal, so only written models are measured.
-                if (contents === undefined || contents === null) return [];
+                if (
+                    contents === undefined ||
+                    contents === null ||
+                    isMetadataOnly(explore.name)
+                ) {
+                    return [];
+                }
                 return [
                     this.measureModel(
                         user,

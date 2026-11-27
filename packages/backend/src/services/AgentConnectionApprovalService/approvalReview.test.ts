@@ -52,7 +52,6 @@ const fixture = () => {
             consumeCallback: vi.fn(),
         },
         userModel: {
-            getAgentRoleAssignmentsForProjects: vi.fn(),
             findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
                 ...defaultSessionUser,
                 ability: new Ability([{ action: 'manage', subject: 'all' }]),

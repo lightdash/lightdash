@@ -546,6 +546,7 @@ type AiThreadSummaryRow = Pick<
     | 'bound_entity_type'
     | 'bound_entity_uuid'
     | 'thread_context'
+    | 'thread_metadata'
 > & {
     prompt: DbAiPrompt['prompt'] | null;
     ai_prompt_uuid: DbAiPrompt['ai_prompt_uuid'] | null;
@@ -773,10 +774,13 @@ export class AiAgentModel {
         organizationUuid,
         agentUuid,
         projectUuid,
+        agentKind,
     }: {
         organizationUuid: string;
         agentUuid: string;
         projectUuid?: string;
+        /** Which agents the lookup may find: one a person made, unless the caller already knows the thread it serves. */
+        agentKind?: DbAiAgent['agent_kind'] | 'any';
     }): Promise<AiAgentSummary> {
         const integrations = this.database
             .from(AiAgentIntegrationTableName)
@@ -837,6 +841,7 @@ export class AiAgentModel {
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
                 projectUuid: `${AiAgentTableName}.project_uuid`,
                 name: `${AiAgentTableName}.name`,
+                kind: `${AiAgentTableName}.agent_kind`,
                 description: `${AiAgentTableName}.description`,
                 tags: `${AiAgentTableName}.tags`,
                 integrations: this.database.raw(`
@@ -919,6 +924,10 @@ export class AiAgentModel {
         if (projectUuid) {
             void query.where(`${AiAgentTableName}.project_uuid`, projectUuid);
         }
+        const kind = agentKind ?? 'user';
+        if (kind !== 'any') {
+            void query.where(`${AiAgentTableName}.agent_kind`, kind);
+        }
 
         const agent = await query;
 
@@ -1000,6 +1009,7 @@ export class AiAgentModel {
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
                 projectUuid: `${AiAgentTableName}.project_uuid`,
                 name: `${AiAgentTableName}.name`,
+                kind: `${AiAgentTableName}.agent_kind`,
                 description: `${AiAgentTableName}.description`,
                 tags: `${AiAgentTableName}.tags`,
                 integrations: this.database.raw(`
@@ -1079,6 +1089,7 @@ export class AiAgentModel {
             // TODO: drop with the is_system column once no release that writes
             // system agents (<= 3.60) can still be running during an upgrade.
             .where(`${AiAgentTableName}.is_system`, false)
+            .where(`${AiAgentTableName}.agent_kind`, 'user')
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`);
 
         if (filter?.projectType) {
@@ -1180,6 +1191,7 @@ export class AiAgentModel {
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
             .where(`${AiAgentTableName}.project_uuid`, projectUuid)
             .where(`${AiAgentTableName}.is_system`, false)
+            .where(`${AiAgentTableName}.agent_kind`, 'user')
             .orderBy(`${AiAgentTableName}.slug`, 'asc');
 
         if ((slugs?.length ?? 0) > 0 || (agentUuids?.length ?? 0) > 0) {
@@ -2488,6 +2500,7 @@ export class AiAgentModel {
             organizationUuid: string;
             slug?: string;
             imageUrl?: string | null;
+            agentKind?: DbAiAgent['agent_kind'];
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
@@ -2528,6 +2541,7 @@ export class AiAgentModel {
                         args.providerCredentialUuid ?? null,
                     version: args.version,
                     thread_retention_hours: args.threadRetentionHours ?? null,
+                    agent_kind: args.agentKind ?? 'user',
                 })
                 .returning('*');
 
@@ -2620,6 +2634,7 @@ export class AiAgentModel {
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
+                kind: agent.agent_kind,
                 description: agent.description,
                 projectUuid: agent.project_uuid,
                 organizationUuid: agent.organization_uuid,
@@ -2648,6 +2663,65 @@ export class AiAgentModel {
                 version: agent.version,
                 threadRetentionHours: agent.thread_retention_hours,
             };
+        });
+    }
+
+    /** The project's built-in Semantic Studio agent, created on first use; a partial unique index keeps it to one. */
+    async getOrCreateSemanticStudioAgent({
+        organizationUuid,
+        projectUuid,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<AiAgentSummary> {
+        const findUuid = async (): Promise<string | null> =>
+            (
+                await this.database(AiAgentTableName)
+                    .select('ai_agent_uuid')
+                    .where('organization_uuid', organizationUuid)
+                    .where('project_uuid', projectUuid)
+                    .where('agent_kind', 'semantic_studio')
+                    .first()
+            )?.ai_agent_uuid ?? null;
+        const create = async (): Promise<string> => {
+            try {
+                const { uuid } = await this.createAgent({
+                    name: 'Semantic Studio',
+                    description: null,
+                    projectUuid,
+                    organizationUuid,
+                    tags: null,
+                    integrations: [],
+                    instruction: null,
+                    groupAccess: [],
+                    userAccess: [],
+                    spaceAccess: [],
+                    enableDataAccess: true,
+                    enableSelfImprovement: false,
+                    enableContentTools: false,
+                    enableUserContext: true,
+                    enableSqlMode: true,
+                    modelConfig: null,
+                    version: 2,
+                    mcpServerUuids: [],
+                    agentKind: 'semantic_studio',
+                });
+                return uuid;
+            } catch (error) {
+                // A concurrent first request won the race, on this agent's index or its slug; use its agent.
+                const winner = isUniqueConstraintViolation(error)
+                    ? await findUuid()
+                    : null;
+                if (winner) return winner;
+                throw error;
+            }
+        };
+
+        const agentUuid = (await findUuid()) ?? (await create());
+        return this.getAgent({
+            organizationUuid,
+            agentUuid,
+            agentKind: 'semantic_studio',
         });
     }
 
@@ -2939,6 +3013,7 @@ export class AiAgentModel {
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
+                kind: agent.agent_kind,
                 description: agent.description,
                 projectUuid: agent.project_uuid,
                 organizationUuid: agent.organization_uuid,
@@ -3667,6 +3742,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.bound_entity_type`,
                 `${AiThreadTableName}.bound_entity_uuid`,
                 `${AiThreadTableName}.thread_context`,
+                `${AiThreadTableName}.thread_metadata`,
                 'first_prompt.prompt',
                 'first_prompt.ai_prompt_uuid',
                 `${UserTableName}.user_uuid`,
@@ -3754,6 +3830,7 @@ export class AiAgentModel {
             liveStatus: null,
             binding: AiAgentModel.toThreadBindingSummary(row),
             threadContext: row.thread_context,
+            metadata: row.thread_metadata,
         };
     }
 
@@ -4193,6 +4270,7 @@ export class AiAgentModel {
                     project_name: DbProject['name'];
                     organization_uuid: DbAiThread['organization_uuid'];
                     project_uuid: DbAiThread['project_uuid'];
+                    thread_metadata: DbAiThread['thread_metadata'];
                 }[]
             >([
                 // Original thread fields
@@ -4202,6 +4280,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.created_from`,
                 `${AiThreadTableName}.title`,
                 `${AiThreadTableName}.title_generated_at`,
+                `${AiThreadTableName}.thread_metadata`,
                 'first_thread_prompt.prompt as first_prompt',
                 `${UserTableName}.user_uuid`,
                 this.database.raw(
@@ -4327,6 +4406,20 @@ export class AiAgentModel {
                     `%${filters.search}%`,
                 );
             }
+            if (filters.metadata) {
+                const { key, value } = filters.metadata;
+                if (value !== null) {
+                    void finalQuery.whereRaw(
+                        `${AiThreadTableName}.thread_metadata @> ?::jsonb`,
+                        [JSON.stringify({ [key]: value })],
+                    );
+                } else {
+                    void finalQuery.whereRaw(
+                        `${AiThreadTableName}.thread_metadata -> ? IS NOT NULL`,
+                        [key],
+                    );
+                }
+            }
         }
 
         if (sort) {
@@ -4423,6 +4516,7 @@ export class AiAgentModel {
                     promptCount: stats?.prompt_count ?? 0,
                     slackChannelId: row.slack_channel_id || null,
                     slackThreadTs: row.slack_thread_ts || null,
+                    metadata: row.thread_metadata,
                 };
             },
         );
@@ -6739,6 +6833,7 @@ export class AiAgentModel {
                         ? AiAgentModel.getThreadBindingEntityUuid(data.binding)
                         : null,
                     thread_context: data.threadContext ?? null,
+                    thread_metadata: data.metadata ?? null,
                 })
                 .returning('ai_thread_uuid');
             if (row === undefined) {

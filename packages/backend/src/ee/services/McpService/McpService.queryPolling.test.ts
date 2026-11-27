@@ -342,7 +342,7 @@ const makeMcpService = ({
     };
     const mcpToolCallModel = {
         createToolCall: vi.fn().mockResolvedValue(undefined),
-        findClientInfo: vi.fn().mockResolvedValue(undefined),
+        findSessionClientInfo: vi.fn().mockResolvedValue(undefined),
     };
 
     const shareService = {
@@ -677,9 +677,11 @@ const makeMcpService = ({
     mockRegisteredMcpToolInputSchemas.clear();
     service.setupHandlers(
         makeMcpServerOptions({
-            runSqlEnabled: true,
-            runMetricQueryEnabled: true,
-            filterExpressionsEnabled,
+            queryPath: {
+                type: 'classic',
+                sqlRunnerEnabled: true,
+                filterExpressionsEnabled,
+            },
             agentIdentityEnabled,
         }),
     );
@@ -961,9 +963,16 @@ describe('MCP catalogue audit', () => {
             const { service, mcpToolCallModel } = makeMcpService();
             service.recordToolList({
                 catalogue: makeMcpServerOptions(
-                    { runSqlEnabled: true, filterExpressionsEnabled: true },
+                    {
+                        queryPath: {
+                            type: 'classic',
+                            sqlRunnerEnabled: true,
+                            filterExpressionsEnabled: true,
+                        },
+                    },
                     pinnedProjectUuid,
                 ),
+                servedTools: ['get_context', 'run_metric_query'],
                 authInfo: {
                     token: 'test-token',
                     clientId: 'test-client',
@@ -987,8 +996,9 @@ describe('MCP catalogue audit', () => {
                                 projectPinned: pinnedProjectUuid !== undefined,
                                 mcpContentWritesEnabled: true,
                                 scheduledDeliveryEnabled: true,
+                                queryPath: 'classic',
                                 runSqlEnabled: true,
-                                runMetricQueryEnabled: false,
+                                runMetricQueryEnabled: true,
                                 queryEnabled: false,
                                 filterExpressionsEnabled: true,
                                 documentsEnabled: false,
@@ -997,6 +1007,7 @@ describe('MCP catalogue audit', () => {
                                 customChartTypesEnabled: false,
                                 agentIdentityEnabled: false,
                             },
+                            servedTools: ['get_context', 'run_metric_query'],
                         },
                     }),
                 );

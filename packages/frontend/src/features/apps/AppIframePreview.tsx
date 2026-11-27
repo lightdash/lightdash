@@ -1,5 +1,6 @@
 import {
     type AppColorScheme,
+    type AppSdkCaptureHold,
     type DataAppInsightAction,
     type DataAppInsightsPayload,
     type DataAppVizContext,
@@ -18,6 +19,7 @@ import {
     useState,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { registerAppFrame } from './appFrameRegistry';
 import classes from './AppIframePreview.module.css';
 import { type DeliveryCaptureAccumulator } from './deliveryCapture/deliveryCaptureAccumulator';
 import {
@@ -30,6 +32,10 @@ import {
 } from './hooks/useAppSdkBridge';
 import { useAppUrlStateSync } from './hooks/useAppUrlStateSync';
 import { useAppViewOutcomes } from './hooks/useAppViewOutcomes';
+import {
+    useIframeInspectAt,
+    type InspectedElement,
+} from './hooks/useIframeInspectAt';
 import { useIframePdfExport } from './hooks/useIframePdfExport';
 import { useIframeScreenshot } from './hooks/useIframeScreenshot';
 import { withColorSchemeParam } from './utils/appIframeUrl';
@@ -38,6 +44,11 @@ export type AppIframePreviewHandle = {
     captureScreenshot: () => Promise<File>;
     /** Runs the app's registered Download PDF builder; rejects if none. */
     exportPdf: () => Promise<Blob>;
+    /** The element at a point in the app's viewport; null when there is none or the bundle cannot say. */
+    inspectAt: (point: {
+        x: number;
+        y: number;
+    }) => Promise<InspectedElement | null>;
 };
 
 type Props = {
@@ -85,6 +96,8 @@ type Props = {
      *  resumed sandboxes never announce, so the Screenshot button stays
      *  hidden for them. */
     onScreenshotAvailabilityChange?: (available: boolean) => void;
+    /** The bundle can say which element is at a point, which Design Mode picks need. */
+    onInspectAtAvailabilityChange?: (available: boolean) => void;
     /** Fires when the app registers a PDF export via `registerPdfExport`. */
     onPdfExportAvailabilityChange?: (available: boolean) => void;
     /** Called when the user presses Esc to leave inspect mode. The handler
@@ -179,10 +192,14 @@ type Props = {
     onInsightAction?: (action: DataAppInsightAction) => void;
     onInsightsInUse?: () => void;
     onInsightInstructionsChange?: (instructions: string | null) => void;
+    /** The org's cap on analysis instructions; the default applies when absent. */
+    analysisTextMaxChars?: number;
     onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
     onMountedQueriesChange?: (queryUuids: string[]) => void;
     /** The capture hotkey was pressed inside the app. Absent = no capture. */
     onCaptureHotkey?: () => void;
+    /** A Design Mode hold key went down or came up inside the app. */
+    onCaptureHold?: (hold: AppSdkCaptureHold) => void;
 };
 
 /**
@@ -223,6 +240,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             inspectorEnabled,
             onInspectorAvailabilityChange,
             onScreenshotAvailabilityChange,
+            onInspectAtAvailabilityChange,
             onPdfExportAvailabilityChange,
             onInspectorCancelled,
             lineageEnabled,
@@ -255,9 +273,11 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onInsightAction,
             onInsightsInUse,
             onInsightInstructionsChange,
+            analysisTextMaxChars,
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             onCaptureHotkey,
+            onCaptureHold,
         },
         ref,
     ) => {
@@ -414,17 +434,35 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onInsightAction,
             onInsightsInUse,
             onInsightInstructionsChange,
+            analysisTextMaxChars,
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             onCaptureHotkey,
+            onCaptureHold,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
         const { exportPdf } = useIframePdfExport(iframeRef);
+        const { inspectAt } = useIframeInspectAt(
+            iframeRef,
+            identityKey,
+            onInspectAtAvailabilityChange ?? null,
+        );
 
-        useImperativeHandle(ref, () => ({ captureScreenshot, exportPdf }), [
-            captureScreenshot,
-            exportPdf,
-        ]);
+        useImperativeHandle(
+            ref,
+            () => ({ captureScreenshot, exportPdf, inspectAt }),
+            [captureScreenshot, exportPdf, inspectAt],
+        );
+
+        // A picture of the page cannot see inside this frame: it asks here.
+        useEffect(
+            () =>
+                registerAppFrame({
+                    getElement: () => iframeRef.current,
+                    capture: captureScreenshot,
+                }),
+            [captureScreenshot],
+        );
 
         // Reset availability to false when the served bundle changes (new app or
         // new version). Fires before the browser starts loading the new content,

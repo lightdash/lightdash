@@ -94,7 +94,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
     // Reads the layer and warehouse, and proposes; a person applies. No charts or content.
     // On a dbt project with writeback it is the builder: read, write and verify, with every lookup inside read.
     semantic_studio: (input) =>
-        !input.semanticStudioDrafts && input.enableAiWriteback
+        !input.studio?.drafts && input.enableAiWriteback
             ? {
                   tools: [
                       'read',
@@ -141,13 +141,20 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
                       'searchSemanticLayer',
                       'analyzeFieldImpact',
                       'listChanges',
-                      ...onlyIf(input.semanticStudioDrafts, [
+                      ...onlyIf(input.studio?.drafts ?? false, [
                           'readSemanticModel',
                           'proposeSemanticLayerChange',
                       ]),
+                      // Agents read published context only where project context is on.
+                      ...onlyIf(
+                          (input.studio?.keepsContext ?? false) &&
+                              input.projectContextEnabled,
+                          ['draftProjectContext'],
+                      ),
                       // A dbt draft compiles after the turn, so a query there could read what is published and pass for the draft.
                       ...onlyIf(
-                          input.semanticStudioDrafts && input.enableDataAccess,
+                          (input.studio?.drafts ?? false) &&
+                              input.enableDataAccess,
                           ['runMetricQuery'],
                       ),
                       ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
@@ -159,7 +166,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
                   withheldTools: [],
                   sections: ['semanticStudio'],
                   skills: [],
-                  accepts: input.semanticStudioDrafts
+                  accepts: input.studio?.drafts
                       ? ['sqlCatalog', 'projectContext', 'askUser']
                       : [
                             'sqlCatalog',

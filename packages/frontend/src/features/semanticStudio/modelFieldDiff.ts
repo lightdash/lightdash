@@ -139,3 +139,30 @@ export const findTouchedFields = (
         ];
     });
 };
+
+/** The one line for a draft whose models change no field; null when a field changes or no model is read yet. */
+export const describeUnchangedFields = (
+    changes: (FieldChange[] | null)[],
+    isChecked: boolean,
+    fileCount: number,
+): string | null => {
+    const read = changes.flatMap((change) => (change ? [change] : []));
+    if (read.length === 0 || read.some((change) => change.length > 0)) {
+        return null;
+    }
+    if (!isChecked) return 'Fields show here once the draft compiles.';
+    const files =
+        fileCount > 0
+            ? `${fileCount} ${fileCount === 1 ? 'file' : 'files'} changed. `
+            : '';
+    return `${files}No field is added, changed or removed.`;
+};
+
+/** Why some of a draft's fields cannot be tried yet, in one line; null when all can. */
+export const describeUnbuiltFields = (labels: string[]): string | null => {
+    if (labels.length === 0) return null;
+    const one = labels.length === 1;
+    const named =
+        labels.length <= 2 ? labels.join(' and ') : `${labels.length} fields`;
+    return `${named} ${one ? 'is' : 'are'} not in the warehouse yet. You can try ${one ? 'it' : 'them'} once this merges and dbt builds the model.`;
+};

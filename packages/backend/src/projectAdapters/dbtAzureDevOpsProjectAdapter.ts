@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import type { DbtPartialParseBaseline } from '../dbt/dbtPartialParseBaseline';
 import type { DbtTargetResult } from '../services/WarehouseClientFactory/CredentialResolver';
 import { CachedWarehouse } from '../types';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
@@ -25,12 +26,12 @@ type Args = {
     dbtVersion: SupportedDbtVersions;
     selector?: string;
     analytics?: LightdashAnalytics;
-    partialParseBaselinePath: string | null;
+    partialParseBaseline: DbtPartialParseBaseline | null;
 };
 
 export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
     constructor({
-        partialParseBaselinePath,
+        partialParseBaseline,
         analytics,
         warehouseClient,
         personalAccessToken,
@@ -51,7 +52,7 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
         const remoteRepositoryUrl = `https://${personalAccessToken}@dev.azure.com/${organization}/${project}/_git/${repository}`;
         super({
             analytics,
-            partialParseBaselinePath,
+            partialParseBaseline,
             warehouseClient,
             gitBranch: branch,
             remoteRepositoryUrl,

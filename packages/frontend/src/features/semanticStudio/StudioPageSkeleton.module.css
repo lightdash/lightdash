@@ -6,7 +6,7 @@
 }
 
 .toolbar {
-    min-height: 44px;
+    min-height: var(--dashboard-header-height);
     padding: 6px var(--mantine-spacing-xs);
     border-bottom: 1px solid var(--mantine-color-default-border);
 }

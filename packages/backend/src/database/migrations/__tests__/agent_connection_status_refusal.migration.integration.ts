@@ -29,7 +29,6 @@ it('keeps the real grant-bound refusal row and event while status before and aft
             .get(person.organizationUuid!);
         const changed = await f.models.getAgentCapabilityPolicyModel().save({
             organizationUuid: person.organizationUuid!,
-            mode: 'managed',
             allowedCapabilities: [
                 AgentCapability.Query,
                 AgentCapability.DeployUpload,

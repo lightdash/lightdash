@@ -94,10 +94,10 @@ describe.skipIf(!executables)('empty selectors with real dbt', () => {
                     explicitCredentials: false,
                     dbtVersion,
                     selector: 'tag:absent',
-                    partialParseBaselinePath: path.join(
-                        directory,
-                        'baseline.msgpack',
-                    ),
+                    partialParseBaseline: {
+                        path: path.join(directory, 'baseline.msgpack'),
+                        access: 'read-write',
+                    },
                 });
                 calls = 0;
                 vi.spyOn(client, 'getDbtExec').mockImplementation(() => {

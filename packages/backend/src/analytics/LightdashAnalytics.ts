@@ -22,6 +22,7 @@ import {
     ExternalSourceType,
     getRequestMethod,
     InviteLinkPurpose,
+    LightdashAppUuidHeader,
     LightdashInstallType,
     LightdashMode,
     LightdashPage,
@@ -135,7 +136,8 @@ type Identify = {
 };
 export type BaseTrack = Omit<AnalyticsTrack, 'context'>;
 export const ANONYMOUS_TRACKING_UUID = '00000000-0000-0000-0000-000000000000';
-export type OnboardingFlow = 'new' | 'legacy';
+// Every flow is the new onboarding; the property stays so events keep their shape
+export type OnboardingFlow = 'new';
 export type OneTimePasscodePurpose =
     | 'signup_verification'
     | 'login'
@@ -651,7 +653,10 @@ export const getContextFromHeader = (req: Request) => {
         case RequestMethod.DESKTOP:
             return QueryExecutionContext.DESKTOP;
         case RequestMethod.UNKNOWN:
-            return QueryExecutionContext.API;
+            // The data app SDK bridge sends no request method, only the app header
+            return req.header(LightdashAppUuidHeader)
+                ? QueryExecutionContext.DATA_APP
+                : QueryExecutionContext.API;
         default:
             return undefined;
     }
@@ -1581,7 +1586,6 @@ type PlaygroundProjectProvisionedEvent = BaseTrack & {
 };
 
 export type PlaygroundProjectSkippedReason =
-    | 'new_onboarding_flag_disabled'
     | 'playground_already_exists'
     | 'organization_has_project'
     | 'no_project_access'
@@ -3051,7 +3055,7 @@ export type SemanticStudioActivity =
       }
     | {
           event: 'semantic_studio.draft_discarded';
-          properties: { scope: 'draft' | 'change' | 'model' };
+          properties: { scope: 'draft' | 'change' | 'model' | 'stale_model' };
       };
 
 export type SemanticStudioEvent = BaseTrack & {

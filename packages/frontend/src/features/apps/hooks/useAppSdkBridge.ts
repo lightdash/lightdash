@@ -1,5 +1,6 @@
 import {
     APP_SDK_APP_STATE_MESSAGE,
+    APP_SDK_CAPTURE_HOLD_MESSAGE,
     APP_SDK_CAPTURE_HOTKEY_MESSAGE,
     APP_SDK_APP_STATE_RESPONSE_MESSAGE,
     APP_SDK_COLOR_SCHEME_MESSAGE,
@@ -10,8 +11,8 @@ import {
     APP_SDK_INSIGHTS_REQUEST_MESSAGE,
     APP_SDK_MOUNTED_QUERIES_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
-    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
-    DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS,
+    DATA_APP_ANALYSIS_TEXT_MAX_CHARS_CEILING,
+    DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT,
     APP_SDK_VIZ_DRILL_DOWN_PATH,
     APP_SDK_VIZ_POINT_MENU_PATH,
     APP_SDK_VIZ_SUBTOTALS_PATH,
@@ -36,6 +37,7 @@ import {
     LightdashSignedDownloadHeader,
     parseAppSdkExploreBaseTableRequest,
     type AppColorScheme,
+    type AppSdkCaptureHold,
     type AppSdkSpaceChartsResult,
     type AppSdkExploreBaseTableResult,
     type DashboardFilters,
@@ -470,9 +472,39 @@ export type SdkManifest = {
     navigationId?: string;
 };
 
+export type ElementRect = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+
 export type ElementSelectedEvent = {
     /** Bracketed reference produced by the iframe inspector, e.g. `[button "Save"]`. */
     label: string;
+    /** The element's bounds in the iframe's viewport. Bundles built before
+     *  the SDK sent them leave it out. */
+    rect?: ElementRect;
+};
+
+export const parseElementRect = (value: unknown): ElementRect | null => {
+    if (!value || typeof value !== 'object') return null;
+    const { x, y, width, height } = value as Record<string, unknown>;
+    return [x, y, width, height].every(Number.isFinite)
+        ? ({ x, y, width, height } as ElementRect)
+        : null;
+};
+
+// Bundles built while there were two hold keys name the key as a tool: only
+// the Option one ('stylus') is still a hold.
+const parseCaptureHold = (data: {
+    tool?: unknown;
+    phase?: unknown;
+}): AppSdkCaptureHold | null => {
+    const { tool, phase } = data;
+    if (tool !== undefined && tool !== 'stylus') return null;
+    if (phase !== 'down' && phase !== 'up') return null;
+    return { phase };
 };
 
 /**
@@ -652,6 +684,8 @@ export type UseAppSdkBridgeParams = {
     /** Author guidance for the analysis model declared in app code, or null
      *  when the running bundle declares none. */
     onInsightInstructionsChange?: (instructions: string | null) => void;
+    /** The org's cap on analysis instructions and instruction-button text. */
+    analysisTextMaxChars?: number;
     /** Whether app code asks to analyse on load, or null when the running
      *  bundle declares nothing. */
     onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
@@ -664,6 +698,12 @@ export type UseAppSdkBridgeParams = {
      * the SDK forwarded the hotkey never send it.
      */
     onCaptureHotkey?: () => void;
+    /**
+     * Design Mode's hold key (Option/Alt, on its own) went down or came up
+     * while focus was inside the app. Absent = dropped. Bundles built
+     * before the SDK forwarded the hold keys never send it.
+     */
+    onCaptureHold?: (hold: AppSdkCaptureHold) => void;
 };
 
 export function useAppSdkBridge({
@@ -707,11 +747,28 @@ export function useAppSdkBridge({
     onInsightAction,
     onInsightsInUse,
     onInsightInstructionsChange,
+    analysisTextMaxChars = DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT,
     onInsightAnalyseOnLoadChange,
     onMountedQueriesChange,
     onCaptureHotkey,
+    onCaptureHold,
 }: UseAppSdkBridgeParams) {
     const lightdashApi = useLightdashApi();
+    // What the app last declared, before the org cap; undefined until it does.
+    const declaredInstructionsRef = useRef<string | null | undefined>(
+        undefined,
+    );
+    // The org cap can load after the app declared its instructions, and the
+    // SDK does not resend them, so reapply it to what was declared.
+    useEffect(() => {
+        const declared = declaredInstructionsRef.current;
+        if (declared === undefined) return;
+        onInsightInstructionsChange?.(
+            declared?.slice(0, analysisTextMaxChars) ?? null,
+        );
+        // Only a cap change reapplies; a new callback identity must not re-emit.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [analysisTextMaxChars]);
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
     //     (the parent in embed mode has no session, only the JWT).
@@ -897,6 +954,12 @@ export function useAppSdkBridge({
                 return;
             }
 
+            if (data?.type === APP_SDK_CAPTURE_HOLD_MESSAGE) {
+                const hold = parseCaptureHold(data);
+                if (hold) onCaptureHold?.(hold);
+                return;
+            }
+
             if (data?.type === APP_SDK_INSIGHTS_REQUEST_MESSAGE) {
                 const { inUse, instructions, analyseOnLoad } = data as {
                     inUse?: unknown;
@@ -907,16 +970,22 @@ export function useAppSdkBridge({
                     onInsightsInUse?.();
                 }
                 // App code is untrusted: cap the author guidance here so a
-                // runaway string never reaches the analysis request.
-                onInsightInstructionsChange?.(
+                // runaway string never reaches the analysis request. The
+                // declaration is kept so a cap that arrives later reapplies.
+                declaredInstructionsRef.current =
                     typeof instructions === 'string'
                         ? instructions
                               .trim()
                               .slice(
                                   0,
-                                  DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
+                                  DATA_APP_ANALYSIS_TEXT_MAX_CHARS_CEILING,
                               ) || null
-                        : null,
+                        : null;
+                onInsightInstructionsChange?.(
+                    declaredInstructionsRef.current?.slice(
+                        0,
+                        analysisTextMaxChars,
+                    ) ?? null,
                 );
                 onInsightAnalyseOnLoadChange?.(
                     typeof analyseOnLoad === 'boolean' ? analyseOnLoad : null,
@@ -961,10 +1030,7 @@ export function useAppSdkBridge({
                         requestId,
                         instruction: instruction
                             .trim()
-                            .slice(
-                                0,
-                                DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS,
-                            ),
+                            .slice(0, analysisTextMaxChars),
                         sources: sources.map((s) => ({
                             queryUuid: s.queryUuid,
                             label: typeof s.label === 'string' ? s.label : null,
@@ -993,7 +1059,8 @@ export function useAppSdkBridge({
             if (data?.type === 'lightdash:inspect:selected') {
                 const label = typeof data.label === 'string' ? data.label : '';
                 if (label && onElementSelected) {
-                    onElementSelected({ label });
+                    const rect = parseElementRect(data.rect);
+                    onElementSelected(rect ? { label, rect } : { label });
                 }
                 return;
             }
@@ -1929,9 +1996,11 @@ export function useAppSdkBridge({
             onInsightAction,
             onInsightsInUse,
             onInsightInstructionsChange,
+            analysisTextMaxChars,
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             onCaptureHotkey,
+            onCaptureHold,
             lightdashApi,
         ],
     );

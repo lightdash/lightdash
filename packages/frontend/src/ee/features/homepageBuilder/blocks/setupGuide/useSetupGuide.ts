@@ -15,7 +15,7 @@ import { useExplores } from '../../../../../hooks/useExplores';
 import { useOrganizationUsers } from '../../../../../hooks/useOrganizationUsers';
 import useApp from '../../../../../providers/App/useApp';
 import { useCanManageProject } from '../../hooks/useHomepageAbilities';
-import { useIsNewOnboardingOrg } from '../../hooks/useIsNewOnboardingOrg';
+import { useIsNewOrg } from '../../hooks/useIsNewOrg';
 import { type RecommendedActionsState } from '../useRecommendedActions';
 import { buildSetupGuide, type SetupGuideRowId } from './setupGuideModel';
 
@@ -23,22 +23,25 @@ export const useSetupGuide = (
     projectUuid: string,
     actions: RecommendedActionsState,
 ) => {
-    const { user } = useApp();
+    const { user, health } = useApp();
     const userUuid = user.data?.userUuid;
-    const newOnboardingOrg = useIsNewOnboardingOrg();
+    const newOrg = useIsNewOrg();
     const liveSources = useLiveSourcesAvailability();
     const canManageProject = useCanManageProject(projectUuid);
     // visibleActions is empty on the playground, where setup has no place
     const isEligible =
-        newOnboardingOrg.isNewOrg &&
+        newOrg.isNewOrg &&
         canManageProject &&
         actions.visibleActions.length > 0;
     const enabled = { enabled: isEligible };
 
     const explores = useExplores(projectUuid, true, false, enabled);
     // These hooks take no enabled option; an undefined project keeps them idle
-    const gatedProjectUuid = isEligible ? projectUuid : undefined;
-    const connections = useExternalConnections(gatedProjectUuid);
+    const gatedProjectUuid =
+        isEligible && health.data?.license?.valid ? projectUuid : undefined;
+    const connections = useExternalConnections(
+        liveSources.isAvailable ? gatedProjectUuid : undefined,
+    );
     const sources = useExternalSources(gatedProjectUuid);
     const brand = useOrganizationBrand(enabled);
     const users = useOrganizationUsers(enabled);
@@ -74,8 +77,8 @@ export const useSetupGuide = (
     // Hold a slot while eligibility resolves so the guide doesn't push the page down
     const isLoading =
         canManageProject &&
-        (newOnboardingOrg.isLoading ||
-            (newOnboardingOrg.isNewOrg &&
+        (newOrg.isLoading ||
+            (newOrg.isNewOrg &&
                 (actions.isLoading ||
                     [explores, brand].some(
                         (query) => query.isInitialLoading,
@@ -110,7 +113,7 @@ export const useSetupGuide = (
             liveSources.isAvailable &&
             !!user.data?.ability.can(
                 'manage',
-                subject('ExternalConnection', {
+                subject('LiveSource', {
                     organizationUuid: user.data.organizationUuid,
                     projectUuid,
                 }),

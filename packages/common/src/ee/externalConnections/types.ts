@@ -1,5 +1,7 @@
 import { type UUID } from '../../types/api/uuid';
 import { type ApiConnectorType } from '../../types/querySources';
+import { type LiveSourceAccessRule } from './liveSourceAccess';
+import { type LiveSourceRateLimitSettings } from './liveSourceRateLimits';
 
 export type ExternalConnectionAuthType =
     | 'none'
@@ -65,6 +67,16 @@ export type GithubApiSource = {
     owner: string;
     /** The repository name, without the owner, e.g. lightdash. */
     repo: string;
+};
+
+/**
+ * One table or view of a Supabase project, read through its Data API
+ * (PostgREST). The project URL is the connection's origin.
+ */
+export type SupabaseApiSource = {
+    connector: ApiConnectorType.SUPABASE;
+    /** The table or view in the exposed schema, as PostgREST names it. */
+    table: string;
 };
 
 /** A Pylon workspace; the API token decides which one. */
@@ -138,6 +150,16 @@ export type SalesforceApiSource = {
  */
 export type AmplitudeApiSource = {
     connector: ApiConnectorType.AMPLITUDE;
+};
+
+/**
+ * A Mixpanel project, read with a service account; the connection's origin
+ * says whether its data lives in the US, the EU or India.
+ */
+export type MixpanelApiSource = {
+    connector: ApiConnectorType.MIXPANEL;
+    /** The Mixpanel project id, the number after /project/ in its URL. */
+    projectId: string;
 };
 
 /**
@@ -224,6 +246,8 @@ export type ExternalConnectionApiSource =
     | HubspotApiSource
     | SalesforceApiSource
     | AmplitudeApiSource
+    | MixpanelApiSource
+    | SupabaseApiSource
     | HydraApiSource;
 
 /** The settings of one integration's sources. */
@@ -274,6 +298,48 @@ export const PYLON_ACCOUNTS_SEARCH_PATH = '/accounts/search';
 export const PYLON_CONTACTS_SEARCH_PATH = '/contacts/search';
 export const PYLON_USERS_PATH = '/users';
 
+/** The Data API root; GET returns the OpenAPI description of every table. */
+export const SUPABASE_REST_PATH = '/rest/v1/';
+/** Supabase takes secret keys on this header, not as a bearer token. */
+export const SUPABASE_AUTH_HEADER = 'apikey';
+
+export const getSupabaseTablePath = (table: string) =>
+    `${SUPABASE_REST_PATH}${table}`;
+
+/** A table name PostgREST serves at its own path: no slashes or query characters. */
+export const isSupabaseTableName = (table: string) =>
+    /^[^/?#\\\s.][^/?#\\]{0,62}$/.test(table) && table.trim() === table;
+
+/**
+ * A project URL: https://<ref>.supabase.co, a custom domain or a self-hosted
+ * Supabase. Bare origin only; the proxy still refuses private addresses.
+ */
+// Legacy JWT keys sent only as `apikey` run as anon, so RLS hides every row,
+// and publishable keys can't read the table list the scan needs
+export const getSupabaseKeyError = (secret: string): string | undefined => {
+    const key = secret.trim();
+    if (key.startsWith('sb_secret_')) return undefined;
+    if (key.startsWith('sb_publishable_'))
+        return 'Publishable keys cannot read the table columns; use a secret key (sb_secret_)';
+    if (key.startsWith('eyJ'))
+        return 'Legacy JWT keys return no rows; create a secret key (sb_secret_) under API Keys';
+    return 'Paste a secret key; it starts with sb_secret_';
+};
+
+export const isSupabaseOrigin = (origin: string) => {
+    try {
+        const url = new URL(origin);
+        return (
+            url.protocol === 'https:' &&
+            url.origin === origin.toLowerCase() &&
+            !url.username &&
+            !url.password
+        );
+    } catch {
+        return false;
+    }
+};
+
 /** Never resolves: Hydra answers in-process, so nothing is sent to it. */
 export const HYDRA_ORIGIN = 'https://hydra.invalid';
 export const HYDRA_REPORT_PATH = '/v1/report';
@@ -315,6 +381,34 @@ export const AMPLITUDE_PATHS = {
 /** Amplitude signs Dashboard REST API calls in with HTTP Basic: the API key, then the secret key. */
 export const AMPLITUDE_AUTH_HEADER = 'Authorization';
 
+/** Mixpanel's Query API, by where the project's data lives. */
+export const MIXPANEL_REGION_ORIGINS = {
+    us: 'https://mixpanel.com',
+    eu: 'https://eu.mixpanel.com',
+    in: 'https://in.mixpanel.com',
+} as const;
+export type MixpanelRegion = keyof typeof MIXPANEL_REGION_ORIGINS;
+
+export const getMixpanelRegion = (origin: string): MixpanelRegion => {
+    const trimmed = origin.replace(/\/+$/, '');
+    if (trimmed === MIXPANEL_REGION_ORIGINS.eu) return 'eu';
+    if (trimmed === MIXPANEL_REGION_ORIGINS.in) return 'in';
+    return 'us';
+};
+
+/** The Query API endpoints a source reads. */
+export const MIXPANEL_PATHS = {
+    segmentation: '/api/query/segmentation',
+    funnels: '/api/query/funnels',
+    funnelsList: '/api/query/funnels/list',
+    retention: '/api/query/retention',
+    eventNames: '/api/query/events/names',
+    topEvents: '/api/query/events/top',
+} as const;
+
+/** Mixpanel signs Query API calls in with HTTP Basic: the service account's username, then its secret. */
+export const MIXPANEL_AUTH_HEADER = 'Authorization';
+
 export const HUBSPOT_ORIGIN = 'https://api.hubapi.com';
 
 export const getHubspotPropertiesPath = (object: string) =>
@@ -322,6 +416,13 @@ export const getHubspotPropertiesPath = (object: string) =>
 
 export const getHubspotSearchPath = (object: string) =>
     `/crm/v3/objects/${object}/search`;
+
+/** The objects whose pipelines and stages a source reads. */
+export const HUBSPOT_PIPELINE_OBJECTS = ['deals', 'tickets'] as const;
+export type HubspotPipelineObject = (typeof HUBSPOT_PIPELINE_OBJECTS)[number];
+
+export const getHubspotPipelinesPath = (object: string) =>
+    `/crm/v3/pipelines/${object}`;
 /** Every Salesforce call goes to this REST API version, so responses keep one shape. */
 export const SALESFORCE_API_VERSION = 'v62.0';
 
@@ -476,12 +577,24 @@ export type ExternalConnection = {
     liveSourceName?: string | null;
     /** What an admin says this live source is for. Reaches the AI agent. */
     aiHint?: string | null;
+    /**
+     * Live sources: tags its explores carry, so an AI agent limited to tags
+     * can use the source when they share one.
+     */
+    tags?: string[] | null;
     /** The name the connection picker showed for the source's target. */
     targetLabel?: string | null;
     /** Live sources: the admin's freshness window; null uses the integration's default. */
     cacheTtlSeconds?: number | null;
     /** Live sources: results fetched before this are never reused. */
     cachePurgedAt?: Date | null;
+    /**
+     * Live sources: who can query it, as user attribute conditions; null when
+     * everyone in the project can. Returned only to those who manage it.
+     */
+    accessRule?: LiveSourceAccessRule | null;
+    /** Live sources: the lower rate limits an admin set; null when none are set. */
+    adminRateLimits?: LiveSourceRateLimitSettings | null;
     hasSecret: boolean;
     createdByUserUuid: string | null;
     updatedByUserUuid: string | null;
@@ -554,11 +667,16 @@ export type CreateExternalConnection = {
 /** Omitted/blank `secret` means the stored secret is left unchanged. */
 export const LIVE_SOURCE_AI_HINT_MAX_LENGTH = 500;
 
+export const LIVE_SOURCE_MAX_TAGS = 20;
+export const LIVE_SOURCE_TAG_MAX_LENGTH = 100;
+
 export type UpdateExternalConnection = Partial<
     Omit<CreateExternalConnection, 'explorePrefix'>
 > & {
     /** Live sources only. Empty or null clears it. */
     aiHint?: string | null;
+    /** Live sources only. Empty or null clears them. */
+    tags?: string[] | null;
 };
 
 /** Whether a new live source can use an explore prefix. */
@@ -793,6 +911,8 @@ export type ExternalConnectionApiUsage = {
     externalConnectionUuid: string;
     /** How many days back the usage goes: the query history retention window. */
     windowDays: number;
+    /** Logged queries on the source, whether or not a stored result answered them. */
+    queries: number;
     apiCalls: number;
     /** Queries a stored result answered without calling the integration. */
     cacheHits: number;
@@ -806,13 +926,16 @@ export type ApiExternalConnectionApiUsageResponse = {
     results: ExternalConnectionApiUsage[];
 };
 
-/** One of an integration's declared limits, with Lightdash's calls in its current window. */
+/** One limit on calls in a time window, with Lightdash's calls in its current window. */
 export type ExternalConnectionRateLimitBucket = {
     id: string;
     /** As declared, such as "per hour". */
     label: string;
     windowMs: number;
+    /** The limit in force: the integration's, or an admin's lower one. */
     capacity: number;
+    /** The integration's own limit; null for a daily limit only an admin set. */
+    defaultCapacity: number | null;
     /** Calls in the current window; 0 when no window is open. */
     used: number;
     /** When the current window ends, ISO; null when no window is open. */
@@ -820,8 +943,8 @@ export type ExternalConnectionRateLimitBucket = {
 };
 
 /**
- * Lightdash's own calls against an integration's declared rate limits, as of
- * `checkedAt`. Other apps on the same vendor account aren't counted.
+ * A live data source's rate limits, with Lightdash's own calls against them as
+ * of `checkedAt`. Other apps on the same vendor account aren't counted.
  */
 export type ExternalConnectionRateLimitUsage = {
     /** The integration's name, such as HubSpot. */
@@ -831,6 +954,16 @@ export type ExternalConnectionRateLimitUsage = {
     buckets: ExternalConnectionRateLimitBucket[];
     /** When the vendor's pause ends, ISO; null when it hasn't paused the integration. */
     limitedUntil: string | null;
+    /** What an admin set, as saved; null when nothing is set. */
+    adminRateLimits: LiveSourceRateLimitSettings | null;
+    /** The integration's own limit; null when it has no per-second limit. */
+    defaultCallsPerSecond: number | null;
+    /** The integration's own limit on calls in flight at once. */
+    defaultConcurrentCalls: number;
+    /** Calls in flight, never above the concurrency limit now in force. */
+    runningCalls: number;
+    /** What admins are told alongside the limits they can lower. */
+    note: string | null;
 };
 
 export type ApiExternalConnectionRateLimitUsageResponse = {

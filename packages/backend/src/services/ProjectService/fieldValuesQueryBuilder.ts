@@ -1,5 +1,4 @@
 import {
-    AuthorizationError,
     FilterOperator,
     findFieldByIdInExplore,
     ForbiddenError,
@@ -33,7 +32,7 @@ const FIELD_VALUES_FORBIDDEN_MESSAGE =
     'You do not have permission to search values for this field';
 
 /** Dimensions visible to the caller after user-attribute filtering; a gated
- *  base table surfaces as ForbiddenError rather than AuthorizationError. */
+ *  base table surfaces as the field values refusal. */
 const getVisibleDimensionsForField = (
     account: Account,
     projectUuid: string,
@@ -50,7 +49,7 @@ const getVisibleDimensionsForField = (
             userAttributes,
         });
     } catch (e) {
-        if (e instanceof AuthorizationError) {
+        if (e instanceof ForbiddenError) {
             throw new ForbiddenError(FIELD_VALUES_FORBIDDEN_MESSAGE);
         }
         throw e;

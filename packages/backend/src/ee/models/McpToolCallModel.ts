@@ -18,9 +18,9 @@ import {
     AiMcpServerTableName,
 } from '../database/entities/aiAgent';
 import {
-    DbMcpClientInfo,
+    DbMcpSessionClientInfo,
     DbMcpToolCall,
-    McpClientInfoTableName,
+    McpSessionClientInfoTableName,
     McpToolCallTableName,
 } from '../database/entities/mcpToolCall';
 
@@ -32,10 +32,10 @@ export type CreateMcpToolCall = Omit<
     result_metadata: object | null;
 };
 
-export type UpsertMcpClientInfo = {
+export type SaveMcpSessionClientInfo = {
+    sessionId: string;
     userUuid: string;
     organizationUuid: string;
-    userAgent: string;
     clientName: string;
     clientVersion: string | null;
 };
@@ -78,33 +78,27 @@ export class McpToolCallModel {
         });
     }
 
-    async upsertClientInfo(data: UpsertMcpClientInfo): Promise<void> {
-        await this.database(McpClientInfoTableName)
-            .insert({
-                user_uuid: data.userUuid,
-                organization_uuid: data.organizationUuid,
-                user_agent: data.userAgent,
-                client_name: data.clientName,
-                client_version: data.clientVersion,
-            })
-            .onConflict(['user_uuid', 'organization_uuid', 'user_agent'])
-            .merge({
-                client_name: data.clientName,
-                client_version: data.clientVersion,
-                updated_at: this.database.fn.now(),
-            });
+    async saveSessionClientInfo(data: SaveMcpSessionClientInfo): Promise<void> {
+        await this.database(McpSessionClientInfoTableName).insert({
+            mcp_session_id: data.sessionId,
+            user_uuid: data.userUuid,
+            organization_uuid: data.organizationUuid,
+            client_name: data.clientName,
+            client_version: data.clientVersion,
+        });
     }
 
-    async findClientInfo(
+    // Scoped to the caller so an echoed session id of another user reads nothing
+    async findSessionClientInfo(
+        sessionId: string,
         userUuid: string,
         organizationUuid: string,
-        userAgent: string,
-    ): Promise<DbMcpClientInfo | undefined> {
-        return this.database(McpClientInfoTableName)
+    ): Promise<DbMcpSessionClientInfo | undefined> {
+        return this.database(McpSessionClientInfoTableName)
             .where({
+                mcp_session_id: sessionId,
                 user_uuid: userUuid,
                 organization_uuid: organizationUuid,
-                user_agent: userAgent,
             })
             .first();
     }
@@ -547,12 +541,25 @@ export class McpToolCallModel {
     }
 
     async deleteToolCallsOlderThan(days: number): Promise<number> {
+        return this.deleteOlderThan(McpToolCallTableName, days);
+    }
+
+    async deleteSessionClientInfoOlderThan(days: number): Promise<number> {
+        return this.deleteOlderThan(McpSessionClientInfoTableName, days);
+    }
+
+    private async deleteOlderThan(
+        tableName:
+            | typeof McpToolCallTableName
+            | typeof McpSessionClientInfoTableName,
+        days: number,
+    ): Promise<number> {
         // A non-positive retention would compute a future cutoff and delete
         // everything
         if (!Number.isInteger(days) || days <= 0) {
             throw new Error(`Invalid retention days: ${days}`);
         }
-        return this.database(McpToolCallTableName)
+        return this.database(tableName)
             .where(
                 'created_at',
                 '<',

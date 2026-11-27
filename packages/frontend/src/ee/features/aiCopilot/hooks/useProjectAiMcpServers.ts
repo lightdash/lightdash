@@ -25,6 +25,7 @@ import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
+import { useChatReadsItsAgent } from './chatEndpoints';
 
 export const PROJECT_AI_MCP_SERVERS_KEY = 'projectAiMcpServers';
 export const AGENT_AI_MCP_SERVERS_KEY = 'agentAiMcpServers';
@@ -341,6 +342,7 @@ export const useAgentAiMcpServers = (
     options?: UseQueryOptions<ApiAiMcpServerListResponse['results'], ApiError>,
 ) => {
     const lightdashApi = useLightdashApi();
+    const readsItsAgent = useChatReadsItsAgent();
 
     const isEmbed = useIsEmbedded();
     const { showToastApiError } = useToaster();
@@ -352,6 +354,7 @@ export const useAgentAiMcpServers = (
         ...options,
         enabled:
             !isEmbed &&
+            readsItsAgent &&
             !!projectUuid &&
             !!agentUuid &&
             options?.enabled !== false,

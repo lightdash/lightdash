@@ -156,10 +156,6 @@ export const getLiveDataSourcesRedirectUrl = (
     return `${path}${search}`;
 };
 
-/** Where a new agent is created; Studio links there when the project has none. */
-export const getNewAgentUrl = (projectUuid: string): string =>
-    `/projects/${projectUuid}/ai-agents/new`;
-
 export const pullRequestNumberOf = (url: string | null | undefined) =>
     /\/(\d+)\/?$/.exec(url ?? '')?.[1] ?? null;
 

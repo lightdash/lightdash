@@ -468,10 +468,10 @@ export default class EmailClient {
                 context: {
                     host: this.lightdashConfig.siteUrl,
                     subject: 'Google Sheets Sync disabled',
-                    description: `There's an error with your Google Sheets "${schedulerName}" sync. We've disabled it to prevent further errors.`,
+                    description: `There's an error with your Google Sheets "${schedulerName}" sync. We've disabled it to prevent further errors.${errorMessage ? ` Error: ${errorMessage}` : ''}`,
                     schedulerUrl: urlWithRef,
                 },
-                text: `Your Google Sheets ${schedulerName} sync has been disabled due to an error`,
+                text: `Your Google Sheets ${schedulerName} sync has been disabled due to an error${errorMessage ? `: ${errorMessage}` : ''}`,
             });
         }
 

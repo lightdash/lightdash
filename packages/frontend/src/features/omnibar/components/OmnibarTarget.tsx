@@ -9,7 +9,7 @@ import classes from './OmnibarTarget.module.css';
 type Props = {
     placeholder: string;
     transitionStyle: CSSProperties;
-    onOpen: (e: MouseEvent<HTMLInputElement>) => void;
+    onOpen: (e: MouseEvent<HTMLElement>) => void;
 };
 
 const OmnibarTarget: FC<Props> = ({ placeholder, transitionStyle, onOpen }) => {

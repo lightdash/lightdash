@@ -4,11 +4,14 @@ import {
     getErrorMessage,
     isExploreError,
     isPullRequestOpen,
+    isSemanticStudioThread,
     isUserManagedExplore,
     JobStatusType,
     NotFoundError,
     ParameterError,
     ProjectType,
+    type AiAgentSummary,
+    type AiThreadCreatedFrom,
     type CompileSemanticStudioBranchPayload,
     type Explore,
     type ExploreError,
@@ -20,8 +23,10 @@ import {
     type SemanticStudioSourceFile,
     type SemanticStudioSources,
     type SemanticStudioSourceSave,
+    type SemanticStudioUnbuiltField,
     type SemanticStudioWorkspace,
     type SessionUser,
+    type WarehouseCatalog,
     type WritebackMergeResult,
 } from '@lightdash/common';
 import { NATIVE_MODEL_DIRECTORIES } from '@lightdash/common/lightdash/loader';
@@ -34,7 +39,12 @@ import { type JobModel } from '../../../models/JobModel/JobModel';
 import { BaseService } from '../../../services/BaseService';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
 import { startStepTimings } from '../../../utils/stepTimings';
+import { type AiAgentModel } from '../../models/AiAgentModel';
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
+import {
+    type AgentTurnSetup,
+    type AgentWritebackSetup,
+} from '../ai/types/agentTurnSetup';
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import { sourceRevision } from '../AiWritebackService/utils';
@@ -57,6 +67,8 @@ import {
     worksAsDbtPullRequests,
     type ModelProject,
 } from './studioProject';
+import { getStudioProjectMode, getStudioTurnSetup } from './studioTurn';
+import { dropAlreadyMissing, findFieldsWithoutColumns } from './unbuiltFields';
 
 export type SemanticStudioCheckoutServiceArguments = {
     analytics: Pick<LightdashAnalytics, 'track'>;
@@ -75,7 +87,11 @@ export type SemanticStudioCheckoutServiceArguments = {
         findExploresFromCache: (
             projectUuid: string,
             key: 'name',
+            exploreNames?: string[],
         ) => Promise<Record<string, Explore | ExploreError>>;
+        getWarehouseFromCache: (
+            projectUuid: string,
+        ) => Promise<WarehouseCatalog | undefined>;
     };
     workspaceModel: Pick<
         SemanticStudioWorkspaceModel,
@@ -111,8 +127,22 @@ export type SemanticStudioCheckoutServiceArguments = {
     >;
     incrementalDbtCompile: Pick<
         IncrementalDbtCompileService,
-        'checkDbtScriptChange'
+        'checkDbtScriptChange' | 'getDbtProjectMap'
     >;
+    aiAgentModel: Pick<AiAgentModel, 'getOrCreateSemanticStudioAgent'>;
+    ai: {
+        /** Whether AI is on for the person's organization, and whether an admin has hidden it. */
+        getAvailability: (user: SessionUser) => Promise<{
+            isCopilotEnabled: boolean;
+            isTrial: boolean;
+            aiAgentsVisible: boolean;
+        }>;
+        /** Whether the organization has a model the builder can run on. */
+        hasModel: (
+            organizationUuid: string,
+            projectUuid: string,
+        ) => Promise<boolean>;
+    };
 };
 
 const NOT_YOUR_CHANGE =
@@ -182,6 +212,10 @@ export class SemanticStudioCheckoutService extends BaseService {
 
     private readonly incrementalDbtCompile: SemanticStudioCheckoutServiceArguments['incrementalDbtCompile'];
 
+    private readonly aiAgentModel: SemanticStudioCheckoutServiceArguments['aiAgentModel'];
+
+    private readonly ai: SemanticStudioCheckoutServiceArguments['ai'];
+
     constructor(args: SemanticStudioCheckoutServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -195,6 +229,8 @@ export class SemanticStudioCheckoutService extends BaseService {
         this.writebackPreviewService = args.writebackPreviewService;
         this.aiWritebackService = args.aiWritebackService;
         this.incrementalDbtCompile = args.incrementalDbtCompile;
+        this.aiAgentModel = args.aiAgentModel;
+        this.ai = args.ai;
     }
 
     private track(
@@ -310,6 +346,53 @@ export class SemanticStudioCheckoutService extends BaseService {
             return null;
         }
         return this.workspaceModel.findBranchCompile(workspaceUuid);
+    }
+
+    private async findUnbuiltIn(
+        projectUuid: string,
+        explores: (Explore | ExploreError)[],
+    ): Promise<SemanticStudioUnbuiltField[]> {
+        const catalog =
+            await this.projectModel.getWarehouseFromCache(projectUuid);
+        if (!catalog) return [];
+        const published = new Set(
+            (await this.projectModel.getAllExploreSummaries(projectUuid)).map(
+                ({ name }) => name,
+            ),
+        );
+        const unbuilt = findFieldsWithoutColumns(
+            explores,
+            catalog,
+            (name) => !published.has(name),
+        );
+        if (unbuilt.length === 0) return [];
+        const live = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            'name',
+            unbuilt.map(({ explore }) => explore),
+        );
+        return dropAlreadyMissing(
+            unbuilt,
+            findFieldsWithoutColumns(Object.values(live), catalog, () => false),
+        );
+    }
+
+    /** The fields of the person's checked-out dbt change that read columns the warehouse does not have yet. */
+    async findUnbuiltFields(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticStudioUnbuiltField[]> {
+        if (!(await this.isDbtCheckout(user, projectUuid))) return [];
+        const explores = await findDbtDraftExplores(
+            {
+                storage: this.fileStorageClient,
+                workspaceModel: this.workspaceModel,
+            },
+            { projectUuid, userUuid: user.userUuid },
+        );
+        return explores
+            ? this.findUnbuiltIn(projectUuid, [...explores.values()])
+            : [];
     }
 
     /** The change this person has checked out, which the whole app shows them; null on what is published or without Studio. */
@@ -447,6 +530,84 @@ export class SemanticStudioCheckoutService extends BaseService {
         };
     }
 
+    /** A Studio thread keeps one pull request, shows it at once, and compiles its branch after every save. */
+    getAgentWritebackSetup(
+        user: SessionUser,
+        projectUuid: string,
+    ): AgentWritebackSetup {
+        return {
+            continuesThreadPullRequest: true,
+            showsPullRequestBeforePreview: true,
+            onSaved: (prUrl) =>
+                this.queueBranchCompile(user, projectUuid, prUrl, 'agent'),
+        };
+    }
+
+    /** The save setup of a Studio thread; null for any other thread, which Studio has no say in. */
+    async findAgentWritebackSetup({
+        user,
+        projectUuid,
+        threadCreatedFrom,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        threadCreatedFrom: AiThreadCreatedFrom | undefined;
+    }): Promise<AgentWritebackSetup | null> {
+        return isSemanticStudioThread(threadCreatedFrom)
+            ? this.getAgentWritebackSetup(user, projectUuid)
+            : null;
+    }
+
+    /** What a Studio thread brings to each of its turns on this project. */
+    async getAgentTurnSetup(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AgentTurnSetup> {
+        return getStudioTurnSetup(
+            await getStudioProjectMode(
+                await this.studio.getStatus(user, projectUuid),
+                () => this.incrementalDbtCompile.getDbtProjectMap(projectUuid),
+            ),
+        );
+    }
+
+    /** The built-in agent behind this project's Studio chat, created the first time someone who can use Studio asks for it. */
+    async getBuilderAgent(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AiAgentSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        await this.assertAiIsLive(user, organizationUuid, projectUuid);
+        await this.studio.assertCanUseStudio(user, projectUuid);
+        return this.aiAgentModel.getOrCreateSemanticStudioAgent({
+            organizationUuid,
+            projectUuid,
+        });
+    }
+
+    /** AI is on for the organization, an admin has not hidden it, and there is a model to run on. */
+    private async assertAiIsLive(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+    ): Promise<void> {
+        const ai = await this.ai.getAvailability(user);
+        if (!ai.isCopilotEnabled && !ai.isTrial) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+        if (!ai.aiAgentsVisible) {
+            throw new ForbiddenError('AI is turned off for this organization');
+        }
+        if (!(await this.ai.hasModel(organizationUuid, projectUuid))) {
+            throw new ForbiddenError(
+                'No AI model is configured for this organization',
+            );
+        }
+    }
+
     /**
      * Waits for the agent's latest save on this thread's pull request and for the
      * branch compile after it, so the agent can check its change in the same turn.
@@ -527,6 +688,11 @@ export class SemanticStudioCheckoutService extends BaseService {
             if (compile?.status === 'ready') {
                 return {
                     status: 'ready',
+                    // eslint-disable-next-line no-await-in-loop
+                    unbuiltFields: await this.findUnbuiltIn(
+                        projectUuid,
+                        compile.explores ?? [],
+                    ),
                     exploreErrors: (compile.explores ?? [])
                         .filter(isExploreError)
                         .slice(0, BRANCH_COMPILE_CHECK_MAX_ERRORS)

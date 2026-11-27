@@ -91,7 +91,17 @@ describe('Embed reach', () => {
                     `SELECT DISTINCT dashboard_label FROM ${embedReachSql}`,
                 )
             ).getRowObjectsJson();
-            expect(labels).toHaveLength(2);
+            // Two dashboards of one project share a name, so each shows the start of its ID. A
+            // dashboard whose name is its own shows the name alone.
+            expect(
+                labels
+                    .map(
+                        (row) =>
+                            (row as { dashboard_label: string })
+                                .dashboard_label,
+                    )
+                    .sort(),
+            ).toEqual(['Revenue', 'Revenue · d1', 'Revenue · d2']);
             expect(compile([], ['unique_viewers'])).not.toContain(
                 'lightdash_users',
             );

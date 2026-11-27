@@ -1,3 +1,4 @@
+import type * as ReactQuery from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -25,6 +26,7 @@ const held = vi.hoisted(() => ({
     } | null,
     claim: vi.fn(),
     send: vi.fn(),
+    seedAgent: vi.fn(),
 }));
 
 vi.mock('../../../../../hooks/toaster/useToaster', () => ({
@@ -42,6 +44,11 @@ vi.mock('../../hooks/useProjectAiAgents', () => ({
         return { data: undefined };
     },
     useCreateAgentThreadMessageMutation: () => ({ mutate: held.send }),
+    getProjectAiAgentQueryKey: (project: string, agent: string) => [
+        'projectAiAgents',
+        project,
+        agent,
+    ],
 }));
 
 vi.mock('../../../../../features/semanticStudio/useStudioWorkspaces', () => ({
@@ -60,6 +67,18 @@ vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
 }));
 vi.mock('../Launcher/useDefaultAiAgent', () => ({
     useDefaultAiAgent: () => ({ agent: null, agents: [{ uuid: 'agent' }] }),
+}));
+vi.mock('../../../../../providers/LightdashApi/useLightdashApi', () => ({
+    useLightdashApi: () => vi.fn(),
+}));
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+    ...(await importOriginal<typeof ReactQuery>()),
+    useQuery: ({ enabled }: { enabled: boolean }) => ({
+        data: enabled ? { uuid: 'studio-agent' } : undefined,
+        isInitialLoading: false,
+        error: null,
+    }),
+    useQueryClient: () => ({ setQueryData: held.seedAgent }),
 }));
 
 // Each read mounts a fresh hook, so a value has to survive a remount to be seen.
@@ -97,11 +116,11 @@ describe('useFinishDiscardedWork', () => {
 });
 
 describe('useStudioThread', () => {
-    const fail = (name: string) =>
+    const fail = (name: string, statusCode = 400) =>
         act(() =>
             held.onError?.({
                 status: 'error',
-                error: { name, statusCode: 400, message: 'm', data: {} },
+                error: { name, statusCode, message: 'm', data: {} },
             }),
         );
 
@@ -117,6 +136,22 @@ describe('useStudioThread', () => {
         expect(held.toast).not.toHaveBeenCalled();
     });
 
+    it("forgets it when Studio's own route says the thread is not found", () => {
+        renderHook(() => useStudioThread('project', 'agent', 'thread'));
+        fail('NotFoundError', 404);
+        expect(storedThread()).toBe(null);
+        expect(held.toast).not.toHaveBeenCalled();
+    });
+
+    it('keeps the thread when it is refused, not missing', () => {
+        renderHook(() => useStudioThread('project', 'agent', 'thread'));
+        fail('ForbiddenError', 403);
+        expect(storedThread()).toEqual({
+            threadUuid: 'thread',
+            agentUuid: 'agent',
+        });
+    });
+
     it('keeps the thread and says so on any other failure', () => {
         renderHook(() => useStudioThread('project', 'agent', 'thread'));
         fail('UnexpectedServerError');
@@ -128,9 +163,28 @@ describe('useStudioThread', () => {
     });
 });
 
-it('uses an accessible agent when no default is selected', () => {
+it('starts new chats on the built-in agent, whatever agents the project has', () => {
     const { result } = renderHook(() => useStudioAgent('new-project'));
-    expect(result.current.agent?.uuid).toBe('agent');
+    expect(result.current.agent?.uuid).toBe('studio-agent');
+    expect(result.current.thread).toBe(null);
+});
+
+it('hands the built-in agent to the chat, which never asks for it', () => {
+    renderHook(() => useStudioAgent('new-project'));
+    expect(held.seedAgent).toHaveBeenCalledWith(
+        ['projectAiAgents', 'new-project', 'studio-agent'],
+        { uuid: 'studio-agent' },
+    );
+});
+
+it('keeps a chat started on another agent with that agent', () => {
+    storeThread({ threadUuid: 'thread', agentUuid: 'agent' });
+    const { result } = renderHook(() => useStudioAgent('project'));
+    expect(result.current.thread).toEqual({
+        agent: { uuid: 'agent' },
+        threadUuid: 'thread',
+    });
+    expect(result.current.agent?.uuid).toBe('studio-agent');
 });
 
 it('keeps chat gated when cached project status allows editing but the flag is off', () => {

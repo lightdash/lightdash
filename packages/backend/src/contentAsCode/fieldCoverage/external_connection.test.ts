@@ -5,7 +5,11 @@ describeContentAsCodeSchemaContract({
     modelSchema: 'ExternalConnection',
     documentSchema: 'ExternalConnectionAsCode',
     skippedModelFields: [
+        // Who can query a live API source, set in the app by those who manage it.
+        'accessRule',
         // Live API sources are configured in the app, not as code.
+        // The lower rate limits an admin set on a live API source.
+        'adminRateLimits',
         'aiHint',
         'apiSource',
         // A live data source's freshness window and last purge.
@@ -22,6 +26,8 @@ describeContentAsCodeSchemaContract({
         'projectUuid',
         // Saved from the connection picker of a live API source.
         'targetLabel',
+        // A live API source's tags, set in the app like its AI hint.
+        'tags',
         // Carried by the document as `authType`.
         'type',
         'updatedAt',

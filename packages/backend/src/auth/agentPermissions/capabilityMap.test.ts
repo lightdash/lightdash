@@ -1,5 +1,4 @@
 import {
-    AGENT_CAPABILITY_DEFAULTS,
     AgentCapability,
     agentToolDefinitionsByName,
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
@@ -19,6 +18,7 @@ import type {
     AiAgentDependencies,
 } from '../../ee/services/ai/types/aiAgent';
 import { AgentContext } from '../../ee/services/ai/utils/AgentContext';
+import type { McpQueryPath } from '../../ee/services/McpService/mcpQueryPath';
 import {
     McpService,
     McpToolName,
@@ -118,8 +118,23 @@ it('covers every inbound MCP enum and schema name and rejects stale entries', ()
 });
 
 it('covers the tools registered by the real MCP service across feature variants', async () => {
+    const variants: { enabled: boolean; queryPath: McpQueryPath }[] = [
+        { enabled: false, queryPath: { type: 'contentOnly' } },
+        {
+            enabled: true,
+            queryPath: {
+                type: 'classic',
+                sqlRunnerEnabled: true,
+                filterExpressionsEnabled: true,
+            },
+        },
+        {
+            enabled: true,
+            queryPath: { type: 'composer', sqlRunnerEnabled: true },
+        },
+    ];
     const registeredVariants = await Promise.all(
-        [false, true].map(async (enabled) => {
+        variants.map(async ({ enabled, queryPath }) => {
             const service = new McpService({
                 aiAgentToolsService: { listMcpSkillResources: () => [] },
                 featureFlagService: {
@@ -134,10 +149,7 @@ it('covers the tools registered by the real MCP service across feature variants'
                 makeMcpServerOptions({
                     mcpContentWritesEnabled: enabled,
                     scheduledDeliveryEnabled: enabled,
-                    runSqlEnabled: enabled,
-                    runMetricQueryEnabled: enabled,
-                    queryEnabled: enabled,
-                    filterExpressionsEnabled: enabled,
+                    queryPath,
                     documentsEnabled: enabled,
                     dataAppBuildsEnabled: enabled,
                     chartTypeBuildsEnabled: enabled,
@@ -295,8 +307,22 @@ it('covers common agent definitions and all runtime variants without stale entri
         { enableComposerQueries: true },
         { enableAskUser: true },
         { enableContentTools: false },
-        { isSemanticStudioThread: true, semanticStudioDrafts: true },
-        { isSemanticStudioThread: true, semanticStudioDrafts: false },
+        {
+            studio: {
+                enabled: true,
+                drafts: true,
+                keepsContext: true,
+                projectMap: null,
+            },
+        },
+        {
+            studio: {
+                enabled: true,
+                drafts: false,
+                keepsContext: false,
+                projectMap: null,
+            },
+        },
         { enableContentReads: false, enableContentTools: false },
         { decisions: undefined, canRunSql: false, enableDataAccess: false },
         ...(['coordinator', 'worker'] as const).flatMap((role) =>
@@ -417,16 +443,6 @@ it('requires discovery for the chart type frame, as render_chart does to resolve
     ).toEqual([AgentCapability.ReadDiscover, AgentCapability.Export]);
 });
 
-it('keeps the defaults explicit', () => {
-    expect(Object.values(AgentCapability)).toHaveLength(11);
-    expect(AGENT_CAPABILITY_DEFAULTS).toEqual([
-        AgentCapability.ReadDiscover,
-        AgentCapability.Query,
-        AgentCapability.Export,
-        AgentCapability.RawSql,
-    ]);
-});
-
 it.each([
     [
         'QueryController.executeAsyncDashboardSqlChartQuery',
@@ -463,6 +479,8 @@ it.each([
 
 const humanOnlyReadExceptions: Record<string, string> = {
     'AgentPermissionController.getPolicy':
+        'Reads or validates settings without changing grants or credentials.',
+    'AgentPermissionController.getProjectPolicies':
         'Reads or validates settings without changing grants or credentials.',
     'AiServiceAccountController.get':
         'Reads or validates settings without changing grants or credentials.',
@@ -643,7 +661,6 @@ it.each(compositeFixtures)(
             allowedCapabilities: null,
             allowedGroupUuids: null,
             version: 1,
-            editableCustomRoleUuid: null,
         };
         const operation = {
             requiredCapabilities,

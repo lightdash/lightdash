@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     AgentActorSurface,
+    AgentCapability,
     AiAccessRefusedError,
     FeatureFlags,
     PromotionAction,
@@ -53,10 +54,10 @@ const setup = (
     const getPolicy = vi
         .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
         .mockResolvedValue({
-            mode: mode === 'managed' ? 'managed' : 'legacy',
             version: 1,
             allowedGroupUuids: mode === 'people-only' ? null : [group.uuid],
-            allowedCapabilities: null,
+            allowedCapabilities:
+                mode !== 'managed' ? null : Object.values(AgentCapability),
         });
     const service = new GroupsService({
         analytics: { track: vi.fn() } as never,

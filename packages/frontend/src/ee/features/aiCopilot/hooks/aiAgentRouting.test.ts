@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { getThreadUuidFromPathname } from './aiAgentRouting';
+import {
+    getAiAgentArtifactResultsUrl,
+    getThreadUuidFromPathname,
+} from './aiAgentRouting';
 
 describe('getThreadUuidFromPathname', () => {
     it('reads the thread from a full-page thread route', () => {
@@ -25,5 +28,33 @@ describe('getThreadUuidFromPathname', () => {
         expect(
             getThreadUuidFromPathname('/projects/project-1/home'),
         ).toBeNull();
+    });
+});
+
+describe('getAiAgentArtifactResultsUrl', () => {
+    const artifact = {
+        projectUuid: 'p1',
+        agentUuid: 'a1',
+        artifactUuid: 'art1',
+        versionUuid: 'v1',
+        queryUuid: 'q1',
+        cached: false,
+    };
+
+    it("reads an agent's artifact results under the agent", () => {
+        expect(getAiAgentArtifactResultsUrl(artifact)).toBe(
+            '/projects/p1/aiAgents/a1/artifacts/art1/versions/v1/query-results?queryUuid=q1&cached=false',
+        );
+    });
+
+    it('reads them under the chat own artifacts endpoint when one is given', () => {
+        expect(
+            getAiAgentArtifactResultsUrl({
+                ...artifact,
+                artifactsUrl: '/projects/p1/semantic-studio/chat/artifacts',
+            }),
+        ).toBe(
+            '/projects/p1/semantic-studio/chat/artifacts/art1/versions/v1/query-results?queryUuid=q1&cached=false',
+        );
     });
 });

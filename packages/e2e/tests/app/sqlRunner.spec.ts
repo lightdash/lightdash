@@ -334,7 +334,7 @@ test.describe('SQL Runner (new)', () => {
         await expect(barChartView).toBeAttached();
 
         // Verify that the chart is in edit mode and make new changes and fix errors
-        await page.getByText('Edit chart').click();
+        await page.getByRole('button', { name: 'Edit chart' }).click();
 
         await expect(barChartView).toBeAttached();
         // Edit mode re-runs the query; on a cold preview that takes longer than the default expect budget

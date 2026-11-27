@@ -35,7 +35,10 @@ import {
 import { getConditionalRuleLabelFromItem } from '../../Filters/FilterInputs/utils';
 import MantineIcon from '../../MantineIcon';
 import {
+    canRenderedRowsClipMergedCells,
     getRowSpanMerges,
+    getWindowedRowSpanMerge,
+    ROW_OVERSCAN,
     type RowSpanMerge,
 } from '../../PivotTable/getRowSpanMerges';
 import {
@@ -47,6 +50,10 @@ import { getGroupedDimensionColumnIds } from '../getGroupedDimensionColumnIds';
 import { Tr } from '../Table.styles';
 import { type TableContext } from '../types';
 import { renderColumns, type ColumnWindow } from '../useColumnWindow';
+import {
+    useMountedCellSelection,
+    type RegisterCell,
+} from '../useMountedCellSelection';
 import { useTableContext } from '../useTableContext';
 import { countSubRows } from '../utils';
 import BodyCell from './BodyCell';
@@ -78,6 +85,12 @@ interface TableRowProps {
     // Per-column rowSpan-merge info for row-grouping mode, keyed by column id;
     // null when not in row-grouping mode.
     rowSpanMergesByColumnId?: Map<string, RowSpanMerge[]> | null;
+    firstRenderedRowIndex?: number;
+    lastRenderedRowIndex?: number;
+    openMenuKey: string | null;
+    onToggleMenu: (menuKey: string) => void;
+    registerMenuCell: RegisterCell;
+    canClipMergedCells: boolean;
 }
 
 const TableRow: FC<TableRowProps> = ({
@@ -91,6 +104,12 @@ const TableRow: FC<TableRowProps> = ({
     minMaxMap,
     minimal = false,
     rowSpanMergesByColumnId,
+    firstRenderedRowIndex = 0,
+    lastRenderedRowIndex = 0,
+    openMenuKey,
+    onToggleMenu,
+    registerMenuCell,
+    canClipMergedCells,
 }) => {
     const colorScheme = useComputedColorScheme();
     const { table } = useTableContext();
@@ -164,14 +183,29 @@ const TableRow: FC<TableRowProps> = ({
                 const cell = column
                     ? createCell(table, row, column, column.id)
                     : cells![columnIndex];
-                const rowSpanMerge = rowSpanMergesByColumnId?.get(
+                const columnSpans = rowSpanMergesByColumnId?.get(
                     cell.column.id,
-                )?.[index];
+                );
+                const rowSpanMerge = getWindowedRowSpanMerge(
+                    columnSpans,
+                    index,
+                    firstRenderedRowIndex,
+                    lastRenderedRowIndex,
+                );
                 // Absorbed (non-block-start) merged cell: the block-start cell's
                 // rowSpan already covers this row, so render no <td> here.
                 if (rowSpanMerge && !rowSpanMerge.isBlockStart) {
                     return null;
                 }
+                const blockRowCount =
+                    rowSpanMerge && columnSpans
+                        ? columnSpans[rowSpanMerge.blockStartRow].rowSpan
+                        : 1;
+                // A merged cell's menu key names its whole block, because the
+                // cell mounts again on another row when the rendered rows move.
+                const menuKey = rowSpanMerge
+                    ? `${cell.column.id}:${rowSpanMerge.blockStartRow}`
+                    : cell.id;
 
                 const meta = cell.column.columnDef.meta;
                 const field = meta?.item;
@@ -272,6 +306,13 @@ const TableRow: FC<TableRowProps> = ({
                         columnIndex={columnWindow ? columnIndex + 1 : undefined}
                         minimal={minimal}
                         rowSpan={rowSpanMerge?.rowSpan}
+                        clampsMergedValue={
+                            canClipMergedCells && blockRowCount > 1
+                        }
+                        menuKey={menuKey}
+                        isMenuOpen={openMenuKey === menuKey}
+                        onToggleMenu={() => onToggleMenu(menuKey)}
+                        registerMenuCell={registerMenuCell}
                         key={cell.id}
                         styleProps={meta?.styleProps}
                         backgroundColor={backgroundColor}
@@ -354,6 +395,24 @@ const TableRow: FC<TableRowProps> = ({
 
 const SCROLL_THRESHOLD = 100;
 
+// The open cell menu. It closes when no mounted cell holds its key, e.g. when
+// the cell's rows or column leave the rendered window, so it does not open
+// again when the cell comes back.
+const useOpenCellMenu = () => {
+    const {
+        selectedKey: openMenuKey,
+        setSelectedKey,
+        registerCell,
+    } = useMountedCellSelection();
+    const toggleMenu = useCallback(
+        (menuKey: string) => {
+            setSelectedKey((current) => (current === menuKey ? null : menuKey));
+        },
+        [setSelectedKey],
+    );
+    return { openMenuKey, toggleMenu, registerMenuCell: registerCell };
+};
+
 const VirtualizedTableBody: FC<{
     columnWindow?: ColumnWindow;
     tableContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -407,7 +466,7 @@ const VirtualizedTableBody: FC<{
         getScrollElement: () => tableContainerRef.current,
         count: rows.length,
         estimateSize: (_index) => ROW_HEIGHT_PX,
-        overscan: 25,
+        overscan: ROW_OVERSCAN,
     });
 
     useEffect(() => {
@@ -479,30 +538,15 @@ const VirtualizedTableBody: FC<{
               (virtualRows[virtualRows.length - 1]?.end || 0)
             : 0;
 
-    // Row-grouping mode renders every row (no virtualization) so the merged
-    // dimension cells' rowSpans span their full block — virtualization would
-    // unmount the absorbed rows and break the span.
-    if (groupingOnlyMode) {
-        return (
-            <tbody>
-                {rows.map((row, index) => (
-                    <TableRow
-                        columnWindow={columnWindow}
-                        minimal={minimal}
-                        key={index}
-                        index={index}
-                        virtualIndex={index}
-                        measureElement={measureElement}
-                        row={row}
-                        cellContextMenu={cellContextMenu}
-                        conditionalFormattings={conditionalFormattings}
-                        minMaxMap={minMaxMap}
-                        rowSpanMergesByColumnId={rowSpanMergesByColumnId}
-                    />
-                ))}
-            </tbody>
-        );
-    }
+    const isLoaderRow = (index: number) =>
+        isFetchingRows && index + 1 === rows.length && isInfiniteScrollEnabled;
+    const firstRenderedRowIndex = virtualRows[0]?.index ?? 0;
+    const lastVirtualRowIndex = virtualRows.at(-1)?.index ?? 0;
+    const lastRenderedRowIndex = isLoaderRow(lastVirtualRowIndex)
+        ? lastVirtualRowIndex - 1
+        : lastVirtualRowIndex;
+
+    const { openMenuKey, toggleMenu, registerMenuCell } = useOpenCellMenu();
 
     return (
         <tbody>
@@ -515,11 +559,7 @@ const VirtualizedTableBody: FC<{
                 : virtualRows.map((virtualRow) => {
                       const { index } = virtualRow;
                       // If this is the last row and we're loading, show the loader
-                      if (
-                          isFetchingRows &&
-                          index + 1 === rows.length &&
-                          isInfiniteScrollEnabled
-                      ) {
+                      if (isLoaderRow(index)) {
                           return (
                               <tr
                                   key={index}
@@ -552,6 +592,15 @@ const VirtualizedTableBody: FC<{
                               cellContextMenu={cellContextMenu}
                               conditionalFormattings={conditionalFormattings}
                               minMaxMap={minMaxMap}
+                              rowSpanMergesByColumnId={rowSpanMergesByColumnId}
+                              firstRenderedRowIndex={firstRenderedRowIndex}
+                              lastRenderedRowIndex={lastRenderedRowIndex}
+                              openMenuKey={openMenuKey}
+                              onToggleMenu={toggleMenu}
+                              registerMenuCell={registerMenuCell}
+                              canClipMergedCells={canRenderedRowsClipMergedCells(
+                                  rows.length,
+                              )}
                           />
                       );
                   })}

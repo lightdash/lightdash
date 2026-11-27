@@ -2,7 +2,6 @@ import {
     AgentActorSurface,
     AgentCapability,
     AiAccessRefusedError,
-    OrganizationMemberRole,
 } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
@@ -25,7 +24,6 @@ it.each([
             projectUuid: 'project',
         };
         const policy = {
-            mode: 'managed' as const,
             version: 1,
             allowedCapabilities: [AgentCapability.ReadDiscover],
             allowedGroupUuids: null,
@@ -37,17 +35,12 @@ it.each([
                 .fn()
                 .mockResolvedValue(defaultSessionUser),
             findServiceAccountByUserUuid: vi.fn(),
-            getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                systemRoles: [OrganizationMemberRole.VIEWER],
-                customRoles: [],
-            }),
         };
         const agentActionLogModel = { insert: vi.fn() };
         const agentPermissionService = new AgentPermissionService({
             resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
             groupsModel: { findUserInGroups: vi.fn().mockResolvedValue([]) },
             areGroupsAvailable: vi.fn().mockResolvedValue(true),
-            isCustomRolesLicensed: vi.fn().mockReturnValue(true),
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: true }),
             },
@@ -55,8 +48,10 @@ it.each([
                 get: vi.fn().mockResolvedValue(policy),
                 getForEnforcement: vi.fn().mockResolvedValue(policy),
                 save: vi.fn(),
+                getProjectPolicies: vi.fn().mockResolvedValue([]),
+                saveProjectPolicy: vi.fn(),
+                deleteProjectPolicy: vi.fn(),
             },
-            userModel,
             projectModel: {
                 getSummary: vi.fn().mockResolvedValue({
                     organizationUuid: marker.organizationUuid,

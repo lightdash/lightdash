@@ -26,6 +26,7 @@ const settingsContext = (
     isOrganizationRoadmapEnabled: false,
     isBillingPortalEnabled: false,
     isBillingPortalFlagLoading: false,
+    isSecurityContactsEnabled: false,
     canAccessAiCredits: false,
     isAiCreditsLoading: false,
     isSsoOrganizationSettingsEnabled: false,
@@ -143,7 +144,7 @@ describe('MCP settings navigation', () => {
 });
 
 describe('Agents settings navigation', () => {
-    it('indexes the Identity and Permissions sections on the Agents page', () => {
+    it('indexes the Identity and Permissions sections on the Agent Identity page', () => {
         const agents = organizationNavigation({
             isAgentIdentityEnabled: true,
             user: {
@@ -151,12 +152,12 @@ describe('Agents settings navigation', () => {
                     { action: 'manage', subject: 'Organization' },
                 ]),
             } as SettingsContext['user'],
-        })?.find((item) => item.label === 'Agents');
+        })?.find((item) => item.label === 'Agent Identity');
 
         expect(agents?.to).toBe('/generalSettings/agentIdentity');
         expect(agents?.pageSections?.map(({ title }) => title)).toEqual([
             'Identity',
-            'Permissions',
+            'Restrictions',
         ]);
     });
 });
@@ -496,16 +497,18 @@ describe('Project connections settings navigation', () => {
                         name: 'Project',
                     } as Project,
                     user: {
-                        ability: new Ability([
-                            {
-                                action: 'manage',
-                                subject: 'ExternalConnection',
-                                conditions: {
-                                    organizationUuid: 'org',
-                                    projectUuid: 'project',
-                                },
-                            },
-                        ]),
+                        ability: new Ability(
+                            ['ExternalConnection', 'LiveSource'].map(
+                                (subject) => ({
+                                    action: 'manage',
+                                    subject,
+                                    conditions: {
+                                        organizationUuid: 'org',
+                                        projectUuid: 'project',
+                                    },
+                                }),
+                            ),
+                        ),
                     } as SettingsContext['user'],
                     projectSettingsAccess: {
                         type: 'full',
@@ -567,6 +570,31 @@ describe('Project connections settings navigation', () => {
         expect(labels).toContain('Live data sources');
         expect(labels).not.toContain('Data app connections');
     });
+
+    it.each([
+        ['ExternalConnection', false],
+        ['LiveSource', true],
+    ])(
+        'shows Live data sources to someone who manages only %s: %s',
+        (subject, shown) => {
+            const labels = projectLabels({
+                isLiveSourcesAvailable: true,
+                user: {
+                    ability: new Ability([
+                        {
+                            action: 'manage',
+                            subject,
+                            conditions: {
+                                organizationUuid: 'org',
+                                projectUuid: 'project',
+                            },
+                        },
+                    ]),
+                } as SettingsContext['user'],
+            });
+            expect(labels.includes('Live data sources')).toBe(shown);
+        },
+    );
 
     it('shows Data app connections without Live data sources when only data apps are enabled', () => {
         const labels = projectLabels({

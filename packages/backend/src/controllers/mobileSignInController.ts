@@ -27,7 +27,10 @@ import {
 import express from 'express';
 import { toSessionUser } from '../auth/account';
 import { lightdashConfig } from '../config/lightdashConfig';
-import { isAuthenticated } from './authentication';
+import {
+    isAuthenticated,
+    unauthorisedWhileImpersonating,
+} from './authentication';
 import { hasApprovalBrowserSession } from './authentication/agentConnectionApproval';
 import { BaseController } from './baseController';
 
@@ -76,7 +79,7 @@ export class MobileSignInController extends BaseController {
      * user. Replaces the earlier code of this browser session
      * @summary Create mobile sign-in code
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([isAuthenticated, unauthorisedWhileImpersonating])
     @SuccessResponse('200', 'Success')
     @Post('/')
     @OperationId('CreateMobileSignInCode')
@@ -130,7 +133,7 @@ export class MobileSignInController extends BaseController {
      * Confirms that the phone that claimed this code may sign in
      * @summary Approve mobile sign-in code
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([isAuthenticated, unauthorisedWhileImpersonating])
     @SuccessResponse('200', 'Success')
     @Post('/{codeUuid}/approve')
     @OperationId('ApproveMobileSignInCode')

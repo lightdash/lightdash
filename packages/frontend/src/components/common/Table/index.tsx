@@ -1,6 +1,6 @@
 import { type ApiErrorDetail } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
-import { type ComponentProps, type FC } from 'react';
+import { type ComponentProps, type FC, type ReactNode } from 'react';
 import {
     ExploreEmptyQueryState,
     ExploreErrorState,
@@ -25,6 +25,7 @@ type Props = ComponentProps<typeof TableProvider> & {
     'data-testid'?: string;
     errorDetail?: ApiErrorDetail | null;
     isDashboard?: boolean;
+    notice?: ReactNode;
 };
 
 const Table: FC<React.PropsWithChildren<Props>> = ({
@@ -41,6 +42,7 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
     showRowGrouping = false,
     'data-testid': dataTestId,
     errorDetail,
+    notice,
     ...rest
 }) => {
     const theme = useMantineTheme();
@@ -69,6 +71,8 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
                     showRowGrouping={showRowGrouping}
                     isDashboard={isDashboard}
                 />
+
+                {notice}
 
                 {status === 'error' && (
                     <ExploreErrorState errorDetail={errorDetail} />

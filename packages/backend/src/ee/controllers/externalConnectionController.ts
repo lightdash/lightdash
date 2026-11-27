@@ -9,6 +9,8 @@ import {
     type ApiExternalConnectionSchemaResponse,
     type ApiListExternalConnectionLinkedAppsResponse,
     type ApiListExternalConnectionSamplesResponse,
+    type ApiLiveSourceAccessResponse,
+    type ApiLiveSourceContentUsageResponse,
     type ApiLiveSourceFieldsResponse,
     type ApiProposeExternalConnectionConfigRequest,
     type ApiProposeExternalConnectionConfigResponse,
@@ -21,11 +23,13 @@ import {
     type ApiTestExternalConnectionResponse,
     type ApiUpdateLiveSourceCacheRequest,
     type ApiUpdateLiveSourceFieldsRequest,
+    type ApiUpdateLiveSourceRateLimitsRequest,
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionListItem,
     type ExternalFetchRequest,
     type ExternalFetchResponse,
+    type LiveSourceAccessRule,
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import {
@@ -38,6 +42,7 @@ import {
     Patch,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -176,7 +181,7 @@ export class ExternalConnectionController extends BaseController {
     }
 
     /**
-     * Lightdash's calls against the live source's declared rate limits: each limit's usage and when it resets, and whether the vendor has paused the integration. Other apps on the same vendor account aren't counted.
+     * Lightdash's calls against the live source's rate limits: each limit in force, its usage and when it resets, the integration's own limit and any an admin set, and whether the vendor has paused the integration. Other apps on the same vendor account aren't counted.
      * @summary Get live source rate-limit usage
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -370,6 +375,98 @@ export class ExternalConnectionController extends BaseController {
     }
 
     /**
+     * Who can query a live data source, as user attribute conditions. Empty
+     * conditions mean everyone who can query the project can query it.
+     * @summary Get live data source access rule
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/{connectionUuid}/access')
+    @OperationId('getLiveSourceAccess')
+    async getLiveSourceAccess(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+    ): Promise<ApiLiveSourceAccessResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getLiveSourceAccess(
+                req.account,
+                projectUuid,
+                connectionUuid,
+            ),
+        };
+    }
+
+    /**
+     * Replace who can query a live data source and rebuild its explores.
+     * Attribute names must exist in the organization; sending empty
+     * conditions lets everyone in the project query it again.
+     * @summary Update live data source access rule
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('external-connections/{connectionUuid}/access')
+    @OperationId('updateLiveSourceAccess')
+    async updateLiveSourceAccess(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+        @Body() body: LiveSourceAccessRule,
+    ): Promise<ApiLiveSourceAccessResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().updateLiveSourceAccess(
+                req.account,
+                projectUuid,
+                connectionUuid,
+                body,
+            ),
+        };
+    }
+
+    /**
+     * Lower a live data source's rate limits below the integration's own. The
+     * body replaces every limit set before: a window left out of `buckets`, or
+     * a null value, goes back to the integration's.
+     * @summary Update live data source rate limits
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('external-connections/{connectionUuid}/rate-limits')
+    @OperationId('updateLiveSourceRateLimits')
+    async updateLiveSourceRateLimits(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+        @Body() body: ApiUpdateLiveSourceRateLimitsRequest,
+    ): Promise<ApiExternalConnectionResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().updateLiveSourceRateLimits(
+                req.account,
+                projectUuid,
+                connectionUuid,
+                body,
+            ),
+        };
+    }
+
+    /**
      * Stop reusing a live data source's stored results, so the next query
      * from anyone calls the integration
      * @summary Purge live data source cache
@@ -426,8 +523,40 @@ export class ExternalConnectionController extends BaseController {
     }
 
     /**
+     * List the saved charts on one explore of a live data source, or on one
+     * of its fields, and the dashboards showing them: what switching it off
+     * stops. Needs the same access as editing the source.
+     * @summary List content using a live data source explore or field
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/{connectionUuid}/content-usage')
+    @OperationId('getLiveSourceContentUsage')
+    async getLiveSourceContentUsage(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+        @Query() exploreName: string,
+        @Query() fieldName?: string,
+    ): Promise<ApiLiveSourceContentUsageResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getLiveSourceContentUsage(
+                req.account,
+                projectUuid,
+                connectionUuid,
+                exploreName,
+                fieldName ?? null,
+            ),
+        };
+    }
+
+    /**
      * Put fields of a live data source in or out of use, or change their
-     * label, group, description or AI hint
+     * label, group, description or AI hint. `exploreChanges` switches whole
+     * explores on or off, or changes their label, description or AI hint
      * @summary Update live data source fields
      */
     @Middlewares([
@@ -453,6 +582,7 @@ export class ExternalConnectionController extends BaseController {
                 projectUuid,
                 connectionUuid,
                 body.changes,
+                body.exploreChanges,
             ),
         };
     }

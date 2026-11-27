@@ -71,6 +71,10 @@ const buildService = ({
         truncated: false,
     });
     const service = new ExternalConnectionService({
+        userAttributesModel: {
+            getAttributeValuesForOrgMember: vi.fn().mockResolvedValue({}),
+            find: vi.fn().mockResolvedValue([]),
+        },
         projectModel: {
             replaceApiSourceExplores: vi.fn(),
             deleteApiSourceExplores: vi.fn(),
@@ -79,7 +83,6 @@ const buildService = ({
         allowedPrivateHostCidrs: {},
         externalConnectionModel,
         analytics: { track: vi.fn() },
-        featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         oauthAuthorizationCodeTokenClient:
             new OAuthAuthorizationCodeTokenClient({
                 allowedPrivateHostCidrs: {},

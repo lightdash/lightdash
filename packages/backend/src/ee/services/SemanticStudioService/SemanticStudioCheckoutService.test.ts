@@ -7,6 +7,7 @@ import {
     NotFoundError,
     ParameterError,
     ProjectType,
+    type AiAgentSummary,
     type CompileSemanticStudioBranchPayload,
     type Explore,
     type ExploreError,
@@ -74,6 +75,45 @@ const BRANCH_EXPLORE: ExploreError = {
 
 type CompileRow = BranchCompile & { followUpClaimedAt: Date | null };
 
+const BUILDER_AGENT: AiAgentSummary = {
+    uuid: '00000000-0000-0000-0000-00000000000a',
+    name: 'Semantic Studio',
+    kind: 'semantic_studio',
+    description: null,
+    integrations: [],
+    tags: null,
+    projectUuid: PROJECT_UUID,
+    organizationUuid: ORGANIZATION_UUID,
+    createdAt: new Date('2026-01-01'),
+    updatedAt: new Date('2026-01-01'),
+    instruction: null,
+    imageUrl: null,
+    imageUrlSource: null,
+    groupAccess: [],
+    userAccess: [],
+    userAccessDetails: [],
+    spaceAccess: [],
+    enableDataAccess: true,
+    enableSelfImprovement: false,
+    enableContentTools: false,
+    enableUserContext: true,
+    enableSqlMode: true,
+    enableSqlAutoApproval: false,
+    enableComposerQueries: false,
+    adminOnly: false,
+    modelConfig: null,
+    providerCredentialUuid: null,
+    version: 2,
+    threadRetentionHours: null,
+};
+
+const AI_ON = {
+    isCopilotEnabled: true,
+    isTrial: false,
+    aiAgentsVisible: true,
+    hasModel: true,
+};
+
 const setup = ({
     dbtConnection = { type: DbtProjectType.NONE },
     previewOf = PROJECT_UUID,
@@ -81,6 +121,7 @@ const setup = ({
     previewCompile = null,
     exploreTypes = [],
     checkout = null,
+    ai = AI_ON,
 }: {
     dbtConnection?: Project['dbtConnection'];
     /** The project the preview project was built from. */
@@ -90,7 +131,9 @@ const setup = ({
     exploreTypes?: ExploreType[];
     /** The project branch as Studio reads it. */
     checkout?: ApiCheckout | null;
+    ai?: typeof AI_ON;
 } = {}) => {
+    const createBuilderAgent = vi.fn(async () => BUILDER_AGENT);
     const appliesAs = applyModeOf(dbtConnection);
     // Studio is on for whoever may write where a change lands: the repository of a dbt project, the models otherwise.
     const getStatus = async (
@@ -301,6 +344,7 @@ const setup = ({
                     type,
                 })),
             findExploresFromCache: async () => previewExplores,
+            getWarehouseFromCache: async () => undefined,
         },
         workspaceModel,
         schedulerClient: { compileSemanticStudioBranch: queueBranchCompile },
@@ -311,10 +355,19 @@ const setup = ({
             createPreviewForPullRequest: vi.fn(async () => null),
         },
         aiWritebackService,
-        incrementalDbtCompile: { checkDbtScriptChange: unused },
+        incrementalDbtCompile: {
+            checkDbtScriptChange: unused,
+            getDbtProjectMap: async () => 'models/ (3 files)',
+        },
+        aiAgentModel: { getOrCreateSemanticStudioAgent: createBuilderAgent },
+        ai: {
+            getAvailability: async () => ai,
+            hasModel: async () => ai.hasModel,
+        },
     });
     return {
         service,
+        createBuilderAgent,
         studio,
         aiWritebackService,
         fileStorageClient,
@@ -332,6 +385,123 @@ const setup = ({
 };
 
 describe('SemanticStudioCheckoutService', () => {
+    describe('setting up an agent turn', () => {
+        it('edits the repository of a dbt project, with its layout to hand', async () => {
+            const turn = await setup({
+                dbtConnection: DBT_IN_GITHUB,
+            }).service.getAgentTurnSetup(repoWriter, PROJECT_UUID);
+            expect(turn.studio).toEqual({
+                enabled: true,
+                drafts: false,
+                keepsContext: false,
+                projectMap: 'models/ (3 files)',
+            });
+            expect(turn).toMatchObject({
+                autoApproveSql: true,
+                usesFastDecisions: false,
+                waitsOnMcpServers: false,
+                asksWithoutFlag: true,
+            });
+            expect(turn.turnCard).not.toBeNull();
+        });
+
+        it('keeps a thread on one pull request and has something to run after a save', () => {
+            const writeback = setup({
+                dbtConnection: DBT_IN_GITHUB,
+            }).service.getAgentWritebackSetup(repoWriter, PROJECT_UUID);
+            expect(writeback).toMatchObject({
+                continuesThreadPullRequest: true,
+                showsPullRequestBeforePreview: true,
+            });
+            expect(writeback.onSaved).not.toBeNull();
+        });
+
+        it('sets up the saves of a Studio thread and has no say in any other', async () => {
+            const { service } = setup({ dbtConnection: DBT_IN_GITHUB });
+            const save = { user: repoWriter, projectUuid: PROJECT_UUID };
+
+            await expect(
+                service.findAgentWritebackSetup({
+                    ...save,
+                    threadCreatedFrom: 'semantic_studio',
+                }),
+            ).resolves.toMatchObject({
+                continuesThreadPullRequest: true,
+                showsPullRequestBeforePreview: true,
+            });
+            await expect(
+                service.findAgentWritebackSetup({
+                    ...save,
+                    threadCreatedFrom: 'web_app',
+                }),
+            ).resolves.toBeNull();
+        });
+
+        it('says so when the person cannot change the semantic layer', async () => {
+            const turn = await setup({
+                dbtConnection: DBT_IN_GITHUB,
+            }).service.getAgentTurnSetup(viewer, PROJECT_UUID);
+            expect(turn.studio?.enabled).toBe(false);
+        });
+    });
+
+    describe('handing out the built-in agent', () => {
+        const inOrganization = (person: SessionUser): SessionUser => ({
+            ...person,
+            organizationUuid: ORGANIZATION_UUID,
+        });
+
+        it('goes to someone who can use Studio, and to nobody else', async () => {
+            const allowed = setup({ dbtConnection: DBT_IN_GITHUB });
+            await expect(
+                allowed.service.getBuilderAgent(
+                    inOrganization(repoWriter),
+                    PROJECT_UUID,
+                ),
+            ).resolves.toBe(BUILDER_AGENT);
+            expect(allowed.createBuilderAgent).toHaveBeenCalledWith({
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+            });
+
+            const refused = setup({ dbtConnection: DBT_IN_GITHUB });
+            await expect(
+                refused.service.getBuilderAgent(
+                    inOrganization(viewer),
+                    PROJECT_UUID,
+                ),
+            ).rejects.toThrow('Studio is off');
+            expect(refused.createBuilderAgent).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            [
+                'the organization has no AI',
+                { ...AI_ON, isCopilotEnabled: false },
+                'Copilot is not enabled',
+            ],
+            [
+                'an admin has hidden AI',
+                { ...AI_ON, aiAgentsVisible: false },
+                'AI is turned off for this organization',
+            ],
+            [
+                'no model is configured',
+                { ...AI_ON, hasModel: false },
+                'No AI model is configured for this organization',
+            ],
+        ])('is refused when %s', async (_, ai, message) => {
+            const context = setup({ dbtConnection: DBT_IN_GITHUB, ai });
+            await expect(
+                context.service.getBuilderAgent(
+                    inOrganization(repoWriter),
+                    PROJECT_UUID,
+                ),
+            ).rejects.toThrow(message);
+            expect(context.createBuilderAgent).not.toHaveBeenCalled();
+        });
+    });
+
     describe('the development view of a dbt project', () => {
         const branch: ExploreError = {
             name: 'payments',
@@ -855,6 +1025,20 @@ describe('SemanticStudioCheckoutService', () => {
                 context.queueBranchCompile.mock.calls[index][0],
             );
 
+        it("queues that compile after an agent's save, through the writeback setup", async () => {
+            const context = onChange();
+            await context.service
+                .getAgentWritebackSetup(repoWriter, PROJECT_UUID)
+                .onSaved?.(OWN_PULL_REQUEST);
+            expect(context.queueBranchCompile).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    projectUuid: PROJECT_UUID,
+                    userUuid: repoWriter.userUuid,
+                    workspaceUuid: 'workspace-thread',
+                }),
+            );
+        });
+
         it('queues a compile of the change on the saved pull request, and shows the person what its branch compiles to', async () => {
             const context = onChange();
             await context.service.queueBranchCompile(
@@ -1165,6 +1349,7 @@ describe('SemanticStudioCheckoutService', () => {
                 await runQueued(context);
                 expect(await check(context)).toEqual({
                     status: 'ready',
+                    unbuiltFields: [],
                     exploreErrors: [
                         expect.objectContaining({ name: BRANCH_EXPLORE.name }),
                     ],

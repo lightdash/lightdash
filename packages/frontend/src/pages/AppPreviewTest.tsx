@@ -2,6 +2,7 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
     isAppVersionInProgress,
+    type AppSdkCaptureHold,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -28,8 +29,10 @@ import { useDefaultAiAgent } from '../ee/features/aiCopilot/components/Launcher/
 import { useProjectAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { store as aiAgentStore } from '../ee/features/aiCopilot/store';
 import { openAnalysisPanel } from '../ee/features/aiCopilot/store/aiAgentLauncherSlice';
-import AppViewCapture from '../ee/features/appCapture/AppViewCapture';
-import { type CaptureHostHandle } from '../ee/features/capture';
+import AppViewDesignMode, {
+    type AppViewDesignModeHandle,
+} from '../ee/features/appCapture/AppViewDesignMode';
+import useIsEmbedded from '../ee/providers/Embed/useIsEmbedded';
 import {
     useDataAppAnalysisAvailability,
     useIsAnalysisEntryVisible,
@@ -42,16 +45,16 @@ import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import DataAppAiAgentContextBridge from '../features/apps/components/DataAppAiAgentContextBridge';
-import VoiceDesignButton from '../features/apps/components/VoiceDesignButton';
+import DesignModeButton from '../features/apps/components/DesignModeButton';
 import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppInspector } from '../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditDataApp';
+import { useDesignModeSupport } from '../features/apps/hooks/useDesignModeSupport';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useNewerAppVersion } from '../features/apps/hooks/useNewerAppVersion';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
-import { canCaptureOnAppView } from '../features/apps/utils/appViewCapture';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -67,6 +70,7 @@ export default function AppPreviewTest() {
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const captureFlag = useServerFeatureFlag(FeatureFlags.DataAppCapture);
+    const isEmbedded = useIsEmbedded();
     // Same check the agent launcher uses before it shows itself.
     const canUseAgents = useProjectAiAgentButtonVisibility(projectUuid);
     const defaultAgent = useDefaultAiAgent(projectUuid);
@@ -231,6 +235,7 @@ export default function AppPreviewTest() {
     // the modal falls back to a default-state render for them.
     const previewRef = useRef<AppIframePreviewHandle>(null);
     const [screenshotAvailable, setScreenshotAvailable] = useState(false);
+    const [inspectAtAvailable, setInspectAtAvailable] = useState(false);
     const capturePreviewScreenshot = useCallback(async () => {
         const capture = previewRef.current?.captureScreenshot;
         if (!capture) {
@@ -238,20 +243,37 @@ export default function AppPreviewTest() {
         }
         return capture();
     }, []);
+    const inspectPreviewAt = useCallback(
+        (point: { x: number; y: number }) =>
+            previewRef.current?.inspectAt(point) ?? Promise.resolve(null),
+        [],
+    );
 
-    // Voice Design: draw on the running app while talking; the recording goes
-    // to an agent thread that opens in the launcher on this page.
+    // Design Mode: mark the running app and say what to change; each bubble
+    // of marks becomes an agent conversation shown beside them.
     const previewBodyRef = useRef<HTMLDivElement>(null);
-    const captureRef = useRef<CaptureHostHandle>(null);
-    const [isCaptureRecording, setIsCaptureRecording] = useState(false);
-    const captureAvailable = canCaptureOnAppView({
-        flagEnabled: captureFlag.data?.enabled === true,
-        canUseAgents,
-        hasAgent: hasCaptureAgent,
-        hasPreview: Boolean(token && version !== undefined && !isFullscreen),
+    const designRef = useRef<AppViewDesignModeHandle>(null);
+    const [designOn, setDesignOn] = useState(false);
+    const designModeOffered =
+        captureFlag.data?.enabled === true &&
+        !isEmbedded &&
+        canUseAgents &&
+        hasCaptureAgent &&
+        Boolean(token && version !== undefined && !isFullscreen);
+    // An app that cannot be pictured or picked from is not offered as working.
+    const designSupport = useDesignModeSupport({
+        screenshotAvailable,
+        inspectAtAvailable,
+        bundleKey: identityKey ?? null,
     });
-    const getCaptureRegion = useCallback(
-        () => previewBodyRef.current?.getBoundingClientRect() ?? new DOMRect(),
+    // Stable: the preview re-attaches its message listener when these change.
+    const toggleDesignMode = useCallback(() => designRef.current?.toggle(), []);
+    const handleCaptureHold = useCallback(
+        (hold: AppSdkCaptureHold) => designRef.current?.hold(hold),
+        [],
+    );
+    const getAppFrame = useCallback(
+        () => previewBodyRef.current?.querySelector('iframe') ?? null,
         [],
     );
 
@@ -384,6 +406,7 @@ export default function AppPreviewTest() {
                     appUuid={appUuid}
                     identityKey={identityKey}
                     onScreenshotAvailabilityChange={setScreenshotAvailable}
+                    onInspectAtAvailabilityChange={setInspectAtAvailable}
                     invalidateCache={invalidateCache}
                     onNewerVersion={onNewerVersion}
                     urlStateSync
@@ -393,11 +416,18 @@ export default function AppPreviewTest() {
                     }
                     onInsightAction={analysisController.handleAction}
                     onInsightInstructionsChange={setInsightInstructions}
+                    analysisTextMaxChars={
+                        analysisAvailability.status === 'available'
+                            ? analysisAvailability.textMaxChars
+                            : undefined
+                    }
                     onInsightAnalyseOnLoadChange={setInsightAnalyseOnLoad}
                     onMountedQueriesChange={
                         analysisController.setMountedQueryUuids
                     }
                     {...inspector.iframeProps}
+                    onCaptureHotkey={toggleDesignMode}
+                    onCaptureHold={handleCaptureHold}
                 />
                 {!inspector.hidden && !isFullscreen && (
                     <AppInspectorPanel
@@ -460,12 +490,12 @@ export default function AppPreviewTest() {
                     rightSection={
                         <AppHeaderActions
                             previewTools={
-                                captureAvailable && (
-                                    <VoiceDesignButton
-                                        onClick={() =>
-                                            captureRef.current?.start()
-                                        }
-                                        disabled={isCaptureRecording}
+                                designModeOffered && (
+                                    <DesignModeButton
+                                        active={designOn}
+                                        support={designSupport}
+                                        onClick={toggleDesignMode}
+                                        surface="app"
                                     />
                                 )
                             }
@@ -563,9 +593,9 @@ export default function AppPreviewTest() {
                 ref={previewBodyRef}
                 className={classes.previewBody}
             >
-                {captureAvailable && (
-                    <AppViewCapture
-                        ref={captureRef}
+                {designModeOffered && (
+                    <AppViewDesignMode
+                        ref={designRef}
                         projectUuid={projectUuid}
                         // The server refuses chart types as attachments.
                         attachedAppUuid={
@@ -575,8 +605,14 @@ export default function AppPreviewTest() {
                                 : firstPage.appUuid
                         }
                         appName={appName}
-                        getRegion={getCaptureRegion}
-                        onRecordingChange={setIsCaptureRecording}
+                        getFrame={getAppFrame}
+                        captureScreenshot={
+                            designSupport === 'ready'
+                                ? capturePreviewScreenshot
+                                : null
+                        }
+                        inspectAt={inspectPreviewAt}
+                        onStateChange={setDesignOn}
                     />
                 )}
                 {body}

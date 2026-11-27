@@ -4,22 +4,31 @@ import {
     type AgentCapability,
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicySave,
+    type AgentProjectCapabilityPolicy,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
     AgentCapabilityPoliciesTableName,
+    ProjectAgentCapabilityPoliciesTableName,
     type DbAgentCapabilityPolicy,
 } from '../database/entities/agentCapabilityPolicies';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationTableName } from '../database/entities/organizations';
+import { ProjectTableName } from '../database/entities/projects';
 
 type StoredPolicy = Pick<
     DbAgentCapabilityPolicy,
-    'mode' | 'version' | 'allowed_capabilities' | 'allowed_group_uuids'
+    'version' | 'allowed_capabilities' | 'allowed_group_uuids'
 >;
 
+// The mode column is still written so the previous release keeps working, but
+// nothing reads it: a saved capability list is what restricts agents.
+const storedModeFor = (
+    allowedCapabilities: AgentCapability[] | null,
+): DbAgentCapabilityPolicy['mode'] =>
+    allowedCapabilities === null ? 'legacy' : 'managed';
+
 export interface AgentEnforcementPolicy {
-    mode: 'legacy' | 'managed';
     version: number;
     allowedCapabilities: AgentCapability[] | null;
     storedAllowedGroupUuids: string[] | null;
@@ -59,7 +68,6 @@ export class AgentCapabilityPolicyModel {
                 organizationUuid,
             )
             .select<StoredPolicy[]>(
-                `${AgentCapabilityPoliciesTableName}.mode`,
                 `${AgentCapabilityPoliciesTableName}.version`,
                 `${AgentCapabilityPoliciesTableName}.allowed_capabilities`,
                 `${AgentCapabilityPoliciesTableName}.allowed_group_uuids`,
@@ -76,7 +84,6 @@ export class AgentCapabilityPolicyModel {
         return {
             allowedGroupUuids:
                 storedGroups?.filter((uuid) => groupUuids.has(uuid)) ?? null,
-            mode: policy?.mode ?? 'legacy',
             version: policy?.version ?? 0,
             allowedCapabilities: policy?.allowed_capabilities ?? null,
         };
@@ -95,7 +102,6 @@ export class AgentCapabilityPolicyModel {
                     has_existing_allowed_group: boolean | null;
                 })[]
             >(
-                `${AgentCapabilityPoliciesTableName}.mode`,
                 `${AgentCapabilityPoliciesTableName}.version`,
                 `${AgentCapabilityPoliciesTableName}.allowed_capabilities`,
                 `${AgentCapabilityPoliciesTableName}.allowed_group_uuids`,
@@ -119,7 +125,6 @@ export class AgentCapabilityPolicyModel {
                 ),
             );
         return {
-            mode: policy?.mode ?? 'legacy',
             version: policy?.version ?? 0,
             allowedCapabilities: policy?.allowed_capabilities ?? null,
             storedAllowedGroupUuids: policy?.allowed_group_uuids ?? null,
@@ -129,7 +134,6 @@ export class AgentCapabilityPolicyModel {
 
     async save({
         organizationUuid,
-        mode,
         version,
         allowedCapabilities,
         allowedGroupUuids,
@@ -154,18 +158,16 @@ export class AgentCapabilityPolicyModel {
                         'All allowed groups must belong to this organization',
                     );
             }
-            const normalizedCapabilities =
-                mode === 'legacy'
-                    ? null
-                    : AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
-                          (capability) =>
-                              allowedCapabilities === undefined ||
-                              allowedCapabilities?.includes(capability),
-                      );
+            // Undefined keeps the saved list; a new policy starts unrestricted.
+            const normalizedCapabilities = allowedCapabilities
+                ? AGENT_CAPABILITY_LIMIT_DEFAULTS.filter((capability) =>
+                      allowedCapabilities.includes(capability),
+                  )
+                : null;
             const query = transaction(AgentCapabilityPoliciesTableName)
                 .insert({
                     organization_uuid: organizationUuid,
-                    mode,
+                    mode: storedModeFor(normalizedCapabilities),
                     version: 1,
                     allowed_capabilities: normalizedCapabilities,
                     allowed_project_uuids: null,
@@ -175,15 +177,10 @@ export class AgentCapabilityPolicyModel {
                 })
                 .onConflict('organization_uuid')
                 .merge({
-                    mode,
-                    allowed_capabilities:
-                        mode === 'managed' && allowedCapabilities === undefined
-                            ? transaction.raw('COALESCE(??.??, ?::text[])', [
-                                  AgentCapabilityPoliciesTableName,
-                                  'allowed_capabilities',
-                                  [...AGENT_CAPABILITY_LIMIT_DEFAULTS],
-                              ])
-                            : normalizedCapabilities,
+                    ...(allowedCapabilities !== undefined && {
+                        mode: storedModeFor(normalizedCapabilities),
+                        allowed_capabilities: normalizedCapabilities,
+                    }),
                     allowed_project_uuids: null,
                     allowed_user_uuids: null,
                     ...(allowedGroupUuids !== undefined && {
@@ -212,14 +209,77 @@ export class AgentCapabilityPolicyModel {
                     'Agent permissions changed. Reload the latest permissions before saving.',
                 );
             }
-            if (mode === 'legacy')
-                return this.get(organizationUuid, transaction);
-            return {
-                mode: policy.mode,
-                version: policy.version,
-                allowedCapabilities: policy.allowed_capabilities,
-                allowedGroupUuids: policy.allowed_group_uuids,
-            };
+            return this.get(organizationUuid, transaction);
         });
+    }
+
+    async getProjectPolicies(
+        organizationUuid: string,
+    ): Promise<AgentProjectCapabilityPolicy[]> {
+        const rows = await this.database(
+            ProjectAgentCapabilityPoliciesTableName,
+        )
+            .join(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectAgentCapabilityPoliciesTableName}.project_uuid`,
+            )
+            .join(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .orderBy(`${ProjectTableName}.name`)
+            .select<
+                {
+                    project_uuid: string;
+                    allowed_capabilities: AgentCapability[] | null;
+                }[]
+            >(
+                `${ProjectAgentCapabilityPoliciesTableName}.project_uuid`,
+                `${ProjectAgentCapabilityPoliciesTableName}.allowed_capabilities`,
+            );
+        return rows.map((row) => ({
+            projectUuid: row.project_uuid,
+            allowedCapabilities: row.allowed_capabilities,
+        }));
+    }
+
+    async saveProjectPolicy({
+        projectUuid,
+        allowedCapabilities,
+        updatedByUserUuid,
+    }: AgentProjectCapabilityPolicy & {
+        updatedByUserUuid: string | null;
+    }): Promise<AgentProjectCapabilityPolicy> {
+        const [policy] = await this.database(
+            ProjectAgentCapabilityPoliciesTableName,
+        )
+            .insert({
+                project_uuid: projectUuid,
+                allowed_capabilities: allowedCapabilities,
+                updated_by_user_uuid: updatedByUserUuid,
+            })
+            .onConflict('project_uuid')
+            .merge({
+                allowed_capabilities: allowedCapabilities,
+                updated_by_user_uuid: updatedByUserUuid,
+                updated_at: this.database.fn.now(),
+            })
+            .returning('*');
+        return {
+            projectUuid: policy.project_uuid,
+            allowedCapabilities: policy.allowed_capabilities,
+        };
+    }
+
+    async deleteProjectPolicy(projectUuid: string): Promise<void> {
+        await this.database(ProjectAgentCapabilityPoliciesTableName)
+            .where('project_uuid', projectUuid)
+            .delete();
     }
 }

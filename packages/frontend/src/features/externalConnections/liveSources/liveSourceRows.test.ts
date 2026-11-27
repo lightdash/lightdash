@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    describeLiveSourceAccessRule,
     formatFreshness,
     getLiveSourceFreshness,
     toLiveSourceRows,
@@ -28,6 +29,7 @@ const usage = (
 ): ExternalConnectionApiUsage => ({
     externalConnectionUuid,
     windowDays: 32,
+    queries: 200,
     apiCalls: 1234,
     cacheHits: 56,
     responseBytes: 361_113,
@@ -69,7 +71,7 @@ describe('toLiveSourceRows', () => {
         expect(rows[1].target).toBe('Project 42');
     });
 
-    it('formats each source usage, and zero before its first call', () => {
+    it('formats each source usage, and dashes before its first call', () => {
         const [used, unused] = toLiveSourceRows(
             [
                 connection({ externalConnectionUuid: 'used', name: 'a' }),
@@ -78,15 +80,19 @@ describe('toLiveSourceRows', () => {
             [usage('used'), usage('other', { apiCalls: 9 })],
         );
         expect(used.usage).toEqual({
+            isUsed: true,
+            queries: '200',
             dataRead: '361 KB',
             apiCalls: (1234).toLocaleString(),
-            cacheHitsLabel: '56 hits',
+            hitRate: '28%',
             medianLatency: '600ms',
         });
         expect(unused.usage).toEqual({
-            dataRead: '0 B',
-            apiCalls: '0',
-            cacheHitsLabel: '0 hits',
+            isUsed: false,
+            queries: '0',
+            dataRead: '—',
+            apiCalls: '—',
+            hitRate: null,
             medianLatency: null,
         });
     });
@@ -94,25 +100,35 @@ describe('toLiveSourceRows', () => {
     it('shows dashes, not zeros, until usage loads', () => {
         const [row] = toLiveSourceRows([connection({})], undefined);
         expect(row.usage).toEqual({
+            isUsed: false,
+            queries: '—',
             dataRead: '—',
             apiCalls: '—',
-            cacheHitsLabel: null,
+            hitRate: null,
             medianLatency: null,
         });
     });
 });
 
-describe('cache hits', () => {
+describe('hit rate', () => {
     it.each([
-        [1, '1 hit'],
-        [2, '2 hits'],
-        [1_204, `${(1_204).toLocaleString()} hits`],
-    ])('describes %s as %s', (cacheHits, label) => {
+        [0, 100, '0%'],
+        [56, 200, '28%'],
+        [100, 100, '100%'],
+    ])('is %s hits of %s queries as %s', (cacheHits, queries, rate) => {
         const [row] = toLiveSourceRows(
             [connection({})],
-            [usage('uuid', { cacheHits })],
+            [usage('uuid', { cacheHits, queries })],
         );
-        expect(row.usage.cacheHitsLabel).toBe(label);
+        expect(row.usage.hitRate).toBe(rate);
+    });
+
+    it('is unknown with no queries', () => {
+        const [row] = toLiveSourceRows(
+            [connection({})],
+            [usage('uuid', { cacheHits: 0, queries: 0 })],
+        );
+        expect(row.usage.hitRate).toBeNull();
     });
 });
 
@@ -139,5 +155,30 @@ describe('live source freshness', () => {
         expect(getLiveSourceFreshness({ ...posthog, cacheTtlSeconds: 0 })).toBe(
             0,
         );
+    });
+});
+
+describe('describeLiveSourceAccessRule', () => {
+    it.each([
+        ['no rule', null, null],
+        ['an empty rule', { required: {}, any: {} }, null],
+        [
+            'required conditions',
+            {
+                required: { team: ['sales', 'support'], region: ['emea'] },
+                any: {},
+            },
+            'team is sales or support, and region is emea',
+        ],
+        [
+            'any conditions after required ones',
+            {
+                required: { team: ['sales'] },
+                any: { region: ['emea'], tier: ['gold'] },
+            },
+            'team is sales, and region is emea, or tier is gold',
+        ],
+    ])('describes %s', (_case, rule, expected) => {
+        expect(describeLiveSourceAccessRule(rule)).toBe(expected);
     });
 });

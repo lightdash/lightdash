@@ -12,6 +12,7 @@ import {
     type Explore,
     type ExternalConnectionApiSource,
     type ItemsMap,
+    type LiveSourceAccessRule,
     type MetricQuery,
     type ResultColumns,
     type SortField,
@@ -20,7 +21,7 @@ import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { createHash } from 'crypto';
 import { isPlainObject, memoize } from 'es-toolkit/compat';
 import { tooManyRowsError } from '../query/rows';
-import { getLiveIntegration } from '../registry';
+import { getLiveIntegration, isLiveIntegrationRegistered } from '../registry';
 import { type LiveCapabilities, type LiveScanResult } from '../types';
 import {
     buildLiveExplore,
@@ -32,7 +33,10 @@ import {
 } from './definition';
 import {
     applyLiveSourceFieldEdits,
+    getLiveExploreEdit,
     getLiveModelFieldInputs,
+    isLiveExploreInUse,
+    type LiveSourceExploreEdits,
     type LiveSourceFieldEdits,
     type ScannedLiveSourceField,
 } from './fields';
@@ -179,6 +183,7 @@ const buildDefinitionExplore = (
         | 'connectionUuid'
         | 'definitionHash'
         | 'aiHint'
+        | 'tags'
     >,
 ) => {
     const { baseVersion, capabilities } = getLiveBaseLayer(connector);
@@ -228,9 +233,10 @@ export const getLiveDefinitionHashes = memoize(
                                 label: definition.label,
                                 groupLabel: 'source',
                                 connectionUuid: 'connection',
-                                // A placeholder, so a change to how hints
-                                // are built still changes the hash
-                                aiHint: ['hint'],
+                                // A placeholder for the source's hints, so
+                                // a change to how hints are built still
+                                // changes the hash
+                                aiHint: ['hint', definition.aiHint ?? ''],
                             }),
                         ),
                     )
@@ -247,24 +253,36 @@ export const getLostLiveFieldIds = ({
     storedFieldIds,
     rebuilt,
     edits,
+    exploreEdits = {},
     sourceName,
+    firstModel,
 }: {
     storedFieldIds: string[];
     rebuilt: Explore[];
     edits: LiveSourceFieldEdits;
+    exploreEdits?: LiveSourceExploreEdits;
     /** Names the explores of edits keyed `<model>.<name>`. */
     sourceName: string;
+    /** The model of the first explore, whose edits have bare keys. */
+    firstModel: string;
 }): string[] => {
     // A bare key is the first explore's field; `<model>.<name>` another's
     const toFieldId = (key: string) => {
         const dot = key.indexOf('.');
         return dot === -1
-            ? getItemId({ table: rebuilt[0].name, name: key })
+            ? getItemId({
+                  table: getLiveExploreName(sourceName, firstModel),
+                  name: key,
+              })
             : getItemId({
                   table: getLiveExploreName(sourceName, key.slice(0, dot)),
                   name: key.slice(dot + 1),
               });
     };
+    // Charts on a switched-off explore lose it on purpose
+    const switchedOff = Object.keys(exploreEdits)
+        .filter((model) => !isLiveExploreInUse(exploreEdits, model))
+        .map((model) => `${getLiveExploreName(sourceName, model)}_`);
     const kept = new Set([
         ...rebuilt.flatMap(({ apiSource }) =>
             Object.keys(apiSource?.fields ?? {}),
@@ -273,7 +291,11 @@ export const getLostLiveFieldIds = ({
             edit.inUse === false ? [toFieldId(key)] : [],
         ),
     ]);
-    return storedFieldIds.filter((fieldId) => !kept.has(fieldId));
+    return storedFieldIds.filter(
+        (fieldId) =>
+            !kept.has(fieldId) &&
+            !switchedOff.some((prefix) => fieldId.startsWith(prefix)),
+    );
 };
 
 /** What the source reads, for the AI agent. Admins can't remove this. */
@@ -288,7 +310,37 @@ export const describeLiveTarget = (
         targetLabel,
     });
 
-/** The explores a live data source answers metric queries with. */
+/**
+ * Puts the source's access rule on the explore's base table, where the
+ * explore checks read `required_attributes` and `any_attributes`.
+ */
+const withAccessRule = (
+    explore: Explore,
+    accessRule: LiveSourceAccessRule | null,
+): Explore => {
+    const baseTable = explore.tables[explore.baseTable];
+    if (!accessRule || !baseTable) return explore;
+    const { required, any } = accessRule;
+    return {
+        ...explore,
+        tables: {
+            ...explore.tables,
+            [explore.baseTable]: {
+                ...baseTable,
+                ...(Object.keys(required).length > 0
+                    ? { requiredAttributes: required }
+                    : {}),
+                ...(Object.keys(any).length > 0 ? { anyAttributes: any } : {}),
+            },
+        },
+    };
+};
+
+/**
+ * The explores a live data source answers metric queries with: every
+ * explore an admin hasn't switched off, with its label, description and
+ * AI hint overrides.
+ */
 export const buildLiveExplores = ({
     connectionUuid,
     sourceName,
@@ -296,7 +348,10 @@ export const buildLiveExplores = ({
     apiSource,
     scannedFields,
     edits,
+    exploreEdits = {},
     aiHint,
+    accessRule = null,
+    tags,
 }: {
     connectionUuid: string;
     sourceName: string;
@@ -304,41 +359,62 @@ export const buildLiveExplores = ({
     apiSource: ExternalConnectionApiSource;
     scannedFields: ScannedLiveSourceField[];
     edits: LiveSourceFieldEdits;
-    /** The target first, then the admin's text. */
+    exploreEdits?: LiveSourceExploreEdits;
+    /** The target first, then the admin's source hint; each explore's own hint follows. */
     aiHint?: string[];
+    /** Who can query the source; copied onto each explore's base table. */
+    accessRule?: LiveSourceAccessRule | null;
+    /** The source's tags, carried by each of its explores. */
+    tags?: string[];
 }): Explore[] => {
     const { definitions } = getLiveBaseLayer(apiSource.connector);
     const scannedModels = getLiveScannedModels(apiSource.connector);
     const definitionHashes = getLiveDefinitionHashes(apiSource.connector);
-    const build = (definition: LiveExploreDefinition) =>
-        buildDefinitionExplore(apiSource.connector, {
-            definition,
+    const build = (definition: LiveExploreDefinition) => {
+        const exploreEdit = getLiveExploreEdit(exploreEdits, definition.name);
+        return buildDefinitionExplore(apiSource.connector, {
+            definition: exploreEdit?.description
+                ? { ...definition, description: exploreEdit.description }
+                : definition,
             exploreName: getLiveExploreName(sourceName, definition.name),
             // Every explore is named by its model and grouped under the
             // source, even when the source has only one
-            label: definition.label,
+            label: exploreEdit?.label ?? definition.label,
             groupLabel: label,
             connectionUuid,
             definitionHash: definitionHashes[definition.name],
-            aiHint,
+            // An admin's hint replaces the built-in one
+            aiHint: [
+                ...(aiHint ?? []),
+                ...[exploreEdit?.aiHint ?? definition.aiHint].filter(
+                    (hint): hint is string => Boolean(hint),
+                ),
+            ],
+            tags,
         });
-    return definitions.map((definition) => {
-        const scanned = scannedModels.find(
-            (candidate) => candidate.definition === definition,
-        );
-        return build(
-            scanned
-                ? applyLiveSourceFieldEdits({
-                      base: definition,
-                      ...getLiveModelFieldInputs({
-                          model: scanned.model,
-                          scannedFields,
-                          edits,
-                      }),
-                  })
-                : definition,
-        );
-    });
+    };
+    return definitions
+        .filter(({ name }) => isLiveExploreInUse(exploreEdits, name))
+        .map((definition) => {
+            const scanned = scannedModels.find(
+                (candidate) => candidate.definition === definition,
+            );
+            return withAccessRule(
+                build(
+                    scanned
+                        ? applyLiveSourceFieldEdits({
+                              base: definition,
+                              ...getLiveModelFieldInputs({
+                                  model: scanned.model,
+                                  scannedFields,
+                                  edits,
+                              }),
+                          })
+                        : definition,
+                ),
+                accessRule,
+            );
+        });
 };
 
 /**
@@ -568,3 +644,44 @@ export const toLiveResult = ({
         columns,
     };
 };
+
+/** A stored live source, as much of it as names its explores. */
+export type StoredLiveSourceExplores = {
+    /** The source's display name. */
+    name: string;
+    sourceName: string;
+    connector: ApiConnectorType;
+    exploreEdits: LiveSourceExploreEdits;
+};
+
+/**
+ * The source and label of a live explore an admin switched off, when the
+ * explore name is one, so a chart on it can say so instead of "not found".
+ */
+export const findSwitchedOffLiveExplore = (
+    sources: StoredLiveSourceExplores[],
+    exploreName: string,
+): { sourceName: string; exploreLabel: string } | undefined =>
+    sources
+        .filter(({ connector }) => isLiveIntegrationRegistered(connector))
+        .flatMap((source) =>
+            getLiveBaseLayer(source.connector)
+                .definitions.filter(
+                    (definition) =>
+                        getLiveExploreName(
+                            source.sourceName,
+                            definition.name,
+                        ) === exploreName &&
+                        !isLiveExploreInUse(
+                            source.exploreEdits,
+                            definition.name,
+                        ),
+                )
+                .map((definition) => ({
+                    sourceName: source.name,
+                    exploreLabel:
+                        getLiveExploreEdit(source.exploreEdits, definition.name)
+                            ?.label ?? definition.label,
+                })),
+        )
+        .at(0);

@@ -3,7 +3,7 @@ import { type TranscriptPhrase, type TranscriptWord } from './types';
 // A pause this long between words starts a new phrase.
 const PAUSE_MS = 700;
 // People start naming a thing slightly before they start marking it.
-const MARK_LEAD_MS = 300;
+export const MARK_LEAD_MS = 500;
 
 /**
  * Groups timed words into phrases. A phrase also ends where a new mark

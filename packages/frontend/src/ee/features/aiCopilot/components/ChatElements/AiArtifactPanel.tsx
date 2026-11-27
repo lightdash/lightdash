@@ -26,6 +26,7 @@ import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeat
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
+import { useChatArtifactsUrl } from '../../hooks/chatEndpoints';
 import {
     useAiAgentArtifact,
     useUpdateComposerVizConfig,
@@ -137,6 +138,7 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
             });
         const { user } = useApp();
         const isEmbed = useIsEmbedded();
+        const getArtifactsUrl = useChatArtifactsUrl();
         const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
         const identityEnabled = identityFlag.data?.enabled === true;
         const canManageAgent = useAiAgentPermission({
@@ -222,6 +224,10 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
                       versionUuid: artifact.versionUuid,
                       queryUuid,
                       cached: false,
+                      artifactsUrl: getArtifactsUrl(
+                          artifact.projectUuid,
+                          artifact.agentUuid,
+                      ),
                   })
                 : null,
         );

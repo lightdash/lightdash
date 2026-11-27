@@ -63,12 +63,12 @@ type VersionRow = NonNullable<Awaited<ReturnType<AppModelFake['getVersion']>>>;
 const buildService = ({
     storedCapturesChoice = null,
     capturesEnabledOnInstance = true,
-    voiceDesignFlags = ['builder'],
+    designModeFlags = ['builder'],
 }: {
     storedCapturesChoice?: boolean | null;
     capturesEnabledOnInstance?: boolean;
-    /** Which Voice Design flags are on: the builder's, the dashboard's. */
-    voiceDesignFlags?: Array<'builder' | 'dashboard'>;
+    /** Which Design Mode flags are on: the builder's, the dashboard's. */
+    designModeFlags?: Array<'builder' | 'dashboard'>;
 } = {}) => {
     const captures = { stored: storedCapturesChoice };
     const appRow = {
@@ -134,11 +134,11 @@ const buildService = ({
         featureFlagModel: {
             get: async ({ featureFlagId }: { featureFlagId: string }) => {
                 if (featureFlagId === FeatureFlags.DataAppCapture) {
-                    return { enabled: voiceDesignFlags.includes('builder') };
+                    return { enabled: designModeFlags.includes('builder') };
                 }
                 if (featureFlagId === FeatureFlags.DashboardCapture) {
                     return {
-                        enabled: voiceDesignFlags.includes('dashboard'),
+                        enabled: designModeFlags.includes('dashboard'),
                     };
                 }
                 return { enabled: true };
@@ -374,15 +374,21 @@ describe('AppGenerateService data app captures switch', () => {
     });
 });
 
-describe('AppGenerateService Voice Design transcription', () => {
-    const transcribe = (service: AppGenerateService) => {
-        // Apps are available; this test is about the Voice Design flag.
-        vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(true);
+describe('AppGenerateService Design Mode transcription', () => {
+    const transcribe = (
+        service: AppGenerateService,
+        user: SessionUser = builder,
+        appsAvailable = true,
+    ) => {
+        // Apps are available unless a test says otherwise.
+        vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(
+            appsAvailable,
+        );
         const body = Readable.from([Buffer.from('audio')]);
         const read = vi.spyOn(body, 'read');
         return {
             result: service.transcribeCapture(
-                builder,
+                user,
                 PROJECT_UUID,
                 'audio/webm',
                 body,
@@ -393,7 +399,7 @@ describe('AppGenerateService Voice Design transcription', () => {
     };
 
     it('refuses before reading the audio while both flags are off', async () => {
-        const { service } = buildService({ voiceDesignFlags: [] });
+        const { service } = buildService({ designModeFlags: [] });
         const { result, bodyWasRead } = transcribe(service);
 
         await expect(result).rejects.toThrow(ForbiddenError);
@@ -402,8 +408,8 @@ describe('AppGenerateService Voice Design transcription', () => {
 
     it.each([[['builder' as const]], [['dashboard' as const]]])(
         'passes the flag check while %s is on',
-        async (voiceDesignFlags) => {
-            const { service } = buildService({ voiceDesignFlags });
+        async (designModeFlags) => {
+            const { service } = buildService({ designModeFlags });
 
             // No transcription provider is configured in this test.
             await expect(transcribe(service).result).rejects.toThrow(
@@ -411,4 +417,65 @@ describe('AppGenerateService Voice Design transcription', () => {
             );
         },
     );
+    // Can talk to an agent in the project, cannot build data apps.
+    const viewerAbility = new Ability([
+        {
+            action: 'create',
+            subject: 'AiAgentThread',
+            conditions: { projectUuid: PROJECT_UUID },
+        },
+    ]);
+    const dashboardViewer = {
+        userUuid: 'viewer',
+        organizationUuid: ORGANIZATION_UUID,
+        isActive: true,
+        ability: viewerAbility,
+        abilityRules: viewerAbility.rules,
+    } as unknown as SessionUser;
+
+    it('on a dashboard, asks for what a message to an agent asks for, not for data apps', async () => {
+        const { service } = buildService({
+            designModeFlags: ['dashboard'],
+            storedCapturesChoice: false,
+        });
+
+        // Data apps are off and so are their captures: neither is asked for.
+        await expect(
+            transcribe(service, dashboardViewer, false).result,
+        ).rejects.toThrow(MissingConfigError);
+    });
+
+    it('refuses someone who can only talk to an agent while the dashboard flag is off', async () => {
+        const { service } = buildService({ designModeFlags: ['builder'] });
+        const { result, bodyWasRead } = transcribe(service, dashboardViewer);
+
+        await expect(result).rejects.toThrow(ForbiddenError);
+        expect(bodyWasRead()).toBe(false);
+    });
+
+    it('refuses someone who can neither talk to an agent nor build data apps', async () => {
+        const nobody = {
+            ...dashboardViewer,
+            ability: new Ability([]),
+            abilityRules: [],
+        } as unknown as SessionUser;
+        const { service } = buildService({
+            designModeFlags: ['builder', 'dashboard'],
+        });
+
+        await expect(transcribe(service, nobody).result).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
+
+    it('still asks a data app builder for captures while only the builder flag is on', async () => {
+        const { service } = buildService({
+            designModeFlags: ['builder'],
+            storedCapturesChoice: false,
+        });
+
+        await expect(transcribe(service).result).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
 });

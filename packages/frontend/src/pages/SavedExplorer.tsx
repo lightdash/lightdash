@@ -116,7 +116,11 @@ const SavedExplorer = () => {
     );
     const isChartEditorEnabled = chartEditorFlag.data?.enabled === true;
 
-    const { setDashboardChartInfo } = useDashboardStorage();
+    const {
+        setDashboardChartInfo,
+        releaseOtherDashboardChart,
+        trackDashboardChart,
+    } = useDashboardStorage();
 
     const { data, isInitialLoading, error } = useSavedQuery({
         uuidOrSlug: savedQueryUuid,
@@ -139,14 +143,22 @@ const SavedExplorer = () => {
     useEffect(() => {
         // If the saved explore is part of a dashboard, set the dashboard chart info
         // so we can show the banner + the user can navigate back to the dashboard easily
-        if (data && data.dashboardUuid && data.dashboardName) {
+        if (!data) return;
+        releaseOtherDashboardChart(data.uuid);
+        if (data.dashboardUuid && data.dashboardName) {
             setDashboardChartInfo({
                 name: data.dashboardName,
                 dashboardUuid: data.dashboardUuid,
                 dashboardSlug: data.dashboardSlug ?? undefined,
             });
         }
-    }, [data, setDashboardChartInfo]);
+        trackDashboardChart(data.uuid);
+    }, [
+        data,
+        setDashboardChartInfo,
+        releaseOtherDashboardChart,
+        trackDashboardChart,
+    ]);
 
     // Create store once with useState
     const [store] = useState(() => createExplorerStore());

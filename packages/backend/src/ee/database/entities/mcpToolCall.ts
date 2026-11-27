@@ -31,20 +31,19 @@ export type McpToolCallTable = Knex.CompositeTableType<
     never
 >;
 
-export const McpClientInfoTableName = 'mcp_client_info';
+export const McpSessionClientInfoTableName = 'mcp_session_client_info';
 
-export type DbMcpClientInfo = {
+export type DbMcpSessionClientInfo = {
+    mcp_session_id: string;
     user_uuid: string;
     organization_uuid: string;
-    user_agent: string;
     client_name: string;
     client_version: string | null;
     created_at: Date;
-    updated_at: Date;
 };
 
-export type McpClientInfoTable = Knex.CompositeTableType<
-    DbMcpClientInfo,
-    Omit<DbMcpClientInfo, 'created_at' | 'updated_at'>,
-    Pick<DbMcpClientInfo, 'client_name' | 'client_version' | 'updated_at'>
+export type McpSessionClientInfoTable = Knex.CompositeTableType<
+    DbMcpSessionClientInfo,
+    Omit<DbMcpSessionClientInfo, 'created_at'>,
+    never
 >;

@@ -121,6 +121,7 @@ import {
     getComposerSlackEchartsConfig,
     getComposerSlackRunQueryChart,
     getDataAppVizChartFromArtifact,
+    getDefaultAiAgent,
     getEmbedThreadOwnerIdentifier,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
@@ -161,6 +162,7 @@ import {
     isSlackMessageTooLongError,
     isSlackPrompt,
     isSqlApprovalToolCall,
+    isTaggedForAgent,
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
@@ -283,7 +285,10 @@ import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
 import { Readable } from 'stream';
 import { z } from 'zod';
-import { getAiUsageChannel } from '../../../analytics/aiUsage';
+import {
+    getAiUsageChannel,
+    type AiKeyManagement,
+} from '../../../analytics/aiUsage';
 import {
     AiAgentCreatedEvent,
     AiAgentDeletedEvent,
@@ -320,6 +325,7 @@ import {
 } from '../../../clients/github/Github';
 import { type SlackClient } from '../../../clients/Slack/SlackClient';
 import { safeUrl } from '../../../clients/Slack/SlackMessageBlocks';
+import { getPythonSandboxConfigError } from '../../../config/appRuntimeAvailability';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../../database/errors';
 import Logger from '../../../logging/logger';
@@ -531,7 +537,6 @@ import {
     resolveKeyManagement,
     resolveModelConfigForPrompt,
 } from '../ai/models';
-import { findSemanticStudioPreset } from '../ai/models/modelPreference';
 import {
     OrgAiCopilotConfigResolver,
     type AiConfigScope,
@@ -585,6 +590,15 @@ import {
     type StorableSqlApprovalDecisionRecord,
 } from '../ai/tools/sqlApprovals';
 import {
+    DEFAULT_AGENT_TURN_SETUP,
+    DEFAULT_AGENT_WRITEBACK_SETUP,
+    NO_AGENT_EXTRA_TOOLS,
+    type AgentModelPreference,
+    type AgentTurnInputs,
+    type BuildAgentExtraTools,
+    type FindAgentWritebackSetup,
+} from '../ai/types/agentTurnSetup';
+import {
     AiAgentArgs,
     AiAgentDependencies,
     type AgentLiveSource,
@@ -600,6 +614,7 @@ import {
 import {
     ClosePullRequestFn,
     DiscoverReposFn,
+    DraftProjectContextFn,
     EditDbtProjectFn,
     EditProjectContextFn,
     ExploreRepoFn,
@@ -744,9 +759,6 @@ import { ProjectContextService } from '../ProjectContextService/ProjectContextSe
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
 import { saveDbtTryOut } from '../SemanticStudioService/dbtTryOut';
 import { type IncrementalDbtCompileService } from '../SemanticStudioService/IncrementalDbtCompileService';
-import { type SemanticStudioCheckoutService } from '../SemanticStudioService/SemanticStudioCheckoutService';
-import { type SemanticStudioService } from '../SemanticStudioService/SemanticStudioService';
-import { worksAsDbtPullRequests } from '../SemanticStudioService/studioProject';
 import {
     parseAgentSelectionValue,
     resolveAgentSelectionPrompt,
@@ -796,6 +808,7 @@ import {
     buildDashboardSuggestionContext,
     getPinnedSuggestionContextInput,
 } from './suggestionPinnedContext';
+import { parseThreadMetadata } from './threadMetadata';
 import {
     getPromptUsageAttribution,
     type AiUsageViewerAttribution,
@@ -872,6 +885,54 @@ type ChartIntentApplication =
           explore: Explore;
       }
     | { type: 'fallback'; reason: string };
+
+/** An agent and one of its threads, which the caller has checked this person may use. */
+export type AuthorizedAgentThread = {
+    agent: AiAgent;
+    thread: Awaited<ReturnType<AiAgentModel['getThread']>>;
+};
+
+type StoredArtifact = NonNullable<
+    Awaited<ReturnType<AiAgentModel['getArtifact']>>
+>;
+
+type ThreadPrompt = NonNullable<
+    Awaited<ReturnType<AiAgentModel['findWebAppPrompt']>>
+>;
+
+type PrepareThreadResponseOptions = {
+    promptUuid?: string;
+    aiCreditCheck: AiCreditCheck | null;
+    /** Off for embeds, whose space limits come from the token, not the agent. */
+    flagPinnedOutsideAgentSpaces?: boolean;
+    /** 'omit' names the attached images without reading them from storage. */
+    threadImages?: 'load' | 'omit';
+    enableFastDecisions?: boolean;
+    onPromptResolved?: (
+        promptUuid: string,
+        responseState: AiPromptResponseState,
+    ) => void;
+    resetErrorForStreamRetry?: boolean;
+    expectedDeepResearchRunUuid?: string | null;
+};
+
+type PreparedThreadResponse = Awaited<
+    ReturnType<AiAgentService['prepareThreadResponse']>
+>;
+
+// How a response gets its thread ready; the caller decides whether access is still to be checked.
+type PrepareThreadResponse = (
+    options: PrepareThreadResponseOptions,
+) => Promise<PreparedThreadResponse>;
+
+type StreamThreadResponseOptions = {
+    enableSqlMode?: boolean;
+    enableFastDecisions?: boolean;
+    autoApproveSql?: boolean;
+    toolHints: string[];
+    runtimeOptions?: EmbedAiAgentRuntimeOptions;
+    redactToolOutputs?: boolean;
+};
 
 type AgentResponseStream = {
     pipeUIMessageStreamToResponse: (
@@ -1103,8 +1164,7 @@ type AiAgentServiceDependencies = {
     aiAgentContentValidation: AiAgentContentValidation;
     aiWritebackService: AiWritebackService;
     projectContextService: ProjectContextService;
-    semanticStudioService: SemanticStudioService;
-    semanticStudioCheckoutService: SemanticStudioCheckoutService;
+    findWritebackSetup: FindAgentWritebackSetup;
     incrementalDbtCompileService: IncrementalDbtCompileService;
     writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
@@ -1491,9 +1551,7 @@ export class AiAgentService extends BaseService {
 
     private readonly projectContextService: ProjectContextService;
 
-    private readonly semanticStudioService: SemanticStudioService;
-
-    private readonly semanticStudioCheckoutService: SemanticStudioCheckoutService;
+    private readonly findWritebackSetup: FindAgentWritebackSetup;
 
     private readonly incrementalDbtCompileService: IncrementalDbtCompileService;
 
@@ -1548,7 +1606,7 @@ export class AiAgentService extends BaseService {
         threadModelConfig,
         agentModelConfig,
         requestedModelConfig,
-        prefersStudioModel,
+        modelPreference,
     }: {
         organizationUuid: string;
         projectUuid: string;
@@ -1556,8 +1614,8 @@ export class AiAgentService extends BaseService {
         threadModelConfig: AiAgentModelConfig | null;
         agentModelConfig: AiAgentModelConfig | null;
         requestedModelConfig: AiAgentModelConfig | null;
-        /** Whether the thread is a Studio one, which has its own model when nobody chose one. */
-        prefersStudioModel: boolean;
+        /** The thread's own model when nobody chose one; null for an ordinary thread. */
+        modelPreference: AgentModelPreference | null;
     }): Promise<AiAgentModelConfig | null> {
         if (threadModelConfig) {
             if (
@@ -1581,7 +1639,7 @@ export class AiAgentService extends BaseService {
             (await this.aiOrganizationSettingsService.getDefaultModelConfig(
                 organizationUuid,
             ));
-        if (!modelConfig && !prefersStudioModel) return null;
+        if (!modelConfig && !modelPreference) return null;
         const { catalogue, copilotConfig } =
             await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
@@ -1599,8 +1657,8 @@ export class AiAgentService extends BaseService {
             ? reconcileInheritedModelConfig(copilotConfig, resolved)
             : null;
         // A preference only replaces a model nobody chose, among those the org is offered.
-        const preferred = prefersStudioModel
-            ? findSemanticStudioPreset(
+        const preferred = modelPreference
+            ? modelPreference(
                   catalogue,
                   inherited?.modelProvider ??
                       getDefaultModel(copilotConfig)?.provider ??
@@ -2286,9 +2344,7 @@ export class AiAgentService extends BaseService {
         this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
         this.aiWritebackService = dependencies.aiWritebackService;
         this.projectContextService = dependencies.projectContextService;
-        this.semanticStudioService = dependencies.semanticStudioService;
-        this.semanticStudioCheckoutService =
-            dependencies.semanticStudioCheckoutService;
+        this.findWritebackSetup = dependencies.findWritebackSetup;
         this.incrementalDbtCompileService =
             dependencies.incrementalDbtCompileService;
         this.writebackPreviewService = dependencies.writebackPreviewService;
@@ -4958,21 +5014,27 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         agentUuid: string,
         projectUuid?: string,
-        options?: { includeSummaryContext: true },
+        options?: {
+            includeSummaryContext: true;
+        },
     ): Promise<AiAgentWithContext>;
 
     public async getAgent(
         user: SessionUser,
         agentUuid: string,
         projectUuid?: string,
-        options?: { includeSummaryContext?: false },
+        options?: {
+            includeSummaryContext?: false;
+        },
     ): Promise<AiAgent>;
 
     public async getAgent(
         user: SessionUser,
         agentUuid: string,
         projectUuid?: string,
-        options?: { includeSummaryContext?: boolean },
+        options?: {
+            includeSummaryContext?: boolean;
+        },
     ): Promise<AiAgent | AiAgentWithContext> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -5428,6 +5490,16 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        return this.getThreadForAuthorized(user, { agent, thread });
+    }
+
+    /** A thread and its messages, for a caller that has already checked access. */
+    async getThreadForAuthorized(
+        user: SessionUser,
+        { agent, thread }: AuthorizedAgentThread,
+    ): Promise<AiAgentThread> {
+        const { organizationUuid } = agent;
+        const threadUuid = thread.uuid;
         const messages = await this.aiAgentModel.findThreadMessages({
             organizationUuid,
             threadUuid,
@@ -5826,6 +5898,11 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError('Organization not found');
         }
 
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+
         const { enabled: deletionDisabled } = await this.featureFlagService.get(
             {
                 user,
@@ -5836,14 +5913,6 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError(
                 'Thread deletion is disabled for this organization',
             );
-        }
-
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
 
         const thread = await this.aiAgentModel.getThread({
@@ -5927,6 +5996,7 @@ export class AiAgentService extends BaseService {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
 
+        AiAgentService.assertNotStudioOnAgentRoute(agent, body.createdFrom);
         const hasAccess = await this.checkAgentAccess(user, agent);
         if (!hasAccess) {
             throw new ForbiddenError(
@@ -5934,26 +6004,25 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        if (isSemanticStudioThread(body.createdFrom)) {
-            // Only the app starts these; an embed or scheduler keeps its own origin.
-            if (createdFrom !== 'web_app') {
-                throw new ParameterError(
-                    'A Semantic Studio thread can only be started from the app',
-                );
-            }
-            if (
-                !(
-                    await this.semanticStudioService.getStatus(
-                        user,
-                        agent.projectUuid,
-                    )
-                ).enabled
-            ) {
-                throw new ForbiddenError(
-                    'You cannot change the semantic layer of this project',
-                );
-            }
-        }
+        return this.createThreadForAgent(
+            user,
+            agent,
+            body,
+            createdFrom,
+            runtimeOptions,
+        );
+    }
+
+    /** Starts a thread on an agent, for a caller that has already checked access to it. */
+    async createThreadForAgent(
+        user: SessionUser,
+        agent: AiAgent,
+        body: ApiAiAgentThreadCreateRequest,
+        createdFrom: AiWebAppThreadCreatedFrom,
+        runtimeOptions?: EmbedAiAgentRuntimeOptions,
+        modelPreference: AgentModelPreference | null = null,
+    ) {
+        const { organizationUuid, uuid: agentUuid } = agent;
 
         const context = body.prompt
             ? await this.validatePromptContextAccess(
@@ -5967,6 +6036,7 @@ export class AiAgentService extends BaseService {
         const threadContext = AiAgentService.parseThreadContext(
             body.threadContext,
         );
+        const metadata = parseThreadMetadata(body.metadata);
         if (!body.prompt && !body.binding && threadContext === null) {
             throw new ParameterError(
                 'A prompt, binding or thread context is required to create a thread',
@@ -6013,6 +6083,7 @@ export class AiAgentService extends BaseService {
             battleProfile: body.battleProfile ?? null,
             binding,
             threadContext,
+            metadata,
         });
 
         const modelConfig = await this.resolvePromptModelConfig({
@@ -6022,7 +6093,7 @@ export class AiAgentService extends BaseService {
             threadModelConfig: null,
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            prefersStudioModel: isSemanticStudioThread(body.createdFrom),
+            modelPreference,
         });
 
         if (body.prompt) {
@@ -6223,6 +6294,7 @@ export class AiAgentService extends BaseService {
         await this.assertDataAppThreadContinuable(thread, organizationUuid);
 
         // Check if user has access to create messages for this agent's thread
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -6234,6 +6306,24 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        return this.createMessageForAuthorized(
+            user,
+            { agent, thread },
+            body,
+            runtimeOptions,
+        );
+    }
+
+    /** Adds a message to a thread, for a caller that has already checked access. */
+    async createMessageForAuthorized(
+        user: SessionUser,
+        { agent, thread }: AuthorizedAgentThread,
+        body: ApiAiAgentThreadMessageCreateRequest,
+        runtimeOptions?: EmbedAiAgentRuntimeOptions,
+        modelPreference: AgentModelPreference | null = null,
+    ): Promise<ApiAiAgentThreadMessageCreateResponse['results']> {
+        const { organizationUuid, uuid: agentUuid } = agent;
+        const threadUuid = thread.uuid;
         const context = await this.validatePromptContextAccess(
             user,
             agent,
@@ -6250,7 +6340,7 @@ export class AiAgentService extends BaseService {
                 await this.aiAgentModel.findThreadModelConfig(threadUuid),
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            prefersStudioModel: isSemanticStudioThread(thread.createdFrom),
+            modelPreference,
         });
 
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
@@ -6657,32 +6747,9 @@ export class AiAgentService extends BaseService {
                 return;
             }
 
-            const { enabled: isNewOnboarding } =
-                await this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.NewOnboarding,
-                });
-            await this.createAgent(
-                user,
-                {
-                    name: isNewOnboarding ? 'Analytics agent' : 'Aurora',
-                    projectUuid,
-                    description: null,
-                    integrations: [],
-                    tags: null,
-                    instruction: `You are ${isNewOnboarding ? '' : 'Aurora, '}this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.`,
-                    imageUrl: null,
-                    groupAccess: [],
-                    userAccess: [],
-                    spaceAccess: [],
-                    enableDataAccess: true,
-                    enableSelfImprovement: false,
-                    enableContentTools: true,
-                    enableUserContext: true,
-                    version: 2,
-                },
-                { autoProvisioned: true },
-            );
+            await this.createAgent(user, getDefaultAiAgent(projectUuid), {
+                autoProvisioned: true,
+            });
         } catch (error) {
             if (
                 error instanceof ForbiddenError ||
@@ -8452,6 +8519,18 @@ export class AiAgentService extends BaseService {
         return `🔒 No agent is configured for this channel, and this organization requires channels to be added from the agent settings page. Ask an admin to add one at ${this.lightdashConfig.siteUrl}/ai-agents`;
     }
 
+    // A Studio conversation runs through Studio's own routes; to an agent's thread routes it does not exist.
+    private static assertNotStudioOnAgentRoute(
+        agent: Pick<AiAgent, 'uuid'>,
+        createdFrom: AiThreadCreatedFrom | undefined,
+    ): void {
+        if (isSemanticStudioThread(createdFrom)) {
+            throw new AiAgentNotFoundError(
+                `AI agent not found for uuid: ${agent.uuid}`,
+            );
+        }
+    }
+
     private async getManageableAgentOrThrow(
         user: SessionUser,
         agentUuid: string,
@@ -8841,37 +8920,12 @@ export class AiAgentService extends BaseService {
         return createdCompaction;
     }
 
-    private async prepareAgentThreadResponse(
+    // The thread a response is asked for, once this person is known to have access to it.
+    private async authorizeThreadResponse(
         user: SessionUser,
-        {
-            agentUuid,
-            threadUuid,
-            promptUuid,
-            onPromptResolved,
-            resetErrorForStreamRetry = false,
-            expectedDeepResearchRunUuid,
-            enableFastDecisions = true,
-            aiCreditCheck,
-            flagPinnedOutsideAgentSpaces = true,
-            threadImages = 'load',
-        }: {
-            agentUuid: string;
-            threadUuid: string;
-            promptUuid?: string;
-            aiCreditCheck: AiCreditCheck | null;
-            /** Off for embeds, whose space limits come from the token, not the agent. */
-            flagPinnedOutsideAgentSpaces?: boolean;
-            /** 'omit' names the attached images without reading them from storage. */
-            threadImages?: 'load' | 'omit';
-            enableFastDecisions?: boolean;
-            onPromptResolved?: (
-                promptUuid: string,
-                responseState: AiPromptResponseState,
-            ) => void;
-            resetErrorForStreamRetry?: boolean;
-            expectedDeepResearchRunUuid?: string | null;
-        },
-    ) {
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<AuthorizedAgentThread> {
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }
@@ -8895,6 +8949,7 @@ export class AiAgentService extends BaseService {
             throw new NotFoundError(`Agent not found`);
         }
 
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -8904,6 +8959,46 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError(
                 'Insufficient permissions to access this agent thread',
             );
+        }
+        return { agent, thread };
+    }
+
+    private async prepareAgentThreadResponse(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            ...options
+        }: PrepareThreadResponseOptions & {
+            agentUuid: string;
+            threadUuid: string;
+        },
+    ) {
+        return this.prepareThreadResponse(
+            user,
+            await this.authorizeThreadResponse(user, agentUuid, threadUuid),
+            { agentUuid, threadUuid },
+            options,
+        );
+    }
+
+    private async prepareThreadResponse(
+        user: SessionUser,
+        { agent, thread }: AuthorizedAgentThread,
+        { agentUuid, threadUuid }: { agentUuid: string; threadUuid: string },
+        {
+            promptUuid,
+            onPromptResolved,
+            resetErrorForStreamRetry = false,
+            expectedDeepResearchRunUuid,
+            enableFastDecisions = true,
+            aiCreditCheck,
+            flagPinnedOutsideAgentSpaces = true,
+            threadImages = 'load',
+        }: PrepareThreadResponseOptions,
+    ) {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
         }
 
         // A reply generated here would never reach the Slack conversation.
@@ -9262,22 +9357,66 @@ export class AiAgentService extends BaseService {
         {
             agentUuid,
             threadUuid,
+            ...options
+        }: StreamThreadResponseOptions & {
+            agentUuid: string;
+            threadUuid: string;
+        },
+    ): Promise<AgentResponseStream> {
+        return this.streamThreadResponse(
+            user,
+            { agentUuid, threadUuid },
+            (prepareOptions) =>
+                this.prepareAgentThreadResponse(user, {
+                    agentUuid,
+                    threadUuid,
+                    ...prepareOptions,
+                }),
+            options,
+        );
+    }
+
+    /** Streams the answer to a thread's latest message, for a caller that has already checked access. */
+    async streamResponseForAuthorized(
+        user: SessionUser,
+        authorized: AuthorizedAgentThread,
+        options: StreamThreadResponseOptions,
+        turnInputs: AgentTurnInputs,
+    ): Promise<AgentResponseStream> {
+        return this.streamThreadResponse(
+            user,
+            {
+                agentUuid: authorized.agent.uuid,
+                threadUuid: authorized.thread.uuid,
+            },
+            (prepareOptions) =>
+                this.prepareThreadResponse(
+                    user,
+                    authorized,
+                    {
+                        agentUuid: authorized.agent.uuid,
+                        threadUuid: authorized.thread.uuid,
+                    },
+                    prepareOptions,
+                ),
+            options,
+            turnInputs,
+        );
+    }
+
+    private async streamThreadResponse(
+        user: SessionUser,
+        { agentUuid, threadUuid }: { agentUuid: string; threadUuid: string },
+        prepare: PrepareThreadResponse,
+        {
             enableSqlMode,
             enableFastDecisions = true,
             autoApproveSql,
             toolHints,
             runtimeOptions,
             redactToolOutputs = false,
-        }: {
-            agentUuid: string;
-            threadUuid: string;
-            enableSqlMode?: boolean;
-            enableFastDecisions?: boolean;
-            autoApproveSql?: boolean;
-            toolHints: string[];
-            runtimeOptions?: EmbedAiAgentRuntimeOptions;
-            redactToolOutputs?: boolean;
-        },
+        }: StreamThreadResponseOptions,
+        turnInputs?: AgentTurnInputs,
     ): Promise<AgentResponseStream> {
         let isPreparing = false;
         let trackedPromptUuid: string | undefined;
@@ -9296,9 +9435,7 @@ export class AiAgentService extends BaseService {
                 chatHistoryMessages,
                 prompt,
                 compaction,
-            } = await this.prepareAgentThreadResponse(user, {
-                agentUuid,
-                threadUuid,
+            } = await prepare({
                 resetErrorForStreamRetry: true,
                 expectedDeepResearchRunUuid: null,
                 enableFastDecisions,
@@ -9374,6 +9511,7 @@ export class AiAgentService extends BaseService {
                         runtimeOptions,
                         redactToolOutputs,
                         aiCreditCheck: null,
+                        turnInputs,
                     },
                 );
             } catch (error) {
@@ -9531,6 +9669,30 @@ export class AiAgentService extends BaseService {
         return user;
     }
 
+    // The prompt a control request names, which must be the given thread's.
+    private async getThreadPromptOrThrow({
+        organizationUuid,
+        agentUuid,
+        threadUuid,
+        messageUuid,
+    }: {
+        organizationUuid: string;
+        agentUuid: string;
+        threadUuid: string;
+        messageUuid: string;
+    }): Promise<ThreadPrompt> {
+        const prompt = await this.aiAgentModel.findWebAppPrompt(messageUuid);
+        if (
+            !prompt ||
+            prompt.organizationUuid !== organizationUuid ||
+            prompt.agentUuid !== agentUuid ||
+            prompt.threadUuid !== threadUuid
+        ) {
+            throw new NotFoundError(`Prompt not found: ${messageUuid}`);
+        }
+        return prompt;
+    }
+
     async interruptAgentThreadMessage(
         account: Account,
         {
@@ -9554,18 +9716,12 @@ export class AiAgentService extends BaseService {
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }
-
-        const prompt = await this.aiAgentModel.findWebAppPrompt(messageUuid);
-
-        if (
-            !prompt ||
-            prompt.organizationUuid !== user.organizationUuid ||
-            prompt.agentUuid !== agentUuid ||
-            prompt.threadUuid !== threadUuid
-        ) {
-            throw new NotFoundError(`Prompt not found: ${messageUuid}`);
-        }
-
+        const prompt = await this.getThreadPromptOrThrow({
+            organizationUuid: user.organizationUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid,
+        });
         const agent = await this.aiAgentModel.getAgent({
             organizationUuid: user.organizationUuid,
             agentUuid,
@@ -9573,7 +9729,6 @@ export class AiAgentService extends BaseService {
         if (!agent) {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
-
         const thread = await this.aiAgentModel.getThread({
             organizationUuid: user.organizationUuid,
             agentUuid,
@@ -9582,7 +9737,7 @@ export class AiAgentService extends BaseService {
         if (!thread) {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
-
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -9594,20 +9749,51 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        await this.interruptPrompt(user, { agent, thread }, prompt);
+    }
+
+    /** Stops the answer to a message, for a caller that has already checked access to its thread. */
+    async interruptMessageForAuthorized(
+        user: SessionUser,
+        authorized: AuthorizedAgentThread,
+        messageUuid: string,
+    ): Promise<void> {
+        const prompt = await this.getThreadPromptOrThrow({
+            organizationUuid: authorized.agent.organizationUuid,
+            agentUuid: authorized.agent.uuid,
+            threadUuid: authorized.thread.uuid,
+            messageUuid,
+        });
+        await this.interruptPrompt(user, authorized, prompt);
+    }
+
+    private async interruptPrompt(
+        user: SessionUser,
+        { agent, thread }: AuthorizedAgentThread,
+        prompt: ThreadPrompt,
+    ): Promise<void> {
         await this.aiAgentModel.createAiPromptInterrupt({
-            promptUuid: messageUuid,
+            promptUuid: prompt.promptUuid,
             createdByUserUuid: user.userUuid,
         });
         if (!prompt.respondedAt) {
             this.trackAgentRequestLifecycle('ai_agent_request.interrupted', {
-                organizationUuid: user.organizationUuid,
+                organizationUuid: agent.organizationUuid,
                 projectUuid: prompt.projectUuid,
-                agentUuid,
-                threadUuid,
-                promptUuid: messageUuid,
+                agentUuid: agent.uuid,
+                threadUuid: thread.uuid,
+                promptUuid: prompt.promptUuid,
             });
         }
-        this.enqueueMobilePushThreadReconciliation(threadUuid);
+        this.enqueueMobilePushThreadReconciliation(thread.uuid);
+    }
+
+    private static trimSteerMessage(message: string): string {
+        const trimmedMessage = message.trim();
+        if (trimmedMessage.length === 0) {
+            throw new ParameterError('Steer message is required');
+        }
+        return trimmedMessage;
     }
 
     async createAgentThreadMessageSteer(
@@ -9635,23 +9821,13 @@ export class AiAgentService extends BaseService {
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }
-
-        const trimmedMessage = message.trim();
-        if (trimmedMessage.length === 0) {
-            throw new ParameterError('Steer message is required');
-        }
-
-        const prompt = await this.aiAgentModel.findWebAppPrompt(messageUuid);
-
-        if (
-            !prompt ||
-            prompt.organizationUuid !== user.organizationUuid ||
-            prompt.agentUuid !== agentUuid ||
-            prompt.threadUuid !== threadUuid
-        ) {
-            throw new NotFoundError(`Prompt not found: ${messageUuid}`);
-        }
-
+        const trimmedMessage = AiAgentService.trimSteerMessage(message);
+        const prompt = await this.getThreadPromptOrThrow({
+            organizationUuid: user.organizationUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid,
+        });
         const agent = await this.aiAgentModel.getAgent({
             organizationUuid: user.organizationUuid,
             agentUuid,
@@ -9659,7 +9835,6 @@ export class AiAgentService extends BaseService {
         if (!agent) {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
-
         const thread = await this.aiAgentModel.getThread({
             organizationUuid: user.organizationUuid,
             agentUuid,
@@ -9672,7 +9847,7 @@ export class AiAgentService extends BaseService {
             thread,
             user.organizationUuid,
         );
-
+        AiAgentService.assertNotStudioOnAgentRoute(agent, thread.createdFrom);
         const hasAccess = await this.checkAgentThreadAccess(
             user,
             agent,
@@ -9683,17 +9858,41 @@ export class AiAgentService extends BaseService {
                 'Insufficient permissions to steer this agent thread',
             );
         }
+        return this.steerPrompt(user, prompt, trimmedMessage);
+    }
 
-        const isInterrupted =
-            await this.aiAgentModel.hasAiPromptInterrupt(messageUuid);
+    /** Sends a note to the answer in progress, for a caller that has already checked access to its thread. */
+    async steerMessageForAuthorized(
+        user: SessionUser,
+        { agent, thread }: AuthorizedAgentThread,
+        messageUuid: string,
+        message: string,
+    ): Promise<AiPromptSteer> {
+        const trimmedMessage = AiAgentService.trimSteerMessage(message);
+        const prompt = await this.getThreadPromptOrThrow({
+            organizationUuid: agent.organizationUuid,
+            agentUuid: agent.uuid,
+            threadUuid: thread.uuid,
+            messageUuid,
+        });
+        return this.steerPrompt(user, prompt, trimmedMessage);
+    }
+
+    private async steerPrompt(
+        user: SessionUser,
+        prompt: ThreadPrompt,
+        message: string,
+    ): Promise<AiPromptSteer> {
+        const isInterrupted = await this.aiAgentModel.hasAiPromptInterrupt(
+            prompt.promptUuid,
+        );
         if (isInterrupted) {
             throw new ParameterError('Cannot steer an interrupted prompt');
         }
-
         return this.aiAgentModel.createAiPromptSteer({
-            promptUuid: messageUuid,
+            promptUuid: prompt.promptUuid,
             createdByUserUuid: user.userUuid,
-            message: trimmedMessage,
+            message,
         });
     }
 
@@ -10060,24 +10259,43 @@ export class AiAgentService extends BaseService {
     ): Promise<void> {
         await this.aiCreditService.assertAiCreditsAvailable({
             user,
-            resolveKeyManagement: async () => {
-                const copilotConfig =
-                    await this.orgAiCopilotConfigResolver.getCopilotConfig({
-                        organizationUuid: user.organizationUuid ?? null,
-                        projectUuid,
-                        credentialUuid:
-                            await this.aiAgentModel.findProviderCredentialUuid(
-                                agentUuid,
-                            ),
-                    });
-                return getModel(copilotConfig, {
-                    enableReasoning: modelConfig?.reasoning,
-                    modelName: modelConfig?.modelName,
-                    provider: modelConfig?.modelProvider as AnyType,
-                }).keyManagement;
-            },
+            resolveKeyManagement: () =>
+                this.getAgentKeyManagement(user, {
+                    projectUuid,
+                    agentUuid,
+                    modelConfig,
+                }),
             isEmbedViewer: aiCreditCheck.isEmbedViewer,
         });
+    }
+
+    /** Who pays for the key this agent's model runs on. */
+    async getAgentKeyManagement(
+        user: Pick<SessionUser, 'organizationUuid'>,
+        {
+            projectUuid,
+            agentUuid,
+            modelConfig,
+        }: {
+            projectUuid: string | null;
+            agentUuid: string | null;
+            modelConfig: AiAgentModelConfig | null;
+        },
+    ): Promise<AiKeyManagement> {
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                organizationUuid: user.organizationUuid ?? null,
+                projectUuid,
+                credentialUuid:
+                    await this.aiAgentModel.findProviderCredentialUuid(
+                        agentUuid,
+                    ),
+            });
+        return getModel(copilotConfig, {
+            enableReasoning: modelConfig?.reasoning,
+            modelName: modelConfig?.modelName,
+            provider: modelConfig?.modelProvider as AnyType,
+        }).keyManagement;
     }
 
     async generateAgentThreadResponse(
@@ -10327,20 +10545,63 @@ export class AiAgentService extends BaseService {
             threadUuid: string;
         },
     ): Promise<string> {
-        try {
-            // Reuse existing validation and data fetching logic
-            const { chatHistoryMessages, compaction } =
-                await this.prepareAgentThreadResponse(user, {
+        return this.titleThread(
+            user,
+            { agentUuid, threadUuid },
+            (prepareOptions) =>
+                this.prepareAgentThreadResponse(user, {
                     agentUuid,
                     threadUuid,
-                    aiCreditCheck: null,
-                    // A title never needs the pixels.
-                    threadImages: 'omit',
-                });
+                    ...prepareOptions,
+                }),
+            () => this.getAgent(user, agentUuid),
+        );
+    }
+
+    /** Names a thread from its messages, for a caller that has already checked access. */
+    async generateTitleForAuthorized(
+        user: SessionUser,
+        authorized: AuthorizedAgentThread,
+    ): Promise<string> {
+        return this.titleThread(
+            user,
+            {
+                agentUuid: authorized.agent.uuid,
+                threadUuid: authorized.thread.uuid,
+            },
+            (prepareOptions) =>
+                this.prepareThreadResponse(
+                    user,
+                    authorized,
+                    {
+                        agentUuid: authorized.agent.uuid,
+                        threadUuid: authorized.thread.uuid,
+                    },
+                    prepareOptions,
+                ),
+            async () => authorized.agent,
+        );
+    }
+
+    private async titleThread(
+        user: SessionUser,
+        { agentUuid, threadUuid }: { agentUuid: string; threadUuid: string },
+        prepare: PrepareThreadResponse,
+        getModelAgent: () => Promise<
+            Pick<AiAgent, 'projectUuid' | 'providerCredentialUuid'>
+        >,
+    ): Promise<string> {
+        try {
+            // Reuse existing validation and data fetching logic
+            const { chatHistoryMessages, compaction } = await prepare({
+                aiCreditCheck: null,
+                // A title never needs the pixels.
+                threadImages: 'omit',
+            });
 
             // The title is generated from the thread's own messages, so it must
             // run on that project's credential rather than the org default.
-            const agent = await this.getAgent(user, agentUuid);
+            const agent = await getModelAgent();
             // Use fast model for title generation (lightweight task)
             const copilotConfig =
                 await this.orgAiCopilotConfigResolver.getCopilotConfig({
@@ -10544,18 +10805,17 @@ export class AiAgentService extends BaseService {
         if (claim.subject.uuid !== account.user.id) return 'other_person';
         assertRegisteredAccount(account);
         const { organizationUuid } = account.organization;
+        // A result is bound to the agent that produced it, whichever kind that is.
         const agent = await this.aiAgentModel.getAgent({
             organizationUuid,
             agentUuid: claim.act.agent_uuid,
+            agentKind: 'any',
         });
         const user = toSessionUser(account);
         if (
             agent === null ||
             agent.projectUuid !== projectUuid ||
-            !(await canAccessAiAgent(user, agent, {
-                auditedAbility: this.createAuditedAbility(user),
-                groupsModel: this.groupsModel,
-            }))
+            !(await this.checkAgentAccess(user, agent))
         )
             return 'agent_unavailable';
         // Results an agent produced while Data Access was on stop being
@@ -10564,12 +10824,23 @@ export class AiAgentService extends BaseService {
         return 'allowed';
     }
 
+    // An agent route's way of knowing the person may use the agent.
+    private getAccessibleAgent(
+        user: SessionUser,
+        agentUuid: string,
+        projectUuid: string,
+    ): Promise<AiAgent> {
+        return this.getAgent(user, agentUuid, projectUuid);
+    }
+
     private async getArtifactOwnerResultReader(
         user: SessionUser,
         projectUuid: string,
         agentUuid: string,
         artifact: Pick<AiArtifact, 'threadUuid' | 'promptUuid'>,
         authMethod: QueryResultReader['authMethod'],
+        // The agent, once this person is known to have access to it; the routes differ in how they know.
+        getAccessibleAgent: () => Promise<AiAgent>,
     ): Promise<QueryResultReader> {
         const thread = await this.aiAgentModel.getThread({
             organizationUuid: user.organizationUuid!,
@@ -10581,7 +10852,7 @@ export class AiAgentService extends BaseService {
         const prompt =
             (await this.aiAgentModel.findSlackPrompt(artifact.promptUuid)) ??
             (await this.aiAgentModel.findWebAppPrompt(artifact.promptUuid));
-        const agent = await this.getAgent(user, agentUuid, projectUuid);
+        const agent = await getAccessibleAgent();
         if (
             prompt?.createdByUserUuid !== user.userUuid ||
             prompt.agentUuid !== agent.uuid ||
@@ -10680,6 +10951,7 @@ export class AiAgentService extends BaseService {
                 agentUuid,
                 artifact,
                 account.authentication.type,
+                () => this.getAccessibleAgent(user, agentUuid, projectUuid),
             );
         }
         const args = {
@@ -10774,10 +11046,13 @@ export class AiAgentService extends BaseService {
             projectUuid,
             agentUuid,
             source,
+            getAccessibleAgent,
         }: {
             projectUuid: string;
             agentUuid: string;
             source: Pick<AiArtifact, 'threadUuid' | 'promptUuid'>;
+            /** Supplied by a caller that has already checked access; absent on the agent routes. */
+            getAccessibleAgent?: () => Promise<AiAgent>;
         },
         execute: () => Promise<T>,
         getQueryUuids: (result: T) => string[],
@@ -10790,6 +11065,8 @@ export class AiAgentService extends BaseService {
             agentUuid,
             source,
             account.authentication.type,
+            getAccessibleAgent ??
+                (() => this.getAccessibleAgent(user, agentUuid, projectUuid)),
         );
         const result =
             reader.kind === 'agent'
@@ -10829,15 +11106,125 @@ export class AiAgentService extends BaseService {
             user,
             options,
             () => this.executeArtifactVizQuery(user, options, account),
-            (vizQuery) =>
-                isAiAgentComposerArtifactVizQuery(vizQuery)
-                    ? [
-                          ...Object.values(vizQuery.nodeQueryUuids),
-                          ...(vizQuery.chartStage?.status === 'ok'
-                              ? [vizQuery.chartStage.queryUuid]
-                              : []),
-                      ]
-                    : [vizQuery.query.queryUuid],
+            AiAgentService.getArtifactVizQueryUuids,
+            account,
+        );
+    }
+
+    private static getArtifactVizQueryUuids(
+        vizQuery: ApiAiAgentArtifactVizQuery,
+    ): string[] {
+        return isAiAgentComposerArtifactVizQuery(vizQuery)
+            ? [
+                  ...Object.values(vizQuery.nodeQueryUuids),
+                  ...(vizQuery.chartStage?.status === 'ok'
+                      ? [vizQuery.chartStage.queryUuid]
+                      : []),
+              ]
+            : [vizQuery.query.queryUuid];
+    }
+
+    /** Runs an artifact's query for a caller that has already checked access to its thread. */
+    // The access a caller checked was to one thread; the artifact has to be that thread's.
+    private static assertArtifactOfThread(
+        { thread }: AuthorizedAgentThread,
+        artifact: StoredArtifact,
+    ): void {
+        if (artifact.threadUuid !== thread.uuid) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access this artifact',
+            );
+        }
+    }
+
+    /** Reads the rows of an artifact's query for a caller that has already checked access to its thread. */
+    async getArtifactQueryResultsForAuthorized(
+        user: SessionUser,
+        authorized: AuthorizedAgentThread,
+        artifact: StoredArtifact,
+        {
+            queryUuid,
+            page,
+            pageSize,
+        }: { queryUuid: string; page: number | null; pageSize: number | null },
+        account: RegisteredAccount,
+    ): Promise<ApiGetAsyncQueryResults> {
+        AiAgentService.assertArtifactOfThread(authorized, artifact);
+        const { agent } = authorized;
+        const { projectUuid, uuid: agentUuid } = agent;
+        const { artifactUuid, versionUuid } = artifact;
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        const reader: QueryResultReader = enabled
+            ? await this.getArtifactOwnerResultReader(
+                  user,
+                  projectUuid,
+                  agentUuid,
+                  artifact,
+                  account.authentication.type,
+                  async () => agent,
+              )
+            : { kind: 'person', authMethod: account.authentication.type };
+        const args = {
+            account,
+            reader,
+            projectUuid,
+            queryUuid,
+            page: page ?? undefined,
+            pageSize: pageSize ?? undefined,
+        };
+        return enabled
+            ? this.asyncQueryService.getArtifactBoundQueryResults(args, {
+                  agentUuid,
+                  artifactUuid,
+                  versionUuid,
+              })
+            : this.asyncQueryService.getAsyncQueryResults(args);
+    }
+
+    async getArtifactVizQueryForAuthorized(
+        user: SessionUser,
+        authorized: AuthorizedAgentThread,
+        artifact: StoredArtifact,
+        callerAccount?: RegisteredAccount,
+    ): Promise<ApiAiAgentArtifactVizQuery> {
+        AiAgentService.assertArtifactOfThread(authorized, artifact);
+        const { agent } = authorized;
+        const account = getArtifactRunAccount(user, callerAccount);
+        const { projectUuid, uuid: agentUuid } = agent;
+        const { artifactUuid, versionUuid } = artifact;
+        const execute = () =>
+            this.runArtifactVizQuery(
+                user,
+                { agent, artifact },
+                { projectUuid, agentUuid, artifactUuid, versionUuid },
+                account,
+                Date.now(),
+            );
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        if (!enabled) return execute();
+        return this.executeQueriesAsOwner(
+            user,
+            {
+                projectUuid,
+                agentUuid,
+                source: artifact,
+                getAccessibleAgent: async () => agent,
+            },
+            execute,
+            AiAgentService.getArtifactVizQueryUuids,
+            (bindingAccount, queryUuid) =>
+                this.asyncQueryService.bindQueryToArtifact(
+                    bindingAccount,
+                    projectUuid,
+                    queryUuid,
+                    { agentUuid, artifactUuid, versionUuid },
+                ),
             account,
         );
     }
@@ -10942,6 +11329,45 @@ export class AiAgentService extends BaseService {
             runtimeOptions,
         );
 
+        return this.runArtifactVizQuery(
+            user,
+            { agent, artifact },
+            {
+                projectUuid,
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+                runtimeOptions,
+                cachedQueryUuid,
+            },
+            account,
+            vizQueryStartedAt,
+        );
+    }
+
+    // Runs an artifact's query once the caller has settled who may see it.
+    private async runArtifactVizQuery(
+        user: SessionUser,
+        { agent, artifact }: { agent: AiAgent; artifact: StoredArtifact },
+        {
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            runtimeOptions,
+            cachedQueryUuid,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            cachedQueryUuid?: string;
+        },
+        account: RegisteredAccount,
+        vizQueryStartedAt: number,
+    ): Promise<ApiAiAgentArtifactVizQuery> {
+        const { organizationUuid } = agent;
         if (!artifact.chartConfig) {
             throw new ParameterError(
                 'Chart config not found for this artifact',
@@ -11844,6 +12270,12 @@ export class AiAgentService extends BaseService {
                   args.agentUuid,
                   { threadUuid: args.threadUuid, promptUuid: args.messageUuid },
                   account.authentication.type,
+                  () =>
+                      this.getAccessibleAgent(
+                          user,
+                          args.agentUuid,
+                          projectUuid,
+                      ),
               )
             : { kind: 'person', authMethod: account.authentication.type };
         const resultsArgs = {
@@ -11933,6 +12365,22 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        await this.updateArtifactVersionForAuthorized(
+            { agent, thread },
+            versionUuid,
+            update,
+        );
+    }
+
+    /** Links an artifact version to what was saved from it, for a caller that has already checked access to its thread. */
+    async updateArtifactVersionForAuthorized(
+        { agent }: AuthorizedAgentThread,
+        versionUuid: string,
+        update:
+            | { savedDashboardUuid: string | null }
+            | { savedSqlUuid: string | null }
+            | { savedComposerChartUuid: string | null },
+    ): Promise<void> {
         if (
             'savedSqlUuid' in update &&
             update.savedSqlUuid !== null &&
@@ -12091,16 +12539,18 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    /** The project's API connections the user may query, offered as composer api nodes. */
+    /** The integrations an agent can use: all of them, or those sharing a tag with it. */
     private async getAgentLiveSources(
         user: SessionUser,
         projectUuid: string,
+        agentTags: string[] | null,
     ): Promise<AgentLiveSource[]> {
-        const connections =
+        const connections = (
             await this.externalConnectionService.listApiSourceConnections(
                 fromSession(user),
                 projectUuid,
-            );
+            )
+        ).filter(({ tags }) => isTaggedForAgent(tags, agentTags));
         return connections.flatMap(
             ({
                 externalConnectionUuid,
@@ -12144,7 +12594,11 @@ export class AiAgentService extends BaseService {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
         }
-        return this.getAgentForPrompt(user.organizationUuid, prompt);
+        const agent = await this.getAgentForPrompt(
+            user.organizationUuid,
+            prompt,
+        );
+        return agent;
     }
 
     // Priority: agentUuid if available (set by multi-agent channel selection or
@@ -12154,9 +12608,11 @@ export class AiAgentService extends BaseService {
         prompt: SlackPrompt | AiWebAppPrompt,
     ): Promise<AiAgent> {
         if (prompt.agentUuid) {
+            // The turn runs on its thread's agent; whoever started it decided the thread may run.
             return this.aiAgentModel.getAgent({
                 organizationUuid,
                 agentUuid: prompt.agentUuid,
+                agentKind: 'any',
             });
         }
 
@@ -12590,6 +13046,9 @@ export class AiAgentService extends BaseService {
         const inlinedFiles: { path: string; content: string }[] = [];
         const images: { fileName: string; part: FilePart }[] = [];
 
+        const dashboardViewFiltersLabel =
+            'Filters in effect on the dashboard (its saved filters plus any the user changed; each applies only to the tiles it targets):';
+
         const describeItem = (item: AiPromptContextItem): string => {
             switch (item.type) {
                 case 'chart': {
@@ -12601,7 +13060,7 @@ export class AiAgentService extends BaseService {
                     const overrideLines: string[] = [];
                     if (overrides.dashboardFilters) {
                         overrideLines.push(
-                            `    Dashboard filters: ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,
+                            `    ${dashboardViewFiltersLabel}\n      ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,
                         );
                     }
                     if (overrides.dashboardParameters) {
@@ -12647,7 +13106,7 @@ export class AiAgentService extends BaseService {
                     }
                     if (overrides.dashboardFilters) {
                         overrideLines.push(
-                            `  Filters applied:\n    ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,
+                            `  ${dashboardViewFiltersLabel}\n    ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,
                         );
                     }
                     if (overrides.dashboardParameters) {
@@ -12868,7 +13327,7 @@ export class AiAgentService extends BaseService {
                     (item.type === 'chart' || item.type === 'dashboard') &&
                     item.runtimeOverrides !== null,
             )
-                ? "When runtime overrides are listed, apply them on top of the chart's saved state when querying."
+                ? 'These overrides are what the user currently sees. Use them when the question is about what the dashboard or chart shows. Leave them out when editing a saved chart or answering a new question, unless the user asks for them.'
                 : null,
         ].filter((sentence): sentence is string => sentence !== null);
         const guidanceSection =
@@ -13614,6 +14073,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 );
                 return;
             }
+            // A thread of another kind sets up its own saves; every other thread's are ordinary ones.
+            const writebackSetup =
+                (await this.findWritebackSetup({
+                    user,
+                    projectUuid,
+                    threadCreatedFrom: prompt.threadCreatedFrom,
+                })) ?? DEFAULT_AGENT_WRITEBACK_SETUP;
 
             // This job is enqueued mid-step, so it can outrun the onStepEnd
             // insert of its own tool-result row — wait for it before any
@@ -13625,7 +14091,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             let changedModels: string[] | null = null;
             try {
                 const runArgs = {
-                    ...(isSemanticStudioThread(prompt.threadCreatedFrom)
+                    ...(writebackSetup.continuesThreadPullRequest
                         ? { continuesThreadPullRequest: true }
                         : {}),
                     agentPermissionsApply: true,
@@ -13804,18 +14270,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     });
             }
 
-            if (
-                result.prUrl &&
-                result.commitSha &&
-                isSemanticStudioThread(prompt.threadCreatedFrom)
-            ) {
-                await this.semanticStudioCheckoutService
-                    .queueBranchCompile(
-                        user,
-                        projectUuid,
-                        result.prUrl,
-                        'agent',
-                    )
+            if (result.prUrl && result.commitSha && writebackSetup.onSaved) {
+                await writebackSetup
+                    .onSaved(result.prUrl)
                     .catch((error: unknown) => {
                         Logger.warn(
                             `AiAgent.runEditDbtProjectPipeline: failed to queue a compile of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
@@ -13869,8 +14326,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     !suppressWritebackPreview &&
                     !reviewRemediation
                 ) {
-                    // Studio shows the pull request now; building its preview can take a minute.
-                    if (isSemanticStudioThread(prompt.threadCreatedFrom)) {
+                    // Such a thread shows the pull request now; building its preview can take a minute.
+                    if (writebackSetup.showsPullRequestBeforePreview) {
                         if (assertPublishAllowed) await assertPublishAllowed();
                         await storeResult(null, new Date().toISOString());
                         toolResultWritten = true;
@@ -14483,6 +14940,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             enableDocuments: boolean;
             enableRuntimeCache: boolean;
             invalidateQueryCache?: boolean;
+            /** The tools of the caller's own kind of thread; absent for an ordinary chat. */
+            buildExtraTools?: BuildAgentExtraTools;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -15178,84 +15637,28 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
 
         const discoverRepos: DiscoverReposFn = listAuthorizedRepos;
 
-        const proposeSemanticLayerChange: ProposeSemanticLayerChangeFn = (
-            models,
-            changeName,
-        ) =>
-            this.semanticStudioService.proposeDraftChange(
-                user,
-                projectUuid,
-                models,
-                {
-                    promptUuid: prompt.promptUuid,
-                    threadUuid: prompt.threadUuid,
-                },
-                changeName,
-            );
-
-        const listChanges = () =>
-            this.semanticStudioService.listChanges(
-                user,
-                projectUuid,
-                prompt.threadUuid,
-            );
-
-        // Studio queries read the person's draft over what is published, the way trying their changes does.
-        const inDraft = <T>(run: () => Promise<T>): Promise<T> => {
-            let drafted:
-                | ReturnType<
-                      SemanticStudioCheckoutService['findDevelopmentExplores']
-                  >
-                | undefined;
-            // Reading the draft reads the project itself, which must see what is published.
-            const findExplores = () => {
-                drafted ??= developmentView.exit(() =>
-                    this.semanticStudioCheckoutService.findDevelopmentExplores(
-                        user,
-                        projectUuid,
-                    ),
-                );
-                return drafted;
-            };
-            return developmentView.run(
-                {
-                    findExplores,
-                    hasChanges: async () => (await findExplores()) !== null,
-                },
-                run,
-            );
-        };
-        const getDraftExplore: GetExploreFn = (args) =>
-            inDraft(() => toolsRuntime.getExplore(args));
-        const runDraftQuery: RunAsyncQueryFn = (...args) =>
-            inDraft(() => toolsRuntime.runAsyncQuery(...args));
-
-        const readSemanticModel: ReadSemanticModelFn = (name) =>
-            this.semanticStudioService.readDraftedModel(
-                user,
-                projectUuid,
-                name,
-            );
+        const {
+            proposeSemanticLayerChange,
+            draftProjectContext,
+            listChanges,
+            getDraftExplore,
+            runDraftQuery,
+            readSemanticModel,
+            verify,
+        } = options?.buildExtraTools
+            ? options.buildExtraTools({
+                  promptUuid: prompt.promptUuid,
+                  threadUuid: prompt.threadUuid,
+                  getExplore: toolsRuntime.getExplore,
+                  runAsyncQuery: toolsRuntime.runAsyncQuery,
+              })
+            : NO_AGENT_EXTRA_TOOLS;
 
         const read: ReadFn = (script, libraries) =>
             this.aiWritebackService.readWithScript(
                 { user, projectUuid, aiThreadUuid: prompt.threadUuid },
                 script,
                 libraries,
-            );
-
-        const verify: VerifyFn = () =>
-            this.semanticStudioCheckoutService.waitForBranchCompile(
-                user,
-                projectUuid,
-                {
-                    threadUuid: prompt.threadUuid,
-                    isSaving: () =>
-                        this.aiWritebackService.hasRunInProgress(
-                            prompt.threadUuid,
-                        ),
-                    timeoutMs: 60_000,
-                },
             );
 
         // Deterministic project_context.yml writeback (no sandbox). Only wired
@@ -15392,6 +15795,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             getDraftExplore,
             runDraftQuery,
             readSemanticModel,
+            draftProjectContext,
             verify,
             read,
             exploreRepo,
@@ -16716,6 +17120,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             ) => void | Promise<void>;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             redactToolOutputs?: boolean;
+            turnInputs?: AgentTurnInputs;
         },
     ): Promise<AgentResponseStream>;
     async generateOrStreamAgentResponse(
@@ -16803,6 +17208,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             redactToolOutputs?: boolean;
             execution?: GenerateAgentExecutionOptions;
+            /** What the caller brings to the turn; absent for an ordinary chat. */
+            turnInputs?: AgentTurnInputs;
         } & (
             | {
                   prompt: AiWebAppPrompt;
@@ -17010,15 +17417,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 const decisionUsage = decisionClient
                     ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
                     : undefined;
-                const isStudioThread = isSemanticStudioThread(
-                    prompt.threadCreatedFrom,
-                );
-                // Studio never asks, whichever request started the turn.
+                // The caller sets up the turns of its own kind of thread; every other thread is an ordinary one.
+                const turnSetup = options.turnInputs
+                    ? await options.turnInputs.getTurnSetup()
+                    : DEFAULT_AGENT_TURN_SETUP;
                 const autoApproveSqlForUser =
-                    (options.autoApproveSql ?? false) || isStudioThread;
-                // Fast decisions route analytics turns; this thread only edits models.
+                    (options.autoApproveSql ?? false) ||
+                    turnSetup.autoApproveSql;
                 const decisions =
-                    decisionUsage && !isStudioThread
+                    decisionUsage && turnSetup.usesFastDecisions
                         ? decisionClient?.withUsage(decisionUsage)
                         : undefined;
                 const { preModelDecisions, fastExperienceEnabled } =
@@ -17490,9 +17897,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                             user,
                             projectUuid: prompt.projectUuid,
                             agentUuid: agentSettings.uuid,
-                            // Studio's loadout takes no MCP tools, so its turns do not wait on those servers.
                             includeAttachedMcpServers:
-                                !isStudioThread &&
+                                turnSetup.waitsOnMcpServers &&
                                 shouldIncludeAttachedMcpServers(
                                     responseExecution.mode,
                                     responseExecution.mode === 'deep_research'
@@ -17546,47 +17952,26 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     battleProfile,
                 });
                 const liveSources = hasTrustedPromptUserIdentity
-                    ? await this.getAgentLiveSources(user, prompt.projectUuid)
+                    ? await this.getAgentLiveSources(
+                          user,
+                          prompt.projectUuid,
+                          agentSettings.tags,
+                      )
                     : [];
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
                         user,
                         featureFlagId: FeatureFlags.AiFilterExpressions,
                     });
-                // Studio's chat offers a change as a choice, so its threads ask without the flag.
                 const enableAskUser =
                     canOfferAskUser(prompt, responseExecution.mode) &&
-                    (isStudioThread ||
+                    (turnSetup.asksWithoutFlag ||
                         (
                             await this.featureFlagService.get({
                                 user,
                                 featureFlagId: FeatureFlags.AiAgentAskUser,
                             })
                         ).enabled);
-                // A dbt project keeps no draft in Semantic Studio; its thread edits the repository instead.
-                const semanticStudioStatus = isStudioThread
-                    ? await this.semanticStudioService.getStatus(
-                          user,
-                          promptProject.projectUuid,
-                      )
-                    : null;
-                // Only a project with no repository has nowhere to keep project context.
-                const semanticStudioHasRepository =
-                    semanticStudioStatus?.appliesAs !== 'live';
-                // Studio saves a dbt change with a script wherever Studio itself is on for the person.
-                const semanticStudioCodeMode =
-                    semanticStudioStatus !== null &&
-                    worksAsDbtPullRequests(semanticStudioStatus);
-                // A dbt project's layout spares the agent surveying the repository.
-                const semanticStudioProjectMap = semanticStudioCodeMode
-                    ? await this.incrementalDbtCompileService.getDbtProjectMap(
-                          promptProject.projectUuid,
-                      )
-                    : null;
-                const semanticStudioDrafts =
-                    semanticStudioStatus !== null &&
-                    semanticStudioStatus.enabled &&
-                    !semanticStudioCodeMode;
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -17616,10 +18001,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     aiWritebackEnabled = false;
                 }
 
-                if (
-                    semanticStudioStatus !== null &&
-                    !semanticStudioStatus.enabled
-                ) {
+                if (turnSetup.studio !== null && !turnSetup.studio.enabled) {
                     aiWritebackEnabled = false;
                 }
 
@@ -17812,6 +18194,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
+                    draftProjectContext,
                     verify,
                     read,
                     exploreRepo,
@@ -17843,6 +18226,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     runtimeOptions: options.runtimeOptions,
                     suppressWritebackPreview: options.suppressWritebackPreview,
                     dbtSourceUuid: options.dbtSourceUuid,
+                    buildExtraTools: options.turnInputs?.buildExtraTools,
                     onWarehouseQuery: responseExecution.onWarehouseQuery,
                     enableDocuments: canUseDocumentTools,
                     enableRuntimeCache: !!decisions,
@@ -18109,11 +18493,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     enableGenerateDataApp,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
-                    isSemanticStudioThread: isStudioThread,
-                    semanticStudioDrafts,
-                    semanticStudioCodeMode,
-                    semanticStudioHasRepository,
-                    semanticStudioProjectMap,
+                    studio: turnSetup.studio,
+                    turnCard: turnSetup.turnCard,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
@@ -18124,6 +18505,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
+                    enableComposerPythonNodes:
+                        enableComposerQueries &&
+                        getPythonSandboxConfigError(this.lightdashConfig) ===
+                            null,
                     liveSources,
                     canCreateDashboards,
                     canCreateScheduledDeliveries,
@@ -18346,6 +18731,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     getDraftExplore,
                     runDraftQuery,
                     readSemanticModel,
+                    draftProjectContext,
                     verify,
                     read,
                     exploreRepo,
@@ -18965,7 +19351,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 : null,
             agentModelConfig: agent?.modelConfig ?? null,
             requestedModelConfig: data.modelConfig ?? null,
-            prefersStudioModel: false,
+            modelPreference: null,
         });
 
         if (!threadUuid) {
@@ -20306,6 +20692,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                     return 'Listing your changes...';
                 case 'readSemanticModel':
                     return 'Reading the model...';
+                case 'draftProjectContext':
+                    return 'Drafting the project context...';
                 case 'verify':
                     return 'Checking the change...';
                 case 'read':

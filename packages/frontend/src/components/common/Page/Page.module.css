@@ -10,9 +10,10 @@
     --navbar-offset: 0px;
     --header-offset: 0px;
     --banner-offset: 0px;
+    /* The left navigation shell places the page below its own header. */
     --page-height: calc(
         100dvh - var(--navbar-offset) - var(--header-offset) -
-            var(--banner-offset)
+            var(--banner-offset) - var(--app-shell-header-offset, 0rem)
     );
 
     height: var(--page-height);

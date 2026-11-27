@@ -38,6 +38,10 @@ const mocks = vi.hoisted(() => ({
     toast: vi.fn(),
     errorToast: vi.fn(),
 }));
+// The project list has its own tests and request.
+vi.mock('./AgentProjectExceptions', () => ({
+    AgentProjectExceptions: () => null,
+}));
 vi.mock('../../api');
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
@@ -70,7 +74,6 @@ vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastSuccess: vi.fn(), showToastApiError: vi.fn() }),
 }));
 const policy: AgentCapabilityPolicyOverview = {
-    mode: 'legacy',
     version: 1,
     allowedCapabilities: null,
     allowedGroupUuids: null,
@@ -143,7 +146,7 @@ describe('Agents page loading boundary', () => {
                     view.container.querySelectorAll('.mantine-Loader-root'),
                 ).toHaveLength(1);
                 expect(
-                    screen.queryByText('Permissions'),
+                    screen.queryByText('Restrictions'),
                 ).not.toBeInTheDocument();
                 expect(screen.queryByText('Identity')).not.toBeInTheDocument();
             };
@@ -162,7 +165,7 @@ describe('Agents page loading boundary', () => {
             await act(async () => resolve.get('/org/projects')?.([]));
             assertLoading();
             await act(async () => resolve.get(GROUPS_URL)?.({ data: [] }));
-            expect(await screen.findByText('Permissions')).toBeInTheDocument();
+            expect(await screen.findByText('Restrictions')).toBeInTheDocument();
             expect(screen.getByText('Identity')).toBeInTheDocument();
             expect(
                 view.container.querySelectorAll('.mantine-Loader-root'),
@@ -185,7 +188,7 @@ describe('Agents page loading boundary', () => {
                 : response(url),
         );
         renderPage({ agentsPage: true, agentsMcp: false, mcpPage: 'hidden' });
-        await screen.findByText('Permissions');
+        await screen.findByText('Restrictions');
         expect(api.mock.calls.map(([request]) => request.url)).toEqual([
             '/org/agent-identity',
             '/org/projects',
@@ -211,7 +214,7 @@ describe('Agents page loading boundary', () => {
         expect(screen.queryByText('Identity')).not.toBeInTheDocument();
         api.mockImplementation(async ({ url }) => response(url));
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-        expect(await screen.findByText('Permissions')).toBeInTheDocument();
+        expect(await screen.findByText('Restrictions')).toBeInTheDocument();
     });
     it.each([false, true])(
         'keeps a dirty draft while newly enabled groups settle with error=%s',
@@ -237,10 +240,8 @@ describe('Agents page loading boundary', () => {
                 );
             });
             const view = renderPage(undefined, client);
-            await screen.findByText('Permissions');
-            fireEvent.click(
-                screen.getByRole('radio', { name: 'Custom scope' }),
-            );
+            await screen.findByText('Restrictions');
+            fireEvent.click(screen.getByRole('radio', { name: 'Restrict' }));
             fireEvent.click(
                 screen.getByRole('switch', { name: 'Delete content' }),
             );
@@ -364,7 +365,7 @@ describe('Agents page loading boundary', () => {
                 else pending.get('verify')!.resolve(verify);
             });
         const view = renderPage();
-        await screen.findByText('Permissions');
+        await screen.findByText('Restrictions');
         await waitFor(() => expect(pending.size).toBe(2));
         expect(
             screen.queryByRole('status', { name: /Snowflake agent sign-in/ }),
@@ -418,7 +419,7 @@ describe('Agents page loading boundary', () => {
     });
     it('does not request Snowflake setup or verification without an active rule', async () => {
         renderPage();
-        await screen.findByText('Permissions');
+        await screen.findByText('Restrictions');
         expect(
             api.mock.calls.some(([request]) =>
                 request.url.includes('/snowflake/'),
@@ -427,14 +428,14 @@ describe('Agents page loading boundary', () => {
     });
     it('shows the title, approved subtitle and organization breadcrumb', async () => {
         renderPage();
-        await screen.findByText('Permissions');
+        await screen.findByText('Restrictions');
         expect(screen.getByText('Organization settings')).toBeInTheDocument();
         expect(
-            screen.getByRole('heading', { level: 4, name: 'Agents' }),
+            screen.getByRole('heading', { level: 4, name: 'Agent Identity' }),
         ).toBeInTheDocument();
         expect(
             screen.getByText(
-                "These rules apply to every project in this organization. Agents are Ask AI, the Slack agent, MCP clients and the CLI. Each project's shared agent account is in that project's settings.",
+                "Agents in Lightdash can take actions on behalf of a user, such as querying data or creating charts. Agents never gain permissions their user doesn't have. These settings let you restrict agents further, for example to stop agents from ever running raw SQL, even if the user can run it manually. Agent identity applies to Ask AI, the Slack agent, the CLI and MCP clients.",
             ),
         ).toBeInTheDocument();
     });
@@ -448,7 +449,7 @@ describe('Agents page loading boundary', () => {
         expect(
             await screen.findByText('Could not load agent settings.'),
         ).toBeInTheDocument();
-        expect(screen.queryByText('Permissions')).not.toBeInTheDocument();
+        expect(screen.queryByText('Restrictions')).not.toBeInTheDocument();
         expect(
             screen.queryByText('No groups available'),
         ).not.toBeInTheDocument();
@@ -759,7 +760,7 @@ describe('Agents page identity integration', () => {
         const chips = await screen.findAllByRole('button', {
             name: /: agents run as/,
         });
-        fireEvent.click(screen.getByRole('radio', { name: 'Custom scope' }));
+        fireEvent.click(screen.getByRole('radio', { name: 'Restrict' }));
         const permissionsSave = screen.getByRole('button', {
             name: 'Review and save',
         });

@@ -5,6 +5,7 @@ import {
     getItemLabelWithoutTableName,
     ItemsMap,
 } from '@lightdash/common';
+import { createTimeBudgetYield } from '@lightdash/warehouses';
 import moment from 'moment/moment';
 import { validateHeaderValue } from 'node:http';
 import { Readable } from 'stream';
@@ -159,15 +160,26 @@ export async function streamJsonlData<T>({
     maxLines,
 }: {
     readStream: Readable;
-    onRow?: (parsedRow: Record<string, unknown>, lineCount: number) => T | void;
+    // A returned promise is awaited before the next row is read
+    onRow?: (
+        parsedRow: Record<string, unknown>,
+        lineCount: number,
+    ) => T | void | Promise<T | void>;
     onComplete?: (results: T[], truncated: boolean) => void;
     maxLines?: number; // undefined = no limit (for CSV), number = limit (for Excel)
 }): Promise<{ results: T[]; truncated: boolean }> {
     let lineCount = 0;
     let truncated = false;
     const results: T[] = [];
+    // Buffered lines are delivered in microtasks, so the loop must yield itself
+    const yieldIfNeeded = createTimeBudgetYield();
 
     for await (const line of splitJsonlStream(readStream)) {
+        const yielding = yieldIfNeeded();
+        if (yielding) {
+            await yielding;
+        }
+
         if (!line.trim()) {
             // eslint-disable-next-line no-continue
             continue;
@@ -182,18 +194,28 @@ export async function streamJsonlData<T>({
             break;
         }
 
+        let pending: T | void | Promise<T | void>;
         try {
             const parsedRow = JSON.parse(line);
-            if (onRow) {
-                const result = onRow(parsedRow, lineCount);
-                if (result !== undefined) {
-                    results.push(result);
-                }
-            }
+            pending = onRow?.(parsedRow, lineCount);
         } catch (error) {
             Logger.error(
                 `Error parsing line ${lineCount}: ${getErrorMessage(error)}`,
             );
+            // eslint-disable-next-line no-continue
+            continue;
+        }
+
+        let result: T | void;
+        try {
+            // A rejected row write (e.g. the export file failed) ends the export
+            result = pending instanceof Promise ? await pending : pending;
+        } catch (error) {
+            destroyS3Body(readStream);
+            throw error;
+        }
+        if (result !== undefined) {
+            results.push(result);
         }
     }
 

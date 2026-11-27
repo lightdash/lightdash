@@ -662,6 +662,9 @@ export const ServiceAccountsTable: FC<Props> = ({
         enableTopToolbar: true,
         enableBottomToolbar: false,
         mantineTableBodyCellProps: { py: 'sm' },
+        // Keep the table on screen and scroll its rows, like the other
+        // settings tables, instead of growing the page.
+        mantineTableContainerProps: { mah: 'calc(100dvh - 280px)' },
         mantineTableProps: { highlightOnHover: true },
         state: { isLoading },
         renderEmptyRowsFallback: () => (

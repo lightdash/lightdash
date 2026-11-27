@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { getUnpivotedColumnCount } from '../../hooks/resultsFirstPage';
 import {
     useGetReadyQueryResults,
     useInfiniteQueryResults,
@@ -21,6 +22,7 @@ export const useQueryExecutor = (
     enabled: boolean = true,
     queryUuidHistoryProp?: string[],
     setQueryUuidHistoryProp?: (history: string[]) => void,
+    { progressiveFirstPage = false }: { progressiveFirstPage?: boolean } = {},
 ) => {
     const query = useGetReadyQueryResults(
         enabled ? queryArgs : null,
@@ -64,9 +66,23 @@ export const useQueryExecutor = (
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [query.data]);
 
+    const currentQueryUuid = queryUuidHistory[queryUuidHistory.length - 1];
+    const firstPageColumnCount =
+        progressiveFirstPage &&
+        query.data &&
+        query.data.queryUuid === currentQueryUuid
+            ? getUnpivotedColumnCount(
+                  query.data.metricQuery,
+                  queryArgs?.pivotConfiguration,
+              )
+            : undefined;
+
     const queryResults = useInfiniteQueryResults(
         queryArgs?.projectUuid,
-        queryUuidHistory[queryUuidHistory.length - 1],
+        currentQueryUuid,
+        undefined,
+        null,
+        { firstPageColumnCount },
     );
 
     // Return with setQueryUuidHistory for backward compatibility

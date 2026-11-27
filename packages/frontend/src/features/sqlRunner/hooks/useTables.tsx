@@ -15,7 +15,7 @@ const fetchTables = async (
     lightdashApi: LightdashApi,
     { projectUuid }: Pick<GetTablesParams, 'projectUuid'>,
 ) =>
-    lightdashApi<ApiWarehouseTablesCatalog>({
+    lightdashApi<ApiWarehouseTablesCatalog['results']>({
         url: `/projects/${projectUuid}/sqlRunner/tables`,
         method: 'GET',
         body: undefined,
@@ -41,9 +41,9 @@ export type TablesBySchema =
 export const useTables = ({ projectUuid }: GetTablesParams) => {
     const lightdashApi = useLightdashApi();
     return useQuery<
-        ApiWarehouseTablesCatalog,
+        ApiWarehouseTablesCatalog['results'],
         ApiError,
-        ApiWarehouseTablesCatalog
+        ApiWarehouseTablesCatalog['results']
     >({
         queryKey: ['sqlRunner', 'tables', projectUuid],
         queryFn: () =>

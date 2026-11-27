@@ -75,15 +75,28 @@ describe('buildHashHandshake', () => {
         expect(reloadMock).not.toHaveBeenCalled();
     });
 
-    it('refreshes once the backend reports a different build', async () => {
+    it('waits for a refresh request when a build ships after the page started', async () => {
+        const { recordServerBuildHash, refreshForBuildSkew } =
+            await loadHandshake();
+        setServedBuildHash('abc123');
+
+        recordServerBuildHash(serverResponse('abc123'));
+        recordServerBuildHash(serverResponse('def456'));
+
+        expect(reloadMock).not.toHaveBeenCalled();
+        expect(refreshForBuildSkew()).toBe(true);
+        expect(reloadMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('refreshes at once when the page starts on an old build', async () => {
         const { recordServerBuildHash, refreshForBuildSkew } =
             await loadHandshake();
         setServedBuildHash('abc123');
 
         recordServerBuildHash(serverResponse('def456'));
 
-        expect(refreshForBuildSkew()).toBe(true);
         expect(reloadMock).toHaveBeenCalledTimes(1);
+        expect(refreshForBuildSkew()).toBe(false);
     });
 
     it('keeps reporting skew after a later response matches again', async () => {
@@ -91,6 +104,7 @@ describe('buildHashHandshake', () => {
             await loadHandshake();
         setServedBuildHash('abc123');
 
+        recordServerBuildHash(serverResponse('abc123'));
         recordServerBuildHash(serverResponse('def456'));
         recordServerBuildHash(serverResponse('abc123'));
 
@@ -102,6 +116,7 @@ describe('buildHashHandshake', () => {
             await loadHandshake();
         setServedBuildHash('abc123');
 
+        recordServerBuildHash(serverResponse('abc123'));
         recordServerBuildHash(serverResponse('def456'));
 
         expect(refreshForBuildSkew()).toBe(true);
@@ -114,7 +129,7 @@ describe('buildHashHandshake', () => {
         setServedBuildHash('abc123');
         stale.recordServerBuildHash(serverResponse('def456'));
 
-        expect(stale.refreshForBuildSkew()).toBe(true);
+        expect(reloadMock).toHaveBeenCalledTimes(1);
         expect(sessionStorage.getItem(SKEW_RELOAD_KEY)).not.toBeNull();
 
         const converged = await loadHandshake();
@@ -128,31 +143,30 @@ describe('buildHashHandshake', () => {
         setServedBuildHash('def456');
         skewedAgain.recordServerBuildHash(serverResponse('ghi789'));
 
-        expect(skewedAgain.refreshForBuildSkew()).toBe(true);
         expect(reloadMock).toHaveBeenCalledTimes(2);
     });
 
     it('stops auto-reloading after the attempt cap and does not resume when the cooldown expires', async () => {
-        const reloadOnPermanentSkew = async () => {
+        const startOnPermanentSkew = async () => {
             const handshake = await loadHandshake();
             setServedBuildHash('abc123');
             handshake.recordServerBuildHash(serverResponse('def456'));
             return handshake.refreshForBuildSkew();
         };
 
-        expect(await reloadOnPermanentSkew()).toBe(true);
+        await startOnPermanentSkew();
         currentTime += RELOAD_COOLDOWN_MS + 1;
 
-        expect(await reloadOnPermanentSkew()).toBe(true);
+        await startOnPermanentSkew();
         currentTime += RELOAD_COOLDOWN_MS + 1;
 
         expect(reloadMock).toHaveBeenCalledTimes(MAX_SKEW_RELOADS);
 
-        expect(await reloadOnPermanentSkew()).toBe(false);
+        expect(await startOnPermanentSkew()).toBe(false);
 
         currentTime += RELOAD_COOLDOWN_MS * 100;
 
-        expect(await reloadOnPermanentSkew()).toBe(false);
+        expect(await startOnPermanentSkew()).toBe(false);
         expect(reloadMock).toHaveBeenCalledTimes(MAX_SKEW_RELOADS);
     });
 
@@ -160,11 +174,10 @@ describe('buildHashHandshake', () => {
         const { recordServerBuildHash, refreshForBuildSkew } =
             await loadHandshake();
         setServedBuildHash('abc123');
-        recordServerBuildHash(serverResponse('def456'));
-
         vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
             throw new Error('storage disabled');
         });
+        recordServerBuildHash(serverResponse('def456'));
 
         expect(refreshForBuildSkew()).toBe(false);
         expect(reloadMock).not.toHaveBeenCalled();

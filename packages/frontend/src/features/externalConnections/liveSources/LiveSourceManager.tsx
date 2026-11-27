@@ -26,11 +26,13 @@ import {
 } from './liveSourceActions';
 import { formatChartCount, getLiveSource } from './liveSourceCatalog';
 import { type LiveSourceConnection } from './liveSourceRows';
+import { MixpanelConnectionModal } from './MixpanelConnectionModal';
 import { getPostHogSignInUrl, toPostHogFormValues } from './postHogConnection';
 import { PostHogConnectionModal } from './PostHogConnectionModal';
 import { ReattachLiveSourceModal } from './ReattachLiveSourceModal';
 import { getSalesforceSignInUrl } from './salesforceConnection';
 import { SalesforceConnectionModal } from './SalesforceConnectionModal';
+import { SupabaseConnectionModal } from './SupabaseConnectionModal';
 import { TokenLiveSourceModal } from './TokenLiveSourceModal';
 import { useLiveSourceSignInResult } from './useLiveSourceSignInResult';
 
@@ -154,6 +156,9 @@ export const LiveSourceManager: FC<{
                         return null;
                     // A new key pair means adding the source again
                     case 'amplitude':
+                    case 'mixpanel':
+                    case 'supabase':
+                    case 'unknown':
                         return null;
                     case 'linkedin_ads': {
                         const { apiSource } = connection;
@@ -287,6 +292,26 @@ const LiveSourceConnectDialog: FC<{
                     onCreated={onCreated}
                 />
             );
+        case 'mixpanel':
+            return (
+                <MixpanelConnectionModal
+                    opened
+                    onClose={onClose}
+                    projectUuid={projectUuid}
+                    onCreated={onCreated}
+                />
+            );
+        case 'supabase':
+            return (
+                <SupabaseConnectionModal
+                    opened
+                    onClose={onClose}
+                    projectUuid={projectUuid}
+                    onCreated={onCreated}
+                />
+            );
+        case 'unknown':
+            return null;
         default:
             return assertUnreachable(setup, 'Unknown source setup');
     }

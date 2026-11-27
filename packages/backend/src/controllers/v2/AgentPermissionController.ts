@@ -3,14 +3,20 @@ import {
     type AgentCapabilityCeiling,
     type AgentPolicyOverviewResponse,
     type AgentPolicyResponse,
+    type AgentProjectCapabilityPolicySave,
+    type AgentProjectPoliciesResponse,
+    type AgentProjectPolicyResponse,
     type ApiErrorPayload,
+    type ApiSuccessEmpty,
     type ResetPolicyRequest,
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
     Middlewares,
     OperationId,
+    Path,
     Post,
     Put,
     Request,
@@ -73,5 +79,60 @@ export class AgentPermissionController extends BaseController {
                 .getAgentPermissionService()
                 .resetToLegacy(req.account, body?.version),
         };
+    }
+
+    /**
+     * List the projects that have their own agent restrictions
+     * @summary List project agent restrictions
+     */
+    @Get('/projects')
+    @OperationId('getProjectAgentCapabilityPolicies')
+    async getProjectPolicies(
+        @Request() req: express.Request,
+    ): Promise<AgentProjectPoliciesResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAgentPermissionService()
+                .getProjectPolicies(req.account),
+        };
+    }
+
+    /**
+     * Give a project its own agent restrictions, replacing the organization's for that project
+     * @summary Save project agent restrictions
+     */
+    @Put('/projects/{projectUuid}')
+    @OperationId('saveProjectAgentCapabilityPolicy')
+    async saveProjectPolicy(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: AgentProjectCapabilityPolicySave,
+    ): Promise<AgentProjectPolicyResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAgentPermissionService()
+                .saveProjectPolicy(req.account, projectUuid, body),
+        };
+    }
+
+    /**
+     * Remove a project's own agent restrictions so it follows the organization again
+     * @summary Remove project agent restrictions
+     */
+    @Delete('/projects/{projectUuid}')
+    @OperationId('deleteProjectAgentCapabilityPolicy')
+    async deleteProjectPolicy(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getAgentPermissionService()
+            .deleteProjectPolicy(req.account, projectUuid);
+        return { status: 'ok', results: undefined };
     }
 }

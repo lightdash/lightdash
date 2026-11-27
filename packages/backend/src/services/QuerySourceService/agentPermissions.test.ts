@@ -3,7 +3,6 @@ import {
     AgentCapability,
     AiAccessRefusalReason,
     FeatureFlags,
-    OrganizationMemberRole,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
@@ -25,6 +24,7 @@ import {
     buildAccount,
     defaultSessionUser,
 } from '../../auth/account/account.mock';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { QuerySourceController } from '../../controllers/v2/QuerySourceController';
 import { AiAgentToolsService } from '../../ee/services/AiAgentToolsService/AiAgentToolsService';
 import { CatalogSearchContext } from '../../models/CatalogModel/CatalogModel';
@@ -61,9 +61,8 @@ const setup = (
 ) => {
     const organizationUuid = account.organization.organizationUuid!;
     const policy: AgentCapabilityPolicy = {
-        mode: mode === 'off' ? 'managed' : mode,
         version: 1,
-        allowedCapabilities: [AgentCapability.Query],
+        allowedCapabilities: mode === 'legacy' ? null : [AgentCapability.Query],
         allowedGroupUuids: null,
     };
     const featureFlagModel = {
@@ -91,16 +90,12 @@ const setup = (
                         : policy.allowedGroupUuids.length > 0,
             })),
             save: vi.fn(),
-        },
-        userModel: {
-            getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                systemRoles: [OrganizationMemberRole.DEVELOPER],
-                customRoles: [],
-            }),
+            getProjectPolicies: vi.fn().mockResolvedValue([]),
+            saveProjectPolicy: vi.fn(),
+            deleteProjectPolicy: vi.fn(),
         },
         groupsModel,
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
-        isCustomRolesLicensed: () => false,
 
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(projectUuid),
         agentActionLogModel: { insert: vi.fn() },
@@ -126,6 +121,7 @@ const setup = (
     const registry = QuerySourceRegistry.withBuiltInSources({
         asyncQueryService,
         projectService,
+        lightdashConfig: lightdashConfigMock,
     } as unknown as Parameters<
         typeof QuerySourceRegistry.withBuiltInSources
     >[0]);

@@ -57,6 +57,8 @@ export class ApiQuerySource implements QuerySourceClient {
 
     readonly requiredFeatureFlags: FeatureFlags[] = [];
 
+    readonly unavailableReason: string | null = null;
+
     private readonly asyncQueryService: ApiQuerySourceArguments['asyncQueryService'];
 
     private readonly getLiveSource: LiveSourceResolver;

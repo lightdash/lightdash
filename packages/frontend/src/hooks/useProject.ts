@@ -31,6 +31,7 @@ import { useLocation } from 'react-router';
 import { type LightdashApi } from '../api';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
+import { getOnboardingFlow } from '../providers/Tracking/onboardingFlow';
 import { type CreateProjectErrorCategory } from '../providers/Tracking/types';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
@@ -184,9 +185,7 @@ export const useCreateMutation = (options?: { quietJobToast?: boolean }) => {
     const { showToastApiError, showToastInfo } = useToaster();
     const { track } = useTracking();
     const { pathname } = useLocation();
-    const onboardingFlow = pathname.startsWith('/onboarding/')
-        ? 'new'
-        : 'legacy';
+    const onboardingFlow = getOnboardingFlow(pathname);
     return useMutation<ApiJobStartedResults, ApiError, CreateProject>(
         (data) => createProject(lightdashApi, data),
         {

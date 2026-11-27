@@ -36,6 +36,8 @@ export type DbAiAgent = {
     enable_reasoning?: boolean;
     version: number;
     thread_retention_hours: number | null;
+    // 'semantic_studio' is the built-in agent behind Semantic Studio's chat, hidden from agent listings.
+    agent_kind: 'user' | 'semantic_studio';
     created_at: Date;
     updated_at: Date;
 };
@@ -44,7 +46,11 @@ export type AiAgentTable = Knex.CompositeTableType<
     // base
     DbAiAgent,
     // insert
-    Omit<DbAiAgent, 'ai_agent_uuid' | 'created_at' | 'updated_at'>,
+    Omit<
+        DbAiAgent,
+        'ai_agent_uuid' | 'created_at' | 'updated_at' | 'agent_kind'
+    > &
+        Partial<Pick<DbAiAgent, 'agent_kind'>>,
     // update
     Partial<Omit<DbAiAgent, 'ai_agent_uuid' | 'created_at' | 'updated_at'>> & {
         updated_at: Knex.Raw;

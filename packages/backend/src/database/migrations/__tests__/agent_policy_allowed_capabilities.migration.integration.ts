@@ -2,7 +2,6 @@ import {
     AgentActorSurface,
     AgentCapability,
     AiAccessRefusalReason,
-    OrganizationMemberRole,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
 import { AgentCapabilityPolicyModel } from '../../../models/AgentCapabilityPolicyModel';
@@ -98,23 +97,15 @@ test('a historical null list preserves custom grants until a save narrows them',
         const model = new AgentCapabilityPolicyModel({ database: trx });
         const account = buildAccount();
         account.organization.organizationUuid = org.organization_uuid;
-        const roles = {
-            systemRoles: [],
-            customRoles: [{ roleUuid: 'custom', scopes: ['view:AgentDelete'] }],
-        };
         const service = new AgentPermissionService({
             agentCapabilityPolicyModel: model,
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: true }),
             },
             groupsModel: { findUserInGroups: vi.fn() },
-            userModel: {
-                getAgentRoleAssignments: vi.fn().mockResolvedValue(roles),
-            },
             projectModel: { getSummary: vi.fn() },
             resolveResourceProjectUuid: vi.fn(),
             areGroupsAvailable: vi.fn(),
-            isCustomRolesLicensed: () => false,
             agentActionLogModel: { insert: vi.fn() },
         });
         const operation = {
@@ -133,8 +124,8 @@ test('a historical null list preserves custom grants until a save narrows them',
         ).toBeNull();
         const first = await model.save({
             organizationUuid: org.organization_uuid,
-            mode: 'managed',
             version: 1,
+            allowedCapabilities: Object.values(AgentCapability),
             updatedByUserUuid: null,
         });
         expect(first.allowedCapabilities).toEqual(
@@ -145,7 +136,6 @@ test('a historical null list preserves custom grants until a save narrows them',
         ).resolves.toBeUndefined();
         const saved = await model.save({
             organizationUuid: org.organization_uuid,
-            mode: 'managed',
             version: first.version,
             allowedCapabilities: [AgentCapability.Query, AgentCapability.Query],
             updatedByUserUuid: null,
@@ -154,7 +144,6 @@ test('a historical null list preserves custom grants until a save narrows them',
         expect(
             await model.getForEnforcement(org.organization_uuid),
         ).toMatchObject({ allowedCapabilities: [AgentCapability.Query] });
-        expect(roles.customRoles[0].scopes).toContain('view:AgentDelete');
         await expect(service.assertOperation(operation)).rejects.toMatchObject({
             refusal: {
                 reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
@@ -163,7 +152,6 @@ test('a historical null list preserves custom grants until a save narrows them',
         });
         const oldTab = await model.save({
             organizationUuid: org.organization_uuid,
-            mode: 'managed',
             version: saved.version,
             updatedByUserUuid: null,
         });
@@ -186,7 +174,6 @@ test('obsolete saved people and project lists do not restrict role capabilities 
         const model = new AgentCapabilityPolicyModel({ database: trx });
         await model.save({
             organizationUuid: org.organization_uuid,
-            mode: 'managed',
             version: 0,
             allowedCapabilities: [AgentCapability.Query],
             updatedByUserUuid: null,
@@ -218,12 +205,6 @@ test('obsolete saved people and project lists do not restrict role capabilities 
                 get: vi.fn().mockResolvedValue({ enabled: true }),
             },
             groupsModel: { findUserInGroups: vi.fn() },
-            userModel: {
-                getAgentRoleAssignments: vi.fn().mockResolvedValue({
-                    systemRoles: [OrganizationMemberRole.DEVELOPER],
-                    customRoles: [],
-                }),
-            },
             projectModel: {
                 getSummary: vi.fn().mockResolvedValue({
                     organizationUuid: org.organization_uuid,
@@ -231,7 +212,6 @@ test('obsolete saved people and project lists do not restrict role capabilities 
             },
             resolveResourceProjectUuid: vi.fn(),
             areGroupsAvailable: vi.fn(),
-            isCustomRolesLicensed: () => false,
             agentActionLogModel: { insert: vi.fn() },
         });
         const operation = {

@@ -81,6 +81,7 @@ const groupOf = (
         case QueryExecutionContext.MULTI_SOURCE_QUERY:
         case QueryExecutionContext.DATA_APP_SAMPLE:
         case QueryExecutionContext.DESKTOP:
+        case QueryExecutionContext.DATA_APP:
             return ResultsCacheStatsContextGroup.OTHER;
         default:
             return assertUnreachable(context, 'Unknown query context');

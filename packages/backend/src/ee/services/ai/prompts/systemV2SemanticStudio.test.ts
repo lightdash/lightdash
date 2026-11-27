@@ -7,6 +7,7 @@ import {
     type LoadoutInput,
 } from '../loadout';
 import { READ_LIBRARIES } from '../tools/readLibraries';
+import { type StudioProjectMode } from '../types/aiAgent';
 import { getSystemPromptV2 } from './systemV2';
 import {
     getSemanticStudioSystemPrompt,
@@ -33,13 +34,20 @@ const base = {
 const draft = {
     kind: 'draft',
     canQueryDraft: false,
-    hasRepository: false,
+    canDraftContext: false,
 } satisfies SemanticStudioTurn;
 
 const proposing = {
     ...studio,
     mode: 'propose',
 } satisfies SemanticStudioTurn;
+
+const studioMode: StudioProjectMode = {
+    enabled: true,
+    drafts: true,
+    keepsContext: false,
+    projectMap: null,
+};
 
 const studioInput: LoadoutInput = {
     execution: { mode: 'standard', maxSteps: 10 },
@@ -56,8 +64,7 @@ const studioInput: LoadoutInput = {
     enableAiWriteback: true,
     enableRepoDiscovery: true,
     enableEditProjectContext: false,
-    isSemanticStudioThread: true,
-    semanticStudioDrafts: true,
+    studio: studioMode,
     enableReadAttachments: false,
     enableReadPinnedThread: false,
     enableAskUser: true,
@@ -84,21 +91,36 @@ const NAMED_TOOLS = AGENT_TOOL_NAMES.filter((name) => /[A-Z]/.test(name));
 describe('Semantic Studio prompt names only what its loadout offers', () => {
     it.each<[string, Partial<LoadoutInput>]>([
         ['a draft project', {}],
+        [
+            'a draft project with no repository',
+            { studio: { ...studioMode, keepsContext: true } },
+        ],
+        [
+            'a draft project with no repository and project context off',
+            {
+                studio: { ...studioMode, keepsContext: true },
+                projectContextEnabled: false,
+                aiAgentMemoryEnabled: true,
+            },
+        ],
         ['a draft project without data access', { enableDataAccess: false }],
         ['a draft project without SQL', { canRunSql: false }],
-        ['the dbt builder', { semanticStudioDrafts: false }],
+        ['the dbt builder', { studio: { ...studioMode, drafts: false } }],
         [
             'the dbt builder without SQL',
-            { semanticStudioDrafts: false, canRunSql: false },
+            { studio: { ...studioMode, drafts: false }, canRunSql: false },
         ],
         [
             'a dbt project without writeback',
-            { semanticStudioDrafts: false, enableAiWriteback: false },
+            {
+                studio: { ...studioMode, drafts: false },
+                enableAiWriteback: false,
+            },
         ],
         [
             'a dbt project without writeback or repository access',
             {
-                semanticStudioDrafts: false,
+                studio: { ...studioMode, drafts: false },
                 enableAiWriteback: false,
                 enableRepoDiscovery: false,
             },
@@ -114,10 +136,9 @@ describe('Semantic Studio prompt names only what its loadout offers', () => {
             canRunSql: loadout.toolNames.has('runSql'),
             repoFsRoot: '.',
             studio: getSemanticStudioTurn(loadout, {
-                drafts: { ...studioInput, ...overrides }.semanticStudioDrafts,
-                hasRepository: true,
+                drafts:
+                    { ...studioInput, ...overrides }.studio?.drafts ?? false,
                 projectMap: null,
-                siteUrl: '',
                 repoFsRoot: '.',
                 repoFsSupportsCodeSearch: true,
             }),
@@ -160,16 +181,57 @@ describe('getSemanticStudioSystemPrompt', () => {
         ).toContain('runMetricQuery');
     });
 
-    it('says project context has nowhere to live only on a project with no repository', () => {
-        expect(
-            getSemanticStudioSystemPrompt({ ...base, studio: draft }),
-        ).toContain('This project has no repository');
+    it('ends the turn on the card only once the request is finished', () => {
+        const prompt = getSemanticStudioSystemPrompt({
+            ...base,
+            studio: draft,
+        });
+        expect(prompt).toContain(
+            'After a proposal that finishes what the person asked, the card is your reply',
+        );
+        expect(prompt).toContain('set moreToDo and carry them out next');
+    });
+
+    it('bounds every check on the draft by a date filter', () => {
         expect(
             getSemanticStudioSystemPrompt({
                 ...base,
-                studio: { ...draft, hasRepository: true },
+                studio: { ...draft, canQueryDraft: true },
             }),
-        ).not.toContain('This project has no repository');
+        ).toContain('never run its metrics without a date filter');
+    });
+
+    it('leaves out drafting project context when project context is off', () => {
+        const prompt = (projectContextEnabled: boolean) => {
+            const loadout = resolveLoadout({
+                ...studioInput,
+                studio: { ...studioMode, keepsContext: true },
+                projectContextEnabled,
+            });
+            return getSemanticStudioSystemPrompt({
+                ...base,
+                studio: getSemanticStudioTurn(loadout, {
+                    drafts: true,
+                    projectMap: null,
+                    repoFsRoot: null,
+                    repoFsSupportsCodeSearch: false,
+                }),
+            });
+        };
+        expect(prompt(true)).toContain('add it with draftProjectContext');
+        expect(prompt(false)).not.toContain('draftProjectContext');
+    });
+
+    it('explains drafting project context only when the thread can', () => {
+        expect(
+            getSemanticStudioSystemPrompt({ ...base, studio: draft }),
+        ).not.toContain('draftProjectContext');
+        expect(
+            getSemanticStudioSystemPrompt({
+                ...base,
+                studio: { ...draft, canDraftContext: true },
+            }),
+        ).toContain('add it with draftProjectContext');
     });
 
     it('leaves out the published explore list, since models are read from the draft or the repository', () => {
@@ -213,6 +275,22 @@ describe('getSemanticStudioSystemPrompt', () => {
         });
         expect(noSql).not.toContain('## Warehouse');
         expect(noSql).not.toContain('runSql');
+    });
+
+    it('explains metric views only to a draft on Databricks', () => {
+        const onDatabricks = getSemanticStudioSystemPrompt({
+            ...base,
+            warehouse: { type: 'databricks', schema: null },
+            studio: draft,
+        });
+        expect(onDatabricks).toContain('## Metric views');
+        expect(onDatabricks).toContain('fromMetricView');
+
+        const elsewhere = getSemanticStudioSystemPrompt({
+            ...base,
+            studio: draft,
+        });
+        expect(elsewhere).not.toContain('Metric views');
     });
 
     it('includes the project layout only when one is stored', () => {

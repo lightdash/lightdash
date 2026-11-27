@@ -88,6 +88,11 @@ export const useSettingsContext = (): SettingsContext => {
             health?.mode === LightdashMode.DEV) &&
         health.license?.valid === true &&
         (billingPortalFlag?.enabled ?? false);
+    // Advisory contacts belong to a self-hosted license; cloud is excluded.
+    const isSecurityContactsEnabled =
+        (health?.mode === LightdashMode.DEFAULT ||
+            health?.mode === LightdashMode.DEV) &&
+        health.license?.valid === true;
     const isResultsCacheAvailable = health?.license?.valid === true;
     const isServiceAccountsEnabled = health?.license?.valid === true;
 
@@ -210,6 +215,7 @@ export const useSettingsContext = (): SettingsContext => {
         isOrganizationRoadmapEnabled,
         isBillingPortalEnabled,
         isBillingPortalFlagLoading,
+        isSecurityContactsEnabled,
         canAccessAiCredits,
         isAiCreditsLoading: isAiCreditUsageLoading,
         isSsoOrganizationSettingsEnabled,

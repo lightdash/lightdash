@@ -51,7 +51,7 @@ export class PersonalAccessTokenModel {
     }: {
         userUuid: string;
         tokenUuid: string;
-    }): Promise<PersonalAccessToken> {
+    }): Promise<PersonalAccessToken & { cliOAuthPatCompat: boolean }> {
         const row = await this.database(PersonalAccessTokenTableName)
             .leftJoin(
                 'users',
@@ -68,7 +68,10 @@ export class PersonalAccessTokenModel {
         if (row === undefined) {
             throw new NotFoundError('Personal access token not found');
         }
-        return PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row);
+        return {
+            ...PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
+            cliOAuthPatCompat: row.cli_oauth_pat_compat === true,
+        };
     }
 
     async updateUsedDate(personalAccessTokenUuid: string): Promise<void> {
@@ -109,14 +112,19 @@ export class PersonalAccessTokenModel {
     async create(
         user: Pick<SessionUser, 'userId'>,
         data: CreatePersonalAccessToken,
+        options: { cliOAuthPatCompat?: boolean } = {},
     ): Promise<PersonalAccessTokenWithToken> {
         const token = `${AuthTokenPrefix.PERSONAL_ACCESS_TOKEN}${crypto
             .randomBytes(16)
             .toString('hex')}`;
-        return this.save(user, {
-            ...data,
-            token,
-        });
+        return this.save(
+            user,
+            {
+                ...data,
+                token,
+            },
+            options,
+        );
     }
 
     /*
@@ -126,6 +134,7 @@ export class PersonalAccessTokenModel {
     async save(
         user: Pick<SessionUser, 'userId'>,
         data: CreatePersonalAccessToken & { token: string },
+        { cliOAuthPatCompat = false }: { cliOAuthPatCompat?: boolean } = {},
     ): Promise<PersonalAccessTokenWithToken> {
         const tokenHash = await hash(data.token);
         const [row] = await this.database(PersonalAccessTokenTableName)
@@ -134,6 +143,7 @@ export class PersonalAccessTokenModel {
                 expires_at: data.expiresAt,
                 description: data.description,
                 token_hash: tokenHash,
+                ...(cliOAuthPatCompat ? { cli_oauth_pat_compat: true } : {}),
             })
             .returning('*');
         if (row === undefined) {

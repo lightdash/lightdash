@@ -1,5 +1,6 @@
 import {
     AnyType,
+    ApiConnectorType,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     CompiledDimension,
@@ -23,6 +24,7 @@ import {
     ExploreType,
     FeatureFlags,
     FieldType,
+    LiveExploreSwitchedOffError,
     MetricType,
     NotFoundError,
     OrganizationMemberRole,
@@ -1425,6 +1427,10 @@ describe('ProjectModel', () => {
         });
     });
     describe('getExploreFromCache', () => {
+        beforeEach(() => {
+            tracker.on.select('external_connections').response([]);
+        });
+
         const createQualifiedExplore = (
             name: string,
         ): ExploreTableSummaryRecord => ({
@@ -1493,6 +1499,32 @@ describe('ProjectModel', () => {
             );
             expect(findExploresFromCache).toHaveBeenCalledTimes(1);
             expect(findExploreTableSummariesFromCache).toHaveBeenCalledTimes(1);
+        });
+
+        test('says a live explore is switched off instead of missing', async () => {
+            tracker.reset();
+            tracker.on.select('external_connections').response([
+                {
+                    name: 'Product Hydra',
+                    source_name: 'hydra',
+                    connector: ApiConnectorType.HYDRA,
+                    api_source: {
+                        connector: ApiConnectorType.HYDRA,
+                        explores: { events: { inUse: false } },
+                    },
+                },
+            ]);
+            vi.spyOn(model, 'findExploresFromCache').mockResolvedValueOnce({});
+
+            await expect(
+                model.getExploreFromCache(projectUuid, 'hydra_events'),
+            ).rejects.toEqual(
+                new LiveExploreSwitchedOffError({
+                    exploreName: 'hydra_events',
+                    sourceName: 'Product Hydra',
+                    exploreLabel: 'Events',
+                }),
+            );
         });
 
         test('keeps the plain not found error for one original-name match', async () => {
@@ -3583,6 +3615,8 @@ describe('ProjectModel', () => {
                 .update(matchSql(ProjectTableName))
                 .response([{ project_id: 1, organization_id: 10 }]);
 
+            tracker.on.select('pg_advisory_xact_lock').response({});
+
             // 2. Look for existing "Default User Spaces" parent — not found
             tracker.on.select(matchSql(SpaceTableName)).responseOnce(undefined);
 
@@ -3615,6 +3649,8 @@ describe('ProjectModel', () => {
                 .update(matchSql(ProjectTableName))
                 .response([{ project_id: 1, organization_id: 10 }]);
 
+            tracker.on.select('pg_advisory_xact_lock').response({});
+
             // 2. Existing parent found
             tracker.on.select(matchSql(SpaceTableName)).response({
                 space_uuid: 'existing-parent-uuid',
@@ -3625,6 +3661,53 @@ describe('ProjectModel', () => {
 
             expect(tracker.history.update).toHaveLength(1);
             // No insert because parent already exists
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+    });
+
+    describe('restoreMissingDefaultUserSpacesParents', () => {
+        const matchSql =
+            (table: string) =>
+            ({ sql }: RawQuery) =>
+                sql.includes(table);
+
+        test('should recreate the parent folder for projects missing it', async () => {
+            // 1. Projects with the setting on and no parent folder
+            tracker.on
+                .select(matchSql(ProjectTableName))
+                .responseOnce([{ project_id: 1, project_uuid: projectUuid }]);
+
+            tracker.on.select('pg_advisory_xact_lock').response({});
+
+            // 2. Re-check inside the transaction, 3. slug uniqueness check
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce(undefined);
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce([]);
+
+            // 4. Insert the parent folder
+            tracker.on.insert(matchSql(SpaceTableName)).response([
+                {
+                    space_uuid: 'new-parent-uuid',
+                    path: 'default_user_spaces',
+                },
+            ]);
+
+            const restored =
+                await model.restoreMissingDefaultUserSpacesParents('org-uuid');
+
+            expect(restored).toEqual([projectUuid]);
+            expect(tracker.history.insert).toHaveLength(1);
+            expect(tracker.history.insert[0].bindings).toEqual(
+                expect.arrayContaining(['Default User Spaces']),
+            );
+        });
+
+        test('should do nothing when every project has its parent folder', async () => {
+            tracker.on.select(matchSql(ProjectTableName)).responseOnce([]);
+
+            const restored =
+                await model.restoreMissingDefaultUserSpacesParents('org-uuid');
+
+            expect(restored).toEqual([]);
             expect(tracker.history.insert).toHaveLength(0);
         });
     });

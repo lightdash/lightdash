@@ -6,7 +6,7 @@ import { type FC } from 'react';
 export const LiveSourceHintField: FC<TextareaProps> = (props) => (
     <Textarea
         label="AI hint"
-        description="Helps agents pick this source"
+        description="Helps AI agents pick this source"
         placeholder="For example: EU storefront, used for checkout questions"
         autosize
         minRows={2}

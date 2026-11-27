@@ -1,6 +1,5 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
-    AGENT_CAPABILITY_SCOPES,
     AgentActorSurface,
     AgentCapability,
     AiAccessRefusedError,
@@ -130,22 +129,19 @@ describe('RolesService', () => {
 
         afterEach(() => vi.restoreAllMocks());
 
-        test('refuses an OAuth admin adding raw SQL to its custom role', async () => {
+        test('refuses an OAuth admin adding a scope to its custom role', async () => {
             mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
             vi.spyOn(
                 AgentCapabilityPolicyModel.prototype,
                 'get',
             ).mockResolvedValue({
                 allowedGroupUuids: null,
-                mode: 'managed',
                 version: 1,
-                allowedCapabilities: null,
+                allowedCapabilities: Object.values(AgentCapability),
             });
             await expect(
                 service.addScopesToRole(oauthAccount(), 'role', {
-                    scopeNames: [
-                        AGENT_CAPABILITY_SCOPES[AgentCapability.RawSql],
-                    ],
+                    scopeNames: ['view:Dashboard'],
                 }),
             ).rejects.toMatchObject({
                 refusal: {
@@ -163,9 +159,8 @@ describe('RolesService', () => {
                 'get',
             ).mockResolvedValue({
                 allowedGroupUuids: null,
-                mode: 'managed',
                 version: 1,
-                allowedCapabilities: null,
+                allowedCapabilities: Object.values(AgentCapability),
             });
             await expect(
                 agentExecutionContext.run(
@@ -178,9 +173,7 @@ describe('RolesService', () => {
                     }),
                     () =>
                         service.addScopesToRole(mockAccount, 'role', {
-                            scopeNames: [
-                                AGENT_CAPABILITY_SCOPES[AgentCapability.RawSql],
-                            ],
+                            scopeNames: ['view:Dashboard'],
                         }),
                 ),
             ).rejects.toBeInstanceOf(AiAccessRefusedError);
@@ -197,7 +190,6 @@ describe('RolesService', () => {
                     .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
                     .mockResolvedValue({
                         allowedGroupUuids: null,
-                        mode: 'legacy',
                         version: 0,
                         allowedCapabilities: null,
                     });
@@ -206,9 +198,7 @@ describe('RolesService', () => {
                     oauthAccount(),
                     mockCustomRole.roleUuid,
                     {
-                        scopeNames: [
-                            AGENT_CAPABILITY_SCOPES[AgentCapability.RawSql],
-                        ],
+                        scopeNames: ['view:Dashboard'],
                     },
                 );
                 expect(mockRolesModel.addScopesToRole).toHaveBeenCalled();
@@ -246,9 +236,8 @@ describe('RolesService', () => {
                     'get',
                 ).mockResolvedValue({
                     allowedGroupUuids: null,
-                    mode: 'managed',
                     version: 1,
-                    allowedCapabilities: null,
+                    allowedCapabilities: Object.values(AgentCapability),
                 });
                 const mutation = service[method] as (
                     account: typeof mockAccount,

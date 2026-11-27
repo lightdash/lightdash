@@ -1,4 +1,5 @@
 import {
+    ChartType,
     isAppScheduler,
     isChartScheduler,
     isDashboardScheduler,
@@ -109,6 +110,13 @@ export const SchedulerDataFormatSection: FC<Props> = ({
     const isResultsCacheEnabled = useIsResultsCacheEnabled(projectUuid);
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
     const isDashboard = dashboard !== undefined;
+    // Chart images are rendered by the headless browser. Table charts always
+    // export their rows, so a table chart delivery has nothing to choose.
+    const canExportChartsAsImages =
+        !isImageDisabled &&
+        (isDashboard ||
+            (savedChart !== undefined &&
+                savedChart.chartConfig.type !== ChartType.TABLE));
 
     // The state the toggle can attach: the scheduler's saved snapshot in edit
     // mode, otherwise whatever the page URL carries right now.
@@ -364,6 +372,16 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                     'options.xlsxFileLayout',
                                     value,
                                 )
+                            }
+                            xlsxContent={form.values.options.xlsxContent}
+                            onXlsxContentChange={
+                                canExportChartsAsImages
+                                    ? (value) =>
+                                          form.setFieldValue(
+                                              'options.xlsxContent',
+                                              value,
+                                          )
+                                    : undefined
                             }
                             limitVariant={isApp ? 'tableOrAll' : 'full'}
                             hideExportPivotedData={isApp}

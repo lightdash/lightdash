@@ -1,10 +1,8 @@
-import { AGENT_CAPABILITY_DEFAULTS } from '../types/agentPermissions';
 import {
     ProjectMemberRole,
     ProjectMemberRoleLabels,
 } from '../types/projectMemberRole';
 import type { RoleWithScopes } from '../types/roles';
-import { AGENT_CAPABILITY_SCOPES } from './agentCapabilityScopes';
 import { parseScope } from './parseScopes';
 import { isOrganizationOnlyScope } from './scopes';
 import { type CaslSubjectNames } from './types';
@@ -19,9 +17,6 @@ import { type CaslSubjectNames } from './types';
  */
 const BASE_ROLE_SCOPES = {
     [ProjectMemberRole.VIEWER]: [
-        ...AGENT_CAPABILITY_DEFAULTS.map(
-            (capability) => AGENT_CAPABILITY_SCOPES[capability],
-        ),
         // Basic viewing permissions
         'view:Dashboard',
         'view:Document',
@@ -169,6 +164,7 @@ const BASE_ROLE_SCOPES = {
         'view:JobStatus', // All jobs in project
         'view:SourceCode',
         'manage:SourceCode',
+        'manage:LiveSource', // Live data source settings and fields; querying is view:Explore
 
         // Promote to upstream project. Both broad + @space variants
         // surface in `applyOrganizationMemberStaticAbilities.developer`.
@@ -321,6 +317,7 @@ export const TRAINING_PROJECT_EXCLUDED_SCOPES: readonly string[] = [
     'manage:DataAppDependency',
     'manage:ExternalConnection',
     'view:ExternalConnection',
+    'manage:LiveSource',
     'manage:ExternalSource',
     'manage:GitIntegration',
     'manage:SourceCode',
@@ -456,6 +453,7 @@ export const getNonEnterpriseScopesForRole = (
         'manage:DataApp@self',
         'view:ExternalConnection',
         'manage:ExternalConnection',
+        'manage:LiveSource',
         'view:OrganizationDesign',
         'manage:OrganizationDesign',
         'view:Roadmap',

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { listProposalIssues, listTurnIssues } from './proposalIssues';
+import {
+    getDiscardedLabel,
+    listProposalIssues,
+    listTurnIssues,
+} from './proposalIssues';
 
 const attempt = (status: 'ready' | 'failed', error: string | null) => ({
     models: [
@@ -37,6 +41,37 @@ describe('listProposalIssues', () => {
                 kind: 'skipped',
                 model: 'orders',
                 detail: 'metrics.revenue is not in the model.',
+                rejection: null,
+            },
+        ]);
+    });
+});
+
+describe('a rejection with a kind', () => {
+    it('reads as one sentence, with the raw error kept apart', () => {
+        const rejection = {
+            kind: 'warehouse_refused' as const,
+            detail: '[ERROR_CODE] column_a, column_b',
+        };
+        expect(
+            listProposalIssues({
+                models: [
+                    {
+                        model: 'orders',
+                        status: 'failed',
+                        changes: [],
+                        refusals: [],
+                        error: 'The warehouse refused orders when it was checked. [ERROR_CODE] column_a, column_b',
+                        rejection,
+                    },
+                ],
+            }),
+        ).toEqual([
+            {
+                kind: 'failed',
+                model: 'orders',
+                detail: 'The warehouse refused orders when it was checked.',
+                rejection,
             },
         ]);
     });
@@ -120,11 +155,13 @@ describe('listTurnIssues', () => {
                 kind: 'skipped',
                 model: 'orders',
                 detail: 'tags changes who can see it, which cannot be changed here.',
+                rejection: null,
             },
             {
                 kind: 'skipped',
                 model: 'orders',
                 detail: 'dimensions.status uses a name another field of this model already has.',
+                rejection: null,
             },
         ]);
     });
@@ -149,10 +186,23 @@ describe('listTurnIssues', () => {
             kind: 'failed',
             model: 'orders',
             detail: 'The warehouse rejected this model',
+            rejection: null,
         };
         expect(listTurnIssues([failed])).toEqual([issue]);
         expect(listTurnIssues([attempt('ready', null), failed])).toEqual([
             issue,
         ]);
+    });
+});
+
+describe('getDiscardedLabel', () => {
+    it('names whoever discarded it when that was not its owner', () => {
+        expect(getDiscardedLabel(null)).toBe('Discarded');
+        expect(
+            getDiscardedLabel({
+                name: 'Person B',
+                at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+            }),
+        ).toBe('Discarded by Person B · 2 days ago');
     });
 });

@@ -504,6 +504,37 @@ export function separatorToNumfmtLocale(
     }
 }
 
+const NUMBER_FORMATTER_CACHE_LIMIT = 500;
+const numberFormatterCache = new Map<string, Intl.NumberFormat>();
+
+const getNumberFormatter = (
+    locale: string | undefined,
+    options: Intl.NumberFormatOptions,
+): Intl.NumberFormat => {
+    const key = `${locale}${JSON.stringify(options)}`;
+    const cached = numberFormatterCache.get(key);
+    if (cached) return cached;
+    const formatter = new Intl.NumberFormat(locale, options);
+    if (numberFormatterCache.size >= NUMBER_FORMATTER_CACHE_LIMIT) {
+        const oldestKey = numberFormatterCache.keys().next().value;
+        if (oldestKey !== undefined) numberFormatterCache.delete(oldestKey);
+    }
+    numberFormatterCache.set(key, formatter);
+    return formatter;
+};
+
+const toLocaleNumberString = (
+    value: number,
+    locale: string | undefined,
+    options: Intl.NumberFormatOptions,
+): string => {
+    const input: unknown = value;
+    if (typeof input === 'number' || typeof input === 'bigint') {
+        return getNumberFormatter(locale, options).format(input);
+    }
+    return value.toLocaleString(locale, options);
+};
+
 export function formatNumberValue(
     value: number,
     format?: CustomFormat,
@@ -512,22 +543,28 @@ export function formatNumberValue(
     const separator = format?.separator || NumberSeparator.DEFAULT;
     switch (separator) {
         case NumberSeparator.COMMA_PERIOD:
-            return value.toLocaleString('en-US', options);
+            return toLocaleNumberString(value, 'en-US', options);
         case NumberSeparator.SPACE_PERIOD:
-            return value.toLocaleString('en-US', options).replace(/,/g, ' ');
+            return toLocaleNumberString(value, 'en-US', options).replace(
+                /,/g,
+                ' ',
+            );
         case NumberSeparator.PERIOD_COMMA:
             // If currency is provided, having a PERIOD_COMMA separator will also change the position of the currency symbol
-            return value.toLocaleString('de-DE', options);
+            return toLocaleNumberString(value, 'de-DE', options);
         case NumberSeparator.NO_SEPARATOR_PERIOD:
-            return value.toLocaleString('en-US', {
+            return toLocaleNumberString(value, 'en-US', {
                 ...options,
                 useGrouping: false,
             });
         case NumberSeparator.APOSTROPHE_PERIOD:
-            return value.toLocaleString('en-US', options).replace(/,/g, "'");
+            return toLocaleNumberString(value, 'en-US', options).replace(
+                /,/g,
+                "'",
+            );
         case NumberSeparator.DEFAULT:
             // This will apply the default style for each currency
-            return value.toLocaleString(undefined, options);
+            return toLocaleNumberString(value, undefined, options);
         default:
             return assertUnreachable(separator, 'Unknown separator');
     }
@@ -1098,7 +1135,7 @@ const customFormatConversionFnMap: Record<
     currency: (formatExpression, format) => {
         if (format.currency) {
             const mockAmount = 1;
-            const mockCurrencyValue = new Intl.NumberFormat('en-US', {
+            const mockCurrencyValue = getNumberFormatter('en-US', {
                 style: 'currency',
                 currency: format.currency,
             }).format(mockAmount);
@@ -1127,7 +1164,7 @@ const customFormatConversionFnMap: Record<
             format.type === CustomFormatType.CURRENCY &&
             format.currency
         ) {
-            const mockCurrencyValue = new Intl.NumberFormat('en-US', {
+            const mockCurrencyValue = getNumberFormatter('en-US', {
                 style: 'currency',
                 currency: format.currency,
             }).format(1);

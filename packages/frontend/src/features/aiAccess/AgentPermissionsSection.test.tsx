@@ -40,7 +40,6 @@ vi.mock('../../hooks/toaster/useToaster', () => ({
 }));
 const all = Object.values(AgentCapability);
 const legacy = (): AgentCapabilityPolicyOverview => ({
-    mode: 'legacy',
     version: 1,
     allowedCapabilities: null,
     allowedGroupUuids: null,
@@ -112,13 +111,9 @@ const review = () =>
     fireEvent.click(screen.getByRole('button', { name: 'Review and save' }));
 const save = () =>
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-const custom = () => choose('Custom scope');
+const custom = () => choose('Restrict');
 const expectCapabilityChoices = () => {
-    for (const name of [
-        'Match the person',
-        'Read and query only',
-        'Custom scope',
-    ]) {
+    for (const name of ['No restrictions', 'Restrict']) {
         expect(screen.getByRole('radio', { name })).toBeVisible();
     }
 };
@@ -150,37 +145,26 @@ beforeEach(() => {
 describe('reviewed agent permissions', () => {
     it.each([
         {
-            name: 'saved Match the person',
-            choice: 'Match the person',
+            name: 'saved No restrictions',
+            choice: 'No restrictions',
             capabilities: null,
             selection: null,
         },
         {
-            name: 'saved Read and query only',
-            choice: 'Read and query only',
-            capabilities: [
-                AgentCapability.ReadDiscover,
-                AgentCapability.Query,
-                AgentCapability.Export,
-                AgentCapability.RawSql,
-            ],
-            selection: null,
-        },
-        {
-            name: 'saved Custom scope',
-            choice: 'Custom scope',
+            name: 'saved Restrict',
+            choice: 'Restrict',
             capabilities: all,
             selection: null,
         },
         {
             name: 'Everyone whose role allows AI',
-            choice: 'Match the person',
+            choice: 'No restrictions',
             capabilities: null,
             selection: null,
         },
         {
             name: 'Only these groups with two groups',
-            choice: 'Match the person',
+            choice: 'No restrictions',
             capabilities: null,
             selection: ['a', 'b'],
         },
@@ -189,7 +173,6 @@ describe('reviewed agent permissions', () => {
         ({ choice, capabilities, selection }) => {
             policy = {
                 ...policy,
-                mode: capabilities === null ? 'legacy' : 'managed',
                 allowedCapabilities: capabilities,
                 allowedGroupUuids: selection,
             };
@@ -213,7 +196,7 @@ describe('reviewed agent permissions', () => {
                             : 'Only these groups',
                 }),
             ).toBeChecked();
-            if (choice === 'Custom scope') {
+            if (choice === 'Restrict') {
                 expect(screen.getAllByRole('switch')).toHaveLength(7);
                 screen
                     .getAllByRole('switch')
@@ -261,9 +244,7 @@ describe('reviewed agent permissions', () => {
         fireEvent.click(
             await screen.findByRole('option', { name: 'Data team (2)' }),
         );
-        expect(
-            screen.getByRole('radio', { name: 'Custom scope' }),
-        ).toBeChecked();
+        expect(screen.getByRole('radio', { name: 'Restrict' })).toBeChecked();
         expect(
             screen.getByRole('switch', { name: 'Delete content' }),
         ).not.toBeChecked();
@@ -292,7 +273,7 @@ describe('reviewed agent permissions', () => {
     it('starts with the saved choice, a clean footer and no old pickers', () => {
         renderSection();
         expect(
-            screen.getByRole('radio', { name: 'Match the person' }),
+            screen.getByRole('radio', { name: 'No restrictions' }),
         ).toBeChecked();
         expect(screen.getByText('Current')).toBeInTheDocument();
         expect(screen.getByText('No changes')).toBeInTheDocument();
@@ -303,33 +284,18 @@ describe('reviewed agent permissions', () => {
         expect(screen.queryByLabelText('People')).not.toBeInTheDocument();
         expect(api).not.toHaveBeenCalled();
     });
-    it('shows the Read and query only chips and Raw SQL qualification', () => {
+    it('counts the No restrictions choice once, plus one for a group change', async () => {
+        policy = {
+            ...policy,
+            allowedCapabilities: [
+                AgentCapability.ReadDiscover,
+                AgentCapability.Query,
+                AgentCapability.Export,
+                AgentCapability.RawSql,
+            ],
+        };
         renderSection();
-        choose('Read and query only');
-        expect(
-            screen.getByText(
-                "Raw SQL runs with the person's warehouse permissions.",
-            ),
-        ).toBeInTheDocument();
-        expect(screen.getByText('× 6 more')).toBeInTheDocument();
-        expect(api).not.toHaveBeenCalled();
-    });
-    it('opens Custom scope from the preset with every capability enabled', () => {
-        renderSection();
-        choose('Read and query only');
-        custom();
-        expect(
-            screen.getByRole('radio', { name: 'Custom scope' }),
-        ).toBeChecked();
-        expect(screen.getByRole('switch', { name: 'Raw SQL' })).toBeChecked();
-        expect(
-            screen.getByRole('switch', { name: 'Delete content' }),
-        ).toBeChecked();
-        expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
-    });
-    it('counts the Read choice once, plus one for a group change', async () => {
-        renderSection();
-        choose('Read and query only');
+        choose('No restrictions');
         expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
         choose('Only these groups');
         fireEvent.click(screen.getByRole('combobox', { name: 'Groups' }));
@@ -347,16 +313,20 @@ describe('reviewed agent permissions', () => {
         ];
         policy = {
             ...policy,
-            mode: 'managed',
             allowedCapabilities: read,
         };
         renderSection();
-        custom();
+        expect(screen.getByRole('radio', { name: 'Restrict' })).toBeChecked();
         fireEvent.click(
             screen.getByRole('button', { name: /Developer and admin/ }),
         );
         await screen.findByRole('switch', { name: 'Administration' });
         expect(screen.getAllByRole('switch')).toHaveLength(11);
+        const off = screen
+            .getAllByRole('switch')
+            .filter((control) => !(control as HTMLInputElement).checked);
+        expect(off).toHaveLength(7);
+        off.forEach((control) => fireEvent.click(control));
         screen
             .getAllByRole('switch')
             .forEach((control) => expect(control).toBeChecked());
@@ -373,12 +343,11 @@ describe('reviewed agent permissions', () => {
         await waitFor(() => expect(api).toHaveBeenCalled());
         const body = JSON.parse(String(api.mock.calls[0][0].body));
         expect(body).toMatchObject({
-            mode: 'managed',
             allowedCapabilities: all,
         });
         expect(body).not.toHaveProperty('systemRoleMatrix');
     });
-    it('restores the nine saved Custom capabilities after Read', async () => {
+    it('restores the nine saved Restrict capabilities after No restrictions', async () => {
         const nine = all.filter(
             (cap) =>
                 cap !== AgentCapability.Delete &&
@@ -386,13 +355,11 @@ describe('reviewed agent permissions', () => {
         );
         policy = {
             ...policy,
-            mode: 'managed',
             allowedCapabilities: nine,
         };
         renderSection();
-        choose('Match the person');
+        choose('No restrictions');
         expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
-        choose('Read and query only');
         custom();
         expect(screen.getByText('No changes')).toBeInTheDocument();
         fireEvent.click(
@@ -423,15 +390,11 @@ describe('reviewed agent permissions', () => {
             screen.queryByRole('button', { name: /Different limits per role/ }),
         ).not.toBeInTheDocument();
         expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
-        expect(
-            screen.getByText(
-                'These permissions apply to every role, custom roles included.',
-            ),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Agents can:')).toBeInTheDocument();
         expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'Custom roles' }),
-        ).toHaveAttribute('href', '/generalSettings/customRoles');
+            screen.queryByRole('link', { name: 'Custom roles' }),
+        ).not.toBeInTheDocument();
     });
     it('reviews two global stops once each, keeps the draft on Back and saves only after review', async () => {
         renderSection();
@@ -466,7 +429,6 @@ describe('reviewed agent permissions', () => {
         expect(screen.getByText('No changes')).toBeInTheDocument();
         expect(JSON.parse(String(api.mock.calls[0][0].body))).toMatchObject({
             version: 1,
-            mode: 'managed',
             allowedCapabilities: all.filter(
                 (cap) =>
                     cap !== AgentCapability.Delete &&
@@ -477,7 +439,6 @@ describe('reviewed agent permissions', () => {
     it('returns to no changes after a switch goes off and on, then saves without a role matrix', async () => {
         policy = {
             ...policy,
-            mode: 'managed',
             allowedCapabilities: all,
         };
         renderSection();
@@ -492,39 +453,15 @@ describe('reviewed agent permissions', () => {
         expect(body).not.toHaveProperty('systemRoleMatrix');
         expect(body).toMatchObject({
             version: 1,
-            mode: 'managed',
             allowedCapabilities: all.filter(
                 (cap) => cap !== AgentCapability.Publish,
-            ),
-        });
-    });
-    it('shows a managed policy without a saved list as Custom with every switch on', async () => {
-        policy = { ...policy, mode: 'managed' };
-        renderSection();
-        expect(
-            screen.getByRole('radio', { name: 'Custom scope' }),
-        ).toBeChecked();
-        expect(screen.getByText('No changes')).toBeInTheDocument();
-        expect(
-            screen.getByRole('switch', { name: 'Delete content' }),
-        ).toBeChecked();
-        toggle('Delete content');
-        review();
-        save();
-        await waitFor(() => expect(api).toHaveBeenCalled());
-        const body = JSON.parse(String(api.mock.calls[0][0].body));
-        expect(body).not.toHaveProperty('systemRoleMatrix');
-        expect(body).toMatchObject({
-            mode: 'managed',
-            allowedCapabilities: all.filter(
-                (cap) => cap !== AgentCapability.Delete,
             ),
         });
     });
     it('keeps capabilities visible during group editing, shows member counts and reviews names without a people count', async () => {
         renderSection();
         expect(
-            screen.getByRole('radio', { name: 'Custom scope' }),
+            screen.getByRole('radio', { name: 'Restrict' }),
         ).toBeInTheDocument();
         choose('Only these groups');
         expect(
@@ -559,7 +496,7 @@ describe('reviewed agent permissions', () => {
         ).not.toBeInTheDocument();
         expectCapabilityChoices();
         expectNoChangeButtons();
-        expect(screen.getAllByRole('radio')).toHaveLength(3);
+        expect(screen.getAllByRole('radio')).toHaveLength(2);
         expect(
             screen.queryByRole('combobox', { name: 'Groups' }),
         ).not.toBeInTheDocument();
@@ -581,7 +518,7 @@ describe('reviewed agent permissions', () => {
         ).toBeVisible();
         expectCapabilityChoices();
         expectNoChangeButtons();
-        expect(screen.getAllByRole('radio')).toHaveLength(3);
+        expect(screen.getAllByRole('radio')).toHaveLength(2);
         expect(
             screen.queryByRole('radio', {
                 name: 'Everyone whose role allows AI',
@@ -668,7 +605,6 @@ describe('reviewed agent permissions', () => {
     it('reviews restored capabilities and removal of limits', () => {
         policy = {
             ...policy,
-            mode: 'managed',
             allowedCapabilities: [],
         };
         renderSection();
@@ -680,7 +616,7 @@ describe('reviewed agent permissions', () => {
         expect(modal.getAllByText('Delete content')).toHaveLength(1);
         expect(modal.queryByText('STOPS')).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-        choose('Match the person');
+        choose('No restrictions');
         review();
         expect(
             within(screen.getByRole('dialog')).getByText(
@@ -731,9 +667,7 @@ describe('reviewed agent permissions', () => {
         expect(
             screen.getByText('Agent permissions changed'),
         ).toBeInTheDocument();
-        expect(
-            screen.getByRole('radio', { name: 'Custom scope' }),
-        ).toBeChecked();
+        expect(screen.getByRole('radio', { name: 'Restrict' })).toBeChecked();
         expect(api).toHaveBeenCalledTimes(1);
         fireEvent.click(screen.getByRole('button', { name: 'Reload latest' }));
         await waitFor(() =>
@@ -786,13 +720,10 @@ describe('reviewed agent permissions', () => {
         policy = {
             ...policy,
             version: 2,
-            mode: 'managed',
             allowedCapabilities: all,
         };
         view.rerender();
-        expect(
-            screen.getByRole('radio', { name: 'Custom scope' }),
-        ).toBeChecked();
+        expect(screen.getByRole('radio', { name: 'Restrict' })).toBeChecked();
         expect(screen.getByText('No changes')).toBeInTheDocument();
     });
     it.each([[[]], [['a']]])(
@@ -833,7 +764,7 @@ describe('reviewed agent permissions', () => {
             ).not.toHaveProperty('allowedGroupUuids');
         },
     );
-    it('keeps the Custom view when a same-version refresh only reorders the saved lists', async () => {
+    it('keeps the Restrict view when a same-version refresh only reorders the saved lists', async () => {
         const read = [
             AgentCapability.ReadDiscover,
             AgentCapability.Query,
@@ -842,31 +773,28 @@ describe('reviewed agent permissions', () => {
         ];
         policy = {
             ...policy,
-            mode: 'managed',
             allowedCapabilities: read,
         };
         const view = renderSection();
-        custom();
         fireEvent.click(
             screen.getByRole('button', { name: /Developer and admin/ }),
         );
         await screen.findByRole('switch', { name: 'Administration' });
-        screen
+        const off = screen
             .getAllByRole('switch')
-            .slice(4)
-            .forEach((control) => fireEvent.click(control));
+            .filter((control) => !(control as HTMLInputElement).checked);
+        expect(off).toHaveLength(7);
+        off.forEach((control) => fireEvent.click(control));
+        expect(screen.getByText('7 unsaved changes')).toBeInTheDocument();
+        off.forEach((control) => fireEvent.click(control));
         expect(screen.getByText('No changes')).toBeInTheDocument();
-        expect(
-            screen.getByRole('radio', { name: 'Custom scope' }),
-        ).toBeChecked();
+        expect(screen.getByRole('radio', { name: 'Restrict' })).toBeChecked();
         policy = {
             ...policy,
             allowedCapabilities: [...read].reverse(),
         };
         view.rerender();
-        expect(
-            screen.getByRole('radio', { name: 'Custom scope' }),
-        ).toBeChecked();
+        expect(screen.getByRole('radio', { name: 'Restrict' })).toBeChecked();
         expect(screen.getAllByRole('switch')).toHaveLength(11);
         expect(screen.getByText('No changes')).toBeInTheDocument();
     });

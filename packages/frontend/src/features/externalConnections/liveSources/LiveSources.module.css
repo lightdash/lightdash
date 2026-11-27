@@ -2,7 +2,7 @@
 
 .row {
     composes: row from '../../../components/common/sourceTable.module.css';
-    grid-template-columns: minmax(160px, 220px) minmax(0, 1fr) 96px 136px 28px;
+    grid-template-columns: minmax(160px, 220px) minmax(0, 1fr) 96px 96px;
 }
 
 .usageInfo {
@@ -18,19 +18,69 @@
     white-space: nowrap;
 }
 
-/* A source's rate limits in its settings: the count beside each bar. */
+/* A source's rate limits in its settings: usage beside each limit's field. */
+
+/* One block per limit, the same width down the card: count and max over the bar. */
+.rateMeter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 180px;
+}
 
 .rateCount {
-    min-width: 84px;
-    font-size: 13px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 16px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
 
-.rateDetail[data-limit-reached] {
+.rateMax {
+    font-size: 11px;
+    color: var(--mantine-color-dimmed);
+}
+
+.rateDetail[data-limit-reached],
+.rateError {
     color: var(--mantine-color-red-text);
 }
 
 .warningText {
     color: var(--mantine-color-orange-text);
+}
+
+/* A source that hasn't been called yet: its numbers are dashes, set back. */
+.row [data-empty] {
+    color: var(--mantine-color-dimmed);
+}
+
+/* The list's header, as a settings card's: its name, then its action. */
+.listHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 40px;
+    padding: 6px 8px 6px 12px;
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-ldGray-1), var(--mantine-color-dark-5));
+}
+
+.listTitle {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.listCount {
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    color: var(--mantine-color-dimmed);
 }

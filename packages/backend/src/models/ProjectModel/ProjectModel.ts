@@ -2,6 +2,7 @@ import {
     AgentSqlScope,
     AlreadyExistsError,
     AnyType,
+    ApiConnectorType,
     assertUnreachable,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
@@ -35,6 +36,7 @@ import {
     IdContentMapping,
     isExploreError,
     isUserManagedExplore,
+    LiveExploreSwitchedOffError,
     normalizeWarehouseCredentials,
     NotFoundError,
     NotImplementedError,
@@ -200,6 +202,7 @@ import {
     AiDeepResearchEventsTableName,
     AiDeepResearchRunsTableName,
 } from '../../ee/database/entities/aiDeepResearch';
+import { ExternalConnectionsTableName } from '../../ee/database/entities/externalConnections';
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import {
     newExploreCacheReadContext,
@@ -3601,16 +3604,86 @@ export class ProjectModel {
         );
         const cachedExplore = cachedExplores[exploreName];
         if (cachedExplore === undefined) {
-            const candidateExploreNames = await this.findExploreSplitCandidates(
-                projectUuid,
-                exploreName,
-            );
-            if (candidateExploreNames.length >= 2) {
-                throw new ExploreSplitError(exploreName, candidateExploreNames);
-            }
-            throw new NotFoundError(`Explore "${exploreName}" does not exist.`);
+            throw await this.getMissingExploreError(projectUuid, exploreName);
         }
         return cachedExplore;
+    }
+
+    /**
+     * Why an explore isn't in the cache: a live explore an admin switched
+     * off, an explore split into several, or one that doesn't exist.
+     */
+    async getMissingExploreError(
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<NotFoundError> {
+        const switchedOff = await this.findSwitchedOffLiveExplore(
+            projectUuid,
+            exploreName,
+        );
+        if (switchedOff) {
+            return new LiveExploreSwitchedOffError({
+                exploreName,
+                ...switchedOff,
+            });
+        }
+        const candidateExploreNames = await this.findExploreSplitCandidates(
+            projectUuid,
+            exploreName,
+        );
+        if (candidateExploreNames.length >= 2) {
+            return new ExploreSplitError(exploreName, candidateExploreNames);
+        }
+        return new NotFoundError(`Explore "${exploreName}" does not exist.`);
+    }
+
+    private async findSwitchedOffLiveExplore(
+        projectUuid: string,
+        exploreName: string,
+    ) {
+        const rows = await this.database(ExternalConnectionsTableName)
+            .where('project_uuid', projectUuid)
+            .where('connection_kind', 'live_source')
+            .whereNull('deleted_at')
+            .whereRaw("api_source->'explores' IS NOT NULL")
+            .select<
+                {
+                    name: string;
+                    source_name: string | null;
+                    connector: ApiConnectorType;
+                    api_source: unknown;
+                }[]
+            >(
+                'name',
+                this.database.raw("api_source->>'sourceName' as source_name"),
+                this.database.raw("api_source->>'connector' as connector"),
+                'api_source',
+            );
+        if (rows.length === 0) return undefined;
+        // Loaded here, not at the top: the live integrations build warehouse
+        // clients when they load, which every ProjectModel import would pay for
+        const [{ findSwitchedOffLiveExplore }, { parseLiveSourceFieldState }] =
+            await Promise.all([
+                import('../../services/QuerySourceService/live/explores/build'),
+                import('../../services/QuerySourceService/live/explores/fields'),
+            ]);
+        return findSwitchedOffLiveExplore(
+            rows.flatMap((row) =>
+                row.source_name
+                    ? [
+                          {
+                              name: row.name,
+                              sourceName: row.source_name,
+                              connector: row.connector,
+                              exploreEdits: parseLiveSourceFieldState(
+                                  row.api_source,
+                              ).explores,
+                          },
+                      ]
+                    : [],
+            ),
+            exploreName,
+        );
     }
 
     async findExploreSplitCandidates(
@@ -5529,43 +5602,123 @@ export class ProjectModel {
                 );
             }
 
-            // 2. Find or create the "Default User Spaces" parent folder
-            let parentSpace = await trx(SpaceTableName)
-                .select('space_uuid', 'path')
-                .where('project_id', project.project_id)
-                .where('name', DEFAULT_USER_SPACES_PARENT_NAME)
-                .whereNull('parent_space_uuid')
-                .whereNull('deleted_at')
-                .first();
-
-            if (!parentSpace) {
-                const parentSlug = await generateUniqueSlugScopedToProject(
-                    trx,
-                    project.project_id,
-                    SpaceTableName,
-                    DEFAULT_USER_SPACES_PARENT_NAME,
-                );
-                const parentPath = getLtreePathFromSlug(parentSlug);
-
-                [parentSpace] = await trx(SpaceTableName)
-                    .insert({
-                        project_id: project.project_id,
-                        name: DEFAULT_USER_SPACES_PARENT_NAME,
-                        inherit_parent_permissions: true,
-                        slug: parentSlug,
-                        parent_space_uuid: null,
-                        path: parentPath,
-                        is_default_user_space: false,
-                    })
-                    .returning(['space_uuid', 'path']);
-            }
-
-            if (!parentSpace) {
-                throw new UnexpectedServerError(
-                    'Failed to find or create Default User Spaces folder',
-                );
-            }
+            await ProjectModel.findOrCreateDefaultUserSpacesParent(
+                trx,
+                project.project_id,
+            );
         });
+    }
+
+    private static async findOrCreateDefaultUserSpacesParent(
+        trx: Knex.Transaction,
+        projectId: number,
+    ): Promise<{ parentSpaceUuid: string; parentPath: string }> {
+        // Serialise concurrent callers so only one folder is created
+        await acquireProjectSlugLock(
+            trx,
+            String(projectId),
+            `space:${generateSlug(DEFAULT_USER_SPACES_PARENT_NAME)}`,
+        );
+
+        let parentSpace = await trx(SpaceTableName)
+            .select('space_uuid', 'path')
+            .where('project_id', projectId)
+            .where('name', DEFAULT_USER_SPACES_PARENT_NAME)
+            .whereNull('parent_space_uuid')
+            .whereNull('deleted_at')
+            .first();
+
+        if (!parentSpace) {
+            const parentSlug = await generateUniqueSlugScopedToProject(
+                trx,
+                projectId,
+                SpaceTableName,
+                DEFAULT_USER_SPACES_PARENT_NAME,
+            );
+            const parentPath = getLtreePathFromSlug(parentSlug);
+
+            [parentSpace] = await trx(SpaceTableName)
+                .insert({
+                    project_id: projectId,
+                    name: DEFAULT_USER_SPACES_PARENT_NAME,
+                    inherit_parent_permissions: true,
+                    slug: parentSlug,
+                    parent_space_uuid: null,
+                    path: parentPath,
+                    is_default_user_space: false,
+                })
+                .returning(['space_uuid', 'path']);
+        }
+
+        if (!parentSpace) {
+            throw new UnexpectedServerError(
+                'Failed to find or create Default User Spaces folder',
+            );
+        }
+
+        return {
+            parentSpaceUuid: parentSpace.space_uuid,
+            parentPath: parentSpace.path,
+        };
+    }
+
+    /**
+     * Recreates the "Default User Spaces" folder in projects that have the
+     * setting on but lost the folder (renamed or permanently deleted).
+     * A folder in Trash is left alone so it can still be restored.
+     */
+    async restoreMissingDefaultUserSpacesParents(
+        organizationUuid: string,
+    ): Promise<string[]> {
+        const projects = await this.database(ProjectTableName)
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .where(`${ProjectTableName}.has_default_user_spaces`, true)
+            .whereNotExists((qb) => {
+                void qb
+                    .select(this.database.raw('1'))
+                    .from(SpaceTableName)
+                    .whereRaw('?? = ??', [
+                        `${SpaceTableName}.project_id`,
+                        `${ProjectTableName}.project_id`,
+                    ])
+                    .where(
+                        `${SpaceTableName}.name`,
+                        DEFAULT_USER_SPACES_PARENT_NAME,
+                    )
+                    .whereNull(`${SpaceTableName}.parent_space_uuid`);
+            })
+            .select<{ project_id: number; project_uuid: string }[]>(
+                `${ProjectTableName}.project_id`,
+                `${ProjectTableName}.project_uuid`,
+            );
+
+        await Promise.all(
+            projects.map((project) =>
+                this.database.transaction((trx) =>
+                    ProjectModel.findOrCreateDefaultUserSpacesParent(
+                        trx,
+                        project.project_id,
+                    ),
+                ),
+            ),
+        );
+
+        return projects.map((project) => project.project_uuid);
+    }
+
+    async hasDefaultUserSpaces(projectUuid: string): Promise<boolean> {
+        const project = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .first('has_default_user_spaces');
+        return project?.has_default_user_spaces === true;
     }
 
     async getProjectsWithDefaultUserSpaces(organizationUuid: string): Promise<
@@ -8878,14 +9031,16 @@ export class ProjectModel {
     /**
      * Replaces every explore of one live data source. Sources are soft
      * deleted and explores have no foreign key, so explores are always
-     * written and removed per source.
+     * written and removed per source. Pass `trx` to write them with other
+     * changes, such as the field edits they were built from.
      */
     async replaceApiSourceExplores(
         projectUuid: string,
         connectionUuid: string,
         explores: Explore[],
+        outerTrx?: Knex.Transaction,
     ): Promise<void> {
-        await this.database.transaction(async (trx) => {
+        const replace = async (trx: Knex.Transaction) => {
             await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
             const clashing = await trx(CachedExploreTableName)
                 .select('name')
@@ -8918,7 +9073,10 @@ export class ProjectModel {
                     })),
                 );
             }
-        });
+        };
+        await (outerTrx
+            ? replace(outerTrx)
+            : this.database.transaction(replace));
     }
 
     /** Which of these explore names belong to something other than this live source. */
@@ -8979,6 +9137,21 @@ export class ProjectModel {
                 this.database.raw("explore->'apiSource'->'fields' as fields"),
             );
         return rows.flatMap(({ fields }) => Object.keys(fields ?? {}));
+    }
+
+    /** The names of a live data source's explores in the project. */
+    async getApiSourceExploreNames(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<string[]> {
+        const rows = await this.database(CachedExploreTableName)
+            .select<{ name: string }[]>('name')
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
+            .whereRaw("explore->'apiSource'->>'connectionUuid' = ?", [
+                connectionUuid,
+            ]);
+        return rows.map(({ name }) => name);
     }
 
     async hasApiSourceExplores(

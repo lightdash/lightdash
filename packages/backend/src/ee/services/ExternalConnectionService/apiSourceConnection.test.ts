@@ -15,6 +15,7 @@ import {
 import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
 import { getSearchConsoleQueryPath } from '../../../services/QuerySourceService/live/integrations/searchConsole/run';
 import {
+    assertSupabaseKey,
     validateApiSourceConnection,
     withApiSourceAccessRules,
 } from './apiSourceConnection';
@@ -298,5 +299,30 @@ describe('Hydra connections', () => {
         expect(() => validateApiSourceConnection(hydra(overrides))).toThrow(
             new ParameterError(`The Hydra setting ${message}`),
         );
+    });
+});
+
+describe('Supabase keys', () => {
+    const apiSource = {
+        connector: ApiConnectorType.SUPABASE,
+        table: 'orders',
+    } as const;
+
+    it('accepts a secret key', () => {
+        expect(() =>
+            assertSupabaseKey(apiSource, 'sb_secret_abc'),
+        ).not.toThrow();
+    });
+
+    it('refuses a legacy JWT key that would read no rows', () => {
+        expect(() => assertSupabaseKey(apiSource, 'eyJhbGciOi.x.y')).toThrow(
+            'Legacy JWT keys return no rows',
+        );
+    });
+
+    it('refuses a publishable key that cannot scan the table', () => {
+        expect(() =>
+            assertSupabaseKey(apiSource, 'sb_publishable_abc'),
+        ).toThrow('Publishable keys cannot read the table columns');
     });
 });

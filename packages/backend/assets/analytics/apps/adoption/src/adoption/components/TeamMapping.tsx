@@ -178,7 +178,7 @@ export const TeamMapping = ({ open, onOpenChange, groups, people, directory, con
                                                     <td className="max-w-[240px] truncate px-3 py-2 text-muted-foreground" title={names.join(', ')}>
                                                         {names.length > 0 ? names.join(', ') : '—'}
                                                     </td>
-                                                    <td className="ad-count px-3 py-2 text-right text-muted-foreground">{(team.memberIds ?? []).length || '—'}</td>
+                                                    <td className="adoption-count px-3 py-2 text-right text-muted-foreground">{(team.memberIds ?? []).length || '—'}</td>
                                                     <td className="px-3 py-1">
                                                         <div className="flex justify-end gap-0.5">
                                                             <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Edit ${team.name || 'team'}`} onClick={() => setEditingId(team.id)}>

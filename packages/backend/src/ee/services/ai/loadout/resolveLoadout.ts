@@ -20,7 +20,7 @@ export const selectLoadoutBase = (input: LoadoutInput): LoadoutBase => {
         default:
             return assertUnreachable(research, 'Unknown research role');
     }
-    if (input.isSemanticStudioThread) return 'semantic_studio';
+    if (input.studio) return 'semantic_studio';
     if (input.enableComposerQueries) return 'composer';
     if (!input.enableDataAccess) return 'no_data_access';
     return 'classic';
@@ -70,6 +70,7 @@ export const resolveLoadout = (input: LoadoutInput): Loadout =>
 export const getStudioAbilities = (loadout: Pick<Loadout, 'toolNames'>) => ({
     builder: loadout.toolNames.has('read'),
     canRunMetrics: loadout.toolNames.has('runMetricQuery'),
+    canDraftContext: loadout.toolNames.has('draftProjectContext'),
 });
 
 /** The loadout's built-in skills, then the agent's custom skills. */

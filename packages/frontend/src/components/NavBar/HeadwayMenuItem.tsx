@@ -7,6 +7,7 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import classes from './HeadwayMenuItem.module.css';
+import { useNavLayout } from './NavLayoutContext';
 
 type Props = {
     projectUuid?: string;
@@ -17,6 +18,7 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid, withLabel = false }) => {
     const { track } = useTracking();
     const { user } = useApp();
     const isHeadwayloaded = useHeadway();
+    const { layout, Trigger } = useNavLayout();
 
     useEffect(() => {
         if (!projectUuid || !isHeadwayloaded) return;
@@ -64,6 +66,26 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid, withLabel = false }) => {
     ]);
 
     if (!isHeadwayloaded || !projectUuid) return null;
+
+    if (layout === 'sidebar') {
+        return (
+            <Trigger
+                variant="row"
+                withLabel={withLabel}
+                id="headway-trigger"
+                icon={<MantineIcon icon={IconNews} />}
+                label="What's new"
+                hasIndicator={false}
+                badge={
+                    <Box
+                        id="headway-badge"
+                        pos="absolute"
+                        className={classes.badge}
+                    />
+                }
+            />
+        );
+    }
 
     return (
         <Tooltip label="What's new?">

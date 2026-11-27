@@ -2,7 +2,6 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { type OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectMemberRole } from '../types/projectMemberRole';
-import { AGENT_CAPABILITY_SUBJECTS } from './agentCapabilityScopes';
 import { applyOrganizationMemberStaticAbilities } from './organizationMemberAbility';
 import {
     ORGANIZATION_ADMIN,
@@ -73,7 +72,6 @@ const checkRoleCoveredByScopes = (
  * List of enterprise-only subject names that should be filtered in non-enterprise mode
  */
 const ENTERPRISE_SUBJECTS = new Set([
-    ...AGENT_CAPABILITY_SUBJECTS,
     'EmbedAiAgent',
     'EmbedAiAgentDebug',
     'EmbedCompiledSql',
@@ -100,6 +98,7 @@ const ENTERPRISE_SUBJECTS = new Set([
     'ContentAsCode',
     'PreAggregation',
     'ExternalConnection',
+    'LiveSource',
     'ExternalSource',
     'ProjectHomepage',
     // The matching scopes (`view:` + `manage:OrganizationWarehouseCredentials`)
@@ -448,13 +447,6 @@ describe('Role to Scope Parity', () => {
             const explicitOptIns = new Set([
                 // Do not grant organization-wide usage through Project Admin.
                 'view:SystemAnalytics',
-                'view:AgentContentWrite',
-                'view:AgentDelete',
-                'view:AgentPublish',
-                'view:AgentDeployUpload',
-                'view:AgentDbtWriteback',
-                'view:AgentAdministration',
-                'view:AgentExternalTools',
             ]);
             const allScopeNames = new Set(
                 getScopes({ isEnterprise: true }).map((s) => s.name),

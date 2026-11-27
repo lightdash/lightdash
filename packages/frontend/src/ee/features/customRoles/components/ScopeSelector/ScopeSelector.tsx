@@ -1,8 +1,4 @@
-import {
-    AGENT_CAPABILITY_SCOPES,
-    getOrganizationOnlyScopes,
-    type RoleLevel,
-} from '@lightdash/common';
+import { getOrganizationOnlyScopes, type RoleLevel } from '@lightdash/common';
 import {
     Badge,
     Box,
@@ -29,10 +25,9 @@ import {
     IconCircleXFilled,
     IconSearch,
 } from '@tabler/icons-react';
-import { Fragment, useMemo, useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../../components/common/PolymorphicGroupButton';
-import { agentCapabilityGroups } from '../../../../../features/aiAccess/agentCapabilityLabels';
 import {
     filterScopes,
     filterScopesByDependencyStatus,
@@ -52,7 +47,6 @@ type ScopeSelectorProps = {
     form: UseFormReturnType<RoleFormValues>;
     level: RoleLevel;
     dependencyStatus?: DependencyStatus;
-    agentCapabilitiesEnabled: boolean;
 };
 
 const getDependencyStatusIcon = (
@@ -93,41 +87,6 @@ const GroupListItem: FC<{
                 {selectedCount} / {totalCount}
             </Badge>
         </PolymorphicGroupButton>
-    );
-};
-
-const AgentScopeHeading = ({
-    scopeName,
-    previousScopeName,
-}: {
-    scopeName: string;
-    previousScopeName: string | null;
-}) => {
-    const group = agentCapabilityGroups.find((entry) =>
-        entry.capabilities.some(
-            (capability) => AGENT_CAPABILITY_SCOPES[capability] === scopeName,
-        ),
-    );
-    const previousGroup = agentCapabilityGroups.find((entry) =>
-        entry.capabilities.some(
-            (capability) =>
-                AGENT_CAPABILITY_SCOPES[capability] === previousScopeName,
-        ),
-    );
-    if (!group) return null;
-    return (
-        <>
-            {!previousGroup && (
-                <Title order={6} mt="md">
-                    Agent permissions
-                </Title>
-            )}
-            {group !== previousGroup && (
-                <Text fz="xs" fw={500} c="dimmed" mt="sm">
-                    {group.label}
-                </Text>
-            )}
-        </>
     );
 };
 
@@ -239,7 +198,7 @@ const ScopePanel: FC<{
 
             <ScrollArea.Autosize mah="100%" flex={1}>
                 <Stack gap="0">
-                    {group.scopes.map((scope, index) => {
+                    {group.scopes.map((scope) => {
                         const dependencies = getScopeDependencies(scope.name);
                         const selectedDependencyCount = dependencies.filter(
                             (dependency) =>
@@ -256,189 +215,177 @@ const ScopePanel: FC<{
                             form.values.scopes?.[scope.name] ?? false;
 
                         return (
-                            <Fragment key={scope.name}>
-                                <AgentScopeHeading
-                                    scopeName={scope.name}
-                                    previousScopeName={
-                                        group.scopes[index - 1]?.name ?? null
-                                    }
-                                />
-                                <Box p="xs" className={styles.scopeItem}>
-                                    <Group gap="xs" align="flex-start">
-                                        <Checkbox
-                                            mt={2}
-                                            aria-label={formatScopeName(
+                            <Box
+                                key={scope.name}
+                                p="xs"
+                                className={styles.scopeItem}
+                            >
+                                <Group gap="xs" align="flex-start">
+                                    <Checkbox
+                                        mt={2}
+                                        aria-label={formatScopeName(scope.name)}
+                                        checked={isSelected}
+                                        onChange={(event) =>
+                                            setScopeAndDependenciesSelected(
                                                 scope.name,
-                                            )}
-                                            checked={isSelected}
-                                            onChange={(event) =>
-                                                setScopeAndDependenciesSelected(
-                                                    scope.name,
-                                                    event.currentTarget.checked,
-                                                )
-                                            }
-                                        />
-                                        <Stack
-                                            className={styles.scopeContent}
-                                            gap="two"
+                                                event.currentTarget.checked,
+                                            )
+                                        }
+                                    />
+                                    <Stack
+                                        className={styles.scopeContent}
+                                        gap="two"
+                                    >
+                                        <Text fw={500} fz="sm">
+                                            {formatScopeName(scope.name)}
+                                        </Text>
+                                        <Text
+                                            fz="xs"
+                                            c="dimmed"
+                                            className={styles.scopeDescription}
                                         >
-                                            <Text fw={500} fz="sm">
-                                                {formatScopeName(scope.name)}
-                                            </Text>
-                                            <Text
-                                                fz="xs"
-                                                c="dimmed"
-                                                className={
-                                                    styles.scopeDescription
-                                                }
-                                            >
-                                                {scope.description}
-                                            </Text>
-                                            {dependencies.length > 0 ? (
-                                                <Stack gap="xs">
-                                                    <Group gap="xs">
-                                                        <UnstyledButton
-                                                            onClick={() =>
-                                                                toggleDependencyScope(
-                                                                    scope.name,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Group gap={4}>
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        IconChevronDown
-                                                                    }
-                                                                    size="sm"
-                                                                    className={
-                                                                        styles.dependencyToggleIcon
-                                                                    }
-                                                                    data-open={
-                                                                        isDependencyListOpen
-                                                                    }
-                                                                />
-                                                                <Text
-                                                                    fz="xs"
-                                                                    c="dimmed"
-                                                                    fw={500}
-                                                                >
-                                                                    {
-                                                                        selectedDependencyCount
-                                                                    }{' '}
-                                                                    /{' '}
-                                                                    {
-                                                                        dependencies.length
-                                                                    }{' '}
-                                                                    dependencies
-                                                                </Text>
-                                                                {isSelected ? (
-                                                                    <MantineIcon
-                                                                        icon={
-                                                                            dependencyStatus.icon
-                                                                        }
-                                                                        size={
-                                                                            11
-                                                                        }
-                                                                        color={
-                                                                            dependencyStatus.color
-                                                                        }
-                                                                    />
-                                                                ) : null}
-                                                            </Group>
-                                                        </UnstyledButton>
-                                                    </Group>
-                                                    <Collapse
-                                                        expanded={
-                                                            isDependencyListOpen
+                                            {scope.description}
+                                        </Text>
+                                        {dependencies.length > 0 ? (
+                                            <Stack gap="xs">
+                                                <Group gap="xs">
+                                                    <UnstyledButton
+                                                        onClick={() =>
+                                                            toggleDependencyScope(
+                                                                scope.name,
+                                                            )
                                                         }
                                                     >
-                                                        <Stack gap="xs">
-                                                            {dependencies.map(
-                                                                (
-                                                                    dependency,
-                                                                ) => (
-                                                                    <Box
-                                                                        key={
-                                                                            dependency.name
-                                                                        }
-                                                                        className={
-                                                                            styles.dependencyItem
-                                                                        }
+                                                        <Group gap={4}>
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconChevronDown
+                                                                }
+                                                                size="sm"
+                                                                className={
+                                                                    styles.dependencyToggleIcon
+                                                                }
+                                                                data-open={
+                                                                    isDependencyListOpen
+                                                                }
+                                                            />
+                                                            <Text
+                                                                fz="xs"
+                                                                c="dimmed"
+                                                                fw={500}
+                                                            >
+                                                                {
+                                                                    selectedDependencyCount
+                                                                }{' '}
+                                                                /{' '}
+                                                                {
+                                                                    dependencies.length
+                                                                }{' '}
+                                                                dependencies
+                                                            </Text>
+                                                            {isSelected ? (
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        dependencyStatus.icon
+                                                                    }
+                                                                    size={11}
+                                                                    color={
+                                                                        dependencyStatus.color
+                                                                    }
+                                                                />
+                                                            ) : null}
+                                                        </Group>
+                                                    </UnstyledButton>
+                                                </Group>
+                                                <Collapse
+                                                    expanded={
+                                                        isDependencyListOpen
+                                                    }
+                                                >
+                                                    <Stack gap="xs">
+                                                        {dependencies.map(
+                                                            (dependency) => (
+                                                                <Box
+                                                                    key={
+                                                                        dependency.name
+                                                                    }
+                                                                    className={
+                                                                        styles.dependencyItem
+                                                                    }
+                                                                >
+                                                                    <Group
+                                                                        gap="xs"
+                                                                        align="flex-start"
                                                                     >
-                                                                        <Group
-                                                                            gap="xs"
-                                                                            align="flex-start"
+                                                                        <Checkbox
+                                                                            size="xs"
+                                                                            mt={
+                                                                                1
+                                                                            }
+                                                                            checked={
+                                                                                form
+                                                                                    .values
+                                                                                    .scopes?.[
+                                                                                    dependency
+                                                                                        .name
+                                                                                ] ??
+                                                                                false
+                                                                            }
+                                                                            onChange={(
+                                                                                event,
+                                                                            ) =>
+                                                                                setScopeSelected(
+                                                                                    dependency.name,
+                                                                                    event
+                                                                                        .currentTarget
+                                                                                        .checked,
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                        <Stack
+                                                                            gap={
+                                                                                0
+                                                                            }
+                                                                            className={
+                                                                                styles.dependencyContent
+                                                                            }
                                                                         >
-                                                                            <Checkbox
-                                                                                size="xs"
-                                                                                mt={
-                                                                                    1
+                                                                            <Text
+                                                                                fz={
+                                                                                    11
                                                                                 }
-                                                                                checked={
-                                                                                    form
-                                                                                        .values
-                                                                                        .scopes?.[
-                                                                                        dependency
-                                                                                            .name
-                                                                                    ] ??
-                                                                                    false
-                                                                                }
-                                                                                onChange={(
-                                                                                    event,
-                                                                                ) =>
-                                                                                    setScopeSelected(
-                                                                                        dependency.name,
-                                                                                        event
-                                                                                            .currentTarget
-                                                                                            .checked,
-                                                                                    )
-                                                                                }
-                                                                            />
-                                                                            <Stack
-                                                                                gap={
-                                                                                    0
-                                                                                }
-                                                                                className={
-                                                                                    styles.dependencyContent
+                                                                                fw={
+                                                                                    500
                                                                                 }
                                                                             >
+                                                                                {formatScopeName(
+                                                                                    dependency.name,
+                                                                                )}
+                                                                            </Text>
+                                                                            {dependency.description ? (
                                                                                 <Text
                                                                                     fz={
                                                                                         11
                                                                                     }
-                                                                                    fw={
-                                                                                        500
-                                                                                    }
+                                                                                    c="dimmed"
                                                                                 >
-                                                                                    {formatScopeName(
-                                                                                        dependency.name,
-                                                                                    )}
+                                                                                    {
+                                                                                        dependency.description
+                                                                                    }
                                                                                 </Text>
-                                                                                {dependency.description ? (
-                                                                                    <Text
-                                                                                        fz={
-                                                                                            11
-                                                                                        }
-                                                                                        c="dimmed"
-                                                                                    >
-                                                                                        {
-                                                                                            dependency.description
-                                                                                        }
-                                                                                    </Text>
-                                                                                ) : null}
-                                                                            </Stack>
-                                                                        </Group>
-                                                                    </Box>
-                                                                ),
-                                                            )}
-                                                        </Stack>
-                                                    </Collapse>
-                                                </Stack>
-                                            ) : null}
-                                        </Stack>
-                                    </Group>
-                                </Box>
-                            </Fragment>
+                                                                            ) : null}
+                                                                        </Stack>
+                                                                    </Group>
+                                                                </Box>
+                                                            ),
+                                                        )}
+                                                    </Stack>
+                                                </Collapse>
+                                            </Stack>
+                                        ) : null}
+                                    </Stack>
+                                </Group>
+                            </Box>
                         );
                     })}
                 </Stack>
@@ -451,7 +398,6 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
     form,
     level,
     dependencyStatus,
-    agentCapabilitiesEnabled,
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm] = useDebouncedValue(searchTerm, 300);
@@ -463,8 +409,8 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
     >(null);
 
     const allGroupedScopes = useMemo(
-        () => getScopesByGroup(true, level, agentCapabilitiesEnabled),
-        [level, agentCapabilitiesEnabled],
+        () => getScopesByGroup(true, level),
+        [level],
     );
 
     const dependencyFilteredScopes = useMemo(

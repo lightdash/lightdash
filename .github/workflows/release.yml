@@ -141,6 +141,9 @@ jobs:
       contents: read
     needs: release
     if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.release.outputs.new_release_published == 'true') }}
+    outputs:
+      version: ${{ steps.release-version.outputs.version }}
+      gated: ${{ steps.release-version.outputs.gated }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -152,6 +155,17 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release.outputs.new_release_git_tag }}
+
+      # Read once here so all three npm jobs in this run use the same mode.
+      - name: Read release version and npm gating mode
+        id: release-version
+        env:
+          NPM_GATED_LATEST: ${{ vars.NPM_GATED_LATEST }}
+        run: |
+          set -euo pipefail
+          echo "version=$(jq -r .version packages/cli/package.json)" >> "$GITHUB_OUTPUT"
+          if [ "$NPM_GATED_LATEST" = 'true' ]; then gated=true; else gated=false; fi
+          echo "gated=$gated" >> "$GITHUB_OUTPUT"
 
       - name: Read Node pin from checked-out revision
         id: node-version
@@ -174,8 +188,92 @@ jobs:
         run: pnpm build-published-packages
 
       # Recovery: wait for accepted versions on npm, then rerun failed jobs (newest release only).
+      # With vars.NPM_GATED_LATEST == 'true', publish to `pending`; promote-npm-latest moves `latest`.
       - name: Publish npm packages
         env:
           # Wait for npm's malware scan before publishing dependent packages.
           PNPM_CONFIG_PUBLISH_WAIT_TIMEOUT: '3600000'
-        run: pnpm release-packages
+          GATED: ${{ steps.release-version.outputs.gated }}
+        run: |
+          if [ "$GATED" = 'true' ]; then
+            pnpm release-packages --tag pending
+          else
+            pnpm release-packages
+          fi
+
+  # npm can list a version before its tarball downloads, and a 404 can stay
+  # cached for about 5 minutes. Move `latest` only after every tarball still
+  # downloads after that window, and only forward. Without NPM_GATED_LATEST,
+  # this job sets the unused `pending` tag to rehearse and never fails the run.
+  promote-npm-latest:
+    name: Promote npm latest
+    # Must stay on a GitHub-hosted runner for npm trusted publishing (see `release`).
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      id-token: write
+      contents: read
+    needs: publish-npm-packages
+    if: ${{ !cancelled() && needs.publish-npm-packages.result == 'success' }}
+    continue-on-error: ${{ needs.publish-npm-packages.outputs.gated != 'true' }}
+    concurrency:
+      group: npm-promote-latest
+      cancel-in-progress: false
+      queue: max
+    env:
+      VERSION: ${{ needs.publish-npm-packages.outputs.version }}
+      TAG: ${{ needs.publish-npm-packages.outputs.gated == 'true' && 'latest' || 'pending' }}
+      SOAK_SECONDS: ${{ vars.NPM_GATE_SOAK_SECONDS || '330' }}
+      PACKAGES: common visualization warehouses query-sdk sdk cli
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      # Only for pnpm/setup to read the pinned pnpm version. No `pnpm install`.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+          sparse-checkout: .github
+
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+        with:
+          cache: false
+          install: false
+
+      - name: Wait until every tarball downloads
+        run: |
+          set -euo pipefail
+          check_all() {
+            for p in $PACKAGES; do
+              url=$(curl -fsS "https://registry.npmjs.org/@lightdash/$p/$VERSION" | jq -er .dist.tarball) || return 1
+              curl -fsS -o /dev/null "$url" || { echo "@lightdash/$p@$VERSION: tarball not downloadable yet"; return 1; }
+            done
+          }
+          while true; do
+            until check_all; do sleep 30; done
+            echo "All tarballs download. Checking again in ${SOAK_SECONDS}s."
+            sleep "$SOAK_SECONDS"
+            if check_all; then break; fi
+          done
+
+      - name: Move ${{ env.TAG }} forward
+        working-directory: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          for p in $PACKAGES; do
+            pkg="@lightdash/$p"
+            current=$(curl -fsS "https://registry.npmjs.org/-/package/$pkg/dist-tags" | jq -r --arg tag "$TAG" '.[$tag] // "0.0.0"')
+            newest=$(printf '%s\n%s\n' "$current" "$VERSION" | sort -V | tail -n 1)
+            if [ "$current" = "$VERSION" ] || [ "$newest" != "$VERSION" ]; then
+              echo "$pkg: $TAG is $current, not moving it to $VERSION"
+              continue
+            fi
+            pnpm dist-tag add "$pkg@$VERSION" "$TAG"
+            for _ in 1 2 3 4 5 6; do
+              after=$(curl -fsS "https://registry.npmjs.org/-/package/$pkg/dist-tags" | jq -r --arg tag "$TAG" '.[$tag] // ""')
+              [ "$after" = "$VERSION" ] && break
+              sleep 5
+            done
+            [ "$after" = "$VERSION" ] || { echo "::error::$pkg: $TAG reads '$after' after the move, expected $VERSION"; exit 1; }
+          done

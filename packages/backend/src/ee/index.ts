@@ -84,6 +84,8 @@ import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
 import { sendAiCreditAllowanceAlerts } from './scheduler/tasks/sendAiCreditAllowanceAlerts';
 import { scimRequestLoggingMiddleware } from './scim/scimRequestLoggingMiddleware';
+import { getDefaultModel } from './services/ai/models';
+import { findSemanticStudioPreset } from './services/ai/models/modelPreference';
 import { OrgAiCopilotConfigResolver } from './services/ai/OrgAiCopilotConfigResolver';
 import { BuiltInSkills } from './services/ai/skills/builtInSkills';
 import { AiAgentContentValidation } from './services/ai/utils/AiAgentContentValidation';
@@ -144,10 +146,12 @@ import { ReleaseHighlightsService } from './services/ReleaseHighlightsService/Re
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
+import { SecurityContactsService } from './services/SecurityContactsService/SecurityContactsService';
 import { developmentViewMiddleware } from './services/SemanticStudioService/developmentViewMiddleware';
 import { DraftChecker } from './services/SemanticStudioService/DraftChecker';
 import { IncrementalDbtCompileService } from './services/SemanticStudioService/IncrementalDbtCompileService';
 import { RepoModelSource } from './services/SemanticStudioService/repoModels';
+import { SemanticStudioChatService } from './services/SemanticStudioService/SemanticStudioChatService';
 import { SemanticStudioCheckoutService } from './services/SemanticStudioService/SemanticStudioCheckoutService';
 import { SemanticStudioService } from './services/SemanticStudioService/SemanticStudioService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
@@ -220,12 +224,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getContentAsCodeSnapshotModel(),
                     organizationMemberProfileModel:
                         models.getOrganizationMemberProfileModel(),
+                    organizationModel: models.getOrganizationModel(),
                     usageDimensionsModel: models.getUsageDimensionsModel(),
                     coderService: repository.getCoderService(),
                     contentVerificationModel:
                         models.getContentVerificationModel(),
                     spaceModel: models.getSpaceModel(),
                     dashboardModel: models.getDashboardModel(),
+                    getDashboardService: () => repository.getDashboardService(),
+                    getSavedChartService: () =>
+                        repository.getSavedChartService(),
                     projectHomepageModel:
                         models.getProjectHomepageModel<ProjectHomepageModel>(),
                     savedChartModel: models.getSavedChartModel(),
@@ -461,9 +469,23 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getGithubAppInstallationsModel(),
                     }),
                     savedChartModel: models.getSavedChartModel(),
+                    projectContextModel:
+                        models.getProjectContextModel<ProjectContextModel>(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
                     fileStorageClient: clients.getFileStorageClient(),
+                }),
+            semanticStudioChatService: ({ models, repository }) =>
+                new SemanticStudioChatService({
+                    ai: repository.getAiAgentService<AiAgentService>(),
+                    checkout:
+                        repository.getSemanticStudioCheckoutService<SemanticStudioCheckoutService>(),
+                    studio: repository.getSemanticStudioService<SemanticStudioService>(),
+                    aiWriteback:
+                        repository.getAiWritebackService<AiWritebackService>(),
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
+                    workspaceModel:
+                        models.getSemanticStudioWorkspaceModel<SemanticStudioWorkspaceModel>(),
                 }),
             semanticStudioCheckoutService: ({
                 models,
@@ -488,6 +510,36 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiWritebackService<AiWritebackService>(),
                     incrementalDbtCompile:
                         repository.getIncrementalDbtCompileService<IncrementalDbtCompileService>(),
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
+                    ai: {
+                        getAvailability: (user) =>
+                            repository
+                                .getAiOrganizationSettingsService<AiOrganizationSettingsService>()
+                                .getRuntimeSettings(user),
+                        // A default model, or a Claude model the organization is offered.
+                        hasModel: async (organizationUuid, projectUuid) => {
+                            const { catalogue, copilotConfig } =
+                                await new OrgAiCopilotConfigResolver({
+                                    lightdashConfig: context.lightdashConfig,
+                                    featureFlagModel:
+                                        models.getFeatureFlagModel(),
+                                    aiOrganizationSettingsModel:
+                                        models.getAiOrganizationSettingsModel(),
+                                    aiOrganizationProviderCredentialModel:
+                                        models.getAiOrganizationProviderCredentialModel(),
+                                    aiModelCatalog,
+                                }).getOrgModelCatalogue({
+                                    organizationUuid,
+                                    projectUuid,
+                                    credentialUuid: null,
+                                });
+                            return (
+                                getDefaultModel(copilotConfig) !== null ||
+                                findSemanticStudioPreset(catalogue, null) !==
+                                    null
+                            );
+                        },
+                    },
                 }),
             incrementalDbtCompileService: ({ models, repository, clients }) =>
                 new IncrementalDbtCompileService({
@@ -635,6 +687,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 const registry = QuerySourceRegistry.withBuiltInSources({
                     asyncQueryService: repository.getAsyncQueryService(),
                     projectService: repository.getProjectService(),
+                    lightdashConfig: context.lightdashConfig,
                 });
                 registry.register(
                     new ApiQuerySource({
@@ -668,6 +721,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         projectService: repository.getProjectService(),
                         externalSourceModel:
                             models.getExternalSourceModel<ExternalSourceModel>(),
+                        lightdashConfig: context.lightdashConfig,
                     }),
                 );
                 return new QuerySourceService({
@@ -755,6 +809,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
                     featureFlagModel: models.getFeatureFlagModel(),
+                }),
+            securityContactsService: ({ context }) =>
+                new SecurityContactsService({
+                    lightdashConfig: context.lightdashConfig,
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
@@ -967,10 +1025,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiWritebackService<AiWritebackService>(),
                     projectContextService:
                         repository.getProjectContextService<ProjectContextService>(),
-                    semanticStudioService:
-                        repository.getSemanticStudioService<SemanticStudioService>(),
-                    semanticStudioCheckoutService:
-                        repository.getSemanticStudioCheckoutService<SemanticStudioCheckoutService>(),
+                    // The API and the scheduler worker both build the service here, so both know Studio's saves.
+                    findWritebackSetup: (save) =>
+                        repository
+                            .getSemanticStudioCheckoutService<SemanticStudioCheckoutService>()
+                            .findAgentWritebackSetup(save),
                     incrementalDbtCompileService:
                         repository.getIncrementalDbtCompileService<IncrementalDbtCompileService>(),
                     writebackPreviewService:
@@ -1046,7 +1105,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     dashboardService: repository.getDashboardService(),
                     savedChartService: repository.getSavedChartService(),
-                    featureFlagModel: models.getFeatureFlagModel(),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         featureFlagModel: models.getFeatureFlagModel(),
@@ -1271,10 +1329,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     externalConnectionModel:
                         models.getExternalConnectionModel(),
                     appModel: models.getAppModel(),
-                    featureFlagModel: models.getFeatureFlagModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     projectModel: models.getProjectModel(),
+                    userAttributesModel: models.getUserAttributesModel(),
                     savedChartModel: models.getSavedChartModel(),
                     encryptionUtil: utils.getEncryptionUtil(),
                     appGenerateService:
@@ -1473,8 +1531,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             projectService,
                             canViewProject,
                             trigger,
-                            featureFlagService:
-                                repository.getFeatureFlagService(),
                             projectModel: models.getProjectModel(),
                             onboardingModel: models.getOnboardingModel(),
                             catalogService: repository.getCatalogService(),

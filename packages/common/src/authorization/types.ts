@@ -44,17 +44,6 @@ interface Organization {
 }
 
 export type CaslSubjectNames =
-    | 'AgentReadDiscover'
-    | 'AgentQuery'
-    | 'AgentRawSql'
-    | 'AgentContentWrite'
-    | 'AgentDelete'
-    | 'AgentPublish'
-    | 'AgentDeployUpload'
-    | 'AgentDbtWriteback'
-    | 'AgentExport'
-    | 'AgentAdministration'
-    | 'AgentExternalTools'
     | 'AiAgent'
     | 'AiAgentDocument'
     | 'AiAgentSkill'
@@ -99,6 +88,7 @@ export type CaslSubjectNames =
     | 'ComposerChart'
     | 'ExternalConnection'
     | 'ExternalSource'
+    | 'LiveSource'
     | 'ExportCsv'
     | 'GitIntegration'
     | 'GoogleSheets'

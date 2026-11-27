@@ -120,7 +120,7 @@ const makeMcpService = (
         mcpContextModel: { getContext: vi.fn().mockResolvedValue(undefined) },
         mcpToolCallModel: {
             createToolCall: vi.fn(),
-            findClientInfo: vi.fn(),
+            findSessionClientInfo: vi.fn(),
         },
         projectModel: {},
         projectService: {

@@ -16,17 +16,6 @@ export const OAUTH_ACTIONS = Object.keys(actions) as AbilityAction[];
 export const OAUTH_OPERATIONS: Partial<
     Record<CaslSubjectNames, readonly AbilityAction[]>
 > = {
-    AgentReadDiscover: ['view'],
-    AgentQuery: ['view'],
-    AgentRawSql: ['view'],
-    AgentContentWrite: ['view'],
-    AgentDelete: ['view'],
-    AgentPublish: ['view'],
-    AgentDeployUpload: ['view'],
-    AgentDbtWriteback: ['view'],
-    AgentExport: ['view'],
-    AgentAdministration: ['view'],
-    AgentExternalTools: ['view'],
     AiAgent: OAUTH_ACTIONS,
     AiAgentDocument: OAUTH_ACTIONS,
     AiAgentSkill: OAUTH_ACTIONS,
@@ -75,6 +64,7 @@ export const OAUTH_OPERATIONS: Partial<
     InviteLink: OAUTH_ACTIONS,
     Job: OAUTH_ACTIONS,
     JobStatus: ['view'],
+    LiveSource: OAUTH_ACTIONS,
     Learn: ['view'],
     MergeQuery: OAUTH_ACTIONS,
     MetricsTree: OAUTH_ACTIONS,

@@ -35,10 +35,7 @@ import {
 import { pipeline } from 'stream';
 import * as Util from 'util';
 import { WarehouseCatalog } from '../types';
-import {
-    DEFAULT_BATCH_SIZE,
-    processPromisesInBatches,
-} from '../utils/processPromisesInBatches';
+import { mapWithConcurrency } from '../utils/mapWithConcurrency';
 import { normalizeUnicode } from '../utils/sql';
 import { createRowBatchWriter } from '../utils/streamRows';
 import {
@@ -63,6 +60,16 @@ configure({
         ? process.env.SNOWFLAKE_SDK_LOG_LEVEL
         : 'ERROR',
 });
+
+// Catalog fetch: one connection per schema, capped at 12 x 8 statements in flight.
+const CATALOG_SCHEMA_CONCURRENCY = 12;
+const CATALOG_QUERIES_PER_CONNECTION = 8;
+const CATALOG_LOGIN_ATTEMPTS = 3;
+const CATALOG_LOGIN_RETRY_DELAY_MS = 1000;
+const TRANSIENT_NETWORK_ERROR =
+    /ECONNRESET|ETIMEDOUT|ECONNREFUSED|EPIPE|EAI_AGAIN|socket hang up|network error/i;
+
+type CatalogTableRequest = { database: string; schema: string; table: string };
 
 export enum SnowflakeTypes {
     NUMBER = 'NUMBER',
@@ -1852,46 +1859,104 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         });
     }
 
-    private async runTableCatalogQuery(
-        database: string,
-        schema: string,
-        table: string,
-    ) {
-        const sqlText = `SHOW COLUMNS IN TABLE ${table}`;
-        const connection = await this.getConnection({ schema, database });
+    // Logs in with retries on network errors; a reset login must not fail the whole fetch.
+    private async connectForCatalog(database: string, schema: string) {
+        /* eslint-disable no-await-in-loop */
+        for (let retries = 0; ; retries += 1) {
+            try {
+                const connection = await this.getConnection({
+                    schema,
+                    database,
+                });
+                return { connection, retries };
+            } catch (e) {
+                if (
+                    !TRANSIENT_NETWORK_ERROR.test(getErrorMessage(e)) ||
+                    retries + 1 >= CATALOG_LOGIN_ATTEMPTS
+                ) {
+                    throw e;
+                }
+                await new Promise((resolve) => {
+                    setTimeout(
+                        resolve,
+                        CATALOG_LOGIN_RETRY_DELAY_MS * (retries + 1),
+                    );
+                });
+            }
+        }
+        /* eslint-enable no-await-in-loop */
+    }
+
+    private async runSchemaCatalogQueries(tables: CatalogTableRequest[]) {
+        const { database, schema } = tables[0];
+        let login: Awaited<ReturnType<typeof this.connectForCatalog>>;
+        try {
+            login = await this.connectForCatalog(database, schema);
+        } catch (e) {
+            // Bad credentials still fail the compile; only network failures skip the schema.
+            if (!TRANSIENT_NETWORK_ERROR.test(getErrorMessage(e))) throw e;
+            console.error(
+                `\nSkipping catalog for ${tables.length} tables in ${database}.${schema}: ${getErrorMessage(e)}`,
+            );
+            return { results: [], loginRetries: 0, loginError: e };
+        }
 
         try {
-            return await this.executeStatements(connection, sqlText);
-        } catch (e) {
-            console.error(
-                `\nError running catalog query for table ${database}.${schema}.${table}:`,
-            );
-            console.error(e);
+            const results = await mapWithConcurrency(
+                tables,
+                CATALOG_QUERIES_PER_CONNECTION,
+                async ({ table }) => {
+                    try {
+                        return await this.executeStatements(
+                            login.connection,
+                            `SHOW COLUMNS IN TABLE ${table}`,
+                        );
+                    } catch (e) {
+                        console.error(
+                            `\nError running catalog query for table ${database}.${schema}.${table}:`,
+                        );
+                        console.error(e);
 
-            // Ignore error and let UI show invalid table
-            return undefined;
+                        // Ignore error and let UI show invalid table
+                        return undefined;
+                    }
+                },
+            );
+            return { results, loginRetries: login.retries, loginError: null };
         } finally {
             await this.destroyConnection(
-                connection,
+                login.connection,
                 this.connectionOptions.authenticator,
-            );
+            ).catch(() => undefined);
         }
     }
 
-    async getCatalog(
-        config: {
-            database: string;
-            schema: string;
-            table: string;
-        }[],
-    ) {
+    async getCatalog(config: CatalogTableRequest[]) {
         const startedAt = Date.now();
-        const tablesMetadata = await processPromisesInBatches(
-            config,
-            DEFAULT_BATCH_SIZE,
-            async ({ database, schema, table }) =>
-                this.runTableCatalogQuery(database, schema, table),
+        const tablesBySchema = new Map<string, CatalogTableRequest[]>();
+        config.forEach((request) => {
+            const key = `${request.database}\u0000${request.schema}`;
+            tablesBySchema.set(key, [
+                ...(tablesBySchema.get(key) ?? []),
+                request,
+            ]);
+        });
+        const schemaResults = await mapWithConcurrency(
+            [...tablesBySchema.values()],
+            CATALOG_SCHEMA_CONCURRENCY,
+            (tables) => this.runSchemaCatalogQueries(tables),
         );
+        const tablesMetadata = schemaResults.flatMap(({ results }) => results);
+        const skippedSchemas = schemaResults.filter(
+            ({ loginError }) => loginError !== null,
+        );
+        // Every login failed: surface it rather than cache an empty catalog.
+        if (
+            skippedSchemas.length > 0 &&
+            skippedSchemas.length === schemaResults.length
+        ) {
+            throw skippedSchemas[0].loginError;
+        }
         const fetchedAt = Date.now();
 
         // Indexed once instead of scanning the whole request list, with three toLowerCase
@@ -1950,9 +2015,14 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 warehouse: 'snowflake',
                 requestedTables: config.length,
                 respondedTables: tablesMetadata.filter(Boolean).length,
+                schemas: schemaResults.length,
+                skippedSchemas: skippedSchemas.length,
+                loginRetries: schemaResults.reduce(
+                    (sum, { loginRetries }) => sum + loginRetries,
+                    0,
+                ),
                 columnRows,
                 unmatchedRows,
-                batchSize: DEFAULT_BATCH_SIZE,
                 fetchDurationMs: fetchedAt - startedAt,
                 indexDurationMs: finishedAt - fetchedAt,
                 durationMs: finishedAt - startedAt,

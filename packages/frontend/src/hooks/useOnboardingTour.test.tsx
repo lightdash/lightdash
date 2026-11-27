@@ -75,4 +75,43 @@ describe('useOnboardingTour', () => {
             queryClient.clear();
         },
     );
+
+    it('hides the tour in every mounted copy as soon as one closes it', async () => {
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: { retry: false },
+                mutations: { retry: false },
+            },
+        });
+        const wrapper = ({ children }: PropsWithChildren) => (
+            <QueryClientProvider client={queryClient}>
+                {children}
+            </QueryClientProvider>
+        );
+        nock(BASE_API_URL)
+            .get('/api/v1/user/onboarding')
+            .reply(200, { status: 'ok', results: { completedTours: {} } });
+        const closer = renderHook(
+            () => useOnboardingTour({ tour: 'composerLineageTour' }),
+            { wrapper },
+        );
+        const other = renderHook(
+            () => useOnboardingTour({ tour: 'composerLineageTour' }),
+            { wrapper },
+        );
+        await waitFor(() => expect(other.result.current.shouldShow).toBe(true));
+        nock(BASE_API_URL)
+            .post('/api/v1/user/onboarding')
+            .delay(5_000)
+            .reply(200, { status: 'ok' });
+        act(() => closer.result.current.closeTour());
+        // waitFor gives up after 1s, well before the delayed POST lands.
+        await waitFor(() =>
+            expect(other.result.current.shouldShow).toBe(false),
+        );
+        closer.unmount();
+        other.unmount();
+        queryClient.clear();
+        nock.cleanAll();
+    });
 });

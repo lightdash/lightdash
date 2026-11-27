@@ -66,7 +66,6 @@ import type {
     ApiAppendInstructionResponse,
     ApiAppImageUploadResponse,
     ApiAppThumbnailUrlResponse,
-    ApiCaptureRouteResponse,
     ApiCaptureTranscriptResponse,
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
@@ -94,6 +93,8 @@ import type {
     ApiInstallRegistryChartTypeResponse,
     ApiListDataAppVizsResponse,
     ApiListRegistryChartTypesResponse,
+    ApiLiveSourceAccessResponse,
+    ApiLiveSourceContentUsageResponse,
     ApiLiveSourceFieldsResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
@@ -143,6 +144,7 @@ import type { PivotValuesColumn } from '../visualizations/types';
 import {
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicyOverview,
+    type AgentProjectCapabilityPolicy,
 } from './agentCapabilityPolicy';
 import {
     type AgentConnectionApprovalDecisionResponse,
@@ -482,6 +484,7 @@ import {
 } from './scheduler';
 import { type SchedulerWithLogs } from './schedulerLog';
 import { type SearchResults } from './search';
+import { type ApiSecurityContactsResponse } from './securityContacts';
 import {
     type ApiSemanticLayerDraftApplyResponse,
     type ApiSemanticLayerDraftedModelsResponse,
@@ -490,6 +493,7 @@ import {
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftStateResponse,
     type ApiSemanticLayerDraftUsageResponse,
+    type ApiSemanticLayerOthersDraftModelResponse,
     type ApiSemanticStudioBranchCompileFollowUpResponse,
     type ApiSemanticStudioCheckoutResponse,
     type ApiSemanticStudioSourceFileResponse,
@@ -927,7 +931,7 @@ export type HealthState = {
         isAmbientAiEnabled: boolean;
         threadDumpEnabled: boolean;
         fastDecisionsEnabled: boolean;
-        /** Instance can turn recorded speech into text (Voice Design). */
+        /** Instance can turn recorded speech into text (Design Mode). */
         voiceTranscriptionAvailable: boolean;
     };
     echarts6: {
@@ -1501,6 +1505,8 @@ type ApiResults =
     | AgentConnectionApprovalDecisionResponse['results']
     | AgentCapabilityPolicy
     | AgentCapabilityPolicyOverview
+    | AgentProjectCapabilityPolicy
+    | AgentProjectCapabilityPolicy[]
     | OrganizationAgentIdentitySettings
     | ApiAiThreadFileResponse['results']
     | SharedSignInStatus
@@ -1619,6 +1625,7 @@ type ApiResults =
     | ApiRoadmapProjectResponse['results']
     | ApiRoadmapFollowProjectResponse['results']
     | ApiBillingPortalLinkResponse['results']
+    | ApiSecurityContactsResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory
@@ -1744,7 +1751,9 @@ type ApiResults =
     | ApiVirtualViewAsCodeUpsertResponse['results']
     | ApiExternalConnectionAsCodeListResponse['results']
     | ApiExternalConnectionAsCodeUpsertResponse['results']
+    | ApiLiveSourceContentUsageResponse['results']
     | ApiLiveSourceFieldsResponse['results']
+    | ApiLiveSourceAccessResponse['results']
     | ApiExplorePrefixCheckResponse['results']
     | ApiReattachableLiveSourcesResponse['results']
     | ApiSpaceAsCodeListResponse['results']
@@ -1848,7 +1857,6 @@ type ApiResults =
     | ApiAiReviewNotificationSettingsResponse['results']
     | ApiAiRouterResponse['results']
     | ApiAiRouterRouteResponse['results']
-    | ApiCaptureRouteResponse['results']
     | ApiAiRouterInstructionResponse['results']
     | ApiAiRouterDecisionCommitResponse['results']
     | ApiAiRouterDecisionListResponse['results']
@@ -1937,6 +1945,7 @@ type ApiResults =
     | ApiAiProviderCredentialCreatedResponse['results']
     | ApiProjectAiCredentialResponse['results']
     | ApiSemanticLayerDraftResponse['results']
+    | ApiSemanticLayerOthersDraftModelResponse['results']
     | ApiSemanticLayerDraftModelSaveResponse['results']
     | ApiSemanticLayerDraftedModelsResponse['results']
     | ApiSemanticLayerDraftStateResponse['results']

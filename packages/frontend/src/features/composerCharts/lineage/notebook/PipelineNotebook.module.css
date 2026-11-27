@@ -183,7 +183,8 @@
 }
 
 .cell:hover .cellActions,
-.cell:focus-within .cellActions {
+.cell:focus-within .cellActions,
+.cell[data-tour-active] .cellActions {
     opacity: 1;
 }
 

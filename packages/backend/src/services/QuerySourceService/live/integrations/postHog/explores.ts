@@ -88,6 +88,7 @@ const dimension = ({
     type = DimensionType.STRING,
     sql = `\${TABLE}.${apiName}`,
     description,
+    aiHint,
 }: {
     name: string;
     apiName: string;
@@ -95,11 +96,13 @@ const dimension = ({
     type?: DimensionType;
     sql?: string;
     description?: string;
+    aiHint?: string;
 }): LiveDimensionDefinition => ({
     name,
     apiName,
     label,
     description,
+    ...(aiHint ? { aiHint } : {}),
     type,
     sql,
     filterOperators: POSTHOG_FILTERS_BY_TYPE[type],
@@ -116,11 +119,13 @@ const metric = (
     aggregation: ApiSourceMetricAggregation,
     sql: string,
     description: string,
+    aiHint?: string,
 ): LiveMetricDefinition => ({
     name,
     apiName: name,
     label,
     description,
+    ...(aiHint ? { aiHint } : {}),
     type,
     sql,
     filterOperators: POSTHOG_METRIC_FILTERS,
@@ -138,7 +143,8 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
     name: 'events',
     label: 'Events',
     description:
-        'Product events captured by PostHog: pageviews, autocapture and custom events. Dates are in the PostHog project time zone.',
+        'Product events captured by PostHog, such as pageviews, autocaptured clicks and custom events, with their event and person properties. Dates are in the PostHog project time zone.',
+    aiHint: 'Without a Date filter the query reads the last 30 days. Unique users and Unique sessions are distinct counts: never sum rows. Events without a session ID are not in Unique sessions. Every event and person property PostHog knows is added as a dimension (Person properties are prefixed "Person").',
     dimensions: [
         dimension({
             name: 'date',
@@ -146,8 +152,8 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
             label: 'Event date',
             type: DimensionType.DATE,
             sql: 'toDate(${TABLE}.timestamp)',
-            description:
-                'Day the event happened. Queries without a date filter read the last 30 days.',
+            description: 'Day the event happened, in the project time zone.',
+            aiHint: 'Without a date filter the query reads the last 30 days.',
         }),
         dimension({
             name: 'week',
@@ -155,7 +161,7 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
             label: 'Event week',
             type: DimensionType.DATE,
             sql: 'toStartOfWeek(${TABLE}.timestamp, 1)',
-            description: 'Weeks start on Monday.',
+            description: 'Week the event happened, shown as its Monday.',
         }),
         dimension({
             name: 'month',
@@ -163,7 +169,7 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
             label: 'Event month',
             type: DimensionType.DATE,
             sql: 'toStartOfMonth(${TABLE}.timestamp)',
-            description: 'Month the event happened.',
+            description: 'Month the event happened, shown as its first day.',
         }),
         dimension({
             name: 'timestamp',
@@ -177,21 +183,22 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
             apiName: 'event',
             label: 'Event name',
             description:
-                '$pageview, $autocapture, $identify or a custom event.',
+                'Name of the event, such as $pageview, $autocapture, $identify or a custom event.',
         }),
         dimension({
             name: 'distinct_id',
             apiName: 'distinct_id',
             label: 'Distinct ID',
             description:
-                'The ID the event was sent with: anonymous until identify, then the user ID.',
+                "ID the event was sent with: an anonymous ID until the user is identified, then the user's ID.",
         }),
         dimension({
             name: 'person_id',
             apiName: 'person_id',
             label: 'Person ID',
             sql: 'toString(${TABLE}.person_id)',
-            description: 'The person after identify and merges.',
+            description:
+                'The person the event belongs to, after identifying and merging IDs.',
         }),
         eventProperty(
             'current_url',
@@ -203,7 +210,7 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
             'pathname',
             '$pathname',
             'Path',
-            'URL path of the page, without domain or query string.',
+            'Path of the page, without the domain or query string.',
         ),
         eventProperty(
             'referring_domain',
@@ -215,7 +222,7 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
             'utm_source',
             'utm_source',
             'UTM source',
-            'utm_source of the page URL, such as google or newsletter.',
+            'utm_source value in the page URL, such as google or newsletter.',
         ),
         eventProperty(
             'browser',
@@ -233,13 +240,13 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
             'device_type',
             '$device_type',
             'Device type',
-            'Desktop, Mobile or Tablet.',
+            'Type of device: Desktop, Mobile or Tablet.',
         ),
         eventProperty(
             'country',
             '$geoip_country_code',
             'Country code',
-            'Two-letter country code, from the IP address.',
+            'Two-letter country code, based on the IP address.',
         ),
     ],
     metrics: [
@@ -250,7 +257,7 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
             // A count of event rows (https://posthog.com/docs/sql)
             { aggregation: 'additive' },
             '${TABLE}.uuid',
-            'Events captured.',
+            'Number of events captured.',
         ),
         metric(
             'unique_users',
@@ -258,7 +265,8 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
             MetricType.COUNT_DISTINCT,
             { aggregation: 'non_additive' },
             '${TABLE}.person_id',
-            'Distinct people, after identify and merges.',
+            'Number of distinct people, after identifying and merging IDs.',
+            'Distinct count: never sum rows.',
         ),
         metric(
             'unique_sessions',
@@ -268,7 +276,8 @@ export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
             { aggregation: 'non_additive' },
             // Events without a session have an empty session ID
             "nullIf(${TABLE}.$session_id, '')",
-            'Distinct sessions; events without a session are not counted.',
+            'Number of distinct sessions.',
+            'Distinct count: never sum rows. Events without a session ID are not counted.',
         ),
     ],
     maxDimensions: null,
@@ -345,6 +354,11 @@ export const withPostHogPropertyFields = (
                     description:
                         description?.trim() ||
                         `The ${name} ${kind} property, as sent to PostHog.`,
+                    ...(kind === 'person'
+                        ? {
+                              aiHint: "Person properties reflect the person's current values, not their values at the time of the event (depends on the project's person-on-events mode).",
+                          }
+                        : {}),
                     type,
                     sql:
                         type === DimensionType.NUMBER
