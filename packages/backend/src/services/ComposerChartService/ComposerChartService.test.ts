@@ -417,6 +417,7 @@ const setup = ({ flagEnabled = true } = {}) => {
         asyncQueryService,
         spacePermissionService,
         dashboardModel,
+        projectParametersModel,
     };
 };
 
@@ -1469,8 +1470,39 @@ describe('ComposerChartService.runChart', () => {
                 sql: 'select ${lightdash.parameters.region}',
             },
         ];
-        const runWith = async (parameters?: ParametersValuesMap) => {
-            const { service, querySourceService } = setupChartRun({ nodes });
+        const runWith = async (
+            parameters?: ParametersValuesMap,
+            {
+                modelParameters,
+                projectParameterName,
+            }: {
+                modelParameters?: Record<string, object>;
+                projectParameterName?: string;
+            } = {},
+        ) => {
+            const {
+                service,
+                querySourceService,
+                asyncQueryService,
+                projectParametersModel,
+            } = setupChartRun({ nodes });
+            if (modelParameters) {
+                const { getExplore } = asyncQueryService;
+                const original = getExplore.getMockImplementation()!;
+                getExplore.mockImplementation(async (...args) => {
+                    const explore = await original(...args);
+                    explore.tables.orders.parameters = modelParameters as never;
+                    return explore;
+                });
+            }
+            if (projectParameterName) {
+                projectParametersModel.find.mockResolvedValue([
+                    {
+                        name: projectParameterName,
+                        config: { label: 'Region', options: ['EU', 'UK'] },
+                    },
+                ]);
+            }
             await service.runChart(
                 viewer(),
                 projectUuid,
@@ -1506,6 +1538,29 @@ describe('ComposerChartService.runChart', () => {
                 nodeParameters: { region: 'EU' },
                 shared: { region: 'EU' },
             });
+        });
+
+        test("a caller's value outside a model parameter's options is dropped from the shared map too", async () => {
+            expect(
+                await runWith(
+                    { 'orders.size': 'huge' },
+                    { modelParameters: { size: { options: ['small'] } } },
+                ),
+            ).toEqual({ nodeParameters: { region: 'UK' }, shared: {} });
+        });
+
+        test("a project parameter keeps a caller value that a model's copy of its name refuses", async () => {
+            expect(
+                (
+                    await runWith(
+                        { 'orders.region': 'EU' },
+                        {
+                            projectParameterName: 'orders.region',
+                            modelParameters: { region: { options: ['US'] } },
+                        },
+                    )
+                ).shared,
+            ).toEqual({ 'orders.region': 'EU' });
         });
 
         test("a caller's value outside the fixed options is dropped everywhere", async () => {

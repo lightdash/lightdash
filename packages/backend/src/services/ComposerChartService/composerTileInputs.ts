@@ -251,10 +251,16 @@ export const applyCallerParametersToComposerNodes = ({
             },
         };
     }),
-    // A shared value survives only if every definition naming its key allows it
+    // A project parameter wins over a model's copy of its name; a model-only key must suit every model defining it
     parameters: [
         projectDefinitions,
-        ...Object.values(exploreByNodeId).map(getExploreDefinitions),
+        ...Object.values(exploreByNodeId).map((explore) =>
+            Object.fromEntries(
+                Object.entries(getExploreDefinitions(explore)).filter(
+                    ([key]) => !(key in projectDefinitions),
+                ),
+            ),
+        ),
     ].reduce(omitDisallowedParameterValues, callerValues),
 });
 
