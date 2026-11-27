@@ -263,6 +263,7 @@ interface ServiceManifest {
     projectContextService: unknown;
     roadmapService: unknown;
     billingService: unknown;
+    securityContactsService: unknown;
     scimService: unknown;
     releaseHighlightsService: unknown;
     supportService: unknown;
@@ -2225,6 +2226,12 @@ export class ServiceRepository
 
     public getBillingService<BillingServiceImplT>(): BillingServiceImplT {
         return this.getService('billingService');
+    }
+
+    public getSecurityContactsService<
+        SecurityContactsServiceImplT,
+    >(): SecurityContactsServiceImplT {
+        return this.getService('securityContactsService');
     }
 
     public getEmbedService<EmbedServiceImplT>(): EmbedServiceImplT {

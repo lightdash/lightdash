@@ -103,6 +103,7 @@ import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
+import Security from '../ee/pages/Security';
 import { AgentIdentitySettingsPage } from '../features/aiAccess/AgentIdentitySettingsPage';
 import { getAgentSettingsAccess } from '../features/aiAccess/agentSettingsAccess';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
@@ -202,6 +203,7 @@ const Settings: FC = () => {
         isOrganizationRoadmapEnabled,
         isBillingPortalEnabled,
         isBillingPortalFlagLoading,
+        isSecurityContactsEnabled,
         canAccessAiCredits,
         isAiCreditsLoading,
         isSsoOrganizationSettingsEnabled,
@@ -720,6 +722,25 @@ const Settings: FC = () => {
         }
 
         if (
+            isSecurityContactsEnabled &&
+            user?.ability.can(
+                'manage',
+                subject('Organization', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            allowedRoutes.push({
+                path: '/security',
+                element: (
+                    <TrackPage name={PageName.SECURITY_CONTACTS}>
+                        <Security />
+                    </TrackPage>
+                ),
+            });
+        }
+
+        if (
             isAgentIdentityEnabled &&
             user?.ability.can('manage', 'Organization')
         ) {
@@ -925,6 +946,7 @@ const Settings: FC = () => {
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         isBillingPortalEnabled,
+        isSecurityContactsEnabled,
         canAccessAiCredits,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,

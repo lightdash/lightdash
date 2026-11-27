@@ -484,6 +484,7 @@ import {
 } from './scheduler';
 import { type SchedulerWithLogs } from './schedulerLog';
 import { type SearchResults } from './search';
+import { type ApiSecurityContactsResponse } from './securityContacts';
 import {
     type ApiSemanticLayerDraftApplyResponse,
     type ApiSemanticLayerDraftedModelsResponse,
@@ -1624,6 +1625,7 @@ type ApiResults =
     | ApiRoadmapProjectResponse['results']
     | ApiRoadmapFollowProjectResponse['results']
     | ApiBillingPortalLinkResponse['results']
+    | ApiSecurityContactsResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory

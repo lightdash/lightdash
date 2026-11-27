@@ -69,6 +69,7 @@ export enum PageName {
     SEMANTIC_STUDIO = 'semantic_studio',
     ROADMAP = 'roadmap',
     BILLING = 'billing',
+    SECURITY_CONTACTS = 'security_contacts',
     LEARN = 'learn',
     LEARN_WORKSPACE = 'learn_workspace',
 }

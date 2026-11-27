@@ -146,6 +146,7 @@ import { ReleaseHighlightsService } from './services/ReleaseHighlightsService/Re
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
+import { SecurityContactsService } from './services/SecurityContactsService/SecurityContactsService';
 import { developmentViewMiddleware } from './services/SemanticStudioService/developmentViewMiddleware';
 import { DraftChecker } from './services/SemanticStudioService/DraftChecker';
 import { IncrementalDbtCompileService } from './services/SemanticStudioService/IncrementalDbtCompileService';
@@ -808,6 +809,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
                     featureFlagModel: models.getFeatureFlagModel(),
+                }),
+            securityContactsService: ({ context }) =>
+                new SecurityContactsService({
+                    lightdashConfig: context.lightdashConfig,
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({

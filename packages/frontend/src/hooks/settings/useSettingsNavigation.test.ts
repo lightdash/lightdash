@@ -26,6 +26,7 @@ const settingsContext = (
     isOrganizationRoadmapEnabled: false,
     isBillingPortalEnabled: false,
     isBillingPortalFlagLoading: false,
+    isSecurityContactsEnabled: false,
     canAccessAiCredits: false,
     isAiCreditsLoading: false,
     isSsoOrganizationSettingsEnabled: false,
