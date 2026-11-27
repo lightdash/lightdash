@@ -9,6 +9,7 @@ import {
     QuerySourceType,
     SEED_DATA_APP_VIZ,
     SEED_ORG_1,
+    SEED_ORG_1_EDITOR,
     SEED_PROJECT,
     ServiceAccountScope,
     type ComposerChart,
@@ -2091,6 +2092,48 @@ describe('Composer charts', () => {
                 invalidateCache: false,
             });
             expect(refused.status).toBe(403);
+        });
+
+        it("refuses a run's results to a user whose space grant is revoked after the run", async () => {
+            const privateSpace = await createSpace(false);
+            const created = await postChart(
+                composerSpaceChartBody(privateSpace.uuid),
+            );
+            expect(created.status).toBe(201);
+            const shareUrl = `/api/v1/projects/${projectUuid}/spaces/${privateSpace.uuid}/share`;
+            const editor = await loginAsEditor();
+            expect(
+                (
+                    await admin.post(shareUrl, {
+                        userUuid: SEED_ORG_1_EDITOR.user_uuid,
+                        spaceRole: 'viewer',
+                    })
+                ).status,
+            ).toBe(200);
+            let queryUuid: string;
+            try {
+                const run = await runChart(editor, {
+                    composerChartUuid: created.body.results.uuid,
+                    invalidateCache: false,
+                });
+                expect(run.status).toBe(200);
+                [{ queryUuid }] = run.body.results.queries;
+                await pollRows(editor, queryUuid);
+            } finally {
+                expect(
+                    (
+                        await admin.delete(
+                            `${shareUrl}/${SEED_ORG_1_EDITOR.user_uuid}`,
+                        )
+                    ).status,
+                ).toBe(200);
+            }
+            const queryUrl = `/api/v2/projects/${projectUuid}/query/${queryUuid}`;
+            for (const url of [queryUrl, `${queryUrl}/results`]) {
+                // eslint-disable-next-line no-await-in-loop
+                const read = await editor.get(url, { failOnStatusCode: false });
+                expect(read.status).toBe(403);
+            }
         });
 
         it('refuses a chart a dashboard owns, naming its dashboard, and a request carrying dashboard state', async () => {
