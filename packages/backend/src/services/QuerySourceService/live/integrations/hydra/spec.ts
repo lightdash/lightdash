@@ -126,7 +126,7 @@ export const hydraUseCases: LiveUseCases = {
             id: 'hydra-d-1',
             name: 'Product activity',
             purpose:
-                'A tester opens it to check that same-query tiles share one call and that a reload reads the results cache.',
+                'A tester opens it to check that same-query tiles share one run and that a reload reads the results cache.',
             charts: [
                 {
                     id: 'hydra-d-1-c-1',
@@ -224,7 +224,7 @@ export const hydraUseCases: LiveUseCases = {
 export const hydraSpec: LiveIntegrationSpec = {
     auth: {
         description:
-            'A test integration: any token signs in, and each token seeds its own rows.',
+            'An integration with seeded data and no vendor behind it: any token signs in, and every source reads the same rows.',
         testWith: 'test_account',
         needs: ['invite'],
         token: true,

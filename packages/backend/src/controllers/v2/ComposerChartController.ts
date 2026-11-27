@@ -36,7 +36,8 @@ export class ComposerChartController extends BaseController {
     /**
      * Creates a composer chart owned by a dashboard: a stored pipeline and the
      * chart drawn from its terminal node. Adds no tile; add one with the
-     * dashboard update. Requires the composer-charts feature flag.
+     * dashboard update. Requires the composer-charts feature flag and
+     * permission to save charts on the dashboard.
      * @summary Create composer chart
      */
     @Middlewares([
@@ -62,7 +63,7 @@ export class ComposerChartController extends BaseController {
 
     /**
      * Gets a composer chart's current version, pipeline included. Anyone who
-     * can view the owning dashboard can read it.
+     * can view charts in its owning dashboard or space can read it.
      * @summary Get composer chart
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

@@ -9,9 +9,11 @@ import {
 import { z } from 'zod';
 import {
     ADDITIVE,
+    defineLiveModel,
     dimension,
     metric,
     NON_ADDITIVE,
+    pickLiveFields,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveMetricDefinition,
@@ -484,10 +486,10 @@ const toScannedFieldName = (apiName: string) =>
  * and metrics, and one key-event count per key event. Their rules are safe
  * defaults, since only the hand-written fields know more.
  */
-export const withGa4MetadataFields = (
-    definition: LiveExploreDefinition,
+export const withGa4MetadataFields = <D extends LiveExploreDefinition>(
+    definition: D,
     metadata: unknown,
-): LiveExploreDefinition => {
+): D => {
     const parsed = metadataSchema.safeParse(metadata);
     if (!parsed.success) {
         return definition;
@@ -541,9 +543,6 @@ export const withGa4MetadataFields = (
     };
 };
 
-/** The property's metadata, as GA4 returns it. */
-export type Ga4Catalog = { ga4Metadata?: unknown };
-
 /** Reads the property's dimensions and metrics, including its custom ones. */
 export const scanGa4Metadata = async ({
     settings: { propertyId },
@@ -551,21 +550,30 @@ export const scanGa4Metadata = async ({
 }: {
     settings: { propertyId: string };
     runtime: LiveRuntime;
-}): Promise<Ga4Catalog> => {
+}): Promise<unknown> => {
     const response = await runtime.send({
         method: 'GET',
         path: getGa4MetadataPath(propertyId),
         body: null,
     });
-    return { ga4Metadata: response.body };
+    return { property: response.body };
 };
 
-export const ga4Model: LiveModel<ApiConnectorType.GA4, Ga4Catalog> = {
+export const ga4Model: LiveModel<ApiConnectorType.GA4> = defineLiveModel({
     explores: GA4_EXPLORES,
-    plannedNames: ['ecommerce'],
-    discovery: {
-        discover: scanGa4Metadata,
-        withFields: (definition, catalog: Ga4Catalog) =>
-            withGa4MetadataFields(definition, catalog.ga4Metadata),
+    // The first explore gets the property's custom definitions
+    scan: scanGa4Metadata,
+    metadata: z.object({
+        property: metadataSchema.optional().catch(undefined),
+    }),
+    extend: ({ property }) => {
+        const [report] = GA4_EXPLORES;
+        return {
+            fields: {
+                [report.name]: pickLiveFields(
+                    withGa4MetadataFields(report, property),
+                ),
+            },
+        };
     },
-};
+});

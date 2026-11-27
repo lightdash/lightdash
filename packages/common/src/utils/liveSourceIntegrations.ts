@@ -330,6 +330,7 @@ export const LIVE_INTEGRATION_CATALOG: {
         agentLabel: 'Hydra',
         description: 'Test integration with seeded events and users',
         setup: 'token',
+        featureFlag: FeatureFlags.LiveSourceHydra,
         settings: HYDRA_SETTINGS_SCHEMA,
         getTarget: () => 'Hydra test data',
     },

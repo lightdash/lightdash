@@ -1,7 +1,6 @@
 import {
     ApiConnectorType,
     assertUnreachable,
-    HYDRA_ENABLED_ENV,
     ParameterError,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
@@ -49,13 +48,9 @@ const LIVE_INTEGRATIONS: {
     [ApiConnectorType.HYDRA]: hydraIntegration,
 };
 
-/** Hydra, the test integration, exists only on servers that turn it on. */
-export const isHydraEnabled = () => process.env[HYDRA_ENABLED_ENV] === 'true';
-
-/** Whether this server registers the integration; Hydra only when turned on. */
+/** Whether the connector is one this server has an integration for. */
 export const isLiveIntegrationRegistered = (connector: ApiConnectorType) =>
-    Object.hasOwn(LIVE_INTEGRATIONS, connector) &&
-    (connector !== ApiConnectorType.HYDRA || isHydraEnabled());
+    Object.hasOwn(LIVE_INTEGRATIONS, connector);
 
 export const getLiveIntegration = (
     connector: ApiConnectorType,

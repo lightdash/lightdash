@@ -18,9 +18,9 @@ export type LiveSourceField = {
     description: string;
     aiHint: string | null;
     group: string | null;
-    /** Written by Lightdash for the integration, not found by a scan. */
+    /** Declared in the integration's code; false for a field a Refresh found. */
     isBuiltIn: boolean;
-    /** The integration's own bookkeeping field, hidden by default. */
+    /** Off unless an admin turns it on, so lists hide it until it is in use. */
     isInternal: boolean;
     /** Every query needs it, so it can't be taken out of use. */
     isRequired: boolean;
@@ -40,7 +40,7 @@ export type LiveSourceExploreFields = {
     /** Saved charts on the explore. */
     usedByChartCount: number;
     lastEdit: LiveSourceFieldEditor | null;
-    /** False for an explore scans add no fields to; its `fields` is then empty. */
+    /** Always true: every explore's fields can be curated. */
     canEditFields: boolean;
     fields: LiveSourceField[];
 };
@@ -50,7 +50,7 @@ export type LiveSourceFields = {
     exploreName: string;
     /** Saved charts on any of the source's explores, each counted once. */
     usedByChartCount: number;
-    /** ISO timestamp of the last scan, or null when the source was never scanned. */
+    /** ISO timestamp of the last Refresh, or null when the source was never refreshed. */
     scannedAt: string | null;
     fields: LiveSourceField[];
     /** Every explore of the source, in use or not, the first one included. */
@@ -102,4 +102,21 @@ export type LiveSourceContentUsage = {
 export type ApiLiveSourceContentUsageResponse = {
     status: 'ok';
     results: LiveSourceContentUsage;
+};
+
+/** What a Refresh changed: explores and fields the integration added or removed. */
+export type LiveSourceRefreshSummary = {
+    /** Explores found for the first time, by explore name. */
+    addedExplores: string[];
+    /** Explores gone from the integration, by explore name; they are no longer built. */
+    removedExplores: string[];
+    /** Fields new on the source's explores, by explore name. */
+    addedFields: Record<string, string[]>;
+    /** Fields gone from the source's explores, by explore name. */
+    removedFields: Record<string, string[]>;
+};
+
+export type ApiLiveSourceRefreshResponse = {
+    status: 'ok';
+    results: LiveSourceRefreshSummary;
 };

@@ -1,18 +1,21 @@
 import {
     ApiConnectorType,
+    getAttioAttributesPath,
     getDefaultExplorePrefix,
+    getHubspotPropertiesPath,
     getItemMap,
+    getSalesforceDescribePath,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
+import { getGa4MetadataPath } from '../integrations/ga4/api';
+import { getPostHogPropertyDefinitionsPrefix } from '../integrations/postHog/api';
 import { OPPORTUNITY_DESCRIBE } from '../integrations/salesforce/salesforce.fixtures';
-import { type LiveCatalog } from '../types';
-import {
-    buildLiveExplores,
-    getLiveBaseLayer,
-    getLiveReservedExploreNames,
-    toScannedLiveSourceFields,
-} from './build';
+import { connectLiveSource } from '../liveSource.mock';
+import { getLiveIntegration } from '../registry';
+import { type LiveHttpRequest } from '../types';
+import { buildLiveExplores } from './build';
 import { getLiveFieldEditKey, type LiveSourceFieldEdits } from './fields';
+import { getLiveSourceModels } from './source';
 
 /**
  * Locks every live data source explore name and field id. Saved charts,
@@ -24,13 +27,14 @@ import { getLiveFieldEditKey, type LiveSourceFieldEdits } from './fields';
 const SOURCES: {
     name: string;
     apiSource: ExternalConnectionApiSource;
-    scan: LiveCatalog;
+    /** What the vendor answers each discovery call with, by path; `{}` otherwise. */
+    answers: Record<string, unknown>;
 }[] = [
     {
         name: 'Google Analytics',
         apiSource: { connector: ApiConnectorType.GA4, propertyId: '123' },
-        scan: {
-            ga4Metadata: {
+        answers: {
+            [getGa4MetadataPath('123')]: {
                 dimensions: [
                     {
                         apiName: 'customEvent:plan_type',
@@ -57,7 +61,7 @@ const SOURCES: {
             connector: ApiConnectorType.SEARCH_CONSOLE,
             siteUrl: 'sc-domain:example.com',
         },
-        scan: {},
+        answers: {},
     },
     {
         name: 'YouTube Analytics',
@@ -65,7 +69,7 @@ const SOURCES: {
             connector: ApiConnectorType.YOUTUBE_ANALYTICS,
             channelId: 'UCaaaaaaaaaaaaaaaaaaaaaa',
         },
-        scan: {},
+        answers: {},
     },
     {
         name: 'LinkedIn Ads',
@@ -73,22 +77,26 @@ const SOURCES: {
             connector: ApiConnectorType.LINKEDIN_ADS,
             adAccountId: '507404993',
         },
-        scan: {},
+        answers: {},
     },
     {
         name: 'PostHog',
         apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '42' },
-        scan: {
-            posthogProperties: {
-                event: { results: [{ name: 'plan' }, { name: '$browser' }] },
-                person: { results: [{ name: 'email' }] },
+        answers: {
+            [`${getPostHogPropertyDefinitionsPrefix('42')}?type=event`]: {
+                next: null,
+                results: [{ name: 'plan' }, { name: '$browser' }],
+            },
+            [`${getPostHogPropertyDefinitionsPrefix('42')}?type=person`]: {
+                next: null,
+                results: [{ name: 'email' }],
             },
         },
     },
     {
         name: 'Meta Ads',
         apiSource: { connector: ApiConnectorType.META_ADS, adAccountId: '123' },
-        scan: {},
+        answers: {},
     },
     {
         name: 'Google Ads',
@@ -97,7 +105,7 @@ const SOURCES: {
             customerId: '1234567890',
             loginCustomerId: null,
         },
-        scan: {},
+        answers: {},
     },
     {
         name: 'GitHub',
@@ -106,17 +114,17 @@ const SOURCES: {
             owner: 'lightdash',
             repo: 'lightdash',
         },
-        scan: {},
+        answers: {},
     },
     {
         name: 'Pylon',
         apiSource: { connector: ApiConnectorType.PYLON },
-        scan: {},
+        answers: {},
     },
     {
         name: 'Intercom',
         apiSource: { connector: ApiConnectorType.INTERCOM },
-        scan: {},
+        answers: {},
     },
     {
         name: 'Sentry',
@@ -125,132 +133,131 @@ const SOURCES: {
             organizationSlug: 'acme',
             projectSlugs: ['mobile-ios'],
         },
-        scan: {},
+        answers: {},
     },
     {
         name: 'Attio',
         apiSource: { connector: ApiConnectorType.ATTIO },
-        scan: {
-            attioAttributes: {
-                deals: {
-                    data: [
-                        { api_slug: 'name', title: 'Deal name', type: 'text' },
-                        { api_slug: 'stage', title: 'Stage', type: 'status' },
-                        { api_slug: 'value', title: 'Value', type: 'currency' },
-                        { api_slug: 'count', title: 'Count', type: 'number' },
-                    ],
-                },
-                people: {
-                    data: [
-                        {
-                            api_slug: 'email_addresses',
-                            title: 'Email addresses',
-                            type: 'email-address',
-                        },
-                    ],
-                },
+        answers: {
+            [getAttioAttributesPath('deals')]: {
+                data: [
+                    { api_slug: 'name', title: 'Deal name', type: 'text' },
+                    { api_slug: 'stage', title: 'Stage', type: 'status' },
+                    { api_slug: 'value', title: 'Value', type: 'currency' },
+                    { api_slug: 'count', title: 'Count', type: 'number' },
+                ],
+            },
+            [getAttioAttributesPath('people')]: {
+                data: [
+                    {
+                        api_slug: 'email_addresses',
+                        title: 'Email addresses',
+                        type: 'email-address',
+                    },
+                ],
             },
         },
     },
     {
         name: 'HubSpot',
         apiSource: { connector: ApiConnectorType.HUBSPOT },
-        scan: {
-            hubspotProperties: {
-                deals: {
-                    results: [
-                        {
-                            name: 'dealname',
-                            label: 'Deal Name',
-                            type: 'string',
-                        },
-                        {
-                            name: 'dealstage',
-                            label: 'Stage',
-                            type: 'enumeration',
-                        },
-                        { name: 'amount', label: 'Amount', type: 'number' },
-                        { name: 'count', label: 'Count', type: 'number' },
-                    ],
-                },
-                contacts: {
-                    results: [
-                        { name: 'email', label: 'Email', type: 'string' },
-                    ],
-                },
+        answers: {
+            [getHubspotPropertiesPath('deals')]: {
+                results: [
+                    {
+                        name: 'dealname',
+                        label: 'Deal Name',
+                        type: 'string',
+                    },
+                    {
+                        name: 'dealstage',
+                        label: 'Stage',
+                        type: 'enumeration',
+                    },
+                    { name: 'amount', label: 'Amount', type: 'number' },
+                    { name: 'count', label: 'Count', type: 'number' },
+                ],
+            },
+            [getHubspotPropertiesPath('contacts')]: {
+                results: [{ name: 'email', label: 'Email', type: 'string' }],
             },
         },
     },
     {
         name: 'Salesforce',
         apiSource: { connector: ApiConnectorType.SALESFORCE },
-        scan: {
-            salesforceDescribe: {
-                Opportunity: OPPORTUNITY_DESCRIBE,
-                Lead: {
-                    name: 'Lead',
-                    fields: [
-                        {
-                            name: 'Company',
-                            label: 'Company',
-                            type: 'string',
-                            groupable: true,
-                            filterable: true,
-                        },
-                    ],
-                },
+        answers: {
+            [getSalesforceDescribePath('Opportunity')]: OPPORTUNITY_DESCRIBE,
+            [getSalesforceDescribePath('Lead')]: {
+                name: 'Lead',
+                fields: [
+                    {
+                        name: 'Company',
+                        label: 'Company',
+                        type: 'string',
+                        groupable: true,
+                        filterable: true,
+                    },
+                ],
             },
         },
     },
 ];
 
+/** Answers every call by its path, and the type it asks for when it names one. */
+const answerBy =
+    (answers: Record<string, unknown>) => async (request: LiveHttpRequest) => {
+        const type = request.query?.type;
+        const key = type ? `${request.path}?type=${type}` : request.path;
+        return {
+            status: 200,
+            headers: {},
+            body: Object.hasOwn(answers, key) ? answers[key] : {},
+        };
+    };
+
 describe('live data source names', () => {
     test.each(SOURCES)(
         '$name explore names and field ids never change',
-        ({ name, apiSource, scan }) => {
+        async ({ name, apiSource, answers }) => {
             const sourceName = getDefaultExplorePrefix(
                 apiSource.connector,
                 name,
             );
-            const scannedFields = toScannedLiveSourceFields(
-                apiSource.connector,
-                scan,
-            );
+            const metadata = await connectLiveSource(
+                getLiveIntegration(apiSource.connector),
+                apiSource,
+                answerBy(answers),
+            ).scan();
+            const state = {
+                scan: { at: '2026-01-01T00:00:00Z', metadata },
+                modelNames: {},
+            };
             // Every field in use, so the snapshot holds every id a chart can store
-            const { definitions } = getLiveBaseLayer(apiSource.connector);
             const everyFieldInUse: LiveSourceFieldEdits = Object.fromEntries(
-                [
-                    ...definitions.flatMap((definition) =>
+                getLiveSourceModels(apiSource.connector, state).flatMap(
+                    ({ editModel, definition }) =>
                         [...definition.dimensions, ...definition.metrics].map(
-                            ({ name: fieldName }) => fieldName,
+                            (field) => [
+                                getLiveFieldEditKey(editModel, field.name),
+                                { inUse: true, lastEdit: null },
+                            ],
                         ),
-                    ),
-                    ...scannedFields.map((field) =>
-                        getLiveFieldEditKey(
-                            field.model ?? null,
-                            field.definition.name,
-                        ),
-                    ),
-                ].map((key) => [key, { inUse: true, lastEdit: null }]),
+                ),
             );
-            const explores = buildLiveExplores({
+            const built = buildLiveExplores({
                 connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
                 sourceName,
                 name,
                 apiSource,
-                scannedFields,
-                edits: everyFieldInUse,
+                state: { ...state, fields: everyFieldInUse, explores: {} },
             });
 
             expect({
-                explores: explores.map((explore) => ({
+                explores: built.map((explore) => ({
                     name: explore.name,
                     fieldIds: Object.keys(getItemMap(explore)).sort(),
                 })),
-                reservedExploreNames: getLiveReservedExploreNames(
-                    apiSource.connector,
-                    sourceName,
-                ),
             }).toMatchSnapshot();
         },
     );

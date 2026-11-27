@@ -877,5 +877,4 @@ export const INTERCOM_EXPLORES = [
 
 export const intercomModel: LiveModel<ApiConnectorType.INTERCOM> = {
     explores: INTERCOM_EXPLORES,
-    plannedNames: ['companies', 'articles', 'tags'],
 };

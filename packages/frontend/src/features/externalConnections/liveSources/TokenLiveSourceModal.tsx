@@ -52,12 +52,13 @@ export const TokenLiveSourceModal: FC<Props> = ({
     const isSaving = createMutation.isLoading;
     const { account, regions } = definition;
 
+    const { getTestRequest } = definition;
     const handleTest = () => {
-        if (form.validate().hasErrors) return;
+        if (!getTestRequest || form.validate().hasErrors) return;
         testMutation.mutate({
             projectUuid,
             config: toTokenLiveSourceCreatePayload(definition, form.values),
-            ...definition.getTestRequest(
+            ...getTestRequest(
                 normalizeAccountId(definition, form.values.accountId),
             ),
         });
@@ -137,16 +138,18 @@ export const TokenLiveSourceModal: FC<Props> = ({
                             {...form.getInputProps('token')}
                         />
                     </SettingsRow>
-                    <LiveSourceTestRow
-                        hint="Checks the details above, without saving"
-                        test={testMutation}
-                        onTest={handleTest}
-                        inputs={[
-                            form.values.accountId,
-                            form.values.token,
-                            form.values.origin,
-                        ]}
-                    />
+                    {getTestRequest ? (
+                        <LiveSourceTestRow
+                            hint="Checks the details above, without saving"
+                            test={testMutation}
+                            onTest={handleTest}
+                            inputs={[
+                                form.values.accountId,
+                                form.values.token,
+                                form.values.origin,
+                            ]}
+                        />
+                    ) : null}
                 </SettingsCard>
 
                 <NewLiveSourceDetails

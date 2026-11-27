@@ -45,8 +45,8 @@ export type TokenLiveSourceForm = {
         CreateExternalConnection,
         'allowedMethods' | 'allowedPathPrefixes' | 'allowedContentTypes'
     >;
-    /** A small read that proves the token reaches the account. */
-    getTestRequest: (accountId: string) => {
+    /** A small read that proves the token reaches the account; none when the integration calls nothing. */
+    getTestRequest?: (accountId: string) => {
         method: 'GET' | 'POST';
         path: string;
         query: Record<string, string>;

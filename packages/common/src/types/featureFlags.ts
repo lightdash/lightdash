@@ -299,6 +299,11 @@ export enum FeatureFlags {
      * flag has no stored value; see docs/feature-flags.md#live-data-source-integrations.
      */
     LiveSourceIntercom = 'live-source-intercom',
+    /**
+     * Org-scoped, on until turned off: Hydra, the live integration with
+     * seeded data, can be added, queried and synced.
+     */
+    LiveSourceHydra = 'live-source-hydra',
 }
 
 export type FeatureFlag = {

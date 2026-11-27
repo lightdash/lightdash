@@ -34,11 +34,13 @@ import {
     type ComposerChart,
     type ComposerChartOwner,
     type ComposerChartPipeline,
+    type ComposerChartPipelineNode,
     type ComposerChartRunRequest,
     type ComposerChartRunResults,
     type ComposerStoredChart,
     type CreateComposerChart,
     type DashboardAvailableFiltersTile,
+    type DashboardFilters,
     type DateZoom,
     type Explore,
     type ParameterDefinitions,
@@ -93,6 +95,38 @@ export type ComposerChartRunContext =
     | QueryExecutionContext.SCHEDULED_DELIVERY
     | QueryExecutionContext.CSV;
 
+type ComposerTileRunRequest = Pick<
+    ComposerChartRunRequest,
+    'dashboardUuid' | 'tileUuid' | 'invalidateCache'
+> & {
+    context: ComposerChartRunContext;
+    dateZoom: DateZoom | null;
+    dashboardState:
+        | ({ type: 'request' } & Pick<
+              ComposerChartRunRequest,
+              'dashboardFilters' | 'parameters' | 'excludedParameterKeys'
+          >)
+        | { type: 'saved' };
+};
+
+/** A run's inputs once resolved: the stored chart and its nodes with the caller's state written on. */
+type ComposerResolvedRun = {
+    chart: ComposerChart;
+    exploreByNodeId: ComposerNodeExplores;
+    resolved: {
+        nodes: ComposerChartPipelineNode[];
+        parameters: ParametersValuesMap;
+    };
+    dateZoomByNodeId: Record<string, DateZoom>;
+    tile: {
+        dashboardUuid: string;
+        tileUuid: string;
+        dashboardFilters: DashboardFilters;
+        /** The semantic-layer filters written on; SQL column targets join once the run reports its columns. */
+        appliedDashboardFiltersByNodeId: Record<string, DashboardFilters>;
+    };
+};
+
 export type ProjectSubject = { organizationUuid: string; projectUuid: string };
 
 export class ComposerChartService extends BaseService {
@@ -124,24 +158,69 @@ export class ComposerChartService extends BaseService {
         this.getAsyncQueryService = args.getAsyncQueryService;
     }
 
-    private async getDashboardAccess(
+    /** Access through the owner: its space, or its dashboard with that dashboard's grants, as for a classic dashboard chart. */
+    private async getOwnerAccess(
         account: RegisteredAccount,
         projectUuid: string,
-        dashboardUuid: string,
+        owner: ComposerChartOwner,
     ) {
-        const dashboard =
-            await this.dashboardModel.getSummaryByUuid(dashboardUuid);
-        if (dashboard.projectUuid !== projectUuid) {
-            throw new NotFoundError('Dashboard not found');
+        switch (owner.type) {
+            case 'dashboard': {
+                const dashboard = await this.dashboardModel.getSummaryByUuid(
+                    owner.dashboardUuid,
+                );
+                if (dashboard.projectUuid !== projectUuid) {
+                    throw new NotFoundError('Dashboard not found');
+                }
+                return this.spacePermissionService.resolveAccess(
+                    account.user.userUuid,
+                    {
+                        type: 'dashboard',
+                        dashboardUuid: owner.dashboardUuid,
+                        spaceUuid: dashboard.spaceUuid,
+                    },
+                );
+            }
+            case 'space': {
+                const access = await this.spacePermissionService.resolveAccess(
+                    account.user.userUuid,
+                    { type: 'space', spaceUuid: owner.spaceUuid },
+                );
+                if (access.projectUuid !== projectUuid) {
+                    throw new NotFoundError('Space not found');
+                }
+                return access;
+            }
+            default:
+                return assertUnreachable(owner, 'Unknown composer chart owner');
         }
-        return this.spacePermissionService.resolveAccess(
-            account.user.userUuid,
-            {
-                type: 'dashboard',
-                dashboardUuid,
-                spaceUuid: dashboard.spaceUuid,
-            },
-        );
+    }
+
+    /** Every composer chart permission, checked on `SavedChart` as for classic and SQL charts. */
+    private async assertChartPermission(
+        account: RegisteredAccount,
+        action: 'view' | 'create' | 'update',
+        projectUuid: string,
+        owner: ComposerChartOwner,
+        composerChartUuid: string | null,
+    ) {
+        const access = await this.getOwnerAccess(account, projectUuid, owner);
+        if (
+            this.createAuditedAbility(account).cannot(
+                action,
+                subject('SavedChart', {
+                    ...access,
+                    metadata: { composerChartUuid, owner },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                action === 'view'
+                    ? "You don't have permission to view this composer chart"
+                    : "You don't have permission to save composer charts here",
+            );
+        }
+        return access;
     }
 
     private async getCustomMetricExploreTables(
@@ -266,38 +345,18 @@ export class ComposerChartService extends BaseService {
         return enabled;
     }
 
-    private assertCanUpdateDashboard(
-        account: RegisteredAccount,
-        dashboardAccess: Awaited<
-            ReturnType<ComposerChartService['getDashboardAccess']>
-        >,
-        dashboardUuid: string,
-    ) {
-        if (
-            this.createAuditedAbility(account).cannot(
-                'update',
-                subject('Dashboard', {
-                    ...dashboardAccess,
-                    metadata: { dashboardUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                "You don't have permission to update this dashboard",
-            );
-        }
-    }
-
-    /** The dashboard check a write runs, for a caller that must refuse before reading the dashboard's charts. */
+    /** The chart write check on a dashboard, for a caller that must refuse before reading the dashboard's charts. */
     async preflightDashboard(
         account: RegisteredAccount,
         projectUuid: string,
         dashboardUuid: string,
     ): Promise<void> {
-        this.assertCanUpdateDashboard(
+        await this.assertChartPermission(
             account,
-            await this.getDashboardAccess(account, projectUuid, dashboardUuid),
-            dashboardUuid,
+            'update',
+            projectUuid,
+            { type: 'dashboard', dashboardUuid },
+            null,
         );
     }
 
@@ -305,7 +364,11 @@ export class ComposerChartService extends BaseService {
     private async authorizeWrite(
         account: RegisteredAccount,
         projectUuid: string,
-        data: Pick<CreateComposerChart, 'dashboardUuid' | 'pipeline' | 'chart'>,
+        target: {
+            owner: ComposerChartOwner;
+            composerChartUuid: string | null;
+        },
+        data: Pick<CreateComposerChart, 'pipeline' | 'chart'>,
     ): Promise<{
         pipeline: ComposerChartPipeline;
         chart: ComposerStoredChart;
@@ -313,25 +376,26 @@ export class ComposerChartService extends BaseService {
         const pipeline = parseComposerPipeline(data.pipeline);
         const input = parseComposerChartInput(data.chart);
 
-        const dashboardAccess = await this.getDashboardAccess(
+        const { organizationUuid } = await this.assertChartPermission(
             account,
+            target.composerChartUuid === null ? 'create' : 'update',
             projectUuid,
-            data.dashboardUuid,
+            target.owner,
+            target.composerChartUuid,
         );
         if (
             !(await this.isEnabled({
                 userUuid: account.user.userUuid,
-                organizationUuid: dashboardAccess.organizationUuid,
+                organizationUuid,
             }))
         ) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
-        this.assertCanUpdateDashboard(
+        await this.assertCanWritePipeline(
             account,
-            dashboardAccess,
-            data.dashboardUuid,
+            { organizationUuid, projectUuid },
+            pipeline,
         );
-        await this.assertCanWritePipeline(account, dashboardAccess, pipeline);
         const chart = await this.pinCustomChartType(projectUuid, input);
         return { pipeline, chart };
     }
@@ -374,7 +438,15 @@ export class ComposerChartService extends BaseService {
         projectUuid: string,
         data: Pick<CreateComposerChart, 'dashboardUuid' | 'pipeline' | 'chart'>,
     ): Promise<void> {
-        await this.authorizeWrite(account, projectUuid, data);
+        await this.authorizeWrite(
+            account,
+            projectUuid,
+            {
+                owner: { type: 'dashboard', dashboardUuid: data.dashboardUuid },
+                composerChartUuid: null,
+            },
+            data,
+        );
     }
 
     /** A rollback makes a stored pipeline current again, so it passes the checks a write does. */
@@ -395,16 +467,21 @@ export class ComposerChartService extends BaseService {
         projectUuid: string,
         data: CreateComposerChart,
     ): Promise<ComposerChart> {
+        const owner: ComposerChartOwner = {
+            type: 'dashboard',
+            dashboardUuid: data.dashboardUuid,
+        };
         const { pipeline, chart } = await this.authorizeWrite(
             account,
             projectUuid,
+            { owner, composerChartUuid: null },
             data,
         );
         const uuid = await this.composerChartModel.create({
             uuid: null,
             slug: null,
             projectUuid,
-            owner: { type: 'dashboard', dashboardUuid: data.dashboardUuid },
+            owner,
             name: data.name,
             description: data.description ?? null,
             pipeline,
@@ -428,13 +505,12 @@ export class ComposerChartService extends BaseService {
             projectUuid,
             data.slug,
         );
-        const dashboardUuid =
-            existing && !existing.deleted
-                ? ComposerChartService.requireDashboardOwner(
-                      (await this.composerChartModel.getOwner(existing.uuid))
-                          .owner,
-                  )
-                : data.dashboardUuid;
+        const live = existing && !existing.deleted ? existing : null;
+        const dashboardUuid = live
+            ? ComposerChartService.requireDashboardOwner(
+                  (await this.composerChartModel.getOwner(live.uuid)).owner,
+              )
+            : data.dashboardUuid;
         if (dashboardUuid === null) {
             throw new ParameterError(
                 `Composer chart "${data.slug}" needs a dashboard to belong to`,
@@ -443,7 +519,11 @@ export class ComposerChartService extends BaseService {
         const { pipeline, chart } = await this.authorizeWrite(
             account,
             projectUuid,
-            { ...data, dashboardUuid },
+            {
+                owner: { type: 'dashboard', dashboardUuid },
+                composerChartUuid: live?.uuid ?? null,
+            },
+            data,
         );
         return this.composerChartModel.writeFromCode({
             existing,
@@ -491,7 +571,7 @@ export class ComposerChartService extends BaseService {
         return this.composerChartModel.remapPreviewDataAppVizs(...args);
     }
 
-    /** The owning dashboard; a chart in a space is not served yet. */
+    /** The owning dashboard; uploading a chart a space owns is not served yet. */
     private static requireDashboardOwner(owner: ComposerChartOwner): string {
         switch (owner.type) {
             case 'dashboard':
@@ -510,35 +590,20 @@ export class ComposerChartService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         composerChartUuid: string,
-    ): Promise<{ organizationUuid: string; dashboardUuid: string }> {
+    ): Promise<{ organizationUuid: string; owner: ComposerChartOwner }> {
         const { projectUuid: chartProjectUuid, owner } =
             await this.composerChartModel.getOwner(composerChartUuid);
         if (chartProjectUuid !== projectUuid) {
             throw new NotFoundError('Composer chart not found');
         }
-        const dashboardUuid = ComposerChartService.requireDashboardOwner(owner);
-        const dashboardAccess = await this.getDashboardAccess(
+        const { organizationUuid } = await this.assertChartPermission(
             account,
+            'view',
             projectUuid,
-            dashboardUuid,
+            owner,
+            composerChartUuid,
         );
-        if (
-            this.createAuditedAbility(account).cannot(
-                'view',
-                subject('Dashboard', {
-                    ...dashboardAccess,
-                    metadata: { dashboardUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                "You don't have permission to view this composer chart",
-            );
-        }
-        return {
-            organizationUuid: dashboardAccess.organizationUuid,
-            dashboardUuid,
-        };
+        return { organizationUuid, owner };
     }
 
     /** Answers with the flag off, so a chart stays readable (spec 5). */
@@ -592,8 +657,7 @@ export class ComposerChartService extends BaseService {
                     } catch (error) {
                         if (
                             error instanceof ForbiddenError ||
-                            error instanceof NotFoundError ||
-                            error instanceof NotSupportedError
+                            error instanceof NotFoundError
                         )
                             return [];
                         throw error;
@@ -782,24 +846,28 @@ export class ComposerChartService extends BaseService {
         account: RegisteredAccount,
         projectUuid: UUID,
         composerChartUuid: UUID,
-        request: Pick<
-            ComposerChartRunRequest,
-            'dashboardUuid' | 'tileUuid' | 'invalidateCache'
-        > & {
-            context: ComposerChartRunContext;
-            dateZoom: DateZoom | null;
-            dashboardState:
-                | ({ type: 'request' } & Pick<
-                      ComposerChartRunRequest,
-                      | 'dashboardFilters'
-                      | 'parameters'
-                      | 'excludedParameterKeys'
-                  >)
-                | { type: 'saved' };
-        },
+        request: ComposerTileRunRequest,
     ): Promise<ComposerChartRunResults> {
-        Sentry.setTag('lightdash.chartKind', 'composer');
-        const { organizationUuid, dashboardUuid } = await this.assertCanView(
+        return this.runBound(account, projectUuid, {
+            resolve: () =>
+                this.resolveTileRun(
+                    account,
+                    projectUuid,
+                    composerChartUuid,
+                    request,
+                ),
+            context: request.context,
+            invalidateCache: request.invalidateCache,
+        });
+    }
+
+    private async resolveTileRun(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        request: ComposerTileRunRequest,
+    ): Promise<ComposerResolvedRun> {
+        const { organizationUuid, owner } = await this.assertCanView(
             account,
             projectUuid,
             composerChartUuid,
@@ -811,22 +879,28 @@ export class ComposerChartService extends BaseService {
         if (!enabled) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
+        const notOnTile = new ForbiddenError(
+            'This composer chart is not on that dashboard tile',
+        );
+        // No tile shows a chart a space owns yet
+        if (
+            owner.type !== 'dashboard' ||
+            request.dashboardUuid !== owner.dashboardUuid
+        ) {
+            throw notOnTile;
+        }
+        const { dashboardUuid } = owner;
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuid,
             { projectUuid },
         );
-        const { tiles } = dashboard;
-        const shown = tiles.some(
+        const shown = dashboard.tiles.some(
             (tile) =>
                 tile.uuid === request.tileUuid &&
                 isDashboardComposerChartTile(tile) &&
                 tile.properties.composerChartUuid === composerChartUuid,
         );
-        if (request.dashboardUuid !== dashboardUuid || !shown) {
-            throw new ForbiddenError(
-                'This composer chart is not on that dashboard tile',
-            );
-        }
+        if (!shown) throw notOnTile;
         const chart = await this.composerChartModel.get(composerChartUuid);
         const exploreByNodeId = await this.getNodeExplores(
             account,
@@ -863,19 +937,50 @@ export class ComposerChartService extends BaseService {
             projectDefinitions,
             ...parameterLayer,
         });
-        const dateZoomByNodeId = getComposerNodeDateZooms({
-            nodes: resolved.nodes,
+        return {
+            chart,
             exploreByNodeId,
-            dateZoom: request.dateZoom ?? null,
-            chartXFieldId: getStoredChartXField(chart.chart) ?? null,
-        });
+            resolved,
+            dateZoomByNodeId: getComposerNodeDateZooms({
+                nodes: resolved.nodes,
+                exploreByNodeId,
+                dateZoom: request.dateZoom,
+                chartXFieldId: getStoredChartXField(chart.chart) ?? null,
+            }),
+            tile: {
+                dashboardUuid,
+                tileUuid: request.tileUuid,
+                dashboardFilters,
+                appliedDashboardFiltersByNodeId:
+                    filtered.appliedDashboardFiltersByNodeId,
+            },
+        };
+    }
+
+    private async runBound(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        {
+            resolve,
+            context,
+            invalidateCache,
+        }: {
+            resolve: () => Promise<ComposerResolvedRun>;
+            context: ComposerChartRunContext;
+            invalidateCache: boolean;
+        },
+    ): Promise<ComposerChartRunResults> {
+        // Tagged before resolving so access errors carry the chart kind
+        Sentry.setTag('lightdash.chartKind', 'composer');
+        const { chart, exploreByNodeId, resolved, dateZoomByNodeId, tile } =
+            await resolve();
         const binding = ComposerRunBinding.forAuthorizedViewer({
             account,
             chart,
-            dashboardUuid,
-            tileUuid: request.tileUuid,
+            dashboardUuid: tile.dashboardUuid,
+            tileUuid: tile.tileUuid,
             resolved,
-            dashboardFilters,
+            dashboardFilters: tile.dashboardFilters,
             dateZoomByNodeId,
         });
         const { queries } = await traceSpan(
@@ -884,7 +989,7 @@ export class ComposerChartService extends BaseService {
                 name: 'composer_chart.run',
                 attributes: {
                     'lightdash.projectUuid': projectUuid,
-                    'lightdash.composerChartUuid': composerChartUuid,
+                    'lightdash.composerChartUuid': chart.uuid,
                     'lightdash.nodeCount': binding.nodes.length,
                     'lightdash.nodeKinds': [
                         ...new Set(binding.nodes.map((n) => n.sourceType)),
@@ -898,8 +1003,8 @@ export class ComposerChartService extends BaseService {
                     account,
                     projectUuid,
                     binding,
-                    context: request.context,
-                    invalidateCache: request.invalidateCache,
+                    context,
+                    invalidateCache,
                 }),
         );
         const queryUuidOf = (nodeId: string | null) =>
@@ -928,9 +1033,9 @@ export class ComposerChartService extends BaseService {
                     : [],
             ),
         );
-        const applied = withSqlColumnFilters(filtered, {
-            tileUuid: request.tileUuid,
-            dashboardFilters,
+        const applied = withSqlColumnFilters(tile, {
+            tileUuid: tile.tileUuid,
+            dashboardFilters: tile.dashboardFilters,
             sqlColumnsByNodeId: Object.fromEntries(
                 Object.entries(sqlColumnsByNodeId).map(([nodeId, columns]) => [
                     nodeId,
