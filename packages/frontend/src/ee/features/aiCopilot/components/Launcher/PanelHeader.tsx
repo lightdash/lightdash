@@ -13,7 +13,7 @@ import {
     IconWindowMaximize,
     IconMinus,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useContext, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -30,8 +30,10 @@ import {
     isLauncherAutoAgent,
     LAUNCHER_AUTO_AGENT,
 } from './launcherAgentSelection';
+import { LauncherDockedContext } from './LauncherDockedContext';
 import { launcherSession } from './launcherSession';
 import { buildNewThreadUrl } from './newThreadUrl';
+import { PanelThreadTabs } from './PanelThreadTabs';
 
 type Props = {
     projectUuid: string;
@@ -54,6 +56,7 @@ export const PanelHeader: FC<Props> = ({
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const navigate = useNavigate();
+    const isDocked = useContext(LauncherDockedContext);
     const pendingContext = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.pendingContext,
     );
@@ -100,7 +103,7 @@ export const PanelHeader: FC<Props> = ({
         void navigate(target);
     };
 
-    return (
+    const header = (
         <div className={styles.panelHeader}>
             <Group gap="xs" wrap="nowrap" className={styles.flexFillNoMin}>
                 {canSwitchAgent ? (
@@ -243,5 +246,18 @@ export const PanelHeader: FC<Props> = ({
                 </ActionIcon>
             </Group>
         </div>
+    );
+
+    if (!isDocked) return header;
+
+    return (
+        <>
+            {header}
+            <PanelThreadTabs
+                projectUuid={projectUuid}
+                agent={agent}
+                agents={agents}
+            />
+        </>
     );
 };

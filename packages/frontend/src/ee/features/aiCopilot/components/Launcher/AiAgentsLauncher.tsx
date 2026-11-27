@@ -1,7 +1,14 @@
 import { Box, Transition } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { useEffect, useMemo, useRef, type FC } from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { createPortal } from 'react-dom';
+import {
+    APP_ASIDE_CLOSE_DURATION_MS,
+    APP_ASIDE_HOST_ID,
+    usePublishAppAsideOpen,
+} from '../../../../../components/AppSidebar/appAside';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
+import { usePortalTargetById } from '../../../../../hooks/usePortalTargetById';
 import { useProjectAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
 import {
     resetActivePanel,
@@ -29,6 +36,7 @@ import {
 import { useLauncherAnalysisAdapter } from './launcherAnalysisAdapter';
 import { LauncherAnalysisPanel } from './LauncherAnalysisPanel';
 import { LauncherDock } from './LauncherDock';
+import { LauncherDockedContext } from './LauncherDockedContext';
 import { LauncherPanel } from './LauncherPanel';
 import { LauncherPanelSizeContext } from './LauncherPanelSizeContext';
 import {
@@ -39,6 +47,29 @@ import { useDefaultAiAgent } from './useDefaultAiAgent';
 import { useIsLauncherHidden } from './useIsLauncherHidden';
 import { useLauncherDock } from './useLauncherDock';
 import { useLauncherPanelSize } from './useLauncherPanelSize';
+
+// Docked, the aside carries the motion: the panel only has to stay mounted
+// until the aside has slid away.
+const DOCKED_PANEL_TRANSITION = {
+    in: {},
+    out: {},
+    transitionProperty: 'none',
+};
+const DOCKED_PANEL_EXIT_MS = APP_ASIDE_CLOSE_DURATION_MS + 100;
+
+/** Stays true for `ms` after `value` turns false. */
+const useLingering = (value: boolean, ms: number): boolean => {
+    const [isLingering, setIsLingering] = useState(value);
+    useEffect(() => {
+        if (value) {
+            setIsLingering(true);
+            return undefined;
+        }
+        const timer = window.setTimeout(() => setIsLingering(false), ms);
+        return () => window.clearTimeout(timer);
+    }, [value, ms]);
+    return value || isLingering;
+};
 
 export const AiAgentsLauncher: FC<{
     isAnalyticsHomepage: boolean;
@@ -252,9 +283,9 @@ const AiAgentsLauncherInner: FC<{
         currentDataApp?.projectUuid === activeProjectUuid ||
         currentDocument?.projectUuid === activeProjectUuid;
 
-    if (
-        !activeProjectUuid ||
-        !shouldRenderAiAgentsLauncherContent({
+    const rendersContent =
+        !!activeProjectUuid &&
+        shouldRenderAiAgentsLauncherContent({
             dockItemCount: dock.length,
             hasAnalysisTab: analysisAdapter !== null,
             hasSelectedAgent: !!selectedAgent,
@@ -262,17 +293,30 @@ const AiAgentsLauncherInner: FC<{
             isContentPage,
             isModalHosted,
             isPanelOpen: isPanelOpenSafe,
-        })
-    ) {
+        });
+    // With the left navigation the open panel sits beside the page; a modal
+    // keeps hosting it inside its own bounds.
+    const asideHost = usePortalTargetById(APP_ASIDE_HOST_ID, !isModalHosted);
+    const isAsideOpen = rendersContent && isPanelOpenSafe && asideHost !== null;
+    usePublishAppAsideOpen(isAsideOpen);
+    const isDocked =
+        useLingering(isAsideOpen, APP_ASIDE_CLOSE_DURATION_MS) &&
+        rendersContent &&
+        asideHost !== null;
+    const panelTransition = isDocked ? DOCKED_PANEL_TRANSITION : 'slide-up';
+    const panelTransitionDuration = isDocked ? DOCKED_PANEL_EXIT_MS : 180;
+
+    if (!activeProjectUuid || !rendersContent) {
         return null;
     }
 
     const panelAgent = getLauncherPanelAgent(safeActiveAgentUuid, agents);
 
-    return (
+    const launcher = (
         <Box
             ref={panelSize.rootRef}
             className={styles.root}
+            data-docked={isDocked}
             __vars={panelSize.rootVars}
         >
             <LauncherDock
@@ -281,6 +325,7 @@ const AiAgentsLauncherInner: FC<{
                 agentsUpdatedAt={agentsUpdatedAt}
                 selectedAgent={selectedAgent}
                 showAskAiLabel={isAnalyticsHomepage}
+                isCompact={asideHost !== null}
             />
             {transitionSavedChartPreview && (
                 <Transition
@@ -347,8 +392,8 @@ const AiAgentsLauncherInner: FC<{
             )}
             <Transition
                 mounted={isChatPanelOpen}
-                transition="slide-up"
-                duration={180}
+                transition={panelTransition}
+                duration={panelTransitionDuration}
                 timingFunction="ease"
             >
                 {(transitionStyle) => (
@@ -368,8 +413,8 @@ const AiAgentsLauncherInner: FC<{
             {transitionAnalysisAdapter && (
                 <Transition
                     mounted={isAnalysisPanelOpen}
-                    transition="slide-up"
-                    duration={180}
+                    transition={panelTransition}
+                    duration={panelTransitionDuration}
                     timingFunction="ease"
                 >
                     {(transitionStyle) => (
@@ -385,5 +430,11 @@ const AiAgentsLauncherInner: FC<{
                 </Transition>
             )}
         </Box>
+    );
+
+    return (
+        <LauncherDockedContext.Provider value={isDocked}>
+            {isDocked ? createPortal(launcher, asideHost) : launcher}
+        </LauncherDockedContext.Provider>
     );
 };

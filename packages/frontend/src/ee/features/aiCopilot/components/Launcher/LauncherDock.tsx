@@ -1,18 +1,10 @@
 import { type AiAgentSummary } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
-import { useEffect, useMemo, type FC } from 'react';
+import { useEffect, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import {
-    openAnalysisPanel,
-    openPanel,
-    type LauncherDockItem,
-} from '../../store/aiAgentLauncherSlice';
-import {
-    useAiAgentStoreDispatch,
-    useAiAgentStoreSelector,
-} from '../../store/hooks';
-import { useAiAgentThreadStreamAbortController } from '../../streaming/AiAgentThreadStreamAbortControllerContext';
+import { openAnalysisPanel } from '../../store/aiAgentLauncherSlice';
+import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiAgentIcon } from '../AiAgentIcon';
 import styles from './AiAgentsLauncher.module.css';
 import { DockTab } from './DockTab';
@@ -22,7 +14,7 @@ import {
 } from './launcherAgentSelection';
 import { useLauncherAnalysisAdapter } from './launcherAnalysisAdapter';
 import { LAUNCHER_DOCK_EXTRAS_ID } from './launcherDockExtras';
-import { useLauncherDock } from './useLauncherDock';
+import { useLauncherDockThreads } from './useLauncherDockThreads';
 
 type Props = {
     projectUuid: string;
@@ -30,6 +22,8 @@ type Props = {
     agentsUpdatedAt: number;
     selectedAgent: LauncherSelectedAgent;
     showAskAiLabel: boolean;
+    /** Open threads collapse into a count on the Ask AI button. */
+    isCompact: boolean;
 };
 
 export const LauncherDock: FC<Props> = ({
@@ -38,17 +32,23 @@ export const LauncherDock: FC<Props> = ({
     agentsUpdatedAt,
     selectedAgent,
     showAskAiLabel,
+    isCompact,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
-    const { abort } = useAiAgentThreadStreamAbortController();
-    const { dock, removeItem } = useLauncherDock(projectUuid);
-    const activeThreadId = useAiAgentStoreSelector(
-        (state) => state.aiAgentLauncher.activeThreadId,
-    );
-    const isPanelOpen = useAiAgentStoreSelector(
-        (state) => state.aiAgentLauncher.mode === 'panel-open',
-    );
-    const view = useAiAgentStoreSelector((state) => state.aiAgentLauncher.view);
+    const {
+        dock,
+        visibleDock,
+        agentsByUuid,
+        removeItem,
+        activeThreadId,
+        isPanelOpen,
+        view,
+        isThreadActive,
+        isNewThreadActive,
+        selectThread,
+        closeThread,
+        startNewThread,
+    } = useLauncherDockThreads({ projectUuid, agents });
     // The tab is a handle to an analysis, not an entry point: before one
     // exists the new-thread teaser is the way in, so no tab for a quiet view
     // — unless there is no agent to chat with, making the tab the only door.
@@ -58,24 +58,6 @@ export const LauncherDock: FC<Props> = ({
         (analysisAdapter.controller.state.status !== 'idle' ||
             selectedAgent === null ||
             (isPanelOpen && view === 'analysis'));
-    const currentDashboard = useAiAgentStoreSelector(
-        (state) => state.aiAgentLauncher.currentDashboard,
-    );
-    const currentDataApp = useAiAgentStoreSelector(
-        (state) => state.aiAgentLauncher.currentDataApp,
-    );
-    const currentDocument = useAiAgentStoreSelector(
-        (state) => state.aiAgentLauncher.currentDocument,
-    );
-
-    const agentsByUuid = useMemo(
-        () => new Map(agents.map((a) => [a.uuid, a])),
-        [agents],
-    );
-    const visibleDock = useMemo(
-        () => dock.filter((item) => agentsByUuid.has(item.agentUuid)),
-        [agentsByUuid, dock],
-    );
 
     // The dock is shared across tabs: only prune deleted-agent items when this
     // tab's agents list is newer than the item, else a stale cache in another
@@ -90,56 +72,33 @@ export const LauncherDock: FC<Props> = ({
         });
     }, [activeThreadId, agentsByUuid, agentsUpdatedAt, dock, removeItem]);
 
-    const handleSelect = (item: LauncherDockItem) => {
-        dispatch(
-            openPanel({
-                threadId: item.threadId,
-                agentUuid: item.agentUuid,
-            }),
-        );
-    };
-
-    const handleClose = (threadId: string) => {
-        abort(threadId);
-        removeItem(threadId);
-    };
-
     const handleNewThread = () => {
         const agentUuid = getLauncherAgentUuid(selectedAgent);
-        if (!agentUuid) return;
-        const pendingContext =
-            currentDashboard?.projectUuid === projectUuid
-                ? { dashboardUuid: currentDashboard.uuid }
-                : currentDataApp?.projectUuid === projectUuid
-                  ? { dataAppUuid: currentDataApp.uuid }
-                  : currentDocument?.projectUuid === projectUuid
-                    ? { documentUuid: currentDocument.uuid }
-                    : null;
-        dispatch(
-            openPanel({
-                threadId: null,
-                agentUuid,
-                pendingContext,
-            }),
-        );
+        if (agentUuid) startNewThread(agentUuid);
     };
 
+    const lastActiveItem = visibleDock.find(
+        (item) => item.threadId === activeThreadId,
+    );
+    const handleCompactOpen = () =>
+        lastActiveItem ? selectThread(lastActiveItem) : handleNewThread();
+    const openThreadCount = isCompact ? visibleDock.length : 0;
+
     return (
-        <Box className={styles.dock}>
-            {visibleDock.map((item) => (
-                <DockTab
-                    key={item.threadId}
-                    item={item}
-                    agent={agentsByUuid.get(item.agentUuid)!}
-                    isActive={
-                        isPanelOpen &&
-                        view === 'chat' &&
-                        item.threadId === activeThreadId
-                    }
-                    onSelect={handleSelect}
-                    onClose={handleClose}
-                />
-            ))}
+        <Box
+            className={`${styles.dock} ${isCompact ? styles.dockCompact : ''}`}
+        >
+            {!isCompact &&
+                visibleDock.map((item) => (
+                    <DockTab
+                        key={item.threadId}
+                        item={item}
+                        agent={agentsByUuid.get(item.agentUuid)!}
+                        isActive={isThreadActive(item)}
+                        onSelect={selectThread}
+                        onClose={closeThread}
+                    />
+                ))}
             {showAnalysisTab && (
                 <Box
                     component="button"
@@ -159,13 +118,22 @@ export const LauncherDock: FC<Props> = ({
                     component="button"
                     type="button"
                     title="Ask AI Agent"
-                    aria-label="Ask AI Agent"
-                    className={`${styles.dockTab} ${showAskAiLabel ? '' : styles.dockIconTab} ${isPanelOpen && view === 'chat' && !activeThreadId ? styles.dockTabActive : ''}`}
-                    onClick={handleNewThread}
+                    aria-label={
+                        openThreadCount > 0
+                            ? `Ask AI Agent, ${openThreadCount} open threads`
+                            : 'Ask AI Agent'
+                    }
+                    className={`${styles.dockTab} ${styles.dockAskAi} ${showAskAiLabel ? '' : styles.dockIconTab} ${isNewThreadActive ? styles.dockTabActive : ''}`}
+                    onClick={isCompact ? handleCompactOpen : handleNewThread}
                 >
                     <AiAgentIcon size={16} />
                     {showAskAiLabel && (
                         <span className={styles.dockTabTitle}>Ask AI</span>
+                    )}
+                    {openThreadCount > 0 && (
+                        <Box component="span" className={styles.dockBadge}>
+                            {openThreadCount}
+                        </Box>
                     )}
                 </Box>
             )}
