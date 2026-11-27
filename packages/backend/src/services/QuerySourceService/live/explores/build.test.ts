@@ -12,11 +12,11 @@ import {
     type ItemsMap,
     type MetricQuery,
 } from '@lightdash/common';
-import { HYDRA_USERS_EXPLORE } from '../integrations/hydra/explores';
+import { HYDRA_USERS_EXPLORE } from '../integrations/hydra/model';
 import { compileSearchConsoleQuery } from '../integrations/searchConsole/compile';
-import { SEARCH_CONSOLE_PERFORMANCE_EXPLORE } from '../integrations/searchConsole/explores';
+import { SEARCH_CONSOLE_PERFORMANCE_EXPLORE } from '../integrations/searchConsole/model';
 import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from '../integrations/searchConsole/run';
-import { type LiveScanResult } from '../types';
+import { type LiveCatalog } from '../types';
 import {
     buildLiveExplores,
     compileLiveMetricQuery,
@@ -39,7 +39,7 @@ const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
 
 const buildOne = (
     apiSource: Parameters<typeof buildLiveExplores>[0]['apiSource'],
-    scan: LiveScanResult = {},
+    scan: LiveCatalog = {},
 ): Explore => {
     const scannedFields = toScannedLiveSourceFields(apiSource.connector, scan);
     const [explore, ...rest] = buildLiveExplores({
@@ -624,7 +624,7 @@ describe('toPeriodStart', () => {
 });
 
 describe('definition hashes', () => {
-    const scan: LiveScanResult = {};
+    const scan: LiveCatalog = {};
     const build = (sourceName: string, name: string) =>
         buildLiveExplores({
             connectionUuid: CONNECTION_UUID,

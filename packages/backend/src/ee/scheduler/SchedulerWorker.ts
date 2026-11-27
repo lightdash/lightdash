@@ -26,7 +26,7 @@ import { TypedEETaskList } from '../../scheduler/types';
 import { type JiraAppService } from '../../services/JiraAppService/JiraAppService';
 import { type LinearAppService } from '../../services/LinearAppService/LinearAppService';
 import { type IncrementalCompileResult } from '../../services/ProjectService/ProjectService';
-import { toFailedScan } from '../../services/QuerySourceService/live/integrations/postHog/scan';
+import { toFailedScan } from '../../services/QuerySourceService/live/integrations/postHog/model';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
@@ -564,12 +564,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     await this.externalConnectionModel.deleteRateCountersBefore(
                         dayAgo,
                     );
-                const apiSource =
-                    await this.externalConnectionModel.deleteApiSourceCallWindowsBefore(
-                        dayAgo,
-                    );
                 Logger.info(
-                    `Rate counter cleanup completed. Analysis windows deleted: ${analysis}; external connection windows deleted: ${external}; live source windows deleted: ${apiSource}`,
+                    `Rate counter cleanup completed. Analysis windows deleted: ${analysis}; external connection windows deleted: ${external}`,
                 );
             },
             [EE_SCHEDULER_TASKS.CLEAN_API_SOURCE_RATE_LIMITS]: async () => {

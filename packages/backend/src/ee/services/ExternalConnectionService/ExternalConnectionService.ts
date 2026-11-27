@@ -97,7 +97,7 @@ import type { UserAttributesModel } from '../../../models/UserAttributesModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
 import {
-    createLiveCalls,
+    createLiveRuntime,
     readLiveRateLimit,
     type LiveCallUsage,
     type LiveTransport,
@@ -126,26 +126,30 @@ import {
     isLiveExploreInUse,
     listLiveSourceFields,
 } from '../../../services/QuerySourceService/live/explores/fields';
+import { getLiveLimits } from '../../../services/QuerySourceService/live/integration';
 import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
 import {
     getLinkedInAdsAccountPath,
     LINKEDIN_ADS_ORIGIN,
     LINKEDIN_ADS_REQUEST_HEADERS,
     LINKEDIN_ADS_TOKEN_URL,
-} from '../../../services/QuerySourceService/live/integrations/linkedInAds/run';
-import { getPostHogOAuthEndpoints } from '../../../services/QuerySourceService/live/integrations/postHog/run';
+} from '../../../services/QuerySourceService/live/integrations/linkedInAds/api';
+import { getPostHogOAuthEndpoints } from '../../../services/QuerySourceService/live/integrations/postHog/api';
 import {
     scanPostHogSchema,
     toFailedScan,
     toPostHogSchemaTable,
-} from '../../../services/QuerySourceService/live/integrations/postHog/scan';
+} from '../../../services/QuerySourceService/live/integrations/postHog/model';
 import { refuseLiveQuery } from '../../../services/QuerySourceService/live/query/refuse';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { LIVE_RATE_LIMIT_DEADLINES_MS } from '../../../services/QuerySourceService/live/rateLimitDeadlines';
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
 import { type LiveRateLimits } from '../../../services/QuerySourceService/live/spec/types';
-import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
-import { type LiveScanResult } from '../../../services/QuerySourceService/live/types';
+import {
+    getLiveSourceTestCheck,
+    getLiveSourceTestRequest,
+} from '../../../services/QuerySourceService/live/testCheck';
+import { type LiveCatalog } from '../../../services/QuerySourceService/live/types';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { checkUserAttributesAccess } from '../../../services/UserAttributesService/UserAttributeUtils';
 import {
@@ -1995,18 +1999,18 @@ export class ExternalConnectionService extends BaseService {
         if (connection.kind !== 'live_source' || !apiSource) {
             return;
         }
-        const getScan = async (): Promise<LiveScanResult | null> => {
+        const getScan = async (): Promise<LiveCatalog | null> => {
             try {
-                const { integration, settings, calls } = this.createLiveSource(
-                    account,
-                    connection,
-                    {
+                const { integration, settings, runtime } =
+                    this.createLiveSource(account, connection, {
                         isPerQuery: false,
                         rateLimitDeadlineMs: LIVE_RATE_LIMIT_DEADLINES_MS.sync,
-                    },
-                );
+                    });
                 return (
-                    (await integration.scan?.read({ settings, calls })) ?? {}
+                    (await integration.model.discovery?.discover({
+                        settings,
+                        runtime,
+                    })) ?? {}
                 );
             } catch (error) {
                 if (onScanError === 'throw') {
@@ -2039,7 +2043,7 @@ export class ExternalConnectionService extends BaseService {
                     scannedFields,
                     // An explore made only of scanned fields starts with all of them
                     isExistingSource:
-                        getLiveIntegration(apiSource.connector).scan
+                        getLiveIntegration(apiSource.connector).model.discovery
                             ?.inUseByDefault === true ||
                         (await this.projectModel.hasApiSourceExplores(
                             projectUuid,
@@ -3233,8 +3237,9 @@ export class ExternalConnectionService extends BaseService {
     private static getDeclaredRateLimits(
         apiSource: ExternalConnectionApiSource,
     ): LiveRateLimits {
-        const integration = getLiveIntegration(apiSource.connector);
-        return integration.rateLimitsFor?.(apiSource) ?? integration.rateLimits;
+        const { concurrentCalls, callsPerSecond, buckets, note, cardNote } =
+            getLiveLimits(getLiveIntegration(apiSource.connector), apiSource);
+        return { concurrentCalls, callsPerSecond, buckets, note, cardNote };
     }
 
     /** What the rate-limit gate limits for a live source: the lower of the integration's limits and the admin's. */
@@ -3293,7 +3298,7 @@ export class ExternalConnectionService extends BaseService {
             isPerQuery,
             rateLimitDeadlineMs,
         }: { isPerQuery: boolean; rateLimitDeadlineMs: number },
-    ): Pick<MeteredLiveSource, 'integration' | 'settings' | 'calls'> & {
+    ): Pick<MeteredLiveSource, 'integration' | 'settings' | 'runtime'> & {
         usage: LiveCallUsage;
     } {
         const { apiSource } = storedConnection;
@@ -3308,7 +3313,7 @@ export class ExternalConnectionService extends BaseService {
         let callsThisQuery = 0;
         const integration = getLiveIntegration(apiSource.connector);
         const { label } = integration;
-        const { limits } = integration;
+        const limits = getLiveLimits(integration);
         const usage: LiveCallUsage = {
             apiCalls: 0,
             responseBytes: 0,
@@ -3393,7 +3398,7 @@ export class ExternalConnectionService extends BaseService {
         return {
             integration,
             settings: apiSource,
-            calls: createLiveCalls(integration, apiSource, send),
+            runtime: createLiveRuntime(integration, apiSource, send),
             usage,
         };
     }
@@ -5222,20 +5227,33 @@ export class ExternalConnectionService extends BaseService {
         },
         account: RegisteredAccount,
     ): Promise<ExternalConnectionTestResponse> {
+        // An integration that fixes its test request reads only what its
+        // source may, whatever path and query the caller sent
+        const fixedRequest = connection.apiSource
+            ? getLiveSourceTestRequest(connection.apiSource)
+            : null;
         try {
             const { response } = await this.executeExternalFetch(
                 connection,
                 secret,
-                req,
+                fixedRequest ?? req,
                 { account, appUuid: null },
             );
             if (!connection.apiSource) return response;
+            const liveCheck = getLiveSourceTestCheck(
+                connection.apiSource,
+                response,
+            );
+            if (!fixedRequest) return { ...response, liveCheck };
+            // The check says what the admin needs; the API's own answer
+            // can name more than the source may read
             return {
-                ...response,
-                liveCheck: getLiveSourceTestCheck(
-                    connection.apiSource,
-                    response,
-                ),
+                status: response.status,
+                contentType: response.contentType,
+                headers: {},
+                body: null,
+                truncated: false,
+                liveCheck,
             };
         } catch (error) {
             if (error instanceof SecureFetchError) {
@@ -5453,6 +5471,34 @@ export class ExternalConnectionService extends BaseService {
     }
 
     /**
+     * Keeps a saved secret to what it was saved for when a test sends edited
+     * settings. The integration of a live source stays. One that fixes its
+     * test request is tested with its saved settings, unless the admin
+     * sends the secret again: the edited settings would choose the request.
+     */
+    private static assertTestKeepsIntegration(
+        stored: ExternalConnection,
+        config: UpdateExternalConnection,
+    ): void {
+        const { apiSource } = stored;
+        if (!apiSource || config.apiSource === undefined) return;
+        if (config.apiSource?.connector !== apiSource.connector) {
+            throw new ParameterError(
+                'A test cannot remove or change the integration of a live data source.',
+            );
+        }
+        if (
+            !config.secret &&
+            getLiveIntegration(apiSource.connector).connection.testRequest &&
+            !isEqual(config.apiSource, apiSource)
+        ) {
+            throw new ParameterError(
+                'Enter the token again to test the changed settings. A saved token is tested only with its saved settings.',
+            );
+        }
+    }
+
+    /**
      * Admin-only "Test connection". Loads the connection, decrypts its
      * secret, and runs a single request through the SAME validation +
      * SSRF-guarded fetch core the runtime proxy uses (`executeExternalFetch`).
@@ -5484,6 +5530,12 @@ export class ExternalConnectionService extends BaseService {
             await this.assertLiveIntegrationEnabled(
                 storedConnection.organizationUuid,
                 storedConnection.apiSource.connector,
+            );
+        }
+        if (req.config) {
+            ExternalConnectionService.assertTestKeepsIntegration(
+                storedConnection,
+                req.config,
             );
         }
         // Live data sources test against the rules their edited settings get

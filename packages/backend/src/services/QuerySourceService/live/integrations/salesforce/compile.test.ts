@@ -18,7 +18,7 @@ import {
     isInternalSalesforceField,
     SALESFORCE_EXPLORES,
     withSalesforceFields,
-} from './explores';
+} from './model';
 import { OPPORTUNITY_DESCRIBE } from './salesforce.fixtures';
 import {
     salesforceRequestSchema,
@@ -39,7 +39,7 @@ const OPPORTUNITIES = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.SALESFORCE,
     baseVersion: 1,
-    capabilities: salesforceIntegration.capabilities,
+    capabilities: salesforceIntegration.query.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),

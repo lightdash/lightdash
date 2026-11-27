@@ -1,6 +1,7 @@
 import {
     DimensionType,
     FieldType,
+    SessionStorageKeys,
     type Dimension,
     type ResultRow,
 } from '@lightdash/common';
@@ -25,7 +26,10 @@ beforeEach(() => {
         },
     );
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+    vi.restoreAllMocks();
+    window.sessionStorage.clear();
+});
 
 const regionOf = (rowIndex: number) =>
     `Region ${Math.floor(rowIndex / GROUP_SIZE)}`;
@@ -215,8 +219,6 @@ it('shows the lines of a merged value that fit in the rows its cell covers', asy
     expect(twoRowCells.length).toBeGreaterThan(0);
     twoRowCells.forEach((cell) => {
         expect(getValueLineLimit(cell)).toBe(3);
-        // The full value is in the title of a clamped cell.
-        expect(getValueSpan(cell)).toHaveAttribute('title', cell.textContent);
         // The line count assumes this line height.
         expect(getValueSpan(cell)!.style.lineHeight).toBe(
             `${TABLE_LINE_HEIGHT_PX}px`,
@@ -292,5 +294,81 @@ it('shows the full merged value when the rendered rows cannot clip the table', a
     pairCells.forEach((cell) => {
         expect(cell).toHaveAttribute('rowspan', '2');
         expect(getValueLineLimit(cell)).toBeUndefined();
+    });
+});
+
+it('shows the full merged value in an image export or a scheduled delivery', async () => {
+    // The headless browser sets this for every export and delivery.
+    window.sessionStorage.setItem(SessionStorageKeys.HEADLESS_CAPTURE, 'true');
+    const fiveLinesOf = (rowIndex: number) =>
+        `Pair ${Math.floor(rowIndex / 2)}\nline 2\nline 3\nline 4\nline 5`;
+    const table = renderGroupedTable({ getRegion: fiveLinesOf });
+    expect(await screen.findByText('City 0')).toBeInTheDocument();
+
+    const pairCells = Array.from(table.querySelectorAll('td')).filter((td) =>
+        td.textContent?.startsWith('Pair '),
+    );
+    // The table is long enough for the rendered rows to clip merged cells.
+    expect(
+        pairCells.filter((cell) => cell.getAttribute('rowspan') === '2').length,
+    ).toBeGreaterThan(0);
+    pairCells.forEach((cell) =>
+        expect(getValueLineLimit(cell)).toBeUndefined(),
+    );
+});
+
+// A rough layout: a clamped value is as tall as its lines, and shows the lines
+// its clamp allows.
+const mockClampedLayout = (clampVar: string) => {
+    const lineCount = (element: HTMLElement) =>
+        (element.textContent ?? '').split('\n').length;
+    const clampOf = (element: HTMLElement) =>
+        Number(element.style.getPropertyValue(clampVar)) || Infinity;
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(
+        function scrollHeight(this: HTMLElement) {
+            return lineCount(this) * TABLE_LINE_HEIGHT_PX;
+        },
+    );
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(
+        function clientHeight(this: HTMLElement) {
+            return (
+                Math.min(lineCount(this), clampOf(this)) * TABLE_LINE_HEIGHT_PX
+            );
+        },
+    );
+};
+
+it('shows the full value on hover only when the clamp cuts the value', async () => {
+    mockClampedLayout('--merged-line-clamp');
+    const pairOf = (rowIndex: number) =>
+        `Pair ${Math.floor(rowIndex / 2)}\nsecond line\nthird line`;
+    const table = renderGroupedTable({ getRegion: pairOf });
+    expect(await screen.findByText('City 0')).toBeInTheDocument();
+
+    await scrollViewportTo(table, 66);
+    await waitFor(() => expect(screen.queryByText('City 0')).toBeNull());
+
+    const pairCells = Array.from(table.querySelectorAll('td')).filter((td) =>
+        td.textContent?.startsWith('Pair '),
+    );
+    // A one-row cell shows 1 of 3 lines. A two-row cell shows all 3.
+    const [cutCell] = pairCells;
+    expect(getValueLineLimit(cutCell)).toBe(1);
+    const fullCells = pairCells.filter(
+        (cell) => cell.getAttribute('rowspan') === '2',
+    );
+    expect(fullCells.length).toBeGreaterThan(0);
+
+    // No cell has a title before a hover.
+    pairCells.forEach((cell) =>
+        expect(getValueSpan(cell)).not.toHaveAttribute('title'),
+    );
+
+    fireEvent.mouseEnter(getValueSpan(cutCell)!);
+    expect(getValueSpan(cutCell)).toHaveAttribute('title', cutCell.textContent);
+
+    fullCells.forEach((cell) => {
+        fireEvent.mouseEnter(getValueSpan(cell)!);
+        expect(getValueSpan(cell)).not.toHaveAttribute('title');
     });
 });

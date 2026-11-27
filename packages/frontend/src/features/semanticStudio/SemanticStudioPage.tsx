@@ -215,6 +215,7 @@ const SemanticStudioPage: FC = () => {
                         project={realProject}
                         permissions={permissions}
                         canOpenSettings={canOpenSettings}
+                        isLiveAvailable={isLiveSourcesEnabled}
                         route={route}
                         onNavigate={onNavigate}
                     />

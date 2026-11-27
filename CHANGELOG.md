@@ -1,3 +1,29 @@
+# [3.431.0](https://github.com/lightdash/lightdash/compare/3.430.0...3.431.0) (2026-11-27)
+
+
+### Bug Fixes
+
+* grouped table exports cut long merged values, and every merged value shows a tooltip ([#33513](https://github.com/lightdash/lightdash/issues/33513)) ([550f193](https://github.com/lightdash/lightdash/commit/550f1931ae08af1698c34bdea224029285e83e43)), closes [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461)
+
+
+### Features
+
+* **live-sources:** add a Sentry integration for errors, issues and release health ([#33555](https://github.com/lightdash/lightdash/issues/33555)) ([769eb9c](https://github.com/lightdash/lightdash/commit/769eb9cf3893176e891f91342b4732a58599b3b1))
+
+# [3.430.0](https://github.com/lightdash/lightdash/compare/3.429.0...3.430.0) (2026-11-27)
+
+
+### Features
+
+* **live-data-sources:** explain who can add a live data source ([#33595](https://github.com/lightdash/lightdash/issues/33595)) ([a978546](https://github.com/lightdash/lightdash/commit/a978546f57863f37cf547c6cc09dadc27301a009))
+
+# [3.429.0](https://github.com/lightdash/lightdash/compare/3.428.0...3.429.0) (2026-11-27)
+
+
+### Features
+
+* **composer:** read run records without a dashboard ([#33574](https://github.com/lightdash/lightdash/issues/33574)) ([11f3ea7](https://github.com/lightdash/lightdash/commit/11f3ea7ac8e533909ffa01750c10da1a5373b759))
+
 # [3.428.0](https://github.com/lightdash/lightdash/compare/3.427.1...3.428.0) (2026-11-27)
 
 

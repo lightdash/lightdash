@@ -426,6 +426,11 @@
                     "mcp": []
                 }
             }
+        },
+        "spk-3175-drop-api-source-call-counters-and-leases": {
+            "reason": "Drops the empty api_source_call_counters and api_source_call_leases tables. Live data source rate limits have used api_source_rate_buckets, api_source_rate_pacing and api_source_rate_slots since 3.375.0, and nothing writes the old tables. The previous release still deletes old rows from them in the daily rate counter cleanup job. A scheduler on the previous release that runs that job during a rolling update fails it on the missing tables after its other deletes have run, and retries it up to three times; the job succeeds again once the scheduler is updated. Queries and rate limiting are unaffected.",
+            "requiredStop": false,
+            "migration": "packages/backend/src/ee/database/migrations/20261127180000_drop_api_source_call_counters_and_leases.ts"
         }
     }
 }

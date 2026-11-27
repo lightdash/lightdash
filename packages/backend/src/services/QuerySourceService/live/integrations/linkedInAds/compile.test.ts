@@ -12,7 +12,7 @@ import { compileLiveMetricQuery } from '../../explores/build';
 import { assertLiveQuery, buildLiveExplore } from '../../explores/definition';
 import { connectLiveSource } from '../../liveSource.mock';
 import { compileLinkedInAdsQuery } from './compile';
-import { LINKEDIN_ADS_PERFORMANCE_EXPLORE } from './explores';
+import { LINKEDIN_ADS_PERFORMANCE_EXPLORE } from './model';
 import { LINKEDIN_ADS_MAX_QUERY_ROWS } from './run';
 
 const EXPLORE = 'linkedin_performance';
@@ -25,7 +25,7 @@ const explore = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.LINKEDIN_ADS,
     baseVersion: 1,
-    capabilities: linkedInAdsIntegration.capabilities,
+    capabilities: linkedInAdsIntegration.query.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),

@@ -1,15 +1,12 @@
 import { ApiConnectorType, DimensionType } from '@lightdash/common';
 import { z } from 'zod';
-import { tooManyRowsError } from '../../query/rows';
 import {
+    tooManyRowsError,
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../types';
-
-export const YOUTUBE_ANALYTICS_ORIGIN =
-    'https://youtubeanalytics.googleapis.com';
-export const YOUTUBE_ANALYTICS_REPORTS_PATH = '/v2/reports';
+} from '../../sdk';
+import { YOUTUBE_ANALYTICS_REPORTS_PATH } from './api';
 
 // reports.query documents no row maximum; this keeps results near other api
 // sources. The query asks for one more row to detect truncation.
@@ -79,7 +76,7 @@ export const runYoutubeAnalyticsQuery = async ({
     settings: { channelId },
     request: { maxResults, ...request },
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.YOUTUBE_ANALYTICS,
     YoutubeAnalyticsRequest
@@ -96,7 +93,7 @@ export const runYoutubeAnalyticsQuery = async ({
         ? Math.min(rowLimit + 1, YOUTUBE_ANALYTICS_MAX_VIDEOS)
         : rowLimit + 1;
 
-    const { columnHeaders: headers, rows: apiRows = [] } = await calls.fetch(
+    const { columnHeaders: headers, rows: apiRows = [] } = await runtime.fetch(
         {
             method: 'GET',
             path: YOUTUBE_ANALYTICS_REPORTS_PATH,
