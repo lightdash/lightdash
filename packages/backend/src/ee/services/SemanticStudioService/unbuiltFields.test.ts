@@ -52,7 +52,7 @@ describe('findUnbuiltFields', () => {
             [
                 field('payments', 'amount', '${TABLE}.amount'),
                 field('payments', 'city', '${TABLE}.address.city'),
-                field('payments', 'usage_channel', '${TABLE}."usage_channel"'),
+                field('payments', 'usage_channel', '${TABLE}.usage_channel'),
                 field('payments', 'channel_group', 'upper(${usage_channel})'),
             ],
             [

@@ -1,6 +1,8 @@
 import {
     getItemId,
+    getTableColumnReferences,
     isExploreError,
+    parseAllReferences,
     type CompiledTable,
     type Explore,
     type ExploreError,
@@ -8,9 +10,6 @@ import {
     type WarehouseCatalog,
     type WarehouseTableSchema,
 } from '@lightdash/common';
-
-const COLUMN_REFERENCE = /\$\{TABLE\}\.["`[]?(\w+)/g;
-const FIELD_REFERENCE = /\$\{(?:(\w+)\.)?(\w+)\}/g;
 
 const findKey = <T>(record: Record<string, T> | undefined, key: string) =>
     Object.entries(record ?? {}).find(
@@ -52,30 +51,25 @@ const findFieldsWithoutColumns = (
             ...Object.values(table.metrics),
         ].map((field) => ({ field, columns }));
     });
-    const unbuilt = new Set<string>();
-    fields.forEach(({ field, columns }) => {
-        if (columns === null) return;
-        const reads = [...field.sql.matchAll(COLUMN_REFERENCE)];
-        if (
-            reads.some(
-                ([, column]) => !hasColumn(columns, column.toLowerCase()),
+    const unbuilt = new Set(
+        fields.flatMap(({ field, columns }) =>
+            columns !== null &&
+            getTableColumnReferences(field.sql).some(
+                (column) => !hasColumn(columns, column.toLowerCase()),
             )
-        ) {
-            unbuilt.add(getItemId(field));
-        }
-    });
-    let found = -1;
+                ? [getItemId(field)]
+                : [],
+        ),
+    );
+    // A field defined on an unbuilt one cannot be queried either.
+    let found = 0;
     while (found !== unbuilt.size) {
         found = unbuilt.size;
         fields.forEach(({ field }) => {
-            const reads = [...field.sql.matchAll(FIELD_REFERENCE)];
+            const reads = parseAllReferences(field.sql, field.table);
             if (
-                reads.some(
-                    ([, table, name]) =>
-                        name !== 'TABLE' &&
-                        unbuilt.has(
-                            getItemId({ table: table ?? field.table, name }),
-                        ),
+                reads.some(({ refTable, refName }) =>
+                    unbuilt.has(getItemId({ table: refTable, name: refName })),
                 )
             ) {
                 unbuilt.add(getItemId(field));
