@@ -1,3 +1,15 @@
+# [3.421.0](https://github.com/lightdash/lightdash/compare/3.420.9...3.421.0) (2026-11-27)
+
+
+### Bug Fixes
+
+* **live-sources:** keep pages working for an integration the loaded app does not know ([#33532](https://github.com/lightdash/lightdash/issues/33532)) ([882af2b](https://github.com/lightdash/lightdash/commit/882af2b66fb45b6406ffe63af957790d066bb5a2))
+
+
+### Features
+
+* **semantic-studio:** say which draft fields are not built yet instead of failing in Try it ([#33530](https://github.com/lightdash/lightdash/issues/33530)) ([a3e8021](https://github.com/lightdash/lightdash/commit/a3e80215a14eb7ae2ec3ca0c64e9c6a6976c6488))
+
 ## [3.420.9](https://github.com/lightdash/lightdash/compare/3.420.8...3.420.9) (2026-11-27)
 
 
