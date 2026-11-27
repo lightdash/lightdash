@@ -93,6 +93,7 @@ export type UpstreamChart = {
     chart: (ChartSummary & { updatedAt: Date }) | undefined;
     space: PromotedSpace | undefined;
     spaceAccessContext: SpaceAccessContextForCasl | undefined;
+    spaceIsDefaultUserSpacesParent?: boolean;
     dashboardUuid?: string; // dashboard uuid if chart belongs to dashboard
 };
 export type PromotedDashboard = {
@@ -110,6 +111,7 @@ export type UpstreamDashboard = {
         | undefined;
     space: PromotedSpace | undefined;
     spaceAccessContext: SpaceAccessContextForCasl | undefined;
+    spaceIsDefaultUserSpacesParent?: boolean;
 };
 
 type PromotedSqlChart = {
@@ -125,6 +127,7 @@ type UpstreamSqlChart = {
     chart: SavedSqlChart | undefined;
     space: PromotedSpace | undefined;
     spaceAccessContext: SpaceAccessContextForCasl | undefined;
+    spaceIsDefaultUserSpacesParent?: boolean;
 };
 
 type PromotedSqlChartChange = {
@@ -475,6 +478,8 @@ export class PromoteService extends BaseService {
                 projectUuid: upstreamProjectUuid,
                 space: upstreamSpace,
                 spaceAccessContext: upstreamCtx,
+                spaceIsDefaultUserSpacesParent:
+                    await this.isDefaultUserSpacesParent(upstreamSpace),
             },
         };
     }
@@ -560,6 +565,8 @@ export class PromoteService extends BaseService {
                 projectUuid: upstreamProjectUuid,
                 space: upstreamSpace,
                 spaceAccessContext: upstreamCtx,
+                spaceIsDefaultUserSpacesParent:
+                    await this.isDefaultUserSpacesParent(upstreamSpace),
             },
         };
     }
@@ -734,6 +741,7 @@ export class PromoteService extends BaseService {
             PromoteService.isSpaceUpdated(
                 promotedChart.space,
                 upstreamChart.space,
+                upstreamChart.spaceIsDefaultUserSpacesParent,
             );
         if (promotionWillModifyChartSpace) {
             PromoteService.checkPromoteSpacePermissions(
@@ -843,6 +851,7 @@ export class PromoteService extends BaseService {
             PromoteService.isSpaceUpdated(
                 promotedSqlChart.space,
                 upstreamSqlChart.space,
+                upstreamSqlChart.spaceIsDefaultUserSpacesParent,
             );
         if (promotionWillModifySqlChartSpace) {
             PromoteService.checkPromoteSpacePermissions(
@@ -945,6 +954,7 @@ export class PromoteService extends BaseService {
             PromoteService.isSpaceUpdated(
                 promotedDashboard.space,
                 upstreamDashboard.space,
+                upstreamDashboard.spaceIsDefaultUserSpacesParent,
             );
         if (promotionWillModifyDashboardSpace) {
             PromoteService.checkPromoteSpacePermissions(
@@ -957,16 +967,25 @@ export class PromoteService extends BaseService {
 
     private static isSpaceUpdated(
         promotedSpace: Pick<SpaceSummaryBase, 'name'>,
-        upstreamSpace: Pick<SpaceSummaryBase, 'name' | 'parentSpaceUuid'>,
+        upstreamSpace: Pick<SpaceSummaryBase, 'name'>,
+        isDefaultUserSpacesParent: boolean = false,
     ) {
         // The default user spaces folder is looked up by name, never rename it
+        if (isDefaultUserSpacesParent) return false;
+        return promotedSpace.name !== upstreamSpace.name;
+    }
+
+    private async isDefaultUserSpacesParent(
+        space: PromotedSpace | undefined,
+    ): Promise<boolean> {
         if (
-            upstreamSpace.parentSpaceUuid === null &&
-            upstreamSpace.name === DEFAULT_USER_SPACES_PARENT_NAME
+            space === undefined ||
+            space.parentSpaceUuid !== null ||
+            space.name !== DEFAULT_USER_SPACES_PARENT_NAME
         ) {
             return false;
         }
-        return promotedSpace.name !== upstreamSpace.name;
+        return this.projectModel.hasDefaultUserSpaces(space.projectUuid);
     }
 
     private static isDashboardUpdated(
@@ -2685,7 +2704,13 @@ export class PromoteService extends BaseService {
                 : undefined;
 
         if (upstreamSpace !== undefined) {
-            if (PromoteService.isSpaceUpdated(promotedSpace, upstreamSpace)) {
+            if (
+                PromoteService.isSpaceUpdated(
+                    promotedSpace,
+                    upstreamSpace,
+                    await this.isDefaultUserSpacesParent(upstreamSpace),
+                )
+            ) {
                 return {
                     action: PromotionAction.UPDATE,
                     data: {
@@ -3082,6 +3107,8 @@ export class PromoteService extends BaseService {
             projectUuid: upstreamProjectUuid,
             space: upstreamSpace,
             spaceAccessContext: upstreamCtx,
+            spaceIsDefaultUserSpacesParent:
+                await this.isDefaultUserSpacesParent(upstreamSpace),
         };
         return { promotedDashboard, upstreamDashboard };
     }

@@ -5664,7 +5664,8 @@ export class ProjectModel {
 
     /**
      * Recreates the "Default User Spaces" folder in projects that have the
-     * setting on but lost the folder (deleted or renamed).
+     * setting on but lost the folder (renamed or permanently deleted).
+     * A folder in Trash is left alone so it can still be restored.
      */
     async restoreMissingDefaultUserSpacesParents(
         organizationUuid: string,
@@ -5692,8 +5693,7 @@ export class ProjectModel {
                         `${SpaceTableName}.name`,
                         DEFAULT_USER_SPACES_PARENT_NAME,
                     )
-                    .whereNull(`${SpaceTableName}.parent_space_uuid`)
-                    .whereNull(`${SpaceTableName}.deleted_at`);
+                    .whereNull(`${SpaceTableName}.parent_space_uuid`);
             })
             .select<{ project_id: number; project_uuid: string }[]>(
                 `${ProjectTableName}.project_id`,
@@ -5712,6 +5712,13 @@ export class ProjectModel {
         );
 
         return projects.map((project) => project.project_uuid);
+    }
+
+    async hasDefaultUserSpaces(projectUuid: string): Promise<boolean> {
+        const project = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .first('has_default_user_spaces');
+        return project?.has_default_user_spaces === true;
     }
 
     async getProjectsWithDefaultUserSpaces(organizationUuid: string): Promise<
