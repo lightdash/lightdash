@@ -23,6 +23,13 @@ import {
 import { SpaceTableName } from '../database/entities/spaces';
 import { generateUniqueSlugScopedToProject } from '../utils/SlugUtils';
 
+/** An owned chart's pipeline as of a dashboard version, beside its current one. */
+export type ComposerChartRollbackPipeline = {
+    uuid: string;
+    restored: unknown;
+    current: unknown;
+};
+
 export type CreateComposerChartRecord = {
     /** Supplied when a chart keeps an existing identity; generated otherwise. */
     uuid: string | null;
@@ -241,7 +248,7 @@ export class ComposerChartModel {
         uuids: string[],
         dashboardVersionUuid: string,
         trx: Knex.Transaction,
-    ): Promise<{ uuid: string; restored: unknown; current: unknown }[]> {
+    ): Promise<ComposerChartRollbackPipeline[]> {
         // A version insert takes a key-share lock on its chart, which this waits for or blocks
         const owned: string[] = await trx(ComposerChartsTableName)
             .where('dashboard_uuid', dashboardUuid)
@@ -249,11 +256,7 @@ export class ComposerChartModel {
             .orderBy('composer_chart_uuid')
             .forUpdate()
             .pluck('composer_chart_uuid');
-        const pipelines: {
-            uuid: string;
-            restored: unknown;
-            current: unknown;
-        }[] = [];
+        const pipelines: ComposerChartRollbackPipeline[] = [];
         for (const uuid of owned) {
             /* eslint-disable no-await-in-loop */
             const restored = await ComposerChartModel.versionAsOf(

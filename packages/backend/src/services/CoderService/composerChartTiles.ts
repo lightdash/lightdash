@@ -37,7 +37,7 @@ export const toComposerChartTileAsCode = (
 /**
  * Points each uploaded composer tile at the composer chart named by its slug.
  * Only composer charts are searched, and the dashboard must own the chart.
- * A null slug is a tile whose chart is gone.
+ * A tile whose chart is gone (null slug) is left out until a tile can hold no chart.
  */
 export const resolveComposerChartTiles = (
     tiles: DashboardTileWithSlug[],
@@ -56,24 +56,13 @@ export const resolveComposerChartTiles = (
     },
 ): DashboardTileWithSlug[] => {
     const keepable = new Map(shownTilesByChartUuid);
-    return tiles.map((tile) => {
-        if (tile.type !== DashboardTileTypes.COMPOSER_CHART) return tile;
+    return tiles.flatMap((tile) => {
+        if (tile.type !== DashboardTileTypes.COMPOSER_CHART) return [tile];
         const { chartSlug } = tile.properties as unknown as Pick<
             DashboardComposerChartTileAsCode['properties'],
             'chartSlug'
         >;
-        if (chartSlug === null) {
-            return {
-                ...tile,
-                properties: {
-                    title: tile.properties.title,
-                    hideTitle: tile.properties.hideTitle,
-                    chartSlug: null,
-                    composerChartUuid: null,
-                    chartName: null,
-                },
-            } as DashboardTileWithSlug;
-        }
+        if (chartSlug === null) return [];
         if (typeof chartSlug !== 'string') {
             throw new ParameterError('A composer chart tile needs a chartSlug');
         }
@@ -98,15 +87,17 @@ export const resolveComposerChartTiles = (
             }
             keepable.set(chart.uuid, left - 1);
         }
-        return {
-            ...tile,
-            properties: {
-                title: tile.properties.title,
-                hideTitle: tile.properties.hideTitle,
-                chartSlug,
-                composerChartUuid: chart.uuid,
-                chartName: null,
-            },
-        } as DashboardTileWithSlug;
+        return [
+            {
+                ...tile,
+                properties: {
+                    title: tile.properties.title,
+                    hideTitle: tile.properties.hideTitle,
+                    chartSlug,
+                    composerChartUuid: chart.uuid,
+                    chartName: null,
+                },
+            } as DashboardTileWithSlug,
+        ];
     });
 };

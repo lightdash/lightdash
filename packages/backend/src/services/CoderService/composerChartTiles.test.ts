@@ -64,14 +64,8 @@ describe('composer chart tiles uploaded as code', () => {
         ]);
     });
 
-    it('reads a tile with a null slug as a tile whose chart is gone', () => {
-        expect(resolve([uploaded(null)])[0].properties).toEqual({
-            title: 'Orders',
-            hideTitle: false,
-            chartSlug: null,
-            composerChartUuid: null,
-            chartName: null,
-        });
+    it('leaves out a tile whose chart is gone, as downloads did before writing it', () => {
+        expect(resolve([uploaded(null), markdown])).toEqual([markdown]);
     });
 
     it('fails naming the slug when no composer chart has it', () => {

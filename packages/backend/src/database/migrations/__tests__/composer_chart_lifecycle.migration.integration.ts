@@ -393,7 +393,7 @@ describe('composer charts follow their dashboard on the real schema', () => {
 
     describe('a tile showing a space chart its dashboard does not own', () => {
         // Nothing writes such a tile yet, so the reference is inserted directly
-        const referenceFromLatestVersion = async (
+        const referenceFromVersion = async (
             dashboardVersionUuid: string,
             composerChartUuid: string,
         ) => {
@@ -424,11 +424,12 @@ describe('composer charts follow their dashboard on the real schema', () => {
             const { dashboard, composerChartUuid } =
                 await createDashboardWithChart();
             const spaceChartUuid = await createSpaceChart();
-            await referenceFromLatestVersion(
-                dashboard.versionUuid,
+            await referenceFromVersion(dashboard.versionUuid, spaceChartUuid);
+            return {
+                dashboard,
+                ownedChartUuid: composerChartUuid,
                 spaceChartUuid,
-            );
-            return { dashboard, owned: composerChartUuid, spaceChartUuid };
+            };
         };
 
         it('reads the tile with the chart name', async () => {
@@ -450,29 +451,29 @@ describe('composer charts follow their dashboard on the real schema', () => {
         });
 
         it('lists only the charts the dashboard owns', async () => {
-            const { dashboard, owned, spaceChartUuid } = await setUp();
+            const { dashboard, ownedChartUuid, spaceChartUuid } = await setUp();
 
             await expect(
                 composerChartModel.findOwnedByDashboard(dashboard.uuid, [
-                    owned,
+                    ownedChartUuid,
                     spaceChartUuid,
                 ]),
-            ).resolves.toEqual([owned]);
+            ).resolves.toEqual([ownedChartUuid]);
         });
 
         it('locks and reads rollback pipelines for owned charts only', async () => {
-            const { dashboard, owned, spaceChartUuid } = await setUp();
+            const { dashboard, ownedChartUuid, spaceChartUuid } = await setUp();
 
             const pipelines = await database.transaction((trx) =>
                 composerChartModel.lockRollbackPipelines(
                     dashboard.uuid,
-                    [owned, spaceChartUuid],
+                    [ownedChartUuid, spaceChartUuid],
                     dashboard.versionUuid,
                     trx,
                 ),
             );
 
-            expect(pipelines.map(({ uuid }) => uuid)).toEqual([owned]);
+            expect(pipelines.map(({ uuid }) => uuid)).toEqual([ownedChartUuid]);
         });
 
         it('leaves the space chart alive through orphan cleanup, soft delete and restore', async () => {

@@ -33,7 +33,10 @@ import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
-import { type ComposerChartModel } from '../../models/ComposerChartModel';
+import {
+    type ComposerChartModel,
+    type ComposerChartRollbackPipeline,
+} from '../../models/ComposerChartModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
@@ -269,9 +272,7 @@ const composerChartModel = {
     deleteOrphans: vi.fn(async () => {}),
     findOwnedByDashboard: vi.fn(async (): Promise<string[]> => []),
     lockRollbackPipelines: vi.fn(
-        async (): Promise<
-            { uuid: string; restored: unknown; current: unknown }[]
-        > => [],
+        async (): Promise<ComposerChartRollbackPipeline[]> => [],
     ),
     rollbackToDashboardVersion: vi.fn(async () => {}),
 };
@@ -3363,7 +3364,6 @@ describe('DashboardService', () => {
                     },
                 ],
             } as Dashboard);
-            // The lock reads the dashboard's own charts only
             composerChartModel.lockRollbackPipelines.mockResolvedValueOnce([
                 {
                     uuid: 'composer-chart-uuid',
