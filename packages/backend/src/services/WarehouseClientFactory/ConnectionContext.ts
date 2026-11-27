@@ -136,9 +136,7 @@ export const surfaceFromQueryContext = (
             return ConnectionSurface.SCHEDULE;
         case QueryExecutionContext.API:
         case QueryExecutionContext.CLI:
-            return ConnectionSurface.API;
         case QueryExecutionContext.DATA_APP:
-            // Same surface as API; DATA_APP only changes attribution
             return ConnectionSurface.API;
         case QueryExecutionContext.DATA_APP_SAMPLE:
             return ConnectionSurface.DATA_APP;
