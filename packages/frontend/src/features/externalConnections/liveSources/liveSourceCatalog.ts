@@ -25,6 +25,7 @@ import mixpanelIcon from './icons/mixpanel.svg';
 import posthogIcon from './icons/posthog.svg';
 import pylonIcon from './icons/pylon.svg';
 import salesforceIcon from './icons/salesforce.svg';
+import sentryIcon from './icons/sentry.svg';
 import shopifyIcon from './icons/shopify.svg';
 import stripeIcon from './icons/stripe.svg';
 import supabaseIcon from './icons/supabase.svg';
@@ -34,6 +35,7 @@ import iconClasses from './LiveSourceIcon.module.css';
 import { META_ADS_TOKEN_FORM } from './metaAdsConnection';
 import { PYLON_TOKEN_FORM } from './pylonConnection';
 import { STRIPE_TOKEN_FORM } from './stripeConnection';
+import { SENTRY_TOKEN_FORM } from './sentryConnection';
 import { type TokenLiveSourceForm } from './tokenLiveSource';
 
 /** How an admin connects a source, which decides the dialog it opens. */
@@ -86,6 +88,7 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.MIXPANEL]: mixpanelIcon,
     [ApiConnectorType.STRIPE]: stripeIcon,
     [ApiConnectorType.SUPABASE]: supabaseIcon,
+    [ApiConnectorType.SENTRY]: sentryIcon,
     [ApiConnectorType.HYDRA]: hydraIcon,
     shopify: shopifyIcon,
     jira: jiraIcon,
@@ -95,7 +98,7 @@ const ICONS: Record<string, string> = {
 const MONO_ICONS = new Set([githubIcon, attioIcon, unknownIcon]);
 
 /** Coloured marks too dark for a dark background, drawn white there, as the vendor does. */
-const WHITE_ON_DARK_ICONS = new Set([pylonIcon]);
+const WHITE_ON_DARK_ICONS = new Set([pylonIcon, sentryIcon]);
 
 export const getLiveSourceIconClass = (icon: string) => {
     if (MONO_ICONS.has(icon)) return iconClasses.mono;
@@ -121,6 +124,7 @@ const DISPLAY_ORDER = [
     ApiConnectorType.MIXPANEL,
     ApiConnectorType.STRIPE,
     ApiConnectorType.SUPABASE,
+    ApiConnectorType.SENTRY,
     ApiConnectorType.HYDRA,
 ] as const satisfies readonly ApiConnectorType[];
 
@@ -132,6 +136,7 @@ const TOKEN_FORMS: Partial<Record<ApiConnectorType, TokenLiveSourceForm>> = {
     [ApiConnectorType.ATTIO]: ATTIO_TOKEN_FORM,
     [ApiConnectorType.HUBSPOT]: HUBSPOT_TOKEN_FORM,
     [ApiConnectorType.STRIPE]: STRIPE_TOKEN_FORM,
+    [ApiConnectorType.SENTRY]: SENTRY_TOKEN_FORM,
     [ApiConnectorType.HYDRA]: HYDRA_TOKEN_FORM,
 };
 

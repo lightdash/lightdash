@@ -16596,6 +16596,7 @@
                     "mixpanel",
                     "stripe",
                     "supabase",
+                    "sentry",
                     "hydra"
                 ],
                 "type": "string"
@@ -16907,6 +16908,31 @@
                 "type": "object",
                 "description": "One table or view of a Supabase project, read through its Data API\n(PostgREST). The project URL is the connection's origin."
             },
+            "ApiConnectorType.SENTRY": {
+                "enum": ["sentry"],
+                "type": "string"
+            },
+            "SentryApiSource": {
+                "properties": {
+                    "projectSlugs": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Slugs of the only projects the source reads, such as an app's."
+                    },
+                    "organizationSlug": {
+                        "type": "string",
+                        "description": "The organization slug, as in https://<slug>.sentry.io."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.SENTRY"
+                    }
+                },
+                "required": ["projectSlugs", "organizationSlug", "connector"],
+                "type": "object",
+                "description": "The projects of a Sentry organization a source reads, with an internal\nintegration's token. The token reads every project of the organization,\nso the source names the ones it may read. The connection's origin says\nwhere the data lives."
+            },
             "ApiConnectorType.HYDRA": {
                 "enum": ["hydra"],
                 "type": "string"
@@ -17122,6 +17148,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/SupabaseApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SentryApiSource"
                     },
                     {
                         "$ref": "#/components/schemas/HydraApiSource"
@@ -81909,7 +81938,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.429.0",
+        "version": "3.430.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

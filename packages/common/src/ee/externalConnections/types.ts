@@ -84,6 +84,20 @@ export type SupabaseApiSource = {
     table: string;
 };
 
+/**
+ * The projects of a Sentry organization a source reads, with an internal
+ * integration's token. The token reads every project of the organization,
+ * so the source names the ones it may read. The connection's origin says
+ * where the data lives.
+ */
+export type SentryApiSource = {
+    connector: ApiConnectorType.SENTRY;
+    /** The organization slug, as in https://<slug>.sentry.io. */
+    organizationSlug: string;
+    /** Slugs of the only projects the source reads, such as an app's. */
+    projectSlugs: string[];
+};
+
 /** A Pylon workspace; the API token decides which one. */
 export type PylonApiSource = {
     connector: ApiConnectorType.PYLON;
@@ -254,6 +268,7 @@ export type ExternalConnectionApiSource =
     | MixpanelApiSource
     | StripeApiSource
     | SupabaseApiSource
+    | SentryApiSource
     | HydraApiSource;
 
 /** The settings of one integration's sources. */
@@ -352,6 +367,44 @@ export const isSupabaseOrigin = (origin: string) => {
     } catch {
         return false;
     }
+};
+
+/**
+ * Sentry's API, by where the organization's data lives. US organizations
+ * also answer on sentry.io, the host Sentry's API reference uses.
+ */
+export const SENTRY_ORIGIN = 'https://sentry.io';
+export const SENTRY_REGION_ORIGINS = {
+    us: 'https://us.sentry.io',
+    eu: 'https://de.sentry.io',
+} as const;
+
+/**
+ * An organization or project slug as Sentry writes it: lowercase letters,
+ * digits, dashes and underscores. Not digits only, which Sentry reads as an
+ * ID and not a name.
+ */
+export const isSentrySlug = (slug: string) =>
+    /^(?!\d+$)[a-z0-9][a-z0-9_-]{0,99}$/.test(slug);
+
+/** The most projects one source reads. */
+export const SENTRY_MAX_PROJECTS = 20;
+
+const getSentryOrganizationPath = (organizationSlug: string) =>
+    `/api/0/organizations/${organizationSlug}`;
+
+/**
+ * The organization endpoints a source reads; each takes a trailing slash.
+ * Each takes the projects to read as parameters. The list of the
+ * organization's projects is not one of them.
+ */
+export const getSentryPaths = (organizationSlug: string) => {
+    const organization = getSentryOrganizationPath(organizationSlug);
+    return {
+        events: `${organization}/events/`,
+        issues: `${organization}/issues/`,
+        sessions: `${organization}/sessions/`,
+    } as const;
 };
 
 /** Never resolves: Hydra answers in-process, so nothing is sent to it. */

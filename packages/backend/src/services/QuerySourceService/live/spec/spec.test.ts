@@ -115,6 +115,10 @@ describe('live integration specs', () => {
               "rating": "medium",
               "score": 3,
             },
+            "sentry": {
+              "rating": "easy",
+              "score": 7,
+            },
             "stripe": {
               "rating": "easy",
               "score": 7,

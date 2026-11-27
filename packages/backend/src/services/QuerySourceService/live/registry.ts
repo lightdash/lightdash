@@ -20,6 +20,7 @@ import { pylonIntegration } from './integrations/pylon';
 import { salesforceIntegration } from './integrations/salesforce';
 import { searchConsoleIntegration } from './integrations/searchConsole';
 import { stripeIntegration } from './integrations/stripe';
+import { sentryIntegration } from './integrations/sentry';
 import { supabaseIntegration } from './integrations/supabase';
 import { youtubeAnalyticsIntegration } from './integrations/youtubeAnalytics';
 import { type LiveIntegration } from './types';
@@ -44,6 +45,7 @@ const LIVE_INTEGRATIONS: {
     [ApiConnectorType.AMPLITUDE]: amplitudeIntegration,
     [ApiConnectorType.MIXPANEL]: mixpanelIntegration,
     [ApiConnectorType.SUPABASE]: supabaseIntegration,
+    [ApiConnectorType.SENTRY]: sentryIntegration,
     [ApiConnectorType.HYDRA]: hydraIntegration,
 };
 
