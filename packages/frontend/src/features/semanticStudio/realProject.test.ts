@@ -85,9 +85,9 @@ const explores: SummaryExplore[] = [
     }),
     summary('posthog_events', { type: ExploreType.API_SOURCE }),
     summary('posthog_2_events', { type: ExploreType.API_SOURCE }),
-    summary('stripe_charges', {
+    summary('shopify_orders', {
         type: ExploreType.API_SOURCE,
-        label: 'Stripe charges',
+        label: 'Shopify orders',
     }),
     summary('orders_rollup', { type: ExploreType.PRE_AGGREGATE }),
 ];
@@ -155,12 +155,12 @@ describe('buildRealProject', () => {
     });
 
     it('gives an unlisted live explore its own source, named after it', () => {
-        expect(sourceOf('stripe_charges')).toMatchObject({
-            id: 'live:stripe_charges',
+        expect(sourceOf('shopify_orders')).toMatchObject({
+            id: 'live:shopify_orders',
             kind: 'live',
-            name: 'Stripe charges',
+            name: 'Shopify orders',
         });
-        expect(sourceOf('stripe_charges')?.connectionUuid).toBeUndefined();
+        expect(sourceOf('shopify_orders')?.connectionUuid).toBeUndefined();
     });
 
     it('gives a live data source without explores its own page', () => {
@@ -224,7 +224,7 @@ describe('buildRealProject', () => {
             expect.arrayContaining([
                 'sales_targets',
                 'posthog_events',
-                'stripe_charges',
+                'shopify_orders',
             ]),
         );
         const csv = limited.sources.find(({ id }) => id === 'csv-1');

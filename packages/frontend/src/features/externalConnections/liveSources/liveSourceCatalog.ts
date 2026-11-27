@@ -33,6 +33,7 @@ import youtubeAnalyticsIcon from './icons/youtube-analytics.svg';
 import iconClasses from './LiveSourceIcon.module.css';
 import { META_ADS_TOKEN_FORM } from './metaAdsConnection';
 import { PYLON_TOKEN_FORM } from './pylonConnection';
+import { STRIPE_TOKEN_FORM } from './stripeConnection';
 import { type TokenLiveSourceForm } from './tokenLiveSource';
 
 /** How an admin connects a source, which decides the dialog it opens. */
@@ -83,10 +84,10 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.SALESFORCE]: salesforceIcon,
     [ApiConnectorType.AMPLITUDE]: amplitudeIcon,
     [ApiConnectorType.MIXPANEL]: mixpanelIcon,
+    [ApiConnectorType.STRIPE]: stripeIcon,
     [ApiConnectorType.SUPABASE]: supabaseIcon,
     [ApiConnectorType.HYDRA]: hydraIcon,
     shopify: shopifyIcon,
-    stripe: stripeIcon,
     jira: jiraIcon,
 };
 
@@ -118,6 +119,7 @@ const DISPLAY_ORDER = [
     ApiConnectorType.SALESFORCE,
     ApiConnectorType.AMPLITUDE,
     ApiConnectorType.MIXPANEL,
+    ApiConnectorType.STRIPE,
     ApiConnectorType.SUPABASE,
     ApiConnectorType.HYDRA,
 ] as const satisfies readonly ApiConnectorType[];
@@ -129,6 +131,7 @@ const TOKEN_FORMS: Partial<Record<ApiConnectorType, TokenLiveSourceForm>> = {
     [ApiConnectorType.PYLON]: PYLON_TOKEN_FORM,
     [ApiConnectorType.ATTIO]: ATTIO_TOKEN_FORM,
     [ApiConnectorType.HUBSPOT]: HUBSPOT_TOKEN_FORM,
+    [ApiConnectorType.STRIPE]: STRIPE_TOKEN_FORM,
     [ApiConnectorType.HYDRA]: HYDRA_TOKEN_FORM,
 };
 

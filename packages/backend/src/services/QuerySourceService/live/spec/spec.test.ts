@@ -115,6 +115,10 @@ describe('live integration specs', () => {
               "rating": "medium",
               "score": 3,
             },
+            "stripe": {
+              "rating": "easy",
+              "score": 7,
+            },
             "supabase": {
               "rating": "easy",
               "score": 7,

@@ -1,0 +1,125 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Stripe semantic layer > keeps its field ids stable 1`] = `
+[
+  {
+    "explore": "charges",
+    "fields": [
+      "stripe_charges_date",
+      "stripe_charges_week",
+      "stripe_charges_month",
+      "stripe_charges_created",
+      "stripe_charges_id",
+      "stripe_charges_status",
+      "stripe_charges_paid",
+      "stripe_charges_currency",
+      "stripe_charges_payment_method_type",
+      "stripe_charges_card_brand",
+      "stripe_charges_card_country",
+      "stripe_charges_failure_code",
+      "stripe_charges_customer_id",
+      "stripe_charges_disputed",
+      "stripe_charges_charge_count",
+      "stripe_charges_amount",
+      "stripe_charges_average_amount",
+      "stripe_charges_customer_count",
+    ],
+  },
+  {
+    "explore": "balance_transactions",
+    "fields": [
+      "stripe_balance_transactions_date",
+      "stripe_balance_transactions_week",
+      "stripe_balance_transactions_month",
+      "stripe_balance_transactions_id",
+      "stripe_balance_transactions_type",
+      "stripe_balance_transactions_reporting_category",
+      "stripe_balance_transactions_currency",
+      "stripe_balance_transactions_payout_id",
+      "stripe_balance_transactions_source_id",
+      "stripe_balance_transactions_transaction_count",
+      "stripe_balance_transactions_amount",
+      "stripe_balance_transactions_fee",
+      "stripe_balance_transactions_net",
+    ],
+  },
+  {
+    "explore": "disputes",
+    "fields": [
+      "stripe_disputes_date",
+      "stripe_disputes_week",
+      "stripe_disputes_month",
+      "stripe_disputes_id",
+      "stripe_disputes_charge_id",
+      "stripe_disputes_reason",
+      "stripe_disputes_status",
+      "stripe_disputes_currency",
+      "stripe_disputes_dispute_count",
+      "stripe_disputes_amount",
+    ],
+  },
+  {
+    "explore": "subscription_item_change_events",
+    "fields": [
+      "stripe_subscription_item_change_events_date",
+      "stripe_subscription_item_change_events_week",
+      "stripe_subscription_item_change_events_month",
+      "stripe_subscription_item_change_events_event_type",
+      "stripe_subscription_item_change_events_currency",
+      "stripe_subscription_item_change_events_product_id",
+      "stripe_subscription_item_change_events_price_id",
+      "stripe_subscription_item_change_events_customer_id",
+      "stripe_subscription_item_change_events_subscription_id",
+      "stripe_subscription_item_change_events_event_count",
+      "stripe_subscription_item_change_events_mrr_change",
+      "stripe_subscription_item_change_events_quantity_change",
+    ],
+  },
+  {
+    "explore": "subscriptions",
+    "fields": [
+      "stripe_subscriptions_id",
+      "stripe_subscriptions_status",
+      "stripe_subscriptions_price_id",
+      "stripe_subscriptions_customer_id",
+      "stripe_subscriptions_subscription_count",
+      "stripe_subscriptions_customer_count",
+    ],
+  },
+  {
+    "explore": "invoices",
+    "fields": [
+      "stripe_invoices_date",
+      "stripe_invoices_week",
+      "stripe_invoices_month",
+      "stripe_invoices_id",
+      "stripe_invoices_currency",
+      "stripe_invoices_subscription_id",
+      "stripe_invoices_invoice_count",
+      "stripe_invoices_subtotal",
+      "stripe_invoices_tax",
+      "stripe_invoices_total",
+      "stripe_invoices_amount_due",
+    ],
+  },
+]
+`;
+
+exports[`compile Stripe queries > compiles gross volume by month and currency, reading the last 90 days by default 1`] = `
+"SELECT "stripe_charges_month" AS c0, "stripe_charges_currency" AS c1, "stripe_charges_amount" AS c2
+FROM (
+SELECT
+  CAST(date_trunc('month', "stripe_charges".created) AS DATE) AS "stripe_charges_month",
+  "stripe_charges"."currency" AS "stripe_charges_currency",
+  SUM(CAST("stripe_charges".amount AS DOUBLE) / CASE WHEN lower("stripe_charges".currency) IN ('bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf') THEN 1 WHEN lower("stripe_charges".currency) IN ('bhd', 'jod', 'kwd', 'omr', 'tnd') THEN 1000 ELSE 100 END) AS "stripe_charges_amount"
+FROM "charges" AS "stripe_charges"
+
+WHERE ((
+  ((CAST("stripe_charges".created AS DATE)) >= CAST('2026-08-27' AS timestamp) AND (CAST("stripe_charges".created AS DATE)) <= CAST('2026-11-25' AS timestamp))
+) AND ((
+  ("stripe_charges"."status") IN ('succeeded')
+)))
+GROUP BY 1,2
+) AS live_query
+ORDER BY c0 ASC"
+`;
