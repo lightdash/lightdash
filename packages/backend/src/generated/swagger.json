@@ -32277,6 +32277,7 @@
                     "pythonRunner",
                     "multiSourceQuery",
                     "dataAppSample",
+                    "dataApp",
                     "desktop"
                 ],
                 "type": "string"
@@ -49046,6 +49047,10 @@
                         "format": "double",
                         "nullable": true
                     },
+                    "dataAppAnalysisTextMaxChars": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "dataAppContinueInAskAiEnabled": {
                         "type": "boolean"
                     },
@@ -54118,6 +54123,10 @@
             },
             "DataAppAnalysisLimits": {
                 "properties": {
+                    "textMaxChars": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "dailyPromptCap": {
                         "type": "number",
                         "format": "double",
@@ -54150,7 +54159,7 @@
                     "investigateMaxSteps"
                 ],
                 "type": "object",
-                "description": "Org-configurable ceilings for AI analysis in data apps. Per-run limits\nbound one investigation; daily caps bound model runs per organization per\nUTC day (null = no cap). On a Lightdash-managed key the daily caps cannot\nexceed the defaults."
+                "description": "Org-configurable ceilings for AI analysis in data apps. Per-run limits\nbound one investigation; daily caps bound model runs per organization per\nUTC day (null = no cap). `textMaxChars` bounds each prompt, analysis\ninstructions and instruction-button text. On a Lightdash-managed key the\ndaily caps and `textMaxChars` cannot exceed the defaults."
             },
             "AiOrgProviderModelVisibility": {
                 "properties": {
@@ -54406,6 +54415,9 @@
             },
             "ComputedAiOrganizationSettings": {
                 "properties": {
+                    "dataAppAnalysisTextMaxCharsConfigurable": {
+                        "type": "boolean"
+                    },
                     "aiAgentReviewsPausedByByok": {
                         "type": "boolean"
                     },
@@ -81824,7 +81836,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.421.0",
+        "version": "3.422.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

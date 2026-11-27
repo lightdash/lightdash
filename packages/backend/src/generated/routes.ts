@@ -30386,6 +30386,7 @@ const models: TsoaRoute.Models = {
             'pythonRunner',
             'multiSourceQuery',
             'dataAppSample',
+            'dataApp',
             'desktop',
         ],
     },
@@ -54086,6 +54087,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
+                dataAppAnalysisTextMaxChars: { dataType: 'double' },
                 dataAppContinueInAskAiEnabled: { dataType: 'boolean' },
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 visibleDataAppModels: {
@@ -59401,6 +59403,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                textMaxChars: { dataType: 'double' },
                 dailyPromptCap: {
                     dataType: 'union',
                     subSchemas: [
@@ -59750,6 +59753,9 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dataAppAnalysisTextMaxCharsConfigurable: {
+                    dataType: 'boolean',
+                },
                 aiAgentReviewsPausedByByok: { dataType: 'boolean' },
                 configurableModelOptions: {
                     dataType: 'union',

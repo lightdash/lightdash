@@ -1,3 +1,18 @@
+# [3.422.0](https://github.com/lightdash/lightdash/compare/3.421.0...3.422.0) (2026-11-27)
+
+
+### Bug Fixes
+
+* **analytics:** attribute data app queries to a dataApp context instead of api ([#33536](https://github.com/lightdash/lightdash/issues/33536)) ([2bf9d7a](https://github.com/lightdash/lightdash/commit/2bf9d7a4722d4b97ad7cf7530e3e41c7458061d1))
+
+
+### Features
+
+* **data-apps:** let orgs on their own AI key raise the AI analysis character limit ([#33531](https://github.com/lightdash/lightdash/issues/33531)) ([7b62deb](https://github.com/lightdash/lightdash/commit/7b62debdd324d3bfbbfcc55e053fee3bdb92d786))
+* **mcp:** composer query path hides classic query tools ([#33439](https://github.com/lightdash/lightdash/issues/33439)) ([7438a11](https://github.com/lightdash/lightdash/commit/7438a11bd725370fce29a4a313907e1eaf7ca895))
+* **mcp:** composer rules on the query tool and a query-pipelines skill ([#33436](https://github.com/lightdash/lightdash/issues/33436)) ([c895b83](https://github.com/lightdash/lightdash/commit/c895b83bf3c138c73b64436404e4a414f3b6d4d4))
+* **mcp:** query field descriptions say when to use each node kind ([#33442](https://github.com/lightdash/lightdash/issues/33442)) ([1d0096f](https://github.com/lightdash/lightdash/commit/1d0096f4b25489a4b506decfc2b7e198a9b01117))
+
 # [3.421.0](https://github.com/lightdash/lightdash/compare/3.420.9...3.421.0) (2026-11-27)
 
 
