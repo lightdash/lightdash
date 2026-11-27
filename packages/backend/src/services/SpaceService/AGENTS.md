@@ -113,8 +113,7 @@ set, `space_id` null) inherits the dashboard's grants, while a chart that merely
 explanation. Pass a `dashboard` or ownership-aware `chart` target for operations
 that stay within the owning dashboard; pass a `space` target at every
 boundary-crossing call site so grants never count (the `expectNoGrantRows` test
-guards those). See the `/ld-permissions` skill for the full rule and the
-grant-aware-vs-space-only site list.
+guards those).
 
 </importantToKnow>
 
@@ -123,7 +122,7 @@ grant-aware-vs-space-only site list.
 - Access resolver logic and tests: @packages/common/src/authorization/space/spaceAccessResolver.ts
 - Raw access queries: @packages/backend/src/models/SpacePermissionModel.ts
 - Legacy access queries (being replaced): @packages/backend/src/models/SpaceModel.ts (`_getSpaceAccess`, `getEffectiveSpaceAccess`)
-- CASL permission system: use `/ld-permissions` skill for full guide
+- CASL permission system: @packages/common/src/authorization/AGENTS.md
 - Service registration: @packages/backend/src/services/ServiceRepository.ts
 
 </links>
