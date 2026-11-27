@@ -12,17 +12,18 @@ import { homedir } from 'os';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { getLiveIntegration } from '../../../packages/backend/src/services/QuerySourceService/live/registry';
+import { getLiveLimits } from '../../../packages/backend/src/services/QuerySourceService/live/integration';
 import { getLiveAuthScore } from '../../../packages/backend/src/services/QuerySourceService/live/spec/auth';
 import { crossToolUseCases } from '../../../packages/backend/src/services/QuerySourceService/live/spec/crossToolUseCases';
 import type {
     LiveIntegrationKind,
     LiveIntegrationSpec,
+    LiveRateLimits,
 } from '../../../packages/backend/src/services/QuerySourceService/live/spec/types';
 
-type PageIntegration = Pick<
-    LiveIntegrationSpec,
-    'auth' | 'paging' | 'rateLimits' | 'useCases'
-> & {
+type PageIntegration = Pick<LiveIntegrationSpec, 'auth' | 'useCases'> & {
+    /** The rate-limit part of the integration's `query.limits`. */
+    rateLimits?: LiveRateLimits;
     name: string;
     label: string;
     kind: LiveIntegrationKind;
@@ -54,19 +55,16 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(homedir(), '.hydra');
 
 const toPageIntegration = (connector: ApiConnectorType): PageIntegration => {
-    const {
-        label,
-        kind,
-        spec: { auth, paging, rateLimits, useCases },
-    } = getLiveIntegration(connector);
+    const integration = getLiveIntegration(connector);
+    const { concurrentCalls, callsPerSecond, buckets, note } =
+        getLiveLimits(integration);
     return {
         name: connector,
-        label,
-        kind,
-        auth,
-        paging,
-        rateLimits,
-        useCases,
+        label: integration.label,
+        kind: integration.kind,
+        auth: integration.spec.auth,
+        rateLimits: { concurrentCalls, callsPerSecond, buckets, note },
+        useCases: integration.spec.useCases,
     };
 };
 

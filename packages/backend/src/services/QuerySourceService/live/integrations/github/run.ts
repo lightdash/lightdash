@@ -19,9 +19,10 @@ import {
 const LABEL = 'GitHub';
 
 /** Search reads 100 results a page and at most 1,000 in all. */
-const SEARCH_PAGE_SIZE = 100;
+export const GITHUB_SEARCH_PAGE_SIZE = 100;
 const SEARCH_RESULT_CAP = 1_000;
-export const GITHUB_SEARCH_MAX_PAGES = SEARCH_RESULT_CAP / SEARCH_PAGE_SIZE;
+export const GITHUB_SEARCH_MAX_PAGES =
+    SEARCH_RESULT_CAP / GITHUB_SEARCH_PAGE_SIZE;
 
 /**
  * The most rows one query can return: one fewer than search's 1,000, so
@@ -253,7 +254,7 @@ const runSearch = async ({
     const searchColumns = columns as SearchColumn[];
     const requestedRows = Math.min(limit, request.limit ?? limit);
     // Pages are numbered, so every page asks for the same size
-    const perPage = Math.min(SEARCH_PAGE_SIZE, requestedRows + 1);
+    const perPage = Math.min(GITHUB_SEARCH_PAGE_SIZE, requestedRows + 1);
     const { rows, hasMoreRows } = await readRowsWithinCap({
         label: LABEL,
         requestedRows,

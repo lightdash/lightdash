@@ -25,6 +25,7 @@ import {
     scanSupabaseTable,
     SUPABASE_MAX_PAGES,
     SUPABASE_MAX_QUERY_ROWS,
+    SUPABASE_PAGE_SIZE,
     supabaseRequestSchema,
     type SupabaseCatalog,
 } from './run';
@@ -102,25 +103,9 @@ export const supabaseIntegration = defineLiveIntegration({
             pushdown: ALL_PUSHDOWN_REFUSED,
         },
         limits: {
-            callsPerQuery: SUPABASE_MAX_PAGES,
             timeoutMs: 30_000,
             maxRows: SUPABASE_MAX_QUERY_ROWS,
-        },
-    },
-    spec: {
-        auth: {
-            description:
-                'No vendor review is needed. Reading the table list needs a secret or service_role key.',
-            testWith: 'test_account',
-            needs: ['gmail'],
-            token: true,
-            oauth: 'none',
-        },
-        paging: {
-            description:
-                "Rows come in pages set by limit and offset, up to the project's max rows per call (1,000 by default).",
-        },
-        rateLimits: {
+            pageSize: SUPABASE_PAGE_SIZE,
             concurrentCalls: 3,
             callsPerSecond: 5,
             buckets: [
@@ -132,6 +117,16 @@ export const supabaseIntegration = defineLiveIntegration({
                 },
             ],
             note: "Supabase documents no Data API rate limit; reads use the project's database compute.",
+        },
+    },
+    spec: {
+        auth: {
+            description:
+                'No vendor review is needed. Reading the table list needs a secret or service_role key.',
+            testWith: 'test_account',
+            needs: ['gmail'],
+            token: true,
+            oauth: 'none',
         },
         useCases: supabaseUseCases,
     },

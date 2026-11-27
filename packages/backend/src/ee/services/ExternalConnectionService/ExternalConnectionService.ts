@@ -122,6 +122,7 @@ import {
     isLiveExploreInUse,
     listLiveSourceFields,
 } from '../../../services/QuerySourceService/live/explores/fields';
+import { getLiveLimits } from '../../../services/QuerySourceService/live/integration';
 import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
 import {
     getLinkedInAdsAccountPath,
@@ -3116,11 +3117,9 @@ export class ExternalConnectionService extends BaseService {
     private static getDeclaredRateLimits(
         apiSource: ExternalConnectionApiSource,
     ): LiveRateLimits {
-        const integration = getLiveIntegration(apiSource.connector);
-        return (
-            integration.spec.rateLimitsFor?.(apiSource) ??
-            integration.spec.rateLimits
-        );
+        const { concurrentCalls, callsPerSecond, buckets, note, cardNote } =
+            getLiveLimits(getLiveIntegration(apiSource.connector), apiSource);
+        return { concurrentCalls, callsPerSecond, buckets, note, cardNote };
     }
 
     /** What the rate-limit gate limits for a live source: the lower of the integration's limits and the admin's. */
@@ -3194,9 +3193,7 @@ export class ExternalConnectionService extends BaseService {
         let callsThisQuery = 0;
         const integration = getLiveIntegration(apiSource.connector);
         const { label } = integration;
-        const {
-            query: { limits },
-        } = integration;
+        const limits = getLiveLimits(integration);
         const usage: LiveCallUsage = {
             apiCalls: 0,
             responseBytes: 0,

@@ -113,32 +113,10 @@ export const googleAdsIntegration = defineLiveIntegration({
             pushdown: ALL_PUSHDOWN_REFUSED,
         },
         limits: {
-            callsPerQuery: 1,
             timeoutMs: 60_000,
             maxRows: GOOGLE_ADS_MAX_QUERY_ROWS,
-        },
-        // GAQL ANDs one flat list of conditions, so OR and nested groups are
-        // refused. Dates are a finite range in the account's own time zone, and
-        // metric filters apply to the returned rows.
-        // Week, month and quarter already arrive as their first day
-        periodFormats: { [TimeFrames.YEAR]: 'year' },
-    },
-    spec: {
-        auth: {
-            description:
-                'Needs Google verification plus a Google Ads access level: Explorer, then Basic or Standard for real customer volume.',
-            testWith: 'paid_account',
-            needs: ['gmail', 'card'],
-            token: false,
-            oauth: 'needs_review',
-        },
-        paging: {
-            description:
-                'GAQL search returns results in pages of up to 10,000 rows.',
-        },
-        // Daily operations are shared by every connection of the server's Google
-        // client (2,880 at Explorer access), so one connection can't take them all.
-        rateLimits: {
+            // Daily operations are shared by every connection of the server's Google
+            // client (2,880 at Explorer access), so one connection can't take them all.
             concurrentCalls: 5,
             callsPerSecond: null,
             buckets: [
@@ -162,6 +140,21 @@ export const googleAdsIntegration = defineLiveIntegration({
                 },
             ],
             note: 'Daily operations count against our developer token, shared by every customer (2,880 at Explorer access).',
+        },
+        // GAQL ANDs one flat list of conditions, so OR and nested groups are
+        // refused. Dates are a finite range in the account's own time zone, and
+        // metric filters apply to the returned rows.
+        // Week, month and quarter already arrive as their first day
+        periodFormats: { [TimeFrames.YEAR]: 'year' },
+    },
+    spec: {
+        auth: {
+            description:
+                'Needs Google verification plus a Google Ads access level: Explorer, then Basic or Standard for real customer volume.',
+            testWith: 'paid_account',
+            needs: ['gmail', 'card'],
+            token: false,
+            oauth: 'needs_review',
         },
         useCases: googleAdsUseCases,
     },

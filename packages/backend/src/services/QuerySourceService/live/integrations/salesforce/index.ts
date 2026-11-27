@@ -141,24 +141,9 @@ export const salesforceIntegration = defineLiveIntegration({
             callsPerQuery: SALESFORCE_MAX_CALLS,
             timeoutMs: 60_000,
             maxRows: SALESFORCE_MAX_RECORD_ROWS,
-        },
-    },
-    spec: {
-        auth: {
-            description: 'No vendor review is needed.',
-            testWith: 'test_account',
-            needs: ['gmail'],
-            token: false,
-            oauth: 'no_review',
-        },
-        paging: {
-            description:
-                'Records come in batches of up to 2,000, followed by a next-records URL; aggregate queries return up to 2,000 groups.',
-        },
-        // Every call counts against the org's API calls per 24 hours (15,000 on
-        // Developer Edition, 100,000 and up on paid editions), which its other
-        // apps share. 500 an hour keeps one source under the smallest daily limit.
-        rateLimits: {
+            // Every call counts against the org's API calls per 24 hours (15,000 on
+            // Developer Edition, 100,000 and up on paid editions), which its other
+            // apps share. 500 an hour keeps one source under the smallest daily limit.
             concurrentCalls: 2,
             callsPerSecond: null,
             buckets: [
@@ -176,6 +161,15 @@ export const salesforceIntegration = defineLiveIntegration({
                 },
             ],
             note: "The org's daily API allowance is shared with its other apps.",
+        },
+    },
+    spec: {
+        auth: {
+            description: 'No vendor review is needed.',
+            testWith: 'test_account',
+            needs: ['gmail'],
+            token: false,
+            oauth: 'no_review',
         },
         useCases: salesforceUseCases,
     },

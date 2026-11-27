@@ -112,32 +112,10 @@ export const ga4Integration = defineLiveIntegration({
             pushdown: ALL_PUSHDOWN_REFUSED,
         },
         limits: {
-            callsPerQuery: 1,
             timeoutMs: 30_000,
             maxRows: GA4_MAX_QUERY_ROWS,
-        },
-        // runReport filters any field with AND, OR and NOT groups, and metrics
-        // too. Dates are one range in the property's time zone, which the API
-        // can't override, grouped by day, ISO week, month or year. Everything
-        // SQL-like is refused.
-        periodFormats: GA4_PERIOD_FORMATS,
-    },
-    spec: {
-        auth: {
-            description:
-                'Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',
-            testWith: 'test_account',
-            needs: ['gmail'],
-            token: false,
-            oauth: 'needs_review',
-        },
-        paging: {
-            description:
-                'One report call returns up to 250,000 rows; offset pages beyond that.',
-        },
-        // Standard properties allow 10 concurrent requests; reports spend hourly
-        // tokens per property, which Google enforces and reports back.
-        rateLimits: {
+            // Standard properties allow 10 concurrent requests; reports spend hourly
+            // tokens per property, which Google enforces and reports back.
             concurrentCalls: 5,
             callsPerSecond: null,
             buckets: [
@@ -155,6 +133,21 @@ export const ga4Integration = defineLiveIntegration({
                 },
             ],
             note: 'GA4 counts quota in tokens per property, not calls.',
+        },
+        // runReport filters any field with AND, OR and NOT groups, and metrics
+        // too. Dates are one range in the property's time zone, which the API
+        // can't override, grouped by day, ISO week, month or year. Everything
+        // SQL-like is refused.
+        periodFormats: GA4_PERIOD_FORMATS,
+    },
+    spec: {
+        auth: {
+            description:
+                'Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',
+            testWith: 'test_account',
+            needs: ['gmail'],
+            token: false,
+            oauth: 'needs_review',
         },
         useCases: ga4UseCases,
     },

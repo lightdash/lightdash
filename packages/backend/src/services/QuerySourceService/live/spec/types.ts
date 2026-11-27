@@ -1,4 +1,4 @@
-import { type ApiConnectorType, type ApiSourceOf } from '@lightdash/common';
+import { type ApiConnectorType } from '@lightdash/common';
 
 /** Where a tester gets real data; `unknown` when no way is known. */
 export type LiveAuthTestWith =
@@ -65,7 +65,7 @@ export type LiveRateLimitBucket = {
 };
 
 /**
- * One integration's rate limits, as data. The rate-limit gate charges every
+ * The rate-limit part of an integration's `limits`. The rate-limit gate charges every
  * bucket on every call, spaces calls by `callsPerSecond`, and caps calls in
  * flight at `concurrentCalls`.
  */
@@ -108,12 +108,6 @@ export type LiveIntegrationSpec<C extends ApiConnectorType = ApiConnectorType> =
             token: boolean;
             oauth: 'none' | 'no_review' | 'needs_review';
         };
-        /** How the vendor's API pages results and where it stops. */
-        paging: { description: string };
-        /** The vendor's rate limits, as limits one connection stays under. */
-        rateLimits: LiveRateLimits;
-        /** A source's own rate limits, when its settings set them; omitted, every source gets `rateLimits`. */
-        rateLimitsFor?: (settings: ApiSourceOf<C>) => LiveRateLimits;
         /** What people expect to ask it and build with it, and whether each is possible today. */
         useCases: LiveUseCases;
     };

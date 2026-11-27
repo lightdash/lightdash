@@ -103,26 +103,9 @@ export const youtubeAnalyticsIntegration = defineLiveIntegration({
             pushdown: ALL_PUSHDOWN_REFUSED,
         },
         limits: {
-            callsPerQuery: 1,
             timeoutMs: 30_000,
             maxRows: YOUTUBE_ANALYTICS_MAX_QUERY_ROWS,
-        },
-    },
-    spec: {
-        auth: {
-            description:
-                'Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',
-            testWith: 'real_account',
-            needs: ['gmail', 'invite'],
-            token: false,
-            oauth: 'needs_review',
-        },
-        paging: {
-            description:
-                'One report call; startIndex and maxResults page larger results.',
-        },
-        // Google publishes no per-minute figure for this API; these match GA4.
-        rateLimits: {
+            // Google publishes no per-minute figure for this API; these match GA4.
             concurrentCalls: 5,
             callsPerSecond: null,
             buckets: [
@@ -139,6 +122,16 @@ export const youtubeAnalyticsIntegration = defineLiveIntegration({
                     capacity: 1_000,
                 },
             ],
+        },
+    },
+    spec: {
+        auth: {
+            description:
+                'Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',
+            testWith: 'real_account',
+            needs: ['gmail', 'invite'],
+            token: false,
+            oauth: 'needs_review',
         },
         useCases: youtubeAnalyticsUseCases,
     },

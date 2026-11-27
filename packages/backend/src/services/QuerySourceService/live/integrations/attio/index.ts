@@ -15,7 +15,7 @@ import {
     getIsoDateInTimeZone,
     readRule,
 } from '../../sdk';
-import { ATTIO_MAX_PAGES, ATTIO_MAX_RECORDS } from './api';
+import { ATTIO_MAX_PAGES, ATTIO_MAX_RECORDS, ATTIO_PAGE_SIZE } from './api';
 import { isInternalAttioField } from './attributes';
 import { compileAttioQuery } from './compile';
 import { toAttioError } from './errors';
@@ -124,22 +124,9 @@ export const attioIntegration = defineLiveIntegration({
             callsPerQuery: ATTIO_MAX_PAGES + 1,
             timeoutMs: 30_000,
             maxRows: ATTIO_MAX_RECORDS,
-        },
-    },
-    spec: {
-        auth: {
-            description: 'No vendor review is needed.',
-            testWith: 'test_account',
-            needs: ['gmail'],
-            token: true,
-            oauth: 'no_review',
-        },
-        paging: {
-            description: 'Up to 500 records a page, with limit and offset.',
-        },
-        // Attio allows 100 reads a second per workspace, and scores list
-        // queries by their filters and sorts over a 10-second window.
-        rateLimits: {
+            pageSize: ATTIO_PAGE_SIZE,
+            // Attio allows 100 reads a second per workspace, and scores list
+            // queries by their filters and sorts over a 10-second window.
             concurrentCalls: 3,
             callsPerSecond: 50,
             buckets: [
@@ -157,6 +144,15 @@ export const attioIntegration = defineLiveIntegration({
                 },
             ],
             note: 'List queries are also scored by their filters and sorts over 10 seconds; Attio publishes no threshold.',
+        },
+    },
+    spec: {
+        auth: {
+            description: 'No vendor review is needed.',
+            testWith: 'test_account',
+            needs: ['gmail'],
+            token: true,
+            oauth: 'no_review',
         },
         useCases: attioUseCases,
     },

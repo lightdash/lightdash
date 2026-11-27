@@ -48,7 +48,7 @@ export type LiveIntegration<
     connection: LiveConnection<C>;
     model: LiveModel<C, Catalog>;
     query: LiveQuery<C, Request>;
-    spec: LiveIntegrationSpec<C>;
+    spec: LiveIntegrationSpec;
 };
 
 /** What an admin enters, what a source may call, and how its sign-in is checked. */
@@ -147,6 +147,8 @@ export type LiveQuery<
     toError: (response: LiveHttpResponse, settings: ApiSourceOf<C>) => Error;
     capabilities: LiveCapabilities;
     limits: LiveLimits;
+    /** A source's own limits, when its settings set them; omitted, every source gets `limits`. */
+    limitsFor?: (settings: ApiSourceOf<C>) => LiveLimits;
     /**
      * Time grains the API returns as compact periods (e.g. GA4's YYYYWW);
      * their columns are turned into the period's first day.
@@ -156,14 +158,20 @@ export type LiveQuery<
     warehouseSqlBuilder?: WarehouseSqlBuilder;
 };
 
-/** How much one query may read, and how long one call may run. Rate limits are in the spec's `rateLimits`. */
-export type LiveLimits = {
-    /** Calls one query may make; APIs that page need several. */
-    callsPerQuery: number;
+/**
+ * How much one query may do, then how fast a source may call the API. The
+ * query fields are ours; the rate limits are the vendor's, and an admin can
+ * lower them per source.
+ */
+export type LiveLimits = LiveRateLimits & {
     /** How long the API lets one call run before failing it. */
     timeoutMs: number;
     /** Most rows one query can return; named in the too-many-rows error. */
     maxRows: number;
+    /** Rows one call returns when the API pages; omitted when one call answers the query. */
+    pageSize?: number;
+    /** Calls one query may make. Omitted, the pages `maxRows` takes at `pageSize`, or 1. */
+    callsPerQuery?: number;
 };
 
 /**

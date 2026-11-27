@@ -29,10 +29,11 @@ const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.HYDRA];
 const LABEL = CATALOG.messageLabel;
 
 const LIMITS: LiveLimits = {
-    // Enough pages for the row cap at the smallest page size, 10
-    callsPerQuery: 51,
     timeoutMs: 30_000,
     maxRows: HYDRA_MAX_QUERY_ROWS,
+    // Enough pages for the row cap at the smallest page size, 10
+    callsPerQuery: 51,
+    ...getHydraDeclaredLimits(HYDRA_DEFAULT_SOURCE),
 };
 
 /**
@@ -105,6 +106,10 @@ export const hydraIntegration = defineLiveIntegration({
             pushdown: ALL_PUSHDOWN_REFUSED,
         },
         limits: LIMITS,
+        limitsFor: (settings) => ({
+            ...LIMITS,
+            ...getHydraDeclaredLimits(settings),
+        }),
     },
     spec: {
         auth: {
@@ -115,12 +120,6 @@ export const hydraIntegration = defineLiveIntegration({
             token: true,
             oauth: 'none',
         },
-        paging: {
-            description:
-                "One call returns up to 10,000 groups, or the source's pageSize, and says where the next page starts.",
-        },
-        rateLimits: getHydraDeclaredLimits(HYDRA_DEFAULT_SOURCE),
-        rateLimitsFor: getHydraDeclaredLimits,
         useCases: hydraUseCases,
     },
 });

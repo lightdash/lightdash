@@ -94,26 +94,9 @@ export const searchConsoleIntegration = defineLiveIntegration({
             pushdown: ALL_PUSHDOWN_REFUSED,
         },
         limits: {
-            callsPerQuery: 1,
             timeoutMs: 30_000,
             maxRows: SEARCH_CONSOLE_MAX_QUERY_ROWS,
-        },
-    },
-    spec: {
-        auth: {
-            description:
-                'Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',
-            testWith: 'real_account',
-            needs: ['gmail', 'invite'],
-            token: false,
-            oauth: 'needs_review',
-        },
-        paging: {
-            description:
-                'One call returns up to 25,000 rows; startRow pages beyond that.',
-        },
-        // Search Analytics allows 1,200 queries a minute per site and per user.
-        rateLimits: {
+            // Search Analytics allows 1,200 queries a minute per site and per user.
             concurrentCalls: 5,
             callsPerSecond: null,
             buckets: [
@@ -130,6 +113,16 @@ export const searchConsoleIntegration = defineLiveIntegration({
                     capacity: 20_000,
                 },
             ],
+        },
+    },
+    spec: {
+        auth: {
+            description:
+                'Needs Google verification of the scope; unverified apps show a warning screen and are capped at 100 users.',
+            testWith: 'real_account',
+            needs: ['gmail', 'invite'],
+            token: false,
+            oauth: 'needs_review',
         },
         useCases: searchConsoleUseCases,
     },

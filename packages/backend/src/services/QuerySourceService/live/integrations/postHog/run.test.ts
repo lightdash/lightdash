@@ -68,8 +68,7 @@ const connect = (response: LiveHttpResponse) => {
 describe('postHogIntegration run', () => {
     it('describes itself as an L5 HogQL integration', () => {
         expect(postHogIntegration.label).toBe('PostHog');
-        expect(postHogIntegration.query.limits).toEqual({
-            callsPerQuery: 1,
+        expect(postHogIntegration.query.limits).toMatchObject({
             timeoutMs: 45_000,
             maxRows: 49_999,
         });

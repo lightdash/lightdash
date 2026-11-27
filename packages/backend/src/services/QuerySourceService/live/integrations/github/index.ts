@@ -25,6 +25,7 @@ import {
 import {
     GITHUB_CALLS_PER_QUERY,
     GITHUB_MAX_QUERY_ROWS,
+    GITHUB_SEARCH_PAGE_SIZE,
     githubRequestSchema,
     runGithubQuery,
 } from './run';
@@ -121,23 +122,9 @@ export const githubIntegration = defineLiveIntegration({
             callsPerQuery: GITHUB_CALLS_PER_QUERY,
             timeoutMs: 30_000,
             maxRows: GITHUB_MAX_QUERY_ROWS,
-        },
-    },
-    spec: {
-        auth: {
-            description: 'No vendor review is needed.',
-            testWith: 'test_account',
-            needs: ['gmail', 'phone'],
-            token: true,
-            oauth: 'no_review',
-        },
-        paging: {
-            description:
-                'Search returns 100 results a page and stops at 1,000 results.',
-        },
-        // Search allows 30 calls a minute per token, the tightest of GitHub's
-        // limits; the REST API allows 5,000 an hour.
-        rateLimits: {
+            pageSize: GITHUB_SEARCH_PAGE_SIZE,
+            // Search allows 30 calls a minute per token, the tightest of GitHub's
+            // limits; the REST API allows 5,000 an hour.
             concurrentCalls: 3,
             callsPerSecond: null,
             buckets: [
@@ -155,6 +142,15 @@ export const githubIntegration = defineLiveIntegration({
                 },
             ],
             note: 'Search allows 30 calls a minute per token; REST allows 5,000 an hour.',
+        },
+    },
+    spec: {
+        auth: {
+            description: 'No vendor review is needed.',
+            testWith: 'test_account',
+            needs: ['gmail', 'phone'],
+            token: true,
+            oauth: 'no_review',
         },
         useCases: githubUseCases,
     },

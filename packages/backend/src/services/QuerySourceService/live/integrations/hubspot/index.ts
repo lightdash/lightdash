@@ -16,7 +16,7 @@ import {
     getIsoDateInTimeZone,
     readRule,
 } from '../../sdk';
-import { HUBSPOT_MAX_PAGES, HUBSPOT_MAX_ROWS } from './api';
+import { HUBSPOT_MAX_PAGES, HUBSPOT_MAX_ROWS, HUBSPOT_PAGE_SIZE } from './api';
 import { compileHubspotQuery } from './compile';
 import { toHubspotError } from './errors';
 import { HUBSPOT_EXPLORES } from './explores';
@@ -123,26 +123,11 @@ export const hubspotIntegration = defineLiveIntegration({
             pushdown: ALL_PUSHDOWN_REFUSED,
         },
         limits: {
-            callsPerQuery: HUBSPOT_MAX_PAGES,
             timeoutMs: 30_000,
             maxRows: HUBSPOT_MAX_ROWS,
-        },
-    },
-    spec: {
-        auth: {
-            description: 'No vendor review is needed.',
-            testWith: 'test_account',
-            needs: ['gmail', 'phone'],
-            token: true,
-            oauth: 'no_review',
-        },
-        paging: {
-            description:
-                'Search returns up to 200 records a page and stops at 10,000 results.',
-        },
-        // HubSpot allows about 5 searches a second per account, and private
-        // apps 100 to 190 calls per 10 seconds by plan.
-        rateLimits: {
+            pageSize: HUBSPOT_PAGE_SIZE,
+            // HubSpot allows about 5 searches a second per account, and private
+            // apps 100 to 190 calls per 10 seconds by plan.
             concurrentCalls: 5,
             callsPerSecond: 4,
             buckets: [
@@ -153,6 +138,15 @@ export const hubspotIntegration = defineLiveIntegration({
                     capacity: 10_000,
                 },
             ],
+        },
+    },
+    spec: {
+        auth: {
+            description: 'No vendor review is needed.',
+            testWith: 'test_account',
+            needs: ['gmail', 'phone'],
+            token: true,
+            oauth: 'no_review',
         },
         useCases: hubspotUseCases,
     },

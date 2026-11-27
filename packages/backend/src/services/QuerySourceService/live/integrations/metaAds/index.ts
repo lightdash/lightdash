@@ -19,6 +19,7 @@ import { META_ADS_DATE_FILTERS, META_ADS_NAME_FILTERS } from './filters';
 import {
     META_ADS_CALLS_PER_QUERY,
     META_ADS_MAX_QUERY_ROWS,
+    META_ADS_PAGE_SIZE,
     metaAdsRequestSchema,
     runMetaAdsQuery,
 } from './run';
@@ -98,21 +99,9 @@ export const metaAdsIntegration = defineLiveIntegration({
             callsPerQuery: META_ADS_CALLS_PER_QUERY,
             timeoutMs: 60_000,
             maxRows: META_ADS_MAX_QUERY_ROWS,
-        },
-    },
-    spec: {
-        auth: {
-            description:
-                'Needs Meta business verification and App Review for ads_read.',
-            testWith: 'paid_account',
-            needs: ['gmail', 'phone', 'card', 'real_person'],
-            token: true,
-            oauth: 'needs_review',
-        },
-        paging: { description: 'Insights pages results with cursors.' },
-        // Meta counts load per app and ad account and publishes no fixed number,
-        // so these stay well below what its best-practices page warns about.
-        rateLimits: {
+            pageSize: META_ADS_PAGE_SIZE,
+            // Meta counts load per app and ad account and publishes no fixed number,
+            // so these stay well below what its best-practices page warns about.
             concurrentCalls: 3,
             callsPerSecond: null,
             buckets: [
@@ -130,6 +119,16 @@ export const metaAdsIntegration = defineLiveIntegration({
                 },
             ],
             note: 'Meta scores load per app and ad account and publishes no fixed number.',
+        },
+    },
+    spec: {
+        auth: {
+            description:
+                'Needs Meta business verification and App Review for ads_read.',
+            testWith: 'paid_account',
+            needs: ['gmail', 'phone', 'card', 'real_person'],
+            token: true,
+            oauth: 'needs_review',
         },
         useCases: metaAdsUseCases,
     },

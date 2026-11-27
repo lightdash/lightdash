@@ -152,28 +152,11 @@ export const postHogIntegration = defineLiveIntegration({
             },
         },
         limits: {
-            callsPerQuery: 1,
             // PostHog can queue a query for 30s before running it for up to 10s.
             timeoutMs: 45_000,
             maxRows: POSTHOG_MAX_QUERY_ROWS,
-        },
-        warehouseSqlBuilder: POSTHOG_SQL_BUILDER,
-    },
-    spec: {
-        auth: {
-            description: 'No vendor review is needed.',
-            testWith: 'test_account',
-            needs: ['gmail'],
-            token: true,
-            oauth: 'no_review',
-        },
-        paging: {
-            description:
-                '100 rows by default; up to 50,000 rows per query with an explicit LIMIT.',
-        },
-        // PostHog's query API limits per PostHog project: 3 at once, 240 a
-        // minute, 2,400 an hour.
-        rateLimits: {
+            // PostHog's query API limits per PostHog project: 3 at once, 240 a
+            // minute, 2,400 an hour.
             concurrentCalls: 3,
             callsPerSecond: null,
             buckets: [
@@ -190,6 +173,16 @@ export const postHogIntegration = defineLiveIntegration({
                     capacity: 2_400,
                 },
             ],
+        },
+        warehouseSqlBuilder: POSTHOG_SQL_BUILDER,
+    },
+    spec: {
+        auth: {
+            description: 'No vendor review is needed.',
+            testWith: 'test_account',
+            needs: ['gmail'],
+            token: true,
+            oauth: 'no_review',
         },
         useCases: postHogUseCases,
     },

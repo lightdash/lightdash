@@ -13,6 +13,7 @@ import type {
     LiveCapabilities,
     LiveCatalog,
     LiveIntegration,
+    LiveLimits,
     LiveModel,
 } from './types';
 
@@ -81,6 +82,26 @@ export const describeLiveExplores = (
             ? model.discovery.withFields(definition, catalog)
             : definition,
     );
+
+/**
+ * A source's limits: its own when its settings set them, with
+ * `callsPerQuery` filled in from the pages `maxRows` takes.
+ */
+export const getLiveLimits = <C extends ApiConnectorType>(
+    integration: Pick<LiveIntegration<C>, 'query'>,
+    settings?: ApiSourceOf<C>,
+): LiveLimits & { callsPerQuery: number } => {
+    const limits =
+        settings && integration.query.limitsFor
+            ? integration.query.limitsFor(settings)
+            : integration.query.limits;
+    return {
+        ...limits,
+        callsPerQuery:
+            limits.callsPerQuery ??
+            (limits.pageSize ? Math.ceil(limits.maxRows / limits.pageSize) : 1),
+    };
+};
 
 /** Reads one query as compile writes it and as an agent may send it raw. */
 export const parseLiveRequest = <C extends ApiConnectorType>(

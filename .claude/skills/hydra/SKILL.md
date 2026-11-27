@@ -7,7 +7,7 @@ allowed-tools: Read, Edit, Write, Glob, Grep, Bash
 
 # hydra
 
-Every live integration carries a `kind` and a `spec` on its definition: `auth`, `paging`, `rateLimits` and `useCases`. The types are in `packages/backend/src/services/QuerySourceService/live/spec/types.ts`, and each integration's use cases are in `integrations/<name>/useCases.ts`. Each use case says whether it is `possible` today. Cases that span tools are in `spec/crossToolUseCases.ts`.
+Every live integration carries a `kind`, a `spec` (`auth` and `useCases`) and `query.limits`, which hold its rate limits. The types are in `packages/backend/src/services/QuerySourceService/live/spec/types.ts`, and each integration's use cases are in `integrations/<name>/useCases.ts`. Each use case says whether it is `possible` today. Cases that span tools are in `spec/crossToolUseCases.ts`.
 
 Every mode ends with an HTML page in `~/.hydra/`. Give the user its path. `hydra.sh` is in this folder; run it from anywhere in the checkout:
 
@@ -15,7 +15,7 @@ Every mode ends with an HTML page in `~/.hydra/`. Give the user its path. `hydra
 - `hydra.sh view` writes `~/.hydra/view.html`.
 - `hydra.sh render <page.json>` writes `~/.hydra/<mode>-<name>.html` from a page you wrote.
 
-A page is `{ mode, title, summary?, integrations: [...] }`. Each integration has the same shape as `specs` prints: `name`, `label`, `kind`, `auth`, `paging`, `rateLimits`, `useCases`. Write the JSON to the scratchpad, not into the repo.
+A page is `{ mode, title, summary?, integrations: [...] }`. Each integration has the same shape as `specs` prints: `name`, `label`, `kind`, `auth`, `rateLimits`, `useCases`. Write the JSON to the scratchpad, not into the repo.
 
 ## view
 

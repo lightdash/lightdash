@@ -18,10 +18,11 @@ import {
 const LABEL = 'Supabase';
 
 /** Supabase's default max-rows: the most rows one Data API call returns. */
-const PAGE_SIZE = 1_000;
+export const SUPABASE_PAGE_SIZE = 1_000;
 export const SUPABASE_MAX_PAGES = 5;
 /** One fewer than the pages hold, so reading every page detects a cut-off result. */
-export const SUPABASE_MAX_QUERY_ROWS = PAGE_SIZE * SUPABASE_MAX_PAGES - 1;
+export const SUPABASE_MAX_QUERY_ROWS =
+    SUPABASE_PAGE_SIZE * SUPABASE_MAX_PAGES - 1;
 
 const FILTER_OPERATORS = [
     'eq',
@@ -211,7 +212,7 @@ export const runSupabaseQuery = async ({
         label: LABEL,
         requestedRows,
         maxRows: SUPABASE_MAX_QUERY_ROWS,
-        pageSize: PAGE_SIZE,
+        pageSize: SUPABASE_PAGE_SIZE,
         maxPages: SUPABASE_MAX_PAGES,
         fetchPage: async ({ limit: pageLimit, cursor }) => {
             const offset = cursor ? Number(cursor) : 0;

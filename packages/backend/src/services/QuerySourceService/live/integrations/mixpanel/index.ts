@@ -112,25 +112,9 @@ export const mixpanelIntegration = defineLiveIntegration({
             callsPerQuery: MIXPANEL_CALLS_PER_QUERY,
             timeoutMs: 60_000,
             maxRows: MIXPANEL_MAX_QUERY_ROWS,
-        },
-    },
-    spec: {
-        auth: {
-            description:
-                'A service account (username and secret over HTTP Basic) added to the project; no vendor review. The Query API needs a Growth or Enterprise plan.',
-            testWith: 'paid_account',
-            needs: ['gmail', 'card'],
-            token: true,
-            oauth: 'none',
-        },
-        paging: {
-            description:
-                'No paging: segmentation returns up to 10,000 property values per call, funnels and retention every cohort and step at once.',
-        },
-        // Mixpanel allows 60 Query API calls an hour and 5 at once per project,
-        // shared with every other client. One call at a time and 40 an hour leave
-        // room for them.
-        rateLimits: {
+            // Mixpanel allows 60 Query API calls an hour and 5 at once per project,
+            // shared with every other client. One call at a time and 40 an hour leave
+            // room for them.
             concurrentCalls: 1,
             callsPerSecond: null,
             buckets: [
@@ -142,6 +126,16 @@ export const mixpanelIntegration = defineLiveIntegration({
                 },
             ],
             note: 'Mixpanel allows 60 queries an hour and 5 at once per project, shared with every other client; Lightdash keeps to 40 an hour.',
+        },
+    },
+    spec: {
+        auth: {
+            description:
+                'A service account (username and secret over HTTP Basic) added to the project; no vendor review. The Query API needs a Growth or Enterprise plan.',
+            testWith: 'paid_account',
+            needs: ['gmail', 'card'],
+            token: true,
+            oauth: 'none',
         },
         useCases: mixpanelUseCases,
     },

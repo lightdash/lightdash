@@ -21,14 +21,14 @@ import {
 const LABEL = 'Pylon';
 
 /** Search reads at most 1,000 records a page. */
-const PAGE_SIZE = 1_000;
+export const PYLON_PAGE_SIZE = 1_000;
 const MAX_PAGES = 10;
 
 /**
  * The most rows one query reads: one fewer than ten full pages, so reading
  * every page detects truncation.
  */
-export const PYLON_MAX_QUERY_ROWS = PAGE_SIZE * MAX_PAGES - 1;
+export const PYLON_MAX_QUERY_ROWS = PYLON_PAGE_SIZE * MAX_PAGES - 1;
 
 /** Account names are read 1,000 IDs a call, up to this many calls. */
 const MAX_NAME_CALLS = MAX_PAGES;
@@ -683,7 +683,7 @@ const findAccountIds = async (runtime: LiveRuntime, names: string[]) => {
         runtime,
         kind: 'accounts',
         filters: [{ field: 'name', operator: 'in', values: names }],
-        limit: PAGE_SIZE,
+        limit: PYLON_PAGE_SIZE,
         cursor: undefined,
     });
     return records.map((account) => (account as PylonAccount).id);
@@ -758,7 +758,7 @@ const readAccountNames = async (
     ids: string[],
 ): Promise<Map<string, string>> => {
     const values = new Map<string, string>();
-    const batches = chunk([...new Set(ids)], PAGE_SIZE);
+    const batches = chunk([...new Set(ids)], PYLON_PAGE_SIZE);
     if (batches.length > MAX_NAME_CALLS) {
         throw tooManyRowsError({ label: LABEL, maxRows: PYLON_MAX_QUERY_ROWS });
     }
@@ -768,7 +768,7 @@ const readAccountNames = async (
             runtime,
             kind: 'accounts',
             filters: [{ field: 'account_id', operator: 'in', values: batch }],
-            limit: PAGE_SIZE,
+            limit: PYLON_PAGE_SIZE,
             cursor: undefined,
         });
         records.forEach((record) => {
@@ -872,7 +872,7 @@ export const runPylonQuery = async ({
             label: LABEL,
             requestedRows: rowsToRead,
             maxRows: PYLON_MAX_QUERY_ROWS,
-            pageSize: Math.min(PAGE_SIZE, rowsToRead + 1),
+            pageSize: Math.min(PYLON_PAGE_SIZE, rowsToRead + 1),
             maxPages: MAX_PAGES,
             fetchPage: async ({ limit: pageLimit, cursor }) => {
                 const page = await searchPage({

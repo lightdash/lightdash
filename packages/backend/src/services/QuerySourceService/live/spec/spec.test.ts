@@ -24,7 +24,7 @@ describe('live integration specs', () => {
 
     test('rate limits are whole positive numbers with unique bucket ids', () => {
         const problems = INTEGRATIONS.flatMap(
-            ({ connector, spec: { rateLimits } }) => {
+            ({ connector, query: { limits: rateLimits } }) => {
                 const ids = rateLimits.buckets.map(({ id }) => id);
                 const counts = [
                     rateLimits.concurrentCalls,

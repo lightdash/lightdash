@@ -364,7 +364,9 @@ describe('Hydra through the shared engine', () => {
     });
 
     it('declares the vendor limits by default, its own, or none', () => {
-        expect(hydraIntegration.spec.rateLimitsFor?.(settingsWith())).toEqual({
+        expect(
+            hydraIntegration.query.limitsFor?.(settingsWith()),
+        ).toMatchObject({
             concurrentCalls: 2,
             callsPerSecond: null,
             buckets: [
@@ -383,7 +385,7 @@ describe('Hydra through the shared engine', () => {
             ],
         });
         expect(
-            hydraIntegration.spec.rateLimitsFor?.(
+            hydraIntegration.query.limitsFor?.(
                 settingsWith({
                     declaredLimits: {
                         concurrentCalls: 1,
@@ -394,7 +396,7 @@ describe('Hydra through the shared engine', () => {
                     },
                 }),
             ),
-        ).toEqual({
+        ).toMatchObject({
             concurrentCalls: 1,
             callsPerSecond: 5,
             buckets: [
@@ -407,7 +409,7 @@ describe('Hydra through the shared engine', () => {
             ],
         });
         expect(
-            hydraIntegration.spec.rateLimitsFor?.(
+            hydraIntegration.query.limitsFor?.(
                 settingsWith({ declaredLimits: null }),
             ),
         ).toMatchObject({ callsPerSecond: null, buckets: [] });

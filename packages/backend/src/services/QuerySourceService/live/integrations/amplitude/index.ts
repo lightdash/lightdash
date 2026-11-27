@@ -104,26 +104,10 @@ export const amplitudeIntegration = defineLiveIntegration({
             callsPerQuery: AMPLITUDE_CALLS_PER_QUERY,
             timeoutMs: 60_000,
             maxRows: AMPLITUDE_MAX_QUERY_ROWS,
-        },
-    },
-    spec: {
-        auth: {
-            description:
-                'A project API key and secret key, signed in with HTTP Basic; no vendor review. The free plan includes APIs.',
-            testWith: 'test_account',
-            needs: ['gmail'],
-            token: true,
-            oauth: 'none',
-        },
-        paging: {
-            description:
-                'No paging: each call returns every row, up to 1,000 group values by default and 20,000 at most.',
-        },
-        // Amplitude limits the cost of the queries running at once per project
-        // (a 61-day segmentation costs 600, and four of them were refused) and
-        // their cost per hour (days × conditions × query type). One call at a
-        // time stays under the first and leaves room for other clients.
-        rateLimits: {
+            // Amplitude limits the cost of the queries running at once per project
+            // (a 61-day segmentation costs 600, and four of them were refused) and
+            // their cost per hour (days × conditions × query type). One call at a
+            // time stays under the first and leaves room for other clients.
             concurrentCalls: 1,
             callsPerSecond: null,
             buckets: [
@@ -143,6 +127,16 @@ export const amplitudeIntegration = defineLiveIntegration({
             note: 'Amplitude limits query cost, not calls: 108,000 an hour, where one query costs days × conditions × a per-report factor, at least 10.',
             cardNote:
                 'Amplitude limits query cost, not requests, so a request limit reduces use but does not cap cost.',
+        },
+    },
+    spec: {
+        auth: {
+            description:
+                'A project API key and secret key, signed in with HTTP Basic; no vendor review. The free plan includes APIs.',
+            testWith: 'test_account',
+            needs: ['gmail'],
+            token: true,
+            oauth: 'none',
         },
         useCases: amplitudeUseCases,
     },

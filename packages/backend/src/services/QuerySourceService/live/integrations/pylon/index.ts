@@ -27,6 +27,7 @@ import {
 import {
     PYLON_CALLS_PER_QUERY,
     PYLON_MAX_QUERY_ROWS,
+    PYLON_PAGE_SIZE,
     pylonRequestSchema,
     runPylonQuery,
 } from './run';
@@ -107,22 +108,8 @@ export const pylonIntegration = defineLiveIntegration({
             callsPerQuery: PYLON_CALLS_PER_QUERY,
             timeoutMs: 30_000,
             maxRows: PYLON_MAX_QUERY_ROWS,
-        },
-    },
-    spec: {
-        auth: {
-            description: 'No vendor review is needed.',
-            testWith: 'real_account',
-            needs: ['gmail', 'invite'],
-            token: true,
-            oauth: 'none',
-        },
-        paging: {
-            description:
-                'Search returns up to 1,000 records a page, with a cursor.',
-        },
-        // Each search endpoint allows 120 calls a minute per workspace
-        rateLimits: {
+            pageSize: PYLON_PAGE_SIZE,
+            // Each search endpoint allows 120 calls a minute per workspace
             concurrentCalls: 3,
             callsPerSecond: 2,
             buckets: [
@@ -139,6 +126,15 @@ export const pylonIntegration = defineLiveIntegration({
                     capacity: 3_000,
                 },
             ],
+        },
+    },
+    spec: {
+        auth: {
+            description: 'No vendor review is needed.',
+            testWith: 'real_account',
+            needs: ['gmail', 'invite'],
+            token: true,
+            oauth: 'none',
         },
         useCases: pylonUseCases,
     },

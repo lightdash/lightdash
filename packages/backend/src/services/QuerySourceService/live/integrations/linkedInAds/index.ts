@@ -116,22 +116,6 @@ export const linkedInAdsIntegration = defineLiveIntegration({
             callsPerQuery: LINKEDIN_ADS_CALLS_PER_QUERY,
             timeoutMs: 60_000,
             maxRows: LINKEDIN_ADS_MAX_QUERY_ROWS,
-        },
-    },
-    spec: {
-        auth: {
-            description:
-                "Needs Advertising API approval: Development tier first, then Standard tier to read customers' ad accounts.",
-            testWith: 'paid_account',
-            needs: ['gmail', 'phone', 'card', 'real_person', 'vendor_approval'],
-            token: false,
-            oauth: 'needs_review',
-        },
-        paging: {
-            description:
-                'One adAnalytics call returns up to 15,000 rows, with no paging.',
-        },
-        rateLimits: {
             concurrentCalls: 5,
             callsPerSecond: null,
             buckets: [
@@ -149,6 +133,16 @@ export const linkedInAdsIntegration = defineLiveIntegration({
                 },
             ],
             note: 'LinkedIn shows its daily per-app and per-member limits only in the developer portal.',
+        },
+    },
+    spec: {
+        auth: {
+            description:
+                "Needs Advertising API approval: Development tier first, then Standard tier to read customers' ad accounts.",
+            testWith: 'paid_account',
+            needs: ['gmail', 'phone', 'card', 'real_person', 'vendor_approval'],
+            token: false,
+            oauth: 'needs_review',
         },
         useCases: linkedInAdsUseCases,
     },
