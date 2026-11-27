@@ -5,6 +5,7 @@ import {
     getHubspotSearchPath,
     HUBSPOT_OBJECTS,
     HUBSPOT_ORIGIN,
+    HUBSPOT_OWNERS_PATH,
     HUBSPOT_PIPELINE_OBJECTS,
     LIVE_INTEGRATION_CATALOG,
     ParameterError,
@@ -49,6 +50,7 @@ export const hubspotConnection: LiveConnection<ApiConnectorType.HUBSPOT> = {
             ...HUBSPOT_PIPELINE_OBJECTS.map((object) =>
                 readRule('GET', getHubspotPipelinesPath(object)),
             ),
+            readRule('GET', HUBSPOT_OWNERS_PATH),
         ],
     }),
     checkAuth: ({ type }) => {

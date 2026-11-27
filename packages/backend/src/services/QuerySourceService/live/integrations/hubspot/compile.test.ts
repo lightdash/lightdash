@@ -15,10 +15,15 @@ import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { HUBSPOT_MAX_ROWS } from './api';
 import { compileHubspotQuery } from './compile';
-import { HUBSPOT_DEAL_PROPERTIES } from './hubspot.fixtures';
+import {
+    HUBSPOT_DEAL_PROPERTIES,
+    HUBSPOT_OWNER_PROPERTIES,
+    HUBSPOT_OWNERS,
+} from './hubspot.fixtures';
 import {
     HUBSPOT_EXPLORES,
     isHubspotSystemField,
+    toHubspotOwnerLabels,
     withHubspotPropertyFields,
 } from './model';
 
@@ -218,6 +223,77 @@ describe('HubSpot fields', () => {
         expect(stage.aiHint).toContain('1 (Stage 1)');
         expect(stage.aiHint).toContain('20 (Stage 20)');
         expect(stage.aiHint).not.toContain('more');
+    });
+
+    it('names owners by full name, then email, adding the email when two share a name', () => {
+        expect(toHubspotOwnerLabels(HUBSPOT_OWNERS)).toEqual({
+            owners: {
+                '101': 'Ada Lovelace',
+                '102': 'Alex Kim (alex.one@example.com)',
+                '103': 'Alex Kim (alex.two@example.com)',
+                '104': 'noname@example.com',
+                '105': 'Grace Hopper',
+            },
+            teams: { '7': 'Sales', '8': 'Support' },
+        });
+        // Without the owners scope a scan reads none
+        expect(toHubspotOwnerLabels(undefined)).toEqual({
+            owners: {},
+            teams: {},
+        });
+        // An active owner listed again as archived keeps the active name
+        expect(
+            toHubspotOwnerLabels([
+                { id: '1', firstName: 'Now' },
+                { id: '1', firstName: 'Then', archived: true },
+                { email: 'no-id@example.com' },
+            ]).owners,
+        ).toEqual({ '1': 'Now' });
+    });
+
+    it('adds a name field next to owner and team properties, custom owner ones included', () => {
+        const byName = Object.fromEntries(
+            withHubspotPropertyFields(
+                DEALS_EXPLORE,
+                HUBSPOT_OWNER_PROPERTIES,
+                toHubspotOwnerLabels(HUBSPOT_OWNERS),
+            ).dimensions.map((dimension) => [dimension.name, dimension]),
+        );
+        expect(byName.hubspot_owner_id).toMatchObject({
+            apiName: 'hubspot_owner_id',
+            label: 'Deal owner (internal value)',
+        });
+        expect(byName.hubspot_owner_id.aiHint).toBe(
+            'Values are HubSpot owner IDs; the "Deal owner" field shows names.',
+        );
+        expect(byName.hubspot_owner_id_label).toMatchObject({
+            apiName: 'hubspot_owner_id:label',
+            label: 'Deal owner',
+            description:
+                'Deal owner as HubSpot shows it, using the name rather than the ID.',
+            valueLabels: toHubspotOwnerLabels(HUBSPOT_OWNERS).owners,
+        });
+        expect(byName.hubspot_owner_id_label.aiHint).toContain(
+            'Filter with these labels: Ada Lovelace, Alex Kim (alex.one@example.com)',
+        );
+        expect(byName.account_manager_label.valueLabels).toEqual(
+            byName.hubspot_owner_id_label.valueLabels,
+        );
+        expect(byName.hubspot_team_id_label).toMatchObject({
+            apiName: 'hubspot_team_id:label',
+            label: 'HubSpot Team',
+            valueLabels: { '7': 'Sales', '8': 'Support' },
+        });
+    });
+
+    it('keeps owner IDs alone when the scan read no owners', () => {
+        const names = withHubspotPropertyFields(
+            DEALS_EXPLORE,
+            HUBSPOT_OWNER_PROPERTIES,
+        ).dimensions.map(({ name }) => name);
+        expect(names).toContain('hubspot_owner_id');
+        expect(names).not.toContain('hubspot_owner_id_label');
+        expect(names).not.toContain('hubspot_team_id_label');
     });
 
     it('keeps the declared fields when the list is unreadable', () => {
@@ -555,6 +631,58 @@ describe('compileHubspotQuery label fields', () => {
                 propertyName: 'dealstage',
                 operator: 'IN',
                 values: ['closedwon', 'appointmentscheduled'],
+            },
+        ]);
+    });
+
+    it('filters by a label as every value that has it, such as stages named alike in two pipelines', () => {
+        const stages = withHubspotPropertyFields(DEALS_EXPLORE, {
+            results: [
+                {
+                    name: 'dealstage',
+                    label: 'Deal Stage',
+                    type: 'enumeration',
+                    options: [
+                        { value: 'closedwon', label: 'Closed Won' },
+                        { value: '1234', label: 'Closed Won' },
+                        { value: 'lost', label: 'Closed Lost' },
+                    ],
+                },
+            ],
+        });
+        const explore = buildLiveExplore({
+            definition: stages,
+            exploreName: 'hubspot_deals',
+            label: 'HubSpot deals',
+            connectionUuid: 'connection-uuid',
+            integration: ApiConnectorType.HUBSPOT,
+            baseVersion: 1,
+            capabilities: hubspotIntegration.query.capabilities,
+            warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                SupportedDbtAdapter.DUCKDB,
+            ),
+        });
+        expect(
+            JSON.parse(
+                compileHubspotQuery({
+                    explore,
+                    metricQuery: query({
+                        dimensions: [field('dealstage_label')],
+                        ...filtered(
+                            rule('dealstage_label', FilterOperator.NOT_EQUALS, [
+                                'closed won',
+                            ]),
+                        ),
+                    }),
+                    today: '2026-11-27',
+                }).query,
+            ).filters,
+        ).toEqual([
+            {
+                propertyName: 'dealstage',
+                operator: 'NOT_IN',
+                // Numeric IDs come first, as JavaScript orders object keys
+                values: ['1234', 'closedwon'],
             },
         ]);
     });

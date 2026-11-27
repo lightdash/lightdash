@@ -202,3 +202,78 @@ export const HUBSPOT_TICKET_PIPELINES = {
         },
     ],
 };
+
+/** Owner and team properties as HubSpot lists them: no options, just IDs. */
+export const HUBSPOT_OWNER_PROPERTIES = {
+    results: [
+        {
+            name: 'hubspot_owner_id',
+            label: 'Deal owner',
+            type: 'enumeration',
+            fieldType: 'select',
+            description: 'User the deal is assigned to.',
+            hidden: false,
+            options: [],
+            externalOptions: true,
+            referencedObjectType: 'OWNER',
+        },
+        {
+            name: 'account_manager',
+            label: 'Account manager',
+            type: 'enumeration',
+            fieldType: 'select',
+            hidden: false,
+            options: [],
+            externalOptions: true,
+            referencedObjectType: 'OWNER',
+        },
+        {
+            name: 'hubspot_team_id',
+            label: 'HubSpot Team',
+            type: 'enumeration',
+            fieldType: 'select',
+            hidden: false,
+            options: [],
+        },
+    ],
+};
+
+/** Owners as /crm/v3/owners returns them, active then archived. */
+export const HUBSPOT_OWNERS = [
+    {
+        id: '101',
+        email: 'ada@example.com',
+        type: 'PERSON',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        userId: 9001,
+        archived: false,
+        teams: [{ id: '7', name: 'Sales', primary: true }],
+    },
+    {
+        id: '102',
+        email: 'alex.one@example.com',
+        firstName: 'Alex',
+        lastName: 'Kim',
+        archived: false,
+        teams: [],
+    },
+    {
+        id: '103',
+        email: 'alex.two@example.com',
+        firstName: 'Alex',
+        lastName: 'Kim',
+        archived: false,
+    },
+    { id: '104', email: 'noname@example.com', firstName: '', lastName: '' },
+    {
+        id: '105',
+        email: 'grace@example.com',
+        firstName: 'Grace',
+        lastName: 'Hopper',
+        userId: null,
+        userIdIncludingInactive: 9005,
+        archived: true,
+        teams: [{ id: '8', name: 'Support', primary: true }],
+    },
+];
