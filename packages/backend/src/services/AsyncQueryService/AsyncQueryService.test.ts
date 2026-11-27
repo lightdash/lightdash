@@ -33739,6 +33739,12 @@ describe('bound composer chart runs', () => {
         dashboardUuid: 'dashboard-uuid',
         tileUuid: 'tile-uuid',
     };
+    // No writer yet: the stamp a run from the composer chart page will leave
+    const chartPageStamp = {
+        composerChartUuid: 'composer-chart-uuid',
+        dashboardUuid: null,
+        tileUuid: null,
+    };
     const flagsOff = {
         get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
             id: featureFlagId,
@@ -33948,38 +33954,71 @@ describe('bound composer chart runs', () => {
         );
     });
 
-    test('a stamped row is readable only while its reader can view the chart', async () => {
-        const account = viewer();
-        const assertCanView = vi.fn(async () => undefined);
-        const service = getMockedAsyncQueryService(lightdashConfigMock, {
-            getComposerChartService: () => ({ assertCanView }),
-            queryHistoryModel: {
-                get: vi.fn(async () => ({
-                    ...referenced,
-                    status: QueryHistoryStatus.ERROR,
-                    error: 'node error',
-                })),
-                getDuckdbExecution: vi.fn(async () => null),
-            } as unknown as QueryHistoryModel,
-        } as never);
-        const read = () =>
-            service.getAsyncQueryResults({
+    test.each([
+        ['a tile', stamp],
+        ['outside a dashboard', chartPageStamp],
+    ])(
+        'a row stamped %s is readable and streamable only while its reader can view the chart',
+        async (_where, rowStamp) => {
+            const account = viewer();
+            const assertCanView = vi.fn(async () => undefined);
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                getComposerChartService: () => ({ assertCanView }),
+                queryHistoryModel: {
+                    get: vi.fn(async () => ({
+                        ...referenced,
+                        requestParameters: { composerChartSource: rowStamp },
+                        status: QueryHistoryStatus.ERROR,
+                        error: 'node error',
+                    })),
+                    getDuckdbExecution: vi.fn(async () => null),
+                } as unknown as QueryHistoryModel,
+            } as never);
+            const args = {
                 account,
                 projectUuid,
                 queryUuid: referenced.queryUuid,
-            });
+            };
 
-        await expect(read()).resolves.toMatchObject({
-            status: QueryHistoryStatus.ERROR,
-            error: 'node error',
-        });
-        expect(assertCanView).toHaveBeenCalledWith(
+            await expect(
+                service.getAsyncQueryResults(args),
+            ).resolves.toMatchObject({
+                status: QueryHistoryStatus.ERROR,
+                error: 'node error',
+            });
+            expect(assertCanView).toHaveBeenCalledWith(
+                account,
+                projectUuid,
+                rowStamp.composerChartUuid,
+            );
+            const revoked = new ForbiddenError('Dashboard access revoked');
+            assertCanView.mockRejectedValue(revoked);
+            await expect(service.getAsyncQueryResults(args)).rejects.toBe(
+                revoked,
+            );
+            await expect(service.getResultsStream(args)).rejects.toBe(revoked);
+        },
+    );
+
+    test('a node run outside a dashboard records no tile on query.completed', async () => {
+        const account = viewer();
+        const service = derivedService(account);
+        const binding = bindingFor(account);
+        Object.defineProperty(binding, 'stamp', { value: chartPageStamp });
+        await service.executeAsyncComposeSqlQuery({
             account,
             projectUuid,
-            stamp.composerChartUuid,
+            context: QueryExecutionContext.COMPOSER_CHART_VIEW,
+            sql: 'SELECT one FROM orders',
+            references: { orders: referenced.queryUuid },
+            authority: { kind: 'composer', binding },
+        });
+        expect(storedRequest(service).composerChartSource).toEqual(
+            chartPageStamp,
         );
-        const revoked = new ForbiddenError('Dashboard access revoked');
-        assertCanView.mockRejectedValue(revoked);
-        await expect(read()).rejects.toBe(revoked);
+        expect(storedRequest(service).queryUsage).toMatchObject({
+            chartKind: 'composer_chart',
+            dashboardTileId: null,
+        });
     });
 });

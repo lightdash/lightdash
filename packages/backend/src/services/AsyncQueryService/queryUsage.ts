@@ -38,6 +38,7 @@ export const queryWorkloadOrigin = (
         case QueryExecutionContext.CHART:
         case QueryExecutionContext.CHART_HISTORY:
         case QueryExecutionContext.SQL_CHART:
+        case QueryExecutionContext.COMPOSER_CHART_VIEW:
         case QueryExecutionContext.SQL_RUNNER:
         case QueryExecutionContext.COMPOSE_SQL_RUNNER:
         case QueryExecutionContext.PYTHON_RUNNER:

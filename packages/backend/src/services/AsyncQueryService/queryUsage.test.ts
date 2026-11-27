@@ -19,6 +19,7 @@ describe('Query activity attribution', () => {
     afterEach(() => vi.useRealTimers());
     it.each([
         [QueryExecutionContext.DASHBOARD, 'interactive'],
+        [QueryExecutionContext.COMPOSER_CHART_VIEW, 'interactive'],
         [QueryExecutionContext.AUTOREFRESHED_DASHBOARD, 'autorefresh'],
         [QueryExecutionContext.SCHEDULED_DELIVERY, 'scheduled'],
         [QueryExecutionContext.SCHEDULED_GSHEETS_CHART, 'scheduled'],

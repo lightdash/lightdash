@@ -10,6 +10,7 @@ export const queryContextNames: Record<QueryExecutionContext, string> = {
     [QueryExecutionContext.CHART]: 'Chart view',
     [QueryExecutionContext.CHART_HISTORY]: 'Chart history',
     [QueryExecutionContext.SQL_CHART]: 'SQL chart view',
+    [QueryExecutionContext.COMPOSER_CHART_VIEW]: 'Composer chart view',
     [QueryExecutionContext.SQL_RUNNER]: 'SQL runner',
     [QueryExecutionContext.VIEW_UNDERLYING_DATA]: 'View underlying data',
     [QueryExecutionContext.ALERT]: 'Alert',
