@@ -7416,6 +7416,7 @@ const models: TsoaRoute.Models = {
                     array: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
+                            formatOptions: { ref: 'CustomFormat' },
                             format: { ref: 'Format' },
                             position: { dataType: 'string' },
                             label: { dataType: 'string' },

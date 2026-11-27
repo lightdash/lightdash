@@ -1,3 +1,10 @@
+# [3.426.0](https://github.com/lightdash/lightdash/compare/3.425.0...3.426.0) (2026-11-27)
+
+
+### Features
+
+* **sql-runner:** currency and custom number formats on chart y-axes ([#33266](https://github.com/lightdash/lightdash/issues/33266)) ([33ed0f6](https://github.com/lightdash/lightdash/commit/33ed0f675a9a36239be951c8bcb6b9e53388890f)), closes [#11544](https://github.com/lightdash/lightdash/issues/11544)
+
 # [3.425.0](https://github.com/lightdash/lightdash/compare/3.424.0...3.425.0) (2026-11-27)
 
 
