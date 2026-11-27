@@ -23,8 +23,8 @@ import {
     PIERRE_POOL_OPTIONS,
     pierreThemeFor,
 } from '../writeback/pierreDiffConfig';
-import { countFieldLines, findFieldBlock } from './modelCode';
 import { createEditor, MOD_KEY } from './pierreEditor';
+import { findModelField } from './protoFiles';
 import { keep, readUnsaved } from './protoUnsaved';
 import { readProperty, writeProperty } from './protoYaml';
 import { type SourcesTarget } from './SourcesView';
@@ -70,12 +70,14 @@ const indentOf = (line: string) => line.length - line.trimStart().length;
 // The field's own lines from its file, typed into where the field is and saved back into the file
 const FieldCodeEditor: FC<{
     fieldName: string;
+    /** The model the field belongs to, which a shared YAML file needs to tell it from its namesakes. */
+    modelName: string;
     /** Names this field's unsaved typing across the page. */
     draftKey: string;
     source: Source;
     words: FieldWord[];
     actions: ReactNode;
-}> = ({ fieldName, draftKey, source, words, actions }) => {
+}> = ({ fieldName, modelName, draftKey, source, words, actions }) => {
     const colorScheme = useComputedColorScheme('light');
     const [text, setTextOnly] = useState<string | null>(
         () => readUnsaved(draftKey)?.text ?? null,
@@ -105,12 +107,14 @@ const FieldCodeEditor: FC<{
         return () => window.clearTimeout(timer);
     }, [text, seed, typing]);
     const { content } = source;
-    const block = content ? findFieldBlock(content, fieldName) : null;
+    const block = content
+        ? findModelField(content, modelName, fieldName)
+        : null;
     if (!content || !block) {
         return <ReadOnlyWords words={words} note={null} />;
     }
     // A name defined twice in one file, such as a column in two models, cannot be told apart here
-    if (countFieldLines(content, fieldName) > 1) {
+    if (block.count > 1) {
         return (
             <ReadOnlyWords
                 words={words}
@@ -329,6 +333,7 @@ const DbtFieldCode: FC<{
     fieldName: string;
     path: string;
     edit: DbtEdit;
+    modelName: string;
     draftKey: string;
     words: FieldWord[];
     actions: ReactNode;
@@ -336,6 +341,7 @@ const DbtFieldCode: FC<{
     fieldName,
     path,
     edit: { target, onSaved },
+    modelName,
     draftKey,
     words,
     actions,
@@ -350,6 +356,7 @@ const DbtFieldCode: FC<{
     return (
         <FieldCodeEditor
             fieldName={fieldName}
+            modelName={modelName}
             draftKey={draftKey}
             words={words}
             actions={actions}
@@ -408,6 +415,7 @@ const DraftFieldCode: FC<{
     return (
         <FieldCodeEditor
             fieldName={fieldName}
+            modelName={modelName}
             draftKey={draftKey}
             words={words}
             actions={actions}
@@ -510,6 +518,7 @@ export const ProtoFieldCode: FC<{
             fieldName={fieldName}
             path={path}
             edit={dbt}
+            modelName={modelName}
             draftKey={`${draftScope}:${fieldName}`}
             words={words}
             actions={actions}

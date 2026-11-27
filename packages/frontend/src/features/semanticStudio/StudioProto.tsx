@@ -31,6 +31,7 @@ import { AiMarkdown } from '../../components/common/AiMarkdown';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import TruncatedText from '../../components/common/TruncatedText';
+import useHealth from '../../hooks/health/useHealth';
 import { useTableFields } from '../sqlRunner/hooks/useTableFields';
 import { AddSourceButton } from './AddSourceButton';
 import { CodeSnippet } from './CodeSnippet';
@@ -38,9 +39,10 @@ import { DraftMarksContext } from './draftMarks';
 import { KindTypeIcon } from './KindTypeIcon';
 import { LineCounts } from './LineCounts';
 import { getExplore, getSource, type Explore, type Field } from './model';
-import { CHANGE_KIND_LABELS, findFieldBlock } from './modelCode';
+import { CHANGE_KIND_LABELS, VIEW_PARAM } from './modelCode';
 import { MOD_KEY } from './pierreEditor';
 import { ProtoFieldCode, type DbtEdit, type FieldWord } from './ProtoFieldCode';
+import { findModelField, useModelFiles } from './protoFiles';
 import { ProtoFileSearchContext, protoPlace } from './protoFlag';
 import { useUnsavedFields } from './protoUnsaved';
 import { FieldTypeIcon, NodeIcon } from './shared';
@@ -48,14 +50,14 @@ import { useAddToStudioChat } from './studioChatRefs';
 import classes from './StudioProto.module.css';
 import { useCatalogTables } from './useCatalogTables';
 import { useExploreFields } from './useExploreFields';
-import { useKeepsSemanticLayerDraft } from './useSemanticLayerModel';
+import {
+    useAppliesAsPullRequest,
+    useKeepsSemanticLayerDraft,
+    useSemanticLayerModel,
+} from './useSemanticLayerModel';
 import { type ViewModel } from './useSemanticStudio';
 import { findCheckedOutModel, useStudioCheckout } from './useStudioCheckout';
-import {
-    modelNameOfSourcePath,
-    SOURCE_PARAM,
-    useStudioSources,
-} from './useStudioSources';
+import { SOURCE_PARAM, useStudioSources } from './useStudioSources';
 import railClasses from './WorkbenchRail.module.css';
 
 const selectedExploreId = (view: ViewModel) =>
@@ -150,9 +152,17 @@ type RailProps = {
     codeFiles: ReactNode | null;
     /** On a project that keeps its YAML in the app: the models that have a file there. Ones deployed from outside have none. */
     appFiles: string[];
+    /** The model whose code is open, when the code view is. */
+    codeModel: string | null;
 };
 
-const Rail: FC<RailProps & { repoFiles: string[] | null }> = ({
+const Rail: FC<
+    RailProps & {
+        repoFiles: string[] | null;
+        /** The open model's files in a repository, found by its real paths. */
+        openFiles: string[];
+    }
+> = ({
     view,
     openTable,
     onOpenTable,
@@ -163,26 +173,22 @@ const Rail: FC<RailProps & { repoFiles: string[] | null }> = ({
     counts,
     codeFiles,
     appFiles,
+    codeModel,
     repoFiles,
+    openFiles,
 }) => {
     const drafted = useContext(DraftMarksContext).kinds;
     const { schemas: catalog, isModelled } = useCatalogTables(view.project.id);
     const [search, setSearch] = useState('');
     const [toggled, setToggled] = useState<Record<string, boolean>>({});
     const query = search.trim().toLowerCase();
-    const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
     // The model whose page or file is open; its files show under it
     const openExplore =
         openTable !== null
             ? null
             : openFile
-              ? (view.project.explores.find(
-                    ({ name }) =>
-                        name ===
-                        (keepsDraft
-                            ? openFile.replace(/\.yml$/, '')
-                            : modelNameOfSourcePath(openFile)),
-                )?.id ?? null)
+              ? (view.project.explores.find(({ name }) => name === codeModel)
+                    ?.id ?? null)
               : selectedExploreId(view);
     const models = view.project.explores
         .filter(
@@ -224,36 +230,27 @@ const Rail: FC<RailProps & { repoFiles: string[] | null }> = ({
             return appFiles.includes(explore.name)
                 ? [{ name: `${explore.name}.yml`, path: null, isOpen: true }]
                 : [];
-        const mine = repoFiles
-            .filter((path) => modelNameOfSourcePath(path) === explore.name)
-            .sort(
-                (a, b) =>
-                    Number(a.endsWith('.sql')) - Number(b.endsWith('.sql')),
-            );
-        return mine.map((path) => ({
+        return (explore.id === openExplore ? openFiles : []).map((path) => ({
             name: path.split('/').pop() ?? path,
             path,
             // A pair opens together, so both are open
-            isOpen: path === openFile || mine.length === 2,
+            isOpen: path === openFile || openFiles.length === 2,
         }));
     };
     // Code stays code: there a model opens as its file, YAML first; one with no file opens as itself
     const openModel = (explore: Explore) => {
-        const mine = (repoFiles ?? []).filter(
-            (path) => modelNameOfSourcePath(path) === explore.name,
-        );
-        const path =
-            mine.find((file) => /\.ya?ml$/.test(file)) ?? mine[0] ?? null;
-        // The open model's own row is the way back to its fields; its files under it are the code
+        const staysInCode = inCode && explore.id !== openExplore;
         if (
-            inCode &&
-            explore.id !== openExplore &&
-            (repoFiles === null
-                ? appFiles.includes(explore.name)
-                : path !== null)
+            staysInCode &&
+            repoFiles === null &&
+            appFiles.includes(explore.name)
         )
-            onOpenFiles({ model: explore.name, path, field: null });
-        else view.select({ type: 'explore', exploreId: explore.id });
+            onOpenFiles({ model: explore.name, path: null, field: null });
+        else {
+            // A repository model's files are known once its page loads, which then hands over to them
+            protoPlace.wantsCode = staysInCode && repoFiles !== null;
+            view.select({ type: 'explore', exploreId: explore.id });
+        }
     };
     const chevron = (isOpen: boolean) => (
         <MantineIcon
@@ -588,8 +585,20 @@ const Rail: FC<RailProps & { repoFiles: string[] | null }> = ({
 
 // A dbt model's files are found in the repository by its name
 const DbtRail: FC<RailProps> = (props) => {
-    const { data } = useStudioSources(props.view.project.id, null, null);
-    return <Rail {...props} repoFiles={data?.files ?? []} />;
+    const { view, openFile, openTable, codeModel } = props;
+    const { data } = useStudioSources(view.project.id, null, null);
+    const selected = selectedExploreId(view);
+    const openName =
+        openTable !== null
+            ? null
+            : openFile
+              ? codeModel
+              : (view.project.explores.find(({ id }) => id === selected)
+                    ?.name ?? null);
+    const openFiles = useModelFiles(view.project.id, openName);
+    return (
+        <Rail {...props} repoFiles={data?.files ?? []} openFiles={openFiles} />
+    );
 };
 
 /** Prototype: one sidebar for both views. Models lead; in the code view they open as files and the project's file tree sits under them. */
@@ -597,7 +606,7 @@ export const ProtoRail: FC<RailProps> = (props) =>
     // A project with no code view has no repository to read files from
     useKeepsSemanticLayerDraft(props.view.project.id) ||
     props.onOpenFiles === null ? (
-        <Rail {...props} repoFiles={null} />
+        <Rail {...props} repoFiles={null} openFiles={[]} />
     ) : (
         <DbtRail {...props} />
     );
@@ -920,13 +929,8 @@ const RepositoryDock: FC<DockProps> = ({
     onOpenFiles,
     ...props
 }) => {
-    const { data } = useStudioSources(projectUuid, null, null);
-    const mine = (data?.files ?? []).filter(
-        (path) =>
-            modelName !== null && modelNameOfSourcePath(path) === modelName,
-    );
     // The YAML is where a model's words are, so the code view opens there first
-    const path = mine.find((file) => /\.ya?ml$/.test(file)) ?? mine[0] ?? null;
+    const path = useModelFiles(projectUuid, modelName)[0] ?? null;
     return (
         <DockButtons
             {...props}
@@ -947,29 +951,14 @@ const RepositoryDock: FC<DockProps> = ({
 /** Prototype: a model is two files, so opening either shows both, YAML first; any other file opens alone. */
 export const ProtoCodePair: FC<{
     projectUuid: string;
-    prUrl: string | null;
-    head: string | null;
+    /** The model the open file belongs to; null for a file that is no model's. */
+    model: string | null;
     /** The open file; null leaves the code view as it is. */
     path: string | null;
     render: (file: string | null) => ReactNode;
-}> = ({ projectUuid, prUrl, head, path, render }) => {
-    const { data } = useStudioSources(projectUuid, prUrl, head);
-    const folder = path?.split('/').slice(0, -1).join('/');
-    const pair =
-        path === null
-            ? []
-            : (data?.files ?? [])
-                  .filter(
-                      (file) =>
-                          file.split('/').slice(0, -1).join('/') === folder &&
-                          modelNameOfSourcePath(file) ===
-                              modelNameOfSourcePath(path),
-                  )
-                  .sort(
-                      (a, b) =>
-                          Number(extensionOf(a) === 'sql') -
-                          Number(extensionOf(b) === 'sql'),
-                  );
+}> = ({ projectUuid, model, path, render }) => {
+    const mine = useModelFiles(projectUuid, model);
+    const pair = path !== null && mine.includes(path) ? mine : [];
     // One wrapper either way, so the code clears the dock and a narrow window stacks the pair
     return (
         <Box className={classes.codeArea}>
@@ -1044,12 +1033,55 @@ const PathParam: FC<{ path: string | null }> = ({ path }) => {
     return null;
 };
 
+const OTHER_MODEL_VIEWS = ['lineage', 'pre-aggregates', 'history', 'settings'];
+
+// The rest of what a model has: the same views as before, one click from its fields
+const ModelViews: FC<{ projectUuid: string; modelName: string }> = ({
+    projectUuid,
+    modelName,
+}) => {
+    const [, setSearchParams] = useSearchParams();
+    const { data: model } = useSemanticLayerModel(projectUuid, modelName);
+    // A repository keeps its own history
+    const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const hasHistory = !!model && !asPullRequest;
+    const hasPreAggregates = useHealth().data?.preAggregates.enabled === true;
+    const views = [
+        { view: 'lineage', label: 'Lineage' },
+        ...(hasPreAggregates
+            ? [{ view: 'pre-aggregates', label: 'Pre-aggregates' }]
+            : []),
+        ...(hasHistory ? [{ view: 'history', label: 'History' }] : []),
+    ];
+    return (
+        <Group gap={14} mt={6}>
+            {views.map(({ view, label }) => (
+                <Anchor
+                    key={view}
+                    component="button"
+                    fz={12}
+                    c="dimmed"
+                    onClick={() => setSearchParams({ [VIEW_PARAM]: view })}
+                >
+                    {label}
+                </Anchor>
+            ))}
+        </Group>
+    );
+};
+
 /** A dbt model's files are in the repository, found by the model's name. */
 const DbtModel: FC<ModelProps> = (props) => {
-    const { data } = useStudioSources(props.view.project.id, null, null);
-    const files = (data?.files ?? []).filter(
-        (path) => modelNameOfSourcePath(path) === props.explore.name,
-    );
+    const files = useModelFiles(props.view.project.id, props.explore.name);
+    const [first] = files;
+    const { open: openCode } = props.code;
+    const modelName = props.explore.name;
+    // Picked from the sidebar while in the code view: straight on to its file
+    useEffect(() => {
+        if (!protoPlace.wantsCode || first === undefined || !openCode) return;
+        protoPlace.wantsCode = false;
+        openCode({ model: modelName, path: first, field: null });
+    }, [first, openCode, modelName]);
     const open =
         files.find((path) => extensionOf(path) === props.code.extension) ??
         null;
@@ -1119,11 +1151,18 @@ const ProtoModel: FC<ModelProps & { files: FilesTarget[] }> = ({
         protoPlace.openField = null;
         const mine = all.filter((field) => field.table === explore.name);
         const inCaret =
-            caret && modelNameOfSourcePath(caret.path) === explore.name
+            caret &&
+            files.some(
+                (file) => (file.path ?? `${file.model}.yml`) === caret.path,
+            )
                 ? mine
                       .map((field) => ({
                           field,
-                          block: findFieldBlock(caret.text, field.name),
+                          block: findModelField(
+                              caret.text,
+                              explore.name,
+                              field.name,
+                          ),
                       }))
                       .filter(
                           ({ block }) =>
@@ -1184,6 +1223,10 @@ const ProtoModel: FC<ModelProps & { files: FilesTarget[] }> = ({
                         />
                     ) : null}
                     <Description text={explore.description} />
+                    <ModelViews
+                        projectUuid={projectUuid}
+                        modelName={explore.name}
+                    />
                 </Box>
                 <Box className={classes.listHead}>
                     <TextInput
@@ -1490,6 +1533,7 @@ export const ProtoMain: FC<{
     code: CodeBeside;
 }> = ({ view, openTable, fallback, code }) => {
     const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
+    const shownView = useSearchParams()[0].get(VIEW_PARAM);
     if (openTable !== null) {
         return (
             <Box className={classes.object}>
@@ -1498,6 +1542,10 @@ export const ProtoMain: FC<{
         );
     }
     const exploreId = selectedExploreId(view);
+    // Lineage, pre-aggregates, history and settings are the views a model already had
+    if (exploreId !== null && OTHER_MODEL_VIEWS.includes(shownView ?? '')) {
+        return <>{fallback}</>;
+    }
     if (exploreId === null) {
         return view.selected === null ? (
             <ProtoHome view={view} />

@@ -267,6 +267,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     };
     const studioView = readStudioView(searchParams);
     const [protoCode, setProtoCode] = useState<string | null>(null);
+    const [protoCodeModel, setProtoCodeModel] = useState<string | null>(null);
     const [protoStatusSlot, setProtoStatusSlot] = useState<HTMLElement | null>(
         null,
     );
@@ -786,7 +787,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
               model: string;
               path: string | null;
               field: string | null;
-          }) =>
+          }) => {
+              protoPlace.codeModel = model || null;
+              setProtoCodeModel(model || null);
               setStudioParams(
                   codeTab === 'sources'
                       ? {
@@ -806,12 +809,27 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             ...(field ? { [FIELD_PARAM]: field } : {}),
                         },
               );
+          };
     const protoOpenTable = (reference: string) =>
         setStudioParams({ view: 'models', [PROTO_TABLE_PARAM]: reference });
     const protoHasModel =
         pane === 'browse' &&
         protoTable === null &&
         (view.selected?.type === 'explore' || view.selected?.type === 'field');
+    // The model the open file belongs to: by the file's name, or the model it was opened from when a shared file does not say
+    const protoFileModel =
+        view.project.explores.find(
+            ({ name }) =>
+                name ===
+                (pane === 'sources'
+                    ? sourceFile && modelNameOfSourcePath(sourceFile)
+                    : pane === 'code'
+                      ? file
+                      : null),
+        ) ??
+        (pane === 'sources'
+            ? view.project.explores.find(({ name }) => name === protoCodeModel)
+            : undefined);
     // The dock carries the draft's actions wherever it shows; without it they stay in the sidebar
     const protoHasDock =
         IS_STUDIO_PROTO &&
@@ -820,6 +838,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const protoRailWith = (codeFiles: ReactElement | null) => (
         <ProtoRail
             codeFiles={codeFiles}
+            codeModel={protoFileModel?.name ?? null}
             appFiles={keepsDraft ? files : []}
             view={view}
             onStatusSlot={setProtoStatusSlot}
@@ -841,15 +860,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // The code view keeps the same sidebar, with the project's files under the models
     const protoFilesRail = (rail: ReactElement) =>
         IS_STUDIO_PROTO ? protoRailWith(rail) : rail;
-    const protoFileModel = view.project.explores.find(
-        ({ name }) =>
-            name ===
-            (pane === 'sources'
-                ? sourceFile && modelNameOfSourcePath(sourceFile)
-                : pane === 'code'
-                  ? file
-                  : null),
-    );
     const isChangeOpen =
         (pane === 'changes' || pane === 'review') &&
         !!(shownWorkspace || workspace);
@@ -1164,8 +1174,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     <Suspense fallback={null}>
                         <ProtoCodePair
                             projectUuid={view.project.id}
-                            prUrl={dbt.sourcesTarget.prUrl}
-                            head={dbt.sourcesTarget.head}
+                            model={
+                                IS_STUDIO_PROTO
+                                    ? (protoFileModel?.name ?? null)
+                                    : null
+                            }
                             path={IS_STUDIO_PROTO ? sourceFile : null}
                             render={(file) => (
                                 <SourcePane

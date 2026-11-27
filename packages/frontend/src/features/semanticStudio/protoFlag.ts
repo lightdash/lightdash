@@ -31,7 +31,17 @@ export const protoPlace: {
     caret: { path: string; text: string; line: number } | null;
     /** The field the model page opens on arrival. */
     arrive: string | null;
-} = { openField: null, caret: null, arrive: null };
+    /** The model whose code is open, which a file shared by several models does not say. */
+    codeModel: string | null;
+    /** A model was picked while in the code view: its page hands over to its file as soon as the file is known. */
+    wantsCode: boolean;
+} = {
+    openField: null,
+    caret: null,
+    arrive: null,
+    codeModel: null,
+    wantsCode: false,
+};
 
 /** Prototype: the sidebar's one search, handed to the file tree so it needs no box of its own; null leaves the tree its own. */
 export const ProtoFileSearchContext = createContext<string | null>(null);

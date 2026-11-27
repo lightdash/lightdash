@@ -76,6 +76,7 @@ import {
     type Attached,
 } from './pierreEditor';
 import { applyProposal, fileBefore } from './proposedFile';
+import { findModelField } from './protoFiles';
 import {
     IS_STUDIO_PROTO,
     ProtoFileSearchContext,
@@ -814,7 +815,12 @@ export const SourcePane: FC<{
     const [searchParams] = useSearchParams();
     const askedField = IS_STUDIO_PROTO ? searchParams.get(FIELD_PARAM) : null;
     const askedLine =
-        askedField && loaded ? findFieldLine(loaded, askedField) : null;
+        askedField && loaded
+            ? protoPlace.codeModel
+                ? (findModelField(loaded, protoPlace.codeModel, askedField)
+                      ?.start ?? null)
+                : findFieldLine(loaded, askedField)
+            : null;
     // The editor renders, attaches and grows after this does, so the line is brought to the middle until it stays there
     useEffect(() => {
         if (askedLine === null) return undefined;
