@@ -343,7 +343,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:Dashboard"][data-tour-look="1"]',
                 title: 'Try resizing or moving the tile',
-                body: 'Resize a chart by dragging its lower-right corner, and position it by dragging its center.',
+                body: "A tile always shows its chart's saved visualization.",
                 interactive: true,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,
