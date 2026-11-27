@@ -7983,17 +7983,32 @@ export class AiAgentModel {
             .filter((r) => r.entity_type === 'composer_chart')
             .map((r) => r.entity_uuid)
             .filter((u): u is string => u !== null);
-        const composerChartSlugByUuid = new Map(
+        const composerChartDataByUuid = new Map(
             (composerChartUuids.length === 0
                 ? []
                 : await this.database(ComposerChartsTableName)
                       .whereIn('composer_chart_uuid', composerChartUuids)
                       .whereNull('deleted_at')
-                      .select<{ composer_chart_uuid: string; slug: string }[]>(
-                          'composer_chart_uuid',
-                          'slug',
-                      )
-            ).map((r) => [r.composer_chart_uuid, r.slug] as const),
+                      .select<
+                          {
+                              composer_chart_uuid: string;
+                              slug: string;
+                              dashboard_uuid: string | null;
+                          }[]
+                      >('composer_chart_uuid', 'slug', 'dashboard_uuid')
+            ).map(
+                (r) =>
+                    [
+                        r.composer_chart_uuid,
+                        {
+                            slug: r.slug,
+                            ownerType:
+                                r.dashboard_uuid === null
+                                    ? ('space' as const)
+                                    : ('dashboard' as const),
+                        },
+                    ] as const,
+            ),
         );
 
         // review_finding / proposed_change pins resolve live finding data,
@@ -8155,7 +8170,7 @@ export class AiAgentModel {
                     dashboardSlugByUuid,
                     documentSlugByUuid,
                     sqlChartSlugByUuid,
-                    composerChartSlugByUuid,
+                    composerChartDataByUuid,
                     reviewItem,
                     projectNameByUuid,
                     appDataByUuid,
@@ -8204,7 +8219,10 @@ export class AiAgentModel {
         dashboardSlugByUuid: Map<string, string>,
         documentSlugByUuid: Map<string, string>,
         sqlChartSlugByUuid: Map<string, string>,
-        composerChartSlugByUuid: Map<string, string>,
+        composerChartDataByUuid: Map<
+            string,
+            { slug: string; ownerType: 'dashboard' | 'space' }
+        >,
         reviewItem: AiAgentReviewItemSummary | null,
         projectNameByUuid: Map<string, string>,
         appDataByUuid: Map<
@@ -8258,7 +8276,10 @@ export class AiAgentModel {
                     type: 'composer_chart',
                     composerChartUuid: entityUuid,
                     composerChartSlug:
-                        composerChartSlugByUuid.get(entityUuid) ?? null,
+                        composerChartDataByUuid.get(entityUuid)?.slug ?? null,
+                    composerChartOwnerType:
+                        composerChartDataByUuid.get(entityUuid)?.ownerType ??
+                        null,
                     pinnedVersionUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
                 };

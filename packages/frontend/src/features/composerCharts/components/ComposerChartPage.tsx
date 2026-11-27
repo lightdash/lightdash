@@ -47,6 +47,7 @@ import ExportImageModal from '../../../components/DashboardTiles/ExportImageModa
 import { type EChartsReact } from '../../../components/EChartsReactWrapper';
 import { TitleBreadCrumbs } from '../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import { NO_CELL_LIMITED_SCOPES } from '../../../components/ExportResults/exportCellEstimate';
+import { AskAiAgentButton } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
 import { useRefreshComposerChartOnAgentEdit } from '../../../ee/features/aiCopilot/hooks/useRefreshComposerChartOnAgentEdit';
 import useApp from '../../../providers/App/useApp';
 import { Parameters } from '../../parameters';
@@ -226,6 +227,13 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                         </HeaderTitle>
                     </HeaderMain>
                     <HeaderActions gap="sm" wrap="nowrap">
+                        <AskAiAgentButton
+                            projectUuid={projectUuid}
+                            composerChartUuid={composerChartUuid}
+                            clickedFrom="composer_chart_header"
+                            variant="default"
+                            size="md"
+                        />
                         <Tooltip label="Refresh" position="bottom">
                             <ActionIcon
                                 variant="default"

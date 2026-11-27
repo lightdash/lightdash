@@ -534,6 +534,8 @@ export type AiPromptContextItem =
           type: 'composer_chart';
           composerChartUuid: string;
           composerChartSlug: string | null;
+          /** What owns the chart; null when it is no longer available. */
+          composerChartOwnerType: 'dashboard' | 'space' | null;
           pinnedVersionUuid: string | null;
           displayName: string | null;
       }

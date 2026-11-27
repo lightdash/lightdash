@@ -16,6 +16,7 @@ import {
     CatalogField,
     ChartAsCode,
     ComposerChartAsCode,
+    ComposerChartSearchResult,
     ComposerNodeColumn,
     CreateSchedulerAndTargetsWithoutIds,
     CustomChartType,
@@ -57,6 +58,7 @@ import {
     ToolFindContentArgs,
     ToolFindFieldsArgs,
     ToolListContentArgs,
+    ToolListContentItem,
     UpdateSlackResponse,
     UpdateWebAppResponse,
     WarehouseExecutionStats,
@@ -246,6 +248,13 @@ export type FindContentChartResult = AllChartsSearchResult & {
     space: FindContentSpaceMetadata;
 };
 
+/** A space-owned composer chart; found as a chart row with chartSource composer. */
+export type FindContentComposerChartResult = ComposerChartSearchResult & {
+    contentType: 'composer_chart';
+    space: FindContentSpaceMetadata;
+    verification: null;
+};
+
 export type FindContentDashboardResult = DashboardSearchResult & {
     contentType: 'dashboard';
     space: FindContentSpaceMetadata;
@@ -275,6 +284,7 @@ export type FindContentDataAppResult = DataAppSearchResult & {
 
 export type FindContentResult =
     | FindContentChartResult
+    | FindContentComposerChartResult
     | FindContentDashboardResult
     | FindContentSpaceResult
     | FindContentDataAppResult
@@ -303,33 +313,7 @@ export type ListContentFn = (args: {
     page: NonNullable<ToolListContentArgs['page']>;
 }) => Promise<{
     spaceSlug: string | null;
-    items: Array<
-        | {
-              contentType: 'document';
-              uuid: string;
-              name: string;
-              slug: string;
-              href: string;
-          }
-        | {
-              contentType: 'chart' | 'dashboard' | 'data_app';
-              name: string;
-              slug: string;
-              href: string;
-          }
-        | {
-              contentType: 'space';
-              name: string;
-              slug: string;
-              href: string;
-              chartCount: number;
-              dashboardCount: number;
-              childSpaceCount: number;
-              appCount: number;
-              directAccess: boolean;
-              canEdit: boolean;
-          }
-    >;
+    items: ToolListContentItem[];
     pagination:
         | {
               page: number;
@@ -631,18 +615,19 @@ export type ComposerChartSummary = {
     terminalNodeId: string;
 };
 
-export type ComposerChartTileRef = {
+/** A chart a space owns when dashboardSlug is null, else its tile on that dashboard. */
+export type ComposerChartRunRef = {
     chartSlug: string;
-    dashboardSlug: string;
+    dashboardSlug: string | null;
 };
 
 export type GetComposerChartFn = (
-    tile: ComposerChartTileRef,
+    ref: ComposerChartRunRef,
 ) => Promise<ComposerChartSummary>;
 
-/** Runs a composer chart as its dashboard tile does; returns its terminal node's rows, not a series-split stage. */
+/** Runs a space's composer chart as its page does, or a tile as its dashboard does; returns its terminal node's rows, not a series-split stage. */
 export type RunComposerChartQueryFn = (
-    tile: ComposerChartTileRef,
+    ref: ComposerChartRunRef,
 ) => Promise<
     SqlQueryRows & { composerChart: ComposerChartSummary; limit: number }
 >;

@@ -1,5 +1,4 @@
 import {
-    toolRunContentQueryArgsSchema,
     toolRunContentQueryOutputSchema,
     type ToolRunContentQueryArgs,
 } from '@lightdash/common';
@@ -114,19 +113,25 @@ describe('runContentQuery on a composer chart', () => {
         expect(output).toMatchObject({ metadata: { status: 'error' } });
     });
 
-    it('accepts composer_chart only on a dashboard chart source', () => {
-        expect(
-            toolRunContentQueryArgsSchema.safeParse({
-                source: {
-                    type: 'chart',
-                    chartType: 'composer_chart',
-                    chartSlug: 'revenue-vs-target',
-                },
-            }).success,
-        ).toBe(false);
-        expect(
-            toolRunContentQueryArgsSchema.safeParse({ source: tileSource })
-                .success,
-        ).toBe(true);
+    it('runs a chart a space owns with no dashboard', async () => {
+        const deps = makeDependencies();
+
+        const output = await run(deps, {
+            type: 'chart',
+            chartType: 'composer_chart',
+            chartSlug: 'revenue-vs-target',
+        });
+
+        expect(deps.runComposerChartQuery).toHaveBeenCalledExactlyOnceWith({
+            chartSlug: 'revenue-vs-target',
+            dashboardSlug: null,
+        });
+        expect(deps.getSavedChart).not.toHaveBeenCalled();
+        expect(output).toMatchObject({
+            structuredContent: {
+                outcome: 'rows',
+                composerChart: { chartUuid: 'composer-chart-uuid' },
+            },
+        });
     });
 });

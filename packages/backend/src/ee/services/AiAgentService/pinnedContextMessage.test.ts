@@ -635,23 +635,39 @@ describe('AiAgentService.createPinnedContextMessage SQL charts', () => {
 });
 
 describe('AiAgentService.createPinnedContextMessage composer charts', () => {
-    it('names the composer chart and how to read, run and edit it', () => {
-        const content = buildMessage([
+    const composerChart = (ownerType: 'dashboard' | 'space') =>
+        buildMessage([
             {
                 type: 'composer_chart',
                 composerChartUuid: 'composer-1',
                 composerChartSlug: 'revenue-vs-target',
+                composerChartOwnerType: ownerType,
                 displayName: 'Revenue vs target',
                 pinnedVersionUuid: 'version-1',
             },
         ]);
+
+    it('names the composer chart and how to read, run and edit it', () => {
+        const content = composerChart('dashboard');
 
         expect(content).toContain(
             '- Composer chart "Revenue vs target" (composerChartSlug: revenue-vs-target)',
         );
         expect(content).toContain('readContent (type composer_chart, slug)');
         expect(content).toContain('editContent (type composer_chart)');
-        expect(content).toContain('chartType composer_chart');
+        expect(content).toContain(
+            'runContentQuery (source dashboardChart, chartType composer_chart',
+        );
+    });
+
+    it('runs a chart a space owns as a chart, not a dashboard tile', () => {
+        const content = composerChart('space');
+
+        expect(content).toContain('the composer chart in a space');
+        expect(content).toContain(
+            'runContentQuery (source chart, chartType composer_chart)',
+        );
+        expect(content).not.toContain('dashboardChart');
     });
 });
 

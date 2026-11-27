@@ -2813,7 +2813,7 @@
                 "readOnlyHint": true,
                 "title": "List content"
             },
-            "description": "Browse the content you can access in a project as a hierarchy: the root-level spaces, or the child spaces and content inside one space.",
+            "description": "Browse the content you can access in a project as a hierarchy: the root-level spaces, or the child spaces and content inside one space. A chart row's chartSource gives the type to read or run it with: \"saved\" is chart, \"sql\" is sql_chart, \"composer\" is composer_chart.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -4979,7 +4979,7 @@
                 "readOnlyHint": true,
                 "title": "Resolve URL"
             },
-            "description": "Tool: resolve_url\n\nExpand a share link, a URL whose path is \"/share/<id>\" (e.g. \"<host>/share/aBcD1234...\"), into the full URL it redirects to. Share links are opaque, so this is the only way to see what they point at; read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then fetch the content with other tools such as read_content.\n\nEvery other URL, such as \"/projects/<uuid>/saved/<uuid>\" or \"/projects/<uuid>/dashboards/<uuid>\", already contains its identifiers: read them from the path and go straight to the appropriate tool. URLs from another instance cannot be resolved.",
+            "description": "Tool: resolve_url\n\nExpand a share link, a URL whose path is \"/share/<id>\" (e.g. \"<host>/share/aBcD1234...\"), into the full URL it redirects to. Share links are opaque, so this is the only way to see what they point at; read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then fetch the content with other tools such as read_content.\n\nEvery other URL, such as \"/projects/<uuid>/saved/<uuid>\" or \"/projects/<uuid>/dashboards/<uuid>\", already contains its identifiers: read them from the path and go straight to the appropriate tool. A composer chart page, \"/projects/<uuid>/composer-charts/<uuid or slug>\", is read with read_content type composer_chart, passing that last segment as the slug. URLs from another instance cannot be resolved.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {

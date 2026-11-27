@@ -855,6 +855,51 @@ describe('getFindContent', () => {
             );
         });
 
+        it('finds a composer chart as a chart row linked to its page', async () => {
+            const tool = toolOf([
+                {
+                    contentType: 'composer_chart',
+                    uuid: 'composer-uuid',
+                    slug: 'revenue-vs-target',
+                    name: 'Revenue vs target',
+                    description: null,
+                    spaceUuid: 'space-uuid-1',
+                    projectUuid: 'project-uuid-1',
+                    chartType: ChartKind.LINE,
+                    createdBy: null,
+                    search_rank: 1,
+                    space: {
+                        uuid: 'space-uuid-1',
+                        name: 'Marketing',
+                        slug: 'marketing',
+                        breadcrumbs: [],
+                    },
+                    verification: null,
+                },
+            ]);
+            const output = await executeFindContent(tool, {
+                searchQueries: [{ label: 'revenue' }],
+                spaceSlug: null,
+            });
+
+            expect(toolFindContentOutputSchema.safeParse(output).success).toBe(
+                true,
+            );
+            if ('error' in output.structuredContent) {
+                throw new Error('expected success structuredContent');
+            }
+            expect(
+                output.structuredContent.searchResults[0].content[0],
+            ).toMatchObject({
+                contentType: 'chart',
+                chartSource: 'composer',
+                chartType: ChartKind.LINE,
+                viewsCount: 0,
+                href: '/projects/project-uuid-1/composer-charts/composer-uuid',
+            });
+            expect(output.result).toContain('chartSource="composer"');
+        });
+
         it('carries the empty verified-only guidance', async () => {
             const { tool } = createTool([]);
             const output = await executeFindContent(tool, {

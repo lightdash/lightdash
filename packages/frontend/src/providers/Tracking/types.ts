@@ -655,6 +655,7 @@ export type AiAgentAskClickedSource =
     | 'dashboard_chart_tile'
     | 'dashboard_sql_chart_tile'
     | 'dashboard_composer_chart_tile'
+    | 'composer_chart_header'
     | 'saved_chart_header'
     | 'resource_action_menu'
     | 'data_app_header'

@@ -1125,6 +1125,7 @@ const toOptimisticContextItem = (
                 type: 'composer_chart',
                 composerChartUuid: item.composerChartUuid,
                 composerChartSlug: item.composerChartSlug,
+                composerChartOwnerType: null,
                 displayName: null,
                 pinnedVersionUuid: null,
             };

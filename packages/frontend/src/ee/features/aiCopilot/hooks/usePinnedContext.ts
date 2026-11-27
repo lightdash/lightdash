@@ -219,6 +219,7 @@ export const usePinnedContext = ({
                 type: 'composer_chart',
                 composerChartUuid: composerChart.uuid,
                 composerChartSlug: composerChart.slug,
+                composerChartOwnerType: composerChart.owner.type,
                 displayName: composerChart.name,
                 pinnedVersionUuid: composerChart.versionUuid,
             });
@@ -229,6 +230,7 @@ export const usePinnedContext = ({
         composerChart?.slug,
         composerChart?.name,
         composerChart?.versionUuid,
+        composerChart?.owner.type,
         sqlChart?.savedSqlUuid,
         sqlChart?.slug,
         sqlChart?.name,

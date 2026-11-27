@@ -194,6 +194,7 @@ describe('usePinnedContext', () => {
                 slug: 'revenue-vs-target',
                 name: 'Revenue vs target',
                 versionUuid: 'version-1',
+                owner: { type: 'dashboard', dashboardUuid: 'dashboard-1' },
             },
         });
 
@@ -224,6 +225,7 @@ describe('usePinnedContext', () => {
             type: 'composer_chart',
             composerChartUuid: 'composer-1',
             composerChartSlug: 'revenue-vs-target',
+            composerChartOwnerType: 'dashboard',
             displayName: 'Revenue vs target',
             pinnedVersionUuid: 'version-1',
         });

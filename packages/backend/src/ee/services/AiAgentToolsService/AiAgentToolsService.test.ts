@@ -834,6 +834,12 @@ describe('AiAgentToolsService', () => {
                         source: ChartSourceType.SQL,
                     },
                     {
+                        contentType: ContentType.COMPOSER_CHART,
+                        uuid: 'composer-chart-uuid',
+                        name: 'Composer chart',
+                        slug: 'composer-chart',
+                    },
+                    {
                         contentType: ContentType.DATA_APP,
                         uuid: 'app-uuid',
                         name: 'Data app',
@@ -854,7 +860,7 @@ describe('AiAgentToolsService', () => {
                 pagination: {
                     page: 1,
                     pageSize: 25,
-                    totalResults: 5,
+                    totalResults: 6,
                     totalPageCount: 1,
                 },
             }),
@@ -873,9 +879,12 @@ describe('AiAgentToolsService', () => {
         });
 
         expect(
-            result.items.map(({ contentType, href }) => ({
-                contentType,
-                href,
+            result.items.map((item) => ({
+                contentType: item.contentType,
+                href: item.href,
+                ...(item.contentType === 'chart'
+                    ? { chartSource: item.chartSource }
+                    : {}),
             })),
         ).toEqual([
             {
@@ -885,10 +894,17 @@ describe('AiAgentToolsService', () => {
             {
                 contentType: ContentType.CHART,
                 href: `/projects/${projectUuid}/saved/chart-uuid/view#chart-link`,
+                chartSource: 'saved',
             },
             {
                 contentType: ContentType.CHART,
                 href: `/projects/${projectUuid}/sql-runner/sql-chart#chart-link`,
+                chartSource: 'sql',
+            },
+            {
+                contentType: ContentType.CHART,
+                href: `/projects/${projectUuid}/composer-charts/composer-chart-uuid`,
+                chartSource: 'composer',
             },
             {
                 contentType: ContentType.DATA_APP,
@@ -3670,6 +3686,7 @@ describe('AiAgentToolsService', () => {
             flagEnabled = true,
             getComposerChartForRead = vi.fn().mockResolvedValue({
                 composerChart: composerChartAsCode,
+                composerChartUuid: 'composer-chart-uuid',
                 spaceUuid: 'allowed-space-uuid',
             }),
         }: {
@@ -3690,6 +3707,9 @@ describe('AiAgentToolsService', () => {
                     },
                 ],
             });
+            const runChart = vi.fn().mockResolvedValue({
+                queries: [{ nodeId: 'joined', queryUuid: 'joined-query' }],
+            });
             const getAsyncQueryResults = vi.fn().mockResolvedValue({
                 status: QueryHistoryStatus.READY,
                 columns: { month: {}, revenue: {} },
@@ -3704,14 +3724,21 @@ describe('AiAgentToolsService', () => {
                     get: vi.fn().mockResolvedValue(storedComposerChart),
                     isEnabled: vi.fn().mockResolvedValue(flagEnabled),
                     runWithSavedDashboardState: run,
+                    runChart,
                 },
                 asyncQueryService: {
                     getAsyncQueryResults,
                     getQueryExecutionStats: vi.fn().mockResolvedValue(null),
                 },
             });
-            return { service, run, getAsyncQueryResults };
+            return { service, run, runChart, getAsyncQueryResults };
         };
+        const spaceChartRead = () =>
+            vi.fn().mockResolvedValue({
+                composerChart: { ...composerChartAsCode, dashboardSlug: null },
+                composerChartUuid: 'composer-chart-uuid',
+                spaceUuid: 'allowed-space-uuid',
+            });
 
         it('reads a composer chart as code, linked to its dashboard', async () => {
             const { service } = makeComposerService();
@@ -3730,13 +3757,9 @@ describe('AiAgentToolsService', () => {
             });
         });
 
-        it('reads a space-owned composer chart as code, linked to its space', async () => {
-            const spaceChart = { ...composerChartAsCode, dashboardSlug: null };
+        it('reads a space-owned composer chart as code, linked to its page', async () => {
             const { service } = makeComposerService({
-                getComposerChartForRead: vi.fn().mockResolvedValue({
-                    composerChart: spaceChart,
-                    spaceUuid: 'allowed-space-uuid',
-                }),
+                getComposerChartForRead: spaceChartRead(),
             });
 
             const read = await service
@@ -3748,9 +3771,54 @@ describe('AiAgentToolsService', () => {
 
             expect(read).toEqual({
                 type: 'composer_chart',
-                content: spaceChart,
-                href: `/projects/${projectUuid}/spaces/allowed-space-uuid`,
+                content: { ...composerChartAsCode, dashboardSlug: null },
+                href: `/projects/${projectUuid}/composer-charts/composer-chart-uuid`,
             });
+        });
+
+        it('runs a space-owned composer chart as a chart run, not on a tile', async () => {
+            const { service, run, runChart } = makeComposerService({
+                getComposerChartForRead: spaceChartRead(),
+            });
+
+            const result = await service
+                .createRuntime(makeRuntimeContext())
+                .runComposerChartQuery({
+                    chartSlug: 'revenue-vs-target',
+                    dashboardSlug: null,
+                });
+
+            expect(runChart).toHaveBeenCalledExactlyOnceWith(
+                account,
+                projectUuid,
+                {
+                    composerChartUuid: 'composer-chart-uuid',
+                    invalidateCache: false,
+                },
+                QueryExecutionContext.AI,
+            );
+            expect(run).not.toHaveBeenCalled();
+            expect(result).toMatchObject({
+                rows: [{ month: '2026-01', revenue: 120 }],
+                composerChart: { uuid: 'composer-chart-uuid' },
+            });
+        });
+
+        it('refuses a chart run of a dashboard-owned composer chart, naming its dashboard', async () => {
+            const { service, run, runChart } = makeComposerService();
+
+            await expect(
+                service
+                    .createRuntime(makeRuntimeContext())
+                    .runComposerChartQuery({
+                        chartSlug: 'revenue-vs-target',
+                        dashboardSlug: null,
+                    }),
+            ).rejects.toThrow(
+                'belongs to the dashboard "sales". Run it with source dashboardChart',
+            );
+            expect(runChart).not.toHaveBeenCalled();
+            expect(run).not.toHaveBeenCalled();
         });
 
         it('hides a composer chart whose owner space is outside the agent spaces', async () => {

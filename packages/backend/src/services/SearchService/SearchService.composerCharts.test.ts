@@ -68,6 +68,7 @@ const setup = ({ enabled }: { enabled: boolean }) => {
         pages: [],
         dataApps: [],
     };
+    const searchComposerCharts = vi.fn().mockResolvedValue([visible, hidden]);
     const featureFlagModel = {
         get: vi.fn().mockResolvedValue({ enabled }),
         getDisabledLiveIntegrations: vi.fn().mockResolvedValue(new Set()),
@@ -85,7 +86,12 @@ const setup = ({ enabled }: { enabled: boolean }) => {
                 .fn()
                 .mockResolvedValue({ projectUuid, organizationUuid }),
         } as never,
-        searchModel: { search: vi.fn().mockResolvedValue(results) } as never,
+        searchModel: {
+            search: vi.fn().mockResolvedValue(results),
+            searchDashboards: vi.fn().mockResolvedValue([]),
+            searchAllCharts: vi.fn().mockResolvedValue([]),
+            searchComposerCharts,
+        } as never,
         analytics: { track: vi.fn() } as never,
         spaceModel: {} as never,
         featureFlagModel: featureFlagModel as never,
@@ -95,7 +101,7 @@ const setup = ({ enabled }: { enabled: boolean }) => {
             resolveAccessBatch,
         } as never,
     });
-    return { service };
+    return { service, searchComposerCharts };
 };
 
 describe('composer chart search', () => {
@@ -117,5 +123,41 @@ describe('composer chart search', () => {
             'revenue',
         );
         expect(results.composerCharts).toEqual([]);
+    });
+});
+
+describe('composer charts in the agent find', () => {
+    it('finds only charts whose space lets the user view charts, with OR search', async () => {
+        const { service, searchComposerCharts } = setup({ enabled: true });
+        const { content } = await service.findContent(
+            user,
+            projectUuid,
+            'monthly revenue',
+            false,
+        );
+        expect(content).toEqual([
+            { ...visible, contentType: 'composer_chart' },
+        ]);
+        expect(searchComposerCharts).toHaveBeenCalledWith(
+            projectUuid,
+            'monthly revenue',
+            undefined,
+            { fullTextSearchOperator: 'OR' },
+        );
+    });
+
+    it.each([
+        ['composer-charts is off', false, false],
+        ['the search is verified only', true, true],
+    ])('finds none when %s', async (_case, enabled, verifiedOnly) => {
+        const { service, searchComposerCharts } = setup({ enabled });
+        const { content } = await service.findContent(
+            user,
+            projectUuid,
+            'revenue',
+            verifiedOnly,
+        );
+        expect(content).toEqual([]);
+        expect(searchComposerCharts).not.toHaveBeenCalled();
     });
 });

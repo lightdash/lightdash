@@ -3628,14 +3628,26 @@ export class CoderService extends BaseService {
     }
 
     /** One chart for AI/MCP read_content, with its owner's space: no export gate; view through the owner still applies. */
+    /** By slug, or by the uuid a chart page link carries. */
     async getComposerChartForRead(
         account: RegisteredAccount,
         projectUuid: UUID,
-        slug: string,
+        slugOrUuid: string,
     ): Promise<{
         composerChart: ComposerChartAsCode;
+        composerChartUuid: string;
         spaceUuid: string;
     } | null> {
+        const slug = CoderService.isUuid(slugOrUuid)
+            ? await this.composerChartModel.get(slugOrUuid).then(
+                  (stored) => stored.slug,
+                  (error) => {
+                      if (error instanceof NotFoundError) return null;
+                      throw error;
+                  },
+              )
+            : slugOrUuid;
+        if (slug === null) return null;
         const [chart] = await this.findViewableComposerCharts(
             account,
             projectUuid,
@@ -3646,7 +3658,11 @@ export class CoderService extends BaseService {
             projectUuid,
             CoderService.withSpaceSlugs([chart]),
         );
-        return { composerChart, spaceUuid: chart.spaceUuid };
+        return {
+            composerChart,
+            composerChartUuid: chart.uuid,
+            spaceUuid: chart.spaceUuid,
+        };
     }
 
     // Viewing a composer chart follows its owner, as on every other read
