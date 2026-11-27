@@ -6,7 +6,7 @@ import {
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_LIST_CONTENT_DESCRIPTION =
-    'Browse the content you can access in a project as a hierarchy: the root-level spaces, or the child spaces and content inside one space. A chart row\'s chartSource gives the type to read or run it with: "saved" is chart, "sql" is sql_chart, "composer" is composer_chart.';
+    'Browse the content you can access in a project as a hierarchy: the root-level spaces, or the child spaces and content inside one space.';
 
 export const toolListContentArgsSchema = createToolSchema()
     .extend({
@@ -57,7 +57,7 @@ const toolListContentChartItemSchema = z.object({
     chartSource: z
         .enum(['saved', 'sql', 'composer'])
         .describe(
-            '"saved" for explore charts (type chart), "sql" for SQL charts (type sql_chart), "composer" for composer charts (type composer_chart).',
+            '"saved" for explore charts (type chart), "sql" for SQL Runner charts (type sql_chart), "composer" for composer charts (type composer_chart).',
         ),
 });
 

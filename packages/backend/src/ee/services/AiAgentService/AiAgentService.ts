@@ -13233,7 +13233,7 @@ export class AiAgentService extends BaseService {
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText =
                         item.composerChartSlug ?? '(slug unavailable)';
-                    const owned =
+                    const ownerWording =
                         item.composerChartOwnerType === 'space'
                             ? {
                                   label: 'composer chart in a space',
@@ -13243,7 +13243,7 @@ export class AiAgentService extends BaseService {
                                   label: 'dashboard composer chart',
                                   run: "source dashboardChart, chartType composer_chart, its dashboard's slug",
                               };
-                    return `- Composer chart "${name}" (composerChartSlug: ${slugText}) — the ${owned.label} the user asked about. When the user says "this" or asks for a change without naming content, they mean this chart. Read it with readContent (type composer_chart, slug) before answering or editing, check its rows with runContentQuery (${owned.run}), and save changes with editContent (type composer_chart).`;
+                    return `- Composer chart "${name}" (composerChartSlug: ${slugText}) — the ${ownerWording.label} the user asked about. When the user says "this" or asks for a change without naming content, they mean this chart. Read it with readContent (type composer_chart, slug) before answering or editing, check its rows with runContentQuery (${ownerWording.run}), and save changes with editContent (type composer_chart).`;
                 }
                 case 'sql_chart': {
                     const name = item.displayName ?? '(name unavailable)';

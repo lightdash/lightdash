@@ -2813,7 +2813,7 @@
                 "readOnlyHint": true,
                 "title": "List content"
             },
-            "description": "Browse the content you can access in a project as a hierarchy: the root-level spaces, or the child spaces and content inside one space. A chart row's chartSource gives the type to read or run it with: \"saved\" is chart, \"sql\" is sql_chart, \"composer\" is composer_chart.",
+            "description": "Browse the content you can access in a project as a hierarchy: the root-level spaces, or the child spaces and content inside one space.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {

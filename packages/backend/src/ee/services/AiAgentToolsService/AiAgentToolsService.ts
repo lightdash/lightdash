@@ -77,6 +77,7 @@ import {
     UnexpectedServerError,
     UserAttributeValueMap,
     UUID,
+    UuidOrSlug,
     WarehouseQueryError,
     type AgentSqlScope,
     type AgentToolName,
@@ -3422,17 +3423,17 @@ export class AiAgentToolsService extends BaseService {
     /** A composer chart the caller can view and the agent's spaces reach, by slug or uuid. */
     private async findComposerChartForAgent(
         context: AiAgentToolsRuntimeContext,
-        slug: string,
+        composerChartUuidOrSlug: UuidOrSlug,
         action: 'read' | 'update',
     ) {
-        const notFound = `Composer chart "${slug}" was not found`;
+        const notFound = `Composer chart "${composerChartUuidOrSlug}" was not found`;
         await this.assertComposerChartsEnabled(context, notFound);
         const { account } = context;
         assertRegisteredAccount(account);
         const read = await this.coderService.getComposerChartForRead(
             account,
             context.projectUuid,
-            slug,
+            composerChartUuidOrSlug,
         );
         if (!read) {
             throw new NotFoundError(notFound);

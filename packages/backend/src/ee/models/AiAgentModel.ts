@@ -71,6 +71,7 @@ import {
     assertUnreachable,
     ChartKind,
     COMPOSER_QUERY_TOOL_NAMES,
+    ComposerChartOwner,
     CreateLlmAssessment,
     CreateSlackPrompt,
     CreateSlackThread,
@@ -8221,7 +8222,7 @@ export class AiAgentModel {
         sqlChartSlugByUuid: Map<string, string>,
         composerChartDataByUuid: Map<
             string,
-            { slug: string; ownerType: 'dashboard' | 'space' }
+            { slug: string; ownerType: ComposerChartOwner['type'] }
         >,
         reviewItem: AiAgentReviewItemSummary | null,
         projectNameByUuid: Map<string, string>,
@@ -8272,14 +8273,14 @@ export class AiAgentModel {
             }
             case 'composer_chart': {
                 const entityUuid = requireEntityUuid();
+                const composerChartData =
+                    composerChartDataByUuid.get(entityUuid);
                 return {
                     type: 'composer_chart',
                     composerChartUuid: entityUuid,
-                    composerChartSlug:
-                        composerChartDataByUuid.get(entityUuid)?.slug ?? null,
+                    composerChartSlug: composerChartData?.slug ?? null,
                     composerChartOwnerType:
-                        composerChartDataByUuid.get(entityUuid)?.ownerType ??
-                        null,
+                        composerChartData?.ownerType ?? null,
                     pinnedVersionUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
                 };

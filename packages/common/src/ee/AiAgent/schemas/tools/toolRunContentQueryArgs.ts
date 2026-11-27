@@ -7,25 +7,18 @@ export const TOOL_RUN_CONTENT_QUERY_DESCRIPTION = `Run a chart-as-code metric qu
 
 Sources:
 - metricQuery: an unsaved chart-as-code metricQuery with its tableName, exactly as the chart will save it, limit included.
-- chart: a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval. Set chartType "composer_chart" for a composer chart a space owns (its readContent dashboardSlug is null), returning its final node's rows.
-- dashboardChart: a saved chart by chartSlug in a dashboardSlug context, with the dashboard filters applied. chartType works the same, and "composer_chart" runs a composer chart tile as that dashboard shows it, returning its final node's rows.
+- chart: a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval. Set chartType "composer_chart" for a composer chart a space owns (its readContent dashboardSlug is null).
+- dashboardChart: a saved chart by chartSlug in a dashboardSlug context, with the dashboard filters applied. chartType works the same; "composer_chart" runs the chart's tile as that dashboard shows it.
+A composer chart returns its final node's rows.
 - sql: a raw SELECT, to check a SQL chart's sql before saving it. The user approves the SQL first; saving the same SQL in a SQL chart in this response needs no second approval.`;
 
 // Slugs are unique per chart type, so the type picks which chart a slug names.
-const savedChartTypeSchema = () =>
+const chartTypeSchema = () =>
     z
         .enum(['chart', 'sql_chart', 'composer_chart'])
         .nullable()
         .describe(
-            'Content type of the saved chart, as in readContent: "chart" (explore chart), "sql_chart" or "composer_chart". Null means "chart".',
-        );
-
-const dashboardChartTypeSchema = () =>
-    z
-        .enum(['chart', 'sql_chart', 'composer_chart'])
-        .nullable()
-        .describe(
-            'Content type of the dashboard chart, as in readContent: "chart" (explore chart), "sql_chart" or "composer_chart". Null means "chart".',
+            'Content type of the chart, as in readContent: "chart" (explore chart), "sql_chart" or "composer_chart". Null means "chart".',
         );
 
 export const toolRunContentQueryArgsSchema = createToolSchema()
@@ -45,12 +38,12 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
             }),
             z.object({
                 type: z.literal('chart'),
-                chartType: savedChartTypeSchema(),
+                chartType: chartTypeSchema(),
                 chartSlug: z.string().describe('Slug of the saved chart.'),
             }),
             z.object({
                 type: z.literal('dashboardChart'),
-                chartType: dashboardChartTypeSchema(),
+                chartType: chartTypeSchema(),
                 chartSlug: z.string().describe('Slug of the saved chart.'),
                 dashboardSlug: z
                     .string()

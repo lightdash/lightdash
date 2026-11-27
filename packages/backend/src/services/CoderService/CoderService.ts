@@ -128,6 +128,7 @@ import {
     type RegisteredAccount,
     type SpaceSummaryBase,
     type UUID,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import { isEqual, isPlainObject, omit } from 'es-toolkit/compat';
 import type { Knex } from 'knex';
@@ -3627,33 +3628,36 @@ export class CoderService extends BaseService {
         );
     }
 
-    /** One chart for AI/MCP read_content, with its owner's space: no export gate; view through the owner still applies. */
-    /** By slug, or by the uuid a chart page link carries. */
+    /** One chart for AI/MCP read_content, by slug or the uuid a page link carries, with its owner's space: no export gate; view through the owner still applies. */
     async getComposerChartForRead(
         account: RegisteredAccount,
         projectUuid: UUID,
-        slugOrUuid: string,
+        composerChartUuidOrSlug: UuidOrSlug,
     ): Promise<{
         composerChart: ComposerChartAsCode;
         composerChartUuid: string;
         spaceUuid: string;
     } | null> {
-        const slug = CoderService.isUuid(slugOrUuid)
-            ? await this.composerChartModel.get(slugOrUuid).then(
+        const byUuid = CoderService.isUuid(composerChartUuidOrSlug);
+        const slug = byUuid
+            ? await this.composerChartModel.get(composerChartUuidOrSlug).then(
                   (stored) => stored.slug,
                   (error) => {
                       if (error instanceof NotFoundError) return null;
                       throw error;
                   },
               )
-            : slugOrUuid;
+            : composerChartUuidOrSlug;
         if (slug === null) return null;
         const [chart] = await this.findViewableComposerCharts(
             account,
             projectUuid,
             [slug],
         );
-        if (!chart) return null;
+        // Slugs are unique per project only: a uuid from another project misses
+        if (!chart || (byUuid && chart.uuid !== composerChartUuidOrSlug)) {
+            return null;
+        }
         const [composerChart] = await this.getComposerChartsAsCode(
             projectUuid,
             CoderService.withSpaceSlugs([chart]),
