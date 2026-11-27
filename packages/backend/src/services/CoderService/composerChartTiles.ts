@@ -35,8 +35,8 @@ export const toComposerChartTileAsCode = (
 });
 
 /**
- * Points each composer tile at the chart its dashboard owns, named by slug among composer charts.
- * A gone chart's tile (null slug) is left out, as downloads once did, until a tile can hold no chart.
+ * Points each uploaded composer tile at the composer chart named by its slug.
+ * Only composer charts are searched, and the dashboard must own the chart.
  */
 export const resolveComposerChartTiles = (
     tiles: DashboardTileWithSlug[],
@@ -55,13 +55,12 @@ export const resolveComposerChartTiles = (
     },
 ): DashboardTileWithSlug[] => {
     const keepable = new Map(shownTilesByChartUuid);
-    return tiles.flatMap((tile) => {
-        if (tile.type !== DashboardTileTypes.COMPOSER_CHART) return [tile];
+    return tiles.map((tile) => {
+        if (tile.type !== DashboardTileTypes.COMPOSER_CHART) return tile;
         const { chartSlug } = tile.properties as unknown as Pick<
             DashboardComposerChartTileAsCode['properties'],
             'chartSlug'
         >;
-        if (chartSlug === null) return [];
         if (typeof chartSlug !== 'string') {
             throw new ParameterError('A composer chart tile needs a chartSlug');
         }
@@ -86,17 +85,15 @@ export const resolveComposerChartTiles = (
             }
             keepable.set(chart.uuid, left - 1);
         }
-        return [
-            {
-                ...tile,
-                properties: {
-                    title: tile.properties.title,
-                    hideTitle: tile.properties.hideTitle,
-                    chartSlug,
-                    composerChartUuid: chart.uuid,
-                    chartName: null,
-                },
-            } as DashboardTileWithSlug,
-        ];
+        return {
+            ...tile,
+            properties: {
+                title: tile.properties.title,
+                hideTitle: tile.properties.hideTitle,
+                chartSlug,
+                composerChartUuid: chart.uuid,
+                chartName: null,
+            },
+        } as DashboardTileWithSlug;
     });
 };

@@ -1579,7 +1579,7 @@ describe('CoderService', () => {
     });
 
     describe('convertTileWithSlugsToUuids', () => {
-        it('should allow chart tiles with null chartSlug', async () => {
+        it('should allow chart tiles with null chartSlug, leaving out a composer tile whose chart is gone', async () => {
             const service = new CoderService({
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
@@ -1651,6 +1651,17 @@ describe('CoderService', () => {
                             chartSlug: null,
                             chartName: 'Deleted SQL chart',
                         },
+                    },
+                    {
+                        type: DashboardTileTypes.COMPOSER_CHART,
+                        uuid: undefined,
+                        tileSlug: undefined,
+                        x: 8,
+                        y: 0,
+                        h: 2,
+                        w: 4,
+                        tabUuid: null,
+                        properties: { title: 'Gone', chartSlug: null },
                     },
                 ] as AnyType,
             );

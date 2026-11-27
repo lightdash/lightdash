@@ -2428,7 +2428,12 @@ export class CoderService extends BaseService {
         tilesAsCode: DashboardTileAsCode[],
         tabUuidsBySlug: ReadonlyMap<string, string> = new Map(),
     ): Promise<{ tiles: DashboardTileWithSlug[]; warnings: string[] }> {
-        const tiles = CoderService.withoutTileChartQuery(tilesAsCode);
+        // A gone composer chart's tile is left out, as downloads once did, until a tile can hold no chart
+        const tiles = CoderService.withoutTileChartQuery(tilesAsCode).filter(
+            (tile) =>
+                tile.type !== DashboardTileTypes.COMPOSER_CHART ||
+                tile.properties.chartSlug !== null,
+        );
         const chartSlugs: string[] = tiles.reduce<string[]>((acc, tile) => {
             if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
                 return acc;
@@ -6300,12 +6305,7 @@ export class CoderService extends BaseService {
                 ? [tile.properties.chartSlug]
                 : [],
         );
-        if (
-            !tiles.some(
-                (tile) => tile.type === DashboardTileTypes.COMPOSER_CHART,
-            )
-        )
-            return tiles;
+        if (slugs.length === 0) return tiles;
         const charts = await this.composerChartModel.findBySlugs(
             project.projectUuid,
             slugs,

@@ -5,7 +5,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { resolveComposerChartTiles } from './composerChartTiles';
 
-const uploaded = (chartSlug: string | null): DashboardTileWithSlug =>
+const uploaded = (chartSlug: string): DashboardTileWithSlug =>
     ({
         uuid: `tile-${chartSlug}`,
         tileSlug: undefined,
@@ -62,10 +62,6 @@ describe('composer chart tiles uploaded as code', () => {
             },
             markdown,
         ]);
-    });
-
-    it('leaves out a tile whose chart is gone, as downloads did before writing it', () => {
-        expect(resolve([uploaded(null), markdown])).toEqual([markdown]);
     });
 
     it('fails naming the slug when no composer chart has it', () => {
