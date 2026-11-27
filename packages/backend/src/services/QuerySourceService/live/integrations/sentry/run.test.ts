@@ -1,0 +1,619 @@
+import {
+    ApiConnectorType,
+    ParameterError,
+    TooManyRequestsError,
+    UnexpectedServerError,
+    WarehouseConnectionError,
+    WarehouseQueryError,
+} from '@lightdash/common';
+import { sentryIntegration } from '.';
+import { connectLiveSource } from '../../liveSource.mock';
+import { type LiveHttpRequest, type LiveHttpResponse } from '../../types';
+import { getNextCursor, SENTRY_MAX_QUERY_ROWS } from './run';
+
+const response = (
+    body: unknown,
+    status = 200,
+    headers: Record<string, string> = {},
+): LiveHttpResponse => ({ status, headers, body });
+
+const link = (cursor: string, hasResults: boolean) => ({
+    link: `<https://sentry.io/api/0/organizations/acme/events/?cursor=0:0:1>; rel="previous"; results="false"; cursor="0:0:1", <https://sentry.io/api/0/organizations/acme/events/?cursor=${cursor}>; rel="next"; results="${hasResults}"; cursor="${cursor}"`,
+});
+
+const connect = (...responses: LiveHttpResponse[]) => {
+    const send =
+        vi.fn<(request: LiveHttpRequest) => Promise<LiveHttpResponse>>();
+    responses.forEach((item) => send.mockResolvedValueOnce(item));
+    return {
+        send,
+        source: connectLiveSource(
+            sentryIntegration,
+            {
+                connector: ApiConnectorType.SENTRY,
+                organizationSlug: 'acme',
+                projectSlugs: ['mobile-ios', 'mobile-android'],
+            },
+            send,
+        ),
+    };
+};
+
+const run = (
+    source: ReturnType<typeof connect>['source'],
+    request: Record<string, unknown>,
+    limit = 10,
+) => source.run({ query: JSON.stringify(request), limit });
+
+/** The path and the decoded query parameters of one call. */
+const sent = (send: ReturnType<typeof connect>['send'], call = 0) => {
+    const [{ method, path, rawQuery, body }] = send.mock.calls[call];
+    const params = new URLSearchParams(rawQuery);
+    return {
+        method,
+        path,
+        body,
+        params,
+        get: (key: string) => params.getAll(key),
+    };
+};
+
+const RANGE = { start: '2026-11-01', end: '2026-11-07' };
+
+describe('sentryIntegration errors', () => {
+    it('asks Sentry to group, filter and sort, and reads its rows', async () => {
+        const { source, send } = connect(
+            response({
+                data: [
+                    {
+                        'timestamp.to_day': '2026-11-07T00:00:00+00:00',
+                        release: '1.0.7',
+                        'error.type': ['App Hang Fully Blocked', 'NSError'],
+                        'error.unhandled': 1,
+                        'os.name': '',
+                        'count()': 12,
+                        'count_unique(issue)': 3,
+                        'count_unique(user)': 9,
+                    },
+                ],
+            }),
+        );
+
+        const result = await run(source, {
+            kind: 'errors',
+            columns: [
+                'date',
+                'release',
+                'error_type',
+                'unhandled',
+                'os_name',
+                'events',
+                'issues',
+                'users_affected',
+            ],
+            ...RANGE,
+            filters: [
+                { field: 'project', operator: 'is', values: ['mobile-ios'] },
+                {
+                    field: 'environment',
+                    operator: 'is',
+                    values: ['production'],
+                },
+                {
+                    field: 'level',
+                    operator: 'is_not',
+                    values: ['info', 'debug'],
+                },
+                {
+                    field: 'title',
+                    operator: 'contains',
+                    values: ['App "Hang"*'],
+                },
+                { field: 'unhandled', operator: 'is', values: ['true'] },
+            ],
+            sort: { column: 'issues', descending: true },
+        });
+
+        expect(send).toHaveBeenCalledTimes(1);
+        const call = sent(send);
+        expect(call.method).toBe('GET');
+        expect(call.path).toBe('/api/0/organizations/acme/events/');
+        expect(call.body).toBeUndefined();
+        expect(call.get('dataset')).toEqual(['errors']);
+        expect(call.get('field')).toEqual([
+            'timestamp.to_day',
+            'release',
+            'error.type',
+            'error.unhandled',
+            'os.name',
+            'count()',
+            'count_unique(issue)',
+            'count_unique(user)',
+        ]);
+        // Sentry leaves the end of a range out
+        expect(call.get('start')).toEqual(['2026-11-01T00:00:00']);
+        expect(call.get('end')).toEqual(['2026-11-08T00:00:00']);
+        // Only the project the request filters by
+        expect(call.get('project')).toEqual(['mobile-ios']);
+        expect(call.get('environment')).toEqual(['production']);
+        expect(call.get('query')).toEqual([
+            '!level:["info","debug"] title:"*App \\"Hang\\"\\**" error.unhandled:true',
+        ]);
+        expect(call.get('sort')).toEqual(['-count_unique(issue)']);
+        expect(call.get('per_page')).toEqual(['11']);
+
+        expect(result.rows).toEqual([
+            {
+                date: '2026-11-07',
+                release: '1.0.7',
+                error_type: 'App Hang Fully Blocked, NSError',
+                unhandled: true,
+                os_name: null,
+                events: 12,
+                issues: 3,
+                users_affected: 9,
+            },
+        ]);
+        expect(result.hasMoreRows).toBe(false);
+    });
+
+    it('counts events to make Sentry group when no metric is selected', async () => {
+        const { source, send } = connect(
+            response({ data: [{ release: '1.0.7', 'count()': 4 }] }),
+        );
+
+        const result = await run(source, {
+            kind: 'errors',
+            columns: ['release'],
+            ...RANGE,
+        });
+
+        expect(sent(send).get('field')).toEqual(['release', 'count()']);
+        expect(result.rows).toEqual([{ release: '1.0.7' }]);
+    });
+
+    it("names the source's projects on every call, so Sentry reads no other", async () => {
+        const { source, send } = connect(
+            response({ data: [] }),
+            response([]),
+            response({ groups: [] }),
+        );
+
+        await run(source, { kind: 'errors', columns: ['events'], ...RANGE });
+        await run(source, { kind: 'issues', columns: ['short_id'] });
+        await run(source, {
+            kind: 'sessions',
+            columns: ['release', 'sessions'],
+            ...RANGE,
+        });
+
+        [0, 1, 2].forEach((call) =>
+            expect(sent(send, call).get('project')).toEqual([
+                'mobile-ios',
+                'mobile-android',
+            ]),
+        );
+    });
+
+    it('refuses a project the source does not name, before calling', async () => {
+        const { source, send } = connect();
+        const filterBy = (...filters: string[][]) =>
+            run(source, {
+                kind: 'errors',
+                columns: ['events'],
+                ...RANGE,
+                filters: filters.map((values) => ({
+                    field: 'project',
+                    operator: 'is',
+                    values,
+                })),
+            });
+
+        await expect(filterBy(['mobile-ios', 'backend'])).rejects.toThrow(
+            "This Sentry source reads only these projects: mobile-ios, mobile-android. It can't read backend.",
+        );
+        // Two filters that share no project would name none, and Sentry
+        // would then read every project
+        await expect(
+            filterBy(['mobile-ios'], ['mobile-android']),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it('reads the next page while the Link header says it has results', async () => {
+        const page = (from: number, count: number) =>
+            Array.from({ length: count }, (_, index) => ({
+                release: `1.0.${from + index}`,
+                'count()': 1,
+            }));
+        const { source, send } = connect(
+            response({ data: page(0, 100) }, 200, link('0:100:0', true)),
+            response({ data: page(100, 20) }, 200, link('0:200:0', false)),
+        );
+
+        const result = await run(
+            source,
+            { kind: 'errors', columns: ['release', 'events'], ...RANGE },
+            150,
+        );
+
+        expect(send).toHaveBeenCalledTimes(2);
+        expect(sent(send, 0).get('cursor')).toEqual([]);
+        expect(sent(send, 1).get('cursor')).toEqual(['0:100:0']);
+        expect(result.rows).toHaveLength(120);
+        expect(result.hasMoreRows).toBe(false);
+    });
+
+    it('refuses a column, filter or field that is not on its list, before calling', async () => {
+        const { source, send } = connect();
+
+        await expect(
+            run(source, {
+                kind: 'errors',
+                columns: ['release', 'user.email'],
+                ...RANGE,
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        await expect(
+            run(source, {
+                kind: 'errors',
+                columns: ['events'],
+                ...RANGE,
+                filters: [
+                    { field: 'user.email', operator: 'is', values: ['a@b.c'] },
+                ],
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        await expect(
+            run(source, {
+                kind: 'errors',
+                columns: ['events'],
+                ...RANGE,
+                query: 'user.email:a@b.c',
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it('refuses a limit past what one query can read, before calling', async () => {
+        const { source, send } = connect();
+
+        await expect(
+            run(
+                source,
+                { kind: 'errors', columns: ['events'], ...RANGE },
+                SENTRY_MAX_QUERY_ROWS + 1,
+            ),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(send).not.toHaveBeenCalled();
+    });
+});
+
+describe('sentryIntegration issues', () => {
+    const sentryIssue = (overrides: Record<string, unknown> = {}) => ({
+        id: '1',
+        shortId: 'MOBILE-IOS-1A',
+        title: 'App Hang Fully Blocked',
+        culprit: 'DashboardView.body',
+        level: 'error',
+        status: 'unresolved',
+        substatus: 'ongoing',
+        priority: 'high',
+        project: { id: '2', slug: 'mobile-ios', name: 'Mobile iOS' },
+        platform: 'cocoa',
+        issueCategory: 'error',
+        isUnhandled: false,
+        firstSeen: '2026-11-12T08:15:00Z',
+        lastSeen: '2026-11-27T10:00:00Z',
+        count: '150',
+        userCount: 42,
+        permalink: 'https://acme.sentry.io/issues/1/',
+        assignedTo: { type: 'user', name: 'Jane', email: 'jane@example.com' },
+        ...overrides,
+    });
+
+    it('lists issues with a search, and reads only its columns', async () => {
+        const { source, send } = connect(response([sentryIssue()]));
+
+        const result = await run(source, {
+            kind: 'issues',
+            columns: [
+                'short_id',
+                'title',
+                'status',
+                'project',
+                'unhandled',
+                'first_seen',
+                'events',
+                'users',
+                'url',
+                'release',
+            ],
+            filters: [
+                { field: 'status', operator: 'is', values: ['unresolved'] },
+                { field: 'release', operator: 'is', values: ['1.0.7'] },
+                {
+                    field: 'priority',
+                    operator: 'is',
+                    values: ['high', 'medium'],
+                },
+            ],
+            firstSeen: { start: '2026-11-12', end: '2026-11-20' },
+            sort: 'user',
+        });
+
+        const call = sent(send);
+        expect(call.path).toBe('/api/0/organizations/acme/issues/');
+        expect(call.get('query')).toEqual([
+            'is:unresolved release:"1.0.7" issue.priority:["high","medium"] firstSeen:>=2026-11-12T00:00:00Z firstSeen:<2026-11-21T00:00:00Z',
+        ]);
+        expect(call.get('statsPeriod')).toEqual(['90d']);
+        expect(call.get('sort')).toEqual(['user']);
+        expect(call.get('collapse')).toEqual(['stats', 'lifetime']);
+        expect(call.get('limit')).toEqual(['11']);
+        expect(result.rows).toEqual([
+            {
+                short_id: 'MOBILE-IOS-1A',
+                title: 'App Hang Fully Blocked',
+                status: 'unresolved',
+                project: 'mobile-ios',
+                unhandled: false,
+                first_seen: '2026-11-12',
+                events: 150,
+                users: 42,
+                url: 'https://acme.sentry.io/issues/1/',
+                release: null,
+            },
+        ]);
+        expect(JSON.stringify(result.rows)).not.toContain('jane');
+    });
+
+    it('sends an empty search, so resolved issues are listed too', async () => {
+        const { source, send } = connect(response([]));
+
+        await run(source, { kind: 'issues', columns: ['short_id'] });
+
+        const call = sent(send);
+        expect(call.params.has('query')).toBe(true);
+        expect(call.get('query')).toEqual(['']);
+        expect(call.get('sort')).toEqual(['date']);
+    });
+
+    it('refuses a status Sentry does not have', async () => {
+        const { source } = connect();
+
+        await expect(
+            run(source, {
+                kind: 'issues',
+                columns: ['short_id'],
+                filters: [
+                    { field: 'status', operator: 'is', values: ['open'] },
+                ],
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+    });
+});
+
+describe('sentryIntegration sessions', () => {
+    it('reads totals per group, naming projects by slug', async () => {
+        const { source, send } = connect(
+            response([
+                { id: '11', slug: 'mobile-ios' },
+                { id: '12', slug: 'mobile-android' },
+            ]),
+            response({
+                groups: [
+                    {
+                        by: { project: 11, release: '1.0.7' },
+                        totals: {
+                            'sum(session)': 2000,
+                            'crash_free_rate(session)': 0.9975,
+                            'crash_free_rate(user)': 0.99,
+                        },
+                    },
+                    {
+                        by: { project: 12, release: '1.0.7' },
+                        totals: {
+                            'sum(session)': 0,
+                            'crash_free_rate(session)': null,
+                            'crash_free_rate(user)': null,
+                        },
+                    },
+                ],
+            }),
+        );
+
+        const result = await run(source, {
+            kind: 'sessions',
+            columns: [
+                'project',
+                'release',
+                'crash_free_sessions',
+                'crash_free_users',
+            ],
+            ...RANGE,
+            filters: [
+                {
+                    field: 'release',
+                    operator: 'is',
+                    values: ['1.0.7', '1.0.8'],
+                },
+            ],
+        });
+
+        expect(send).toHaveBeenCalledTimes(2);
+        expect(sent(send, 0).path).toBe('/api/0/organizations/acme/projects/');
+        const call = sent(send, 1);
+        expect(call.path).toBe('/api/0/organizations/acme/sessions/');
+        // Sessions are read too, to leave out groups that have none
+        expect(call.get('field')).toEqual([
+            'crash_free_rate(session)',
+            'crash_free_rate(user)',
+            'sum(session)',
+        ]);
+        expect(call.get('groupBy')).toEqual(['project', 'release']);
+        expect(call.get('interval')).toEqual(['1d']);
+        expect(call.get('includeSeries')).toEqual(['0']);
+        expect(call.get('includeTotals')).toEqual(['1']);
+        expect(call.get('query')).toEqual(['release:["1.0.7","1.0.8"]']);
+        expect(result.rows).toEqual([
+            {
+                project: 'mobile-ios',
+                release: '1.0.7',
+                crash_free_sessions: 0.9975,
+                crash_free_users: 0.99,
+            },
+        ]);
+    });
+
+    it('reads one row per group and day, skipping days with no sessions', async () => {
+        const { source, send } = connect(
+            response({
+                intervals: [
+                    '2026-11-01T00:00:00Z',
+                    '2026-11-02T00:00:00Z',
+                    '2026-11-03T00:00:00Z',
+                ],
+                groups: [
+                    {
+                        by: { release: '1.0.7' },
+                        series: {
+                            'sum(session)': [10, 0, 30],
+                            'count_unique(user)': [4, 0, 9],
+                        },
+                    },
+                ],
+            }),
+        );
+
+        const result = await run(source, {
+            kind: 'sessions',
+            columns: ['date', 'release', 'sessions', 'users'],
+            start: '2026-11-01',
+            end: '2026-11-03',
+        });
+
+        const call = sent(send);
+        expect(call.get('includeSeries')).toEqual(['1']);
+        expect(call.get('includeTotals')).toEqual(['0']);
+        expect(call.get('per_page')).toEqual(['100']);
+        expect(result.rows).toEqual([
+            { date: '2026-11-01', release: '1.0.7', sessions: 10, users: 4 },
+            { date: '2026-11-03', release: '1.0.7', sessions: 30, users: 9 },
+        ]);
+    });
+
+    it('asks for fewer groups over a long range, to stay under the point cap', async () => {
+        const { source, send } = connect(response({ groups: [] }));
+
+        await run(source, {
+            kind: 'sessions',
+            columns: ['date', 'release', 'sessions'],
+            start: '2026-06-01',
+            end: '2026-11-27',
+        });
+
+        // 180 days: 10,000 points / 181 a group
+        expect(sent(send).get('per_page')).toEqual(['55']);
+    });
+
+    it('refuses a crash-free rate for one session status, before calling', async () => {
+        const { source, send } = connect();
+
+        await expect(
+            run(source, {
+                kind: 'sessions',
+                columns: ['session_status', 'crash_free_sessions'],
+                ...RANGE,
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(send).not.toHaveBeenCalled();
+    });
+});
+
+describe('sentryIntegration errors from Sentry', () => {
+    const request = { kind: 'errors', columns: ['events'], ...RANGE };
+
+    it.each([
+        [401, WarehouseConnectionError, /rejected the auth token/],
+        [403, WarehouseConnectionError, /read access to Organization/],
+        [404, WarehouseConnectionError, /organization "acme"/],
+        [400, WarehouseQueryError, /couldn't run this query: Invalid query/],
+        [503, UnexpectedServerError, /returned 503/],
+    ])('explains a %i', async (status, type, message) => {
+        const { source } = connect(
+            response({ detail: 'Invalid query.' }, status),
+        );
+
+        const failed = run(source, request);
+
+        await expect(failed).rejects.toBeInstanceOf(type);
+        await expect(failed).rejects.toThrow(message);
+    });
+
+    it('reads when to retry from the rate limit headers', async () => {
+        const { source } = connect(
+            response({ detail: 'Rate limit exceeded' }, 429, {
+                'retry-after': '7',
+            }),
+        );
+
+        const failed = run(source, request);
+
+        await expect(failed).rejects.toBeInstanceOf(TooManyRequestsError);
+        await expect(failed).rejects.toMatchObject({
+            data: { retryAfterSeconds: 7 },
+        });
+    });
+
+    it('refuses a response in another shape', async () => {
+        const { source } = connect(response({ rows: [] }));
+
+        await expect(run(source, request)).rejects.toBeInstanceOf(
+            UnexpectedServerError,
+        );
+    });
+});
+
+describe('sentryIntegration setup test', () => {
+    const settings = {
+        connector: ApiConnectorType.SENTRY,
+        organizationSlug: 'acme',
+        projectSlugs: ['mobile-ios', 'mobile-android'],
+    } as const;
+    const summarize = (body: unknown) =>
+        sentryIntegration.summarizeTest?.(body, {
+            ...settings,
+            projectSlugs: [...settings.projectSlugs],
+        });
+
+    it('says how many of its projects the organization has', () => {
+        expect(
+            summarize([
+                { slug: 'mobile-ios' },
+                { slug: 'mobile-android' },
+                { slug: 'backend' },
+            ]),
+        ).toEqual({
+            summary: 'Connected to the Sentry organization acme',
+            facts: [
+                { label: 'Projects read', value: '2' },
+                { label: 'Projects in the organization', value: '3' },
+            ],
+        });
+    });
+
+    it('names a project the organization does not have', () => {
+        expect(summarize([{ slug: 'mobile-ios' }])?.summary).toBe(
+            'Connected to acme, but it has no project mobile-android',
+        );
+    });
+});
+
+describe('getNextCursor', () => {
+    it('reads the next cursor only when it has results', () => {
+        expect(getNextCursor(link('0:100:0', true).link)).toBe('0:100:0');
+        expect(getNextCursor(link('0:100:0', false).link)).toBeUndefined();
+        expect(getNextCursor(undefined)).toBeUndefined();
+    });
+});
