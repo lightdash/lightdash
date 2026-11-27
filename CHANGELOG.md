@@ -1,3 +1,16 @@
+# [3.425.0](https://github.com/lightdash/lightdash/compare/3.424.0...3.425.0) (2026-11-27)
+
+
+### Bug Fixes
+
+* **scheduler:** record a delivery where every chart failed as failed ([#33557](https://github.com/lightdash/lightdash/issues/33557)) ([2afaefb](https://github.com/lightdash/lightdash/commit/2afaefb693f94ac27e7ddefb335e395e7af48c8c))
+
+
+### Features
+
+* **ai-agent:** Ask AI attaches content to the open thread ([#33548](https://github.com/lightdash/lightdash/issues/33548)) ([ed117b9](https://github.com/lightdash/lightdash/commit/ed117b932251178f5f888406d331df71d817218e))
+* **ai-agent:** show pinned context inside the chat input ([#33556](https://github.com/lightdash/lightdash/issues/33556)) ([23038d2](https://github.com/lightdash/lightdash/commit/23038d2dd41b99d8be8b94221512732beee0408c))
+
 # [3.424.0](https://github.com/lightdash/lightdash/compare/3.423.1...3.424.0) (2026-11-27)
 
 
