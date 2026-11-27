@@ -10,6 +10,8 @@ What each MCP client shows the model, per channel:
 | Tool results            | full (60,000 measured)                                                 | above ~25k tokens saved to a file              | not measured                                                             |
 | A server change is seen | in a new chat, within 27 s of "Refresh tools list", else within 28 min | new process or `/mcp` Reconnect, then `/clear` | every new thread                                                         |
 
+Our `query` input schema is over Codex's 5,000-byte cap, so Codex sees `queries: Array<unknown>`. We keep the schema whole rather than trim it to fit: the `query-pipelines` skill's examples are how Codex learns node shapes, so keep one valid example per node kind there.
+
 Skills behind `read_skill` are always fresh. The server cannot push "tools changed" (stateless sessions).
 
 Production mix, 30 days to 2026-11-26: Claude chat 77.5% of calls, Claude Code 9.0%, Cursor 6.5% (untested), custom agents 5.8%, Codex 0.7%.
