@@ -2,19 +2,22 @@ import { DimensionType, MetricType, TimeFrames } from '@lightdash/common';
 import {
     ADDITIVE,
     dimension,
-    explore,
     metric,
     NON_ADDITIVE,
 } from '../../explores/declare';
+import type { LiveExploreDefinition } from '../../explores/definition';
 import { HYDRA_DATE_FILTERS, HYDRA_STRING_FILTERS } from './filters';
 
-export const HYDRA_EVENTS_EXPLORE = explore({
+export const HYDRA_EVENTS_EXPLORE: LiveExploreDefinition = {
     name: 'events',
     label: 'Events',
     description:
         "Sample product events (page views, sign-ups, adds to cart and purchases) over the last 90 days, from Lightdash's Hydra test integration. Dates are in UTC.",
     aiHint: 'Seeded test data. Without a Date filter the query reads the last 30 days. Unique users is a distinct count: summing rows counts a user once per row. Joins Users on User, Plan or Country.',
+    maxDimensions: null,
+    maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 30 },
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'date',
@@ -101,14 +104,18 @@ export const HYDRA_EVENTS_EXPLORE = explore({
             aggregation: NON_ADDITIVE,
         }),
     ],
-});
+};
 
-export const HYDRA_USERS_EXPLORE = explore({
+export const HYDRA_USERS_EXPLORE: LiveExploreDefinition = {
     name: 'users',
     label: 'Users',
     description:
         "Sample users with their plan, country, sign-up date and seats, from Lightdash's Hydra test integration.",
     aiHint: 'Seeded test data. Joins Events on User, Plan or Country.',
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'user_id',
@@ -158,7 +165,7 @@ export const HYDRA_USERS_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
 export const HYDRA_EXPLORES = [
     HYDRA_EVENTS_EXPLORE,

@@ -2,22 +2,24 @@ import { DimensionType, FilterOperator, MetricType } from '@lightdash/common';
 import {
     ADDITIVE,
     dimension,
-    explore,
     metric,
     NON_ADDITIVE,
     ratio,
 } from '../../explores/declare';
+import type { LiveExploreDefinition } from '../../explores/definition';
 import {
     SEARCH_CONSOLE_DATE_FILTERS,
     SEARCH_CONSOLE_STRING_FILTERS,
 } from './filters';
 
-export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE = explore({
+export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
     name: 'performance',
     label: 'Search performance',
     description:
         'Google Search clicks, impressions, click-through rate and average position for one Search Console site. Dates are in Pacific Time.',
     aiHint: 'Without a Date filter the query reads the last 28 days; the last two or three days are incomplete. Search type defaults to web; filter it to exactly one of web, image, video or news. Search appearance can only be used on its own, with no other dimension (filtering by other dimensions is fine). Google hides rare queries for privacy, so totals by Query are lower than site totals. Splitting or filtering by Page counts impressions per page, so totals by page can exceed site totals. CTR and Average position are not additive.',
+    maxDimensions: null,
+    maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 28 },
     incompatible: [
         {
@@ -135,7 +137,7 @@ export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE = explore({
             aggregation: NON_ADDITIVE,
         }),
     ],
-});
+};
 
 export const SEARCH_CONSOLE_EXPLORES = [
     SEARCH_CONSOLE_PERFORMANCE_EXPLORE,

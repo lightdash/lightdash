@@ -1,5 +1,6 @@
 import { DimensionType, FilterOperator, TimeFrames } from '@lightdash/common';
-import { dimension, explore } from '../../explores/declare';
+import { dimension } from '../../explores/declare';
+import type { LiveExploreDefinition } from '../../explores/definition';
 import {
     PYLON_DATE_FILTERS,
     PYLON_NUMBER_FILTERS,
@@ -8,13 +9,16 @@ import {
     PYLON_VALUE_FILTERS,
 } from './filters';
 
-export const PYLON_ISSUES_EXPLORE = explore({
+export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
     label: 'Issues',
     description:
         'Support issues (conversations and tickets) in one Pylon workspace, one row per issue. Dates are in UTC.',
     aiHint: 'Read live from Pylon issue search, one row per issue; a query reads at most 9,999 issues. Without a Created filter the query reads issues created in the last 30 days. There are no metrics: count, sum or average by aggregating rows. Tags "is" keeps issues with any of the tags. Title filters match part of the title. SLA fields are empty when the issue has no SLA.',
+    maxDimensions: null,
+    maxMetrics: null,
     dateRange: { dimension: 'created_at', defaultDays: 30 },
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'number',
@@ -325,14 +329,19 @@ export const PYLON_ISSUES_EXPLORE = explore({
                 'Links to the linked engineering issues, separated by commas.',
         }),
     ],
-});
+    metrics: [],
+};
 
-export const PYLON_ACCOUNTS_EXPLORE = explore({
+export const PYLON_ACCOUNTS_EXPLORE: LiveExploreDefinition = {
     name: 'accounts',
     label: 'Accounts',
     description:
         'Customer accounts in one Pylon workspace, one row per account.',
     aiHint: 'Read live from Pylon account search, one row per account; a query reads at most 9,999 accounts. No metrics: count rows to count accounts. Tags "is" keeps accounts with any of the tags. Dates are UTC days.',
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'id',
@@ -399,14 +408,19 @@ export const PYLON_ACCOUNTS_EXPLORE = explore({
             description: 'Day of the latest message from your team, in UTC.',
         }),
     ],
-});
+    metrics: [],
+};
 
-export const PYLON_CONTACTS_EXPLORE = explore({
+export const PYLON_CONTACTS_EXPLORE: LiveExploreDefinition = {
     name: 'contacts',
     label: 'Contacts',
     description:
         'Customer contacts in one Pylon workspace, one row per contact.',
     aiHint: 'Read live from Pylon contact search, one row per contact; a query reads at most 9,999 contacts. No metrics: count rows to count contacts.',
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'id',
@@ -451,7 +465,8 @@ export const PYLON_CONTACTS_EXPLORE = explore({
             description: "Contact's role in the customer portal.",
         }),
     ],
-});
+    metrics: [],
+};
 
 export const PYLON_EXPLORES = [
     PYLON_ISSUES_EXPLORE,

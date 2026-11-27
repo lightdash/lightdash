@@ -2,17 +2,17 @@ import { DimensionType, MetricType, TimeFrames } from '@lightdash/common';
 import {
     ADDITIVE,
     dimension,
-    explore,
     metric,
     NON_ADDITIVE,
 } from '../../explores/declare';
+import type { LiveExploreDefinition } from '../../explores/definition';
 import {
     GA4_DATE_FILTERS,
     GA4_METRIC_FILTERS,
     GA4_STRING_FILTERS,
 } from './filters';
 
-export const GA4_REPORT_EXPLORE = explore({
+export const GA4_REPORT_EXPLORE: LiveExploreDefinition = {
     name: 'report',
     label: 'Report',
     description:
@@ -365,6 +365,6 @@ export const GA4_REPORT_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
 export const GA4_EXPLORES = [GA4_REPORT_EXPLORE] as const;

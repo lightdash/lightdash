@@ -2,10 +2,10 @@ import { DimensionType, MetricType, TimeFrames } from '@lightdash/common';
 import {
     ADDITIVE,
     dimension,
-    explore,
     metric,
     NON_ADDITIVE,
 } from '../../explores/declare';
+import type { LiveExploreDefinition } from '../../explores/definition';
 import { LINKEDIN_ADS_DEFAULT_DAYS, LINKEDIN_ADS_MAX_METRICS } from './api';
 import { LINKEDIN_ADS_DATE_FILTERS, LINKEDIN_ADS_ID_FILTERS } from './filters';
 
@@ -14,12 +14,13 @@ import { LINKEDIN_ADS_DATE_FILTERS, LINKEDIN_ADS_ID_FILTERS } from './filters';
  * ads only: organic Company Page analytics come from a different API,
  * permission and account (see the planned model names).
  */
-export const LINKEDIN_ADS_PERFORMANCE_EXPLORE = explore({
+export const LINKEDIN_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
     name: 'performance',
     label: 'Performance',
     description:
         'Spend, impressions, clicks, leads and conversions for one LinkedIn Ads account, by day and by campaign or campaign group. Covers paid (sponsored) activity only, not organic Company Page analytics. Dates are in UTC and money is in the account currency.',
     aiHint: `Without a Date filter the query reads the last ${LINKEDIN_ADS_DEFAULT_DAYS} days. At most ${LINKEDIN_ADS_MAX_METRICS} metrics per query. LinkedIn reports campaigns without their campaign group: Campaign group ID and Campaign ID cannot both be selected; filter by Campaign group ID instead. Reach is deduplicated per row and only reported for date ranges of 92 days or less: never sum it. Grains are day, month and year only (no week).`,
+    maxDimensions: null,
     maxMetrics: LINKEDIN_ADS_MAX_METRICS,
     dateRange: { dimension: 'date', defaultDays: LINKEDIN_ADS_DEFAULT_DAYS },
     incompatible: [
@@ -276,7 +277,7 @@ export const LINKEDIN_ADS_PERFORMANCE_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
 export const LINKEDIN_ADS_EXPLORES = [
     LINKEDIN_ADS_PERFORMANCE_EXPLORE,

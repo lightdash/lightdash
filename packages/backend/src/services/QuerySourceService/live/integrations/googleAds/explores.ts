@@ -2,11 +2,11 @@ import { DimensionType, MetricType, TimeFrames } from '@lightdash/common';
 import {
     ADDITIVE,
     dimension,
-    explore,
     metric,
     NON_ADDITIVE,
     ratio,
 } from '../../explores/declare';
+import type { LiveExploreDefinition } from '../../explores/definition';
 import {
     GOOGLE_ADS_DATE_FILTERS,
     GOOGLE_ADS_EXACT_FILTERS,
@@ -19,13 +19,16 @@ import {
  * one row per resource and segment, so `googleAdsCompiler` picks the resource
  * from the fields selected: see its comment for what it has to refuse.
  */
-export const GOOGLE_ADS_PERFORMANCE_EXPLORE = explore({
+export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
     name: 'performance',
     label: 'Ad performance',
     description:
         'Cost, clicks, impressions and conversions for one Google Ads account, by day and by campaign or ad group. Dates are in the account time zone and money is in the account currency.',
     aiHint: 'Without a Date filter the query reads the last 30 days; day and week breakdowns only reach back 37 months. Text filters are case-sensitive. The most recent hours can still change, and conversions keep changing for as long as the conversion window lasts. To filter by Day of week, Device or Network, also add it to the results. Campaign status, type and bidding strategy need Campaign name or Campaign ID in the results; Ad group name needs the campaign too; Ad group status and type need Ad group ID. Rates, averages and impression shares are not additive.',
+    maxDimensions: null,
+    maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 30 },
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'date',
@@ -468,6 +471,6 @@ export const GOOGLE_ADS_PERFORMANCE_EXPLORE = explore({
             aggregation: NON_ADDITIVE,
         }),
     ],
-});
+};
 
 export const GOOGLE_ADS_EXPLORES = [GOOGLE_ADS_PERFORMANCE_EXPLORE] as const;

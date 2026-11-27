@@ -4,19 +4,24 @@ import {
     MetricType,
     TimeFrames,
 } from '@lightdash/common';
-import { ADDITIVE, dimension, explore, metric } from '../../explores/declare';
+import { ADDITIVE, dimension, metric } from '../../explores/declare';
+import type { LiveExploreDefinition } from '../../explores/definition';
 import {
     SALESFORCE_MAX_AGGREGATE_ROWS,
     SALESFORCE_MAX_RECORD_ROWS,
 } from './api';
 import { SALESFORCE_DATE_FILTERS, SALESFORCE_METRIC_FILTERS } from './filters';
 
-export const SALESFORCE_OPPORTUNITIES_EXPLORE = explore({
+export const SALESFORCE_OPPORTUNITIES_EXPLORE: LiveExploreDefinition = {
     name: 'opportunities',
     label: 'Opportunities',
     description:
         'Opportunities in Salesforce, one row per opportunity, with their fields.',
     aiHint: `Read live with SOQL. With a metric, Salesforce groups and totals the records itself and returns at most ${SALESFORCE_MAX_AGGREGATE_ROWS.toLocaleString('en-US')} rows in one call. Without a metric it lists records, at most ${SALESFORCE_MAX_RECORD_ROWS.toLocaleString('en-US')} per query. Date and time fields group by day, month, quarter or year (UTC); filter the base date field, not its grains. Long text, multi-select picklists and decimal fields are not offered as dimensions. Lookup fields have a companion "<name> name" field read through the lookup. Picklist values are listed in the field's description.`,
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'record_id',
@@ -90,14 +95,18 @@ export const SALESFORCE_OPPORTUNITIES_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
-export const SALESFORCE_ACCOUNTS_EXPLORE = explore({
+export const SALESFORCE_ACCOUNTS_EXPLORE: LiveExploreDefinition = {
     name: 'accounts',
     label: 'Accounts',
     description:
         'Accounts in Salesforce, one row per account, with their fields.',
     aiHint: `Read live with SOQL. With a metric, Salesforce groups and totals the records itself and returns at most ${SALESFORCE_MAX_AGGREGATE_ROWS.toLocaleString('en-US')} rows in one call. Without a metric it lists records, at most ${SALESFORCE_MAX_RECORD_ROWS.toLocaleString('en-US')} per query. Date and time fields group by day, month, quarter or year (UTC); filter the base date field, not its grains. Long text, multi-select picklists and decimal fields are not offered as dimensions. Lookup fields have a companion "<name> name" field read through the lookup. Picklist values are listed in the field's description.`,
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'record_id',
@@ -171,13 +180,17 @@ export const SALESFORCE_ACCOUNTS_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
-export const SALESFORCE_LEADS_EXPLORE = explore({
+export const SALESFORCE_LEADS_EXPLORE: LiveExploreDefinition = {
     name: 'leads',
     label: 'Leads',
     description: 'Leads in Salesforce, one row per lead, with their fields.',
     aiHint: `Read live with SOQL. With a metric, Salesforce groups and totals the records itself and returns at most ${SALESFORCE_MAX_AGGREGATE_ROWS.toLocaleString('en-US')} rows in one call. Without a metric it lists records, at most ${SALESFORCE_MAX_RECORD_ROWS.toLocaleString('en-US')} per query. Date and time fields group by day, month, quarter or year (UTC); filter the base date field, not its grains. Long text, multi-select picklists and decimal fields are not offered as dimensions. Lookup fields have a companion "<name> name" field read through the lookup. Picklist values are listed in the field's description.`,
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'record_id',
@@ -251,14 +264,18 @@ export const SALESFORCE_LEADS_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
-export const SALESFORCE_CONTACTS_EXPLORE = explore({
+export const SALESFORCE_CONTACTS_EXPLORE: LiveExploreDefinition = {
     name: 'contacts',
     label: 'Contacts',
     description:
         'Contacts in Salesforce, one row per contact, with their fields.',
     aiHint: `Read live with SOQL. With a metric, Salesforce groups and totals the records itself and returns at most ${SALESFORCE_MAX_AGGREGATE_ROWS.toLocaleString('en-US')} rows in one call. Without a metric it lists records, at most ${SALESFORCE_MAX_RECORD_ROWS.toLocaleString('en-US')} per query. Date and time fields group by day, month, quarter or year (UTC); filter the base date field, not its grains. Long text, multi-select picklists and decimal fields are not offered as dimensions. Lookup fields have a companion "<name> name" field read through the lookup. Picklist values are listed in the field's description.`,
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'record_id',
@@ -332,7 +349,7 @@ export const SALESFORCE_CONTACTS_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
 /** Opportunities first: an integration's first explore is its main one. */
 export const SALESFORCE_EXPLORES = [

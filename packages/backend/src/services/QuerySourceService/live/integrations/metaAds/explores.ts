@@ -2,11 +2,11 @@ import { DimensionType, MetricType, TimeFrames } from '@lightdash/common';
 import {
     ADDITIVE,
     dimension,
-    explore,
     metric,
     NON_ADDITIVE,
     ratio,
 } from '../../explores/declare';
+import type { LiveExploreDefinition } from '../../explores/definition';
 import { META_ADS_DEFAULT_DAYS } from './api';
 import {
     META_ADS_DATE_FILTERS,
@@ -14,12 +14,14 @@ import {
     META_ADS_NAME_FILTERS,
 } from './filters';
 
-export const META_ADS_INSIGHTS_EXPLORE = explore({
+export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
     name: 'insights',
     label: 'Insights',
     description:
         'Facebook and Instagram ad performance for one Meta ad account: spend, reach, impressions, clicks and conversions, by campaign, ad set, ad, date, audience and placement. Dates are in the ad account time zone and money is in the ad account currency.',
     aiHint: `Without a Date filter the query reads the last ${META_ADS_DEFAULT_DAYS} days. Meta reports Age and Gender only on their own, without Country, Platform or Placement; and Country only without Platform or Placement. Add Platform whenever you use Placement. Reach and Frequency count each person once per row: never sum or average rows; split or filter the query instead. With a breakdown, Meta only reports reach for the last 13 months. Conversion metrics use Meta's default attribution (7-day click, 1-day view). Spend, reach and frequency are Meta estimates.`,
+    maxDimensions: null,
+    maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: META_ADS_DEFAULT_DAYS },
     incompatible: [
         {
@@ -337,6 +339,6 @@ export const META_ADS_INSIGHTS_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
 export const META_ADS_EXPLORES = [META_ADS_INSIGHTS_EXPLORE] as const;

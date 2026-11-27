@@ -2,10 +2,10 @@ import { DimensionType, MetricType, TimeFrames } from '@lightdash/common';
 import {
     ADDITIVE,
     dimension,
-    explore,
     metric,
     NON_ADDITIVE,
 } from '../../explores/declare';
+import type { LiveExploreDefinition } from '../../explores/definition';
 import {
     YOUTUBE_ANALYTICS_DATE_FILTERS,
     YOUTUBE_ANALYTICS_EXACT_FILTERS,
@@ -15,13 +15,14 @@ import {
  * One channel's activity. Field combinations follow YouTube's documented
  * channel reports; anything else is refused by the compiler.
  */
-export const YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE = explore({
+export const YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE: LiveExploreDefinition = {
     name: 'activity',
     label: 'Channel activity',
     description:
         'Views, watch time, engagement and subscribers for one YouTube channel.',
     aiHint: 'Without a Date filter the query reads the last 28 days; YouTube leaves out the most recent days until all metrics are ready. At most 3 dimensions. Device type and Traffic source type only work with Views, Engaged views and Estimated minutes watched. Date month needs a date filter covering whole months; without one it reads the last 12 complete months. With Video ID, YouTube ranks at most 200 videos per query, sorted by a metric descending. Content type must be combined with a date, country, video, device type or traffic source. Average view duration and Average view percentage are averages: never sum them.',
     maxDimensions: 3,
+    maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 28 },
     // Device type and traffic source reports document only Views, Engaged views
     // and Estimated minutes watched
@@ -217,7 +218,7 @@ export const YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
 export const YOUTUBE_ANALYTICS_EXPLORES = [
     YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE,

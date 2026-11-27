@@ -1,5 +1,6 @@
 import { DimensionType, MetricType } from '@lightdash/common';
-import { ADDITIVE, dimension, explore, metric } from '../../explores/declare';
+import { ADDITIVE, dimension, metric } from '../../explores/declare';
+import type { LiveExploreDefinition } from '../../explores/definition';
 import {
     GITHUB_BOOLEAN_FILTERS,
     GITHUB_DATE_FILTERS,
@@ -9,11 +10,14 @@ import {
     GITHUB_VALUE_FILTERS,
 } from './filters';
 
-export const GITHUB_PULL_REQUESTS_EXPLORE = explore({
+export const GITHUB_PULL_REQUESTS_EXPLORE: LiveExploreDefinition = {
     name: 'pull_requests',
     label: 'Pull requests',
     description: 'Pull requests in one GitHub repository.',
     aiHint: "Read live from GitHub search. Count is GitHub's total for the filters and cannot be split by any dimension: query Count alone with filters, or list rows without Count. Listing reads at most 1,000 pull requests. Text filters match whole words. Dates are UTC days.",
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
     incompatible: [
         {
             fields: ['count'],
@@ -157,14 +161,17 @@ export const GITHUB_PULL_REQUESTS_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
-export const GITHUB_ISSUES_EXPLORE = explore({
+export const GITHUB_ISSUES_EXPLORE: LiveExploreDefinition = {
     name: 'issues',
     label: 'Issues',
     description:
         'Issues in one GitHub repository, not including pull requests.',
     aiHint: "Read live from GitHub search. Count is GitHub's total for the filters and cannot be split by any dimension: query Count alone with filters, or list rows without Count. Listing reads at most 1,000 issues. Text filters match whole words. Dates are UTC days.",
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
     incompatible: [
         {
             fields: ['count'],
@@ -299,14 +306,18 @@ export const GITHUB_ISSUES_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
-export const GITHUB_CONTRIBUTORS_EXPLORE = explore({
+export const GITHUB_CONTRIBUTORS_EXPLORE: LiveExploreDefinition = {
     name: 'contributors',
     label: 'Contributors',
     description:
         "Weekly commits, lines added and lines deleted per author on the repository's default branch.",
     aiHint: "From GitHub's contributor statistics: covers only the top 100 contributors, weeks start on Sunday (UTC), and Lines added and Lines deleted are 0 for repositories with 10,000 or more commits. Without a Week filter it returns the full history; filter Week to choose the weeks. GitHub may compute statistics in the background on first request.",
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'author',
@@ -351,7 +362,7 @@ export const GITHUB_CONTRIBUTORS_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
 export const GITHUB_EXPLORES = [
     GITHUB_PULL_REQUESTS_EXPLORE,

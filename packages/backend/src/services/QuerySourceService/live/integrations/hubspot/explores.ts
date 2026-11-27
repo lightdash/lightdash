@@ -1,13 +1,17 @@
 import { DimensionType, MetricType } from '@lightdash/common';
-import { ADDITIVE, dimension, explore, metric } from '../../explores/declare';
+import { ADDITIVE, dimension, metric } from '../../explores/declare';
+import type { LiveExploreDefinition } from '../../explores/definition';
 import { HUBSPOT_MAX_FILTERS, HUBSPOT_MAX_ROWS } from './api';
 import { HUBSPOT_CHOICE_FILTERS, HUBSPOT_DATE_FILTERS } from './filters';
 
-export const HUBSPOT_DEALS_EXPLORE = explore({
+export const HUBSPOT_DEALS_EXPLORE: LiveExploreDefinition = {
     name: 'deals',
     label: 'Deals',
     description: 'Deals in HubSpot, one row per record, with their properties.',
     aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipeline and stage IDs map to labels via the Pipeline stages explore.`,
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
     // The shared check only sees the built-in fields here; compile refuses Count
     // with a scanned property, which the explore's rules don't name.
     incompatible: [
@@ -56,14 +60,17 @@ export const HUBSPOT_DEALS_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
-export const HUBSPOT_CONTACTS_EXPLORE = explore({
+export const HUBSPOT_CONTACTS_EXPLORE: LiveExploreDefinition = {
     name: 'contacts',
     label: 'Contacts',
     description:
         'Contacts in HubSpot, one row per record, with their properties.',
     aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipeline and stage IDs map to labels via the Pipeline stages explore.`,
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
     // The shared check only sees the built-in fields here; compile refuses Count
     // with a scanned property, which the explore's rules don't name.
     incompatible: [
@@ -112,14 +119,17 @@ export const HUBSPOT_CONTACTS_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
-export const HUBSPOT_COMPANIES_EXPLORE = explore({
+export const HUBSPOT_COMPANIES_EXPLORE: LiveExploreDefinition = {
     name: 'companies',
     label: 'Companies',
     description:
         'Companies in HubSpot, one row per record, with their properties.',
     aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipeline and stage IDs map to labels via the Pipeline stages explore.`,
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
     // The shared check only sees the built-in fields here; compile refuses Count
     // with a scanned property, which the explore's rules don't name.
     incompatible: [
@@ -168,14 +178,17 @@ export const HUBSPOT_COMPANIES_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
-export const HUBSPOT_TICKETS_EXPLORE = explore({
+export const HUBSPOT_TICKETS_EXPLORE: LiveExploreDefinition = {
     name: 'tickets',
     label: 'Tickets',
     description:
         'Tickets in HubSpot, one row per record, with their properties.',
     aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipeline and stage IDs map to labels via the Pipeline stages explore.`,
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
     // The shared check only sees the built-in fields here; compile refuses Count
     // with a scanned property, which the explore's rules don't name.
     incompatible: [
@@ -224,13 +237,16 @@ export const HUBSPOT_TICKETS_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
-export const HUBSPOT_LEADS_EXPLORE = explore({
+export const HUBSPOT_LEADS_EXPLORE: LiveExploreDefinition = {
     name: 'leads',
     label: 'Leads',
     description: 'Leads in HubSpot, one row per record, with their properties.',
     aiHint: `Read live from HubSpot search, one row per record; listing reads at most ${HUBSPOT_MAX_ROWS.toLocaleString('en-US')} records. Count is HubSpot's search total for the filters (one call, any size) and cannot be split by any field: query Count alone with filters, or list records without Count. At most ${HUBSPOT_MAX_FILTERS} filters per query. Dropdown properties come as two fields: the internal value and the label HubSpot shows; filter the label field with labels and the internal-value field with internal values. Checkbox (multi-select) values are separated by semicolons. Text 'contains' matches whole words or part of a word. Most hs_ properties start hidden. Pipeline and stage IDs map to labels via the Pipeline stages explore.`,
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
     // The shared check only sees the built-in fields here; compile refuses Count
     // with a scanned property, which the explore's rules don't name.
     incompatible: [
@@ -279,19 +295,23 @@ export const HUBSPOT_LEADS_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
 /**
  * Every deal and ticket pipeline with its stages, one row per stage, from
  * HubSpot's pipelines API: one call per object. Records hold stage and
  * pipeline ids, so this explains them and can be merged with them.
  */
-export const HUBSPOT_PIPELINE_STAGES_EXPLORE = explore({
+export const HUBSPOT_PIPELINE_STAGES_EXPLORE: LiveExploreDefinition = {
     name: 'pipeline_stages',
     label: 'Pipeline stages',
     description:
         'Deal and ticket pipelines in HubSpot and their stages, one row per stage, with the names HubSpot shows.',
     aiHint: 'Use to translate IDs: Stage ID matches Deal Stage (internal value) on deals and Ticket status (internal value) on tickets; Pipeline ID matches Pipeline (internal value). Filter Object to Deals or Tickets to read only one. No metrics; count rows if needed.',
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'object_type',
@@ -370,7 +390,8 @@ export const HUBSPOT_PIPELINE_STAGES_EXPLORE = explore({
                 'Whether records in this stage are closed: won or lost deals, or closed tickets.',
         }),
     ],
-});
+    metrics: [],
+};
 
 /** Deals first: an integration's first explore is its main one. */
 export const HUBSPOT_EXPLORES = [

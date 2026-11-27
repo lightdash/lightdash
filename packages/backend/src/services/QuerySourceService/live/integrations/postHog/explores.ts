@@ -2,23 +2,26 @@ import { DimensionType, MetricType } from '@lightdash/common';
 import {
     ADDITIVE,
     dimension,
-    explore,
     metric,
     NON_ADDITIVE,
 } from '../../explores/declare';
+import type { LiveExploreDefinition } from '../../explores/definition';
 import {
     POSTHOG_DATE_FILTERS,
     POSTHOG_METRIC_FILTERS,
     POSTHOG_STRING_FILTERS,
 } from './filters';
 
-export const POSTHOG_EVENTS_EXPLORE = explore({
+export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
     name: 'events',
     label: 'Events',
     description:
         'Product events captured by PostHog, such as pageviews, autocaptured clicks and custom events, with their event and person properties. Dates are in the PostHog project time zone.',
     aiHint: 'Without a Date filter the query reads the last 30 days. Unique users and Unique sessions are distinct counts: never sum rows. Events without a session ID are not in Unique sessions. Every event and person property PostHog knows is added as a dimension (Person properties are prefixed "Person").',
+    maxDimensions: null,
+    maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 30 },
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'date',
@@ -193,6 +196,6 @@ export const POSTHOG_EVENTS_EXPLORE = explore({
             aggregation: NON_ADDITIVE,
         }),
     ],
-});
+};
 
 export const POSTHOG_EXPLORES = [POSTHOG_EVENTS_EXPLORE] as const;

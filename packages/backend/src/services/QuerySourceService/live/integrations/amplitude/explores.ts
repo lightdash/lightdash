@@ -2,11 +2,11 @@ import { DimensionType, MetricType, TimeFrames } from '@lightdash/common';
 import {
     ADDITIVE,
     dimension,
-    explore,
     metric,
     NON_ADDITIVE,
     ratio,
 } from '../../explores/declare';
+import type { LiveExploreDefinition } from '../../explores/definition';
 import { AMPLITUDE_INTERVALS } from './api';
 import {
     AMPLITUDE_DATE_FILTERS,
@@ -17,13 +17,16 @@ import {
 
 // Event segmentation (/api/2/events/segmentation). Totals add up across days
 // and property values; uniques count each user once per row, so they don't.
-export const AMPLITUDE_EVENTS_EXPLORE = explore({
+export const AMPLITUDE_EVENTS_EXPLORE: LiveExploreDefinition = {
     name: 'events',
     label: 'Events',
     description:
         'Event counts and unique users per event in one Amplitude project, by day, week or month.',
     aiHint: 'Without a Date filter the query reads the last 30 days. Filter Event (equals) to choose up to 10 events; without it every event is counted together in one row per period. Amplitude groups by one user property at a time: pick at most one of Country, Region, City, Platform, OS, Device type, Language, App version as a dimension. Unique users, Events per user and Share of active users are not additive: never sum rows across dates; query a coarser date grain instead.',
+    maxDimensions: null,
+    maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 30 },
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'date',
@@ -174,17 +177,20 @@ export const AMPLITUDE_EVENTS_EXPLORE = explore({
             aggregation: NON_ADDITIVE,
         }),
     ],
-});
+};
 
 // Active and new users (/api/2/users). A user is new once, so new users add
 // up; active users are counted once per period and don't.
-export const AMPLITUDE_USERS_EXPLORE = explore({
+export const AMPLITUDE_USERS_EXPLORE: LiveExploreDefinition = {
     name: 'users',
     label: 'Active users',
     description:
         'Active and new users in one Amplitude project, by day, week or month.',
     aiHint: 'Without a Date filter the query reads the last 30 days. Amplitude groups by one user property at a time: pick at most one of Country, Region, City, Platform, OS, Device type, Language, App version as a dimension. Active users is not additive across dates: never sum days into a week or month; use the week or month dimension instead. New users is additive.',
+    maxDimensions: null,
+    maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 30 },
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'date',
@@ -305,17 +311,20 @@ export const AMPLITUDE_USERS_EXPLORE = explore({
             aggregation: ADDITIVE,
         }),
     ],
-});
+};
 
 // Funnels (/api/2/funnels). Amplitude computes each step's users and
 // conversion; nothing is summed here.
-export const AMPLITUDE_FUNNEL_EXPLORE = explore({
+export const AMPLITUDE_FUNNEL_EXPLORE: LiveExploreDefinition = {
     name: 'funnel',
     label: 'Funnel',
     description:
         'A conversion funnel in one Amplitude project: how many users did each step, in order, and how many converted from one step to the next.',
     aiHint: "Required: filter Step event (equals) to 2-10 event names, in step order; the first value is the first step. Event names are listed by the Events explore's Event field. Group by Step number and Step event, not by date; Date and Conversion window (days) are filter-only. Date filters who entered the funnel (default last 30 days); the conversion window defaults to 30 days. User properties filter who enters the funnel. Amplitude groups by one user property at a time: pick at most one of Country, Region, City, Platform, OS, Device type, Language, App version as a dimension. Users and the rates are per step; never sum them across steps.",
+    maxDimensions: null,
+    maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 30 },
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'date',
@@ -462,17 +471,20 @@ export const AMPLITUDE_FUNNEL_EXPLORE = explore({
             aggregation: NON_ADDITIVE,
         }),
     ],
-});
+};
 
 // Retention (/api/2/retention). Amplitude counts each cohort's returning
 // users per period after it started; nothing is summed here.
-export const AMPLITUDE_RETENTION_EXPLORE = explore({
+export const AMPLITUDE_RETENTION_EXPLORE: LiveExploreDefinition = {
     name: 'retention',
     label: 'Retention',
     description:
         'Retention in one Amplitude project: of the users who started in each cohort, how many came back on each later day, week or month.',
     aiHint: 'Required: select exactly one of Days after start, Weeks after start or Months after start; it sets the retention grain. To split by cohort, add the cohort date at the same grain (Cohort with Days, Cohort week with Weeks, Cohort month with Months). Without a Cohort filter the query reads the last 30 days. Start event and Return event are filter-only, one event name each; by default the cohort is new users and any active event counts as a return. Rates and user counts are not additive across periods.',
+    maxDimensions: null,
+    maxMetrics: null,
     dateRange: { dimension: 'cohort', defaultDays: 30 },
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'cohort',
@@ -591,16 +603,19 @@ export const AMPLITUDE_RETENTION_EXPLORE = explore({
             aggregation: ratio('retained_users', 'cohort_users'),
         }),
     ],
-});
+};
 
 // Sessions (/api/2/sessions/average and /api/2/sessions/peruser), per day.
-export const AMPLITUDE_SESSIONS_EXPLORE = explore({
+export const AMPLITUDE_SESSIONS_EXPLORE: LiveExploreDefinition = {
     name: 'sessions',
     label: 'Sessions',
     description:
         'Average session length and sessions per active user in one Amplitude project, per day.',
     aiHint: 'Daily grain only. Without a Date filter the query reads the last 30 days. Both metrics are daily averages: never sum them across days, and averaging days gives an unweighted average.',
+    maxDimensions: null,
+    maxMetrics: null,
     dateRange: { dimension: 'date', defaultDays: 30 },
+    incompatible: [],
     dimensions: [
         dimension({
             name: 'date',
@@ -635,7 +650,7 @@ export const AMPLITUDE_SESSIONS_EXPLORE = explore({
             aggregation: NON_ADDITIVE,
         }),
     ],
-});
+};
 
 export const AMPLITUDE_EXPLORES = [
     AMPLITUDE_EVENTS_EXPLORE,

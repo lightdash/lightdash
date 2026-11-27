@@ -7,14 +7,15 @@ import {
 } from '@lightdash/common';
 import {
     type LiveDimensionDefinition,
-    type LiveExploreDefinition,
     type LiveMetricDefinition,
 } from './definition';
 
 /**
- * The only way an integration's `explores.ts` declares explores and fields.
- * Every field is one call with named arguments in the order below, so a file
- * reads top to bottom as a list of fields and a diff shows one field per hunk.
+ * How an integration's `explores.ts` declares fields. Every field is one call
+ * with named arguments in the order below, so a file reads top to bottom as a
+ * list of fields and a diff shows one field per hunk. Explores themselves are
+ * plain `LiveExploreDefinition` literals that state every rule, including
+ * `null` caps and empty lists, so nothing is left to a default.
  */
 
 type FieldArguments = {
@@ -72,33 +73,3 @@ export const ratio = (
     numerator,
     denominator,
 });
-
-export const explore = ({
-    metrics = [],
-    maxDimensions = null,
-    maxMetrics = null,
-    dateRange = null,
-    incompatible = [],
-    ...definition
-}: Pick<
-    LiveExploreDefinition,
-    'name' | 'label' | 'description' | 'aiHint' | 'dimensions'
-> &
-    Partial<
-        Pick<
-            LiveExploreDefinition,
-            | 'metrics'
-            | 'maxDimensions'
-            | 'maxMetrics'
-            | 'dateRange'
-            | 'incompatible'
-        >
-    >): LiveExploreDefinition =>
-    compact({
-        ...definition,
-        metrics,
-        maxDimensions,
-        maxMetrics,
-        dateRange,
-        incompatible,
-    });
