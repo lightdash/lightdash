@@ -331,7 +331,7 @@ describe('composer charts follow their dashboard on the real schema', () => {
         expect(previewChartUuid).not.toBe(composerChartUuid);
         expect(await composerChartModel.get(previewChartUuid!)).toMatchObject({
             projectUuid: previewUuid,
-            dashboardUuid: preview.uuid,
+            owner: { type: 'dashboard', dashboardUuid: preview.uuid },
             slug: source.slug,
             createdByUserUuid: owner.userUuid,
             pipeline: source.pipeline,

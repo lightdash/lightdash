@@ -506,7 +506,7 @@ export class ComposerChartModel {
             )
             .select(
                 `${DashboardsTableName}.slug as dashboard_slug`,
-                `${SpaceTableName}.space_uuid`,
+                `${SpaceTableName}.space_uuid as dashboard_space_uuid`,
             )
             .where(`${ComposerChartsTableName}.project_uuid`, projectUuid)
             .whereNull(`${DashboardsTableName}.deleted_at`)
@@ -518,7 +518,7 @@ export class ComposerChartModel {
         return rows.map((row) => ({
             ...ComposerChartModel.toComposerChart(row),
             dashboardSlug: row.dashboard_slug,
-            spaceUuid: row.space_uuid,
+            spaceUuid: row.dashboard_space_uuid,
         }));
     }
 
