@@ -163,7 +163,7 @@ export class ComposerChartService extends BaseService {
     }
 
     /** Every composer chart permission, checked on `SavedChart` as for classic and SQL charts. */
-    private async assertCanOnOwner(
+    private async assertChartPermission(
         account: RegisteredAccount,
         action: 'view' | 'create' | 'update',
         projectUuid: string,
@@ -311,13 +311,13 @@ export class ComposerChartService extends BaseService {
         return enabled;
     }
 
-    /** The dashboard check a write runs, for a caller that must refuse before reading the dashboard's charts. */
+    /** The chart write check on a dashboard, for a caller that must refuse before reading the dashboard's charts. */
     async preflightDashboard(
         account: RegisteredAccount,
         projectUuid: string,
         dashboardUuid: string,
     ): Promise<void> {
-        await this.assertCanOnOwner(
+        await this.assertChartPermission(
             account,
             'update',
             projectUuid,
@@ -342,7 +342,7 @@ export class ComposerChartService extends BaseService {
         const pipeline = parseComposerPipeline(data.pipeline);
         const input = parseComposerChartInput(data.chart);
 
-        const { organizationUuid } = await this.assertCanOnOwner(
+        const { organizationUuid } = await this.assertChartPermission(
             account,
             target.composerChartUuid === null ? 'create' : 'update',
             projectUuid,
@@ -562,7 +562,7 @@ export class ComposerChartService extends BaseService {
         if (chartProjectUuid !== projectUuid) {
             throw new NotFoundError('Composer chart not found');
         }
-        const { organizationUuid } = await this.assertCanOnOwner(
+        const { organizationUuid } = await this.assertChartPermission(
             account,
             'view',
             projectUuid,

@@ -836,6 +836,7 @@ describe('Composer charts', () => {
             const { client, email } = await loginWithPermissions('member', []);
             const user =
                 await client.get<Body<{ userUuid: string }>>('/api/v1/user');
+            expect(user.status).toBe(200);
             const assigned = await admin.post(
                 `/api/v2/projects/${projectUuid}/roles/assignments/user/${user.body.results.userUuid}`,
                 { roleId: role.body.results.roleUuid },
@@ -851,7 +852,6 @@ describe('Composer charts', () => {
 
         afterAll(async () => {
             for (const { roleUuid } of roleUsers) {
-                // eslint-disable-next-line no-await-in-loop
                 await admin.delete(
                     `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles/${roleUuid}`,
                     { failOnStatusCode: false },
@@ -903,29 +903,33 @@ describe('Composer charts', () => {
             expect(run.status).toBe(403);
         });
 
-        it('saves a chart onto a dashboard by chart write, not dashboard write', async () => {
+        const authorScopes = [
+            'view:Dashboard',
+            'view:SavedChart',
+            'manage:ComposerChart',
+            'manage:Explore',
+        ];
+
+        it('lets a role that writes charts but not dashboards save a chart onto a dashboard', async () => {
             const dashboard = await createDashboard();
-            const authorScopes = [
-                'view:Dashboard',
-                'view:SavedChart',
-                'manage:ComposerChart',
-                'manage:Explore',
-            ];
-            const chartWriter = await roleUser([
+            const { client } = await roleUser([
                 ...authorScopes,
                 'manage:SavedChart',
             ]);
-            const saved = await chartWriter.client.post(
+            const saved = await client.post(
                 chartsUrl,
                 composerChartBody(dashboard.uuid),
             );
             expect(saved.status).toBe(201);
+        });
 
-            const dashboardWriter = await roleUser([
+        it('refuses a role that writes dashboards but not charts saving a chart onto a dashboard', async () => {
+            const dashboard = await createDashboard();
+            const { client } = await roleUser([
                 ...authorScopes,
                 'manage:Dashboard',
             ]);
-            const refused = await dashboardWriter.client.post(
+            const refused = await client.post(
                 chartsUrl,
                 composerChartBody(dashboard.uuid),
                 { failOnStatusCode: false },

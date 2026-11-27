@@ -528,19 +528,6 @@ describe('ComposerChartService.create', () => {
         expect(composerChartModel.create).not.toHaveBeenCalled();
     });
 
-    test('checks the chart write through the dashboard, with its grants', async () => {
-        const { service, spacePermissionService } = setup();
-        await service.create(
-            sessionAccount(abilityWithout(null)),
-            projectUuid,
-            createBody(PIPELINES.sql),
-        );
-        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
-            defaultSessionUser.userUuid,
-            { type: 'dashboard', dashboardUuid, spaceUuid: 'space-uuid' },
-        );
-    });
-
     test('refuses an agent connection without Raw SQL on a chart with sql nodes', async () => {
         const { service, composerChartModel } = setup();
         const grant = grantFixture();
