@@ -7530,6 +7530,9 @@
                     "yAxis": {
                         "items": {
                             "properties": {
+                                "formatOptions": {
+                                    "$ref": "#/components/schemas/CustomFormat"
+                                },
                                 "format": {
                                     "$ref": "#/components/schemas/Format"
                                 },
@@ -19436,6 +19439,24 @@
                 },
                 "required": ["deletedConnectionUuid"],
                 "type": "object"
+            },
+            "ApiEnabledLiveIntegrationsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ApiConnectorType"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object",
+                "description": "The integrations turned on for the project's organization, by their feature flags."
             },
             "Pick_Organization.name-or-organizationUuid-or-createdAt_": {
                 "properties": {
@@ -32249,6 +32270,7 @@
                     "chartView",
                     "chartHistory",
                     "sqlChartView",
+                    "composerChartView",
                     "sqlRunner",
                     "viewUnderlyingData",
                     "alert",
@@ -81869,7 +81891,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.423.1",
+        "version": "3.430.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
