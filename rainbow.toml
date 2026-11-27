@@ -10,7 +10,7 @@ name = "dev"
 command = """cd packages/backend && { if [ -n "$${GOOGLE_SHEETS_DEV_REFRESH_TOKEN:-}" ]; then timeout --kill-after=2s 10s pnpm seed --specific=19_google_sheets_dev_grant.ts || echo "Google Sheets dev grant seed skipped" >&2; fi; unset GOOGLE_SHEETS_DEV_REFRESH_TOKEN && exec node --import tsx src/index.ts; }"""
 port = 8080
 serve = true
-restart_on_inject = true           # read the fork's SITE_URL and apply rotated secrets without re-seeding the DB
+restart_on_inject = true           # read the fork's SITE_URL and run only the Sheets grant seed when the secret is set
 
 # The Snowflake AI OAuth/SDK stub the API tests drive. Plain node, no deps;
 # it reads only PORT, and the recipe's PORT is the backend's, so the stub's

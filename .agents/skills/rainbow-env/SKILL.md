@@ -65,7 +65,20 @@ Done when every claim you report names the env, the commit it served (`list_envs
 
 With `GOOGLE_SHEETS_DEV_REFRESH_TOKEN` set, the seeded admin can sync to Sheets on any new preview. The development seed adds the grant; forks inherit it. To connect Google in the UI, use `gsheets`, `gsheets-2` or `gsheets-3` and only the shared test account.
 
-To rotate, sign in as the seeded admin on `gsheets` and open `/api/v1/login/gdrive`. Reconnect the test account. A Rainbow operator decrypts the new `user_oauth_grants` refresh token inside the guest with `EncryptionUtil`, without displaying or logging it, and transfers it directly to the Rainbow dashboard's `GOOGLE_SHEETS_DEV_REFRESH_TOKEN` secret. Let Rainbow restart services, then recreate any previews that still have the old token.
+To rotate, sign in as the seeded admin on `gsheets`, open `/api/v1/login/gdrive`, and reconnect the test account. Ask a Rainbow operator to run this on the Rainbow host in Bash. Set `gsheets_env_id` to the ID for `gsheets` from `rainbow ls`. Keep the pipe intact: agents must never fetch or pass the token through MCP `exec`, `set_env` or chat.
+
+```bash
+set -o pipefail
+rainbow exec "$gsheets_env_id" "$(cat <<'GUEST'
+systemd-run --quiet --pipe --wait --collect -p EnvironmentFile=/etc/lightdash.env -p EnvironmentFile=-/run/rainbow/secrets.env --working-directory=/usr/app/packages/backend /usr/local/bin/node --import tsx -e '
+const {SEED_ORG_1_ADMIN}=require("@lightdash/common"), {lightdashConfig}=require("./src/config/lightdashConfig.ts"), {EncryptionUtil}=require("./src/utils/EncryptionUtil/EncryptionUtil.ts"), db=require("knex")(require("./src/knexfile.ts").default.development);
+(async()=>{let token; try {const grant=await db("user_oauth_grants").where({user_uuid:SEED_ORG_1_ADMIN.user_uuid,provider:"google"}).whereNot("provider_subject","rainbow-sheets-test").first("encrypted_refresh_token"); if(!grant) throw Error(); token=new EncryptionUtil({lightdashConfig}).decrypt(grant.encrypted_refresh_token);} finally {await db.destroy();} if(!token) throw Error(); process.stdout.write(token);})().catch(()=>{console.error("Could not export the connected Google grant");process.exitCode=1;});
+'
+GUEST
+)" | rainbow secrets set -repo lightdash/lightdash GOOGLE_SHEETS_DEV_REFRESH_TOKEN
+```
+
+Let Rainbow restart services, then recreate previews that still have the old token.
 
 **Treat the token as public.** `GET /api/v1/gdrive/get-access-token` accepts API-key auth and returns a raw Google bearer token. `spreadsheets` covers every sheet the test account can open. `drive.file` covers files this client created, including sharing them. Anyone with the access token can revoke the grant and break every preview's sync. Use only test data. Rotation is not revocation: remove the app's access in Google to revoke a leaked grant. Removing the Rainbow secret does not delete existing rows.
 
