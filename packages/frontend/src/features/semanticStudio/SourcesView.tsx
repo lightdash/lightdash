@@ -729,6 +729,18 @@ export const SourcePane: FC<{
                         onSaved(result.prUrl, result.thread);
                         return;
                     }
+                    // Typed on, then another file opened: that typing waits under this file, now over what was just saved.
+                    const kept = findUnsaved(savedKey);
+                    if (
+                        keepsTyping &&
+                        !isStillOpen() &&
+                        kept !== null &&
+                        kept.text !== submitted
+                    ) {
+                        keepUnsaved(savedKey, kept.text, result.revision);
+                        onSaved(result.prUrl, result.thread);
+                        return;
+                    }
                     dropUnsaved(savedKey);
                     // A save from live moves to its new change, and what is typed in another live file comes along.
                     const liveKey = unsavedEditKey(

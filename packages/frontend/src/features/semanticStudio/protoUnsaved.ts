@@ -1,11 +1,14 @@
 import { useMemo, useSyncExternalStore } from 'react';
 
+/** Typing not saved yet, with the field's text as it was when the typing began. */
+type Unsaved = { text: string; base: string };
+
 // What is typed into a field and not saved outlives the field being closed, so opening another one loses nothing
-const unsaved = new Map<string, string>();
+const unsaved = new Map<string, Unsaved>();
 const watchers = new Set<() => void>();
-export const keep = (key: string, text: string | null) => {
-    if (text === null) unsaved.delete(key);
-    else unsaved.set(key, text);
+export const keep = (key: string, entry: Unsaved | null) => {
+    if (entry === null) unsaved.delete(key);
+    else unsaved.set(key, entry);
     watchers.forEach((notify) => notify());
 };
 const watch = (notify: () => void) => {
@@ -15,10 +18,10 @@ const watch = (notify: () => void) => {
     };
 };
 
-/** The fields of a model that hold typing not saved yet, by name. */
-export const useUnsavedFields = (projectUuid: string, modelName: string) => {
+/** The fields that hold typing not saved yet, by name, within one project, draft and model. */
+export const useUnsavedFields = (scope: string) => {
     const size = useSyncExternalStore(watch, () => unsaved.size);
-    const prefix = `${projectUuid}:${modelName}:`;
+    const prefix = `${scope}:`;
     return useMemo(
         () =>
             new Set(

@@ -254,9 +254,15 @@ type SummaryExtraFields = {
     description?: string;
     schemaName: string;
     databaseName: string;
-    /** The base table's SQL identifier, as the warehouse quotes it. */
+    /** The base table's relation identifier, as the warehouse quotes it; absent when the base table is a query. */
     sqlTable?: string;
 };
+
+/** A summary names the relation a model reads and never carries SQL: a base table that is a query has no identifier. */
+export const relationIdentifierOf = (
+    sqlTable: string | null | undefined,
+): string | undefined =>
+    sqlTable && !/[\s()]/.test(sqlTable) ? sqlTable : undefined;
 
 type SummaryBindingFields = {
     warehouseConnectionUuid: string | null;
@@ -317,7 +323,7 @@ export const toExploreSummary = (
         description: baseTable.description,
         schemaName: baseTable.schema,
         databaseName: baseTable.database,
-        sqlTable: baseTable.sqlTable,
+        sqlTable: relationIdentifierOf(baseTable.sqlTable),
         warehouseConnectionUuid: null,
     };
 };

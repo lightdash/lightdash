@@ -1093,7 +1093,8 @@ const ProtoModel: FC<ModelProps & { files: FilesTarget[] }> = ({
         schema: source ? String(source.schema) : undefined,
         search: undefined,
     });
-    const draft = findCheckedOutModel(useStudioCheckout().shown, explore.id);
+    const checkout = useStudioCheckout().shown;
+    const draft = findCheckedOutModel(checkout, explore.id);
     const { fields } = useExploreFields({
         projectUuid,
         explore,
@@ -1149,7 +1150,9 @@ const ProtoModel: FC<ModelProps & { files: FilesTarget[] }> = ({
         );
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isLoaded]);
-    const unsavedFields = useUnsavedFields(projectUuid, explore.name);
+    // Unsaved typing belongs to one draft: the same field in another draft is other text
+    const draftScope = `${projectUuid}:${code.dbt?.target.prUrl ?? checkout?.workspace?.workspaceUuid ?? 'published'}:${explore.name}`;
+    const unsavedFields = useUnsavedFields(draftScope);
     const [filter, setFilter] = useState('');
     const needle = filter.trim().toLowerCase();
     // The model's own fields first, then each joined table's; dimensions before metrics
@@ -1202,8 +1205,8 @@ const ProtoModel: FC<ModelProps & { files: FilesTarget[] }> = ({
                 </Box>
                 {own.map((field) => {
                     const isOpen = open === field.id;
-                    const yml = files.find(
-                        (file) => extensionOf(nameOf(file)) === 'yml',
+                    const yml = files.find((file) =>
+                        /^ya?ml$/.test(extensionOf(nameOf(file))),
                     );
                     const columnType = typeOf.get(field.name);
                     return (
@@ -1280,7 +1283,12 @@ const ProtoModel: FC<ModelProps & { files: FilesTarget[] }> = ({
                                             readOnlyReason={code.readOnlyReason}
                                             words={words}
                                             actions={actions}
-                                            hasFile={yml !== undefined}
+                                            draftScope={draftScope}
+                                            // A joined field is defined in its own model's file, not this one
+                                            hasFile={
+                                                yml !== undefined &&
+                                                field.table === explore.name
+                                            }
                                         />
                                     )}
                                 />

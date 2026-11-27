@@ -10,13 +10,20 @@ import {
     File,
     WorkerPoolContextProvider,
 } from '@pierre/diffs/react';
-import { Fragment, useEffect, useState, type FC, type ReactNode } from 'react';
+import {
+    Fragment,
+    useEffect,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
     pierreThemeFor,
 } from '../writeback/pierreDiffConfig';
-import { findFieldBlock } from './modelCode';
+import { countFieldLines, findFieldBlock } from './modelCode';
 import { createEditor, MOD_KEY } from './pierreEditor';
 import { keep, readUnsaved } from './protoUnsaved';
 import { readProperty, writeProperty } from './protoYaml';
@@ -71,22 +78,24 @@ const FieldCodeEditor: FC<{
 }> = ({ fieldName, draftKey, source, words, actions }) => {
     const colorScheme = useComputedColorScheme('light');
     const [text, setTextOnly] = useState<string | null>(
-        () => readUnsaved(draftKey) ?? null,
+        () => readUnsaved(draftKey)?.text ?? null,
     );
-    const setText = (next: string | null) => {
-        keep(draftKey, next);
-        setTextOnly(next);
-    };
+    // The field's text when the typing began: a save is only made onto the text it was typed over
+    const [base, setBase] = useState<string | null>(
+        () => readUnsaved(draftKey)?.base ?? null,
+    );
     const [saved, setSaved] = useState<string | null>(null);
     const [mount, setMount] = useState(0);
     const [notice, setNotice] = useState<string | null>(null);
     // What the editor was last drawn from; typing in a property redraws it a moment later
     const [seed, setSeed] = useState<string | null>(
-        () => readUnsaved(draftKey) ?? null,
+        () => readUnsaved(draftKey)?.text ?? null,
     );
     const [typing, setTyping] = useState<{ key: string; value: string } | null>(
         null,
     );
+    const latest = useRef(text);
+    latest.current = text;
     useEffect(() => {
         if (text === null || text === seed || typing === null) return undefined;
         const timer = window.setTimeout(() => {
@@ -98,7 +107,16 @@ const FieldCodeEditor: FC<{
     const { content } = source;
     const block = content ? findFieldBlock(content, fieldName) : null;
     if (!content || !block) {
-        return <ReadOnlyWords words={words} />;
+        return <ReadOnlyWords words={words} note={null} />;
+    }
+    // A name defined twice in one file, such as a column in two models, cannot be told apart here
+    if (countFieldLines(content, fieldName) > 1) {
+        return (
+            <ReadOnlyWords
+                words={words}
+                note={`${fieldName} is defined more than once in ${source.fileName}, so it is edited in the Code view.`}
+            />
+        );
     }
     const lines = content.split('\n');
     const own = lines.slice(block.start - 1, block.end);
@@ -111,8 +129,36 @@ const FieldCodeEditor: FC<{
     const current = text ?? shown;
     const isDbtColumn =
         source.isRepository && current.trimStart().startsWith('- ');
+    // Someone else, or the agent, changed this field after the typing began
+    const hasMoved = base !== null && base !== shown && base !== saved;
+    const setText = (next: string | null) => {
+        const from = next === null ? null : (base ?? saved ?? shown);
+        keep(
+            draftKey,
+            next === null || from === null ? null : { text: next, base: from },
+        );
+        setBase(from);
+        setTextOnly(next);
+    };
+    // A property is rewritten here only when the result is the same YAML with that one value changed
+    const rewrite = (key: string, value: string): string | null => {
+        const next = writeProperty(current, key, value, isDbtColumn);
+        const comments = (yaml: string) =>
+            yaml.split('\n').filter((line) => /(^|\s)#/.test(line)).length;
+        const reads = readProperty(next, key, isDbtColumn);
+        return reads === value.replace(/\n+$/, '') &&
+            comments(next) >= comments(current)
+            ? next
+            : null;
+    };
     const submit = () => {
-        if (!isDirty || source.isBusy || text === null) return;
+        if (!isDirty || source.isBusy || text === null || !canEdit) return;
+        if (hasMoved) {
+            setNotice(
+                'This field changed since you started typing. Discard to load the latest, then make your edit again.',
+            );
+            return;
+        }
         const typed = text;
         const pad = ' '.repeat(indent);
         setNotice('Saving…');
@@ -127,7 +173,16 @@ const FieldCodeEditor: FC<{
             (error) => {
                 if (error === null) {
                     setSaved(typed);
-                    keep(draftKey, null);
+                    // Typed on while it saved: that typing stays, now over what was just saved
+                    const typedOn =
+                        latest.current !== null && latest.current !== typed;
+                    keep(
+                        draftKey,
+                        typedOn && latest.current !== null
+                            ? { text: latest.current, base: typed }
+                            : null,
+                    );
+                    setBase(typedOn ? typed : null);
                 }
                 setNotice(error ?? 'Saved');
             },
@@ -155,10 +210,15 @@ const FieldCodeEditor: FC<{
                         }
                         onChange={(event) => {
                             const { value } = event.currentTarget;
+                            const next = rewrite(key, value);
+                            if (next === null) {
+                                setNotice(
+                                    'This one is edited in the code below: rewriting it from here would change other lines.',
+                                );
+                                return;
+                            }
                             setTyping({ key, value });
-                            setText(
-                                writeProperty(current, key, value, isDbtColumn),
-                            );
+                            setText(next);
                             setNotice(null);
                         }}
                         onBlur={() => {
@@ -231,7 +291,7 @@ const FieldCodeEditor: FC<{
                         {notice ?? source.readOnlyReason ?? source.fileName}
                     </Text>
                     <Box className={classes.fieldCodeActions}>
-                        {isDirty ? (
+                        {isDirty && canEdit ? (
                             <>
                                 <Anchor
                                     component="button"
@@ -380,7 +440,10 @@ const DraftFieldCode: FC<{
 };
 
 // Where the YAML cannot be read, the compiled field's words are shown as they are
-const ReadOnlyWords: FC<{ words: FieldWord[] }> = ({ words }) => (
+const ReadOnlyWords: FC<{ words: FieldWord[]; note: string | null }> = ({
+    words,
+    note,
+}) => (
     <>
         {words.map(({ name, fallback, placeholder }) => (
             <Fragment key={name}>
@@ -393,6 +456,12 @@ const ReadOnlyWords: FC<{ words: FieldWord[] }> = ({ words }) => (
                 </Text>
             </Fragment>
         ))}
+        {note ? (
+            <>
+                <span />
+                <Text className={classes.facts}>{note}</Text>
+            </>
+        ) : null}
     </>
 );
 
@@ -408,6 +477,8 @@ export const ProtoFieldCode: FC<{
     words: FieldWord[];
     /** What can be done with the field, shown at the foot of its code. */
     actions: ReactNode;
+    /** The project, draft and model the field's unsaved typing belongs to. */
+    draftScope: string;
     /** False where the model has no YAML file to read. */
     hasFile: boolean;
 }> = ({
@@ -419,17 +490,18 @@ export const ProtoFieldCode: FC<{
     readOnlyReason,
     words,
     actions,
+    draftScope,
     hasFile,
 }) =>
     !hasFile ? (
-        <ReadOnlyWords words={words} />
+        <ReadOnlyWords words={words} note={null} />
     ) : path === null ? (
         <DraftFieldCode
             fieldName={fieldName}
             projectUuid={projectUuid}
             modelName={modelName}
             readOnlyReason={readOnlyReason}
-            draftKey={`${projectUuid}:${modelName}:${fieldName}`}
+            draftKey={`${draftScope}:${fieldName}`}
             words={words}
             actions={actions}
         />
@@ -438,10 +510,10 @@ export const ProtoFieldCode: FC<{
             fieldName={fieldName}
             path={path}
             edit={dbt}
-            draftKey={`${projectUuid}:${modelName}:${fieldName}`}
+            draftKey={`${draftScope}:${fieldName}`}
             words={words}
             actions={actions}
         />
     ) : (
-        <ReadOnlyWords words={words} />
+        <ReadOnlyWords words={words} note={null} />
     );
