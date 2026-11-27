@@ -861,7 +861,7 @@ export class ComposerChartService extends BaseService {
         });
     }
 
-    /** The chart's nodes with this dashboard tile's filters, parameters and date zoom written on, for a viewer of the chart on that tile. */
+    /** Checks the caller may run this chart on this tile, then writes the dashboard's filters, parameters and date zoom onto its nodes. */
     private async resolveTileRun(
         account: RegisteredAccount,
         projectUuid: UUID,
@@ -945,7 +945,7 @@ export class ComposerChartService extends BaseService {
             dateZoomByNodeId: getComposerNodeDateZooms({
                 nodes: resolved.nodes,
                 exploreByNodeId,
-                dateZoom: request.dateZoom ?? null,
+                dateZoom: request.dateZoom,
                 chartXFieldId: getStoredChartXField(chart.chart) ?? null,
             }),
             tile: {
@@ -958,7 +958,7 @@ export class ComposerChartService extends BaseService {
         };
     }
 
-    /** The shared core of every composer run: binds the resolved nodes, submits them and assembles the multi-query result. */
+    /** Binds the resolved nodes, submits the run and assembles its result; tags it first so resolution errors carry the chart kind. */
     private async runBound(
         account: RegisteredAccount,
         projectUuid: UUID,
