@@ -14,12 +14,17 @@ export const copyComposerChartsToPreview = async (
     previewDashboardVersionIdBySource: Map<number, number>,
 ): Promise<void> => {
     const sources = await trx(ComposerChartsTableName)
+        // Bind ID lists as arrays so large copies stay below Postgres's parameter limit.
         .where((owner) =>
             owner
-                .whereIn('dashboard_uuid', [
-                    ...previewDashboardUuidBySource.keys(),
+                .whereRaw('?? = ANY(?::uuid[])', [
+                    'dashboard_uuid',
+                    [...previewDashboardUuidBySource.keys()],
                 ])
-                .orWhereIn('space_uuid', [...previewSpaceUuidBySource.keys()]),
+                .orWhereRaw('?? = ANY(?::uuid[])', [
+                    'space_uuid',
+                    [...previewSpaceUuidBySource.keys()],
+                ]),
         )
         .whereNull('deleted_at')
         .select('*');

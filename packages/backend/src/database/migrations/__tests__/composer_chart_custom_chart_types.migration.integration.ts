@@ -2,6 +2,7 @@ import {
     ChartType,
     FieldType,
     QuerySourceType,
+    type ComposerChartPipeline,
     type ComposerStoredChart,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -33,6 +34,19 @@ const customChart = (dataAppVizUuid: string): ComposerStoredChart => ({
     pivotConfig: null,
     tableConfig: { columnOrder: ['status', 'total'] },
 });
+
+const pipeline: ComposerChartPipeline = {
+    schemaVersion: 1,
+    terminalNodeId: 'orders',
+    nodes: [
+        {
+            sourceType: QuerySourceType.SQL,
+            nodeId: 'orders',
+            title: 'Orders',
+            sql: 'select status, total from orders',
+        },
+    ],
+};
 
 const tableChart: ComposerStoredChart = {
     ...customChart(VIZ),
@@ -70,18 +84,7 @@ describe('composer charts using a custom chart type, on the real schema', () => 
             dashboardUuid,
             name: 'Orders by status',
             description: null,
-            pipeline: {
-                schemaVersion: 1,
-                terminalNodeId: 'orders',
-                nodes: [
-                    {
-                        sourceType: QuerySourceType.SQL,
-                        nodeId: 'orders',
-                        title: 'Orders',
-                        sql: 'select status, total from orders',
-                    },
-                ],
-            },
+            pipeline,
             chart,
             createdByUserUuid: fixture.userUuid,
         });
@@ -105,7 +108,7 @@ describe('composer charts using a custom chart type, on the real schema', () => 
             .returning('composer_chart_uuid');
         await database('composer_chart_versions').insert({
             composer_chart_uuid: uuid,
-            pipeline: JSON.stringify({ schemaVersion: 1, nodes: [] }),
+            pipeline: JSON.stringify(pipeline),
             chart: JSON.stringify(chart),
             created_by_user_uuid: fixture.userUuid,
         });
