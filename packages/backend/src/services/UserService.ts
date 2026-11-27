@@ -3140,6 +3140,16 @@ export class UserService extends BaseService {
 
         const auditedAbility = this.createAuditedAbility(sessionUser);
 
+        const restoredProjectUuids =
+            await this.projectModel.restoreMissingDefaultUserSpacesParents(
+                sessionUser.organizationUuid,
+            );
+        if (restoredProjectUuids.length > 0) {
+            Logger.warn(
+                `Recreated missing "Default User Spaces" folder in projects: ${restoredProjectUuids.join(', ')}`,
+            );
+        }
+
         const projects =
             await this.projectModel.getProjectsWithDefaultUserSpaces(
                 sessionUser.organizationUuid,

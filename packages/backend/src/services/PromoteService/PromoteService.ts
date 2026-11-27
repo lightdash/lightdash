@@ -6,6 +6,7 @@ import {
     ConflictError,
     DashboardDAO,
     DashboardTileTypes,
+    DEFAULT_USER_SPACES_PARENT_NAME,
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
@@ -956,8 +957,15 @@ export class PromoteService extends BaseService {
 
     private static isSpaceUpdated(
         promotedSpace: Pick<SpaceSummaryBase, 'name'>,
-        upstreamSpace: Pick<SpaceSummaryBase, 'name'>,
+        upstreamSpace: Pick<SpaceSummaryBase, 'name' | 'parentSpaceUuid'>,
     ) {
+        // The default user spaces folder is looked up by name, never rename it
+        if (
+            upstreamSpace.parentSpaceUuid === null &&
+            upstreamSpace.name === DEFAULT_USER_SPACES_PARENT_NAME
+        ) {
+            return false;
+        }
         return promotedSpace.name !== upstreamSpace.name;
     }
 

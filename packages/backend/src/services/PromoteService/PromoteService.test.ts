@@ -3,6 +3,7 @@ import {
     AgentActorSurface,
     ChartType,
     DashboardTileTypes,
+    DEFAULT_USER_SPACES_PARENT_NAME,
     ForbiddenError,
     OrganizationMemberRole,
     ParameterError,
@@ -1254,6 +1255,42 @@ describe('PromoteService promoting and mutating changes', () => {
         });
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(0);
         expect(spaceModel.addSpaceGroupAccess).toHaveBeenCalledTimes(0);
+    });
+
+    test('PROD-13173: does not rename the upstream Default User Spaces folder', async () => {
+        const managedFolder = {
+            ...existingUpstreamDashboard.space!,
+            name: DEFAULT_USER_SPACES_PARENT_NAME,
+            parentSpaceUuid: null,
+        };
+        (spaceModel.find as import('vitest').Mock).mockImplementation(
+            async () => [managedFolder],
+        );
+        const [changes] = await service.getPromotionDashboardChanges(
+            user,
+            {
+                ...promotedDashboard,
+                space: {
+                    ...promotedDashboard.space,
+                    name: 'default user spaces',
+                },
+            },
+            { ...existingUpstreamDashboard, space: managedFolder },
+        );
+
+        expect(changes.spaces.length).toBe(1);
+        expect(changes.spaces[0].action).toBe(PromotionAction.NO_CHANGES);
+        expect(changes.spaces[0].data.name).toBe(
+            DEFAULT_USER_SPACES_PARENT_NAME,
+        );
+
+        await service.upsertSpaces(
+            user,
+            promotedDashboard.projectUuid,
+            changes,
+        );
+
+        expect(spaceModel.update).not.toHaveBeenCalled();
     });
 
     test('return same changes if no new dashboard is created', async () => {

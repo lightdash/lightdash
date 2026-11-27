@@ -198,6 +198,7 @@ const organizationModel = {
 
 const projectModel = {
     getProjectsWithDefaultUserSpaces: vi.fn(async () => []),
+    restoreMissingDefaultUserSpacesParents: vi.fn(async () => []),
     ensureDefaultUserSpace: vi.fn(async () => undefined),
 };
 
@@ -5934,6 +5935,32 @@ describe('UserService', () => {
             await callOnLogin(service, makeSessionUser());
 
             expect(projectModel.ensureDefaultUserSpace).not.toHaveBeenCalled();
+        });
+
+        test('should restore a missing parent folder before creating spaces', async () => {
+            const service = createUserService(lightdashConfigMock);
+
+            (
+                projectModel.restoreMissingDefaultUserSpacesParents as import('vitest').Mock
+            ).mockResolvedValueOnce([projectWithDefaultSpaces.projectUuid]);
+            (
+                projectModel.getProjectsWithDefaultUserSpaces as import('vitest').Mock
+            ).mockResolvedValueOnce([projectWithDefaultSpaces]);
+
+            await callOnLogin(service, makeSessionUser());
+
+            expect(
+                (
+                    projectModel.restoreMissingDefaultUserSpacesParents as import('vitest').Mock
+                ).mock.invocationCallOrder[0],
+            ).toBeLessThan(
+                (
+                    projectModel.getProjectsWithDefaultUserSpaces as import('vitest').Mock
+                ).mock.invocationCallOrder[0],
+            );
+            expect(projectModel.ensureDefaultUserSpace).toHaveBeenCalledTimes(
+                1,
+            );
         });
 
         test('should create space for interactive viewer', async () => {
