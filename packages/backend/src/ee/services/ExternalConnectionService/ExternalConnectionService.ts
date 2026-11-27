@@ -141,6 +141,7 @@ import {
     extendLiveModel,
     findAccessRule,
     getLiveLimits,
+    readLiveMetadata,
 } from '../../../services/QuerySourceService/live/integration';
 import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
 import {
@@ -2042,13 +2043,19 @@ export class ExternalConnectionService extends BaseService {
                 if (!model.scan) {
                     return null;
                 }
-                const metadata = await model.scan({ settings, runtime });
-                const extended = extendLiveModel(model, metadata);
-                if (!extended) {
+                const read = readLiveMetadata(
+                    model,
+                    await model.scan({ settings, runtime }),
+                );
+                const extended = read
+                    ? extendLiveModel(model, read.metadata)
+                    : null;
+                if (!read || !extended) {
                     throw new UnexpectedServerError(
                         `${integration.label} reported its schema in an unexpected shape`,
                     );
                 }
+                const { metadata } = read;
                 const { dropped } = checkLiveExtension(connector, extended);
                 if (dropped.length > 0) {
                     this.logger.warn(

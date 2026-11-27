@@ -152,18 +152,20 @@ export type LiveModel<C extends ApiConnectorType = ApiConnectorType> = {
     | {
           /**
            * Reads what the vendor's workspace has now, as plain JSON in
-           * the vendor's terms: only the parts `extend` reads. The service
-           * runs it on Refresh and stores the result whole.
+           * the vendor's terms. The service runs it on Refresh and stores
+           * the parts `metadata` keeps.
            */
           scan: (args: {
               settings: ApiSourceOf<C>;
               runtime: LiveRuntime;
           }) => Promise<unknown>;
           /**
-           * The shape of what `scan` returns. The core checks stored
-           * metadata against it before `extend` reads it, so metadata an
-           * older version stored in another shape reads as none until the
-           * next Refresh.
+           * The parts of a scan the model reads, with their types. A
+           * Refresh stores only these, and the core checks stored metadata
+           * against it before `extend` reads it, so metadata an older
+           * version stored in another shape reads as none until the next
+           * Refresh. Only ever add optional keys to it, so what sources
+           * already stored still fits.
            */
           metadata: z.ZodType<unknown>;
           /**

@@ -11,7 +11,6 @@ import { z } from 'zod';
 import {
     defineLiveModel,
     dimension,
-    keepParsed,
     pickLiveFields,
     withFieldsOffByDefault,
     type LiveDimensionDefinition,
@@ -585,9 +584,6 @@ export const withAttioAttributeFields = <D extends LiveExploreDefinition>(
     };
 };
 
-/** Each standard object's attribute list, by slug, as Attio returns it. */
-export type AttioScan = { attioAttributes?: unknown };
-
 /**
  * Reads each object's attributes, which become its explore's fields. An
  * object the token can't read, or the workspace lacks, keeps its declared
@@ -598,7 +594,7 @@ export const scanAttioAttributes = async ({
     runtime,
 }: {
     runtime: LiveRuntime;
-}): Promise<AttioScan> => {
+}): Promise<unknown> => {
     const results = await Promise.allSettled(
         ATTIO_OBJECTS.map((object) =>
             runtime.fetch(
@@ -622,22 +618,25 @@ export const scanAttioAttributes = async ({
     }
     const read = ATTIO_OBJECTS.flatMap((object, index) => {
         const result = results[index];
-        return result.status === 'fulfilled'
-            ? [[object, keepParsed(attributesSchema, result.value)]]
-            : [];
+        return result.status === 'fulfilled' ? [[object, result.value]] : [];
     });
     if (read.length === 0) {
         throw failed[0];
     }
-    return { attioAttributes: Object.fromEntries(read) };
+    return { attributes: Object.fromEntries(read) };
 };
 
 export const attioModel: LiveModel<ApiConnectorType.ATTIO> = defineLiveModel({
     explores: ATTIO_EXPLORES,
     // Every object's explore gets the attributes the workspace has
     scan: scanAttioAttributes,
-    metadata: z.object({ attioAttributes: z.unknown() }),
-    extend: ({ attioAttributes }) => ({
+    metadata: z.object({
+        attributes: z.record(
+            z.string(),
+            attributesSchema.optional().catch(undefined),
+        ),
+    }),
+    extend: ({ attributes }) => ({
         fields: Object.fromEntries(
             ATTIO_EXPLORES.map((definition) => [
                 definition.name,
@@ -647,7 +646,7 @@ export const attioModel: LiveModel<ApiConnectorType.ATTIO> = defineLiveModel({
                         withAttioAttributeFields(
                             definition,
                             readAttioAttributes(
-                                attioAttributes,
+                                attributes,
                                 toAttioObject(definition.name),
                             ),
                         ),

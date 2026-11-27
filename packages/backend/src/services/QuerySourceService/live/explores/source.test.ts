@@ -128,7 +128,7 @@ describe('a source stored before Refresh returned explores', () => {
     });
 
     it('reads what a Refresh stored over an older scan', () => {
-        const metadata = { hubspotProperties: {} };
+        const metadata = { properties: {} };
         const state = parseLiveSourceFieldState({
             ...stored(null),
             scan: { at: '2026-11-25T10:00:00.000Z', metadata },
@@ -279,7 +279,7 @@ describe('a Refresh that changes a default', () => {
 describe('explores built from the metadata a Refresh stored', () => {
     const { POSTHOG } = ApiConnectorType;
     const withPlan = getRefreshedLiveState({
-        posthogProperties: {
+        properties: {
             event: { results: [{ name: 'plan' }] },
             person: { results: [] },
         },
@@ -295,7 +295,7 @@ describe('explores built from the metadata a Refresh stored', () => {
 
     it('reads metadata stored in a shape the code no longer knows as none', () => {
         const unknown = getRefreshedLiveState({
-            posthogProperties: 'not an object',
+            properties: 'not an object',
         });
         expect(getLiveExtension(POSTHOG, unknown)).toEqual({
             fields: {},
@@ -308,7 +308,7 @@ describe('explores built from the metadata a Refresh stored', () => {
         const hashOf = (state: typeof withPlan) =>
             getLiveSourceDefinitionHashes(POSTHOG, state).events;
         expect(hashOf(withPlan)).not.toBe(
-            hashOf(getRefreshedLiveState({ posthogProperties: undefined })),
+            hashOf(getRefreshedLiveState({ properties: undefined })),
         );
     });
 });

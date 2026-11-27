@@ -175,7 +175,7 @@ describe('buildLiveExplores', () => {
         const explore = buildOne(
             { connector: ApiConnectorType.GA4, propertyId: '123' },
             {
-                ga4Metadata: {
+                property: {
                     dimensions: [
                         {
                             apiName: 'customEvent:plan_type',
@@ -197,7 +197,7 @@ describe('buildLiveExplores', () => {
 
     test('keeps the declared PostHog fields when nothing was found', () => {
         const scanned = posthog({
-            posthogProperties: {
+            properties: {
                 event: { results: [{ name: 'plan' }] },
                 person: { results: [] },
             },
@@ -408,7 +408,7 @@ describe('compileLiveMetricQuery', () => {
             projectId: '42',
         } as const;
         const metadata = {
-            posthogProperties: {
+            properties: {
                 event: { results: [{ name: 'plan' }] },
                 person: { results: [] },
             },

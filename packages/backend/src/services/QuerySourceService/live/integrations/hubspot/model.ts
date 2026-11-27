@@ -11,7 +11,6 @@ import {
     ADDITIVE,
     defineLiveModel,
     dimension,
-    keepParsed,
     metric,
     pickLiveFields,
     withFieldsOffByDefault,
@@ -728,9 +727,6 @@ export const withHubspotPropertyFields = <D extends LiveExploreDefinition>(
     };
 };
 
-/** Each object's property list, as HubSpot returns it. */
-export type HubspotScan = { hubspotProperties?: unknown };
-
 /**
  * Reads each object's properties, which become its explore's fields: one
  * call per object. An object the token can't read is left out, so the others
@@ -742,7 +738,7 @@ export const scanHubspotProperties = async ({
     runtime,
 }: {
     runtime: LiveRuntime;
-}): Promise<HubspotScan> => {
+}): Promise<unknown> => {
     const lists = await Promise.allSettled(
         HUBSPOT_OBJECTS.map((object) =>
             runtime.fetch(
@@ -763,11 +759,11 @@ export const scanHubspotProperties = async ({
         throw failure ?? rejected[0];
     }
     return {
-        hubspotProperties: Object.fromEntries(
+        properties: Object.fromEntries(
             HUBSPOT_OBJECTS.flatMap((object, index) => {
                 const list = lists[index];
                 return list.status === 'fulfilled'
-                    ? [[object, keepParsed(propertiesSchema, list.value)]]
+                    ? [[object, list.value]]
                     : [];
             }),
         ),
@@ -779,8 +775,13 @@ export const hubspotModel: LiveModel<ApiConnectorType.HUBSPOT> =
         explores: HUBSPOT_EXPLORES,
         // Every object's explore gets the properties the account has
         scan: scanHubspotProperties,
-        metadata: z.object({ hubspotProperties: z.unknown() }),
-        extend: ({ hubspotProperties }) => ({
+        metadata: z.object({
+            properties: z.record(
+                z.string(),
+                propertiesSchema.optional().catch(undefined),
+            ),
+        }),
+        extend: ({ properties }) => ({
             fields: Object.fromEntries(
                 HUBSPOT_EXPLORES.map((definition) => [
                     definition.name,
@@ -790,7 +791,7 @@ export const hubspotModel: LiveModel<ApiConnectorType.HUBSPOT> =
                             withHubspotPropertyFields(
                                 definition,
                                 readHubspotProperties(
-                                    hubspotProperties,
+                                    properties,
                                     definition.name,
                                 ),
                             ),

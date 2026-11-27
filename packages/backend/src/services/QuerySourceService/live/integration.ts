@@ -28,27 +28,16 @@ export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
 ): LiveIntegration<C> => integration as unknown as LiveIntegration<C>;
 
 /**
- * What `schema` keeps of a vendor response, or undefined when it doesn't
- * match: a scan returns only the parts `extend` reads.
- */
-export const keepParsed = <T>(
-    schema: z.ZodType<T>,
-    value: unknown,
-): T | undefined => {
-    const parsed = schema.safeParse(value);
-    return parsed.success ? parsed.data : undefined;
-};
-
-/**
- * A model that reads the vendor's schema: `scan` returns metadata in the
- * shape `metadata` states, and `extend` receives it in that shape.
+ * A model that reads the vendor's schema: `scan` returns what the vendor
+ * answered, `metadata` states the parts kept of it, and `extend` receives
+ * those.
  */
 export const defineLiveModel = <C extends ApiConnectorType, Metadata>(model: {
     explores: LiveModel<C>['explores'];
     scan: (args: {
         settings: ApiSourceOf<C>;
         runtime: LiveRuntime;
-    }) => Promise<Metadata>;
+    }) => Promise<unknown>;
     metadata: z.ZodType<Metadata>;
     extend: (metadata: Metadata) => LiveExtension;
 }): LiveModel<C> => model as unknown as LiveModel<C>;
@@ -70,6 +59,18 @@ export const toLiveModelName = (apiName: string): string => {
 /** Whether a name can be the model part of an explore name. */
 export const isLiveModelName = (name: string): boolean =>
     name.length <= MODEL_NAME_MAX_LENGTH && /^[a-z][a-z0-9_]*$/.test(name);
+
+/**
+ * What a Refresh stores of a scan: the parts the model's `metadata` shape
+ * keeps. Null when the scan isn't in that shape at all.
+ */
+export const readLiveMetadata = <C extends ApiConnectorType>(
+    model: LiveModel<C>,
+    scanned: unknown,
+): { metadata: unknown } | null => {
+    const parsed = model.metadata?.safeParse(scanned);
+    return parsed?.success ? { metadata: parsed.data } : null;
+};
 
 /** An explore's fields, as `extend` returns them for a declared explore. */
 export const pickLiveFields = ({
