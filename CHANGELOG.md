@@ -1,3 +1,10 @@
+# [3.428.0](https://github.com/lightdash/lightdash/compare/3.427.1...3.428.0) (2026-11-27)
+
+
+### Features
+
+* **live-sources:** turn each integration on or off with a feature flag ([#33541](https://github.com/lightdash/lightdash/issues/33541)) ([f28864e](https://github.com/lightdash/lightdash/commit/f28864ecb5b6b6d94a80585db9b8421b495ec4b1)), closes [#33540](https://github.com/lightdash/lightdash/issues/33540)
+
 ## [3.427.1](https://github.com/lightdash/lightdash/compare/3.427.0...3.427.1) (2026-11-27)
 
 
