@@ -1052,10 +1052,6 @@ const InfiniteResourceTable = ({
                       typeof contentTableProps.enableRowSelection === 'function'
                           ? contentTableProps.enableRowSelection(row)
                           : true;
-                  // No bulk actions on composer charts yet, so nothing to select them for.
-                  if (isResourceViewComposerChartItem(row.original)) {
-                      return false;
-                  }
                   if (!allowed || !isResourceViewDocumentItem(row.original)) {
                       return allowed;
                   }
@@ -1140,9 +1136,13 @@ const InfiniteResourceTable = ({
                                         contentType: ContentType.DATA_APP,
                                     },
                                 ];
-                            // Moving composer charts is not supported yet.
                             case ContentType.COMPOSER_CHART:
-                                return [];
+                                return [
+                                    {
+                                        uuid: item.data.uuid,
+                                        contentType: ContentType.COMPOSER_CHART,
+                                    },
+                                ];
                             default:
                                 return assertUnreachable(
                                     item,

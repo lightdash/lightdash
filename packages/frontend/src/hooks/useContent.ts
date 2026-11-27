@@ -46,8 +46,16 @@ export type ContentArgs = {
     sharedWithMe?: boolean;
 };
 
-const contentTypeLabel = (contentType: ContentType): string =>
-    contentType === ContentType.DATA_APP ? 'data app' : contentType;
+const contentTypeLabel = (contentType: ContentType): string => {
+    switch (contentType) {
+        case ContentType.DATA_APP:
+            return 'data app';
+        case ContentType.COMPOSER_CHART:
+            return 'chart';
+        default:
+            return contentType;
+    }
+};
 
 function createQueryString(params: Record<string, any>): string {
     const query = new URLSearchParams();
@@ -152,6 +160,7 @@ export const invalidateContent = async (
         queryClient.invalidateQueries(['space']),
         queryClient.invalidateQueries(['spaces']),
         queryClient.invalidateQueries([projectUuid, 'search']),
+        queryClient.invalidateQueries(['composerChart', projectUuid]),
     ]);
 };
 

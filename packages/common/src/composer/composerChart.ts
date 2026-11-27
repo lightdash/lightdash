@@ -549,6 +549,12 @@ export type CreateComposerChart = {
     chart: ComposerStoredChart;
 };
 
+/** A rename of a space-owned chart: no new version, the slug unchanged. An omitted field keeps its value. */
+export type UpdateComposerChart = {
+    name?: string;
+    description?: string | null;
+};
+
 /** The dashboard or the space a composer chart belongs to: exactly one. */
 export type ComposerChartOwner =
     | { type: 'dashboard'; dashboardUuid: string }

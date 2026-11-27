@@ -51,10 +51,12 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type RegisteredAccount,
+    type UpdateComposerChart,
     type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import type { Knex } from 'knex';
 import { validate as isUuid } from 'uuid';
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import { ComposerChartModel } from '../../models/ComposerChartModel';
@@ -664,6 +666,113 @@ export class ComposerChartService extends BaseService {
         return this.composerChartModel.get(composerChartUuid);
     }
 
+    /** The live chart's space, after checking `action` on it; a dashboard's chart lives and dies with its tile. */
+    private async getSpaceOwnerFor(
+        account: RegisteredAccount,
+        action: 'update',
+        projectUuid: string,
+        composerChartUuid: string,
+    ): Promise<string> {
+        const { projectUuid: chartProjectUuid, owner } =
+            await this.composerChartModel.getOwner(composerChartUuid);
+        if (chartProjectUuid !== projectUuid) {
+            throw new NotFoundError('Composer chart not found');
+        }
+        await this.assertChartPermission(
+            account,
+            action,
+            projectUuid,
+            owner,
+            composerChartUuid,
+        );
+        switch (owner.type) {
+            case 'space':
+                return owner.spaceUuid;
+            case 'dashboard':
+                throw new ParameterError(
+                    'This composer chart belongs to a dashboard and changes with it',
+                );
+            default:
+                return assertUnreachable(owner, 'Unknown composer chart owner');
+        }
+    }
+
+    /** Renames a space-owned chart: no new version, the slug unchanged; works with the flag off. */
+    async update(
+        account: RegisteredAccount,
+        projectUuid: string,
+        composerChartUuid: string,
+        data: UpdateComposerChart,
+    ): Promise<ComposerChart> {
+        const name = data.name?.trim();
+        if (name === '') {
+            throw new ParameterError('A composer chart needs a name');
+        }
+        await this.getSpaceOwnerFor(
+            account,
+            'update',
+            projectUuid,
+            composerChartUuid,
+        );
+        await this.composerChartModel.update(composerChartUuid, {
+            ...(name !== undefined ? { name } : {}),
+            ...(data.description !== undefined
+                ? { description: data.description }
+                : {}),
+        });
+        return this.composerChartModel.get(composerChartUuid);
+    }
+
+    /** Moves a space-owned chart to another space, with no new version; needs write on both spaces. */
+    async moveToSpace(
+        account: RegisteredAccount,
+        {
+            projectUuid,
+            itemUuid: composerChartUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            targetSpaceUuid: string | null;
+        },
+        {
+            tx,
+            checkForAccess = true,
+        }: { tx?: Knex; checkForAccess?: boolean } = {},
+    ): Promise<void> {
+        if (targetSpaceUuid === null) {
+            throw new ParameterError(
+                'A composer chart cannot be moved outside of a space',
+            );
+        }
+        if (checkForAccess) {
+            await this.getSpaceOwnerFor(
+                account,
+                'update',
+                projectUuid,
+                composerChartUuid,
+            );
+            await this.assertChartPermission(
+                account,
+                'update',
+                projectUuid,
+                { type: 'space', spaceUuid: targetSpaceUuid },
+                composerChartUuid,
+            );
+        } else {
+            this.logBypassEvent(account, 'update', {
+                type: 'SavedChart',
+                metadata: { composerChartUuid },
+                organizationUuid:
+                    account.organization.organizationUuid ?? 'unknown',
+            });
+        }
+        await this.composerChartModel.moveToSpace(
+            { projectUuid, composerChartUuid, targetSpaceUuid },
+            { tx },
+        );
+    }
+
     /** Composer charts on these tiles the caller can view, with their semantic-layer nodes' explores; the rest are left out. */
     async getAvailableFilterSources(
         account: Account,
@@ -851,7 +960,8 @@ export class ComposerChartService extends BaseService {
         const { enabled } = await this.featureFlagModel.get({
             user: {
                 userUuid: account.user.userUuid,
-                organizationUuid: account.organization.organizationUuid,
+                organizationUuid:
+                    account.organization.organizationUuid ?? 'unknown',
             },
             featureFlagId: FeatureFlags.ComposerCharts,
         });

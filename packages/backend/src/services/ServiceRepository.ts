@@ -2123,6 +2123,7 @@ export class ServiceRepository
                         ? this.getAppGenerateService<AppGenerateService>()
                         : undefined,
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                    composerChartService: this.getComposerChartService(),
                 }),
         );
     }

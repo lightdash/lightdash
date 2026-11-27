@@ -1,11 +1,16 @@
 import { subject } from '@casl/ability';
 import {
     FeatureFlags,
+    ChartKind,
+    ContentType,
+    getChartKind,
     getComposerChartExportLabels,
+    ResourceViewItemType,
     type ApiErrorDetail,
     type ComposerChartWithDetails,
     type ParametersValuesMap,
     type ParameterValue,
+    type ResourceViewComposerChartItem,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -22,6 +27,8 @@ import * as Sentry from '@sentry/react';
 import {
     IconChartHistogram,
     IconDots,
+    IconEdit,
+    IconFolderSymlink,
     IconHierarchy2,
     IconPhoto,
     IconRefresh,
@@ -43,6 +50,7 @@ import {
 } from '../../../components/common/Page/HeaderSlots';
 import Page from '../../../components/common/Page/Page';
 import PageHeader from '../../../components/common/Page/PageHeader';
+import TransferItemsModal from '../../../components/common/TransferItemsModal/TransferItemsModal';
 import ExportDataModal from '../../../components/DashboardTiles/ExportDataModal';
 import ExportImageModal from '../../../components/DashboardTiles/ExportImageModal';
 import { type EChartsReact } from '../../../components/EChartsReactWrapper';
@@ -51,8 +59,10 @@ import { NO_CELL_LIMITED_SCOPES } from '../../../components/ExportResults/export
 import { AskAiAgentButton } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
 import { useRefreshComposerChartOnAgentEdit } from '../../../ee/features/aiCopilot/hooks/useRefreshComposerChartOnAgentEdit';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useContentAction } from '../../../hooks/useContent';
 import useApp from '../../../providers/App/useApp';
 import { Parameters } from '../../parameters';
+import { useCanWriteComposerChart } from '../hooks/useCanWriteComposerChart';
 import {
     COMPOSER_CHART_SENTRY_TAGS,
     useComposerChartDraw,
@@ -64,6 +74,7 @@ import {
 import { ComposerRunParametersContext } from '../lineage/composerRunParametersContext';
 import { getComposerChartParameterValues } from '../utils/composerChartParameterValues';
 import styles from './ComposerChartPage.module.css';
+import { ComposerChartUpdateModal } from './ComposerChartUpdateModal';
 import { ComposerChartVisualization } from './ComposerChartVisualization';
 import { ComposerTileLineage } from './ComposerTileLineage';
 
@@ -165,6 +176,35 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
         imageExportOpened,
         { open: openImageExport, close: closeImageExport },
     ] = useDisclosure(false);
+    const canWrite = useCanWriteComposerChart(projectUuid, chart.space.uuid);
+    const [renameOpened, { open: openRename, close: closeRename }] =
+        useDisclosure(false);
+    const [moveOpened, { open: openMove, close: closeMove }] =
+        useDisclosure(false);
+    const { mutateAsync: contentAction, isLoading: isMoving } =
+        useContentAction(projectUuid);
+    const moveItem = useMemo(
+        (): ResourceViewComposerChartItem => ({
+            type: ResourceViewItemType.COMPOSER_CHART,
+            data: {
+                uuid: composerChartUuid,
+                slug: chart.slug,
+                name: chart.name,
+                description: chart.description ?? undefined,
+                spaceUuid: chart.space.uuid,
+                projectUuid,
+                organizationUuid: user.data?.organizationUuid ?? '',
+                chartKind:
+                    getChartKind(
+                        chart.chart.chartConfig.type,
+                        chart.chart.chartConfig.config,
+                    ) ?? ChartKind.VERTICAL_BAR,
+                updatedAt: chart.updatedAt,
+                updatedByUser: chart.updatedByUser,
+            },
+        }),
+        [chart, composerChartUuid, projectUuid, user.data?.organizationUuid],
+    );
 
     const renderChart = (minimal: boolean) =>
         isDrawn ? (
@@ -253,7 +293,7 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                 <MantineIcon icon={IconRefresh} />
                             </ActionIcon>
                         </Tooltip>
-                        {canExportData && (
+                        {(canExportData || canWrite) && (
                             <Menu position="bottom-end" withArrow>
                                 <Menu.Target>
                                     <Tooltip
@@ -270,26 +310,59 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                     </Tooltip>
                                 </Menu.Target>
                                 <Menu.Dropdown>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconTableExport}
-                                            />
-                                        }
-                                        disabled={!exportQueryUuid}
-                                        onClick={openExport}
-                                    >
-                                        Download data
-                                    </Menu.Item>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconPhoto} />
-                                        }
-                                        disabled={!canExportImage}
-                                        onClick={openImageExport}
-                                    >
-                                        Export image
-                                    </Menu.Item>
+                                    {canWrite && (
+                                        <>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconEdit}
+                                                    />
+                                                }
+                                                onClick={openRename}
+                                            >
+                                                Rename
+                                            </Menu.Item>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconFolderSymlink}
+                                                    />
+                                                }
+                                                onClick={openMove}
+                                            >
+                                                Move
+                                            </Menu.Item>
+                                        </>
+                                    )}
+                                    {canWrite && canExportData && (
+                                        <Menu.Divider />
+                                    )}
+                                    {canExportData && (
+                                        <>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconTableExport}
+                                                    />
+                                                }
+                                                disabled={!exportQueryUuid}
+                                                onClick={openExport}
+                                            >
+                                                Download data
+                                            </Menu.Item>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconPhoto}
+                                                    />
+                                                }
+                                                disabled={!canExportImage}
+                                                onClick={openImageExport}
+                                            >
+                                                Export image
+                                            </Menu.Item>
+                                        </>
+                                    )}
                                 </Menu.Dropdown>
                             </Menu>
                         )}
@@ -399,6 +472,39 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                     chartName={chart.name}
                     hideLimitSelection
                     cellLimitedScopes={NO_CELL_LIMITED_SCOPES}
+                />
+            )}
+            {renameOpened && (
+                <ComposerChartUpdateModal
+                    opened
+                    projectUuid={projectUuid}
+                    uuid={composerChartUuid}
+                    name={chart.name}
+                    description={chart.description}
+                    onClose={closeRename}
+                    onConfirm={closeRename}
+                />
+            )}
+            {moveOpened && (
+                <TransferItemsModal
+                    projectUuid={projectUuid}
+                    opened
+                    onClose={closeMove}
+                    items={[moveItem]}
+                    isLoading={isMoving}
+                    onConfirm={async (spaceUuid) => {
+                        await contentAction({
+                            action: {
+                                type: 'move',
+                                targetSpaceUuid: spaceUuid,
+                            },
+                            item: {
+                                uuid: composerChartUuid,
+                                contentType: ContentType.COMPOSER_CHART,
+                            },
+                        });
+                        closeMove();
+                    }}
                 />
             )}
             {canExportImage && (

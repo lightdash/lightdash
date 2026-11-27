@@ -124,6 +124,44 @@ export class ComposerChartModel {
         return { projectUuid: row.project_uuid, owner: toOwner(uuid, row) };
     }
 
+    /** Name and description of a live space-owned chart, with no new version. */
+    async update(
+        uuid: string,
+        fields: { name?: string; description?: string | null },
+    ): Promise<void> {
+        if (fields.name === undefined && fields.description === undefined) {
+            return;
+        }
+        const count = await this.database(ComposerChartsTableName)
+            .update(fields)
+            .where('composer_chart_uuid', uuid)
+            .whereNotNull('space_uuid')
+            .whereNull('deleted_at');
+        if (count !== 1) throw new NotFoundError('Composer chart not found');
+    }
+
+    /** Moves a live space-owned chart to another space, with no new version. */
+    async moveToSpace(
+        {
+            projectUuid,
+            composerChartUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            composerChartUuid: string;
+            targetSpaceUuid: string;
+        },
+        { tx = this.database }: { tx?: Knex } = {},
+    ): Promise<void> {
+        const count = await tx(ComposerChartsTableName)
+            .update({ space_uuid: targetSpaceUuid })
+            .where('composer_chart_uuid', composerChartUuid)
+            .where('project_uuid', projectUuid)
+            .whereNotNull('space_uuid')
+            .whereNull('deleted_at');
+        if (count !== 1) throw new NotFoundError('Composer chart not found');
+    }
+
     /** Copies the chart and its latest version, unparsed, onto another dashboard. */
     async duplicate(
         sourceUuid: string,

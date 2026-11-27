@@ -1827,3 +1827,199 @@ describe('ComposerChartService.get', () => {
         ).rejects.toThrow(NotFoundError);
     });
 });
+
+describe('ComposerChartService lifecycle writes', () => {
+    const sourceSpaceUuid = 'source-space-uuid';
+    const targetSpaceUuid = 'target-space-uuid';
+    const spaceOwner: ComposerChartOwner = {
+        type: 'space',
+        spaceUuid: sourceSpaceUuid,
+    };
+
+    // Write follows `inheritsFromOrgOrProject`, so each space can grant or refuse it
+    const setupWrite = ({
+        owner = spaceOwner,
+        writableSpaces = [sourceSpaceUuid, targetSpaceUuid],
+        spaceProjects = {},
+        flagEnabled = true,
+    }: {
+        owner?: ComposerChartOwner;
+        writableSpaces?: readonly string[];
+        spaceProjects?: Record<string, string>;
+        flagEnabled?: boolean;
+    } = {}) => {
+        const deps = setup({ flagEnabled });
+        const update = vi.fn(async () => undefined);
+        const moveToSpace = vi.fn(async () => undefined);
+        Object.assign(deps.composerChartModel, {
+            getOwner: vi.fn(async () => ({ projectUuid, owner })),
+            update,
+            moveToSpace,
+        });
+        const resolveAccess = vi.fn(
+            async (_: string, target: { spaceUuid: string }) => ({
+                organizationUuid,
+                projectUuid: spaceProjects[target.spaceUuid] ?? projectUuid,
+                inheritsFromOrgOrProject: writableSpaces.includes(
+                    target.spaceUuid,
+                ),
+                access: [],
+                admins: [],
+            }),
+        );
+        Object.assign(deps.spacePermissionService, { resolveAccess });
+        const account = sessionAccount(
+            new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: 'view' as const },
+                {
+                    subject: 'SavedChart',
+                    action: 'manage' as const,
+                    conditions: { inheritsFromOrgOrProject: true },
+                },
+            ]),
+        );
+        return { ...deps, update, moveToSpace, account, resolveAccess };
+    };
+
+    describe('update', () => {
+        test('renames a chart its space owns, checking write on that space, with no new version', async () => {
+            const { service, account, update, composerChartModel } =
+                setupWrite();
+            await service.update(account, projectUuid, 'chart-uuid', {
+                name: ' Renamed ',
+                description: null,
+            });
+            expect(update).toHaveBeenCalledWith('chart-uuid', {
+                name: 'Renamed',
+                description: null,
+            });
+            expect(composerChartModel.create).not.toHaveBeenCalled();
+        });
+
+        test('renames with the composer-charts flag off', async () => {
+            const { service, account, update } = setupWrite({
+                flagEnabled: false,
+            });
+            await service.update(account, projectUuid, 'chart-uuid', {
+                description: 'Why',
+            });
+            expect(update).toHaveBeenCalledWith('chart-uuid', {
+                description: 'Why',
+            });
+        });
+
+        test('refuses a user who can view charts in the space but not write them', async () => {
+            const { service, account, update } = setupWrite({
+                writableSpaces: [],
+            });
+            await expect(
+                service.update(account, projectUuid, 'chart-uuid', {
+                    name: 'Renamed',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(update).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            [
+                'a chart a dashboard owns',
+                {
+                    owner: { type: 'dashboard', dashboardUuid },
+                    writableSpaces: ['space-uuid'],
+                },
+                { name: 'Renamed' },
+            ],
+            ['an empty name', {}, { name: '  ' }],
+        ] as const)('refuses %s', async (_, options, body) => {
+            const { service, account, update } = setupWrite(options);
+            await expect(
+                service.update(account, projectUuid, 'chart-uuid', body),
+            ).rejects.toThrow(ParameterError);
+            expect(update).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('moveToSpace', () => {
+        const move = (
+            service: ComposerChartService,
+            account: ReturnType<typeof sessionAccount>,
+            target: string | null = targetSpaceUuid,
+        ) =>
+            service.moveToSpace(
+                account,
+                {
+                    projectUuid,
+                    itemUuid: 'chart-uuid',
+                    targetSpaceUuid: target,
+                },
+                { tx: 'tx' as never, checkForAccess: true },
+            );
+
+        test('moves a chart to another space in the caller transaction, checking write on both', async () => {
+            const { service, account, moveToSpace, resolveAccess } = setupWrite(
+                { flagEnabled: false },
+            );
+            await move(service, account);
+            expect(moveToSpace).toHaveBeenCalledWith(
+                {
+                    projectUuid,
+                    composerChartUuid: 'chart-uuid',
+                    targetSpaceUuid,
+                },
+                { tx: 'tx' },
+            );
+            expect(resolveAccess).toHaveBeenCalledWith(
+                defaultSessionUser.userUuid,
+                { type: 'space', spaceUuid: sourceSpaceUuid },
+            );
+            expect(resolveAccess).toHaveBeenCalledWith(
+                defaultSessionUser.userUuid,
+                { type: 'space', spaceUuid: targetSpaceUuid },
+            );
+        });
+
+        test.each([
+            ['its own space', [targetSpaceUuid]],
+            ['the target space', [sourceSpaceUuid]],
+        ])('refuses a user who cannot write %s', async (_, writableSpaces) => {
+            const { service, account, moveToSpace } = setupWrite({
+                writableSpaces,
+            });
+            await expect(move(service, account)).rejects.toThrow(
+                ForbiddenError,
+            );
+            expect(moveToSpace).not.toHaveBeenCalled();
+        });
+
+        test('refuses a target space in another project', async () => {
+            const { service, account, moveToSpace } = setupWrite({
+                spaceProjects: { [targetSpaceUuid]: 'another-project' },
+            });
+            await expect(move(service, account)).rejects.toThrow(NotFoundError);
+            expect(moveToSpace).not.toHaveBeenCalled();
+        });
+
+        // The dashboard's space is writable, so only the owner refuses
+        test.each([
+            [
+                'a chart a dashboard owns',
+                { type: 'dashboard', dashboardUuid },
+                targetSpaceUuid,
+            ],
+            ['no target space', spaceOwner, null],
+        ] as const)('refuses %s', async (_, owner, target) => {
+            const { service, account, moveToSpace } = setupWrite({
+                owner,
+                writableSpaces: [
+                    'space-uuid',
+                    sourceSpaceUuid,
+                    targetSpaceUuid,
+                ],
+            });
+            await expect(move(service, account, target)).rejects.toThrow(
+                ParameterError,
+            );
+            expect(moveToSpace).not.toHaveBeenCalled();
+        });
+    });
+});
