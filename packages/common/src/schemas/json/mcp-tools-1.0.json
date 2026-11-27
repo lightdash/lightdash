@@ -826,7 +826,7 @@
                 "readOnlyHint": true,
                 "title": "Find content"
             },
-            "description": "Tool: \"find_content\"\nPurpose:\nFinds spaces, charts, dashboards, or Data Apps by name or description within a project, returning detailed information about each.\n\nUsage tips:\n- If results aren't relevant, retry with the full user query or more specific terms.\n- A dashboard result previews at most its first 5 charts; use \"read_content\" to see all of them.\n- If neither run_metric_query nor run_sql is available, search here first: saved charts/dashboards may answer the question. Search before claiming information is unavailable or suggesting raw SQL or elevated permissions.",
+            "description": "Tool: \"find_content\"\nPurpose:\nFinds spaces, charts, dashboards, or Data Apps by name or description within a project, returning detailed information about each.\n\nUsage tips:\n- If results aren't relevant, retry with the full user query or more specific terms.\n- A dashboard result previews at most its first 5 charts; use \"read_content\" to see all of them.\n- If this session has no query tool, search here first: saved charts/dashboards may answer the question. Search before claiming information is unavailable or suggesting raw SQL or elevated permissions.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {

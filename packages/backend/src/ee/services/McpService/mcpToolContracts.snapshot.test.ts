@@ -225,9 +225,9 @@ const mcpQueryPathsByType: {
         type: 'classic',
         ...options,
     })),
-    composer: queryRunnerOptionCombinations.map((options) => ({
+    composer: [false, true].map((sqlRunnerEnabled) => ({
         type: 'composer',
-        ...options,
+        sqlRunnerEnabled,
     })),
 };
 const mcpQueryPaths: McpQueryPath[] = Object.values(mcpQueryPathsByType).flat();
@@ -565,7 +565,6 @@ describe('MCP tool contracts', () => {
             queryPath: {
                 type: 'composer',
                 sqlRunnerEnabled: true,
-                filterExpressionsEnabled: false,
             },
         },
         {
@@ -573,7 +572,6 @@ describe('MCP tool contracts', () => {
             queryPath: {
                 type: 'composer',
                 sqlRunnerEnabled: false,
-                filterExpressionsEnabled: false,
             },
         },
     ])(
@@ -921,21 +919,41 @@ describe('MCP tool contracts', () => {
     it('matches the current MCP tool and prompt contract snapshot', async () => {
         const mcpService = makeMcpService();
 
-        mockRegisteredMcpTools.length = 0;
-        mockRegisteredMcpPrompts.length = 0;
-        await mcpService.createServer(
-            makeMcpServerOptions({
-                queryPath: {
-                    type: 'composer',
-                    sqlRunnerEnabled: true,
-                    filterExpressionsEnabled: false,
-                },
-                dataAppBuildsEnabled: true,
-                chartTypeBuildsEnabled: true,
-                customChartTypesEnabled: true,
-            }),
-        );
+        const registerTools = async (queryPath: McpQueryPath) => {
+            mockRegisteredMcpTools.length = 0;
+            mockRegisteredMcpPrompts.length = 0;
+            await mcpService.createServer(
+                makeMcpServerOptions({
+                    queryPath,
+                    dataAppBuildsEnabled: true,
+                    chartTypeBuildsEnabled: true,
+                    customChartTypesEnabled: true,
+                }),
+            );
+            return mockRegisteredMcpTools.map(({ name, config }) => ({
+                name,
+                agentName:
+                    name === McpToolName.RUN_METRIC_QUERY ? 'runQuery' : null,
+                title: config.title,
+                description: config.description,
+                annotations: config.annotations,
+                inputSchema: schemaToJson(config.inputSchema, 'input'),
+                ...(config.outputSchema
+                    ? {
+                          outputSchema: schemaToJson(
+                              config.outputSchema,
+                              'output',
+                          ),
+                      }
+                    : {}),
+            }));
+        };
 
+        const composerTools = await registerTools({
+            type: 'composer',
+            sqlRunnerEnabled: true,
+        });
+        const tools = await registerTools(classicQueryPath(true, false));
         const prompts = await Promise.all(
             mockRegisteredMcpPrompts.map(
                 async ({ name, config, callback }) => ({
@@ -950,21 +968,15 @@ describe('MCP tool contracts', () => {
                 }),
             ),
         );
-        const tools = mockRegisteredMcpTools.map(({ name, config }) => ({
-            name,
-            agentName:
-                name === McpToolName.RUN_METRIC_QUERY ? 'runQuery' : null,
-            title: config.title,
-            description: config.description,
-            annotations: config.annotations,
-            inputSchema: schemaToJson(config.inputSchema, 'input'),
-            ...(config.outputSchema
-                ? { outputSchema: schemaToJson(config.outputSchema, 'output') }
-                : {}),
-        }));
+        const classicContracts = new Map(
+            tools.map((tool) => [tool.name, JSON.stringify(tool)]),
+        );
+        const composerOnlyTools = composerTools.filter(
+            (tool) => classicContracts.get(tool.name) !== JSON.stringify(tool),
+        );
 
         expect(
-            tools
+            [...tools, ...composerOnlyTools]
                 .filter(({ inputSchema }) =>
                     JSON.stringify(inputSchema).includes('"$ref"'),
                 )
@@ -972,6 +984,9 @@ describe('MCP tool contracts', () => {
         ).toEqual([]);
 
         expect({ prompts, tools }).toMatchSnapshot();
+        expect(composerOnlyTools).toMatchSnapshot(
+            'composer query path tools that differ from classic',
+        );
     });
 
     it('registers the chart type frame tool for the chart view only', async () => {
@@ -1128,6 +1143,12 @@ describe('MCP tool contracts', () => {
         McpToolName.RENDER_CHART,
         McpToolName.SEARCH_FIELD_VALUES,
     ];
+    const composerDiscoveryTools = [
+        McpToolName.LIST_EXPLORES,
+        McpToolName.GREP_FIELDS,
+        McpToolName.GET_METADATA,
+        McpToolName.SEARCH_FIELD_VALUES,
+    ];
 
     it.each<{
         name: string;
@@ -1172,14 +1193,20 @@ describe('MCP tool contracts', () => {
             instructions: '4. `run_metric_query`',
         },
         {
-            name: 'composer',
-            queryPath: {
-                type: 'composer',
-                sqlRunnerEnabled: false,
-                filterExpressionsEnabled: false,
-            },
+            name: 'composer without SQL Runner',
+            queryPath: { type: 'composer', sqlRunnerEnabled: false },
             tools: [
-                ...classicQueryTools,
+                ...composerDiscoveryTools,
+                McpToolName.QUERY,
+                McpToolName.GET_QUERY_RESULT,
+            ],
+            instructions: '4. `query`',
+        },
+        {
+            name: 'composer with SQL Runner',
+            queryPath: { type: 'composer', sqlRunnerEnabled: true },
+            tools: [
+                ...composerDiscoveryTools,
                 McpToolName.QUERY,
                 McpToolName.GET_QUERY_RESULT,
             ],
@@ -1210,7 +1237,6 @@ describe('MCP tool contracts', () => {
                 queryPath: {
                     type: 'composer',
                     sqlRunnerEnabled: true,
-                    filterExpressionsEnabled: false,
                 },
             }),
         );
@@ -1459,7 +1485,6 @@ describe('MCP tool contracts', () => {
                 expected: {
                     type: 'composer',
                     sqlRunnerEnabled: true,
-                    filterExpressionsEnabled: true,
                 },
             },
             {
@@ -1471,7 +1496,6 @@ describe('MCP tool contracts', () => {
                 expected: {
                     type: 'composer',
                     sqlRunnerEnabled: false,
-                    filterExpressionsEnabled: true,
                 },
             },
             {
@@ -1483,7 +1507,6 @@ describe('MCP tool contracts', () => {
                 expected: {
                     type: 'composer',
                     sqlRunnerEnabled: true,
-                    filterExpressionsEnabled: true,
                 },
             },
             {

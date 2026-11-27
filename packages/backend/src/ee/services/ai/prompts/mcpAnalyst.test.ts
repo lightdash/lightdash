@@ -21,7 +21,6 @@ describe('getMcpAnalystPrompt', () => {
         {
             type: 'composer',
             sqlRunnerEnabled: true,
-            filterExpressionsEnabled: false,
         },
     ])(
         'preserves production-first selection in every mode: %o',

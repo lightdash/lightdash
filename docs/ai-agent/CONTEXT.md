@@ -183,6 +183,12 @@ agent saves it. The agent answers from the check and does not run the chart
 again after saving.
 _Avoid_: verify, validate, test run
 
+**Pinned agent**:
+The agent an MCP connection is locked to, with its project, by a request
+header. Every project-scoped tool runs in that agent's scope, and its data
+access setting decides whether the connection can run queries.
+_Avoid_: pinned MCP session
+
 ## Warehouse tables
 
 **Base table**:
