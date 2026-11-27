@@ -1,7 +1,9 @@
 import moment from 'moment';
 import {
     DimensionType,
+    formatItemValue,
     formatRawValue,
+    formatRows,
     getDateGroupLabel,
     getDateGroupLabelWithGranularity,
     getFilterRuleFromFieldWithDefaultValue,
@@ -11,6 +13,7 @@ import {
     TimeFrames,
     validateUserName,
     type Dimension,
+    type ItemsMap,
 } from '.';
 import {
     dateDayDimension,
@@ -317,4 +320,70 @@ describe('formatRawValue (GLITCH-452)', () => {
     test('TIMESTAMP keeps the full ISO raw even in tz-aware mode (still an instant)', () => {
         expect(formatRawValue(tsField, value, 'Asia/Tokyo')).toContain('T');
     });
+});
+
+describe('createRowFormatter', () => {
+    const itemsMap = {
+        d: { fieldType: 'dimension', type: 'date', name: 'd', table: 't' },
+        ts: {
+            fieldType: 'dimension',
+            type: 'timestamp',
+            name: 'ts',
+            table: 't',
+        },
+        s: { fieldType: 'dimension', type: 'string', name: 's', table: 't' },
+    } as unknown as ItemsMap;
+    const values = [
+        '2024-01-02T03:04:05.678Z',
+        '2024-01-02T03:04:05Z',
+        '2024-02-30T00:00:00.000Z',
+        '2024-01-02',
+        '2024-01-02 03:04:05',
+        new Date('2024-06-30T23:59:59.999Z'),
+        'not a date',
+        null,
+        12,
+    ];
+    const rows = [...values, ...values].map((v) => ({ d: v, ts: v, s: v }));
+
+    test.each([undefined, 'UTC', 'America/New_York'])(
+        'matches uncached moment formatting (timezone %s)',
+        (timezone) => {
+            // moment objects skip the native ISO parse, and one row per formatter skips the cache
+            const expected = rows.map((row) =>
+                Object.fromEntries(
+                    Object.entries(row).map(([col, v]) => [
+                        col,
+                        {
+                            value: {
+                                raw: formatRawValue(itemsMap[col], v, timezone),
+                                formatted: formatItemValue(
+                                    itemsMap[col],
+                                    col !== 's' &&
+                                        typeof v === 'string' &&
+                                        v.endsWith('Z')
+                                        ? moment(v)
+                                        : v,
+                                    false,
+                                    undefined,
+                                    timezone,
+                                ),
+                            },
+                        },
+                    ]),
+                ),
+            );
+            const formatted = formatRows(
+                rows,
+                itemsMap,
+                undefined,
+                undefined,
+                timezone,
+            );
+            expect(formatted).toEqual(expected);
+            expect(formatted[0].d.value).not.toBe(
+                formatted[values.length].d.value,
+            );
+        },
+    );
 });

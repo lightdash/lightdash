@@ -25,6 +25,7 @@ import {
     canEmbedViewerResolveTileParameters,
     ChartType,
     CompiledDimension,
+    createRowFormatter,
     CreateWarehouseCredentials,
     CustomSqlQueryForbiddenError,
     DashboardFilters,
@@ -48,7 +49,6 @@ import {
     formatItemValue,
     formatRawRows,
     formatRawValue,
-    formatRow,
     formatRows,
     friendlyName,
     getAccountUserTimezone,
@@ -2922,14 +2922,12 @@ export class AsyncQueryService extends ProjectService {
             totalRowCount,
         });
 
-        const formatter = (row: Record<string, unknown>) =>
-            formatRow(
-                row,
-                queryHistory.fields,
-                queryHistory.pivotValuesColumns,
-                undefined,
-                displayTimezone ?? undefined,
-            );
+        const formatter = createRowFormatter(
+            queryHistory.fields,
+            queryHistory.pivotValuesColumns,
+            undefined,
+            displayTimezone ?? undefined,
+        );
 
         const {
             result: { rows },

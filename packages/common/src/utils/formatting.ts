@@ -142,12 +142,23 @@ export const isTimestampString = (value: unknown): value is string =>
     typeof value === 'string' &&
     /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(value);
 
+// A zoned ISO string is the same instant as its native Date, which moment
+// takes without its slow string parse.
+const zonedIsoString = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
+const parseZonedIsoNatively = (value: MomentInput): MomentInput => {
+    if (typeof value !== 'string' || !zonedIsoString.test(value)) return value;
+    const date = new Date(value);
+    // Native parsing rolls an overflowing day (Feb 30) into the next month; moment rejects it.
+    return date.getUTCDate() === Number(value.slice(8, 10)) ? date : value;
+};
+
 export function formatDate(
-    date: MomentInput,
+    input: MomentInput,
     timeInterval: TimeFrames = TimeFrames.DAY,
     convertToUTC: boolean = false,
     timezone?: string,
 ): string {
+    const date = parseZonedIsoNatively(input);
     let momentDate;
     if (timezone) {
         momentDate = moment.utc(date).tz(timezone);
@@ -168,12 +179,13 @@ export function formatDate(
 // when the value is already wall-clock in that zone — it only appends the offset
 // suffix. Pass at most one.
 export function formatTimestamp(
-    value: MomentInput,
+    input: MomentInput,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
     convertToUTC: boolean = false,
     timezone?: string,
     displayTimezone?: string,
 ): string {
+    const value = parseZonedIsoNatively(input);
     let momentDate;
     if (timezone) {
         momentDate = moment.utc(value).tz(timezone);
@@ -323,9 +335,8 @@ export const formatTemporalCellForSpreadsheet = (
         return undefined;
     }
     const shouldShift = !!timezone && shouldShiftItemTimezone(item);
-    const m = shouldShift
-        ? moment.utc(rawValue as MomentInput).tz(timezone!)
-        : moment(rawValue as MomentInput);
+    const input = parseZonedIsoNatively(rawValue as MomentInput);
+    const m = shouldShift ? moment.utc(input).tz(timezone!) : moment(input);
     if (!m.isValid()) return undefined;
     return m.format(isTimestamp ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD');
 };

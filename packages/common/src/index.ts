@@ -1086,6 +1086,82 @@ export function formatRawRows(
     });
 }
 
+const MAX_CACHED_TEMPORAL_VALUES_PER_COLUMN = 5000;
+
+// Temporal cells are the expensive ones to format and repeat heavily within a column.
+const getTemporalCacheKey = (value: unknown): string | number | undefined => {
+    if (value instanceof Date) return value.getTime();
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}([T ]|$)/.test(value))
+        return value;
+    return undefined;
+};
+
+const formatCell = (
+    columnName: string,
+    value: unknown,
+    itemsMap: ItemsMap,
+    pivotValuesColumns: Record<string, PivotValuesColumn> | null | undefined,
+    parameters: Record<string, unknown> | undefined,
+    timezone: string | undefined,
+): ResultRow[string]['value'] => {
+    const pivotValuesColumn = pivotValuesColumns?.[columnName];
+    const item = itemsMap[pivotValuesColumn?.referenceField ?? columnName];
+    return {
+        raw: formatRawValue(item, value, timezone),
+        formatted: formatItemValue(item, value, false, parameters, timezone),
+    };
+};
+
+export function createRowFormatter(
+    itemsMap: ItemsMap,
+    pivotValuesColumns?: Record<string, PivotValuesColumn> | null,
+    parameters?: Record<string, unknown>,
+    timezone?: string,
+): (row: { [col: string]: AnyType }) => ResultRow {
+    const cacheByColumn = new Map<
+        string,
+        Map<string | number, ResultRow[string]['value']>
+    >();
+
+    return (row) => {
+        const resultRow: ResultRow = {};
+
+        for (const columnName of Object.keys(row || {})) {
+            const value = row[columnName];
+            const cacheKey = getTemporalCacheKey(value);
+            let cache = cacheByColumn.get(columnName);
+            const cached =
+                cacheKey === undefined ? undefined : cache?.get(cacheKey);
+
+            if (cached) {
+                resultRow[columnName] = { value: { ...cached } };
+            } else {
+                const formatted = formatCell(
+                    columnName,
+                    value,
+                    itemsMap,
+                    pivotValuesColumns,
+                    parameters,
+                    timezone,
+                );
+                resultRow[columnName] = { value: formatted };
+
+                if (cacheKey !== undefined) {
+                    if (!cache) {
+                        cache = new Map();
+                        cacheByColumn.set(columnName, cache);
+                    }
+                    if (cache.size < MAX_CACHED_TEMPORAL_VALUES_PER_COLUMN) {
+                        cache.set(cacheKey, { ...formatted });
+                    }
+                }
+            }
+        }
+
+        return resultRow;
+    };
+}
+
 export function formatRow(
     row: { [col: string]: AnyType },
     itemsMap: ItemsMap,
@@ -1094,24 +1170,17 @@ export function formatRow(
     timezone?: string,
 ): ResultRow {
     const resultRow: ResultRow = {};
-    const columnNames = Object.keys(row || {});
 
-    for (const columnName of columnNames) {
-        const value = row[columnName];
-        const pivotValuesColumn = pivotValuesColumns?.[columnName];
-        const item = itemsMap[pivotValuesColumn?.referenceField ?? columnName];
-
+    for (const columnName of Object.keys(row || {})) {
         resultRow[columnName] = {
-            value: {
-                raw: formatRawValue(item, value, timezone),
-                formatted: formatItemValue(
-                    item,
-                    value,
-                    false,
-                    parameters,
-                    timezone,
-                ),
-            },
+            value: formatCell(
+                columnName,
+                row[columnName],
+                itemsMap,
+                pivotValuesColumns,
+                parameters,
+                timezone,
+            ),
         };
     }
 
@@ -1125,8 +1194,8 @@ export function formatRows(
     parameters?: Record<string, unknown>,
     timezone?: string,
 ): ResultRow[] {
-    return rows.map((row) =>
-        formatRow(row, itemsMap, pivotValuesColumns, parameters, timezone),
+    return rows.map(
+        createRowFormatter(itemsMap, pivotValuesColumns, parameters, timezone),
     );
 }
 
