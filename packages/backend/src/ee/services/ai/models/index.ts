@@ -75,15 +75,6 @@ export const resolveKeyManagement = (
         ? 'lightdash-managed'
         : 'self-managed';
 
-/**
- * Ambient calls run on the org's Anthropic key when it has one, else on the
- * instance default provider.
- */
-export const pickAmbientProvider = (
-    config: CopilotConfigForModel,
-): AiProvider =>
-    config.providers.anthropic?.apiKey ? 'anthropic' : config.defaultProvider;
-
 const withKeyManagement = <P extends AiProvider>(
     modelProperties: AiModel<P>,
     keyManagement: AiKeyManagement,

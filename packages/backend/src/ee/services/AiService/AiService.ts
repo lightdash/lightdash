@@ -95,9 +95,9 @@ import { generateTooltip as generateTooltipFromContext } from '../ai/agents/tool
 import {
     getModel,
     pickAmbientAnthropicPreset,
-    pickAmbientProvider,
     resolveKeyManagement,
 } from '../ai/models';
+import { pickAmbientProvider } from '../ai/models/ambientProvider';
 import { getAnthropicModel } from '../ai/models/anthropic-claude';
 import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import {

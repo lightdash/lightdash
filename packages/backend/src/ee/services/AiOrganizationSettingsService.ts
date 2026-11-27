@@ -57,9 +57,9 @@ import {
     getDefaultModel,
     getOrgModelCatalogue,
     getOrgModelOptions,
-    pickAmbientProvider,
     resolveKeyManagement,
 } from './ai/models';
+import { pickAmbientProvider } from './ai/models/ambientProvider';
 import {
     matchesPreset,
     MODEL_PRESETS,
