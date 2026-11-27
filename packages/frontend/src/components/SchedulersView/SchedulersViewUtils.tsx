@@ -114,6 +114,26 @@ export const getLogStatusIconWithoutTooltip = (status: SchedulerJobStatus) => {
     }
 };
 
+export const getJobStatusMessage = (
+    status: SchedulerJobStatus,
+    partialFailureMessage: string | null,
+) => {
+    switch (status) {
+        case SchedulerJobStatus.SCHEDULED:
+            return { label: 'Scheduled', color: 'dimmed' };
+        case SchedulerJobStatus.STARTED:
+            return { label: 'Running', color: 'dimmed' };
+        case SchedulerJobStatus.ERROR:
+            return { label: 'Job failed', color: 'red.7' };
+        case SchedulerJobStatus.COMPLETED:
+            return partialFailureMessage
+                ? { label: partialFailureMessage, color: 'orange.7' }
+                : { label: 'Completed successfully', color: 'green.7' };
+        default:
+            return assertUnreachable(status, 'Unknown scheduler job status');
+    }
+};
+
 export const getRunStatusConfig = (status: SchedulerRunStatus) => {
     switch (status) {
         case SchedulerRunStatus.COMPLETED:

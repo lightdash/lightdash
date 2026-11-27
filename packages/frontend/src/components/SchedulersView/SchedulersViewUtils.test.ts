@@ -1,5 +1,6 @@
 import {
     SchedulerFormat,
+    SchedulerJobStatus,
     ThresholdOperator,
     type AppScheduler,
     type ChartScheduler,
@@ -8,7 +9,11 @@ import {
     type SqlChartScheduler,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { getItemLink, getSchedulerLink } from './SchedulersViewUtils';
+import {
+    getItemLink,
+    getJobStatusMessage,
+    getSchedulerLink,
+} from './SchedulersViewUtils';
 
 const PROJECT_UUID = 'project-1';
 
@@ -147,5 +152,26 @@ describe('getItemLink', () => {
         expect(getItemLink(dashboardScheduler)).toBe(
             `/projects/${PROJECT_UUID}/dashboards/dashboard-1/view`,
         );
+    });
+});
+
+describe('getJobStatusMessage', () => {
+    it.each([
+        [SchedulerJobStatus.SCHEDULED, 'Scheduled'],
+        [SchedulerJobStatus.STARTED, 'Running'],
+        [SchedulerJobStatus.ERROR, 'Job failed'],
+        [SchedulerJobStatus.COMPLETED, 'Completed successfully'],
+    ] as const)('describes a %s job', (status, expected) => {
+        expect(getJobStatusMessage(status, null).label).toBe(expected);
+    });
+
+    it('preserves the partial failure message on completion', () => {
+        const message = 'Completed with missing recipients';
+        expect(
+            getJobStatusMessage(SchedulerJobStatus.COMPLETED, message),
+        ).toEqual({
+            label: message,
+            color: 'orange.7',
+        });
     });
 });
