@@ -83,7 +83,7 @@ export const isLiveExploreInUse = (
 
 type LiveFieldDefinition = LiveDimensionDefinition | LiveMetricDefinition;
 
-/** An explore's fields with their kind: declared ones first, then the ones `discover` added. */
+/** An explore's fields with their kind: declared ones first, then the ones `extend` added. */
 const resolveFields = (
     definition: LiveExploreDefinition,
     declaredNames: ReadonlySet<string>,

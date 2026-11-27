@@ -68,7 +68,7 @@ export type LiveMetricDefinition = ApiSourceFieldDefinition & {
     aggregation?: ApiSourceMetricAggregation;
 };
 
-/** One explore of an integration's semantic layer, written by hand or found by `discover`. */
+/** One explore of an integration's semantic layer, written by hand or added by `extend`. */
 export type LiveExploreDefinition = {
     /**
      * The model name; the explore is `<source prefix>_<name>`. Absent, the

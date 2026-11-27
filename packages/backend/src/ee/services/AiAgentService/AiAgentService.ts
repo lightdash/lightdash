@@ -12580,7 +12580,7 @@ export class AiAgentService extends BaseService {
                                 externalConnectionUuid,
                             ),
                     );
-                    // Custom objects an admin turned on are explores too
+                    // A source also has the explores its scan added, once built
                     const built =
                         await this.projectModel.getApiSourceExploreNames(
                             projectUuid,
