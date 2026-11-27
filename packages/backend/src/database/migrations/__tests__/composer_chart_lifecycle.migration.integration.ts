@@ -192,6 +192,23 @@ describe('composer charts follow their dashboard on the real schema', () => {
         });
     });
 
+    it('lists a dashboard-owned chart for code with its dashboard and space', async () => {
+        const { dashboard, composerChartUuid } =
+            await createDashboardWithChart();
+        const { slug } = await composerChartModel.get(composerChartUuid);
+
+        await expect(
+            composerChartModel.findForCode(fixture.projectUuid, [slug]),
+        ).resolves.toEqual([
+            expect.objectContaining({
+                uuid: composerChartUuid,
+                owner: { type: 'dashboard', dashboardUuid: dashboard.uuid },
+                dashboardSlug: dashboard.slug,
+                spaceUuid: fixture.spaceUuid,
+            }),
+        ]);
+    });
+
     const createSpaceChart = () =>
         composerChartModel.create({
             uuid: null,
