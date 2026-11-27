@@ -795,39 +795,47 @@ describe('QuerySourceService', () => {
             },
         );
 
-        it('refuses the status of a composer chart node once its reader cannot view the chart', async () => {
-            const { service, mocks, assertCanReadStoredResults } =
-                createService(createRegistryWithFakes().registry);
-            const row = {
-                queryUuid: 'composer-node',
-                status: QueryHistoryStatus.READY,
-                error: null,
-                requestParameters: {
-                    composerChartSource: {
-                        composerChartUuid: 'composer-chart-uuid',
-                        dashboardUuid: 'dashboard-uuid',
-                        tileUuid: 'tile-uuid',
+        it.each([
+            ['a tile', 'dashboard-uuid', 'tile-uuid'],
+            ['outside a dashboard', null, null],
+        ])(
+            'refuses the status of a composer chart node run from %s once its reader cannot view the chart',
+            async (_where, dashboardUuid, tileUuid) => {
+                const { service, mocks, assertCanReadStoredResults } =
+                    createService(createRegistryWithFakes().registry);
+                const row = {
+                    queryUuid: 'composer-node',
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    requestParameters: {
+                        composerChartSource: {
+                            composerChartUuid: 'composer-chart-uuid',
+                            dashboardUuid,
+                            tileUuid,
+                        },
                     },
-                },
-            };
-            mocks.queryHistoryModel.get.mockResolvedValue(row);
+                };
+                mocks.queryHistoryModel.get.mockResolvedValue(row);
 
-            await service.getSourceQueryStatuses(account, projectUuid, [
-                row.queryUuid,
-            ]);
-            expect(assertCanReadStoredResults).toHaveBeenCalledWith(
-                account,
-                projectUuid,
-                row,
-            );
-
-            assertCanReadStoredResults.mockRejectedValue(new ForbiddenError());
-            await expect(
-                service.getSourceQueryStatuses(account, projectUuid, [
+                await service.getSourceQueryStatuses(account, projectUuid, [
                     row.queryUuid,
-                ]),
-            ).rejects.toThrow(ForbiddenError);
-        });
+                ]);
+                expect(assertCanReadStoredResults).toHaveBeenCalledWith(
+                    account,
+                    projectUuid,
+                    row,
+                );
+
+                assertCanReadStoredResults.mockRejectedValue(
+                    new ForbiddenError(),
+                );
+                await expect(
+                    service.getSourceQueryStatuses(account, projectUuid, [
+                        row.queryUuid,
+                    ]),
+                ).rejects.toThrow(ForbiddenError);
+            },
+        );
 
         it('polls composer chart nodes with compose-sql-runner off, and nothing else', async () => {
             const { service, mocks } = createService(

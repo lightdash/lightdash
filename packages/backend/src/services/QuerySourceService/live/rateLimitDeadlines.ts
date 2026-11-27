@@ -39,6 +39,7 @@ export const getLiveRateLimitDeadlineMs = (
         case QueryExecutionContext.CHART:
         case QueryExecutionContext.CHART_HISTORY:
         case QueryExecutionContext.SQL_CHART:
+        case QueryExecutionContext.COMPOSER_CHART_VIEW:
         case QueryExecutionContext.SQL_RUNNER:
         case QueryExecutionContext.VIEW_UNDERLYING_DATA:
         case QueryExecutionContext.CSV:
