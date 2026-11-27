@@ -8,6 +8,7 @@ import {
     type LiveSourceRefreshSummary,
 } from '@lightdash/common';
 import { z } from 'zod';
+import { extendLiveModel } from '../integration';
 import { getLiveIntegration, isLiveIntegrationRegistered } from '../registry';
 import {
     type LiveDimensionDefinition,
@@ -25,13 +26,13 @@ import {
 
 /**
  * A source's explores, built the same way whether its integration declared
- * them or `discover` found them:
+ * them or `extend` added them:
  *
- * - a Refresh stores what the vendor reported (`discovered.found`), not
- *   explores; each build turns those facts into explores with the
- *   integration's code, so a deploy changes every source without a Refresh
+ * - a Refresh stores the metadata the vendor reported (`scan.metadata`),
+ *   not explores; each build turns it into explores with the integration's
+ *   `extend`, so a deploy changes every source without a Refresh
  * - a declared explore always comes from the code, with the fields the
- *   facts add after its own
+ *   metadata adds after its own
  * - an explore the integration left unnamed is named once from its
  *   `apiName` and keeps that name (`modelNames`), so charts on it survive
  *   its label changing or it going away and coming back
@@ -41,24 +42,24 @@ import {
  *   counts the first time a source sees an item
  */
 
-/** What a Refresh stored: the vendor's facts, as `discover.read` returned them. */
-export type LiveSourceDiscovery = {
+/** What a Refresh stored: the vendor's metadata, as the model's `scan` returned it. */
+export type LiveSourceScan = {
     /** ISO timestamp of the Refresh. */
-    refreshedAt: string;
-    found: unknown;
+    at: string;
+    metadata: unknown;
 };
 
-/** The explores of a source last refreshed before facts were stored, read from its scan. */
+/** The explores of a source last refreshed before metadata was stored, read from its `lastScan`. */
 export type LiveSourceLegacyScan = {
-    refreshedAt: string;
+    at: string;
     explores: LiveExploreDefinition[];
 };
 
 /** How a source's explores and fields are curated, as stored next to its settings. */
 export type LiveSourceFieldState = {
-    /** Null before the first Refresh of an integration that discovers. */
-    discovered: LiveSourceDiscovery | null;
-    /** Read only, never written: a source's scan from before facts were stored, until its next Refresh. */
+    /** Null before the first Refresh of an integration that scans. */
+    scan: LiveSourceScan | null;
+    /** Read only, never written: a source's `lastScan` from before metadata was stored, until its next Refresh. */
     legacy: LiveSourceLegacyScan | null;
     /** The model name the core gave each explore its integration left unnamed, by `apiName`. */
     modelNames: Record<string, string>;
@@ -164,18 +165,19 @@ export const checkDiscoveredExplores = (
 };
 
 /**
- * The explores a source's stored facts give, or its old scan's; none
+ * The explores a source's stored metadata gives, or its old scan's; none
  * before its first Refresh. As at Refresh, an `apiName` that can't be one
  * path segment is left out, and so is a second explore under one key.
  */
 export const getLiveDiscoveredExplores = (
     connector: ApiConnectorType,
-    state: Pick<LiveSourceFieldState, 'discovered'> &
+    state: Pick<LiveSourceFieldState, 'scan'> &
         Partial<Pick<LiveSourceFieldState, 'legacy'>>,
 ): LiveExploreDefinition[] => {
-    const explores = state.discovered
-        ? (getLiveIntegration(connector).model.discover?.explores(
-              state.discovered.found,
+    const explores = state.scan
+        ? (extendLiveModel(
+              getLiveIntegration(connector).model,
+              state.scan.metadata,
           ) ?? [])
         : (state.legacy?.explores ?? []);
     const seen = new Set<string>();
@@ -236,8 +238,8 @@ const fieldStateSchema = z.object({
     aiHint: z.string().nullish().catch(null),
     targetLabel: z.string().nullish().catch(null),
     tags: z.array(z.string()).nullish().catch(null),
-    discovered: z
-        .object({ refreshedAt: z.string(), found: z.unknown() })
+    scan: z
+        .object({ at: z.string(), metadata: z.unknown() })
         .nullish()
         .catch(null),
     lastScan: legacyScanSchema.nullish(),
@@ -271,7 +273,7 @@ const fieldStateSchema = z.object({
 });
 
 const EMPTY_STATE: LiveSourceFieldState = {
-    discovered: null,
+    scan: null,
     legacy: null,
     modelNames: {},
     fields: {},
@@ -323,7 +325,7 @@ const fromLegacyScan = (
     });
     return {
         legacy: {
-            refreshedAt: scan.scannedAt,
+            at: scan.scannedAt,
             explores: [...byModel].map(([name, fields]) => ({
                 name,
                 label: name,
@@ -356,13 +358,10 @@ export const parseLiveSourceFieldState = (
         targetLabel: data.targetLabel ?? null,
         tags: data.tags ?? [],
     };
-    if (data.discovered) {
+    if (data.scan) {
         return {
             ...base,
-            discovered: {
-                refreshedAt: data.discovered.refreshedAt,
-                found: data.discovered.found,
-            },
+            scan: { at: data.scan.at, metadata: data.scan.metadata },
             fields: data.fields ?? {},
         };
     }
@@ -383,11 +382,11 @@ export const parseLiveSourceFieldState = (
     return { ...base, fields: data.fields ?? {} };
 };
 
-/** Whether a source has been refreshed: it stored facts, or an old scan. */
+/** Whether a source has been refreshed: it stored metadata, or an old scan. */
 export const hasLiveRefresh = (
-    state: Pick<LiveSourceFieldState, 'discovered'> &
+    state: Pick<LiveSourceFieldState, 'scan'> &
         Partial<Pick<LiveSourceFieldState, 'legacy'>>,
-): boolean => state.discovered !== null || (state.legacy ?? null) !== null;
+): boolean => state.scan !== null || (state.legacy ?? null) !== null;
 
 /** Model names an unnamed explore can't take: declared, fixed and given ones. */
 const getTakenModelNames = (
@@ -452,7 +451,7 @@ export const nameLiveExplores = ({
  */
 export const getLiveSourceModels = (
     connector: ApiConnectorType,
-    state: Pick<LiveSourceFieldState, 'discovered' | 'modelNames'> &
+    state: Pick<LiveSourceFieldState, 'scan' | 'modelNames'> &
         Partial<Pick<LiveSourceFieldState, 'legacy'>>,
 ): LiveSourceModel[] => {
     const declared = getLiveIntegration(connector).model.explores;

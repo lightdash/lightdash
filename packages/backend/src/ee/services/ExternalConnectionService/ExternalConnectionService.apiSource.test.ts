@@ -120,7 +120,7 @@ const buildService = ({
     disabledIntegrations?: ApiConnectorType[];
 } = {}) => {
     let fieldState: LiveSourceFieldState = {
-        discovered: null,
+        scan: null,
         legacy: null,
         modelNames: {},
         fields: {},
@@ -268,7 +268,7 @@ const buildService = ({
                     update: (current: LiveSourceEdits) => LiveSourceEdits,
                 ) => {
                     const next = update({
-                        discovered: fieldState.discovered,
+                        scan: fieldState.scan,
                         modelNames: fieldState.modelNames,
                         fields: fieldState.fields,
                         explores: fieldState.explores,
@@ -1659,7 +1659,7 @@ describe('ExternalConnectionService live source explores', () => {
             const { service, projectModel, externalConnectionModel } =
                 buildService();
             externalConnectionModel.getLiveSourceFieldState.mockResolvedValue({
-                discovered: null,
+                scan: null,
                 modelNames: {},
                 explores: {},
                 fields: {},
@@ -1711,7 +1711,7 @@ describe('ExternalConnectionService live source explores', () => {
             const { service, projectModel, externalConnectionModel } =
                 buildService();
             externalConnectionModel.getLiveSourceFieldState.mockResolvedValue({
-                discovered: null,
+                scan: null,
                 modelNames: {},
                 explores: {},
                 fields: {},
@@ -2660,7 +2660,7 @@ describe('ExternalConnectionService live source explores', () => {
             async () => {
                 externalConnectionModel.getLiveSourceFieldState.mockResolvedValue(
                     {
-                        discovered: null,
+                        scan: null,
                         modelNames: {},
                         explores: {},
                         fields: {},

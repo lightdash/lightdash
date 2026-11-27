@@ -10,7 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     ADDITIVE,
-    defineLiveDiscovery,
+    defineLiveModel,
     dimension,
     metric,
     NON_ADDITIVE,
@@ -277,14 +277,12 @@ export const readHydraObjects = async ({
           );
 
 /** The events and users explores, then one per object the workspace has. */
-export const hydraModel: LiveModel<ApiConnectorType.HYDRA> = {
+export const hydraModel: LiveModel<ApiConnectorType.HYDRA> = defineLiveModel({
     explores: HYDRA_EXPLORES,
-    discover: defineLiveDiscovery({
-        read: readHydraObjects,
-        schema: hydraObjectsResponseSchema,
-        explores: ({ objects }) => [
-            ...HYDRA_EXPLORES,
-            ...objects.map(toHydraObjectExplore),
-        ],
-    }),
-};
+    scan: readHydraObjects,
+    metadata: hydraObjectsResponseSchema,
+    extend: ({ objects }) => [
+        ...HYDRA_EXPLORES,
+        ...objects.map(toHydraObjectExplore),
+    ],
+});

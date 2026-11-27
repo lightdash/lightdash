@@ -2,6 +2,7 @@ import type { ApiConnectorType, ApiSourceOf } from '@lightdash/common';
 import { createLiveRuntime, type LiveTransport } from './calls';
 import type { LiveExploreDefinition } from './explores/definition';
 import type { LiveSourceFieldState } from './explores/source';
+import { extendLiveModel } from './integration';
 import { runLiveRequest } from './query/run';
 import type { LiveIntegration } from './types';
 
@@ -20,22 +21,22 @@ export const connectLiveSource = <C extends ApiConnectorType>(
             transport,
         ),
     };
-    const read = (): Promise<unknown> =>
-        integration.model.discover?.read({
+    const scan = (): Promise<unknown> =>
+        integration.model.scan?.({
             settings,
             runtime: source.runtime,
         }) ?? Promise.resolve(null);
     return {
         run: (args: { query: string; limit: number }) =>
             runLiveRequest(source, args),
-        /** What a Refresh would store: the vendor's facts. */
-        read,
-        /** The explores a Refresh's facts give, as a build reads them. */
+        /** What a Refresh would store: the vendor's metadata. */
+        scan,
+        /** The explores a Refresh's metadata gives, as a build reads them. */
         discover: async (): Promise<LiveExploreDefinition[]> => {
-            const { discover } = integration.model;
-            return discover
-                ? (discover.explores(await read()) ?? [])
-                : [...integration.model.explores];
+            const { model } = source.integration;
+            return model.scan
+                ? (extendLiveModel(model, await scan()) ?? [])
+                : [...model.explores];
         },
     };
 };
@@ -54,14 +55,14 @@ export const getExploresWithDiscoveredFields = (
         )
         .map(({ name }) => name);
 
-/** A source's state after a Refresh stored `found`, with nothing curated unless given. */
+/** A source's state after a Refresh stored `metadata`, with nothing curated unless given. */
 export const getRefreshedLiveState = (
-    found: unknown,
+    metadata: unknown,
     curated: Partial<
         Pick<LiveSourceFieldState, 'fields' | 'explores' | 'modelNames'>
     > = {},
 ) => ({
-    discovered: { refreshedAt: '2026-11-06T12:00:00.000Z', found },
+    scan: { at: '2026-11-06T12:00:00.000Z', metadata },
     modelNames: {},
     fields: {},
     explores: {},
@@ -78,8 +79,8 @@ export const getLiveStateWithExplores = (
         Pick<LiveSourceFieldState, 'fields' | 'explores' | 'modelNames'>
     > = {},
 ) => ({
-    discovered: null,
-    legacy: { refreshedAt: '2026-11-06T12:00:00.000Z', explores },
+    scan: null,
+    legacy: { at: '2026-11-06T12:00:00.000Z', explores },
     modelNames: {},
     fields: {},
     explores: {},

@@ -26,7 +26,7 @@ import type {
 /**
  * One external API Lightdash queries live, in four parts read top to
  * bottom: how a source connects, what it can query, how a query runs, and
- * the vendor's facts. Write one with `defineLiveIntegration` and list it in
+ * what the vendor's workspace adds. Write one with `defineLiveIntegration` and list it in
  * `registry.ts`.
  *
  * Integrations hold no state. A function that takes `runtime` may call the
@@ -108,11 +108,13 @@ export type LiveConnection<C extends ApiConnectorType = ApiConnectorType> = {
 };
 
 /**
- * The explores a source offers. `explores` is the integration's model;
- * `discover`, for an API with a schema of its own, reads what the vendor's
- * workspace has, and the core stores those facts and builds explores from
- * them and the model each time, so a deploy changes every source's
- * explores without calling any API.
+ * The explores a source offers. `explores` is the list the integration's
+ * code declares. For an API with a schema of its own, `scan` reads what
+ * the vendor's workspace has, the core stores that metadata, and `extend`
+ * turns it into more fields and explores on every build, so a deploy
+ * changes every source's explores without calling any API. `scan`,
+ * `metadata` and `extend` come together or not at all; write a model that
+ * has them with `defineLiveModel`.
  */
 export type LiveModel<C extends ApiConnectorType = ApiConnectorType> = {
     /**
@@ -123,31 +125,35 @@ export type LiveModel<C extends ApiConnectorType = ApiConnectorType> = {
         NamedLiveExploreDefinition,
         ...NamedLiveExploreDefinition[],
     ];
-    discover?: LiveDiscovery<C>;
-};
-
-/**
- * What a Refresh reads from the vendor, and how the core turns it into
- * explores. Write one with `defineLiveDiscovery`.
- */
-export type LiveDiscovery<C extends ApiConnectorType = ApiConnectorType> = {
-    /**
-     * Reads what the vendor's workspace has now, as plain JSON in the
-     * vendor's terms: only the parts `explores` reads. The service runs it
-     * on Refresh and stores the result whole.
-     */
-    read: (args: {
-        settings: ApiSourceOf<C>;
-        runtime: LiveRuntime;
-    }) => Promise<unknown>;
-    /**
-     * The source's whole explore list from what `read` stored: `explores`
-     * with the fields the vendor reports added, then any explore only the
-     * vendor has, keyed by its `apiName`. Null when the stored facts aren't
-     * this integration's shape. The core calls it on every build.
-     */
-    explores: (found: unknown) => LiveExploreDefinition[] | null;
-};
+} & (
+    | { scan?: undefined; metadata?: undefined; extend?: undefined }
+    | {
+          /**
+           * Reads what the vendor's workspace has now, as plain JSON in
+           * the vendor's terms: only the parts `extend` reads. The service
+           * runs it on Refresh and stores the result whole.
+           */
+          scan: (args: {
+              settings: ApiSourceOf<C>;
+              runtime: LiveRuntime;
+          }) => Promise<unknown>;
+          /**
+           * The shape of what `scan` returns. The core checks stored
+           * metadata against it before `extend` reads it, so metadata an
+           * older version stored in another shape reads as none until the
+           * next Refresh.
+           */
+          metadata: z.ZodType<unknown>;
+          /**
+           * What the stored metadata adds: `explores` with the fields the
+           * vendor reports added, then any explore only the vendor has,
+           * keyed by its `apiName`. The core calls it on every build and
+           * keeps each declared explore as the code wrote it, taking only
+           * the fields it doesn't have.
+           */
+          extend: (metadata: unknown) => LiveExploreDefinition[];
+      }
+);
 
 /** How a metric query becomes calls and rows. */
 export type LiveQuery<

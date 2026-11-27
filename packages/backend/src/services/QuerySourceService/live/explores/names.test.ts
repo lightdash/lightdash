@@ -219,13 +219,13 @@ describe('live data source names', () => {
                 apiSource.connector,
                 name,
             );
-            const found = await connectLiveSource(
+            const metadata = await connectLiveSource(
                 getLiveIntegration(apiSource.connector),
                 apiSource,
                 answerBy(answers),
-            ).read();
+            ).scan();
             const state = {
-                discovered: { refreshedAt: '2026-01-01T00:00:00Z', found },
+                scan: { at: '2026-01-01T00:00:00Z', metadata },
                 modelNames: {},
             };
             // Every field in use, so the snapshot holds every id a chart can store

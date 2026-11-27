@@ -140,6 +140,7 @@ import {
     type LiveSourceModel,
 } from '../../../services/QuerySourceService/live/explores/source';
 import {
+    extendLiveModel,
     findAccessRule,
     getLiveLimits,
 } from '../../../services/QuerySourceService/live/integration';
@@ -2035,8 +2036,8 @@ export class ExternalConnectionService extends BaseService {
             return EMPTY_REFRESH_SUMMARY;
         }
         const { connector } = apiSource;
-        const discover = async (): Promise<{
-            found: unknown;
+        const scan = async (): Promise<{
+            metadata: unknown;
             explores: LiveExploreDefinition[];
         } | null> => {
             try {
@@ -2045,19 +2046,19 @@ export class ExternalConnectionService extends BaseService {
                         isPerQuery: false,
                         rateLimitDeadlineMs: LIVE_RATE_LIMIT_DEADLINES_MS.sync,
                     });
-                const { discover: discovery } = integration.model;
-                if (!discovery) {
+                const { model } = integration;
+                if (!model.scan) {
                     return null;
                 }
-                const found = await discovery.read({ settings, runtime });
-                const explores = discovery.explores(found);
+                const metadata = await model.scan({ settings, runtime });
+                const explores = extendLiveModel(model, metadata);
                 if (!explores) {
                     throw new UnexpectedServerError(
                         `${integration.label} reported its schema in an unexpected shape`,
                     );
                 }
                 return {
-                    found,
+                    metadata,
                     explores: checkDiscoveredExplores(connector, explores),
                 };
             } catch (error) {
@@ -2074,22 +2075,22 @@ export class ExternalConnectionService extends BaseService {
             connection,
             apiSource,
         );
-        const discovery = await discover();
+        const scanned = await scan();
         const { externalConnectionUuid } = connection;
         const previous =
             await this.externalConnectionModel.getLiveSourceFieldState(
                 externalConnectionUuid,
             );
         let current = previous;
-        if (discovery) {
-            const { found, explores } = discovery;
+        if (scanned) {
+            const { metadata, explores } = scanned;
             const unavailable = await this.findUnavailableModelNames(
                 { ...connection, apiSource },
                 sourceName,
                 explores,
                 previous.modelNames,
             );
-            const refreshedAt = new Date().toISOString();
+            const at = new Date().toISOString();
             current = {
                 ...previous,
                 ...(await this.externalConnectionModel.updateLiveSourceEdits(
@@ -2097,7 +2098,7 @@ export class ExternalConnectionService extends BaseService {
                     (stored) => {
                         // Named under the lock, so two Refreshes can't name one explore twice
                         const next = {
-                            discovered: { refreshedAt, found },
+                            scan: { at, metadata },
                             legacy: null,
                             modelNames: nameLiveExplores({
                                 connector,
@@ -2127,7 +2128,7 @@ export class ExternalConnectionService extends BaseService {
             apiSource,
         );
         // A source never refreshed has nothing to compare with
-        return !hasLiveRefresh(previous) || !discovery
+        return !hasLiveRefresh(previous) || !scanned
             ? EMPTY_REFRESH_SUMMARY
             : getLiveRefreshSummary({
                   previous: getLiveSourceModels(connector, previous),
@@ -2142,12 +2143,12 @@ export class ExternalConnectionService extends BaseService {
         connector: ApiConnectorType,
         sourceName: string,
         state: Pick<LiveSourceFieldState, 'modelNames'> &
-            Partial<Pick<LiveSourceFieldState, 'discovered' | 'legacy'>>,
+            Partial<Pick<LiveSourceFieldState, 'scan' | 'legacy'>>,
     ): string[] {
         return [
             ...new Set([
                 ...getLiveSourceModels(connector, {
-                    discovered: state.discovered ?? null,
+                    scan: state.scan ?? null,
                     legacy: state.legacy ?? null,
                     modelNames: state.modelNames,
                 }).map(({ name }) => name),
@@ -2671,10 +2672,7 @@ export class ExternalConnectionService extends BaseService {
         return {
             exploreName: first.exploreName,
             usedByChartCount,
-            scannedAt:
-                state.discovered?.refreshedAt ??
-                state.legacy?.refreshedAt ??
-                null,
+            scannedAt: state.scan?.at ?? state.legacy?.at ?? null,
             fields: first.fields,
             explores,
         };
@@ -3419,7 +3417,7 @@ export class ExternalConnectionService extends BaseService {
         // A connection tested before it is saved hasn't been refreshed yet
         const state =
             externalConnectionUuid === UNSAVED_CONNECTION_UUID
-                ? { discovered: null }
+                ? { scan: null }
                 : await this.externalConnectionModel.getLiveSourceFieldState(
                       externalConnectionUuid,
                   );

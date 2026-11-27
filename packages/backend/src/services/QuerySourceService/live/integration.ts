@@ -11,9 +11,10 @@ import { refuseLiveQuery } from './query/refuse';
 import type {
     LiveAccessRule,
     LiveCapabilities,
-    LiveDiscovery,
     LiveIntegration,
     LiveLimits,
+    LiveModel,
+    LiveRuntime,
 } from './types';
 
 /**
@@ -26,7 +27,7 @@ export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
 
 /**
  * What `schema` keeps of a vendor response, or undefined when it doesn't
- * match: a discovery stores only the parts its explores read.
+ * match: a scan returns only the parts `extend` reads.
  */
 export const keepParsed = <T>(
     schema: z.ZodType<T>,
@@ -37,25 +38,34 @@ export const keepParsed = <T>(
 };
 
 /**
- * A discovery whose stored facts `schema` checks before `explores` reads
- * them, so facts stored by an older version of the integration read as
- * absent rather than breaking a build.
+ * A model that reads the vendor's schema: `scan` returns metadata in the
+ * shape `metadata` states, and `extend` receives it in that shape.
  */
-export const defineLiveDiscovery = <C extends ApiConnectorType, Found>({
-    read,
-    schema,
-    explores,
-}: {
-    read: (args: Parameters<LiveDiscovery<C>['read']>[0]) => Promise<Found>;
-    schema: z.ZodType<Found>;
-    explores: (found: Found) => LiveExploreDefinition[];
-}): LiveDiscovery<C> => ({
-    read,
-    explores: (found) => {
-        const parsed = schema.safeParse(found);
-        return parsed.success ? explores(parsed.data) : null;
-    },
-});
+export const defineLiveModel = <C extends ApiConnectorType, Metadata>(model: {
+    explores: LiveModel<C>['explores'];
+    scan: (args: {
+        settings: ApiSourceOf<C>;
+        runtime: LiveRuntime;
+    }) => Promise<Metadata>;
+    metadata: z.ZodType<Metadata>;
+    extend: (metadata: Metadata) => LiveExploreDefinition[];
+}): LiveModel<C> => model as unknown as LiveModel<C>;
+
+/**
+ * The explores a model's `extend` gives for stored metadata. Null when the
+ * model doesn't scan, or the metadata isn't in its shape: stored by an
+ * older version of the integration, say.
+ */
+export const extendLiveModel = <C extends ApiConnectorType>(
+    model: LiveModel<C>,
+    metadata: unknown,
+): LiveExploreDefinition[] | null => {
+    if (!model.extend) {
+        return null;
+    }
+    const parsed = model.metadata.safeParse(metadata);
+    return parsed.success ? model.extend(parsed.data) : null;
+};
 
 /**
  * Reads a JSON request checked by `schema`. `name` names it in errors, as

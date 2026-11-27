@@ -44,8 +44,8 @@ import {
 } from '../../services/QuerySourceService/live/explores/fields';
 import {
     parseLiveSourceFieldState,
-    type LiveSourceDiscovery,
     type LiveSourceFieldState,
+    type LiveSourceScan,
 } from '../../services/QuerySourceService/live/explores/source';
 import {
     getLiveIntegration,
@@ -130,7 +130,7 @@ export const parseApiSourceSchemaScan = (
 const SERVER_OWNED_API_SOURCE_KEYS = [
     'sourceName',
     'lastScan',
-    'discovered',
+    'scan',
     'modelNames',
     'fields',
     'explores',
@@ -222,7 +222,7 @@ const toApiSourceSettingsJson = (apiSource: ExternalConnectionApiSource) =>
  * the names the core gave, and the field and explore edits.
  */
 export type LiveSourceEdits = {
-    discovered: LiveSourceDiscovery | null;
+    scan: LiveSourceScan | null;
     modelNames: Record<string, string>;
     fields: LiveSourceFieldEdits;
     explores: LiveSourceExploreEdits;
@@ -1510,7 +1510,7 @@ export class ExternalConnectionModel {
             }
             const state = parseLiveSourceFieldState(row.api_source);
             const next = update({
-                discovered: state.discovered,
+                scan: state.scan,
                 legacy: state.legacy,
                 modelNames: state.modelNames,
                 fields: state.fields,
@@ -1521,12 +1521,10 @@ export class ExternalConnectionModel {
                 .update({
                     api_source: trx.raw(
                         `api_source || jsonb_build_object(${
-                            next.discovered ? "'discovered', ?::jsonb, " : ''
+                            next.scan ? "'scan', ?::jsonb, " : ''
                         }'modelNames', ?::jsonb, 'fields', ?::jsonb, 'explores', ?::jsonb)`,
                         [
-                            ...(next.discovered
-                                ? [JSON.stringify(next.discovered)]
-                                : []),
+                            ...(next.scan ? [JSON.stringify(next.scan)] : []),
                             JSON.stringify(next.modelNames),
                             JSON.stringify(next.fields),
                             JSON.stringify(next.explores),

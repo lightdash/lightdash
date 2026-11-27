@@ -9,7 +9,7 @@ import {
 import { z } from 'zod';
 import {
     ADDITIVE,
-    defineLiveDiscovery,
+    defineLiveModel,
     dimension,
     keepParsed,
     metric,
@@ -774,13 +774,13 @@ export const scanHubspotProperties = async ({
     };
 };
 
-export const hubspotModel: LiveModel<ApiConnectorType.HUBSPOT> = {
-    explores: HUBSPOT_EXPLORES,
-    // Every object's explore gets the properties the account has
-    discover: defineLiveDiscovery({
-        read: scanHubspotProperties,
-        schema: z.object({ hubspotProperties: z.unknown() }),
-        explores: ({ hubspotProperties }) =>
+export const hubspotModel: LiveModel<ApiConnectorType.HUBSPOT> =
+    defineLiveModel({
+        explores: HUBSPOT_EXPLORES,
+        // Every object's explore gets the properties the account has
+        scan: scanHubspotProperties,
+        metadata: z.object({ hubspotProperties: z.unknown() }),
+        extend: ({ hubspotProperties }) =>
             HUBSPOT_EXPLORES.map((definition) =>
                 withFieldsOffByDefault(
                     definition,
@@ -794,5 +794,4 @@ export const hubspotModel: LiveModel<ApiConnectorType.HUBSPOT> = {
                     isHubspotSystemField,
                 ),
             ),
-    }),
-};
+    });

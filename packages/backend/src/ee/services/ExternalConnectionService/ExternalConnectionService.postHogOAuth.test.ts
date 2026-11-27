@@ -112,7 +112,7 @@ const buildService = ({
         purgeLiveSourceCache: vi.fn().mockResolvedValue(undefined),
         getDecryptedSecret: vi.fn(async () => storedSecret),
         // Never refreshed: the access rules come from the declared explores
-        getLiveSourceFieldState: vi.fn(async () => ({ discovered: null })),
+        getLiveSourceFieldState: vi.fn(async () => ({ scan: null })),
         updateSecretLocked: vi.fn(
             async (
                 _uuid: string,

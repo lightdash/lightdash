@@ -37,7 +37,7 @@ const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
 
 const buildOne = (
     apiSource: Parameters<typeof buildLiveExplores>[0]['apiSource'],
-    found?: unknown,
+    metadata?: unknown,
 ): Explore => {
     const [explore, ...rest] = buildLiveExplores({
         connectionUuid: CONNECTION_UUID,
@@ -47,7 +47,10 @@ const buildOne = (
         ),
         name: 'Marketing site',
         apiSource,
-        state: found === undefined ? undefined : getRefreshedLiveState(found),
+        state:
+            metadata === undefined
+                ? undefined
+                : getRefreshedLiveState(metadata),
     });
     expect(rest).toEqual([]);
     return explore;
@@ -60,8 +63,11 @@ const searchConsole = () =>
         connector: ApiConnectorType.SEARCH_CONSOLE,
         siteUrl: 'sc-domain:example.com',
     });
-const posthog = (found?: unknown) =>
-    buildOne({ connector: ApiConnectorType.POSTHOG, projectId: '42' }, found);
+const posthog = (metadata?: unknown) =>
+    buildOne(
+        { connector: ApiConnectorType.POSTHOG, projectId: '42' },
+        metadata,
+    );
 
 const query = (
     explore: Explore,
@@ -401,7 +407,7 @@ describe('compileLiveMetricQuery', () => {
             connector: ApiConnectorType.POSTHOG,
             projectId: '42',
         } as const;
-        const found = {
+        const metadata = {
             posthogProperties: {
                 event: { results: [{ name: 'plan' }] },
                 person: { results: [] },
@@ -412,7 +418,7 @@ describe('compileLiveMetricQuery', () => {
             sourceName: 'posthog',
             name: 'PostHog',
             apiSource,
-            state: getRefreshedLiveState(found, {
+            state: getRefreshedLiveState(metadata, {
                 fields: { property_plan: { inUse: false, lastEdit: null } },
             }),
         });
@@ -632,7 +638,7 @@ describe('definition hashes', () => {
         'hashes %s from code alone, the same for every source',
         (connector) => {
             const hashes = getLiveSourceDefinitionHashes(connector, {
-                discovered: null,
+                scan: null,
                 modelNames: {},
                 explores: {},
             });

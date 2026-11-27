@@ -18,7 +18,7 @@ import {
 import { type LiveHttpResponse } from './types';
 
 /** What a Refresh stores for an integration whose declared explore has no fields of its own. */
-const SAMPLE_FACTS: Partial<Record<ApiConnectorType, unknown>> = {
+const SAMPLE_METADATA: Partial<Record<ApiConnectorType, unknown>> = {
     [ApiConnectorType.SUPABASE]: {
         supabaseTable: {
             properties: { id: { type: 'integer', format: 'bigint' } },
@@ -164,10 +164,10 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         });
 
         test('runs what it compiles, and explains a failed call', async () => {
-            const found = SAMPLE_FACTS[settings.connector];
+            const metadata = SAMPLE_METADATA[settings.connector];
             const state = {
-                discovered: found
-                    ? { refreshedAt: '2026-11-06T12:00:00Z', found }
+                scan: metadata
+                    ? { at: '2026-11-06T12:00:00Z', metadata }
                     : null,
                 modelNames: {},
                 fields: {},

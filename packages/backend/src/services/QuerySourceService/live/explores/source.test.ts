@@ -66,9 +66,9 @@ describe('a source stored before Refresh returned explores', () => {
     });
 
     it('reads its scan as the explores a Refresh found', () => {
-        const { discovered, legacy } = parseLiveSourceFieldState(stored(null));
-        expect(discovered).toBe(null);
-        expect(legacy?.refreshedAt).toBe('2026-11-24T10:00:00.000Z');
+        const { scan, legacy } = parseLiveSourceFieldState(stored(null));
+        expect(scan).toBe(null);
+        expect(legacy?.at).toBe('2026-11-24T10:00:00.000Z');
         expect(
             legacy?.explores.map(({ name, dimensions }) => [
                 name,
@@ -125,14 +125,14 @@ describe('a source stored before Refresh returned explores', () => {
     });
 
     it('reads what a Refresh stored over an older scan', () => {
-        const found = { hubspotProperties: {} };
+        const metadata = { hubspotProperties: {} };
         const state = parseLiveSourceFieldState({
             ...stored(null),
-            discovered: { refreshedAt: '2026-11-25T10:00:00.000Z', found },
+            scan: { at: '2026-11-25T10:00:00.000Z', metadata },
         });
-        expect(state.discovered).toEqual({
-            refreshedAt: '2026-11-25T10:00:00.000Z',
-            found,
+        expect(state.scan).toEqual({
+            at: '2026-11-25T10:00:00.000Z',
+            metadata,
         });
         expect(state.legacy).toBe(null);
         expect(state.fields).toEqual({});
@@ -257,7 +257,7 @@ describe('a Refresh that changes a default', () => {
     });
 });
 
-describe('explores built from the facts a Refresh stored', () => {
+describe('explores built from the metadata a Refresh stored', () => {
     const { POSTHOG } = ApiConnectorType;
     const withPlan = getRefreshedLiveState({
         posthogProperties: {
@@ -270,11 +270,11 @@ describe('explores built from the facts a Refresh stored', () => {
             ({ name }) => name,
         );
 
-    it('turns the stored facts into fields with the code of today', () => {
+    it('turns the stored metadata into fields with the code of today', () => {
         expect(fieldsOf(withPlan)).toContain('property_plan');
     });
 
-    it('reads facts stored in a shape the code no longer knows as none', () => {
+    it('reads metadata stored in a shape the code no longer knows as none', () => {
         const unknown = getRefreshedLiveState({
             posthogProperties: 'not an object',
         });
@@ -282,7 +282,7 @@ describe('explores built from the facts a Refresh stored', () => {
         expect(fieldsOf(unknown)).not.toContain('property_plan');
     });
 
-    it('changes an explore’s hash when the facts add a field, so a deploy rebuilds it', () => {
+    it('changes an explore’s hash when the metadata adds a field, so a deploy rebuilds it', () => {
         const hashOf = (state: typeof withPlan) =>
             getLiveSourceDefinitionHashes(POSTHOG, state).events;
         expect(hashOf(withPlan)).not.toBe(

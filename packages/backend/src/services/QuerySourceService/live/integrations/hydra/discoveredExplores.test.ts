@@ -20,7 +20,7 @@ import {
     checkDiscoveredExplores,
     nameLiveExplores,
 } from '../../explores/source';
-import { findAccessRule } from '../../integration';
+import { extendLiveModel, findAccessRule } from '../../integration';
 import {
     connectLiveSource,
     getRefreshedLiveState,
@@ -66,24 +66,24 @@ const connect = (settings: HydraApiSource) => {
     };
 };
 
-/** What a Refresh stores: the vendor's facts, and a name for each unnamed explore they give. */
+/** What a Refresh stores: the vendor's metadata, and a name for each unnamed explore it gives. */
 const refresh = async (objects: HydraObject[]) => {
     const { source } = connect(settingsWith(objects));
-    const found = await source.read();
+    const metadata = await source.scan();
     const explores = checkDiscoveredExplores(
         ApiConnectorType.HYDRA,
-        hydraIntegration.model.discover?.explores(found),
+        extendLiveModel(hydraIntegration.model, metadata),
     );
     const modelNames = nameLiveExplores({
         connector: ApiConnectorType.HYDRA,
         explores,
         modelNames: {},
     });
-    return { found, explores, modelNames };
+    return { metadata, explores, modelNames };
 };
 
 const build = (
-    { found, modelNames }: Awaited<ReturnType<typeof refresh>>,
+    { metadata, modelNames }: Awaited<ReturnType<typeof refresh>>,
     exploreEdits: LiveSourceExploreEdits = {},
 ) =>
     buildLiveExplores({
@@ -91,7 +91,7 @@ const build = (
         sourceName: 'crm',
         name: 'CRM',
         apiSource: settingsWith([DEALS]),
-        state: getRefreshedLiveState(found, {
+        state: getRefreshedLiveState(metadata, {
             modelNames,
             explores: exploreEdits,
         }),

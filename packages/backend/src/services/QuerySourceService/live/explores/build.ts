@@ -139,7 +139,7 @@ const toStableJson = (value: unknown): string =>
 
 /**
  * What the integration's code builds from one explore definition: its
- * declared fields and the ones the source's facts add. The hash comes from
+ * declared fields and the ones the source's metadata adds. The hash comes from
  * the explore built with placeholders for everything else specific to one
  * source (prefix, label, connection, field edits), so it changes when the
  * code's output does, and nobody has to bump a version.
@@ -174,10 +174,7 @@ export const getLiveDefinitionHash = memoize(
 /** The hash of each explore a source builds, by model name. */
 export const getLiveSourceDefinitionHashes = (
     connector: ApiConnectorType,
-    state: Pick<
-        LiveSourceFieldState,
-        'discovered' | 'modelNames' | 'explores'
-    > &
+    state: Pick<LiveSourceFieldState, 'scan' | 'modelNames' | 'explores'> &
         Partial<Pick<LiveSourceFieldState, 'legacy'>>,
 ): Record<string, string> =>
     Object.fromEntries(
@@ -287,7 +284,7 @@ const withAccessRule = (
 };
 
 const NEVER_CURATED = {
-    discovered: null,
+    scan: null,
     modelNames: {},
     fields: {},
     explores: {},
@@ -315,7 +312,7 @@ export const buildLiveExplores = ({
     /** What the source stored: its last Refresh and its edits. Omitted, a source never refreshed or edited. */
     state?: Pick<
         LiveSourceFieldState,
-        'discovered' | 'modelNames' | 'fields' | 'explores'
+        'scan' | 'modelNames' | 'fields' | 'explores'
     > &
         Partial<Pick<LiveSourceFieldState, 'legacy'>>;
     /** The target first, then the admin's source hint; each explore's own hint follows. */
@@ -601,7 +598,7 @@ export type StoredLiveSourceExplores = {
     name: string;
     sourceName: string;
     connector: ApiConnectorType;
-    state: Pick<LiveSourceFieldState, 'discovered' | 'modelNames' | 'explores'>;
+    state: Pick<LiveSourceFieldState, 'scan' | 'modelNames' | 'explores'>;
 };
 
 /**

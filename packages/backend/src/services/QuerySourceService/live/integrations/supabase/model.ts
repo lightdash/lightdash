@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
-    defineLiveDiscovery,
+    defineLiveModel,
     keepParsed,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
@@ -255,18 +255,17 @@ export const scanSupabaseTable = async ({
     };
 };
 
-export const supabaseModel: LiveModel<ApiConnectorType.SUPABASE> = {
-    explores: SUPABASE_EXPLORES,
-    // The table's columns are the explore, every one in use from the start
-    discover: defineLiveDiscovery({
-        read: scanSupabaseTable,
-        schema: z.object({ supabaseTable: z.unknown() }),
-        explores: ({ supabaseTable }) => {
+export const supabaseModel: LiveModel<ApiConnectorType.SUPABASE> =
+    defineLiveModel({
+        explores: SUPABASE_EXPLORES,
+        // The table's columns are the explore, every one in use from the start
+        scan: scanSupabaseTable,
+        metadata: z.object({ supabaseTable: z.unknown() }),
+        extend: ({ supabaseTable }) => {
             const [table, ...others] = SUPABASE_EXPLORES;
             return [
                 withSupabaseColumns(table, readSupabaseColumns(supabaseTable)),
                 ...others,
             ];
         },
-    }),
-};
+    });

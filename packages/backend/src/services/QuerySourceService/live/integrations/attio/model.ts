@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
-    defineLiveDiscovery,
+    defineLiveModel,
     dimension,
     keepParsed,
     withFieldsOffByDefault,
@@ -632,25 +632,23 @@ export const scanAttioAttributes = async ({
     return { attioAttributes: Object.fromEntries(read) };
 };
 
-export const attioModel: LiveModel<ApiConnectorType.ATTIO> = {
+export const attioModel: LiveModel<ApiConnectorType.ATTIO> = defineLiveModel({
     explores: ATTIO_EXPLORES,
     // Every object's explore gets the attributes the workspace has
-    discover: defineLiveDiscovery({
-        read: scanAttioAttributes,
-        schema: z.object({ attioAttributes: z.unknown() }),
-        explores: ({ attioAttributes }) =>
-            ATTIO_EXPLORES.map((definition) =>
-                withFieldsOffByDefault(
+    scan: scanAttioAttributes,
+    metadata: z.object({ attioAttributes: z.unknown() }),
+    extend: ({ attioAttributes }) =>
+        ATTIO_EXPLORES.map((definition) =>
+            withFieldsOffByDefault(
+                definition,
+                withAttioAttributeFields(
                     definition,
-                    withAttioAttributeFields(
-                        definition,
-                        readAttioAttributes(
-                            attioAttributes,
-                            toAttioObject(definition.name),
-                        ),
+                    readAttioAttributes(
+                        attioAttributes,
+                        toAttioObject(definition.name),
                     ),
-                    isAttioSystemField,
                 ),
+                isAttioSystemField,
             ),
-    }),
-};
+        ),
+});

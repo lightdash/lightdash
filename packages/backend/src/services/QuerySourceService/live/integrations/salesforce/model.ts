@@ -11,7 +11,7 @@ import {
 import { z } from 'zod';
 import {
     ADDITIVE,
-    defineLiveDiscovery,
+    defineLiveModel,
     dimension,
     keepParsed,
     metric,
@@ -880,13 +880,13 @@ export const scanSalesforceDescribe = async ({
     return { salesforceDescribe: Object.fromEntries(read) };
 };
 
-export const salesforceModel: LiveModel<ApiConnectorType.SALESFORCE> = {
-    explores: SALESFORCE_EXPLORES,
-    // Every object's explore gets the fields the org has
-    discover: defineLiveDiscovery({
-        read: scanSalesforceDescribe,
-        schema: z.object({ salesforceDescribe: z.unknown() }),
-        explores: ({ salesforceDescribe }) =>
+export const salesforceModel: LiveModel<ApiConnectorType.SALESFORCE> =
+    defineLiveModel({
+        explores: SALESFORCE_EXPLORES,
+        // Every object's explore gets the fields the org has
+        scan: scanSalesforceDescribe,
+        metadata: z.object({ salesforceDescribe: z.unknown() }),
+        extend: ({ salesforceDescribe }) =>
             SALESFORCE_EXPLORES.map((definition) =>
                 withFieldsOffByDefault(
                     definition,
@@ -900,5 +900,4 @@ export const salesforceModel: LiveModel<ApiConnectorType.SALESFORCE> = {
                     isSalesforceSystemField,
                 ),
             ),
-    }),
-};
+    });

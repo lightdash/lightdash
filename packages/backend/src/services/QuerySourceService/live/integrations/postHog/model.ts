@@ -10,7 +10,7 @@ import {
 import { z } from 'zod';
 import {
     ADDITIVE,
-    defineLiveDiscovery,
+    defineLiveModel,
     dimension,
     metric,
     NON_ADDITIVE,
@@ -593,17 +593,17 @@ export const scanPostHogProperties = async ({
     return { posthogProperties: { event, person } };
 };
 
-export const postHogModel: LiveModel<ApiConnectorType.POSTHOG> = {
-    explores: POSTHOG_EXPLORES,
-    // The first explore gets the project's event and person properties
-    discover: defineLiveDiscovery({
-        read: scanPostHogProperties,
-        schema: z.object({
+export const postHogModel: LiveModel<ApiConnectorType.POSTHOG> =
+    defineLiveModel({
+        explores: POSTHOG_EXPLORES,
+        // The first explore gets the project's event and person properties
+        scan: scanPostHogProperties,
+        metadata: z.object({
             posthogProperties: z
                 .object({ event: z.unknown(), person: z.unknown() })
                 .optional(),
         }),
-        explores: ({ posthogProperties }) => {
+        extend: ({ posthogProperties }) => {
             const [events, ...others] = POSTHOG_EXPLORES;
             return [
                 posthogProperties
@@ -619,5 +619,4 @@ export const postHogModel: LiveModel<ApiConnectorType.POSTHOG> = {
                 ...others,
             ];
         },
-    }),
-};
+    });

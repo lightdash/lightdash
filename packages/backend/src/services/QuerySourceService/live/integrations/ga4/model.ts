@@ -9,7 +9,7 @@ import {
 import { z } from 'zod';
 import {
     ADDITIVE,
-    defineLiveDiscovery,
+    defineLiveModel,
     dimension,
     keepParsed,
     metric,
@@ -563,15 +563,13 @@ export const scanGa4Metadata = async ({
     return { ga4Metadata: keepParsed(metadataSchema, response.body) };
 };
 
-export const ga4Model: LiveModel<ApiConnectorType.GA4> = {
+export const ga4Model: LiveModel<ApiConnectorType.GA4> = defineLiveModel({
     explores: GA4_EXPLORES,
     // The first explore gets the property's custom definitions
-    discover: defineLiveDiscovery({
-        read: scanGa4Metadata,
-        schema: z.object({ ga4Metadata: z.unknown() }),
-        explores: ({ ga4Metadata }) => {
-            const [report, ...others] = GA4_EXPLORES;
-            return [withGa4MetadataFields(report, ga4Metadata), ...others];
-        },
-    }),
-};
+    scan: scanGa4Metadata,
+    metadata: z.object({ ga4Metadata: z.unknown() }),
+    extend: ({ ga4Metadata }) => {
+        const [report, ...others] = GA4_EXPLORES;
+        return [withGa4MetadataFields(report, ga4Metadata), ...others];
+    },
+});
