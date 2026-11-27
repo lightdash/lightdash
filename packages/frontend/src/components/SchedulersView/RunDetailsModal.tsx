@@ -36,6 +36,7 @@ import classes from './RunDetailsModal.module.css';
 import {
     formatTaskName,
     formatTime,
+    getJobStatusMessage,
     getLogStatusIconWithoutTooltip,
     getSchedulerIconRaw,
 } from './SchedulersViewUtils';
@@ -385,18 +386,9 @@ const JobRow: FC<{
         return `Completed with ${parts.join(' and ')}`;
     };
 
-    const statusMessage = isError ? (
-        <Text fz="xs" c="red.7">
-            Job failed
-        </Text>
-    ) : isPartialFailure ? (
-        <Text fz="xs" c="orange.7">
-            {getPartialFailureMessage()}
-        </Text>
-    ) : (
-        <Text fz="xs" c="green.7">
-            Completed successfully
-        </Text>
+    const statusMessage = getJobStatusMessage(
+        job.finalStatus,
+        isPartialFailure ? getPartialFailureMessage() : null,
     );
 
     // Subtitle: format for handleScheduledDelivery, target for others
@@ -427,7 +419,9 @@ const JobRow: FC<{
                     </Text>
                     {subtitle}
                 </Box>
-                {statusMessage}
+                <Text fz="xs" c={statusMessage.color}>
+                    {statusMessage.label}
+                </Text>
             </Stack>
             <JobTimingInfo
                 startedAt={job.startedAt}

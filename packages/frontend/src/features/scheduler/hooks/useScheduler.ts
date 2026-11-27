@@ -408,13 +408,8 @@ export const useFetchRunLogs = () => {
     return useMutation<SchedulerRunLog[], ApiError, string>({
         mutationFn: async (runId: string) => {
             const data = await getRunLogs(runId);
-            // Filter out SCHEDULED events (there are duplicates in the DB)
-            // Only show STARTED, COMPLETED, and ERROR to see the actual execution flow
-            const filteredLogs = data.logs.filter(
-                (log) => log.status !== SchedulerJobStatus.SCHEDULED,
-            );
-            // Sort newest first (descending)
-            return filteredLogs.sort(
+            // The modal groups events by job ID, including queued-only jobs.
+            return data.logs.sort(
                 (a, b) =>
                     new Date(b.createdAt).getTime() -
                     new Date(a.createdAt).getTime(),
