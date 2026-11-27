@@ -315,7 +315,11 @@ type CoderServiceArguments = {
     >;
     composerChartModel: Pick<
         ComposerChartModel,
-        'findForCode' | 'findBySlugs' | 'findIdentityBySlug' | 'get'
+        | 'findForCode'
+        | 'findBySlugs'
+        | 'findIdentityBySlug'
+        | 'get'
+        | 'getUuidByUuidOrSlug'
     >;
     composerChartService: Pick<
         ComposerChartService,
@@ -3638,15 +3642,18 @@ export class CoderService extends BaseService {
         composerChartUuid: string;
         spaceUuid: string;
     } | null> {
-        const byUuid = CoderService.isUuid(composerChartUuidOrSlug);
-        const slug = byUuid
-            ? await this.composerChartModel.get(composerChartUuidOrSlug).then(
-                  (stored) => stored.slug,
-                  (error) => {
-                      if (error instanceof NotFoundError) return null;
-                      throw error;
-                  },
-              )
+        // A uuid resolves in this project only; slugs are unique per project
+        const slug = CoderService.isUuid(composerChartUuidOrSlug)
+            ? await this.composerChartModel
+                  .getUuidByUuidOrSlug(projectUuid, composerChartUuidOrSlug)
+                  .then((uuid) => this.composerChartModel.get(uuid))
+                  .then(
+                      (stored) => stored.slug,
+                      (error) => {
+                          if (error instanceof NotFoundError) return null;
+                          throw error;
+                      },
+                  )
             : composerChartUuidOrSlug;
         if (slug === null) return null;
         const [chart] = await this.findViewableComposerCharts(
@@ -3654,13 +3661,7 @@ export class CoderService extends BaseService {
             projectUuid,
             [slug],
         );
-        // Slugs are unique per project only: a uuid from another project misses
-        if (
-            !chart ||
-            (byUuid && chart.uuid !== composerChartUuidOrSlug.toLowerCase())
-        ) {
-            return null;
-        }
+        if (!chart) return null;
         const [composerChart] = await this.getComposerChartsAsCode(
             projectUuid,
             CoderService.withSpaceSlugs([chart]),
