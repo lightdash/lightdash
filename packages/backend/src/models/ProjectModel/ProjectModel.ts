@@ -5602,43 +5602,123 @@ export class ProjectModel {
                 );
             }
 
-            // 2. Find or create the "Default User Spaces" parent folder
-            let parentSpace = await trx(SpaceTableName)
-                .select('space_uuid', 'path')
-                .where('project_id', project.project_id)
-                .where('name', DEFAULT_USER_SPACES_PARENT_NAME)
-                .whereNull('parent_space_uuid')
-                .whereNull('deleted_at')
-                .first();
-
-            if (!parentSpace) {
-                const parentSlug = await generateUniqueSlugScopedToProject(
-                    trx,
-                    project.project_id,
-                    SpaceTableName,
-                    DEFAULT_USER_SPACES_PARENT_NAME,
-                );
-                const parentPath = getLtreePathFromSlug(parentSlug);
-
-                [parentSpace] = await trx(SpaceTableName)
-                    .insert({
-                        project_id: project.project_id,
-                        name: DEFAULT_USER_SPACES_PARENT_NAME,
-                        inherit_parent_permissions: true,
-                        slug: parentSlug,
-                        parent_space_uuid: null,
-                        path: parentPath,
-                        is_default_user_space: false,
-                    })
-                    .returning(['space_uuid', 'path']);
-            }
-
-            if (!parentSpace) {
-                throw new UnexpectedServerError(
-                    'Failed to find or create Default User Spaces folder',
-                );
-            }
+            await ProjectModel.findOrCreateDefaultUserSpacesParent(
+                trx,
+                project.project_id,
+            );
         });
+    }
+
+    private static async findOrCreateDefaultUserSpacesParent(
+        trx: Knex.Transaction,
+        projectId: number,
+    ): Promise<{ parentSpaceUuid: string; parentPath: string }> {
+        // Serialise concurrent callers so only one folder is created
+        await acquireProjectSlugLock(
+            trx,
+            String(projectId),
+            `space:${generateSlug(DEFAULT_USER_SPACES_PARENT_NAME)}`,
+        );
+
+        let parentSpace = await trx(SpaceTableName)
+            .select('space_uuid', 'path')
+            .where('project_id', projectId)
+            .where('name', DEFAULT_USER_SPACES_PARENT_NAME)
+            .whereNull('parent_space_uuid')
+            .whereNull('deleted_at')
+            .first();
+
+        if (!parentSpace) {
+            const parentSlug = await generateUniqueSlugScopedToProject(
+                trx,
+                projectId,
+                SpaceTableName,
+                DEFAULT_USER_SPACES_PARENT_NAME,
+            );
+            const parentPath = getLtreePathFromSlug(parentSlug);
+
+            [parentSpace] = await trx(SpaceTableName)
+                .insert({
+                    project_id: projectId,
+                    name: DEFAULT_USER_SPACES_PARENT_NAME,
+                    inherit_parent_permissions: true,
+                    slug: parentSlug,
+                    parent_space_uuid: null,
+                    path: parentPath,
+                    is_default_user_space: false,
+                })
+                .returning(['space_uuid', 'path']);
+        }
+
+        if (!parentSpace) {
+            throw new UnexpectedServerError(
+                'Failed to find or create Default User Spaces folder',
+            );
+        }
+
+        return {
+            parentSpaceUuid: parentSpace.space_uuid,
+            parentPath: parentSpace.path,
+        };
+    }
+
+    /**
+     * Recreates the "Default User Spaces" folder in projects that have the
+     * setting on but lost the folder (renamed or permanently deleted).
+     * A folder in Trash is left alone so it can still be restored.
+     */
+    async restoreMissingDefaultUserSpacesParents(
+        organizationUuid: string,
+    ): Promise<string[]> {
+        const projects = await this.database(ProjectTableName)
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .where(`${ProjectTableName}.has_default_user_spaces`, true)
+            .whereNotExists((qb) => {
+                void qb
+                    .select(this.database.raw('1'))
+                    .from(SpaceTableName)
+                    .whereRaw('?? = ??', [
+                        `${SpaceTableName}.project_id`,
+                        `${ProjectTableName}.project_id`,
+                    ])
+                    .where(
+                        `${SpaceTableName}.name`,
+                        DEFAULT_USER_SPACES_PARENT_NAME,
+                    )
+                    .whereNull(`${SpaceTableName}.parent_space_uuid`);
+            })
+            .select<{ project_id: number; project_uuid: string }[]>(
+                `${ProjectTableName}.project_id`,
+                `${ProjectTableName}.project_uuid`,
+            );
+
+        await Promise.all(
+            projects.map((project) =>
+                this.database.transaction((trx) =>
+                    ProjectModel.findOrCreateDefaultUserSpacesParent(
+                        trx,
+                        project.project_id,
+                    ),
+                ),
+            ),
+        );
+
+        return projects.map((project) => project.project_uuid);
+    }
+
+    async hasDefaultUserSpaces(projectUuid: string): Promise<boolean> {
+        const project = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .first('has_default_user_spaces');
+        return project?.has_default_user_spaces === true;
     }
 
     async getProjectsWithDefaultUserSpaces(organizationUuid: string): Promise<

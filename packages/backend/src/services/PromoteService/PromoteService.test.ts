@@ -3,6 +3,7 @@ import {
     AgentActorSurface,
     ChartType,
     DashboardTileTypes,
+    DEFAULT_USER_SPACES_PARENT_NAME,
     ForbiddenError,
     OrganizationMemberRole,
     ParameterError,
@@ -76,6 +77,7 @@ const projectModel = {
         }),
     ),
     getUpstreamChartUuidFromPreview: vi.fn(async () => null),
+    hasDefaultUserSpaces: vi.fn(async () => false),
     getUpstreamDashboardUuidFromPreview: vi.fn(
         async (): Promise<string | null> => null,
     ),
@@ -1054,6 +1056,16 @@ describe('PromoteService dashboard changes', () => {
     });
 });
 
+const defaultUserSpacesFolder = {
+    ...existingUpstreamDashboard.space!,
+    name: DEFAULT_USER_SPACES_PARENT_NAME,
+    parentSpaceUuid: null,
+};
+const renamedDefaultUserSpacesSource = {
+    ...promotedDashboard,
+    space: { ...promotedDashboard.space, name: 'default user spaces' },
+};
+
 describe('PromoteService promoting and mutating changes', () => {
     const service = new PromoteService({
         agentActionLogModel,
@@ -1254,6 +1266,51 @@ describe('PromoteService promoting and mutating changes', () => {
         });
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(0);
         expect(spaceModel.addSpaceGroupAccess).toHaveBeenCalledTimes(0);
+    });
+
+    test('PROD-13173: does not rename the upstream Default User Spaces folder', async () => {
+        (
+            projectModel.hasDefaultUserSpaces as import('vitest').Mock
+        ).mockResolvedValue(true);
+        (spaceModel.find as import('vitest').Mock).mockImplementation(
+            async () => [defaultUserSpacesFolder],
+        );
+        const [changes] = await service.getPromotionDashboardChanges(
+            user,
+            renamedDefaultUserSpacesSource,
+            { ...existingUpstreamDashboard, space: defaultUserSpacesFolder },
+        );
+
+        expect(changes.spaces.length).toBe(1);
+        expect(changes.spaces[0].action).toBe(PromotionAction.NO_CHANGES);
+        expect(changes.spaces[0].data.name).toBe(
+            DEFAULT_USER_SPACES_PARENT_NAME,
+        );
+
+        await service.upsertSpaces(
+            user,
+            promotedDashboard.projectUuid,
+            changes,
+        );
+
+        expect(spaceModel.update).not.toHaveBeenCalled();
+    });
+
+    test('renames a folder named Default User Spaces when the project has the setting off', async () => {
+        (
+            projectModel.hasDefaultUserSpaces as import('vitest').Mock
+        ).mockResolvedValue(false);
+        (spaceModel.find as import('vitest').Mock).mockImplementation(
+            async () => [defaultUserSpacesFolder],
+        );
+        const [changes] = await service.getPromotionDashboardChanges(
+            user,
+            renamedDefaultUserSpacesSource,
+            { ...existingUpstreamDashboard, space: defaultUserSpacesFolder },
+        );
+
+        expect(changes.spaces[0].action).toBe(PromotionAction.UPDATE);
+        expect(changes.spaces[0].data.name).toBe('default user spaces');
     });
 
     test('return same changes if no new dashboard is created', async () => {
@@ -2335,6 +2392,25 @@ describe('PromoteService permission checks', () => {
                 existingUpstreamDashboard,
             ),
         ).toThrow(/do not have access to modify this space/);
+    });
+
+    test('does not require manage Space when the renamed space is the Default User Spaces folder', () => {
+        const auditedAbility = buildAuditedAbility([
+            { subject: 'Dashboard', action: ['promote'] },
+        ]);
+
+        expect(() =>
+            PromoteService.checkPromoteDashboardPermissions(
+                auditedAbility,
+                'organization-uuid',
+                renamedDefaultUserSpacesSource,
+                {
+                    ...existingUpstreamDashboard,
+                    space: defaultUserSpacesFolder,
+                    spaceIsDefaultUserSpacesParent: true,
+                },
+            ),
+        ).not.toThrow();
     });
 
     test('throws when promoting into a brand-new upstream space and user lacks create Space', () => {
