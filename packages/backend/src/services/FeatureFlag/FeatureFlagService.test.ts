@@ -1,6 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
-    ALL_FEATURE_FLAG_IDS,
+    KNOWN_FEATURE_FLAG_IDS,
     OrganizationMemberRole,
     type AnonymousAccount,
     type PossibleAbilities,
@@ -218,9 +218,9 @@ describe('FeatureFlagService', () => {
             const results = await service.list(buildAccount(adminAbility()));
 
             expect(results.map(({ id }) => id)).toEqual([
-                ...ALL_FEATURE_FLAG_IDS,
+                ...KNOWN_FEATURE_FLAG_IDS,
             ]);
-            expect(get).toHaveBeenCalledTimes(ALL_FEATURE_FLAG_IDS.length);
+            expect(get).toHaveBeenCalledTimes(KNOWN_FEATURE_FLAG_IDS.length);
             expect(get).toHaveBeenLastCalledWith(expect.anything(), {
                 recordCheck: false,
             });

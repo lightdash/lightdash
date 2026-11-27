@@ -1,10 +1,10 @@
 import { subject } from '@casl/ability';
 import {
-    ALL_FEATURE_FLAG_IDS,
     ForbiddenError,
     isAccount,
     isJwtUser,
     isKnownFeatureFlagId,
+    KNOWN_FEATURE_FLAG_IDS,
     NotFoundError,
     ParameterError,
     type Account,
@@ -137,7 +137,7 @@ export class FeatureFlagService extends BaseService {
         // connection pool also serves the rest of the app.
         const limit = pLimit(LIST_CONCURRENCY);
         return Promise.all(
-            ALL_FEATURE_FLAG_IDS.map((featureFlagId) =>
+            KNOWN_FEATURE_FLAG_IDS.map((featureFlagId) =>
                 limit(() =>
                     this.featureFlagModel.get(
                         { user, featureFlagId },

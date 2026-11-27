@@ -3,7 +3,7 @@ import {
     AlreadyExistsError,
     ApiConnectorType,
     ForbiddenError,
-    getLiveSourceFeatureFlagId,
+    getLiveSourceFeatureFlag,
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
@@ -307,7 +307,7 @@ const buildService = ({
             id: featureFlagId,
             enabled: !disabledIntegrations.some(
                 (connector) =>
-                    getLiveSourceFeatureFlagId(connector) === featureFlagId,
+                    getLiveSourceFeatureFlag(connector) === featureFlagId,
             ),
         })),
     };
@@ -3187,6 +3187,24 @@ describe('ExternalConnectionService integration feature flags', () => {
         expect(enabled).toContain(ApiConnectorType.POSTHOG);
         expect(enabled).not.toContain(ApiConnectorType.HUBSPOT);
         expect(enabled).not.toContain(ApiConnectorType.SALESFORCE);
+    });
+
+    it('never gates an integration that declares no feature flag', async () => {
+        const { service, featureFlagModel } = buildService({
+            disabledIntegrations: [ApiConnectorType.HYDRA],
+        });
+
+        const enabled = await service.getEnabledLiveIntegrations(
+            account,
+            'proj-1',
+        );
+
+        expect(enabled).toContain(ApiConnectorType.HYDRA);
+        expect(featureFlagModel.get).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                featureFlagId: expect.stringContaining('hydra'),
+            }),
+        );
     });
 
     it('lists integrations only to those who manage live sources', async () => {

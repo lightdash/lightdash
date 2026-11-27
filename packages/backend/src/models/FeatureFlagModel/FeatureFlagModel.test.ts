@@ -1,8 +1,4 @@
-import {
-    ApiConnectorType,
-    FeatureFlags,
-    getLiveSourceFeatureFlagId,
-} from '@lightdash/common';
+import { FeatureFlags } from '@lightdash/common';
 import { Knex } from 'knex';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -753,14 +749,7 @@ describe('FeatureFlagModel', () => {
     });
 
     describe('live source integration flags', () => {
-        const FLAG_ID = getLiveSourceFeatureFlagId(ApiConnectorType.HUBSPOT);
-
-        it('names each flag after its integration', () => {
-            expect(FLAG_ID).toBe('live-source-hubspot');
-            expect(
-                getLiveSourceFeatureFlagId(ApiConnectorType.SEARCH_CONSOLE),
-            ).toBe('live-source-search-console');
-        });
+        const FLAG_ID = 'live-source-hubspot';
 
         it('is on when the flag has no row, so existing organizations keep their integrations', async () => {
             const model = buildModel({}, buildFakeDatabase({}));

@@ -19,7 +19,7 @@ import {
     getLiveIntegrationCatalogEntry,
     getLiveSourceCacheTtlSeconds,
     getLiveSourceErrorOrigin,
-    getLiveSourceFeatureFlagId,
+    getLiveSourceFeatureFlag,
     getSalesforceDescribePath,
     getSalesforceEnvironment,
     getSalesforceTokenUrl,
@@ -450,9 +450,11 @@ export class ExternalConnectionService extends BaseService {
         organizationUuid: string,
         connector: ApiConnectorType,
     ): Promise<boolean> {
+        const featureFlagId = getLiveSourceFeatureFlag(connector);
+        if (!featureFlagId) return true;
         const { enabled } = await this.featureFlagModel.get({
             user: { organizationUuid },
-            featureFlagId: getLiveSourceFeatureFlagId(connector),
+            featureFlagId,
         });
         return enabled;
     }
