@@ -353,6 +353,44 @@
     padding: 0 var(--mantine-spacing-xs) rem(4px) var(--composer-inline-inset);
 }
 
+.pinned {
+    padding: rem(12px) rem(12px) 0;
+}
+
+.pinned:empty {
+    display: none;
+}
+
+/* Pinned content takes a row of its own; the actions and the editor share
+   the next one, so they stay centered on each other. */
+.root[data-variant='inline'][data-has-pinned] {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+/* Inset so the chips start where the first action's icon does. */
+.root[data-variant='inline'] .pinned {
+    grid-column: 1 / -1;
+    padding: rem(4px) rem(6px) 0;
+}
+
+/* The editor's own padding is sized for a single-row composer; under a row of
+   chips it would leave the text floating in a tall band. */
+.root[data-variant='inline'][data-has-pinned]
+    .inlineEditorContent
+    :global(.ProseMirror) {
+    padding-top: rem(6px);
+    padding-bottom: rem(6px);
+}
+
+.root[data-variant='inline'][data-has-pinned] .inlineMain {
+    grid-column: 2;
+}
+
+.root[data-variant='inline'][data-has-pinned] .inlineMain + .inlineActions {
+    grid-column: 3;
+}
+
 /* Tall attachments scroll inside the single-row composer instead of growing
  * it past a small panel, and the actions stay on the bottom row. The height
  * cuts the third card in half so it is clear there is more to scroll to. */
