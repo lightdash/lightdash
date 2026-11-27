@@ -3683,7 +3683,7 @@ export class CoderService extends BaseService {
 
     private async findComposerChartsAsCode(
         account: RegisteredAccount,
-        projectUuid: string,
+        projectUuid: UUID,
         slugs: string[] | undefined,
         offset: number | undefined,
     ): Promise<ApiComposerChartAsCodeListResponse['results']> {

@@ -3667,14 +3667,12 @@ describe('AiAgentToolsService', () => {
             pipeline: { terminalNodeId: 'joined', nodes: [] },
         };
         const makeComposerService = ({
-            spaceModel,
             flagEnabled = true,
             getComposerChartForRead = vi.fn().mockResolvedValue({
                 composerChart: composerChartAsCode,
                 spaceUuid: 'allowed-space-uuid',
             }),
         }: {
-            spaceModel?: Record<string, unknown>;
             flagEnabled?: boolean;
             getComposerChartForRead?: import('vitest').Mock;
         } = {}) => {
@@ -3698,7 +3696,6 @@ describe('AiAgentToolsService', () => {
                 rows: [{ month: '2026-01', revenue: 120 }],
             });
             const service = makeService({
-                spaceModel,
                 coderService: { getComposerChartForRead },
                 dashboardService: {
                     getByIdOrSlug: vi.fn().mockResolvedValue(salesDashboard),
@@ -3756,7 +3753,7 @@ describe('AiAgentToolsService', () => {
             });
         });
 
-        it('hides a composer chart whose dashboard is outside the agent spaces', async () => {
+        it('hides a composer chart whose owner space is outside the agent spaces', async () => {
             const { service } = makeComposerService();
 
             await expect(
