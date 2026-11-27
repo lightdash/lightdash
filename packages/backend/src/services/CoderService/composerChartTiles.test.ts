@@ -5,7 +5,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { resolveComposerChartTiles } from './composerChartTiles';
 
-const uploaded = (chartSlug: string): DashboardTileWithSlug =>
+const uploaded = (chartSlug: string | null): DashboardTileWithSlug =>
     ({
         uuid: `tile-${chartSlug}`,
         tileSlug: undefined,
@@ -62,6 +62,16 @@ describe('composer chart tiles uploaded as code', () => {
             },
             markdown,
         ]);
+    });
+
+    it('reads a tile with a null slug as a tile whose chart is gone', () => {
+        expect(resolve([uploaded(null)])[0].properties).toEqual({
+            title: 'Orders',
+            hideTitle: false,
+            chartSlug: null,
+            composerChartUuid: null,
+            chartName: null,
+        });
     });
 
     it('fails naming the slug when no composer chart has it', () => {

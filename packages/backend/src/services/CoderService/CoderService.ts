@@ -2267,15 +2267,22 @@ export class CoderService extends BaseService {
                 };
             });
         dashboard.tiles.filter(isDashboardComposerChartTile).forEach((tile) => {
-            const composerTile = toComposerChartTileAsCode(tile, {
-                tabSlug: tile.tabUuid
-                    ? getDashboardTabSlug(dashboardWithSortedTabs, tile.tabUuid)
-                    : null,
-                tileSlug:
-                    controlTileSlugs?.get(tile.uuid) ??
-                    CoderService.getTileSlugForTileUuid(dashboard, tile.uuid),
-            });
-            if (composerTile) tilesWithoutUuids.push(composerTile);
+            tilesWithoutUuids.push(
+                toComposerChartTileAsCode(tile, {
+                    tabSlug: tile.tabUuid
+                        ? getDashboardTabSlug(
+                              dashboardWithSortedTabs,
+                              tile.tabUuid,
+                          )
+                        : null,
+                    tileSlug:
+                        controlTileSlugs?.get(tile.uuid) ??
+                        CoderService.getTileSlugForTileUuid(
+                            dashboard,
+                            tile.uuid,
+                        ),
+                }),
+            );
         });
         tilesWithoutUuids.sort(
             (left, right) =>

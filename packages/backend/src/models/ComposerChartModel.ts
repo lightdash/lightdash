@@ -223,20 +223,38 @@ export class ComposerChartModel {
             .first();
     }
 
-    /** Locks the charts against new versions, then returns each one's pipeline as of the dashboard version beside its current one. */
+    /** The charts among `uuids` the dashboard owns; its tiles may also show a space's charts. */
+    async findOwnedByDashboard(
+        dashboardUuid: string,
+        uuids: string[],
+    ): Promise<string[]> {
+        if (uuids.length === 0) return [];
+        return this.database(ComposerChartsTableName)
+            .where('dashboard_uuid', dashboardUuid)
+            .whereIn('composer_chart_uuid', uuids)
+            .pluck('composer_chart_uuid');
+    }
+
+    /** Locks the dashboard's own charts among `uuids` against new versions, then returns each one's pipeline as of the dashboard version beside its current one. */
     async lockRollbackPipelines(
+        dashboardUuid: string,
         uuids: string[],
         dashboardVersionUuid: string,
         trx: Knex.Transaction,
-    ): Promise<{ restored: unknown; current: unknown }[]> {
+    ): Promise<{ uuid: string; restored: unknown; current: unknown }[]> {
         // A version insert takes a key-share lock on its chart, which this waits for or blocks
-        await trx(ComposerChartsTableName)
-            .select('composer_chart_uuid')
+        const owned: string[] = await trx(ComposerChartsTableName)
+            .where('dashboard_uuid', dashboardUuid)
             .whereIn('composer_chart_uuid', uuids)
             .orderBy('composer_chart_uuid')
-            .forUpdate();
-        const pipelines: { restored: unknown; current: unknown }[] = [];
-        for (const uuid of uuids) {
+            .forUpdate()
+            .pluck('composer_chart_uuid');
+        const pipelines: {
+            uuid: string;
+            restored: unknown;
+            current: unknown;
+        }[] = [];
+        for (const uuid of owned) {
             /* eslint-disable no-await-in-loop */
             const restored = await ComposerChartModel.versionAsOf(
                 trx,
@@ -251,6 +269,7 @@ export class ComposerChartModel {
             /* eslint-enable no-await-in-loop */
             if (restored && current) {
                 pipelines.push({
+                    uuid,
                     restored: restored.pipeline,
                     current: current.pipeline,
                 });

@@ -267,8 +267,11 @@ const catalogModel = {
 
 const composerChartModel = {
     deleteOrphans: vi.fn(async () => {}),
+    findOwnedByDashboard: vi.fn(async (): Promise<string[]> => []),
     lockRollbackPipelines: vi.fn(
-        async (): Promise<{ restored: unknown; current: unknown }[]> => [],
+        async (): Promise<
+            { uuid: string; restored: unknown; current: unknown }[]
+        > => [],
     ),
     rollbackToDashboardVersion: vi.fn(async () => {}),
 };
@@ -3286,6 +3289,7 @@ describe('DashboardService', () => {
         test('refuses when a restored pipeline is one the user may not save', async () => {
             composerChartModel.lockRollbackPipelines.mockResolvedValueOnce([
                 {
+                    uuid: 'composer-chart-uuid',
                     restored: pipeline('select 1'),
                     current: pipeline('select 2'),
                 },
@@ -3300,6 +3304,7 @@ describe('DashboardService', () => {
             expect(
                 composerChartModel.lockRollbackPipelines,
             ).toHaveBeenCalledWith(
+                dashboard.uuid,
                 ['composer-chart-uuid'],
                 'old-version-uuid',
                 undefined,
@@ -3321,6 +3326,7 @@ describe('DashboardService', () => {
         test('restores a pipeline equal to the current one without the save check', async () => {
             composerChartModel.lockRollbackPipelines.mockResolvedValueOnce([
                 {
+                    uuid: 'composer-chart-uuid',
                     restored: pipeline('select 1'),
                     current: pipeline('select 1'),
                 },
@@ -3332,6 +3338,53 @@ describe('DashboardService', () => {
                 composerChartService.assertCanRestore,
             ).not.toHaveBeenCalled();
             expect(dashboardModel.addVersion).toHaveBeenCalled();
+            expect(
+                composerChartModel.rollbackToDashboardVersion,
+            ).toHaveBeenCalledWith(
+                'composer-chart-uuid',
+                'old-version-uuid',
+                user.userUuid,
+                undefined,
+            );
+        });
+
+        test('rolls back only the charts the dashboard owns', async () => {
+            dashboardModel.getVersionByUuid.mockResolvedValueOnce({
+                ...targetVersion,
+                tiles: [
+                    composerTile,
+                    {
+                        ...composerTile,
+                        uuid: 'space-chart-tile-uuid',
+                        properties: {
+                            ...composerTile.properties,
+                            composerChartUuid: 'space-chart-uuid',
+                        },
+                    },
+                ],
+            } as Dashboard);
+            // The lock reads the dashboard's own charts only
+            composerChartModel.lockRollbackPipelines.mockResolvedValueOnce([
+                {
+                    uuid: 'composer-chart-uuid',
+                    restored: pipeline('select 1'),
+                    current: pipeline('select 2'),
+                },
+            ]);
+
+            await service.rollback(account, dashboard.uuid, 'old-version-uuid');
+
+            expect(
+                composerChartModel.lockRollbackPipelines,
+            ).toHaveBeenCalledWith(
+                dashboard.uuid,
+                ['composer-chart-uuid', 'space-chart-uuid'],
+                'old-version-uuid',
+                undefined,
+            );
+            expect(
+                composerChartModel.rollbackToDashboardVersion,
+            ).toHaveBeenCalledTimes(1);
             expect(
                 composerChartModel.rollbackToDashboardVersion,
             ).toHaveBeenCalledWith(

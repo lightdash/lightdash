@@ -834,10 +834,10 @@ export class ContentAsCodeWritebackService extends BaseService {
             // Composer tiles name composer charts, never classic ones
             const blockedBy = document.tiles.flatMap((tile) => {
                 if (tile.type === DashboardTileTypes.COMPOSER_CHART) {
-                    return failedComposerChartSlugs.has(
-                        tile.properties.chartSlug,
-                    )
-                        ? [tile.properties.chartSlug]
+                    const { chartSlug } = tile.properties;
+                    return chartSlug !== null &&
+                        failedComposerChartSlugs.has(chartSlug)
+                        ? [chartSlug]
                         : [];
                 }
                 return 'chartSlug' in tile.properties &&
@@ -1934,7 +1934,8 @@ export class ContentAsCodeWritebackService extends BaseService {
         const slugs = Array.from(
             new Set(
                 dashboardAsCode.tiles.flatMap((tile) =>
-                    tile.type === DashboardTileTypes.COMPOSER_CHART
+                    tile.type === DashboardTileTypes.COMPOSER_CHART &&
+                    tile.properties.chartSlug !== null
                         ? [tile.properties.chartSlug]
                         : [],
                 ),

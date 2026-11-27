@@ -15,31 +15,29 @@ export const isNotComposerChartTile = (
 ): tile is Exclude<DashboardTile, DashboardComposerChartTile> =>
     tile.type !== DashboardTileTypes.COMPOSER_CHART;
 
-/** Null for a tile whose chart is gone: it has no slug to write. */
+/** A tile whose chart is gone is written with a null slug, as classic chart tiles are. */
 export const toComposerChartTileAsCode = (
     { x, y, h, w, properties }: DashboardComposerChartTile,
     slugs: Pick<DashboardComposerChartTileAsCode, 'tabSlug' | 'tileSlug'>,
-): DashboardComposerChartTileAsCode | null =>
-    !properties.chartSlug
-        ? null
-        : {
-              uuid: undefined,
-              type: DashboardTileTypes.COMPOSER_CHART,
-              x,
-              y,
-              h,
-              w,
-              ...slugs,
-              properties: {
-                  title: properties.title,
-                  hideTitle: properties.hideTitle,
-                  chartSlug: properties.chartSlug,
-              },
-          };
+): DashboardComposerChartTileAsCode => ({
+    uuid: undefined,
+    type: DashboardTileTypes.COMPOSER_CHART,
+    x,
+    y,
+    h,
+    w,
+    ...slugs,
+    properties: {
+        title: properties.title,
+        hideTitle: properties.hideTitle,
+        chartSlug: properties.chartSlug ?? null,
+    },
+});
 
 /**
  * Points each uploaded composer tile at the composer chart named by its slug.
  * Only composer charts are searched, and the dashboard must own the chart.
+ * A null slug is a tile whose chart is gone.
  */
 export const resolveComposerChartTiles = (
     tiles: DashboardTileWithSlug[],
@@ -64,6 +62,18 @@ export const resolveComposerChartTiles = (
             DashboardComposerChartTileAsCode['properties'],
             'chartSlug'
         >;
+        if (chartSlug === null) {
+            return {
+                ...tile,
+                properties: {
+                    title: tile.properties.title,
+                    hideTitle: tile.properties.hideTitle,
+                    chartSlug: null,
+                    composerChartUuid: null,
+                    chartName: null,
+                },
+            } as DashboardTileWithSlug;
+        }
         if (typeof chartSlug !== 'string') {
             throw new ParameterError('A composer chart tile needs a chartSlug');
         }
