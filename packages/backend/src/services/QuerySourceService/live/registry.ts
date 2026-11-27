@@ -12,6 +12,7 @@ import { githubIntegration } from './integrations/github';
 import { googleAdsIntegration } from './integrations/googleAds';
 import { hubspotIntegration } from './integrations/hubspot';
 import { hydraIntegration } from './integrations/hydra';
+import { intercomIntegration } from './integrations/intercom';
 import { linkedInAdsIntegration } from './integrations/linkedInAds';
 import { metaAdsIntegration } from './integrations/metaAds';
 import { mixpanelIntegration } from './integrations/mixpanel';
@@ -41,6 +42,7 @@ const LIVE_INTEGRATIONS: {
     [ApiConnectorType.SALESFORCE]: salesforceIntegration,
     [ApiConnectorType.AMPLITUDE]: amplitudeIntegration,
     [ApiConnectorType.MIXPANEL]: mixpanelIntegration,
+    [ApiConnectorType.INTERCOM]: intercomIntegration,
     [ApiConnectorType.SUPABASE]: supabaseIntegration,
     [ApiConnectorType.HYDRA]: hydraIntegration,
 };

@@ -294,6 +294,11 @@ export enum FeatureFlags {
      * only, so user and organization overrides both apply.
      */
     LeftNavigation = 'left-navigation',
+    /**
+     * Org-scoped: the Intercom live data source integration. On while the
+     * flag has no stored value; see docs/feature-flags.md#live-data-source-integrations.
+     */
+    LiveSourceIntercom = 'live-source-intercom',
 }
 
 export type FeatureFlag = {

@@ -6,7 +6,7 @@ import {
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';
-import { type FeatureFlags } from '../types/featureFlags';
+import { FeatureFlags } from '../types/featureFlags';
 import { ApiConnectorType } from '../types/querySources';
 import { HYDRA_SETTINGS_SCHEMA } from './hydraLiveSource';
 
@@ -261,6 +261,20 @@ export const LIVE_INTEGRATION_CATALOG: {
             projectId: z.string(),
         }),
         getTarget: ({ projectId }) => `Project ${projectId}`,
+    },
+    [ApiConnectorType.INTERCOM]: {
+        id: 'intercom',
+        label: 'Intercom',
+        defaultName: 'Intercom',
+        messageLabel: 'Intercom',
+        agentLabel: 'Intercom',
+        description: 'Conversations, tickets, contacts and teammates',
+        setup: 'token',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.INTERCOM),
+        }),
+        getTarget: () => 'Intercom workspace',
+        featureFlag: FeatureFlags.LiveSourceIntercom,
     },
     [ApiConnectorType.SUPABASE]: {
         id: 'supabase',

@@ -163,6 +163,14 @@ export type MixpanelApiSource = {
 };
 
 /**
+ * An Intercom workspace; the access token decides which one, and the
+ * connection's origin says whether it is hosted in the US, the EU or Australia.
+ */
+export type IntercomApiSource = {
+    connector: ApiConnectorType.INTERCOM;
+};
+
+/**
  * Hydra, the test integration: its rows are seeded from the sign-in token,
  * and these settings make its fake API slow, fail, page or rate limit.
  * Every setting is optional; one left out takes its default
@@ -247,6 +255,7 @@ export type ExternalConnectionApiSource =
     | SalesforceApiSource
     | AmplitudeApiSource
     | MixpanelApiSource
+    | IntercomApiSource
     | SupabaseApiSource
     | HydraApiSource;
 
@@ -408,6 +417,37 @@ export const MIXPANEL_PATHS = {
 
 /** Mixpanel signs Query API calls in with HTTP Basic: the service account's username, then its secret. */
 export const MIXPANEL_AUTH_HEADER = 'Authorization';
+
+/** Intercom's REST API, by where the workspace is hosted. */
+export const INTERCOM_REGION_ORIGINS = {
+    us: 'https://api.intercom.io',
+    eu: 'https://api.eu.intercom.io',
+    au: 'https://api.au.intercom.io',
+} as const;
+export type IntercomRegion = keyof typeof INTERCOM_REGION_ORIGINS;
+
+export const getIntercomRegion = (origin: string): IntercomRegion => {
+    const trimmed = origin.replace(/\/+$/, '');
+    if (trimmed === INTERCOM_REGION_ORIGINS.eu) return 'eu';
+    if (trimmed === INTERCOM_REGION_ORIGINS.au) return 'au';
+    return 'us';
+};
+
+/**
+ * The endpoints a source reads. Searches are POSTs that only read; nothing
+ * that writes shares these prefixes.
+ */
+export const INTERCOM_PATHS = {
+    conversationsSearch: '/conversations/search',
+    ticketsSearch: '/tickets/search',
+    contactsSearch: '/contacts/search',
+    admins: '/admins',
+    teams: '/teams',
+    me: '/me',
+} as const;
+
+/** The REST API version every call asks for, so fields and values stay fixed. */
+export const INTERCOM_API_VERSION = '2.15';
 
 export const HUBSPOT_ORIGIN = 'https://api.hubapi.com';
 

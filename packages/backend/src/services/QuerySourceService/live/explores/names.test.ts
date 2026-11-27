@@ -114,6 +114,11 @@ const SOURCES: {
         scan: {},
     },
     {
+        name: 'Intercom',
+        apiSource: { connector: ApiConnectorType.INTERCOM },
+        scan: {},
+    },
+    {
         name: 'Attio',
         apiSource: { connector: ApiConnectorType.ATTIO },
         scan: {

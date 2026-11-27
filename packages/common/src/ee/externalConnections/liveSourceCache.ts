@@ -28,6 +28,8 @@ export const LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS: Record<
     [ApiConnectorType.AMPLITUDE]: DEFAULT_CACHE_TTL_SECONDS,
     // Queries count against 60 an hour per project, shared with other clients
     [ApiConnectorType.MIXPANEL]: DEFAULT_CACHE_TTL_SECONDS,
+    // Calls count against 10,000 a minute shared by the workspace's private apps
+    [ApiConnectorType.INTERCOM]: DEFAULT_CACHE_TTL_SECONDS,
     // Rows change as the app writes them; reads count against the project's compute
     [ApiConnectorType.SUPABASE]: DEFAULT_CACHE_TTL_SECONDS,
     // Like every other source, so cache tests see the default window

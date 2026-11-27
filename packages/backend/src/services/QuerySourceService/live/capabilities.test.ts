@@ -107,6 +107,12 @@ const SOURCES = [
         date: 'created_at',
     },
     {
+        apiSource: { connector: ApiConnectorType.INTERCOM },
+        // Record lists have no metrics
+        fields: { dimension: 'state', other: 'source_type' },
+        date: 'created_at',
+    },
+    {
         apiSource: { connector: ApiConnectorType.ATTIO },
         // Built-in fields only: attributes come from a scan. No metrics.
         fields: { dimension: 'record_id', other: 'record_id' },
