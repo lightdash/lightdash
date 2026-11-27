@@ -85,6 +85,11 @@ const SAMPLE_SETTINGS: {
         connector: ApiConnectorType.SUPABASE,
         table: 'orders',
     },
+    [ApiConnectorType.SENTRY]: {
+        connector: ApiConnectorType.SENTRY,
+        organizationSlug: 'acme',
+        projectSlugs: ['mobile-ios'],
+    },
     [ApiConnectorType.PYLON]: {
         connector: ApiConnectorType.PYLON,
     },
