@@ -8,6 +8,7 @@ import {
     OrganizationMemberRole,
     PromotionAction,
     type ComposerChart,
+    type ComposerChartOwner,
     type DashboardDAO,
     type DashboardTile,
     type RegisteredAccount,
@@ -124,7 +125,7 @@ const composerChart = (overrides: Partial<ComposerChart>): ComposerChart =>
     ({
         uuid: 'preview-composer-chart',
         projectUuid: previewProjectUuid,
-        dashboardUuid: sourceDashboard.uuid,
+        owner: { type: 'dashboard', dashboardUuid: sourceDashboard.uuid },
         name: 'Revenue',
         description: null,
         slug: 'revenue',
@@ -136,12 +137,15 @@ const composerChart = (overrides: Partial<ComposerChart>): ComposerChart =>
 const setup = ({
     upstreamDashboardExists = false,
     upstreamChart = null as ComposerChart | null,
-    upstreamChartOwner = upstreamDashboardUuid,
+    upstreamChartOwner = {
+        type: 'dashboard',
+        dashboardUuid: upstreamDashboardUuid,
+    } as ComposerChartOwner,
     sourceChart = composerChart({}),
 }: {
     upstreamDashboardExists?: boolean;
     upstreamChart?: ComposerChart | null;
-    upstreamChartOwner?: string;
+    upstreamChartOwner?: ComposerChartOwner;
     sourceChart?: ComposerChart;
 } = {}) => {
     const upstreamDashboard = dashboard(
@@ -175,7 +179,7 @@ const setup = ({
         ),
         getOwner: vi.fn(async () => ({
             projectUuid: upstreamProjectUuid,
-            dashboardUuid: upstreamChartOwner,
+            owner: upstreamChartOwner,
         })),
         deleteOrphans: vi.fn(async () => undefined),
     };
@@ -320,7 +324,10 @@ describe('promoting a dashboard with composer charts', () => {
             upstreamChart: composerChart({
                 uuid: upstreamChartUuid,
                 projectUuid: upstreamProjectUuid,
-                dashboardUuid: upstreamDashboardUuid,
+                owner: {
+                    type: 'dashboard',
+                    dashboardUuid: upstreamDashboardUuid,
+                },
                 pipeline: { schemaVersion: 1, nodes: [] } as never,
             }),
         });
@@ -361,7 +368,10 @@ describe('promoting a dashboard with composer charts', () => {
             upstreamChart: composerChart({
                 uuid: upstreamChartUuid,
                 projectUuid: upstreamProjectUuid,
-                dashboardUuid: upstreamDashboardUuid,
+                owner: {
+                    type: 'dashboard',
+                    dashboardUuid: upstreamDashboardUuid,
+                },
             }),
         });
 
@@ -396,7 +406,10 @@ describe('promoting a dashboard with composer charts', () => {
             upstreamChart: composerChart({
                 uuid: upstreamChartUuid,
                 projectUuid: upstreamProjectUuid,
-                dashboardUuid: upstreamDashboardUuid,
+                owner: {
+                    type: 'dashboard',
+                    dashboardUuid: upstreamDashboardUuid,
+                },
             }),
         });
         composerChartService.isEnabled.mockResolvedValue(false);
@@ -436,21 +449,33 @@ describe('promoting a dashboard with composer charts', () => {
         expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
     });
 
-    test('refuses when the slug belongs to a composer chart on another upstream dashboard', async () => {
-        const { service, dashboardModel, composerChartService } = setup({
-            upstreamChart: composerChart({
-                uuid: 'someone-elses-chart',
-                projectUuid: upstreamProjectUuid,
-            }),
-            upstreamChartOwner: 'another-dashboard',
-        });
+    test.each<[string, ComposerChartOwner]>([
+        [
+            'on another upstream dashboard',
+            { type: 'dashboard', dashboardUuid: 'another-dashboard' },
+        ],
+        [
+            'in an upstream space',
+            { type: 'space', spaceUuid: 'upstream-space' },
+        ],
+    ])(
+        'refuses when the slug belongs to a composer chart %s',
+        async (_, owner) => {
+            const { service, dashboardModel, composerChartService } = setup({
+                upstreamChart: composerChart({
+                    uuid: 'someone-elses-chart',
+                    projectUuid: upstreamProjectUuid,
+                }),
+                upstreamChartOwner: owner,
+            });
 
-        await expect(
-            service.promoteDashboard(account, sourceDashboard.uuid, scoped),
-        ).rejects.toBeInstanceOf(AlreadyExistsError);
-        expect(dashboardModel.create).not.toHaveBeenCalled();
-        expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
-    });
+            await expect(
+                service.promoteDashboard(account, sourceDashboard.uuid, scoped),
+            ).rejects.toBeInstanceOf(AlreadyExistsError);
+            expect(dashboardModel.create).not.toHaveBeenCalled();
+            expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
+        },
+    );
 
     test('carries the custom chart type the chart uses', async () => {
         const { service, appGenerateService, composerChartService } = setup({

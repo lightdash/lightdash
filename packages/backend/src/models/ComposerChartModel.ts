@@ -1,10 +1,12 @@
 import {
+    assertUnreachable,
     ChartType,
     NotFoundError,
     parseComposerPipeline,
     parseComposerStoredChart,
     UnexpectedServerError,
     type ComposerChart,
+    type ComposerChartOwner,
     type ComposerChartPipeline,
     type ComposerStoredChart,
 } from '@lightdash/common';
@@ -27,12 +29,40 @@ export type CreateComposerChartRecord = {
     /** Inserted exactly when supplied (content as code); generated from the name otherwise. */
     slug: string | null;
     projectUuid: string;
-    dashboardUuid: string;
+    owner: ComposerChartOwner;
     name: string;
     description: string | null;
     pipeline: ComposerChartPipeline;
     chart: ComposerStoredChart;
     createdByUserUuid: string;
+};
+
+type OwnerColumns = {
+    dashboard_uuid: string | null;
+    space_uuid: string | null;
+};
+
+const toOwnerColumns = (owner: ComposerChartOwner): OwnerColumns => {
+    switch (owner.type) {
+        case 'dashboard':
+            return { dashboard_uuid: owner.dashboardUuid, space_uuid: null };
+        case 'space':
+            return { dashboard_uuid: null, space_uuid: owner.spaceUuid };
+        default:
+            return assertUnreachable(owner, 'Unknown composer chart owner');
+    }
+};
+
+const toOwner = (uuid: string, row: OwnerColumns): ComposerChartOwner => {
+    if (row.dashboard_uuid && !row.space_uuid) {
+        return { type: 'dashboard', dashboardUuid: row.dashboard_uuid };
+    }
+    if (row.space_uuid && !row.dashboard_uuid) {
+        return { type: 'space', spaceUuid: row.space_uuid };
+    }
+    throw new UnexpectedServerError(
+        `Composer chart ${uuid} does not have exactly one owner`,
+    );
 };
 
 export class ComposerChartModel {
@@ -60,7 +90,7 @@ export class ComposerChartModel {
                         ? { composer_chart_uuid: record.uuid }
                         : {}),
                     project_uuid: record.projectUuid,
-                    dashboard_uuid: record.dashboardUuid,
+                    ...toOwnerColumns(record.owner),
                     name: record.name,
                     description: record.description,
                     slug,
@@ -79,22 +109,14 @@ export class ComposerChartModel {
 
     async getOwner(
         uuid: string,
-    ): Promise<{ projectUuid: string; dashboardUuid: string }> {
+    ): Promise<{ projectUuid: string; owner: ComposerChartOwner }> {
         const row = await this.database(ComposerChartsTableName)
-            .select('project_uuid', 'dashboard_uuid')
+            .select('project_uuid', 'dashboard_uuid', 'space_uuid')
             .where('composer_chart_uuid', uuid)
             .whereNull('deleted_at')
             .first();
         if (!row) throw new NotFoundError('Composer chart not found');
-        if (!row.dashboard_uuid) {
-            throw new UnexpectedServerError(
-                `Composer chart ${uuid} is not owned by a dashboard`,
-            );
-        }
-        return {
-            projectUuid: row.project_uuid,
-            dashboardUuid: row.dashboard_uuid,
-        };
+        return { projectUuid: row.project_uuid, owner: toOwner(uuid, row) };
     }
 
     /** Copies the chart and its latest version, unparsed, onto another dashboard. */
@@ -410,6 +432,7 @@ export class ComposerChartModel {
         composer_chart_uuid: string;
         project_uuid: string;
         dashboard_uuid: string | null;
+        space_uuid: string | null;
         name: string;
         description: string | null;
         slug: string;
@@ -422,11 +445,7 @@ export class ComposerChartModel {
         version_created_by_user_uuid: string | null;
     }): ComposerChart {
         const uuid = row.composer_chart_uuid;
-        if (!row.dashboard_uuid) {
-            throw new UnexpectedServerError(
-                `Composer chart ${uuid} is not owned by a dashboard`,
-            );
-        }
+        const owner = toOwner(uuid, row);
 
         let pipeline: ComposerChartPipeline;
         let chart: ComposerStoredChart;
@@ -444,7 +463,7 @@ export class ComposerChartModel {
         return {
             uuid,
             projectUuid: row.project_uuid,
-            dashboardUuid: row.dashboard_uuid,
+            owner,
             name: row.name,
             description: row.description,
             slug: row.slug,
@@ -541,8 +560,8 @@ export class ComposerChartModel {
 
     /**
      * Content-as-code write: creates the chart with exactly this slug, or
-     * appends a version to the chart holding it, reviving it onto
-     * `dashboardUuid` when deleted.
+     * appends a version to the chart holding it, reviving it onto `owner`
+     * when deleted.
      */
     async writeFromCode(
         record: Omit<CreateComposerChartRecord, 'uuid'> & {
@@ -561,7 +580,7 @@ export class ComposerChartModel {
                     name: record.name,
                     description: record.description,
                     ...(existing.deleted && {
-                        dashboard_uuid: record.dashboardUuid,
+                        ...toOwnerColumns(record.owner),
                         deleted_at: null,
                         deleted_by_user_uuid: null,
                     }),

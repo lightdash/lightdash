@@ -67,7 +67,7 @@ describe('composer charts using a custom chart type, on the real schema', () => 
             uuid: null,
             slug: null,
             projectUuid: fixture.projectUuid,
-            dashboardUuid,
+            owner: { type: 'dashboard', dashboardUuid },
             name: 'Orders by status',
             description: null,
             pipeline: {

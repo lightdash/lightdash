@@ -11,9 +11,11 @@ import {
     ForbiddenError,
     MergeJoinType,
     MetricType,
+    NotSupportedError,
     QueryExecutionContext,
     QuerySourceType,
     TableCalculationType,
+    type ComposerChartOwner,
     type ComposerChartPipelineNode,
     type CreateComposerChart,
     type DashboardFilters,
@@ -649,6 +651,7 @@ describe('ComposerChartService.run', () => {
             flagEnabled?: boolean;
             chart?: CreateComposerChart['chart'];
             nodes?: ComposerChartPipelineNode[];
+            owner?: ComposerChartOwner;
         } = {},
     ) => {
         const {
@@ -659,12 +662,16 @@ describe('ComposerChartService.run', () => {
         } = setup(options);
         const body = createBody(options.nodes ?? PIPELINES.python);
         const stored = body.pipeline;
+        const owner: ComposerChartOwner = options.owner ?? {
+            type: 'dashboard',
+            dashboardUuid,
+        };
         Object.assign(composerChartModel, {
-            getOwner: vi.fn(async () => ({ projectUuid, dashboardUuid })),
+            getOwner: vi.fn(async () => ({ projectUuid, owner })),
             get: vi.fn(async () => ({
                 uuid: 'chart-uuid',
                 projectUuid,
-                dashboardUuid,
+                owner,
                 pipeline: stored,
                 chart: options.chart ?? body.chart,
             })),
@@ -931,6 +938,22 @@ describe('ComposerChartService.run', () => {
         expect(submitComposerRun).not.toHaveBeenCalled();
     });
 
+    test('refuses a chart owned by a space', async () => {
+        const { service, submitComposerRun } = setupRun({
+            owner: { type: 'space', spaceUuid: 'space-uuid' },
+        });
+        await expect(
+            service.run(
+                viewer(),
+                projectUuid,
+                'chart-uuid',
+                runRequest,
+                QueryExecutionContext.DASHBOARD,
+            ),
+        ).rejects.toThrow(NotSupportedError);
+        expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
     test('refuses a run naming a dashboard that does not own the chart', async () => {
         const { service, submitComposerRun } = setupRun();
         await expect(
@@ -1009,7 +1032,10 @@ describe('ComposerChartService.getParameterReferences', () => {
             },
         ] satisfies ComposerChartPipelineNode[];
         Object.assign(composerChartModel, {
-            getOwner: vi.fn(async () => ({ projectUuid, dashboardUuid })),
+            getOwner: vi.fn(async () => ({
+                projectUuid,
+                owner: { type: 'dashboard', dashboardUuid },
+            })),
             get: vi.fn(async () => ({
                 uuid: 'chart-uuid',
                 pipeline: { schemaVersion: 1, terminalNodeId: 'raw', nodes },

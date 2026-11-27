@@ -1,5 +1,6 @@
 import {
     AlreadyExistsError,
+    assertUnreachable,
     isDashboardComposerChartTile,
     PromotionAction,
     type DashboardTile,
@@ -59,11 +60,21 @@ export const getComposerChartChanges = async (
         if (!identity || identity.deleted) {
             changes.push({ action: PromotionAction.CREATE, data: promoted });
         } else {
-            const owner = await composerChartModel.getOwner(identity.uuid);
-            if (owner.dashboardUuid !== upstream.dashboardUuid) {
-                throw new AlreadyExistsError(
-                    `Composer chart "${source.slug}" already belongs to another dashboard in the upstream project`,
-                );
+            const { owner } = await composerChartModel.getOwner(identity.uuid);
+            switch (owner.type) {
+                case 'dashboard':
+                    if (owner.dashboardUuid !== upstream.dashboardUuid) {
+                        throw new AlreadyExistsError(
+                            `Composer chart "${source.slug}" already belongs to another dashboard in the upstream project`,
+                        );
+                    }
+                    break;
+                case 'space':
+                    throw new AlreadyExistsError(
+                        `Composer chart "${source.slug}" already belongs to a space in the upstream project`,
+                    );
+                default:
+                    assertUnreachable(owner, 'Unknown composer chart owner');
             }
             const current = await composerChartModel.get(identity.uuid);
             const unchanged =

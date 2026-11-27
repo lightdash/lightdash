@@ -1796,7 +1796,7 @@ describe('composer bound run', () => {
             chart: {
                 uuid: 'composer-chart-uuid',
                 projectUuid,
-                dashboardUuid: 'dashboard-uuid',
+                owner: { type: 'dashboard', dashboardUuid: 'dashboard-uuid' },
                 pipeline: {
                     schemaVersion: 1,
                     terminalNodeId: 'forecast',

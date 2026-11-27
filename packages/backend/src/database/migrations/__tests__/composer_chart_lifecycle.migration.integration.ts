@@ -73,7 +73,7 @@ describe('composer charts follow their dashboard on the real schema', () => {
             uuid: null,
             slug: null,
             projectUuid: owner.projectUuid,
-            dashboardUuid: created.uuid,
+            owner: { type: 'dashboard', dashboardUuid: created.uuid },
             name: 'Orders by status',
             description: null,
             pipeline: pipeline('select status, total from orders'),
@@ -127,7 +127,7 @@ describe('composer charts follow their dashboard on the real schema', () => {
             uuid: null,
             slug: null,
             projectUuid: fixture.projectUuid,
-            dashboardUuid: dashboard.uuid,
+            owner: { type: 'dashboard', dashboardUuid: dashboard.uuid },
             name: 'Deleted earlier',
             description: null,
             pipeline: pipeline('select 1'),
@@ -150,7 +150,9 @@ describe('composer charts follow their dashboard on the real schema', () => {
         await dashboardModel.restore(dashboard.uuid);
         await expect(
             composerChartModel.get(composerChartUuid),
-        ).resolves.toMatchObject({ dashboardUuid: dashboard.uuid });
+        ).resolves.toMatchObject({
+            owner: { type: 'dashboard', dashboardUuid: dashboard.uuid },
+        });
         await expect(composerChartModel.get(deletedEarlier)).rejects.toThrow(
             NotFoundError,
         );
@@ -172,7 +174,7 @@ describe('composer charts follow their dashboard on the real schema', () => {
             existing,
             slug,
             projectUuid: fixture.projectUuid,
-            dashboardUuid: newOwner.uuid,
+            owner: { type: 'dashboard', dashboardUuid: newOwner.uuid },
             name: 'Revived',
             description: null,
             pipeline: pipeline('select status, 2 as total from orders'),
@@ -185,8 +187,55 @@ describe('composer charts follow their dashboard on the real schema', () => {
         ).resolves.toMatchObject({
             slug,
             name: 'Revived',
-            dashboardUuid: newOwner.uuid,
+            owner: { type: 'dashboard', dashboardUuid: newOwner.uuid },
             pipeline: pipeline('select status, 2 as total from orders'),
+        });
+    });
+
+    it('reads a space owner and revives the chart onto a dashboard with one owner column', async () => {
+        const { dashboard } = await createDashboardWithChart();
+        const composerChartUuid = await composerChartModel.create({
+            uuid: null,
+            slug: null,
+            projectUuid: fixture.projectUuid,
+            owner: { type: 'space', spaceUuid: fixture.spaceUuid },
+            name: 'In a space',
+            description: null,
+            pipeline: pipeline('select 1'),
+            chart: storedChart,
+            createdByUserUuid: fixture.userUuid,
+        });
+        await expect(
+            composerChartModel.getOwner(composerChartUuid),
+        ).resolves.toEqual({
+            projectUuid: fixture.projectUuid,
+            owner: { type: 'space', spaceUuid: fixture.spaceUuid },
+        });
+        const { slug } = await composerChartModel.get(composerChartUuid);
+        await database('composer_charts')
+            .where('composer_chart_uuid', composerChartUuid)
+            .update({ deleted_at: new Date() });
+
+        await composerChartModel.writeFromCode({
+            existing: { uuid: composerChartUuid, deleted: true },
+            slug,
+            projectUuid: fixture.projectUuid,
+            owner: { type: 'dashboard', dashboardUuid: dashboard.uuid },
+            name: 'Revived',
+            description: null,
+            pipeline: pipeline('select 1'),
+            chart: storedChart,
+            createdByUserUuid: fixture.userUuid,
+        });
+
+        await expect(
+            database('composer_charts')
+                .select('dashboard_uuid', 'space_uuid')
+                .where('composer_chart_uuid', composerChartUuid)
+                .first(),
+        ).resolves.toEqual({
+            dashboard_uuid: dashboard.uuid,
+            space_uuid: null,
         });
     });
 

@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AgentCapability,
     assertRegisteredAccount,
+    assertUnreachable,
     ChartType,
     FeatureFlags,
     FeatureNotEnabledError,
@@ -18,6 +19,7 @@ import {
     isComposerChartTileRequest,
     isDashboardComposerChartTile,
     NotFoundError,
+    NotSupportedError,
     ParameterError,
     parseComposerChartInput,
     parseComposerChartRunRequest,
@@ -30,6 +32,7 @@ import {
     type ChartParameterReferencesResult,
     type ComposerAvailableFilterSource,
     type ComposerChart,
+    type ComposerChartOwner,
     type ComposerChartPipeline,
     type ComposerChartRunRequest,
     type ComposerChartRunResults,
@@ -401,7 +404,7 @@ export class ComposerChartService extends BaseService {
             uuid: null,
             slug: null,
             projectUuid,
-            dashboardUuid: data.dashboardUuid,
+            owner: { type: 'dashboard', dashboardUuid: data.dashboardUuid },
             name: data.name,
             description: data.description ?? null,
             pipeline,
@@ -427,8 +430,10 @@ export class ComposerChartService extends BaseService {
         );
         const dashboardUuid =
             existing && !existing.deleted
-                ? (await this.composerChartModel.getOwner(existing.uuid))
-                      .dashboardUuid
+                ? ComposerChartService.getDashboardUuid(
+                      (await this.composerChartModel.getOwner(existing.uuid))
+                          .owner,
+                  )
                 : data.dashboardUuid;
         if (dashboardUuid === null) {
             throw new ParameterError(
@@ -444,7 +449,7 @@ export class ComposerChartService extends BaseService {
             existing,
             slug: data.slug,
             projectUuid,
-            dashboardUuid,
+            owner: { type: 'dashboard', dashboardUuid },
             name: data.name,
             description: data.description ?? null,
             pipeline,
@@ -486,27 +491,43 @@ export class ComposerChartService extends BaseService {
         return this.composerChartModel.remapPreviewDataAppVizs(...args);
     }
 
-    /** View on the chart, through its current owner: today always its dashboard. */
+    /** The owning dashboard; a chart in a space is not served yet. */
+    private static getDashboardUuid(owner: ComposerChartOwner): string {
+        switch (owner.type) {
+            case 'dashboard':
+                return owner.dashboardUuid;
+            case 'space':
+                throw new NotSupportedError(
+                    'Composer charts in a space are not supported yet',
+                );
+            default:
+                return assertUnreachable(owner, 'Unknown composer chart owner');
+        }
+    }
+
+    /** View on the chart, through its owner. */
     async assertCanView(
         account: RegisteredAccount,
         projectUuid: string,
         composerChartUuid: string,
     ): Promise<{ organizationUuid: string; dashboardUuid: string }> {
-        const owner = await this.composerChartModel.getOwner(composerChartUuid);
-        if (owner.projectUuid !== projectUuid) {
+        const { projectUuid: chartProjectUuid, owner } =
+            await this.composerChartModel.getOwner(composerChartUuid);
+        if (chartProjectUuid !== projectUuid) {
             throw new NotFoundError('Composer chart not found');
         }
+        const dashboardUuid = ComposerChartService.getDashboardUuid(owner);
         const dashboardAccess = await this.getDashboardAccess(
             account,
             projectUuid,
-            owner.dashboardUuid,
+            dashboardUuid,
         );
         if (
             this.createAuditedAbility(account).cannot(
                 'view',
                 subject('Dashboard', {
                     ...dashboardAccess,
-                    metadata: { dashboardUuid: owner.dashboardUuid },
+                    metadata: { dashboardUuid },
                 }),
             )
         ) {
@@ -516,7 +537,7 @@ export class ComposerChartService extends BaseService {
         }
         return {
             organizationUuid: dashboardAccess.organizationUuid,
-            dashboardUuid: owner.dashboardUuid,
+            dashboardUuid,
         };
     }
 
