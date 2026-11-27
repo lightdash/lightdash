@@ -1,3 +1,10 @@
+# [3.424.0](https://github.com/lightdash/lightdash/compare/3.423.1...3.424.0) (2026-11-27)
+
+
+### Features
+
+* apply AI router routing instructions when picking agents in Slack ([#33465](https://github.com/lightdash/lightdash/issues/33465)) ([b0c0b3f](https://github.com/lightdash/lightdash/commit/b0c0b3ffe22ccfa9e5cce98df9ec59341d7c8852))
+
 ## [3.423.1](https://github.com/lightdash/lightdash/compare/3.423.0...3.423.1) (2026-11-27)
 
 
