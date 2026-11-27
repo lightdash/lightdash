@@ -16,14 +16,14 @@ const chart = { uuid: 'chart-uuid', versionUuid: 'version-uuid' };
 const setup = () => {
     const pending: Array<() => void> = [];
     const api = vi.fn(
-        () =>
+        (_request: { body: string }) =>
             new Promise<ComposerChartRunResults>((resolve) => {
                 pending.push(() => resolve(run));
             }),
     );
     const sent = () =>
         api.mock.calls.map(
-            ([{ body }]: [{ body: string }]) =>
+            ([{ body }]) =>
                 (JSON.parse(body) as ExecuteComposerChartRequest)
                     .invalidateCache,
         );
