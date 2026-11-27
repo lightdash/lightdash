@@ -322,6 +322,10 @@ describe('GoogleDriveClient', () => {
                         orders_order_quarter: '2023-04-01',
                         orders_total_revenue: 80,
                     },
+                    {
+                        orders_order_date: '2023-13-01',
+                        orders_total_revenue: 0,
+                    },
                 ],
                 {
                     orders_order_date: {
@@ -369,14 +373,15 @@ describe('GoogleDriveClient', () => {
             expect(fake.tabValues('Sheet1')).toEqual([
                 ['Order date', 'Order quarter', 'Total revenue'],
                 [45000, '2023-Q1', 120],
-                ['NaT', '2023-Q2', 80],
+                ['', '2023-Q2', 80],
+                ['NaT', '', 0],
             ]);
             expect(fake.sheet('Sheet1').numberFormats).toEqual([
                 {
                     range: {
                         sheetId: fake.sheet('Sheet1').sheetId,
                         startRowIndex: 1,
-                        endRowIndex: 3,
+                        endRowIndex: 4,
                         startColumnIndex: 0,
                         endColumnIndex: 1,
                     },
