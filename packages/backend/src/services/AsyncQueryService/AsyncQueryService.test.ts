@@ -34000,7 +34000,7 @@ describe('bound composer chart runs', () => {
         },
     );
 
-    test('a node run outside a dashboard records no tile on query.completed', async () => {
+    test('a node run outside a dashboard stores no tile in its usage metadata', async () => {
         const account = viewer();
         const service = derivedService(account);
         const binding = bindingFor(account);
