@@ -5,12 +5,16 @@ import { vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { ComposerChartDeleteModal } from './ComposerChartDeleteModal';
 
-const mocks = vi.hoisted(() => ({ mutate: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+    mutate: vi.fn(),
+    dashboards: {} as {
+        isSuccess: boolean;
+        isError: boolean;
+        data?: { uuid: string; name: string }[];
+    },
+}));
 vi.mock('../hooks/useComposerChartDashboards', () => ({
-    useComposerChartDashboards: () => ({
-        isInitialLoading: false,
-        data: [{ uuid: 'dashboard', name: 'Sales', slug: 'sales' }],
-    }),
+    useComposerChartDashboards: () => mocks.dashboards,
 }));
 vi.mock('../../../hooks/useContent', () => ({
     useContentAction: () => ({ mutate: mocks.mutate, isLoading: false }),
@@ -36,10 +40,15 @@ const renderModal = (softDeleteEnabled: boolean) =>
 
 describe('ComposerChartDeleteModal', () => {
     it('names the dashboards showing the chart and deletes it through the content API', async () => {
+        mocks.dashboards = {
+            isSuccess: true,
+            isError: false,
+            data: [{ uuid: 'dashboard', name: 'Sales' }],
+        };
         renderModal(true);
         expect(
             await screen.findByText(
-                'Tiles on 1 dashboard will show the chart as deleted. You can restore the chart from Recently deleted.',
+                'Tiles on 1 dashboard will show the chart as deleted:',
             ),
         ).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Sales' })).toHaveAttribute(
@@ -53,12 +62,14 @@ describe('ComposerChartDeleteModal', () => {
         });
     });
 
-    it('says the tile goes for good with soft delete off', async () => {
-        renderModal(false);
+    it('blocks the delete while the dashboards that show the chart are unknown', async () => {
+        mocks.dashboards = { isSuccess: false, isError: true };
+        renderModal(true);
         expect(
             await screen.findByText(
-                'Tiles on 1 dashboard will show the chart as deleted:',
+                'Could not load the dashboards that show this chart. Close and try again.',
             ),
         ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
     });
 });

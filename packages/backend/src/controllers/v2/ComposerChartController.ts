@@ -129,8 +129,8 @@ export class ComposerChartController extends BaseController {
 
     /**
      * Deletes a composer chart that a space owns. With soft delete on, the
-     * chart moves to Recently deleted. With soft delete off, the server
-     * deletes it permanently. Dashboard tiles that show the chart stay and
+     * server keeps the chart marked as deleted. With soft delete off, it
+     * deletes the chart permanently. Dashboard tiles that show the chart stay and
      * show it as deleted. Requires permission to delete charts in the
      * chart's space. Returns 400 for a composer chart that a dashboard owns,
      * because deleting its tile deletes that chart.

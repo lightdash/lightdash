@@ -31,7 +31,6 @@ export const ComposerChartDeleteModal: FC<Props> = ({
 }) => {
     const { health } = useApp();
     const softDeleteEnabled = health.data?.softDelete.enabled ?? false;
-    const retentionDays = health.data?.softDelete.retentionDays;
     const dashboards = useComposerChartDashboards(
         projectUuid,
         composerChartUuid,
@@ -43,9 +42,8 @@ export const ComposerChartDeleteModal: FC<Props> = ({
 
     const count = dashboards.data?.length ?? 0;
     const plural = count > 1 ? 's' : '';
-    const dashboardWarningTitle = softDeleteEnabled
-        ? `Tiles on ${count} dashboard${plural} will show the chart as deleted. You can restore the chart from Recently deleted.`
-        : `Tiles on ${count} dashboard${plural} will show the chart as deleted:`;
+    // Recently deleted does not list composer charts yet, so no restore is promised
+    const dashboardWarningTitle = `Tiles on ${count} dashboard${plural} will show the chart as deleted:`;
 
     return (
         <MantineModal
@@ -55,11 +53,6 @@ export const ComposerChartDeleteModal: FC<Props> = ({
             variant="delete"
             resourceType="chart"
             resourceLabel={name}
-            description={
-                softDeleteEnabled
-                    ? `This chart will be moved to Recently deleted and permanently removed after ${retentionDays} days.`
-                    : undefined
-            }
             onConfirm={() =>
                 deleteChart({
                     action: { type: 'delete' },
@@ -69,10 +62,16 @@ export const ComposerChartDeleteModal: FC<Props> = ({
                     },
                 })
             }
-            confirmDisabled={dashboards.isInitialLoading}
+            confirmDisabled={!dashboards.isSuccess}
             confirmLoading={isDeleting}
             cancelDisabled={isDeleting}
         >
+            {dashboards.isError && (
+                <Callout
+                    variant="danger"
+                    title="Could not load the dashboards that show this chart. Close and try again."
+                />
+            )}
             {count > 0 && (
                 <Stack gap="sm">
                     <Callout

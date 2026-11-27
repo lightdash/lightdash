@@ -231,16 +231,19 @@ export const useContentAction = (
                         title: `Successfully deleted ${contentTypeLabel(
                             item.contentType,
                         )}.`,
-                        action: isSoftDeleteEnabled
-                            ? {
-                                  children: 'Go to recently deleted',
-                                  icon: IconArrowRight,
-                                  onClick: () =>
-                                      navigate(
-                                          `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
-                                      ),
-                              }
-                            : undefined,
+                        // Composer charts are not listed in Recently deleted yet
+                        action:
+                            isSoftDeleteEnabled &&
+                            item.contentType !== ContentType.COMPOSER_CHART
+                                ? {
+                                      children: 'Go to recently deleted',
+                                      icon: IconArrowRight,
+                                      onClick: () =>
+                                          navigate(
+                                              `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
+                                          ),
+                                  }
+                                : undefined,
                     });
 
                 default:
