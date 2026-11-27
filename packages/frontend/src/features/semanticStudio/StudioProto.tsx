@@ -147,6 +147,8 @@ type RailProps = {
     counts: Map<string, { additions: number; deletions: number }>;
     /** In the code view: the project's file tree, shown under the models, which then open as files. */
     codeFiles: ReactNode | null;
+    /** On a project that keeps its YAML in the app: the models that have a file there. Ones deployed from outside have none. */
+    appFiles: string[];
 };
 
 const Rail: FC<RailProps & { repoFiles: string[] | null }> = ({
@@ -159,6 +161,7 @@ const Rail: FC<RailProps & { repoFiles: string[] | null }> = ({
     onActionsSlot,
     counts,
     codeFiles,
+    appFiles,
     repoFiles,
 }) => {
     const drafted = useContext(DraftMarksContext).kinds;
@@ -207,14 +210,19 @@ const Rail: FC<RailProps & { repoFiles: string[] | null }> = ({
     );
     // A lone schema has nothing to choose between, so it starts open; several stay closed until asked for or searched
     const hasOneSchema = catalog.length === 1;
-    const isRestOpen = toggled.rest ?? (query !== '' || hasOneSchema);
+    // With nothing modelled yet, the tables are what there is to look at
+    const isRestOpen =
+        toggled.rest ??
+        (query !== '' || hasOneSchema || view.project.explores.length === 0);
     const areModelsOpen = toggled.models ?? true;
     const hasFiles = false;
     const inCode = codeFiles !== null && onOpenFiles !== null;
     // A model's files: its YAML and SQL in a repository, or the one YAML the app keeps
     const filesOf = (explore: Explore) => {
         if (repoFiles === null)
-            return [{ name: `${explore.name}.yml`, path: null, isOpen: true }];
+            return appFiles.includes(explore.name)
+                ? [{ name: `${explore.name}.yml`, path: null, isOpen: true }]
+                : [];
         const mine = repoFiles
             .filter((path) => modelNameOfSourcePath(path) === explore.name)
             .sort(
@@ -239,7 +247,9 @@ const Rail: FC<RailProps & { repoFiles: string[] | null }> = ({
         if (
             inCode &&
             explore.id !== openExplore &&
-            (repoFiles === null || path !== null)
+            (repoFiles === null
+                ? appFiles.includes(explore.name)
+                : path !== null)
         )
             onOpenFiles({ model: explore.name, path, field: null });
         else view.select({ type: 'explore', exploreId: explore.id });
@@ -306,20 +316,27 @@ const Rail: FC<RailProps & { repoFiles: string[] | null }> = ({
                             </Text>
                         </button>
                     ) : null}
-                    <SectionHeader
-                        label="Models"
-                        count={models.length}
-                        isOpen={areModelsOpen}
-                        above={0}
-                        below={
-                            inCode
-                                ? 0
-                                : (tableCount > 0 ? 1 : 0) + (hasFiles ? 1 : 0)
-                        }
-                        onToggle={() =>
-                            setToggled({ ...toggled, models: !areModelsOpen })
-                        }
-                    />
+                    {/* No heading for a list with nothing in it */}
+                    {view.project.explores.length > 0 ? (
+                        <SectionHeader
+                            label="Models"
+                            count={models.length}
+                            isOpen={areModelsOpen}
+                            above={0}
+                            below={
+                                inCode
+                                    ? 0
+                                    : (tableCount > 0 ? 1 : 0) +
+                                      (hasFiles ? 1 : 0)
+                            }
+                            onToggle={() =>
+                                setToggled({
+                                    ...toggled,
+                                    models: !areModelsOpen,
+                                })
+                            }
+                        />
+                    ) : null}
                     {(areModelsOpen || query !== '' ? models : []).map(
                         (explore) => (
                             <Box key={explore.id}>
@@ -427,7 +444,7 @@ const Rail: FC<RailProps & { repoFiles: string[] | null }> = ({
                             label="Tables"
                             count={tableCount}
                             isOpen={isRestOpen}
-                            above={1}
+                            above={view.project.explores.length > 0 ? 1 : 0}
                             below={hasFiles ? 1 : 0}
                             onToggle={() =>
                                 setToggled({ ...toggled, rest: !isRestOpen })
@@ -576,7 +593,9 @@ const DbtRail: FC<RailProps> = (props) => {
 
 /** Prototype: one sidebar for both views. Models lead; in the code view they open as files and the project's file tree sits under them. */
 export const ProtoRail: FC<RailProps> = (props) =>
-    useKeepsSemanticLayerDraft(props.view.project.id) ? (
+    // A project with no code view has no repository to read files from
+    useKeepsSemanticLayerDraft(props.view.project.id) ||
+    props.onOpenFiles === null ? (
         <Rail {...props} repoFiles={null} />
     ) : (
         <DbtRail {...props} />
@@ -1362,17 +1381,23 @@ const ProtoHome: FC<{ view: ViewModel }> = ({ view }) => {
                 <Box className={classes.header}>
                     <Title order={3}>{view.project.name}</Title>
                     <Text fz="sm" c="dimmed">
-                        {models.length}{' '}
-                        {models.length === 1 ? 'model' : 'models'}
-                        {tableCount > 0
-                            ? `. ${tableCount} warehouse ${tableCount === 1 ? 'table has' : 'tables have'} no model yet.`
-                            : '. Every warehouse table has a model.'}
+                        {models.length === 0
+                            ? tableCount > 0
+                                ? `No models yet. ${tableCount} warehouse ${tableCount === 1 ? 'table is' : 'tables are'} ready to model: open one from the sidebar, or ask in the chat.`
+                                : 'No models yet. Ask in the chat to build the first one.'
+                            : `${models.length} ${models.length === 1 ? 'model' : 'models'}. ${
+                                  tableCount > 0
+                                      ? `${tableCount} warehouse ${tableCount === 1 ? 'table has' : 'tables have'} no model yet.`
+                                      : 'Every warehouse table has a model.'
+                              }`}
                     </Text>
                 </Box>
                 <Box mb="md">
-                    <Text fz="sm" fw={500} px={24} py={8}>
-                        Sources
-                    </Text>
+                    {view.tree.nodes.length > 0 ? (
+                        <Text fz="sm" fw={500} px={24} py={8}>
+                            Sources
+                        </Text>
+                    ) : null}
                     {view.tree.nodes.map((node) => (
                         <button
                             key={node.key}
@@ -1471,11 +1496,16 @@ export const ProtoMain: FC<{
         return <>{fallback}</>;
     }
     const props = { view, explore, code };
-    return keepsDraft ? (
+    // With no code view there are no files to look for
+    return keepsDraft || code.open === null ? (
         <ProtoModel
             key={exploreId}
             {...props}
-            files={[{ model: explore.name, path: null, field: null }]}
+            files={
+                keepsDraft
+                    ? [{ model: explore.name, path: null, field: null }]
+                    : []
+            }
         />
     ) : (
         <DbtModel key={exploreId} {...props} />

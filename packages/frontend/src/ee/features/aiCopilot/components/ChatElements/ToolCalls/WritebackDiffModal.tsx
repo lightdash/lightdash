@@ -21,6 +21,7 @@ import DiffsWorkerUrl from '@pierre/diffs/worker/worker.js?worker&url';
 import { IconFileDiff } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
 import MantineModal from '../../../../../../components/common/MantineModal';
+import { STUDIO_THEMES } from '../../../../../../features/writeback/pierreThemes';
 import {
     recountHunks,
     splitPatchIntoFiles,
@@ -31,7 +32,7 @@ import classes from './WritebackDiffModal.module.css';
 // Tokenize with both Pierre themes; the diff renders via CSS `light-dark()`.
 // Writeback PRs touch dbt YAML/SQL plus the odd markdown doc, so cover those.
 const HIGHLIGHTER_OPTIONS: WorkerInitializationRenderOptions = {
-    theme: { dark: 'pierre-dark', light: 'pierre-light' },
+    theme: STUDIO_THEMES,
     langs: ['yaml', 'sql', 'markdown'],
     preferredHighlighter: 'shiki-wasm',
 };
@@ -81,8 +82,8 @@ const SingleFileDiff: FC<{ patch: string }> = ({ patch }) => {
                         diffStyle: 'unified',
                         theme:
                             colorScheme === 'dark'
-                                ? 'pierre-dark'
-                                : 'pierre-light',
+                                ? STUDIO_THEMES.dark
+                                : STUDIO_THEMES.light,
                     }}
                 />
             </Paper>
@@ -226,7 +227,9 @@ export const FileDiff: FC<{ patch: string }> = ({ patch }) => {
                     diffIndicators: 'bars',
                     lineDiffType: 'word',
                     theme:
-                        colorScheme === 'dark' ? 'pierre-dark' : 'pierre-light',
+                        colorScheme === 'dark'
+                            ? STUDIO_THEMES.dark
+                            : STUDIO_THEMES.light,
                 }}
             />
         </Box>

@@ -1,4 +1,4 @@
-import { registerCustomTheme } from '@pierre/diffs';
+import { registerCustomTheme, resolveThemes } from '@pierre/diffs';
 
 type Palette = {
     type: 'light' | 'dark';
@@ -154,3 +154,6 @@ registerCustomTheme(STUDIO_THEMES.light, () =>
 registerCustomTheme(STUDIO_THEMES.dark, () =>
     Promise.resolve(themeOf(STUDIO_THEMES.dark, DARK)),
 );
+
+// Read before the first editor mounts: a pool that starts without them falls back to themes it was never given
+void resolveThemes([STUDIO_THEMES.light, STUDIO_THEMES.dark]);

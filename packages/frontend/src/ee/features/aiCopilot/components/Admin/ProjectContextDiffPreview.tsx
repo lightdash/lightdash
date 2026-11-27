@@ -9,6 +9,7 @@ import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from '../../../../../features/writeback/pierreDiffConfig';
+import { STUDIO_THEMES } from '../../../../../features/writeback/pierreThemes';
 import classes from './ProjectContextDiffPreview.module.css';
 
 type ProjectContextDiffPreviewProps = {
@@ -63,8 +64,8 @@ export const ProjectContextDiffPreview: FC<ProjectContextDiffPreviewProps> = ({
                             diffStyle: 'split',
                             theme:
                                 colorScheme === 'dark'
-                                    ? 'pierre-dark'
-                                    : 'pierre-light',
+                                    ? STUDIO_THEMES.dark
+                                    : STUDIO_THEMES.light,
                         }}
                     />
                 </Virtualizer>

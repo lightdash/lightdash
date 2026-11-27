@@ -632,7 +632,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         error: storedError,
         refetch: retryStored,
         isRefetching: isRetryingStored,
-    } = useSemanticLayerStoredModels(view.project.id, readsStoredModels);
+    } = useSemanticLayerStoredModels(
+        view.project.id,
+        // Prototype: the sidebar lists each model's file in every view, so the list is read up front
+        readsStoredModels || (IS_STUDIO_PROTO && keepsDraft && hasCodeView),
+    );
     const files = useMemo(() => {
         const removed = new Set(
             checkedOutDraft?.models
@@ -768,7 +772,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // Prototype: no bar on the pages whose sidebar carries its status and actions
     const protoNoBar =
         IS_STUDIO_PROTO &&
-        (pane === 'browse' || showsCodeRail || pane === 'sources');
+        (pane === 'browse' ||
+            pane === 'empty' ||
+            showsCodeRail ||
+            pane === 'sources');
     const protoOpenFiles = !hasCodeView
         ? null
         : ({
@@ -813,6 +820,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const protoRailWith = (codeFiles: ReactElement | null) => (
         <ProtoRail
             codeFiles={codeFiles}
+            appFiles={keepsDraft ? files : []}
             view={view}
             onStatusSlot={setProtoStatusSlot}
             onActionsSlot={protoHasDock ? ignoreSlot : setProtoActionsSlot}
@@ -1244,7 +1252,23 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     />
                 );
             case 'empty':
-                return (
+                // Prototype: a project with no models still has a warehouse to look at, so it gets the same workspace
+                return IS_STUDIO_PROTO ? (
+                    <ProtoMain
+                        view={view}
+                        openTable={protoTable}
+                        code={{
+                            extension: null,
+                            isWide: false,
+                            open: null,
+                            onChange: setProtoCode,
+                            render: null,
+                            dbt: null,
+                            readOnlyReason: codeReadOnlyReason,
+                        }}
+                        fallback={null}
+                    />
+                ) : (
                     <EmptyProject
                         view={view}
                         isLoadingAgents={isLoadingAgents}
@@ -1466,7 +1490,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             ((pane === 'code' ||
                                                 pane === 'review') &&
                                                 !showsCodeRail) ||
-                                            (!isCodeTab && isEmpty)
+                                            (!isCodeTab &&
+                                                isEmpty &&
+                                                !(
+                                                    IS_STUDIO_PROTO &&
+                                                    pane === 'empty'
+                                                ))
                                         }
                                     >
                                         {(pane === 'code' ||
@@ -1532,6 +1561,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                     />
                                                 </Suspense>,
                                             )
+                                        ) : IS_STUDIO_PROTO &&
+                                          pane === 'empty' ? (
+                                            protoRail
                                         ) : isEmpty ||
                                           isReviewPane ? null : IS_STUDIO_PROTO &&
                                           pane === 'browse' ? (
@@ -1593,7 +1625,15 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                               )?.name ?? null)
                             : null
                     }
-                    onOpenFiles={protoTable === null ? protoOpenFiles : null}
+                    onOpenFiles={
+                        // No code to flip to on a raw table, or where every model was deployed from outside the app
+                        protoTable === null &&
+                        (!keepsDraft ||
+                            stored === undefined ||
+                            files.length > 0)
+                            ? protoOpenFiles
+                            : null
+                    }
                     onModel={() => {
                         // The app-kept code view has no caret to read, so it returns to the field it was opened on
                         protoPlace.arrive = searchParams.get(FIELD_PARAM);
