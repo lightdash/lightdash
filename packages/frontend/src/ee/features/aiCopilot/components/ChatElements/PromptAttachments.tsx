@@ -3,7 +3,7 @@ import {
     isTabularThreadFileName,
     type AiPromptContextItem,
 } from '@lightdash/common';
-import { ActionIcon, Group, Loader, Pill, Stack, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Loader, Stack, Tooltip } from '@mantine/core';
 import {
     IconFileText,
     IconSitemap,
@@ -22,6 +22,8 @@ import {
     type ThreadFileAttachment,
 } from '../../hooks/useThreadFileAttachment';
 import { type ThreadComposerNode } from '../../store/aiAgentThreadComposerNodesSlice';
+import { ComposerChip } from './ComposerChip';
+import styles from './PromptAttachments.module.css';
 import { ThreadImageCard, ThreadImageGrid } from './ThreadImageCard';
 
 export type ExternalSourceAttachment = Extract<
@@ -107,45 +109,43 @@ export const PromptAttachments = <T extends ElementRef>({
                 </ThreadImageGrid>
             )}
             {hasPills && (
-                <Pill.Group>
+                <Box className={styles.chips}>
                     {externalSources.map((attachment) => (
-                        <Pill
+                        <ComposerChip
                             key={attachment.sourceUuid}
-                            disabled={disabled}
-                            withRemoveButton
-                            onRemove={() =>
-                                onRemoveExternalSource(attachment.sourceUuid)
+                            icon={<MantineIcon icon={IconTable} size={14} />}
+                            label={
+                                attachment.tables.length > 1
+                                    ? `${attachment.displayName} · ${attachment.tables.length} tables`
+                                    : attachment.displayName
                             }
-                        >
-                            {attachment.displayName}
-                            {attachment.tables.length > 1
-                                ? ` · ${attachment.tables.length} tables`
-                                : ''}
-                        </Pill>
+                            remove={{
+                                label: `Remove ${attachment.displayName}`,
+                                onClick: () =>
+                                    onRemoveExternalSource(
+                                        attachment.sourceUuid,
+                                    ),
+                            }}
+                            disabled={disabled}
+                        />
                     ))}
                     {pendingCsvFiles.map((file) => (
-                        <Pill key={file.id}>
-                            <Group gap="xs" wrap="nowrap">
-                                {file.status === 'preparing' && (
+                        <ComposerChip
+                            key={file.id}
+                            icon={
+                                file.status === 'preparing' ? (
                                     <Loader size={10} />
-                                )}
-                                {file.status === 'queued'
-                                    ? 'Queued'
-                                    : 'Preparing'}{' '}
-                                {file.filename}
-                            </Group>
-                        </Pill>
+                                ) : null
+                            }
+                            label={`${file.status === 'queued' ? 'Queued' : 'Preparing'} ${file.filename}`}
+                            remove={null}
+                            disabled={false}
+                        />
                     ))}
                     {documents.map((attachment) => (
-                        <Pill
+                        <ComposerChip
                             key={attachment.fileUuid}
-                            disabled={disabled}
-                            withRemoveButton
-                            onRemove={() =>
-                                onRemoveThreadFile(attachment.fileUuid)
-                            }
-                        >
-                            <Group gap="xs" wrap="nowrap">
+                            icon={
                                 <MantineIcon
                                     icon={
                                         isTabularThreadFileName(
@@ -154,27 +154,29 @@ export const PromptAttachments = <T extends ElementRef>({
                                             ? IconTable
                                             : IconFileText
                                     }
-                                    size={12}
+                                    size={14}
                                 />
-                                {attachment.fileName}
-                            </Group>
-                        </Pill>
+                            }
+                            label={attachment.fileName}
+                            remove={{
+                                label: `Remove ${attachment.fileName}`,
+                                onClick: () =>
+                                    onRemoveThreadFile(attachment.fileUuid),
+                            }}
+                            disabled={disabled}
+                        />
                     ))}
                     {pendingThreadFiles.map((file) => (
-                        <Pill
+                        <ComposerChip
                             key={`upload-${file.id}`}
-                            disabled={disabled}
-                            withRemoveButton
-                            removeButtonProps={{
-                                'aria-label': `Cancel ${file.filename}`,
+                            icon={<Loader size={10} />}
+                            label={`${pendingLabels[file.status]} ${file.filename}`}
+                            remove={{
+                                label: `Cancel ${file.filename}`,
+                                onClick: () => onCancelPendingFile(file.id),
                             }}
-                            onRemove={() => onCancelPendingFile(file.id)}
-                        >
-                            <Group gap="xs" wrap="nowrap">
-                                <Loader size={10} />
-                                {pendingLabels[file.status]} {file.filename}
-                            </Group>
-                        </Pill>
+                            disabled={disabled}
+                        />
                     ))}
                     {elementRefs.map((ref) => (
                         <ElementRefPill
@@ -188,19 +190,18 @@ export const PromptAttachments = <T extends ElementRef>({
                         />
                     ))}
                     {composerNodes.map((node) => (
-                        <Pill
+                        <ComposerChip
                             key={composerNodeContextKey(node)}
+                            icon={<MantineIcon icon={IconSitemap} size={14} />}
+                            label={node.title}
+                            remove={{
+                                label: `Remove ${node.title}`,
+                                onClick: () => onRemoveComposerNode(node),
+                            }}
                             disabled={disabled}
-                            withRemoveButton
-                            onRemove={() => onRemoveComposerNode(node)}
-                        >
-                            <Group gap="xs" wrap="nowrap">
-                                <MantineIcon icon={IconSitemap} size={12} />
-                                {node.title}
-                            </Group>
-                        </Pill>
+                        />
                     ))}
-                </Pill.Group>
+                </Box>
             )}
         </Stack>
     );

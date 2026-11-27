@@ -372,6 +372,11 @@
 .root[data-variant='inline'] .pinned {
     grid-column: 1 / -1;
     padding: rem(4px) rem(6px) 0;
+    /* Tall content, such as image previews, scrolls instead of growing the
+       composer past a small panel. */
+    max-height: rem(172px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 /* The editor's own padding is sized for a single-row composer; under a row of

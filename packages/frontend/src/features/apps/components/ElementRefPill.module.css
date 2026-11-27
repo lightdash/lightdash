@@ -2,10 +2,10 @@
 .pill {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 1px 2px 1px 6px;
-    border-radius: 999px;
-    height: 22px;
+    gap: 6px;
+    padding: 0 4px 0 8px;
+    border-radius: var(--mantine-radius-sm);
+    height: 24px;
     max-width: 240px;
     min-width: 0;
     background-color: light-dark(
@@ -15,12 +15,16 @@
 }
 
 .pillStatic {
-    padding-right: 6px;
+    padding-right: 8px;
+}
+
+.pill > :not(.label) {
+    flex-shrink: 0;
 }
 
 .label {
     min-width: 0;
     flex: 0 1 auto;
-    font-size: 11px;
+    font-size: var(--mantine-font-size-xs);
     line-height: 1;
 }

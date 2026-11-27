@@ -24,6 +24,10 @@
     background-color: var(--mantine-color-ldGray-2) !important;
 }
 
+.contentLink > svg {
+    flex-shrink: 0;
+}
+
 .arrow {
     display: inline-flex;
     flex-shrink: 0;

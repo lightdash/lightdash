@@ -5,27 +5,6 @@
     gap: rem(6px);
 }
 
-.chip {
-    display: flex;
-    align-items: center;
-    gap: rem(6px);
-    max-width: rem(200px);
-    height: rem(24px);
-    padding: 0 rem(4px) 0 rem(8px);
-    border-radius: var(--mantine-radius-sm);
-    background: var(--mantine-color-default-hover);
-    color: var(--mantine-color-text);
-    font-size: var(--mantine-font-size-xs);
-    font-weight: 500;
-}
-
-.label {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 .more {
     height: rem(24px);
     padding: 0 rem(8px);

@@ -162,6 +162,14 @@
     }
 }
 
+.activeMode {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: rem(24px);
+    height: rem(30px);
+}
+
 .deepResearchNudge {
     border-radius: var(--mantine-radius-xl);
     animation: deepResearchPulse 2s ease-out infinite;
