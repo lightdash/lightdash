@@ -124,23 +124,24 @@ export class ComposerChartModel {
         return { projectUuid: row.project_uuid, owner: toOwner(uuid, row) };
     }
 
-    /** Name and description of a live space-owned chart, with no new version. */
+    /** Name and description of a live space-owned chart; versions are untouched. */
     async update(
         uuid: string,
         fields: { name?: string; description?: string | null },
-    ): Promise<void> {
-        if (fields.name === undefined && fields.description === undefined) {
-            return;
+    ): Promise<ComposerChart> {
+        if (fields.name !== undefined || fields.description !== undefined) {
+            const count = await this.database(ComposerChartsTableName)
+                .update(fields)
+                .where('composer_chart_uuid', uuid)
+                .whereNotNull('space_uuid')
+                .whereNull('deleted_at');
+            if (count !== 1) {
+                throw new NotFoundError('Composer chart not found');
+            }
         }
-        const count = await this.database(ComposerChartsTableName)
-            .update(fields)
-            .where('composer_chart_uuid', uuid)
-            .whereNotNull('space_uuid')
-            .whereNull('deleted_at');
-        if (count !== 1) throw new NotFoundError('Composer chart not found');
+        return this.get(uuid);
     }
 
-    /** Moves a live space-owned chart to another space, with no new version. */
     async moveToSpace(
         {
             projectUuid,

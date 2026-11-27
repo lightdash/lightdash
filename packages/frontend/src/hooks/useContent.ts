@@ -52,8 +52,13 @@ const contentTypeLabel = (contentType: ContentType): string => {
             return 'data app';
         case ContentType.COMPOSER_CHART:
             return 'chart';
-        default:
+        case ContentType.CHART:
+        case ContentType.DASHBOARD:
+        case ContentType.SPACE:
+        case ContentType.DOCUMENT:
             return contentType;
+        default:
+            return assertUnreachable(contentType, 'Unknown content type');
     }
 };
 

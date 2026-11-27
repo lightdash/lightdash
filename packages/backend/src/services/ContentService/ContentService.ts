@@ -740,7 +740,7 @@ export class ContentService extends BaseService {
                         return this.composerChartService.moveToSpace(
                             fromSession(user),
                             moveToSpaceArgs,
-                            { tx, checkForAccess: true },
+                            { tx },
                         );
                     default:
                         return assertUnreachable(c, 'Unknown content type');
@@ -848,7 +848,6 @@ export class ContentService extends BaseService {
                 return this.composerChartService.moveToSpace(
                     fromSession(user),
                     moveToSpaceArgs,
-                    { checkForAccess: true },
                 );
             default:
                 return assertUnreachable(item, 'Unknown content type');

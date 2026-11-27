@@ -13,25 +13,24 @@ import { useUpdateComposerChart } from '../hooks/useUpdateComposerChart';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     projectUuid: string;
-    uuid: string;
+    composerChartUuid: string;
     name: string;
     description: string | null;
-    onConfirm?: () => void;
+    onConfirm: () => void;
 };
 
-/** Renames a space-owned composer chart; no new version, the slug unchanged. */
 export const ComposerChartUpdateModal: FC<Props> = ({
     opened,
     onClose,
     projectUuid,
-    uuid,
+    composerChartUuid,
     name,
     description,
     onConfirm,
 }) => {
     const { mutateAsync, isLoading } = useUpdateComposerChart(
         projectUuid,
-        uuid,
+        composerChartUuid,
     );
     const form = useForm({
         initialValues: { name, description: description ?? '' },
@@ -47,7 +46,7 @@ export const ComposerChartUpdateModal: FC<Props> = ({
             name: values.name.trim(),
             description: values.description.trim() || null,
         });
-        onConfirm?.();
+        onConfirm();
     });
 
     return (

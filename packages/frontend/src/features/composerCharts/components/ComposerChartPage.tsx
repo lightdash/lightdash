@@ -310,33 +310,6 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                     </Tooltip>
                                 </Menu.Target>
                                 <Menu.Dropdown>
-                                    {canWrite && (
-                                        <>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconEdit}
-                                                    />
-                                                }
-                                                onClick={openRename}
-                                            >
-                                                Rename
-                                            </Menu.Item>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconFolderSymlink}
-                                                    />
-                                                }
-                                                onClick={openMove}
-                                            >
-                                                Move
-                                            </Menu.Item>
-                                        </>
-                                    )}
-                                    {canWrite && canExportData && (
-                                        <Menu.Divider />
-                                    )}
                                     {canExportData && (
                                         <>
                                             <Menu.Item
@@ -360,6 +333,33 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                                 onClick={openImageExport}
                                             >
                                                 Export image
+                                            </Menu.Item>
+                                        </>
+                                    )}
+                                    {canWrite && canExportData && (
+                                        <Menu.Divider />
+                                    )}
+                                    {canWrite && (
+                                        <>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconEdit}
+                                                    />
+                                                }
+                                                onClick={openRename}
+                                            >
+                                                Rename
+                                            </Menu.Item>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconFolderSymlink}
+                                                    />
+                                                }
+                                                onClick={openMove}
+                                            >
+                                                Move
                                             </Menu.Item>
                                         </>
                                     )}
@@ -478,7 +478,7 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                 <ComposerChartUpdateModal
                     opened
                     projectUuid={projectUuid}
-                    uuid={composerChartUuid}
+                    composerChartUuid={composerChartUuid}
                     name={chart.name}
                     description={chart.description}
                     onClose={closeRename}

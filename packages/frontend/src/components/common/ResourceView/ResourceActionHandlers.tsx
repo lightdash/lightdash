@@ -288,7 +288,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         <ComposerChartUpdateModal
                             opened
                             projectUuid={projectUuid}
-                            uuid={action.item.data.uuid}
+                            composerChartUuid={action.item.data.uuid}
                             name={action.item.data.name}
                             description={action.item.data.description ?? null}
                             onClose={handleReset}

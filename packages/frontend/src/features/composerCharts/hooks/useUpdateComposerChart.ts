@@ -8,7 +8,6 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateContent } from '../../../hooks/useContent';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
-/** Renames a space-owned composer chart; makes no new version. */
 export const useUpdateComposerChart = (
     projectUuid: string,
     composerChartUuid: string,

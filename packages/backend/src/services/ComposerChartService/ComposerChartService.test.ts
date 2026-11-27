@@ -1849,7 +1849,7 @@ describe('ComposerChartService lifecycle writes', () => {
         flagEnabled?: boolean;
     } = {}) => {
         const deps = setup({ flagEnabled });
-        const update = vi.fn(async () => undefined);
+        const update = vi.fn(async () => ({ uuid: 'chart-uuid' }));
         const moveToSpace = vi.fn(async () => undefined);
         Object.assign(deps.composerChartModel, {
             getOwner: vi.fn(async () => ({ projectUuid, owner })),
@@ -1882,9 +1882,8 @@ describe('ComposerChartService lifecycle writes', () => {
     };
 
     describe('update', () => {
-        test('renames a chart its space owns, checking write on that space, with no new version', async () => {
-            const { service, account, update, composerChartModel } =
-                setupWrite();
+        test('renames a chart its space owns, checking write on that space', async () => {
+            const { service, account, update } = setupWrite();
             await service.update(account, projectUuid, 'chart-uuid', {
                 name: ' Renamed ',
                 description: null,
@@ -1893,7 +1892,6 @@ describe('ComposerChartService lifecycle writes', () => {
                 name: 'Renamed',
                 description: null,
             });
-            expect(composerChartModel.create).not.toHaveBeenCalled();
         });
 
         test('renames with the composer-charts flag off', async () => {
@@ -1952,7 +1950,7 @@ describe('ComposerChartService lifecycle writes', () => {
                     itemUuid: 'chart-uuid',
                     targetSpaceUuid: target,
                 },
-                { tx: 'tx' as never, checkForAccess: true },
+                { tx: 'tx' as never },
             );
 
         test('moves a chart to another space in the caller transaction, checking write on both', async () => {

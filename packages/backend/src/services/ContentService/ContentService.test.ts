@@ -1071,7 +1071,7 @@ describe('ContentService composer chart actions', () => {
             }),
         }) as unknown as ContentModel;
 
-    it('moves a composer chart through the composer chart service, checking access', async () => {
+    it('moves a composer chart through the composer chart service', async () => {
         const deps = createService();
         await deps.service.move(createUser(), projectUuid, item, 'space');
         expect(deps.composerChartService.moveToSpace).toHaveBeenCalledWith(
@@ -1079,7 +1079,6 @@ describe('ContentService composer chart actions', () => {
                 user: expect.objectContaining({ userUuid }),
             }),
             { projectUuid, itemUuid: item.uuid, targetSpaceUuid: 'space' },
-            { checkForAccess: true },
         );
     });
 
@@ -1110,7 +1109,7 @@ describe('ContentService composer chart actions', () => {
                 user: expect.objectContaining({ userUuid }),
             }),
             { projectUuid, itemUuid: item.uuid, targetSpaceUuid: 'space' },
-            { tx: 'tx', checkForAccess: true },
+            { tx: 'tx' },
         );
     });
 
