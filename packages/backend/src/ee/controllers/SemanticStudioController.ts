@@ -34,6 +34,7 @@ import {
     type ApiSemanticStudioSourceFileResponse,
     type ApiSemanticStudioSourceSaveResponse,
     type ApiSemanticStudioSourcesResponse,
+    type ApiSemanticStudioUnbuiltFieldsResponse,
     type ApiSemanticStudioWorkspaceResponse,
     type ApiSemanticStudioWorkspacesResponse,
     type ApiSuccessEmpty,
@@ -242,6 +243,28 @@ export class SemanticStudioController extends BaseController {
         return {
             status: 'ok',
             results: await this.getCheckoutService().getCheckout(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * The fields of your checked-out dbt change that cannot be queried until its model is built.
+     * @summary List my Semantic Studio checkout's unbuilt fields
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/checkout/unbuilt-fields')
+    @OperationId('getSemanticStudioCheckoutUnbuiltFields')
+    async getCheckoutUnbuiltFields(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticStudioUnbuiltFieldsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getCheckoutService().findUnbuiltFields(
                 toSessionUser(req.account),
                 projectUuid,
             ),

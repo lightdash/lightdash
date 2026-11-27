@@ -344,6 +344,7 @@ const setup = ({
                     type,
                 })),
             findExploresFromCache: async () => previewExplores,
+            getWarehouseFromCache: async () => undefined,
         },
         workspaceModel,
         schedulerClient: { compileSemanticStudioBranch: queueBranchCompile },
@@ -1348,6 +1349,7 @@ describe('SemanticStudioCheckoutService', () => {
                 await runQueued(context);
                 expect(await check(context)).toEqual({
                     status: 'ready',
+                    unbuiltFields: [],
                     exploreErrors: [
                         expect.objectContaining({ name: BRANCH_EXPLORE.name }),
                     ],

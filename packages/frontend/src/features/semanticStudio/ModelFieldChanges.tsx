@@ -7,13 +7,17 @@ import { developmentHeadersFor, PUBLISHED_HEADERS } from './developmentView';
 import { FieldUsage } from './DraftInsights';
 import { CHANGE_KIND_STYLE } from './modelCode';
 import {
+    describeUnbuiltFields,
     describeUnchangedFields,
     diffModelFields,
     findTouchedFields,
     type FieldChange,
 } from './modelFieldDiff';
 import { MODEL_VERSION_KEY } from './studioQueryKeys';
-import { modelVersionQuery } from './useFieldChangesInDevelopment';
+import {
+    modelVersionQuery,
+    useUnbuiltFields,
+} from './useFieldChangesInDevelopment';
 import { useModelFieldChanges } from './useModelFieldChanges';
 import { useSemanticLayerFieldUsage } from './useSemanticLayerModel';
 
@@ -100,6 +104,7 @@ export const DraftFieldChanges: FC<{
             queryKey: [MODEL_VERSION_KEY, projectUuid],
         });
     }, [isCompiled, projectUuid, queryClient]);
+    const { data: unbuiltFields } = useUnbuiltFields(projectUuid);
     const sides = useQueries({
         queries: models.flatMap((model) => [
             modelVersionQuery(
@@ -132,6 +137,11 @@ export const DraftFieldChanges: FC<{
         isCompiled && sides.every(({ isFetching }) => !isFetching),
         fileCount,
     );
+    const unbuilt = describeUnbuiltFields(
+        (unbuiltFields ?? [])
+            .filter(({ model }) => models.includes(model))
+            .map(({ label }) => label),
+    );
     return (
         <>
             {read.map(({ model, live, changes }) =>
@@ -146,6 +156,11 @@ export const DraftFieldChanges: FC<{
             {unchanged ? (
                 <Text fz="xs" c="dimmed">
                     {unchanged}
+                </Text>
+            ) : null}
+            {isCompiled && unbuilt ? (
+                <Text fz="xs" c="dimmed">
+                    {unbuilt}
                 </Text>
             ) : null}
         </>

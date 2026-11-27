@@ -7,7 +7,12 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type ApiClient, type Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
-import { mcpText, openMcpSession, personalAccessTokens } from '../helpers/mcp';
+import {
+    mcpText,
+    openMcpSession,
+    personalAccessTokens,
+    runMcpSql,
+} from '../helpers/mcp';
 import { pollUntil } from '../helpers/polling';
 
 const projectUuid = SEED_PROJECT.project_uuid;
@@ -64,18 +69,14 @@ describe('Postgres marked person agent identity', () => {
     it('marks MCP SQL sessions and leaves the normal SQL runner unmarked', async () => {
         const startedAt = Date.now();
         const callTool = await openMcpSession(admin);
-        const result = await callTool('run_sql', {
+        const { result, rows } = await runMcpSql(callTool, {
             projectUuid,
             sql: `${sql}, '${startedAt}' AS marker_test`,
             limit: 1,
         });
         if (result.isError) throw new Error(mcpText(result));
         expect(result.isError).toBeFalsy();
-        expect(result).toMatchObject({
-            structuredContent: {
-                result: { rows: [{ agent: 'true', app: 'lightdash-ai' }] },
-            },
-        });
+        expect(rows).toMatchObject([{ agent: 'true', app: 'lightdash-ai' }]);
 
         const started = await admin.post<Body<{ queryUuid: string }>>(
             `/api/v2/projects/${projectUuid}/query/sql`,

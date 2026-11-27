@@ -173,6 +173,7 @@ export enum QueryExecutionContext {
     PYTHON_RUNNER = 'pythonRunner',
     MULTI_SOURCE_QUERY = 'multiSourceQuery',
     DATA_APP_SAMPLE = 'dataAppSample',
+    DATA_APP = 'dataApp',
     DESKTOP = 'desktop',
 }
 

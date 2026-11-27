@@ -305,8 +305,11 @@ export class AiOrganizationSettingsModel {
             dataAppRuntimeAiEnabled: db.data_app_runtime_ai_enabled,
             dataAppContinueInAskAiEnabled:
                 db.data_app_continue_in_ask_ai_enabled,
-            dataAppAnalysisLimits:
-                db.data_app_analysis_limits ?? DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+            // Limits added after a row was stored fall back to their default.
+            dataAppAnalysisLimits: {
+                ...DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+                ...db.data_app_analysis_limits,
+            },
             dataAppAnalysisDefaultInstructions:
                 db.data_app_analysis_default_instructions,
             requireExplicitSlackChannelLinking:

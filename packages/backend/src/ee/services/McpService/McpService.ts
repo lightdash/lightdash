@@ -112,6 +112,7 @@ import {
     SemanticLayerSourceQuery,
     SessionUser,
     toComposerNodeColumns,
+    TOOL_GET_QUERY_RESULT_COMPOSER_DESCRIPTION,
     toolRenderChartArgsSchemaTransformed,
     ToolRenderChartArgsTransformed,
     toolRunQueryArgsSchemaTransformed,
@@ -573,6 +574,10 @@ const mcpQueryTool = queryToolDefinition.for('mcp');
 const mcpGetQueryResultTool = withProjectScopeInput(
     getQueryResultToolDefinition.for('mcp'),
 );
+const mcpComposerGetQueryResultTool = {
+    ...mcpGetQueryResultTool,
+    description: TOOL_GET_QUERY_RESULT_COMPOSER_DESCRIPTION,
+};
 const mcpListVerifiedContentTool = withProjectScopeInput(
     listVerifiedContentToolDefinition.for('mcp'),
 );
@@ -1615,7 +1620,7 @@ export class McpService extends BaseService {
             enablePythonNodes: true,
             canRunSql: await this.isRunSqlEnabled(user, projectUuid),
             sqlDisabledMessage:
-                'This pipeline contains "sql" nodes but run_sql is not allowed here. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',
+                'This pipeline contains "sql" nodes, which need SQL Runner access this user lacks in this project. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',
         });
         if ('error' in built) return mcpQueryTool.result.error(built.error);
         const {
@@ -5191,14 +5196,18 @@ export class McpService extends BaseService {
             queryTools.runMetricQuery ||
             queryTools.query
         ) {
+            const getQueryResultTool =
+                options.queryPath.type === 'composer'
+                    ? mcpComposerGetQueryResultTool
+                    : mcpGetQueryResultTool;
             this.registerTrackedTool(
-                mcpGetQueryResultTool.name,
+                getQueryResultTool.name,
                 {
-                    title: mcpGetQueryResultTool.title,
-                    description: mcpGetQueryResultTool.description,
-                    inputSchema: mcpGetQueryResultTool.inputSchema.shape,
-                    outputSchema: mcpGetQueryResultTool.outputSchema,
-                    annotations: mcpGetQueryResultTool.annotations,
+                    title: getQueryResultTool.title,
+                    description: getQueryResultTool.description,
+                    inputSchema: getQueryResultTool.inputSchema.shape,
+                    outputSchema: getQueryResultTool.outputSchema,
+                    annotations: getQueryResultTool.annotations,
                 },
                 async (args, extra) => {
                     const ctx = getMcpContext(extra);
@@ -6535,15 +6544,13 @@ export class McpService extends BaseService {
         if (!canExplore) {
             return { type: sqlRunnerEnabled ? 'sqlOnly' : 'contentOnly' };
         }
-        return {
-            type:
-                composeSqlRunnerEnabled &&
-                agentAllowsComposerQueries(pinnedAgent)
-                    ? 'composer'
-                    : 'classic',
-            sqlRunnerEnabled,
-            filterExpressionsEnabled,
-        };
+        if (
+            composeSqlRunnerEnabled &&
+            agentAllowsComposerQueries(pinnedAgent)
+        ) {
+            return { type: 'composer', sqlRunnerEnabled };
+        }
+        return { type: 'classic', sqlRunnerEnabled, filterExpressionsEnabled };
     }
 
     /** Whether the query tool may run; the composer rule without the full path. */

@@ -32,6 +32,8 @@ export * from './toolExploreRepoArgs';
 export * from './toolDiscoverReposArgs';
 export * from './toolListWorkstreamsArgs';
 export * from './toolClosePullRequestArgs';
+export * from './composerQueryRules';
+export * from './queryPipelineExamples';
 export * from './toolComposerQueryArgs';
 export * from './toolGetPullRequestDiffArgs';
 export * from './toolReadContentArgs';

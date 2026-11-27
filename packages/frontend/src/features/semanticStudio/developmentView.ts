@@ -22,6 +22,7 @@ import {
     DRAFT_STATE_KEY,
     MODEL_VERSION_KEY,
     SOURCES_KEY,
+    UNBUILT_FIELDS_KEY,
     WORKSPACES_KEY,
 } from './studioQueryKeys';
 
@@ -66,6 +67,7 @@ const SAME_IN_EITHER_VIEW = new Set([
     SOURCES_KEY,
     WORKSPACES_KEY,
     MODEL_VERSION_KEY,
+    UNBUILT_FIELDS_KEY,
     CHECKOUT_KEY,
     // The draft is the person's own whichever view reads the models.
     DRAFT_KEY,

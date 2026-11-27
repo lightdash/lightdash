@@ -257,6 +257,7 @@ _Avoid_: tool-call description, Lineage
 
 - Composer queries run in web chat and Slack, gated by the compose SQL runner flag plus the agent's data access setting.
 - On the MCP server they compute only: no artifact, no presenting. Reuse
-  rides on a composer session instead of a thread.
+  rides on a composer session instead of a thread. With the compose SQL
+  runner flag on, the composer query tool is the MCP server's only query tool.
 - The public query-sources API accepts the same node shapes, including node
   titles, but owns no user interface.

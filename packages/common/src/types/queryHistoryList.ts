@@ -40,6 +40,7 @@ export const QUERY_TRIGGER_BY_CONTEXT: Record<
     [QueryExecutionContext.CLI]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.GSHEETS_ADDON]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.DESKTOP]: QueryTrigger.INTERACTIVE,
+    [QueryExecutionContext.DATA_APP]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.AI]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.MCP_RUN_METRIC_QUERY]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.MCP_RUN_SQL]: QueryTrigger.INTERACTIVE,

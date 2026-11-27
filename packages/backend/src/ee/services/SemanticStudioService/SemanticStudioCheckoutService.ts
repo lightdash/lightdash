@@ -23,8 +23,10 @@ import {
     type SemanticStudioSourceFile,
     type SemanticStudioSources,
     type SemanticStudioSourceSave,
+    type SemanticStudioUnbuiltField,
     type SemanticStudioWorkspace,
     type SessionUser,
+    type WarehouseCatalog,
     type WritebackMergeResult,
 } from '@lightdash/common';
 import { NATIVE_MODEL_DIRECTORIES } from '@lightdash/common/lightdash/loader';
@@ -66,6 +68,7 @@ import {
     type ModelProject,
 } from './studioProject';
 import { getStudioProjectMode, getStudioTurnSetup } from './studioTurn';
+import { dropAlreadyMissing, findFieldsWithoutColumns } from './unbuiltFields';
 
 export type SemanticStudioCheckoutServiceArguments = {
     analytics: Pick<LightdashAnalytics, 'track'>;
@@ -84,7 +87,11 @@ export type SemanticStudioCheckoutServiceArguments = {
         findExploresFromCache: (
             projectUuid: string,
             key: 'name',
+            exploreNames?: string[],
         ) => Promise<Record<string, Explore | ExploreError>>;
+        getWarehouseFromCache: (
+            projectUuid: string,
+        ) => Promise<WarehouseCatalog | undefined>;
     };
     workspaceModel: Pick<
         SemanticStudioWorkspaceModel,
@@ -339,6 +346,53 @@ export class SemanticStudioCheckoutService extends BaseService {
             return null;
         }
         return this.workspaceModel.findBranchCompile(workspaceUuid);
+    }
+
+    private async findUnbuiltIn(
+        projectUuid: string,
+        explores: (Explore | ExploreError)[],
+    ): Promise<SemanticStudioUnbuiltField[]> {
+        const catalog =
+            await this.projectModel.getWarehouseFromCache(projectUuid);
+        if (!catalog) return [];
+        const published = new Set(
+            (await this.projectModel.getAllExploreSummaries(projectUuid)).map(
+                ({ name }) => name,
+            ),
+        );
+        const unbuilt = findFieldsWithoutColumns(
+            explores,
+            catalog,
+            (name) => !published.has(name),
+        );
+        if (unbuilt.length === 0) return [];
+        const live = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            'name',
+            unbuilt.map(({ explore }) => explore),
+        );
+        return dropAlreadyMissing(
+            unbuilt,
+            findFieldsWithoutColumns(Object.values(live), catalog, () => false),
+        );
+    }
+
+    /** The fields of the person's checked-out dbt change that read columns the warehouse does not have yet. */
+    async findUnbuiltFields(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticStudioUnbuiltField[]> {
+        if (!(await this.isDbtCheckout(user, projectUuid))) return [];
+        const explores = await findDbtDraftExplores(
+            {
+                storage: this.fileStorageClient,
+                workspaceModel: this.workspaceModel,
+            },
+            { projectUuid, userUuid: user.userUuid },
+        );
+        return explores
+            ? this.findUnbuiltIn(projectUuid, [...explores.values()])
+            : [];
     }
 
     /** The change this person has checked out, which the whole app shows them; null on what is published or without Studio. */
@@ -634,6 +688,11 @@ export class SemanticStudioCheckoutService extends BaseService {
             if (compile?.status === 'ready') {
                 return {
                     status: 'ready',
+                    // eslint-disable-next-line no-await-in-loop
+                    unbuiltFields: await this.findUnbuiltIn(
+                        projectUuid,
+                        compile.explores ?? [],
+                    ),
                     exploreErrors: (compile.explores ?? [])
                         .filter(isExploreError)
                         .slice(0, BRANCH_COMPILE_CHECK_MAX_ERRORS)

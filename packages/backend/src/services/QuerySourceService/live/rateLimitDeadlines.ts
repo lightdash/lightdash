@@ -54,6 +54,7 @@ export const getLiveRateLimitDeadlineMs = (
         case QueryExecutionContext.PYTHON_RUNNER:
         case QueryExecutionContext.MULTI_SOURCE_QUERY:
         case QueryExecutionContext.DESKTOP:
+        case QueryExecutionContext.DATA_APP:
             return LIVE_RATE_LIMIT_DEADLINES_MS.interactive;
         default:
             return assertUnreachable(
