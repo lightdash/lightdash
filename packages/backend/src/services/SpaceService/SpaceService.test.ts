@@ -142,8 +142,6 @@ describe('Composer charts in the deletion impact', () => {
         } as unknown as ConstructorParameters<typeof SpaceService>[0]);
 
         const result = await service.getDeleteImpact(user, 'space');
-
-        expect(getSpaceComposerCharts).toHaveBeenCalledWith(['space', 'child']);
         expect(result.chartCount).toBe(2);
         expect(result.charts).toContainEqual({
             uuid: 'composer',

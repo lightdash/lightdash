@@ -130,7 +130,7 @@ export class ContentService extends BaseService {
     }
 
     /** Composer charts are listed, and counted in space rows, only with the flag on. */
-    private async isComposerChartsListed(
+    private async resolveComposerChartsFilter(
         user: SessionUser,
         contentTypes: ContentType[] | undefined,
     ): Promise<boolean> {
@@ -358,7 +358,7 @@ export class ContentService extends BaseService {
         const results = await this.contentModel.findSummaryContents(
             {
                 ...filters,
-                composerCharts: await this.isComposerChartsListed(
+                composerCharts: await this.resolveComposerChartsFilter(
                     user,
                     filters.contentTypes,
                 ),
@@ -1035,7 +1035,7 @@ export class ContentService extends BaseService {
                 deletedByUserUuids,
                 dataAppVizsFilter: filters.dataAppVizsFilter,
                 documents: { allowedSpaceUuids: [] },
-                composerCharts: await this.isComposerChartsListed(
+                composerCharts: await this.resolveComposerChartsFilter(
                     user,
                     contentTypes,
                 ),

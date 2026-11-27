@@ -26,9 +26,18 @@ type ComposerChartContentRow = SummaryContentRow<{
     chart_config: ChartConfig | null;
 }>;
 
-const toChartKind = (chartConfig: ChartConfig | null): ChartKind =>
-    (chartConfig && getChartKind(chartConfig.type, chartConfig.config)) ??
-    ChartKind.VERTICAL_BAR;
+// A bad stored config costs its row the icon, never the whole listing.
+const toChartKind = (chartConfig: ChartConfig | null): ChartKind => {
+    try {
+        return (
+            (chartConfig &&
+                getChartKind(chartConfig.type, chartConfig.config)) ??
+            ChartKind.VERTICAL_BAR
+        );
+    } catch {
+        return ChartKind.VERTICAL_BAR;
+    }
+};
 
 export const composerChartContentConfiguration: ContentConfiguration<ComposerChartContentRow> =
     {

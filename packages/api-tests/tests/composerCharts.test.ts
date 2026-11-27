@@ -1978,21 +1978,6 @@ describe('Composer charts', () => {
                 charts: [expect.objectContaining({ uuid: chart.uuid })],
             });
 
-            const editor = await loginAsEditor();
-            const privateSpace = await createSpace(false);
-            const hidden = await postChart(
-                composerSpaceChartBody(privateSpace.uuid),
-            );
-            expect(hidden.status).toBe(201);
-            const editorList = await editor.get<
-                Body<{ data: SummaryContent[] }>
-            >(
-                `/api/v2/content?projectUuids=${projectUuid}&contentTypes=${ContentType.COMPOSER_CHART}&pageSize=100`,
-            );
-            expect(
-                editorList.body.results.data.map((item) => item.uuid),
-            ).not.toContain(hidden.body.results.uuid);
-
             expect((await admin.post(flagUrl, { enabled: false })).status).toBe(
                 200,
             );
@@ -2007,6 +1992,23 @@ describe('Composer charts', () => {
                     (await admin.post(flagUrl, { enabled: true })).status,
                 ).toBe(200);
             }
+        });
+
+        it('leaves a chart out of the listing for an editor who cannot see its space', async () => {
+            const editor = await loginAsEditor();
+            const privateSpace = await createSpace(false);
+            const hidden = await postChart(
+                composerSpaceChartBody(privateSpace.uuid),
+            );
+            expect(hidden.status).toBe(201);
+            const listedFor = async (client: ApiClient) =>
+                (
+                    await client.get<Body<{ data: SummaryContent[] }>>(
+                        `/api/v2/content?projectUuids=${projectUuid}&spaceUuids=${privateSpace.uuid}&contentTypes=${ContentType.COMPOSER_CHART}`,
+                    )
+                ).body.results.data.map((item) => item.uuid);
+            expect(await listedFor(admin)).toEqual([hidden.body.results.uuid]);
+            expect(await listedFor(editor)).toEqual([]);
         });
 
         it('creates a chart the space owns, which a viewer of the space reads and no one from another organization', async () => {
