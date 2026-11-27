@@ -90,7 +90,7 @@ export class ComposerChartController extends BaseController {
     /**
      * Deprecated — use the v2 Execute dashboard composer chart endpoint instead.
      *
-     * This endpoint was deprecated on 27 November 2026 and will be removed after 27 February 2027. It runs a composer chart where a dashboard tile shows it; Execute dashboard composer chart takes the same request with composerChartUuid in the body.
+     * This endpoint was deprecated on 27 November 2026 and will be removed after 27 February 2027. It runs a composer chart shown on a dashboard tile. Execute dashboard composer chart takes the same request with composerChartUuid in the body.
      * @summary Run composer chart
      * @deprecated Use POST /api/v2/projects/{projectUuid}/query/dashboard-composer-chart instead
      */
@@ -98,7 +98,7 @@ export class ComposerChartController extends BaseController {
         content: `<Warning>
 **This endpoint is deprecated and will be removed after 27 February 2027.**
 
-Use [Execute dashboard composer chart](https://docs.lightdash.com/api-reference/v2/execute-dashboard-composer-chart) (\`POST /api/v2/projects/{projectUuid}/query/dashboard-composer-chart\`) instead: the same request with \`composerChartUuid\` in the body, and the same response.
+Use [Execute dashboard composer chart](https://docs.lightdash.com/api-reference/v2/execute-dashboard-composer-chart), \`POST /api/v2/projects/{projectUuid}/query/dashboard-composer-chart\`, instead. It takes the same request with \`composerChartUuid\` in the body and returns the same response.
 </Warning>`,
     })
     @Middlewares([

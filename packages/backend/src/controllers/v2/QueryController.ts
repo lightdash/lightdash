@@ -937,9 +937,9 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Runs a composer chart where a dashboard tile shows it, with the
-     * dashboard's filters, parameters and date zoom. The request carries no
-     * nodes; each node's query is polled with the standard results endpoint.
+     * Runs a composer chart shown on a dashboard tile, with the dashboard's
+     * filters, parameters, and date zoom. The request does not include nodes.
+     * Poll each node's query with the standard results endpoint.
      * @summary Execute dashboard composer chart
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
