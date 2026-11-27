@@ -46,6 +46,10 @@ type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
      * The feature flag that turns this integration on or off. On while the
      * flag has no stored value; otherwise the organization's override, else
      * the flag's default, decides. Without one the integration is always on.
+     *
+     * To gate an integration, add `LiveSource<Integration> = 'live-source-<connector>'`
+     * to `FeatureFlags` and set it here; nothing else is needed. Off hides it
+     * everywhere and refuses its actions. See docs/feature-flags.md#live-data-source-integrations.
      */
     featureFlag?: FeatureFlags;
 };
