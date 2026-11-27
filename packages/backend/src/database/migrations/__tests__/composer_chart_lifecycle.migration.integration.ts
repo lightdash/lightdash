@@ -228,7 +228,7 @@ describe('composer charts follow their dashboard on the real schema', () => {
         expect(rolledBack.versionUuid).not.toBe(original.versionUuid);
     });
 
-    it('copies the chart, its latest version and its tile into a preview project', async () => {
+    it("copies a dashboard's chart with its tile and a space's chart, each with its latest version, into a preview project", async () => {
         const owner = await createFixture(database);
         const { dashboard, composerChartUuid } =
             await createDashboardWithChart(owner);
@@ -251,7 +251,26 @@ describe('composer charts follow their dashboard on the real schema', () => {
             }),
         });
 
-        await projectModel.duplicateContent(
+        const [{ composer_chart_uuid: spaceChartUuid }] = await database(
+            'composer_charts',
+        )
+            .insert({
+                project_uuid: owner.projectUuid,
+                dashboard_uuid: null,
+                space_uuid: owner.spaceUuid,
+                name: 'Space chart',
+                slug: 'space-chart',
+                created_by_user_uuid: owner.userUuid,
+            })
+            .returning('composer_chart_uuid');
+        await database('composer_chart_versions').insert({
+            composer_chart_uuid: spaceChartUuid,
+            pipeline: JSON.stringify(pipeline('select 1')),
+            chart: JSON.stringify(storedChart),
+            created_by_user_uuid: owner.userUuid,
+        });
+
+        const { spaceMapping } = await projectModel.duplicateContent(
             owner.projectUuid,
             previewUuid,
             [{ uuid: owner.spaceUuid }],
@@ -279,5 +298,21 @@ describe('composer charts follow their dashboard on the real schema', () => {
             pipeline: source.pipeline,
             chart: source.chart,
         });
+
+        const [previewSpaceChart] = await database('composer_charts')
+            .where({ project_uuid: previewUuid, slug: 'space-chart' })
+            .select('composer_chart_uuid', 'dashboard_uuid', 'space_uuid');
+        expect(previewSpaceChart).toMatchObject({
+            dashboard_uuid: null,
+            space_uuid: spaceMapping[0].previewSpaceUuid,
+        });
+        expect(
+            await database('composer_chart_versions')
+                .where(
+                    'composer_chart_uuid',
+                    previewSpaceChart.composer_chart_uuid,
+                )
+                .pluck('pipeline'),
+        ).toEqual([pipeline('select 1')]);
     });
 });
