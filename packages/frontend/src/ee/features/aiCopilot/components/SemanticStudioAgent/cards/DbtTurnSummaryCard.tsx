@@ -30,7 +30,7 @@ import {
     type ChangeKind,
     VIEW_PARAM,
 } from '../../../../../../features/semanticStudio/modelCode';
-import { ModelFieldChanges } from '../../../../../../features/semanticStudio/ModelFieldChanges';
+import { DraftFieldChanges } from '../../../../../../features/semanticStudio/ModelFieldChanges';
 import { TaskIcon } from '../../../../../../features/semanticStudio/TaskRow';
 import { getSemanticStudioUrl } from '../../../../../../features/semanticStudio/urls';
 import { useCheckoutCompile } from '../../../../../../features/semanticStudio/useStudioCheckout';
@@ -149,15 +149,13 @@ const DraftTurnCard: FC<{
                 />
             </UnstyledButton>
             <Box className={classes.compactBody}>
-                {models.map((model) => (
-                    <ModelFieldChanges
-                        key={model}
-                        projectUuid={projectUuid}
-                        model={model}
-                        previewProjectUuid={previewProjectUuid}
-                        isCompiled={safety?.state === 'done'}
-                    />
-                ))}
+                <DraftFieldChanges
+                    projectUuid={projectUuid}
+                    models={models}
+                    previewProjectUuid={previewProjectUuid}
+                    isCompiled={safety?.state === 'done'}
+                    fileCount={files.length}
+                />
                 {note ? (
                     <Group gap={6} wrap="nowrap" align="flex-start">
                         <Box className={turnClasses.node} w={16}>

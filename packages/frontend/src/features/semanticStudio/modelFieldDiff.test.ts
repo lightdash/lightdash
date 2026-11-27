@@ -1,6 +1,11 @@
 import { type Explore } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { diffModelFields, findTouchedFields } from './modelFieldDiff';
+import {
+    describeUnchangedFields,
+    diffModelFields,
+    findTouchedFields,
+    type FieldChange,
+} from './modelFieldDiff';
 
 const explore = (dimensions: Record<string, object>): Explore =>
     ({
@@ -129,5 +134,36 @@ describe('findTouchedFields', () => {
                 kind: 'removed',
             },
         ]);
+    });
+});
+
+describe('describeUnchangedFields', () => {
+    const [added] = diffModelFields(
+        null,
+        explore({ added: { name: 'added', label: 'Added' } }),
+    );
+    const some: FieldChange[] = [added];
+
+    it('says it once for any number of models, with the files that did change', () => {
+        expect(describeUnchangedFields([[], [], []], true, 3)).toBe(
+            '3 files changed. No field is added, changed or removed.',
+        );
+        expect(describeUnchangedFields([[]], true, 1)).toBe(
+            '1 file changed. No field is added, changed or removed.',
+        );
+        expect(describeUnchangedFields([[], null], true, 0)).toBe(
+            'No field is added, changed or removed.',
+        );
+    });
+
+    it('concludes nothing until the compiled fields are read', () => {
+        expect(describeUnchangedFields([[], []], false, 2)).toBe(
+            'Fields show here once the draft compiles.',
+        );
+    });
+
+    it('says nothing when a field changes or no model is read', () => {
+        expect(describeUnchangedFields([[], some], true, 2)).toBeNull();
+        expect(describeUnchangedFields([null, null], true, 2)).toBeNull();
     });
 });
