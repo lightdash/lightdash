@@ -13233,17 +13233,11 @@ export class AiAgentService extends BaseService {
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText =
                         item.composerChartSlug ?? '(slug unavailable)';
-                    const ownerWording =
-                        item.composerChartOwnerType === 'space'
-                            ? {
-                                  label: 'composer chart in a space',
-                                  run: 'source chart, chartType composer_chart',
-                              }
-                            : {
-                                  label: 'dashboard composer chart',
-                                  run: "source dashboardChart, chartType composer_chart, its dashboard's slug",
-                              };
-                    return `- Composer chart "${name}" (composerChartSlug: ${slugText}) — the ${ownerWording.label} the user asked about. When the user says "this" or asks for a change without naming content, they mean this chart. Read it with readContent (type composer_chart, slug) before answering or editing, check its rows with runContentQuery (${ownerWording.run}), and save changes with editContent (type composer_chart).`;
+                    // Editing a chart a space owns is not supported yet
+                    if (item.composerChartOwnerType === 'space') {
+                        return `- Composer chart "${name}" (composerChartSlug: ${slugText}) — the composer chart in a space the user asked about. When the user says "this" without naming content, they mean this chart. Read it with readContent (type composer_chart, slug) before answering, and check its rows with runContentQuery (source chart, chartType composer_chart).`;
+                    }
+                    return `- Composer chart "${name}" (composerChartSlug: ${slugText}) — the dashboard composer chart the user asked about. When the user says "this" or asks for a change without naming content, they mean this chart. Read it with readContent (type composer_chart, slug) before answering or editing, check its rows with runContentQuery (source dashboardChart, chartType composer_chart, its dashboard's slug), and save changes with editContent (type composer_chart).`;
                 }
                 case 'sql_chart': {
                     const name = item.displayName ?? '(name unavailable)';

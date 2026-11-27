@@ -3655,7 +3655,10 @@ export class CoderService extends BaseService {
             [slug],
         );
         // Slugs are unique per project only: a uuid from another project misses
-        if (!chart || (byUuid && chart.uuid !== composerChartUuidOrSlug)) {
+        if (
+            !chart ||
+            (byUuid && chart.uuid !== composerChartUuidOrSlug.toLowerCase())
+        ) {
             return null;
         }
         const [composerChart] = await this.getComposerChartsAsCode(

@@ -35,10 +35,10 @@ Done when the result links the dashboard and `runContentQuery` on the new chart 
 
 ## Read, test, edit
 
-1. Read it: `readContent` with `type: "composer_chart"` and the tile's `chartSlug`, or the slug a list or find row with `chartSource: "composer"` gives. The result has `pipeline` (its `nodes` and `terminalNodeId`) and `chart` (`columns`, `chartConfig`, `pivotConfig`, `tableConfig`).
+1. Read it: `readContent` with `type: "composer_chart"` and the tile's `chartSlug`. The result has `pipeline` (its `nodes` and `terminalNodeId`) and `chart` (`columns`, `chartConfig`, `pivotConfig`, `tableConfig`).
 2. Test any node you change or add before saving it: run the changed pipeline with the `query` tool. Done when it succeeds and its terminal node returns every column `chart.columns` references (see Columns).
 3. Patch exactly what you read with `editContent` (`type: "composer_chart"`), as RFC6902 operations on that JSON.
-4. Check the saved chart with `runContentQuery`, `chartType: "composer_chart"`: `source.type: "dashboardChart"` with the dashboard's slug for a chart on a dashboard, or `source.type: "chart"` when the chart's `dashboardSlug` is null (a space owns it). Done when the terminal node's rows show the change you made.
+4. Check the saved chart with `runContentQuery` (`source.type: "dashboardChart"`, `chartType: "composer_chart"`, the dashboard's slug). Done when the terminal node's rows show the change you made.
 
 The edit is saved in place as a new version of the chart, so the dashboard shows it straight away; restoring an earlier dashboard version restores the chart with it. `slug`, `contentType` and `dashboardSlug` cannot change. In a conversation bound to a dashboard, only that dashboard's composer charts can be edited.
 

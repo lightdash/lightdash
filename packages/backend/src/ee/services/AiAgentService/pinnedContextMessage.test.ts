@@ -668,6 +668,7 @@ describe('AiAgentService.createPinnedContextMessage composer charts', () => {
             'runContentQuery (source chart, chartType composer_chart)',
         );
         expect(content).not.toContain('dashboardChart');
+        expect(content).not.toContain('editContent');
     });
 });
 
