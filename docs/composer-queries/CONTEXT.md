@@ -232,8 +232,8 @@ tile that shows one)
 
 **Owner**:
 The dashboard or space a composer chart belongs to. A chart has one owner,
-never both. Access to the chart follows its owner. A dashboard tile may show
-a chart its dashboard does not own, if a space owns it.
+never both. Access to the chart follows its owner. A dashboard tile shows a
+chart its own dashboard owns or one a space owns.
 _Avoid_: parent, container, location, home
 
 **Bound run**:
@@ -244,8 +244,8 @@ _Avoid_: viewer run, document run
 **Chart run**:
 A bound run of a space-owned composer chart outside any dashboard, as on its
 own page or for the agent. A value saved on a node beats the parameter's
-default, and a value the viewer sets beats both; no dashboard filters or date
-zoom apply.
+default, and a value passed with the run beats both; no dashboard filters or
+date zoom apply.
 _Avoid_: standalone run, page run
 
 **Tile run**:

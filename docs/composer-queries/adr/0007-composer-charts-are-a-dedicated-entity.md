@@ -1,9 +1,10 @@
 # Composer charts are a dedicated entity
 
-> Superseded in part (27 Nov 2026): view and lifecycle writes (rename,
-> move, delete) are now checked through `SavedChart`, with the access target
-> following the chart's owner; `manage:ComposerChart` gates only pipeline
-> writes. See ADR 0011.
+> Superseded in part (27 Nov 2026): viewing a composer chart and writing it
+> are now checked through the existing `SavedChart` permissions, with the
+> access target following the chart's owner. `manage:ComposerChart` gates
+> only pipeline writes; rename, move, delete and restore need only the
+> `SavedChart` write check. See ADR 0011.
 
 A composer chart is stored in its own tables (`composer_charts`,
 `composer_chart_versions`), shown by its own dashboard tile type, uploaded as
