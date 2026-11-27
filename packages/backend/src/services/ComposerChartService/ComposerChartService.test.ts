@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     AgentCapability,
+    AlreadyExistsError,
     ChartType,
     CustomDimensionType,
     DashboardTileTypes,
@@ -330,6 +331,22 @@ const setup = ({ flagEnabled = true } = {}) => {
     const composerChartModel = {
         create: vi.fn(async () => 'chart-uuid'),
         get: vi.fn(async () => ({ uuid: 'chart-uuid' })),
+        findIdentityBySlug: vi.fn(
+            async (): Promise<{
+                uuid: string;
+                deleted: boolean;
+                owner: ComposerChartOwner;
+            } | null> => null,
+        ),
+        getOwner: vi.fn(
+            async (): Promise<{
+                projectUuid: string;
+                owner: ComposerChartOwner;
+            }> => {
+                throw new NotFoundError('Composer chart not found');
+            },
+        ),
+        writeFromCode: vi.fn(async () => 'chart-uuid'),
     };
     const appModel = {
         findAppsBySlugs: vi.fn(async () => []),
@@ -679,6 +696,90 @@ describe('ComposerChartService.create owner', () => {
             ),
         ).rejects.toThrow(FeatureNotEnabledError);
         expect(composerChartModel.create).not.toHaveBeenCalled();
+    });
+});
+
+describe('ComposerChartService.writeFromCode owner', () => {
+    const spaceUuid = '7c3f6a52-1d2b-4c8e-9f0a-3b5d7e9f1a2c';
+    const {
+        dashboardUuid: _d,
+        spaceUuid: _s,
+        ...body
+    } = createBody(PIPELINES.sql);
+    const write = { ...body, slug: 'orders' };
+
+    test('creates a chart the space owns with this slug, checked on the space', async () => {
+        const { service, composerChartModel, spacePermissionService } = setup();
+        await service.writeFromCode(
+            sessionAccount(abilityWithout(null)),
+            projectUuid,
+            { ...write, owner: { type: 'space', spaceUuid } },
+        );
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            defaultSessionUser.userUuid,
+            { type: 'space', spaceUuid },
+        );
+        expect(composerChartModel.writeFromCode).toHaveBeenCalledWith(
+            expect.objectContaining({
+                existing: null,
+                slug: 'orders',
+                owner: { type: 'space', spaceUuid },
+            }),
+        );
+    });
+
+    test('adds a version to a live chart a space owns, checked as an update on its own space', async () => {
+        const { service, composerChartModel, spacePermissionService } = setup();
+        const live = {
+            uuid: 'chart-uuid',
+            deleted: false,
+            owner: { type: 'space', spaceUuid } as ComposerChartOwner,
+        };
+        composerChartModel.findIdentityBySlug.mockResolvedValue(live);
+        composerChartModel.getOwner.mockResolvedValue({
+            projectUuid,
+            owner: live.owner,
+        });
+        const ability = new Ability<PossibleAbilities>([
+            { subject: 'SavedChart', action: 'update' as const },
+            ...AUTHOR_SUBJECTS.map((name) => ({
+                subject: name,
+                action: 'manage' as const,
+            })),
+        ]);
+        await service.writeFromCode(sessionAccount(ability), projectUuid, {
+            ...write,
+            owner: null,
+        });
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            defaultSessionUser.userUuid,
+            { type: 'space', spaceUuid },
+        );
+        expect(composerChartModel.writeFromCode).toHaveBeenCalledWith(
+            expect.objectContaining({ existing: live, owner: live.owner }),
+        );
+    });
+
+    test('refuses to write a live chart owned by another kind of owner', async () => {
+        const { service, composerChartModel } = setup();
+        const live = {
+            uuid: 'chart-uuid',
+            deleted: false,
+            owner: { type: 'dashboard', dashboardUuid } as ComposerChartOwner,
+        };
+        composerChartModel.findIdentityBySlug.mockResolvedValue(live);
+        composerChartModel.getOwner.mockResolvedValue({
+            projectUuid,
+            owner: live.owner,
+        });
+        await expect(
+            service.writeFromCode(
+                sessionAccount(abilityWithout(null)),
+                projectUuid,
+                { ...write, owner: { type: 'space', spaceUuid } },
+            ),
+        ).rejects.toThrow(AlreadyExistsError);
+        expect(composerChartModel.writeFromCode).not.toHaveBeenCalled();
     });
 });
 

@@ -2025,16 +2025,21 @@ export class PromoteService extends BaseService {
             ),
         );
 
-        const composerCharts = await this.getAuthorizedComposerChartChanges(
-            account,
-            dashboard,
-            upstreamDashboard,
+        const { composerCharts, spaces } =
+            await this.getAuthorizedComposerChartChanges(
+                account,
+                dashboard,
+                upstreamDashboard,
+            );
+        const allSpaces = PromoteService.mergeSpaceChanges(
+            promotionChanges.spaces,
+            spaces,
         );
 
         const dataApps = await this.getDataAppDiffChanges(
             user,
             dashboard.projectUuid,
-            { ...promotionChanges, composerCharts },
+            { ...promotionChanges, spaces: allSpaces, composerCharts },
         );
 
         return {
@@ -2045,8 +2050,23 @@ export class PromoteService extends BaseService {
                 data: PromoteService.toPromotedSqlChartChange(sqlChartChange),
             })),
             dataApps,
-            spaces: PromoteService.sortSpaceChanges(promotionChanges.spaces),
+            spaces: PromoteService.sortSpaceChanges(allSpaces),
         };
+    }
+
+    private static mergeSpaceChanges(
+        spaces: PromotionChanges['spaces'],
+        more: PromotionChanges['spaces'],
+    ): PromotionChanges['spaces'] {
+        return [
+            ...spaces,
+            ...more.filter(
+                (change) =>
+                    !spaces.some(
+                        (known) => known.data.path === change.data.path,
+                    ),
+            ),
+        ];
     }
 
     private static getSpaceByPath(
@@ -2976,8 +2996,13 @@ export class PromoteService extends BaseService {
         account: RegisteredAccount,
         dashboard: DashboardDAO,
         upstreamDashboard: UpstreamDashboard,
-    ) {
-        if (!dashboard.tiles.some(isDashboardComposerChartTile)) return [];
+    ): Promise<{
+        composerCharts: NonNullable<PromotionChanges['composerCharts']>;
+        spaces: PromotionChanges['spaces'];
+    }> {
+        if (!dashboard.tiles.some(isDashboardComposerChartTile)) {
+            return { composerCharts: [], spaces: [] };
+        }
         // Unchanged charts skip the write checks, but their tiles still move upstream
         if (
             !(await this.getComposerChartService().isEnabled({
@@ -3020,6 +3045,13 @@ export class PromoteService extends BaseService {
                 projectUuid: upstreamDashboard.projectUuid,
                 dashboardUuid: upstreamDashboard.dashboard?.uuid ?? null,
             },
+            async (spaceUuid) =>
+                (await this.spaceModel.getSpaceSummary(spaceUuid)).path,
+        );
+        const spaces = await this.getReferencedComposerChartSpaceChanges(
+            account,
+            upstreamDashboard.projectUuid,
+            changes,
         );
         await preflightComposerChartChanges(
             this.composerChartModel,
@@ -3031,7 +3063,121 @@ export class PromoteService extends BaseService {
             },
             changes,
         );
-        return changes;
+        return { composerCharts: changes, spaces };
+    }
+
+    /**
+     * Charts a space owns land in the upstream space matching their space's path:
+     * checks promote on the source space and the write upstream, and returns the spaces to create.
+     */
+    private async getReferencedComposerChartSpaceChanges(
+        account: RegisteredAccount,
+        upstreamProjectUuid: string,
+        changes: NonNullable<PromotionChanges['composerCharts']>,
+    ): Promise<PromotionChanges['spaces']> {
+        const ability = this.createAuditedAbility(account);
+        const organizationUuid = account.organization.organizationUuid!;
+        const spaceChanges: PromotionChanges['spaces'] = [];
+        for (const { action, data } of changes) {
+            /* eslint-disable no-await-in-loop, no-continue */
+            if (data.spacePath === null) continue;
+            const { owner } = await this.composerChartModel.getOwner(
+                data.oldUuid,
+            );
+            if (owner.type !== 'space') {
+                throw new UnexpectedServerError(
+                    `Composer chart "${data.slug}" no longer belongs to a space`,
+                );
+            }
+            const sourceAccess =
+                await this.spacePermissionService.resolveAccess(
+                    account.user.userUuid,
+                    { type: 'space', spaceUuid: owner.spaceUuid },
+                );
+            if (
+                ability.cannot(
+                    'promote',
+                    subject('SavedChart', {
+                        ...sourceAccess,
+                        metadata: {
+                            composerChartUuid: data.oldUuid,
+                            composerChartName: data.name,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `Failed to promote dashboard: this dashboard uses a chart "${data.name}" which you don't have access to edit in the origin project.`,
+                );
+            }
+            if (action === PromotionAction.UPDATE) {
+                const upstreamOwner = (
+                    await this.composerChartModel.getOwner(data.uuid)
+                ).owner;
+                if (upstreamOwner.type === 'space') {
+                    await this.getComposerChartService().preflightSpaceWrite(
+                        account,
+                        upstreamProjectUuid,
+                        upstreamOwner.spaceUuid,
+                        data.uuid,
+                    );
+                }
+            } else if (action === PromotionAction.CREATE) {
+                const { spaceChanges: pathChanges } =
+                    await this.getUpstreamSpaceChanges(
+                        owner.spaceUuid,
+                        upstreamProjectUuid,
+                    );
+                const target = pathChanges.find(
+                    (change) => change.data.path === data.spacePath,
+                );
+                if (target?.action === PromotionAction.CREATE) {
+                    // As for classic charts, the new space's own access decides the chart write
+                    PromoteService.checkPromoteSpacePermissions(
+                        ability,
+                        organizationUuid,
+                        {
+                            projectUuid: upstreamProjectUuid,
+                            space: undefined,
+                            spaceAccessContext: undefined,
+                        },
+                    );
+                } else if (target) {
+                    const upstreamAccess =
+                        await this.spacePermissionService.resolveAccess(
+                            account.user.userUuid,
+                            { type: 'space', spaceUuid: target.data.uuid },
+                        );
+                    if (target.action === PromotionAction.UPDATE) {
+                        PromoteService.checkPromoteSpacePermissions(
+                            ability,
+                            organizationUuid,
+                            {
+                                projectUuid: upstreamProjectUuid,
+                                space: target.data,
+                                spaceAccessContext: upstreamAccess,
+                            },
+                        );
+                    }
+                    await this.getComposerChartService().preflightSpaceWrite(
+                        account,
+                        upstreamProjectUuid,
+                        target.data.uuid,
+                        null,
+                    );
+                }
+                spaceChanges.push(
+                    ...pathChanges.filter(
+                        (change) =>
+                            !spaceChanges.some(
+                                (known) => known.data.path === change.data.path,
+                            ),
+                    ),
+                );
+            }
+            /* eslint-enable no-await-in-loop, no-continue */
+        }
+        return spaceChanges;
     }
 
     async getPromotedDashboard(
@@ -3200,13 +3346,19 @@ export class PromoteService extends BaseService {
                     ),
             );
 
-            promotionChanges = {
-                ...promotionChanges,
-                composerCharts: await this.getAuthorizedComposerChartChanges(
+            const { composerCharts, spaces } =
+                await this.getAuthorizedComposerChartChanges(
                     account,
                     dashboard,
                     upstreamDashboard,
+                );
+            promotionChanges = {
+                ...promotionChanges,
+                spaces: PromoteService.mergeSpaceChanges(
+                    promotionChanges.spaces,
+                    spaces,
                 ),
+                composerCharts,
             };
 
             const sqlChartBindings = await this.getPromotedSqlChartBindings(

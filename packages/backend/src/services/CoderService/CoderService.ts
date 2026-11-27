@@ -3860,7 +3860,9 @@ export class CoderService extends BaseService {
                     projectUuid,
                     {
                         slug,
-                        dashboardUuid: dashboardUuid ?? null,
+                        owner: dashboardUuid
+                            ? { type: 'dashboard', dashboardUuid }
+                            : null,
                         name: file.name,
                         description: file.description ?? null,
                         pipeline: file.pipeline,
