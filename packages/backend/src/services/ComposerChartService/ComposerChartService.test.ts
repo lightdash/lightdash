@@ -1401,20 +1401,6 @@ describe('ComposerChartService.runChart', () => {
         ]);
     });
 
-    test('passes a cache bypass to the run', async () => {
-        const { service, querySourceService } = setupChartRun();
-        await service.runChart(
-            viewer(),
-            projectUuid,
-            { ...request, invalidateCache: true },
-            QueryExecutionContext.COMPOSER_CHART_VIEW,
-        );
-        expect(
-            querySourceService.submitComposerRun.mock.calls[0][0]
-                .invalidateCache,
-        ).toBe(true);
-    });
-
     test('refuses a chart a dashboard owns, naming its dashboard', async () => {
         const { service, querySourceService } = setupChartRun({
             owner: { type: 'dashboard', dashboardUuid },

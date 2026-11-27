@@ -228,43 +228,35 @@ export const applyCallerParametersToComposerNodes = ({
     exploreByNodeId: ComposerNodeExplores;
     projectDefinitions: ParameterDefinitions;
     callerValues: ParametersValuesMap;
-}): { nodes: ComposerChartPipelineNode[]; parameters: ParametersValuesMap } => {
-    // Explore keys are prefixed by their table, so checking the shared map against every explore narrows only those keys
-    const sharedDefinitions = getEffectiveParameterDefinitions({
+}): {
+    nodes: ComposerChartPipelineNode[];
+    parameters: ParametersValuesMap;
+} => ({
+    nodes: nodes.map((node): ComposerChartPipelineNode => {
+        const explore = exploreByNodeId[node.nodeId];
+        if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER || !explore)
+            return node;
+        const definitions = getEffectiveParameterDefinitions({
+            projectDefinitions,
+            exploreDefinitions: getExploreDefinitions(explore),
+        });
+        return {
+            ...node,
+            parameters: {
+                ...omitDisallowedParameterValues(
+                    node.parameters ?? {},
+                    definitions,
+                ),
+                ...omitDisallowedParameterValues(callerValues, definitions),
+            },
+        };
+    }),
+    // A shared value survives only if every definition naming its key allows it
+    parameters: [
         projectDefinitions,
-        exploreDefinitions: Object.values(
-            exploreByNodeId,
-        ).reduce<ParameterDefinitions>(
-            (acc, explore) => ({ ...acc, ...getExploreDefinitions(explore) }),
-            {},
-        ),
-    });
-    return {
-        nodes: nodes.map((node): ComposerChartPipelineNode => {
-            const explore = exploreByNodeId[node.nodeId];
-            if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER || !explore)
-                return node;
-            const definitions = getEffectiveParameterDefinitions({
-                projectDefinitions,
-                exploreDefinitions: getExploreDefinitions(explore),
-            });
-            return {
-                ...node,
-                parameters: {
-                    ...omitDisallowedParameterValues(
-                        node.parameters ?? {},
-                        definitions,
-                    ),
-                    ...omitDisallowedParameterValues(callerValues, definitions),
-                },
-            };
-        }),
-        parameters: omitDisallowedParameterValues(
-            callerValues,
-            sharedDefinitions,
-        ),
-    };
-};
+        ...Object.values(exploreByNodeId).map(getExploreDefinitions),
+    ].reduce(omitDisallowedParameterValues, callerValues),
+});
 
 const getNodeParameterReferences = (
     node: ComposerChartPipelineNode,
