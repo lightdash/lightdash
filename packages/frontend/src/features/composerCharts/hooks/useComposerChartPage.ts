@@ -28,14 +28,17 @@ export const useComposerChartPageRun = ({
     const [refreshed, setRefreshed] = useState<{
         at: number;
         parameters: ParametersValuesMap;
+        ran: boolean;
     } | null>(null);
     const refresh = useCallback(
-        () => setRefreshed({ at: Date.now(), parameters }),
+        () => setRefreshed({ at: Date.now(), parameters, ran: false }),
         [parameters],
     );
-    // Only the refreshed selection skips the cache; a later pick reads it again
+    // Only the refreshed selection's first successful run skips the cache; retries keep skipping it
     const invalidateCache =
-        refreshed !== null && isEqual(refreshed.parameters, parameters);
+        refreshed !== null &&
+        !refreshed.ran &&
+        isEqual(refreshed.parameters, parameters);
     const runQuery = useQuery<
         { versionUuid: string; run: ComposerChartRunResults },
         ApiError
@@ -62,6 +65,11 @@ export const useComposerChartPageRun = ({
             }).then((run) => ({ versionUuid: chart.versionUuid, run }));
         },
         keepPreviousData: true,
+        onSuccess: () => {
+            if (invalidateCache) {
+                setRefreshed((current) => current && { ...current, ran: true });
+            }
+        },
     });
     // A kept run of an older version would draw the new chart with old columns
     const run =

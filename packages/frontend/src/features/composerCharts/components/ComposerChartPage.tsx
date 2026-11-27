@@ -58,6 +58,7 @@ import {
     useComposerChartPageRun,
     useComposerChartParameters,
 } from '../hooks/useComposerChartPage';
+import { ComposerRunParametersContext } from '../lineage/composerRunParametersContext';
 import { getComposerChartParameterValues } from '../utils/composerChartParameterValues';
 import styles from './ComposerChartPage.module.css';
 import { ComposerChartVisualization } from './ComposerChartVisualization';
@@ -328,7 +329,11 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                 parameterValues={parameterValues}
                                 onParameterChange={handleParameterChange}
                                 onClearAll={handleClearParameters}
-                                isLoading={parametersQuery.isInitialLoading}
+                                // Controls wait for the first run, which says the values in use
+                                isLoading={
+                                    parametersQuery.isInitialLoading ||
+                                    (!run && runQuery.isLoading)
+                                }
                                 isError={parametersQuery.isError}
                             />
                         </Group>
@@ -352,13 +357,17 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                 <EmptyStateLoader title="Loading chart" />
                             ))}
                         {view === View.LINEAGE && (
-                            <ComposerTileLineage
-                                projectUuid={projectUuid}
-                                pipeline={chart.pipeline}
-                                run={run}
-                                runError={runError?.message ?? null}
-                                chart={renderChart(true)}
-                            />
+                            <ComposerRunParametersContext.Provider
+                                value={run?.usedParameterValuesByNodeId ?? {}}
+                            >
+                                <ComposerTileLineage
+                                    projectUuid={projectUuid}
+                                    pipeline={chart.pipeline}
+                                    run={run}
+                                    runError={runError?.message ?? null}
+                                    chart={renderChart(true)}
+                                />
+                            </ComposerRunParametersContext.Provider>
                         )}
                     </Box>
                 </Paper>

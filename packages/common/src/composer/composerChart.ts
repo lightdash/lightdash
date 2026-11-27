@@ -576,8 +576,9 @@ export type ApiComposerChartResponse = {
     results: ComposerChart;
 };
 
+// An interface, not an intersection, so the API schema stays one flat object
 /** A composer chart with what its page header shows. */
-export type ComposerChartWithDetails = ComposerChart & {
+export interface ComposerChartWithDetails extends ComposerChart {
     /** The space the chart lives in: its own, or its dashboard's. */
     space: { uuid: string; name: string };
     /** Who wrote the current version; null when that user was deleted. */
@@ -586,7 +587,7 @@ export type ComposerChartWithDetails = ComposerChart & {
         firstName: string;
         lastName: string;
     } | null;
-};
+}
 
 export type ApiComposerChartDetailsResponse = {
     status: 'ok';
