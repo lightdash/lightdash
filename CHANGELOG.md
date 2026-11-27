@@ -1,3 +1,10 @@
+## [3.420.2](https://github.com/lightdash/lightdash/compare/3.420.1...3.420.2) (2026-11-27)
+
+
+### Bug Fixes
+
+* **mcp:** record each tool call's own session client ([#33518](https://github.com/lightdash/lightdash/issues/33518)) ([93a9338](https://github.com/lightdash/lightdash/commit/93a9338b7c5d11e71c1dbf3f8c784aa131e88202))
+
 ## [3.420.1](https://github.com/lightdash/lightdash/compare/3.420.0...3.420.1) (2026-11-27)
 
 
