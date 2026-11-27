@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { type CaslSubjectNames } from '../authorization/types';
 import { type DateZoom } from '../types/api/paginatedQuery';
+import { type UUID } from '../types/api/uuid';
 import { ParameterError } from '../types/errors';
 import { type Explore } from '../types/explore';
 import {
@@ -538,7 +539,7 @@ export const getComposerPipelineWriteDeniedReason = (
 /** A dashboard owns the chart; with no dashboard, `spaceUuid` does. A missing field reads as null. */
 export type CreateComposerChart = {
     dashboardUuid?: string | null;
-    spaceUuid?: string | null;
+    spaceUuid?: UUID | null;
     name: string;
     description?: string | null;
     pipeline: ComposerChartPipeline;

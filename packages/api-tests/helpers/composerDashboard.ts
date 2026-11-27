@@ -165,7 +165,10 @@ export const createComposerSpaceChart = async (
     const space = await send<Space>(
         'POST',
         `/api/v1/projects/${projectUuid}/spaces`,
-        { name: `Composer test space ${randomUUID().slice(0, 8)}` },
+        {
+            name: `Composer test space ${randomUUID().slice(0, 8)}`,
+            inheritParentPermissions: true,
+        },
     );
     try {
         const chart = await send<ComposerChart>(

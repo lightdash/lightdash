@@ -436,16 +436,15 @@ export class ComposerChartService extends BaseService {
     async preflightCreate(
         account: RegisteredAccount,
         projectUuid: string,
-        data: Pick<
-            CreateComposerChart,
-            'dashboardUuid' | 'spaceUuid' | 'pipeline' | 'chart'
-        >,
+        data: Pick<CreateComposerChart, 'pipeline' | 'chart'> & {
+            dashboardUuid: string;
+        },
     ): Promise<void> {
         await this.authorizeWrite(
             account,
             projectUuid,
             {
-                owner: ComposerChartService.getCreateOwner(data),
+                owner: { type: 'dashboard', dashboardUuid: data.dashboardUuid },
                 composerChartUuid: null,
             },
             data,
