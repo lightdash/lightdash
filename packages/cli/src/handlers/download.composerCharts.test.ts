@@ -129,6 +129,56 @@ describe('composer charts as code in the CLI', () => {
         ]);
     });
 
+    it('writes a space-owned composer chart under its space with no dashboard', async () => {
+        const spaceChart: ComposerChartAsCode = {
+            ...composerChart,
+            slug: 'revenue',
+            dashboardSlug: null,
+            spaceSlug: 'marketing',
+        };
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            composerCharts: [composerChart, spaceChart],
+            missingIds: [],
+            total: 2,
+            offset: 2,
+        } as never);
+
+        await downloadContent(
+            [],
+            'composerCharts',
+            'project-uuid',
+            'project',
+            tmpDir,
+            false,
+            true,
+        );
+
+        const written = yaml.load(
+            await fs.readFile(
+                path.join(
+                    tmpDir,
+                    'project',
+                    'marketing',
+                    'charts',
+                    'revenue.composer.yml',
+                ),
+                'utf-8',
+            ),
+        );
+        expect(written).toEqual(spaceChart);
+        await expect(
+            fs.access(
+                path.join(
+                    tmpDir,
+                    'project',
+                    'jaffle',
+                    'charts',
+                    'orders-by-status.composer.yml',
+                ),
+            ),
+        ).resolves.toBeUndefined();
+    });
+
     const writeComposerChartFile = async () => {
         await fs.mkdir(path.join(tmpDir, 'charts'), { recursive: true });
         await fs.writeFile(

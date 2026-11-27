@@ -127,6 +127,7 @@ import {
     type ParameterDefinitions,
     type RegisteredAccount,
     type SpaceSummaryBase,
+    type UUID,
 } from '@lightdash/common';
 import { isEqual, isPlainObject, omit } from 'es-toolkit/compat';
 import type { Knex } from 'knex';
@@ -205,6 +206,7 @@ import {
 import {
     assertNotComposerChartFile,
     isComposerChartAsCodeUnchanged,
+    SpaceOwnedComposerChartUploadError,
     toComposerChartAsCode,
 } from './composerChartsAsCode';
 import {
@@ -3551,7 +3553,7 @@ export class CoderService extends BaseService {
     private async getComposerChartsAsCode(
         projectUuid: string,
         charts: Array<
-            ComposerChart & { dashboardSlug: string; spaceSlug: string }
+            ComposerChart & { dashboardSlug: string | null; spaceSlug: string }
         >,
     ): Promise<ComposerChartAsCode[]> {
         const dataAppVizUuids = charts.flatMap(({ chart }) =>
@@ -3580,20 +3582,12 @@ export class CoderService extends BaseService {
         );
     }
 
-    private async withSpaceSlugs<T extends { spaceUuid: string }>(
+    private static withSpaceSlugs<T extends { spacePath: string }>(
         items: T[],
-    ): Promise<Array<T & { spaceSlug: string }>> {
-        const spaces = await this.spaceModel.find({
-            spaceUuids: [...new Set(items.map((item) => item.spaceUuid))],
-        });
-        const spacePathByUuid = new Map(
-            spaces.map((space) => [space.uuid, space.path]),
-        );
+    ): Array<T & { spaceSlug: string }> {
         return items.map((item) => ({
             ...item,
-            spaceSlug: getContentAsCodePathFromLtreePath(
-                spacePathByUuid.get(item.spaceUuid) ?? '',
-            ),
+            spaceSlug: getContentAsCodePathFromLtreePath(item.spacePath),
         }));
     }
 
@@ -3608,7 +3602,7 @@ export class CoderService extends BaseService {
         );
         return this.getComposerChartsAsCode(
             projectUuid,
-            await this.withSpaceSlugs(charts),
+            CoderService.withSpaceSlugs(charts),
         );
     }
 
@@ -3633,31 +3627,38 @@ export class CoderService extends BaseService {
         );
     }
 
-    /** Slug-list read for AI/MCP read_content: no export gate; view through the chart's dashboard still applies. */
-    async getComposerChartsForRead(
+    /** One chart for AI/MCP read_content, with its owner's space: no export gate; view through the owner still applies. */
+    async getComposerChartForRead(
         account: RegisteredAccount,
-        projectUuid: string,
-        slugs: string[],
-    ): Promise<ApiComposerChartAsCodeListResponse['results']> {
-        return this.findComposerChartsAsCode(
+        projectUuid: UUID,
+        slug: string,
+    ): Promise<{
+        composerChart: ComposerChartAsCode;
+        spaceUuid: string;
+    } | null> {
+        const [chart] = await this.findViewableComposerCharts(
             account,
             projectUuid,
-            slugs,
-            undefined,
+            [slug],
         );
+        if (!chart) return null;
+        const [composerChart] = await this.getComposerChartsAsCode(
+            projectUuid,
+            CoderService.withSpaceSlugs([chart]),
+        );
+        return { composerChart, spaceUuid: chart.spaceUuid };
     }
 
-    private async findComposerChartsAsCode(
+    // Viewing a composer chart follows its owner, as on every other read
+    private async findViewableComposerCharts(
         account: RegisteredAccount,
-        projectUuid: string,
+        projectUuid: UUID,
         slugs: string[] | undefined,
-        offset: number | undefined,
-    ): Promise<ApiComposerChartAsCodeListResponse['results']> {
+    ) {
         const charts = await this.composerChartModel.findForCode(
             projectUuid,
             slugs,
         );
-        // Viewing a composer chart follows its dashboard, as on every other read
         const viewable = await Promise.all(
             charts.map((chart) =>
                 this.composerChartService
@@ -3665,30 +3666,46 @@ export class CoderService extends BaseService {
                     .then(
                         () => true,
                         (error) => {
-                            if (error instanceof ForbiddenError) return false;
+                            // An owner deleted since the list was read is a miss
+                            if (
+                                error instanceof ForbiddenError ||
+                                error instanceof NotFoundError
+                            ) {
+                                return false;
+                            }
                             throw error;
                         },
                     ),
             ),
+        );
+        return charts.filter((_, index) => viewable[index]);
+    }
+
+    private async findComposerChartsAsCode(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        slugs: string[] | undefined,
+        offset: number | undefined,
+    ): Promise<ApiComposerChartAsCodeListResponse['results']> {
+        const viewable = await this.findViewableComposerCharts(
+            account,
+            projectUuid,
+            slugs,
         );
         const {
             page,
             total,
             offset: nextOffset,
         } = paginateAsCode({
-            items: charts.filter((_, index) => viewable[index]),
+            items: viewable,
             offset,
             pageSize: this.lightdashConfig.contentAsCode.maxDownloads,
         });
-        const found = new Set(
-            charts
-                .filter((_, index) => viewable[index])
-                .map(({ slug }) => slug),
-        );
+        const found = new Set(viewable.map(({ slug }) => slug));
         return {
             composerCharts: await this.getComposerChartsAsCode(
                 projectUuid,
-                await this.withSpaceSlugs(page),
+                CoderService.withSpaceSlugs(page),
             ),
             missingIds: (slugs ?? []).filter((slug) => !found.has(slug)),
             total,
@@ -3748,11 +3765,15 @@ export class CoderService extends BaseService {
             projectUuid,
             slug,
         );
+        const dashboardSlug = file.dashboardSlug ?? null;
+        if (dashboardSlug === null || existing?.owner.type === 'space') {
+            throw new SpaceOwnedComposerChartUploadError(slug);
+        }
         const live = existing && !existing.deleted ? existing : null;
         if (live) {
             const stored = await this.composerChartModel.get(live.uuid);
             const [current] = await this.getComposerChartsAsCode(projectUuid, [
-                { ...stored, dashboardSlug: file.dashboardSlug, spaceSlug: '' },
+                { ...stored, dashboardSlug, spaceSlug: '' },
             ]);
             if (isComposerChartAsCodeUnchanged(file, current)) {
                 return {
@@ -3778,7 +3799,7 @@ export class CoderService extends BaseService {
             ? []
             : await this.dashboardModel.find({
                   projectUuid,
-                  slug: file.dashboardSlug,
+                  slug: dashboardSlug,
               });
         let dashboardUuid = dashboard?.uuid;
         let placeholderUuid: string | null = null;
@@ -3792,7 +3813,7 @@ export class CoderService extends BaseService {
                 placeholderUuid = await this.createPlaceholderDashboard(
                     user,
                     projectUuid,
-                    file,
+                    { dashboardSlug, spaceSlug: file.spaceSlug },
                     { ...options, allowSpaceCreate },
                 );
                 dashboardUuid = placeholderUuid;
@@ -3826,7 +3847,7 @@ export class CoderService extends BaseService {
     private async createPlaceholderDashboard(
         user: SessionUser,
         projectUuid: string,
-        file: Pick<ComposerChartAsCode, 'dashboardSlug' | 'spaceSlug'>,
+        file: { dashboardSlug: string; spaceSlug: string },
         options: Pick<
             UpsertContentAsCodeOptions,
             'skipSpaceCreate' | 'publicSpaceCreate' | 'spaceNames'

@@ -169,7 +169,11 @@ describe('composer charts follow their dashboard on the real schema', () => {
             fixture.projectUuid,
             slug,
         );
-        expect(existing).toEqual({ uuid: composerChartUuid, deleted: true });
+        expect(existing).toEqual({
+            uuid: composerChartUuid,
+            deleted: true,
+            owner: { type: 'dashboard', dashboardUuid: oldOwner.uuid },
+        });
         await composerChartModel.writeFromCode({
             existing,
             slug,
@@ -221,6 +225,77 @@ describe('composer charts follow their dashboard on the real schema', () => {
             chart: storedChart,
             createdByUserUuid: fixture.userUuid,
         });
+
+    it('lists and resolves a space-owned chart for code under its own space, with no dashboard', async () => {
+        const { dashboard, composerChartUuid: dashboardChartUuid } =
+            await createDashboardWithChart();
+        const spaceChartUuid = await createSpaceChart();
+        const { slug: dashboardChartSlug } =
+            await composerChartModel.get(dashboardChartUuid);
+        const { slug } = await composerChartModel.get(spaceChartUuid);
+        const owner = { type: 'space', spaceUuid: fixture.spaceUuid };
+
+        await expect(
+            composerChartModel.findForCode(fixture.projectUuid, [
+                slug,
+                dashboardChartSlug,
+            ]),
+        ).resolves.toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    uuid: spaceChartUuid,
+                    owner,
+                    dashboardSlug: null,
+                    spaceUuid: fixture.spaceUuid,
+                    spacePath: 'reports',
+                }),
+                expect.objectContaining({
+                    uuid: dashboardChartUuid,
+                    dashboardSlug: dashboard.slug,
+                }),
+            ]),
+        );
+        await expect(
+            composerChartModel.findBySlugs(fixture.projectUuid, [
+                slug,
+                dashboardChartSlug,
+            ]),
+        ).resolves.toEqual(
+            expect.arrayContaining([
+                { uuid: spaceChartUuid, slug, owner },
+                {
+                    uuid: dashboardChartUuid,
+                    slug: dashboardChartSlug,
+                    owner: { type: 'dashboard', dashboardUuid: dashboard.uuid },
+                },
+            ]),
+        );
+        await expect(
+            composerChartModel.findIdentityBySlug(fixture.projectUuid, slug),
+        ).resolves.toEqual({ uuid: spaceChartUuid, deleted: false, owner });
+    });
+
+    it('leaves a space-owned chart in a deleted space out of code', async () => {
+        const owner = await createFixture(database);
+        await composerChartModel.create({
+            uuid: null,
+            slug: null,
+            projectUuid: owner.projectUuid,
+            owner: { type: 'space', spaceUuid: owner.spaceUuid },
+            name: 'In a deleted space',
+            description: null,
+            pipeline: pipeline('select 1'),
+            chart: storedChart,
+            createdByUserUuid: owner.userUuid,
+        });
+        await database('spaces')
+            .where('space_uuid', owner.spaceUuid)
+            .update({ deleted_at: new Date(), deleted_by_user_uuid: null });
+
+        await expect(
+            composerChartModel.findForCode(owner.projectUuid, undefined),
+        ).resolves.toEqual([]);
+    });
 
     it('reads a space owner', async () => {
         const composerChartUuid = await createSpaceChart();

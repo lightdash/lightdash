@@ -508,5 +508,4 @@ export const PYLON_EXPLORES = [
 
 export const pylonModel: LiveModel<ApiConnectorType.PYLON> = {
     explores: PYLON_EXPLORES,
-    plannedNames: ['messages', 'users', 'teams'],
 };

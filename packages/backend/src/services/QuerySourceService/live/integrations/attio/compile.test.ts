@@ -18,8 +18,7 @@ import { ATTIO_DEAL_ATTRIBUTES } from './attio.fixtures';
 import { compileAttioQuery } from './compile';
 import {
     ATTIO_EXPLORES,
-    ATTIO_SCANNED_MODELS,
-    isInternalAttioField,
+    isAttioSystemField,
     readAttioAttributes,
     toAttioObject,
     withAttioAttributeFields,
@@ -110,7 +109,7 @@ describe('Attio scanned fields', () => {
             'associated_company associated_company.target_record_id',
             'point_of_contact point_of_contact.full_name',
             'contact_email contact_email.email_address',
-            // A slug an old built-in field used keeps a prefix
+            // A slug an old declared field used keeps a prefix
             'attribute_count count',
             // So does one that could collide with a derived field
             'attribute_stage__entered_at stage__entered_at',
@@ -143,12 +142,12 @@ describe('Attio scanned fields', () => {
     });
 
     it('keeps record and member ids out of the default field list', () => {
-        expect(isInternalAttioField('owner.referenced_actor_id')).toBe(true);
-        expect(
-            isInternalAttioField('associated_company.target_record_id'),
-        ).toBe(true);
-        expect(isInternalAttioField('stage.status')).toBe(false);
-        expect(isInternalAttioField('owner.member_name')).toBe(false);
+        expect(isAttioSystemField('owner.referenced_actor_id')).toBe(true);
+        expect(isAttioSystemField('associated_company.target_record_id')).toBe(
+            true,
+        );
+        expect(isAttioSystemField('stage.status')).toBe(false);
+        expect(isAttioSystemField('owner.member_name')).toBe(false);
     });
 
     it('adds nothing from an attribute list it cannot read', () => {
@@ -166,12 +165,6 @@ describe('Attio explores', () => {
             ['deals', 'Deals'],
             ['users', 'Users'],
             ['workspaces', 'Workspaces'],
-        ]);
-        expect(ATTIO_SCANNED_MODELS).toEqual([
-            'people',
-            'deals',
-            'users',
-            'workspaces',
         ]);
         expect(attioIntegration.model.explores).toBe(ATTIO_EXPLORES);
     });

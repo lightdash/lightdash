@@ -386,13 +386,16 @@ describe('lintHandler', () => {
         expect(output.join('\n')).toContain('✗ single-file.yml');
     });
 
-    const composerChartYaml = ({ withPipeline = true } = {}) => [
+    const composerChartYaml = ({
+        withPipeline = true,
+        dashboardSlug = ['dashboardSlug: ops'],
+    } = {}) => [
         'contentType: composer_chart',
         'version: 1',
         'slug: orders-by-status',
         'name: Orders by status',
         'description: null',
-        'dashboardSlug: ops',
+        ...dashboardSlug,
         'spaceSlug: shared',
         ...(withPipeline
             ? [
@@ -457,6 +460,26 @@ describe('lintHandler', () => {
             'All Lightdash Code files are valid!',
         );
     });
+
+    test.each([
+        ['a null dashboard', ['dashboardSlug: null']],
+        ['no dashboard key', []],
+    ])(
+        'accepts a space-owned composer chart file with %s',
+        async (_, dashboardSlug) => {
+            await fs.writeFile(
+                path.join(tempDir, 'orders-by-status.yml'),
+                composerChartYaml({ dashboardSlug }).join('\n'),
+            );
+
+            await lintHandler({ path: tempDir, format: 'cli' });
+
+            expect(process.exit).not.toHaveBeenCalled();
+            expect(output.join('\n')).toContain(
+                'All Lightdash Code files are valid!',
+            );
+        },
+    );
 
     test('fails a loose composer chart file without its pipeline, naming it', async () => {
         await fs.writeFile(

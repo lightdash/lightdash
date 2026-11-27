@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     NotFoundError,
     ParameterError,
+    type ComposerChartOwner,
     type DashboardComposerChartTile,
     type DashboardComposerChartTileAsCode,
     type DashboardTile,
@@ -49,7 +50,10 @@ export const resolveComposerChartTiles = (
         flagEnabled,
         shownTilesByChartUuid,
     }: {
-        charts: ReadonlyMap<string, { uuid: string; dashboardUuid: string }>;
+        charts: ReadonlyMap<
+            string,
+            { uuid: string; owner: ComposerChartOwner }
+        >;
         /** Null when the upload creates the dashboard. */
         dashboardUuid: string | null;
         flagEnabled: boolean;
@@ -73,7 +77,12 @@ export const resolveComposerChartTiles = (
                 `Composer chart "${chartSlug}" was not found in this project. Upload it first, then re-upload this dashboard.`,
             );
         }
-        if (chart.dashboardUuid !== dashboardUuid) {
+        if (chart.owner.type === 'space') {
+            throw new ParameterError(
+                `Composer chart "${chartSlug}" belongs to a space. A dashboard can only show composer charts that belong to it.`,
+            );
+        }
+        if (chart.owner.dashboardUuid !== dashboardUuid) {
             throw new ParameterError(
                 `Composer chart "${chartSlug}" belongs to another dashboard`,
             );

@@ -39,12 +39,14 @@ import {
 } from '../../models/retentionCleanup';
 import {
     isLiveExploreInUse,
-    parseLiveSourceFieldState,
     type LiveSourceExploreEdits,
     type LiveSourceFieldEdits,
+} from '../../services/QuerySourceService/live/explores/fields';
+import {
+    parseLiveSourceFieldState,
     type LiveSourceFieldState,
     type LiveSourceScan,
-} from '../../services/QuerySourceService/live/explores/fields';
+} from '../../services/QuerySourceService/live/explores/source';
 import {
     getLiveIntegration,
     parseStoredApiSource,
@@ -128,6 +130,7 @@ export const parseApiSourceSchemaScan = (
 const SERVER_OWNED_API_SOURCE_KEYS = [
     'sourceName',
     'lastScan',
+    'scan',
     'fields',
     'explores',
     'aiHint',
@@ -213,8 +216,12 @@ const toApiSourceSettingsJson = (apiSource: ExternalConnectionApiSource) =>
         ),
     );
 
-/** The curation edits of a live source, saved together. */
+/**
+ * What a source stored of its explores, saved together: its last Refresh,
+ * the names the core gave, and the field and explore edits.
+ */
 export type LiveSourceEdits = {
+    scan: LiveSourceScan | null;
     fields: LiveSourceFieldEdits;
     explores: LiveSourceExploreEdits;
 };
@@ -227,9 +234,11 @@ export type DeletedLiveSource = {
     origin: string;
     apiSource: ExternalConnectionApiSource;
     sourceName: string | null;
-    /** Null when the source was deleted before fields could be curated. */
-    fieldEdits: LiveSourceFieldEdits | null;
+    fieldEdits: LiveSourceFieldEdits;
     exploreEdits: LiveSourceExploreEdits;
+    /** Its last scan, so the explores it added are known by name. */
+    scan: LiveSourceScan | null;
+    legacy: LiveSourceFieldState['legacy'];
     aiHint: string | null;
     targetLabel: string | null;
     accessRule: LiveSourceAccessRule | null;
@@ -1242,7 +1251,7 @@ export class ExternalConnectionModel {
         projectUuid: string,
         uuid: string,
         sourceName: string,
-        fieldEdits: LiveSourceFieldEdits | null,
+        fieldEdits: LiveSourceFieldEdits,
         exploreEdits: LiveSourceExploreEdits = {},
     ): Promise<boolean> {
         return this.database.transaction(async (trx) => {
@@ -1266,21 +1275,24 @@ export class ExternalConnectionModel {
                 `jsonb_set(api_source, '{sourceName}', to_jsonb(?::text))`,
                 [sourceName],
             );
-            const withFields = fieldEdits
-                ? trx.raw(`jsonb_set(?, '{fields}', ?::jsonb)`, [
-                      withName,
-                      JSON.stringify(fieldEdits),
-                  ])
-                : withName;
+            const withFields =
+                Object.keys(fieldEdits).length > 0
+                    ? trx.raw(`jsonb_set(?, '{fields}', ?::jsonb)`, [
+                          withName,
+                          JSON.stringify(fieldEdits),
+                      ])
+                    : withName;
+            const withExplores =
+                Object.keys(exploreEdits).length > 0
+                    ? trx.raw(`jsonb_set(?, '{explores}', ?::jsonb)`, [
+                          withFields,
+                          JSON.stringify(exploreEdits),
+                      ])
+                    : withFields;
             await trx(ExternalConnectionsTableName)
                 .where('external_connection_uuid', uuid)
                 .update({
-                    api_source: (Object.keys(exploreEdits).length > 0
-                        ? trx.raw(`jsonb_set(?, '{explores}', ?::jsonb)`, [
-                              withFields,
-                              JSON.stringify(exploreEdits),
-                          ])
-                        : withFields) as unknown as string,
+                    api_source: withExplores as unknown as string,
                 });
             return true;
         });
@@ -1405,7 +1417,7 @@ export class ExternalConnectionModel {
             externalConnectionUuid: string;
             projectUuid: string;
             connector: ApiConnectorType;
-            switchedOffModels: string[];
+            state: LiveSourceFieldState;
         }[]
     > {
         const rows = await this.database(ExternalConnectionsTableName)
@@ -1417,27 +1429,20 @@ export class ExternalConnectionModel {
                     external_connection_uuid: string;
                     project_uuid: string;
                     connector: ApiConnectorType;
-                    explores: unknown;
+                    api_source: unknown;
                 }[]
             >(
                 'external_connection_uuid',
                 'project_uuid',
                 this.database.raw("api_source->>'connector' as connector"),
-                this.database.raw("api_source->'explores' as explores"),
+                'api_source',
             );
-        return rows.map((row) => {
-            const { explores } = parseLiveSourceFieldState({
-                explores: row.explores,
-            });
-            return {
-                externalConnectionUuid: row.external_connection_uuid,
-                projectUuid: row.project_uuid,
-                connector: row.connector,
-                switchedOffModels: Object.keys(explores).filter(
-                    (model) => !isLiveExploreInUse(explores, model),
-                ),
-            };
-        });
+        return rows.map((row) => ({
+            externalConnectionUuid: row.external_connection_uuid,
+            projectUuid: row.project_uuid,
+            connector: row.connector,
+            state: parseLiveSourceFieldState(row.api_source),
+        }));
     }
 
     /**
@@ -1470,46 +1475,20 @@ export class ExternalConnectionModel {
         return parseLiveSourceFieldState(row?.api_source ?? null);
     }
 
-    async saveLiveSourceScan(
-        uuid: string,
-        scan: LiveSourceScan,
-    ): Promise<void> {
-        await this.database(ExternalConnectionsTableName)
-            .where('external_connection_uuid', uuid)
-            .whereNotNull('api_source')
-            .update({
-                api_source: this.database.raw(
-                    `jsonb_set(api_source, '{lastScan}', ?::jsonb)`,
-                    [JSON.stringify(scan)],
-                ) as unknown as string,
-            });
-    }
-
-    /** Starts curation with these edits; a source already curated keeps its own. */
-    async initLiveSourceFieldEdits(
-        uuid: string,
-        edits: LiveSourceFieldEdits,
-    ): Promise<void> {
-        await this.database(ExternalConnectionsTableName)
-            .where('external_connection_uuid', uuid)
-            .whereNotNull('api_source')
-            .whereRaw("NOT jsonb_exists(api_source, 'fields')")
-            .update({
-                api_source: this.database.raw(
-                    `jsonb_set(api_source, '{fields}', ?::jsonb)`,
-                    [JSON.stringify(edits)],
-                ) as unknown as string,
-            });
-    }
-
     /**
-     * Applies field and explore edits under a row lock, so two editors never
-     * lose each other's changes. Returns the edits as saved. Pass `trx` to
-     * save them with other writes, such as the rebuild they cause.
+     * Applies a Refresh's result or field and explore edits under a row
+     * lock, so two writers never lose each other's changes. Returns what was
+     * saved. A source last refreshed before explores were stored whole is
+     * stored in the new shape on its first write. Pass `trx` to save with
+     * other writes, such as the rebuild they cause.
      */
     async updateLiveSourceEdits(
         uuid: string,
-        update: (current: LiveSourceEdits) => LiveSourceEdits,
+        update: (
+            current: LiveSourceEdits & {
+                legacy: LiveSourceFieldState['legacy'];
+            },
+        ) => LiveSourceEdits,
         outerTrx?: Knex.Transaction,
     ): Promise<LiveSourceEdits> {
         const run = async (trx: Knex.Transaction) => {
@@ -1524,15 +1503,20 @@ export class ExternalConnectionModel {
             }
             const state = parseLiveSourceFieldState(row.api_source);
             const next = update({
-                fields: state.fields ?? {},
+                scan: state.scan,
+                legacy: state.legacy,
+                fields: state.fields,
                 explores: state.explores,
             });
             await trx(ExternalConnectionsTableName)
                 .where('external_connection_uuid', uuid)
                 .update({
                     api_source: trx.raw(
-                        `jsonb_set(jsonb_set(api_source, '{fields}', ?::jsonb), '{explores}', ?::jsonb)`,
+                        `api_source || jsonb_build_object(${
+                            next.scan ? "'scan', ?::jsonb, " : ''
+                        }'fields', ?::jsonb, 'explores', ?::jsonb)`,
                         [
+                            ...(next.scan ? [JSON.stringify(next.scan)] : []),
                             JSON.stringify(next.fields),
                             JSON.stringify(next.explores),
                         ],
@@ -1575,6 +1559,9 @@ export class ExternalConnectionModel {
                           exploreEdits: parseLiveSourceFieldState(
                               row.api_source,
                           ).explores,
+                          scan: parseLiveSourceFieldState(row.api_source).scan,
+                          legacy: parseLiveSourceFieldState(row.api_source)
+                              .legacy,
                           ...readSourceDetails(row.api_source),
                           accessRule: readLiveSourceAccessRule(row.api_source),
                       },

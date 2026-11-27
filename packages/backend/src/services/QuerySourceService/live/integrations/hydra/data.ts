@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto';
 
 /**
- * Hydra's seeded rows. The same sign-in token, row count and day always give
- * the same rows; another token gives other rows, so per-viewer sign-in can
- * be told apart.
+ * Hydra's seeded rows. The same seed word, row count and day always give
+ * the same rows.
  */
 
 export const HYDRA_EVENT_TYPES = [
@@ -38,8 +37,8 @@ export type HydraDataset = { events: HydraEvent[]; users: HydraUser[] };
 
 const MODULUS = 2_147_483_647;
 
-/** A token's seed: the same token always seeds the same rows. */
-const toSeed = (text: string) =>
+/** A word's seed: the same word always seeds the same rows. */
+export const toSeed = (text: string) =>
     (parseInt(
         createHash('sha256').update(text).digest('hex').slice(0, 12),
         16,
@@ -48,7 +47,7 @@ const toSeed = (text: string) =>
     1;
 
 /** Park-Miller: small, and the same on every machine. */
-const createRandom = (seed: number) => {
+export const createRandom = (seed: number) => {
     let state = seed;
     return () => {
         state = (state * 48_271) % MODULUS;
@@ -56,7 +55,7 @@ const createRandom = (seed: number) => {
     };
 };
 
-const addDays = (isoDate: string, days: number) => {
+export const addDays = (isoDate: string, days: number) => {
     const date = new Date(`${isoDate}T00:00:00Z`);
     date.setUTCDate(date.getUTCDate() + days);
     return date.toISOString().slice(0, 10);
@@ -74,20 +73,16 @@ const pickEventType = (random: () => number) => {
     return 'purchase';
 };
 
-/** A short tag of the token, safe to show: the account the rows belong to. */
-export const getHydraAccountId = (token: string) =>
-    `hydra-${createHash('sha256').update(token).digest('hex').slice(0, 8)}`;
-
 export const buildHydraDataset = ({
-    token,
+    seed,
     rowCount,
     today,
 }: {
-    token: string;
+    seed: string;
     rowCount: number;
     today: string;
 }): HydraDataset => {
-    const random = createRandom(toSeed(token));
+    const random = createRandom(toSeed(seed));
     const userCount = Math.max(10, Math.round(rowCount / 10));
     const users = Array.from(
         { length: userCount },

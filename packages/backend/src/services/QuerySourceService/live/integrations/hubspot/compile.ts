@@ -437,7 +437,7 @@ export const compileHubspotQuery = ({
     }
 
     if (metricQuery.metrics.length > 0) {
-        // The shared check only knows the built-in fields, not scanned ones
+        // The shared check only knows the declared fields, not scanned ones
         if (metricQuery.dimensions.length > 0) {
             throw new ParameterError(HUBSPOT_COUNT_REASON);
         }

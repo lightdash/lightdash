@@ -8,15 +8,18 @@ import {
     DimensionType,
     FeatureNotEnabledError,
     FieldType,
+    FilterOperator,
     ForbiddenError,
     MergeJoinType,
     MetricType,
+    NotFoundError,
     QueryExecutionContext,
     QuerySourceType,
     TableCalculationType,
     type ComposerChartOwner,
     type ComposerChartPipelineNode,
     type CreateComposerChart,
+    type DashboardFilterRule,
     type DashboardFilters,
     type DataAppVizSchema,
     type Explore,
@@ -50,7 +53,7 @@ const AUTHOR_SUBJECTS = [
 
 const abilityWithout = (missing: string | null) =>
     new Ability<PossibleAbilities>([
-        { subject: 'Dashboard', action: ['view' as const, 'update' as const] },
+        { subject: 'SavedChart', action: 'manage' as const },
         ...AUTHOR_SUBJECTS.filter((name) => name !== missing).map((name) => ({
             subject: name,
             action: 'manage' as const,
@@ -241,6 +244,13 @@ const runFieldsByQuery: Record<string, object> = {
     },
 };
 
+// The columns a SQL node's query discovered before it was queued
+const originalColumnsByQuery: Record<string, object> = {
+    'result-query': {
+        status: { reference: 'status', type: DimensionType.STRING },
+    },
+};
+
 const savedDashboardFilters: DashboardFilters = {
     dimensions: [],
     metrics: [],
@@ -333,6 +343,15 @@ const setup = ({ flagEnabled = true } = {}) => {
             viz_schema: vizSchema,
         })),
     };
+    const spacePermissionService = {
+        resolveAccess: vi.fn(async () => ({
+            organizationUuid,
+            projectUuid,
+            inheritsFromOrgOrProject: true,
+            access: [],
+            admins: [],
+        })),
+    };
     const service = new ComposerChartService({
         composerChartModel: composerChartModel as unknown as ComposerChartModel,
         appModel: appModel as unknown as AppModel,
@@ -359,15 +378,8 @@ const setup = ({ flagEnabled = true } = {}) => {
                 enabled: flagEnabled,
             })),
         } as unknown as FeatureFlagModel,
-        spacePermissionService: {
-            resolveAccess: vi.fn(async () => ({
-                organizationUuid,
-                projectUuid,
-                inheritsFromOrgOrProject: true,
-                access: [],
-                admins: [],
-            })),
-        } as unknown as SpacePermissionService,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
         queryHistoryModel: {
             getByQueryUuid: vi.fn(async (queryUuid: string) => ({
                 queryUuid,
@@ -376,6 +388,7 @@ const setup = ({ flagEnabled = true } = {}) => {
                     ...runFieldsByQuery[queryUuid],
                 },
                 usedParameters: usedParametersByQuery[queryUuid] ?? null,
+                originalColumns: originalColumnsByQuery[queryUuid] ?? null,
             })),
         } as unknown as QueryHistoryModel,
         getQuerySourceService: () => querySourceService,
@@ -386,6 +399,7 @@ const setup = ({ flagEnabled = true } = {}) => {
         composerChartModel,
         querySourceService,
         asyncQueryService,
+        spacePermissionService,
     };
 };
 
@@ -504,10 +518,11 @@ describe('ComposerChartService.create', () => {
         expect(composerChartModel.create).toHaveBeenCalledOnce();
     });
 
-    test('refuses an author who cannot update the dashboard', async () => {
-        const { service } = setup();
+    test('refuses an author who can update the dashboard but not save charts on it', async () => {
+        const { service, composerChartModel } = setup();
         const ability = new Ability<PossibleAbilities>([
-            { subject: 'Dashboard', action: 'view' as const },
+            { subject: 'Dashboard', action: 'manage' as const },
+            { subject: 'SavedChart', action: 'view' as const },
             ...AUTHOR_SUBJECTS.map((name) => ({
                 subject: name,
                 action: 'manage' as const,
@@ -520,6 +535,7 @@ describe('ComposerChartService.create', () => {
                 createBody(PIPELINES.sql),
             ),
         ).rejects.toThrow(ForbiddenError);
+        expect(composerChartModel.create).not.toHaveBeenCalled();
     });
 
     test('refuses an agent connection without Raw SQL on a chart with sql nodes', async () => {
@@ -629,7 +645,7 @@ describe('ComposerChartService.run', () => {
     const viewer = () =>
         sessionAccount(
             new Ability<PossibleAbilities>([
-                { subject: 'Dashboard', action: 'view' as const },
+                { subject: 'SavedChart', action: 'view' as const },
             ]),
         );
     const runRequest = {
@@ -661,8 +677,14 @@ describe('ComposerChartService.run', () => {
         const body = createBody(options.nodes ?? PIPELINES.python);
         const stored = body.pipeline;
         const owner: ComposerChartOwner = { type: 'dashboard', dashboardUuid };
+        const getOwner = vi.fn(
+            async (): Promise<{
+                projectUuid: string;
+                owner: ComposerChartOwner;
+            }> => ({ projectUuid, owner }),
+        );
         Object.assign(composerChartModel, {
-            getOwner: vi.fn(async () => ({ projectUuid, owner })),
+            getOwner,
             get: vi.fn(async () => ({
                 uuid: 'chart-uuid',
                 projectUuid,
@@ -684,6 +706,7 @@ describe('ComposerChartService.run', () => {
             resolvedNodes,
             submitComposerRun,
             asyncQueryService,
+            getOwner,
         };
     };
 
@@ -919,6 +942,53 @@ describe('ComposerChartService.run', () => {
         );
     });
 
+    test("applies a dashboard filter's SQL column target to a SQL node that returned the column", async () => {
+        const { service } = setupRun({ nodes: PIPELINES.sql });
+        const columnTarget = {
+            fieldId: 'status',
+            tableName: 'result',
+            isSqlColumn: true,
+        };
+        const columnRule: DashboardFilterRule = {
+            id: 'status-filter',
+            label: undefined,
+            target: { fieldId: 'orders_status', tableName: 'orders' },
+            tileTargets: { 'tile-uuid': columnTarget },
+            operator: FilterOperator.EQUALS,
+            values: ['shipped'],
+        };
+        const dashboardFilters: DashboardFilters = {
+            dimensions: [columnRule],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            { ...runRequest, dashboardFilters },
+            QueryExecutionContext.DASHBOARD,
+        );
+        expect(result.sqlColumns).toEqual([
+            { reference: 'status', type: DimensionType.STRING },
+        ]);
+        const applied = {
+            dimensions: [
+                {
+                    ...columnRule,
+                    target: columnTarget,
+                    settings: { sourceTarget: columnRule.target },
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        expect(result.appliedDashboardFiltersByNodeId).toEqual({
+            result: applied,
+        });
+        expect(result.appliedDashboardFilters).toEqual(applied);
+    });
+
     test('refuses a caller who cannot view the owning dashboard', async () => {
         const { service, submitComposerRun } = setupRun();
         await expect(
@@ -930,6 +1000,42 @@ describe('ComposerChartService.run', () => {
                 QueryExecutionContext.DASHBOARD,
             ),
         ).rejects.toThrow(ForbiddenError);
+        expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test('refuses a dashboard viewer without view on charts', async () => {
+        const { service, submitComposerRun } = setupRun();
+        await expect(
+            service.run(
+                sessionAccount(
+                    new Ability<PossibleAbilities>([
+                        { subject: 'Dashboard', action: 'view' as const },
+                    ]),
+                ),
+                projectUuid,
+                'chart-uuid',
+                runRequest,
+                QueryExecutionContext.DASHBOARD,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test('refuses a tile run of a chart a space owns', async () => {
+        const { service, submitComposerRun, getOwner } = setupRun();
+        getOwner.mockResolvedValue({
+            projectUuid,
+            owner: { type: 'space', spaceUuid: 'space-uuid' },
+        });
+        await expect(
+            service.run(
+                viewer(),
+                projectUuid,
+                'chart-uuid',
+                runRequest,
+                QueryExecutionContext.DASHBOARD,
+            ),
+        ).rejects.toThrow('not on that dashboard tile');
         expect(submitComposerRun).not.toHaveBeenCalled();
     });
 
@@ -1031,7 +1137,7 @@ describe('ComposerChartService.getParameterReferences', () => {
         const result = await setupLookup().getParameterReferences(
             sessionAccount(
                 new Ability<PossibleAbilities>([
-                    { subject: 'Dashboard', action: 'view' as const },
+                    { subject: 'SavedChart', action: 'view' as const },
                 ]),
             ),
             projectUuid,
@@ -1052,7 +1158,7 @@ describe('ComposerChartService.getParameterReferences', () => {
             setupLookup({ flagEnabled: false }).getParameterReferences(
                 sessionAccount(
                     new Ability<PossibleAbilities>([
-                        { subject: 'Dashboard', action: 'view' as const },
+                        { subject: 'SavedChart', action: 'view' as const },
                     ]),
                 ),
                 projectUuid,
@@ -1073,5 +1179,95 @@ describe('ComposerChartService.getParameterReferences', () => {
             parameterReferences: null,
             error: expect.any(String),
         });
+    });
+});
+
+describe('ComposerChartService.get', () => {
+    const setupGet = (owner: ComposerChartOwner) => {
+        const { service, composerChartModel, spacePermissionService } = setup();
+        Object.assign(composerChartModel, {
+            getOwner: vi.fn(async () => ({ projectUuid, owner })),
+        });
+        return { service, composerChartModel, spacePermissionService };
+    };
+    const chartViewer = () =>
+        sessionAccount(
+            new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: 'view' as const },
+            ]),
+        );
+    const dashboardViewer = () =>
+        sessionAccount(
+            new Ability<PossibleAbilities>([
+                { subject: 'Dashboard', action: 'view' as const },
+            ]),
+        );
+    const spaceOwner: ComposerChartOwner = {
+        type: 'space',
+        spaceUuid: 'space-uuid',
+    };
+
+    test('reads a dashboard chart through the dashboard for a role that can view charts but not dashboards', async () => {
+        const { service, spacePermissionService } = setupGet({
+            type: 'dashboard',
+            dashboardUuid,
+        });
+        await expect(
+            service.get(chartViewer(), projectUuid, 'chart-uuid'),
+        ).resolves.toEqual({ uuid: 'chart-uuid' });
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            defaultSessionUser.userUuid,
+            { type: 'dashboard', dashboardUuid, spaceUuid: 'space-uuid' },
+        );
+    });
+
+    test.each([
+        ['a dashboard', { type: 'dashboard', dashboardUuid }],
+        ['a space', { type: 'space', spaceUuid: 'space-uuid' }],
+    ] as const)(
+        'refuses a role that can view dashboards but not charts, for a chart %s owns',
+        async (_, owner) => {
+            const { service } = setupGet(owner);
+            await expect(
+                service.get(dashboardViewer(), projectUuid, 'chart-uuid'),
+            ).rejects.toThrow(ForbiddenError);
+        },
+    );
+
+    test('reads a space chart through its space', async () => {
+        const { service, spacePermissionService } = setupGet(spaceOwner);
+        await expect(
+            service.get(chartViewer(), projectUuid, 'chart-uuid'),
+        ).resolves.toEqual({ uuid: 'chart-uuid' });
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            defaultSessionUser.userUuid,
+            { type: 'space', spaceUuid: 'space-uuid' },
+        );
+    });
+
+    test('refuses a space chart whose space is deleted', async () => {
+        const { service, spacePermissionService, composerChartModel } =
+            setupGet(spaceOwner);
+        spacePermissionService.resolveAccess.mockRejectedValue(
+            new NotFoundError("Couldn't find access context for space"),
+        );
+        await expect(
+            service.get(chartViewer(), projectUuid, 'chart-uuid'),
+        ).rejects.toThrow(NotFoundError);
+        expect(composerChartModel.get).not.toHaveBeenCalled();
+    });
+
+    test('refuses a space chart whose space is in another project', async () => {
+        const { service, spacePermissionService } = setupGet(spaceOwner);
+        spacePermissionService.resolveAccess.mockResolvedValue({
+            organizationUuid,
+            projectUuid: 'another-project',
+            inheritsFromOrgOrProject: true,
+            access: [],
+            admins: [],
+        });
+        await expect(
+            service.get(chartViewer(), projectUuid, 'chart-uuid'),
+        ).rejects.toThrow(NotFoundError);
     });
 });

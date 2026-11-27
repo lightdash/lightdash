@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     AlreadyExistsError,
     ChartType,
@@ -11,6 +12,7 @@ import {
     type ComposerChartOwner,
     type DashboardDAO,
     type DashboardTile,
+    type PossibleAbilities,
     type RegisteredAccount,
     type SpaceSummaryBase,
 } from '@lightdash/common';
@@ -446,6 +448,30 @@ describe('promoting a dashboard with composer charts', () => {
             upstreamDashboardUuid,
         );
         expect(composerChartModel.findIdentityBySlug).not.toHaveBeenCalled();
+        expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
+    });
+
+    test('refuses before any write when the user cannot save charts where a new upstream dashboard goes', async () => {
+        const { service, dashboardModel, composerChartService } = setup();
+        const cannotSaveCharts = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { action: 'manage', subject: 'all' },
+                    { action: 'create', subject: 'SavedChart', inverted: true },
+                ]),
+            },
+        } as RegisteredAccount;
+
+        await expect(
+            service.promoteDashboard(
+                cannotSaveCharts,
+                sourceDashboard.uuid,
+                scoped,
+            ),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(dashboardModel.create).not.toHaveBeenCalled();
         expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
     });
 

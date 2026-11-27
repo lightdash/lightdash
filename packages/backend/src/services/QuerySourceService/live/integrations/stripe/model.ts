@@ -828,5 +828,4 @@ export const STRIPE_EXPLORES = [
 
 export const stripeModel: LiveModel<ApiConnectorType.STRIPE> = {
     explores: STRIPE_EXPLORES,
-    plannedNames: ['customers', 'refunds', 'payouts', 'invoice_line_items'],
 };

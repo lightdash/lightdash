@@ -17,8 +17,8 @@ describe('hydraConnection', () => {
             origin: 'https://hydra.invalid',
             secret: 'alice',
             apiSource: HYDRA_DEFAULT_SOURCE,
-            allowedMethods: ['GET', 'POST'],
-            allowedPathPrefixes: ['/v1/report', '/v1/account'],
+            allowedMethods: ['GET'],
+            allowedPathPrefixes: [],
         });
     });
 });

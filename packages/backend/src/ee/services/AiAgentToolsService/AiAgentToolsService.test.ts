@@ -63,6 +63,7 @@ import {
     withAgentActionScope,
 } from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { SpaceOwnedComposerChartUploadError } from '../../../services/CoderService/composerChartsAsCode';
 import { developmentView } from '../../../services/ProjectService/developmentView';
 import { validatePagination } from '../../../services/ProjectService/resultsPagination';
 import { PromoteService } from '../../../services/PromoteService/PromoteService';
@@ -3666,15 +3667,14 @@ describe('AiAgentToolsService', () => {
             pipeline: { terminalNodeId: 'joined', nodes: [] },
         };
         const makeComposerService = ({
-            spaceModel,
             flagEnabled = true,
-            getComposerChartsForRead = vi.fn().mockResolvedValue({
-                composerCharts: [composerChartAsCode],
+            getComposerChartForRead = vi.fn().mockResolvedValue({
+                composerChart: composerChartAsCode,
+                spaceUuid: 'allowed-space-uuid',
             }),
         }: {
-            spaceModel?: Record<string, unknown>;
             flagEnabled?: boolean;
-            getComposerChartsForRead?: import('vitest').Mock;
+            getComposerChartForRead?: import('vitest').Mock;
         } = {}) => {
             const run = vi.fn().mockResolvedValue({
                 queries: [
@@ -3696,8 +3696,7 @@ describe('AiAgentToolsService', () => {
                 rows: [{ month: '2026-01', revenue: 120 }],
             });
             const service = makeService({
-                spaceModel,
-                coderService: { getComposerChartsForRead },
+                coderService: { getComposerChartForRead },
                 dashboardService: {
                     getByIdOrSlug: vi.fn().mockResolvedValue(salesDashboard),
                 },
@@ -3731,12 +3730,31 @@ describe('AiAgentToolsService', () => {
             });
         });
 
-        it('hides a composer chart whose dashboard is outside the agent spaces', async () => {
+        it('reads a space-owned composer chart as code, linked to its space', async () => {
+            const spaceChart = { ...composerChartAsCode, dashboardSlug: null };
             const { service } = makeComposerService({
-                spaceModel: {
-                    hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(false),
-                },
+                getComposerChartForRead: vi.fn().mockResolvedValue({
+                    composerChart: spaceChart,
+                    spaceUuid: 'allowed-space-uuid',
+                }),
             });
+
+            const read = await service
+                .createRuntime(makeRuntimeContext())
+                .readContent({
+                    type: 'composer_chart',
+                    slug: 'revenue-vs-target',
+                });
+
+            expect(read).toEqual({
+                type: 'composer_chart',
+                content: spaceChart,
+                href: `/projects/${projectUuid}/spaces/allowed-space-uuid`,
+            });
+        });
+
+        it('hides a composer chart whose owner space is outside the agent spaces', async () => {
+            const { service } = makeComposerService();
 
             await expect(
                 service
@@ -3747,6 +3765,37 @@ describe('AiAgentToolsService', () => {
                         type: 'composer_chart',
                         slug: 'revenue-vs-target',
                     }),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('reads the chart in its own space and refuses one in another space with the same path', async () => {
+            const chartIn = (slug: string, spaceUuid: string) => ({
+                composerChart: {
+                    ...composerChartAsCode,
+                    slug,
+                    dashboardSlug: null,
+                    spaceSlug: 'shared',
+                },
+                spaceUuid,
+            });
+            const { service } = makeComposerService({
+                getComposerChartForRead: vi.fn(async (_a, _p, slug: string) =>
+                    slug === 'mine'
+                        ? chartIn('mine', 'allowed-space-uuid')
+                        : chartIn('theirs', 'other-space-uuid'),
+                ),
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.readContent({ type: 'composer_chart', slug: 'mine' }),
+            ).resolves.toMatchObject({
+                href: `/projects/${projectUuid}/spaces/allowed-space-uuid`,
+            });
+            await expect(
+                runtime.readContent({ type: 'composer_chart', slug: 'theirs' }),
             ).rejects.toThrow(NotFoundError);
         });
 
@@ -3773,9 +3822,7 @@ describe('AiAgentToolsService', () => {
 
         it('reports a slug no composer chart has as not found', async () => {
             const { service } = makeComposerService({
-                getComposerChartsForRead: vi
-                    .fn()
-                    .mockResolvedValue({ composerCharts: [] }),
+                getComposerChartForRead: vi.fn().mockResolvedValue(null),
             });
 
             await expect(
@@ -4012,7 +4059,11 @@ describe('AiAgentToolsService', () => {
             threadBinding = null,
             boundDashboardSlug = 'ops',
             readOnlySpaceUuids = [],
+            composerChart = editableChart,
         }: {
+            composerChart?: Omit<typeof editableChart, 'dashboardSlug'> & {
+                dashboardSlug: string | null;
+            };
             flagEnabled?: boolean;
             preflightPipeline?: import('vitest').Mock;
             threadBinding?: AiAgentToolsRuntimeContext['threadBinding'];
@@ -4030,8 +4081,9 @@ describe('AiAgentToolsService', () => {
             const upsertChart = vi.fn();
             const service = makeService({
                 coderService: {
-                    getComposerChartsForRead: vi.fn(async () => ({
-                        composerCharts: [editableChart],
+                    getComposerChartForRead: vi.fn(async () => ({
+                        composerChart,
+                        spaceUuid: 'jaffle-uuid',
                     })),
                     getChartsForRead: vi.fn(async () => ({
                         charts: [{ slug: 'orders-by-status' }],
@@ -4241,6 +4293,24 @@ describe('AiAgentToolsService', () => {
                     approveSql: vi.fn(async () => editElsewhere()),
                 }),
             ).rejects.toThrow('changed while this edit waited');
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses a space-owned chart before asking for SQL approval', async () => {
+            const { runtime, upsertComposerChart } = makeEditService({
+                composerChart: { ...editableChart, dashboardSlug: null },
+            });
+            const approveSql = vi.fn();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: changeSql,
+                    approveSql,
+                }),
+            ).rejects.toThrow(SpaceOwnedComposerChartUploadError);
+            expect(approveSql).not.toHaveBeenCalled();
             expect(upsertComposerChart).not.toHaveBeenCalled();
         });
 
@@ -5344,14 +5414,13 @@ describe('AiAgentToolsService createContent composer_chart', () => {
             },
             coderService: {
                 toStoredComposerChart: vi.fn(async (_project, chart) => chart),
-                getComposerChartsForRead: vi.fn(async () => ({
-                    composerCharts: [
-                        {
-                            slug: 'amount-by-status',
-                            dashboardSlug: 'sales',
-                            spaceSlug: 'jaffle',
-                        },
-                    ],
+                getComposerChartForRead: vi.fn(async () => ({
+                    composerChart: {
+                        slug: 'amount-by-status',
+                        dashboardSlug: 'sales',
+                        spaceSlug: 'jaffle',
+                    },
+                    spaceUuid: 'space-uuid',
                 })),
             },
             composerChartService: {

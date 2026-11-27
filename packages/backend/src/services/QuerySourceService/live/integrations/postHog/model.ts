@@ -10,9 +10,12 @@ import {
 import { z } from 'zod';
 import {
     ADDITIVE,
+    defineLiveModel,
     dimension,
     metric,
     NON_ADDITIVE,
+    pickLiveFields,
+    withFieldsOffByDefault,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveModel,
@@ -291,7 +294,7 @@ const AD_CLICK_ID_PROPERTIES = new Set([
 ]);
 
 /** PostHog's own bookkeeping properties (`$lib_version`) and ad click ids. */
-export const isInternalPostHogProperty = (apiName: string) => {
+export const isPostHogSystemProperty = (apiName: string) => {
     const property = apiName.split('.').at(-1) ?? apiName;
     return property.startsWith('$') || AD_CLICK_ID_PROPERTIES.has(property);
 };
@@ -355,10 +358,10 @@ export type PostHogPropertyKind = 'event' | 'person';
  * its property definitions. Properties the hand-written fields already cover
  * are skipped; unreadable definitions add nothing.
  */
-export const withPostHogPropertyFields = (
-    definition: LiveExploreDefinition,
+export const withPostHogPropertyFields = <D extends LiveExploreDefinition>(
+    definition: D,
     propertyDefinitions: Record<PostHogPropertyKind, unknown>,
-): LiveExploreDefinition => {
+): D => {
     const taken = new Set([
         ...definition.dimensions.map(({ name }) => name),
         ...definition.metrics.map(({ name }) => name),
@@ -570,11 +573,6 @@ const readPropertyDefinitions = async (
     return { results: await readFrom(0) };
 };
 
-/** The project's event and person property definitions, as PostHog returns them. */
-export type PostHogCatalog = {
-    posthogProperties?: Record<'event' | 'person', unknown>;
-};
-
 /** Reads the event and person property definitions the explore adds fields for. */
 export const scanPostHogProperties = async ({
     settings: { projectId },
@@ -582,27 +580,48 @@ export const scanPostHogProperties = async ({
 }: {
     settings: PostHogSettings;
     runtime: LiveRuntime;
-}): Promise<PostHogCatalog> => {
+}): Promise<unknown> => {
     const [event, person] = await Promise.all([
         readPropertyDefinitions(projectId, 'event', runtime),
         readPropertyDefinitions(projectId, 'person', runtime),
     ]);
-    return { posthogProperties: { event, person } };
+    return { properties: { event, person } };
 };
 
-export const postHogModel: LiveModel<ApiConnectorType.POSTHOG, PostHogCatalog> =
-    {
+export const postHogModel: LiveModel<ApiConnectorType.POSTHOG> =
+    defineLiveModel({
         explores: POSTHOG_EXPLORES,
-        plannedNames: ['persons', 'sessions'],
-        discovery: {
-            discover: scanPostHogProperties,
-            withFields: (definition, catalog: PostHogCatalog) =>
-                catalog.posthogProperties
-                    ? withPostHogPropertyFields(
-                          definition,
-                          catalog.posthogProperties,
-                      )
-                    : definition,
-            isInternalField: isInternalPostHogProperty,
+        // The first explore gets the project's event and person properties
+        scan: scanPostHogProperties,
+        metadata: z.object({
+            properties: z
+                .object({
+                    event: propertyDefinitionsSchema
+                        .optional()
+                        .catch(undefined),
+                    person: propertyDefinitionsSchema
+                        .optional()
+                        .catch(undefined),
+                })
+                .optional(),
+        }),
+        extend: ({ properties }) => {
+            const [events] = POSTHOG_EXPLORES;
+            return properties
+                ? {
+                      fields: {
+                          [events.name]: pickLiveFields(
+                              withFieldsOffByDefault(
+                                  events,
+                                  withPostHogPropertyFields(events, {
+                                      event: properties.event,
+                                      person: properties.person,
+                                  }),
+                                  isPostHogSystemProperty,
+                              ),
+                          ),
+                      },
+                  }
+                : {};
         },
-    };
+    });

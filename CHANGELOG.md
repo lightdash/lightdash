@@ -1,3 +1,29 @@
+# [3.433.0](https://github.com/lightdash/lightdash/compare/3.432.0...3.433.0) (2026-11-27)
+
+
+### Features
+
+* **composer:** content as code downloads space-owned charts ([#33583](https://github.com/lightdash/lightdash/issues/33583)) ([0e7aecd](https://github.com/lightdash/lightdash/commit/0e7aecdb8e57d37cce2d52e09f193adeeae63ec4))
+
+# [3.432.0](https://github.com/lightdash/lightdash/compare/3.431.0...3.432.0) (2026-11-27)
+
+
+### Features
+
+* **composer:** check every composer chart through SavedChart ([#33579](https://github.com/lightdash/lightdash/issues/33579)) ([8ad7bc1](https://github.com/lightdash/lightdash/commit/8ad7bc1239ca57c28ec3a1a72b2e85bbc68358e4))
+
+# [3.431.0](https://github.com/lightdash/lightdash/compare/3.430.0...3.431.0) (2026-11-27)
+
+
+### Bug Fixes
+
+* grouped table exports cut long merged values, and every merged value shows a tooltip ([#33513](https://github.com/lightdash/lightdash/issues/33513)) ([550f193](https://github.com/lightdash/lightdash/commit/550f1931ae08af1698c34bdea224029285e83e43)), closes [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461)
+
+
+### Features
+
+* **live-sources:** add a Sentry integration for errors, issues and release health ([#33555](https://github.com/lightdash/lightdash/issues/33555)) ([769eb9c](https://github.com/lightdash/lightdash/commit/769eb9cf3893176e891f91342b4732a58599b3b1))
+
 # [3.430.0](https://github.com/lightdash/lightdash/compare/3.429.0...3.430.0) (2026-11-27)
 
 

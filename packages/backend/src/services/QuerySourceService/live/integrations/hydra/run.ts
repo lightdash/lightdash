@@ -1,55 +1,105 @@
 import {
     ApiConnectorType,
     DimensionType,
-    HYDRA_REPORT_PATH,
+    ParameterError,
+    withHydraDefaults,
+    type HydraApiSource,
 } from '@lightdash/common';
-import { z } from 'zod';
 import { assertMaxRows, type LiveRunArgs, type LiveRunResult } from '../../sdk';
-import { HYDRA_REPORTS, type HydraReportRequest } from './fake/report';
+import { buildHydraDataset, type HydraDataset } from './data';
+import {
+    buildHydraObjectRecords,
+    HYDRA_RECORD_COUNT,
+    listHydraObjects,
+    runHydraObjectReport,
+} from './objects';
+import {
+    HYDRA_REPORTS,
+    isHydraObjectRequest,
+    runHydraReport,
+    type HydraRequest,
+} from './report';
 
 /** The most rows one query returns, kept small so tests reach it. */
 export const HYDRA_MAX_QUERY_ROWS = 500;
 
-const responseSchema = z.object({
-    rows: z.array(z.record(z.string(), z.union([z.string(), z.number()]))),
-    totalRows: z.number(),
-    nextOffset: z.number().nullable(),
-});
+/** Every source seeds from the same word, so its rows are the same everywhere. */
+const HYDRA_SEED = 'hydra';
 
-type HydraRow = z.infer<typeof responseSchema>['rows'][number];
+type HydraRow = Record<string, string | number>;
+
+// The last dataset built: seeding a large one for every query would be slow
+let lastDataset: { key: string; dataset: HydraDataset } | null = null;
+
+const getDataset = (rowCount: number, today: string): HydraDataset => {
+    const key = `${rowCount}:${today}`;
+    if (lastDataset?.key !== key) {
+        lastDataset = {
+            key,
+            dataset: buildHydraDataset({ seed: HYDRA_SEED, rowCount, today }),
+        };
+    }
+    return lastDataset.dataset;
+};
+
+/** Every row of a report, from the rows Hydra seeds. */
+const readRows = (
+    settings: HydraApiSource,
+    request: HydraRequest,
+    today: string,
+): HydraRow[] => {
+    const { rowCount, objects } = withHydraDefaults(settings);
+    if (!isHydraObjectRequest(request)) {
+        return runHydraReport(getDataset(rowCount, today), request);
+    }
+    const object = objects.find(({ id }) => id === request.object);
+    if (!object) {
+        throw new ParameterError(`Hydra has no object ${request.object}`);
+    }
+    const [listed] = listHydraObjects([object]).objects;
+    const fieldIds = listed.fields.map(({ id }) => id);
+    const unknown = [
+        ...request.dimensions,
+        ...request.filters.map(({ field }) => field),
+        ...request.orderBy
+            .map(({ field }) => field)
+            .filter((field) => field !== HYDRA_RECORD_COUNT),
+    ].filter((field) => !fieldIds.includes(field));
+    if (unknown.length > 0) {
+        throw new ParameterError(
+            `${request.object} has no field ${unknown.join(', ')}`,
+        );
+    }
+    return runHydraObjectReport(
+        buildHydraObjectRecords({ seed: HYDRA_SEED, object, today }),
+        request,
+    );
+};
 
 /**
- * Runs one Hydra report, asking for one row more than the limit, a page at
- * a time when the source pages. A page the API refuses is retried by the
- * rate-limit gate, so the pages before it are kept.
+ * Runs one Hydra report from the rows Hydra seeds. Nothing is called:
+ * Hydra has no vendor behind it.
  */
 export const runHydraQuery = async ({
+    settings,
     request,
     limit,
-    runtime,
 }: LiveRunArgs<
     ApiConnectorType.HYDRA,
-    HydraReportRequest
+    HydraRequest
 >): Promise<LiveRunResult> => {
     assertMaxRows(limit, HYDRA_MAX_QUERY_ROWS);
     const rowLimit = Math.min(limit, request.limit ?? limit);
-    const rows: HydraRow[] = [];
-    let offset: number | null = 0;
-    while (offset !== null) {
-        // eslint-disable-next-line no-await-in-loop
-        const page: z.infer<typeof responseSchema> = await runtime.fetch(
-            {
-                method: 'POST',
-                path: HYDRA_REPORT_PATH,
-                body: { ...request, limit: rowLimit + 1, offset },
-            },
-            responseSchema,
-        );
-        rows.push(...page.rows);
-        offset = page.nextOffset;
-    }
-    const dates: readonly string[] = HYDRA_REPORTS[request.report].dates;
+    const rows = readRows(
+        settings,
+        request,
+        new Date().toISOString().slice(0, 10),
+    );
+    const dates: readonly string[] = isHydraObjectRequest(request)
+        ? []
+        : HYDRA_REPORTS[request.report].dates;
     return {
+        // An object's column types come from its explore's fields
         columns: [
             ...request.dimensions.map((name) => ({
                 name,

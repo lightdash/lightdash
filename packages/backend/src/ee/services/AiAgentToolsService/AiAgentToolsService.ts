@@ -155,6 +155,7 @@ import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQuer
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { SpaceOwnedComposerChartUploadError } from '../../../services/CoderService/composerChartsAsCode';
 import type { ComposerChartService } from '../../../services/ComposerChartService/ComposerChartService';
 import { ContentService } from '../../../services/ContentService/ContentService';
 import { DashboardService } from '../../../services/DashboardService/DashboardService';
@@ -3377,22 +3378,47 @@ export class AiAgentToolsService extends BaseService {
         await this.assertComposerChartsEnabled(context, notFound);
         const { account } = context;
         assertRegisteredAccount(account);
-        const { composerCharts } =
-            await this.coderService.getComposerChartsForRead(
-                account,
-                context.projectUuid,
-                [slug],
-            );
-        const composerChart = composerCharts[0];
-        if (!composerChart) {
+        const read = await this.coderService.getComposerChartForRead(
+            account,
+            context.projectUuid,
+            slug,
+        );
+        if (!read) {
             throw new NotFoundError(notFound);
         }
-        await this.assertContentSpaceInScope(
+        const { composerChart, spaceUuid } = read;
+        // By uuid: two spaces can share a path
+        if (
+            !AiAgentToolsService.hasAgentSpaceAccess(
+                context.spaceAccess,
+                spaceUuid,
+            )
+        ) {
+            await this.recordRefusal(
+                context,
+                'content',
+                action,
+                'agent_scope',
+                'content_outside_agent_scope',
+                undefined,
+                null,
+            );
+            throw new NotFoundError(notFound);
+        }
+        await this.assertSpaceWritable(
             context,
-            composerChart.spaceSlug,
-            notFound,
+            'content',
             action,
+            spaceUuid,
+            null,
         );
+        if (!composerChart.dashboardSlug) {
+            return {
+                type: 'composer_chart',
+                content: composerChart,
+                href: AiAgentToolsService.getSpaceUrl(context, spaceUuid),
+            };
+        }
         const dashboard = await this.dashboardService.getByIdOrSlug(
             context.user,
             composerChart.dashboardSlug,
@@ -4230,6 +4256,9 @@ export class AiAgentToolsService extends BaseService {
             slug,
             'update',
         );
+        if (!current.content.dashboardSlug) {
+            throw new SpaceOwnedComposerChartUploadError(slug);
+        }
         if (
             bound?.type === 'dashboard' &&
             current.content.dashboardSlug !== bound.slug

@@ -299,6 +299,11 @@ export enum FeatureFlags {
      * the Console turns it off (see docs/feature-flags.md).
      */
     LiveSourceStripe = 'live-source-stripe',
+    /**
+     * Org-scoped, on until turned off: Hydra, the live integration with
+     * seeded data, can be added, queried and synced.
+     */
+    LiveSourceHydra = 'live-source-hydra',
 }
 
 export type FeatureFlag = {

@@ -478,5 +478,4 @@ export const SENTRY_EXPLORES = [
 
 export const sentryModel: LiveModel<ApiConnectorType.SENTRY> = {
     explores: SENTRY_EXPLORES,
-    plannedNames: ['releases', 'transactions', 'logs', 'monitors'],
 };
