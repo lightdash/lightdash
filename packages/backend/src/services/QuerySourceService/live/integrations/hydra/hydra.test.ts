@@ -17,8 +17,8 @@ import {
 import { assertLiveQuery } from '../../explores/definition';
 import { getInitialLiveSourceFieldEdits } from '../../explores/fields';
 import { connectLiveSource } from '../../liveSource.mock';
+import { createHydraServer, type HydraServer } from './fake/server';
 import { HYDRA_MAX_QUERY_ROWS } from './run';
-import { createHydraServer, type HydraServer } from './server';
 
 const NOW = new Date('2026-11-23T12:00:00Z');
 
@@ -351,7 +351,7 @@ describe('Hydra through the shared engine', () => {
             request: { method: 'GET', path: '/v1/account', body: undefined },
         });
         expect(
-            hydraIntegration.summarizeTest?.(body, settingsWith()),
+            hydraIntegration.connection.summarizeTest?.(body, settingsWith()),
         ).toMatchObject({
             summary: expect.stringMatching(
                 /^Connected to Hydra account hydra-/,
@@ -364,7 +364,9 @@ describe('Hydra through the shared engine', () => {
     });
 
     it('declares the vendor limits by default, its own, or none', () => {
-        expect(hydraIntegration.rateLimitsFor?.(settingsWith())).toEqual({
+        expect(
+            hydraIntegration.query.limitsFor?.(settingsWith()),
+        ).toMatchObject({
             concurrentCalls: 2,
             callsPerSecond: null,
             buckets: [
@@ -383,7 +385,7 @@ describe('Hydra through the shared engine', () => {
             ],
         });
         expect(
-            hydraIntegration.rateLimitsFor?.(
+            hydraIntegration.query.limitsFor?.(
                 settingsWith({
                     declaredLimits: {
                         concurrentCalls: 1,
@@ -394,7 +396,7 @@ describe('Hydra through the shared engine', () => {
                     },
                 }),
             ),
-        ).toEqual({
+        ).toMatchObject({
             concurrentCalls: 1,
             callsPerSecond: 5,
             buckets: [
@@ -407,7 +409,7 @@ describe('Hydra through the shared engine', () => {
             ],
         });
         expect(
-            hydraIntegration.rateLimitsFor?.(
+            hydraIntegration.query.limitsFor?.(
                 settingsWith({ declaredLimits: null }),
             ),
         ).toMatchObject({ callsPerSecond: null, buckets: [] });

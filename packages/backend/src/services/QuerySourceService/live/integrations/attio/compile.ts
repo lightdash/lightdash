@@ -14,17 +14,18 @@ import {
 } from '@lightdash/common';
 import {
     getApiName,
+    getLiveDateRange,
     getLiveDefinitionName,
     getLiveExplore,
+    toAbsoluteDateRange,
     type LiveCompiledRequest,
-} from '../../explores/definition';
-import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
+} from '../../sdk';
 import {
     ATTIO_SORT_FIELDS,
     isAttioChoiceProperty,
     parseAttioApiName,
-} from './attributes';
-import { toAttioObject } from './explores';
+    toAttioObject,
+} from './model';
 import { type AttioRequest, type AttioSort } from './run';
 
 type AttioCondition = Record<string, unknown>;

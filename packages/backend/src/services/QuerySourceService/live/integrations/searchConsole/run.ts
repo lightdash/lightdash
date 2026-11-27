@@ -1,11 +1,12 @@
 import { ApiConnectorType, DimensionType } from '@lightdash/common';
 import { z } from 'zod';
-import { assertMaxRows } from '../../integration';
-import { refuseLiveQuery } from '../../query/refuse';
-import { type LiveRunArgs, type LiveRunResult } from '../../types';
-
-export const SEARCH_CONSOLE_ORIGIN = 'https://searchconsole.googleapis.com';
-export const SEARCH_CONSOLE_SITES_PATH = '/webmasters/v3/sites/';
+import {
+    assertMaxRows,
+    refuseLiveQuery,
+    type LiveRunArgs,
+    type LiveRunResult,
+} from '../../sdk';
+import { SEARCH_CONSOLE_SITES_PATH } from './api';
 
 /**
  * The most rows one query can ask for: one fewer than the API's 25,000, so
@@ -101,7 +102,7 @@ export const runSearchConsoleQuery = async ({
     settings,
     request: { rowLimit: requestLimit, ...request },
     limit,
-    calls,
+    runtime,
 }: LiveRunArgs<
     ApiConnectorType.SEARCH_CONSOLE,
     SearchConsoleRequest
@@ -109,7 +110,7 @@ export const runSearchConsoleQuery = async ({
     assertMaxRows(limit, SEARCH_CONSOLE_MAX_QUERY_ROWS);
     const rowLimit = Math.min(limit, requestLimit ?? limit);
     const dimensions = request.dimensions ?? [];
-    const { rows = [] } = await calls.fetch(
+    const { rows = [] } = await runtime.fetch(
         {
             method: 'POST',
             path: getSearchConsoleQueryPath(settings.siteUrl),

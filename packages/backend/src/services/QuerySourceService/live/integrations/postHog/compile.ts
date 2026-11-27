@@ -8,12 +8,12 @@ import {
     type MetricQuery,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { compileMetricQuery } from '../../../../../queryCompiler';
-import { MetricQueryBuilder } from '../../../../../utils/QueryBuilder/MetricQueryBuilder';
 import {
+    compileMetricQuery,
     getLiveExplore,
+    MetricQueryBuilder,
     type LiveCompiledRequest,
-} from '../../explores/definition';
+} from '../../sdk';
 
 const withDefaultDateRange = (
     metricQuery: MetricQuery,
