@@ -425,7 +425,15 @@ export class ComposerChartModel {
                 ) AS current_version`,
             )
             .select(
-                `${ComposerChartsTableName}.*`,
+                `${ComposerChartsTableName}.composer_chart_uuid`,
+                `${ComposerChartsTableName}.project_uuid`,
+                `${ComposerChartsTableName}.dashboard_uuid`,
+                `${ComposerChartsTableName}.space_uuid`,
+                `${ComposerChartsTableName}.name`,
+                `${ComposerChartsTableName}.description`,
+                `${ComposerChartsTableName}.slug`,
+                `${ComposerChartsTableName}.created_at`,
+                `${ComposerChartsTableName}.created_by_user_uuid`,
                 'current_version.composer_chart_version_uuid',
                 'current_version.pipeline',
                 'current_version.chart',

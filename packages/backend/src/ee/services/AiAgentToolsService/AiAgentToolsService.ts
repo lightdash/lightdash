@@ -155,6 +155,7 @@ import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQuer
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { SpaceOwnedComposerChartUploadError } from '../../../services/CoderService/composerChartsAsCode';
 import type { ComposerChartService } from '../../../services/ComposerChartService/ComposerChartService';
 import { ContentService } from '../../../services/ContentService/ContentService';
 import { DashboardService } from '../../../services/DashboardService/DashboardService';
@@ -4255,6 +4256,10 @@ export class AiAgentToolsService extends BaseService {
             slug,
             'update',
         );
+        // Refused before any SQL approval is asked for
+        if (!current.content.dashboardSlug) {
+            throw new SpaceOwnedComposerChartUploadError(slug);
+        }
         if (
             bound?.type === 'dashboard' &&
             current.content.dashboardSlug !== bound.slug

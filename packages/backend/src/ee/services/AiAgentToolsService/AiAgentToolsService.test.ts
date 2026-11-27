@@ -63,6 +63,7 @@ import {
     withAgentActionScope,
 } from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { SpaceOwnedComposerChartUploadError } from '../../../services/CoderService/composerChartsAsCode';
 import { developmentView } from '../../../services/ProjectService/developmentView';
 import { validatePagination } from '../../../services/ProjectService/resultsPagination';
 import { PromoteService } from '../../../services/PromoteService/PromoteService';
@@ -4030,7 +4031,9 @@ describe('AiAgentToolsService', () => {
             threadBinding = null,
             boundDashboardSlug = 'ops',
             readOnlySpaceUuids = [],
+            composerChart = editableChart,
         }: {
+            composerChart?: Record<string, unknown>;
             flagEnabled?: boolean;
             preflightPipeline?: import('vitest').Mock;
             threadBinding?: AiAgentToolsRuntimeContext['threadBinding'];
@@ -4049,7 +4052,7 @@ describe('AiAgentToolsService', () => {
             const service = makeService({
                 coderService: {
                     getComposerChartForRead: vi.fn(async () => ({
-                        composerChart: editableChart,
+                        composerChart,
                         spaceUuid: 'jaffle-uuid',
                     })),
                     getChartsForRead: vi.fn(async () => ({
@@ -4260,6 +4263,24 @@ describe('AiAgentToolsService', () => {
                     approveSql: vi.fn(async () => editElsewhere()),
                 }),
             ).rejects.toThrow('changed while this edit waited');
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses a space-owned chart before asking for SQL approval', async () => {
+            const { runtime, upsertComposerChart } = makeEditService({
+                composerChart: { ...editableChart, dashboardSlug: null },
+            });
+            const approveSql = vi.fn();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: changeSql,
+                    approveSql,
+                }),
+            ).rejects.toThrow(SpaceOwnedComposerChartUploadError);
+            expect(approveSql).not.toHaveBeenCalled();
             expect(upsertComposerChart).not.toHaveBeenCalled();
         });
 

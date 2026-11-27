@@ -3674,7 +3674,13 @@ export class CoderService extends BaseService {
                     .then(
                         () => true,
                         (error) => {
-                            if (error instanceof ForbiddenError) return false;
+                            // An owner deleted since the list was read is a miss
+                            if (
+                                error instanceof ForbiddenError ||
+                                error instanceof NotFoundError
+                            ) {
+                                return false;
+                            }
                             throw error;
                         },
                     ),
