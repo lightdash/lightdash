@@ -33,11 +33,31 @@ const { dashboard, chart } = await createComposerDashboard(api);
 
 ## Space-owned chart
 
-A composer chart a space owns, with no dashboard. `createComposerSpaceChart`
-in the same helper creates a new space (inheriting project access) and the
-chart; `deleteComposerSpace` deletes the space and, through it, the chart.
-With soft delete on, the chart stays in the trashed space, refused for
-everything, until the space is purged.
+A composer chart a space owns, with no dashboard. In an existing space it is
+one call (`composerSpaceChartBody(spaceUuid)` in the same helper builds the
+body):
+
+```bash
+curl -X POST "$SITE_URL/api/v2/projects/<projectUuid>/composer-charts" \
+  -H "Authorization: ApiKey $LDPAT" -H 'Content-Type: application/json' \
+  -d '{"dashboardUuid": null, "spaceUuid": "<spaceUuid>", "name": "Orders by status",
+       "pipeline": {"schemaVersion": 1, "terminalNodeId": "orders", "nodes": [{
+         "sourceType": "semanticLayer", "nodeId": "orders", "title": "Orders by status",
+         "exploreName": "orders", "dimensions": ["orders_status"],
+         "metrics": ["orders_total_order_amount"]}]},
+       "chart": {"schemaVersion": 1, "columns": [
+         {"reference": "orders_status", "fieldType": "dimension"},
+         {"reference": "orders_total_order_amount", "fieldType": "metric"}],
+         "chartConfig": {"type": "table", "config": {}}, "pivotConfig": null,
+         "tableConfig": {"columnOrder": ["orders_status", "orders_total_order_amount"]}}}'
+```
+
+It needs `SavedChart` write on the space, `manage:ComposerChart` and the
+per-node permissions. There is no delete for the chart alone yet: deleting its
+space deletes it. With soft delete on, the chart stays in the trashed space,
+refused for everything, until the space is purged.
+
+The script does both in a new space that inherits project access:
 
 ```bash
 SITE_URL=… LDPAT=… pnpm -F api-tests composer-dashboard create-space
@@ -45,14 +65,9 @@ SITE_URL=… LDPAT=… pnpm -F api-tests composer-dashboard create-space
 SITE_URL=… LDPAT=… pnpm -F api-tests composer-dashboard delete-space <spaceUuid>
 ```
 
-The create alone is one call: the body of `composerSpaceChartBody(spaceUuid)`
-(`dashboardUuid: null`, `spaceUuid`, a name, the pipeline and the chart) sent
-to `POST /api/v2/projects/{projectUuid}/composer-charts`. It needs `SavedChart`
-write on the space, `manage:ComposerChart` and the per-node permissions.
-
 Scenarios every proof on a space-owned chart checks:
 
 - a viewer of the space reads it (`GET …/composer-charts/{uuid}`, 200);
-- a user who cannot view the space is refused (403);
+- a user in the organization who cannot view the space is refused (403);
 - with `composer-charts` off, the create is refused (403, `featureFlagId`)
   while reading an existing chart still answers.

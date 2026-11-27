@@ -476,11 +476,11 @@ export class ComposerChartService extends BaseService {
         if (dashboardUuid !== null) return { type: 'dashboard', dashboardUuid };
         if (spaceUuid !== null) return { type: 'space', spaceUuid };
         throw new ParameterError(
-            'A composer chart needs a dashboardUuid or a spaceUuid to belong to',
+            'A composer chart requires a dashboardUuid or a spaceUuid',
         );
     }
 
-    /** The one create every caller goes through: the API, the agent and content as code. */
+    /** The create the API and the agent go through. */
     async create(
         account: RegisteredAccount,
         projectUuid: string,
