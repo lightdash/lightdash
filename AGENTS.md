@@ -173,6 +173,9 @@ pnpm -F backend rollback-last
 ## Feature flags
 
 Before adding or changing a feature flag, read [docs/feature-flags.md](docs/feature-flags.md).
+To put a live data source integration behind a flag, follow
+[Live data source integrations](docs/feature-flags.md#live-data-source-integrations):
+add a `FeatureFlags` value and set `featureFlag` on its catalog entry, nothing else.
 Use `FeatureFlagModel.get` / `FeatureFlagService.get` in backend services and
 `useServerFeatureFlag` in the frontend. Do not create an ENV-only or `NODE_ENV`
 rollout gate: the shared resolver supports Console database overrides and

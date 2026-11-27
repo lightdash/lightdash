@@ -1,7 +1,10 @@
 import {
+    ApiConnectorType,
     FeatureFlag,
     FeatureFlags,
+    getLiveSourceFeatureFlag,
     LightdashUser,
+    LIVE_SOURCE_FEATURE_FLAGS,
     PREVIEW_ENABLED_FEATURE_FLAGS,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -20,9 +23,45 @@ const UUID_REGEX =
 const ORG_OVERRIDE_CONFLICT_TARGET =
     '(flag_id, organization_uuid) WHERE organization_uuid IS NOT NULL AND user_uuid IS NULL';
 
+// Live source integrations are turned on per organization, so a query run
+// for anyone in it, or by the scheduler, agrees with what admins see.
 const ORGANIZATION_ONLY_FLAGS: ReadonlySet<string> = new Set([
     FeatureFlags.MobileAppAccess,
+    ...LIVE_SOURCE_FEATURE_FLAGS,
 ]);
+
+const NO_DISABLED_LIVE_INTEGRATIONS: ReadonlySet<ApiConnectorType> = new Set();
+
+/** The live source integrations that declare a feature flag, with it. */
+const getFlaggedLiveIntegrations = () =>
+    Object.values(ApiConnectorType).flatMap((connector) => {
+        const featureFlagId = getLiveSourceFeatureFlag(connector);
+        return featureFlagId ? [{ connector, featureFlagId }] : [];
+    });
+
+/** Where an organization is known up front, or found only when needed. */
+export type OrganizationUuidSource = string | (() => Promise<string>);
+
+/** See `FeatureFlagModel.getDisabledLiveIntegrations`; needs only `get`. */
+export const getDisabledLiveIntegrations = async (
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>,
+    organization: OrganizationUuidSource,
+): Promise<ReadonlySet<ApiConnectorType>> => {
+    const flagged = getFlaggedLiveIntegrations();
+    if (flagged.length === 0) return NO_DISABLED_LIVE_INTEGRATIONS;
+    const organizationUuid =
+        typeof organization === 'string' ? organization : await organization();
+    const flags = await Promise.all(
+        flagged.map(({ featureFlagId }) =>
+            featureFlagModel.get({ user: { organizationUuid }, featureFlagId }),
+        ),
+    );
+    return new Set(
+        flagged
+            .filter((_, index) => !flags[index].enabled)
+            .map(({ connector }) => connector),
+    );
+};
 
 export type FeatureFlagLogicArgs = {
     user?: Pick<LightdashUser, 'organizationUuid'> &
@@ -65,6 +104,16 @@ export class FeatureFlagModel {
                 this.getMobileAppAccessEnabled.bind(this),
             [FeatureFlags.AiThreadImages]:
                 this.getAiThreadImagesEnabled.bind(this),
+            // A live source integration is on until a flag says otherwise.
+            ...Object.fromEntries(
+                [...LIVE_SOURCE_FEATURE_FLAGS].map((flagId) => [
+                    flagId,
+                    (
+                        flagArgs: FeatureFlagLogicArgs,
+                        flagOptions?: FeatureFlagQueryOptions,
+                    ) => this.getWithEnvFallback(flagArgs, true, flagOptions),
+                ]),
+            ),
         };
     }
 
@@ -99,6 +148,18 @@ export class FeatureFlagModel {
         }
 
         return result;
+    }
+
+    /**
+     * The live source integrations the organization has turned off by their
+     * feature flags. Integrations without a flag are always on, so while none
+     * declares one this resolves empty without reading the organization or
+     * the database.
+     */
+    public async getDisabledLiveIntegrations(
+        organization: OrganizationUuidSource,
+    ): Promise<ReadonlySet<ApiConnectorType>> {
+        return getDisabledLiveIntegrations(this, organization);
     }
 
     private async resolve(

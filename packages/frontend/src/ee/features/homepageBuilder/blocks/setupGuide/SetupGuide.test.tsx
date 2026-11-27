@@ -88,6 +88,7 @@ const fresh: SetupGuideFacts = {
     semanticStudioUrl: null,
     appSourceNames: [],
     canAddLiveSources: true,
+    liveIntegrations: [ApiConnectorType.POSTHOG, ApiConnectorType.GA4],
     brand: null,
     teammateCount: 0,
     libraryChartTypes: null,
@@ -176,6 +177,13 @@ describe('buildSetupGuide', () => {
                 ({ id }) => id,
             ),
         ).not.toContain('more-data');
+    });
+
+    it('draws the turned-on integrations on the more data step', () => {
+        expect(rowById(fresh, 'app-data')?.preview).toEqual({
+            kind: 'live-sources',
+            connectors: [ApiConnectorType.POSTHOG, ApiConnectorType.GA4],
+        });
     });
 
     it('starts every row as suggested', () => {

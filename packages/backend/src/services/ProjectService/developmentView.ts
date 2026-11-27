@@ -3,6 +3,7 @@ import {
     ParameterError,
     toExploreSummary,
     type Account,
+    type ApiConnectorType,
     type Explore,
     type ExploreError,
     type SummaryExplore,
@@ -47,6 +48,7 @@ export const toExploreSummaryWithAccess = (
 ): SummaryExplore & {
     baseTableRequiredAttributes: Explore['tables'][string]['requiredAttributes'];
     baseTableAnyAttributes: Explore['tables'][string]['anyAttributes'];
+    apiSourceIntegration?: ApiConnectorType;
 } => {
     const baseTable = isExploreError(explore)
         ? undefined
@@ -55,5 +57,6 @@ export const toExploreSummaryWithAccess = (
         ...toExploreSummary(explore),
         baseTableRequiredAttributes: baseTable?.requiredAttributes,
         baseTableAnyAttributes: baseTable?.anyAttributes,
+        apiSourceIntegration: explore.apiSource?.integration,
     };
 };

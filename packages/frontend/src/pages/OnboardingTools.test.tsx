@@ -1,4 +1,4 @@
-import { type HealthState } from '@lightdash/common';
+import { ApiConnectorType, type HealthState } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -28,6 +28,24 @@ vi.mock('../hooks/useExplores', () => ({
         isInitialLoading: project.isLoadingExplores,
     }),
 }));
+const integrations = vi.hoisted(() => ({
+    enabled: [] as string[] | undefined,
+    isError: false,
+    refetch: vi.fn(),
+}));
+vi.mock(
+    '../features/externalConnections/hooks/useEnabledLiveIntegrations',
+    () => ({
+        useEnabledLiveIntegrations: () => ({
+            data: integrations.enabled,
+            isInitialLoading:
+                integrations.enabled === undefined && !integrations.isError,
+            isError: integrations.isError,
+            isFetching: false,
+            refetch: integrations.refetch,
+        }),
+    }),
+);
 vi.mock('../features/externalConnections/hooks/useExternalConnections', () => ({
     useExternalConnections: vi.fn(),
 }));
@@ -84,6 +102,12 @@ describe('OnboardingTools', () => {
         project.data = undefined;
         project.explores = [];
         project.isLoadingExplores = false;
+        integrations.isError = false;
+        integrations.enabled = [
+            ApiConnectorType.POSTHOG,
+            ApiConnectorType.GA4,
+            ApiConnectorType.SEARCH_CONSOLE,
+        ];
         vi.mocked(useExternalConnections).mockReturnValue({
             data: [],
         } as unknown as ReturnType<typeof useExternalConnections>);
@@ -135,6 +159,50 @@ describe('OnboardingTools', () => {
         ).not.toBeInTheDocument();
         expect(
             screen.queryByText('Marketing and search'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('hides the integrations the organization turned off', async () => {
+        integrations.enabled = [ApiConnectorType.GA4];
+        renderPage({ ...LICENSED, hasGoogleLiveSources: true });
+
+        expect(
+            await screen.findByText('Google Analytics 4'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Product analytics')).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Google Search Console'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('moves on to the team step when every onboarding integration is off, even without a warehouse', async () => {
+        integrations.enabled = [ApiConnectorType.HUBSPOT];
+        project.data = { warehouseConnection: null };
+        renderPage({ ...LICENSED, hasGoogleLiveSources: true, hasSlack: true });
+
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Bring in your team',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Back' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('offers a retry instead of skipping when the integration list fails to load', async () => {
+        integrations.enabled = undefined;
+        integrations.isError = true;
+        project.data = { warehouseConnection: null };
+        renderPage({ ...LICENSED, hasGoogleLiveSources: true });
+
+        expect(
+            await screen.findByText("Couldn't load the tools you can connect."),
+        ).toBeInTheDocument();
+        screen.getByRole('button', { name: 'Try again' }).click();
+        expect(integrations.refetch).toHaveBeenCalled();
+        expect(
+            screen.queryByRole('heading', { name: 'Bring in your team' }),
         ).not.toBeInTheDocument();
     });
 

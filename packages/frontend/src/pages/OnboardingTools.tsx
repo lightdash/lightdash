@@ -45,6 +45,7 @@ import { ConnectionFormSkeleton } from '../components/ProjectConnection/Connecti
 import { OnboardingDoneStep } from '../ee/features/onboardingDone/OnboardingDoneStep';
 import { useInstallStarterChartTypes } from '../features/chartTypes/hooks/useInstallStarterChartTypes';
 import { useCreateExternalConnection } from '../features/externalConnections/hooks/useCreateExternalConnection';
+import { useEnabledLiveIntegrations } from '../features/externalConnections/hooks/useEnabledLiveIntegrations';
 import { useExternalConnections } from '../features/externalConnections/hooks/useExternalConnections';
 import { useLiveSourceFields } from '../features/externalConnections/hooks/useLiveSourceFields';
 import { useLiveSourcesAvailability } from '../features/externalConnections/hooks/useLiveSourcesAvailability';
@@ -147,7 +148,8 @@ const LiveSourceAside: FC<{
     connection: ExternalConnectionListItem;
     connector: ApiConnectorType;
     warehouse: WarehouseTypes | null;
-}> = ({ projectUuid, connection, connector, warehouse }) => {
+    sources: readonly ApiConnectorType[];
+}> = ({ projectUuid, connection, connector, warehouse, sources }) => {
     const { data } = useLiveSourceFields({
         projectUuid,
         connectionUuid: connection.externalConnectionUuid,
@@ -161,7 +163,7 @@ const LiveSourceAside: FC<{
         }));
 
     if (fields.length === 0) {
-        return <ToolsVisual warehouse={warehouse} />;
+        return <ToolsVisual warehouse={warehouse} sources={sources} />;
     }
     return (
         <LiveSourceFieldsVisual
@@ -179,10 +181,11 @@ const ToolsAside: FC<{
     projectUuid: string;
     connection: ExternalConnectionListItem | null;
     warehouse: WarehouseTypes | null;
-}> = ({ projectUuid, connection, warehouse }) => {
+    sources: readonly ApiConnectorType[];
+}> = ({ projectUuid, connection, warehouse, sources }) => {
     const connector = connection?.apiSource?.connector;
     if (!connection || !connector) {
-        return <ToolsVisual warehouse={warehouse} />;
+        return <ToolsVisual warehouse={warehouse} sources={sources} />;
     }
     return (
         <LiveSourceAside
@@ -190,6 +193,7 @@ const ToolsAside: FC<{
             connection={connection}
             connector={connector}
             warehouse={warehouse}
+            sources={sources}
         />
     );
 };
@@ -517,6 +521,10 @@ const OnboardingToolsContent: FC<{
     const [searchParams] = useSearchParams();
     const { health } = useApp();
     const liveSourcesAvailability = useLiveSourcesAvailability();
+    // Each integration can be turned off for the organization; none count as on while loading or on error
+    const enabledIntegrations = useEnabledLiveIntegrations();
+    const isIntegrationOn = (connector: ApiConnectorType) =>
+        enabledIntegrations.data?.includes(connector) === true;
     const [isPostHogOpen, setIsPostHogOpen] = useState(
         () =>
             searchParams.get('connect')?.split(',').includes('posthog') ??
@@ -531,11 +539,22 @@ const OnboardingToolsContent: FC<{
         organizationUuid: user.organizationUuid,
         projectUuid,
     });
-    const showLiveSources =
+    const canManageLiveSources =
         liveSourcesAvailability.isAvailable &&
         user.ability.can('manage', subject('LiveSource', projectSubject()));
-    const showGoogle =
-        showLiveSources && health.data?.hasGoogleLiveSources === true;
+    const showPostHog =
+        canManageLiveSources && isIntegrationOn(ApiConnectorType.POSTHOG);
+    const googleConnectors =
+        canManageLiveSources && health.data?.hasGoogleLiveSources === true
+            ? GOOGLE_CONNECTORS.filter(isIntegrationOn)
+            : [];
+    const showGoogle = googleConnectors.length > 0;
+    // With every onboarding integration off, the step is skipped so no one is stuck on it
+    const showLiveSources = showPostHog || showGoogle;
+    const offeredConnectors: ApiConnectorType[] = [
+        ...(showPostHog ? [ApiConnectorType.POSTHOG] : []),
+        ...googleConnectors,
+    ];
 
     const { data: project, isInitialLoading: isLoadingProject } =
         useProject(projectUuid);
@@ -547,7 +566,7 @@ const OnboardingToolsContent: FC<{
         { enabled: hasNoWarehouse },
     );
     const { data: connections = [] } = useExternalConnections(
-        showLiveSources ? projectUuid : undefined,
+        canManageLiveSources ? projectUuid : undefined,
     );
 
     const donePath = `/onboarding/tools/${projectUuid}?step=done`;
@@ -564,7 +583,10 @@ const OnboardingToolsContent: FC<{
         );
     }
 
-    if (liveSourcesAvailability.isLoading) {
+    if (
+        liveSourcesAvailability.isLoading ||
+        (canManageLiveSources && enabledIntegrations.isInitialLoading)
+    ) {
         return (
             <OnboardingLayout
                 journey={{
@@ -575,6 +597,30 @@ const OnboardingToolsContent: FC<{
                 aside={<StepVisual step={isTeamStep ? 'team' : 'tools'} />}
             >
                 <ConnectionFormSkeleton />
+            </OnboardingLayout>
+        );
+    }
+
+    // Without the list we can't tell which tools to offer; skipping would strand projects with no warehouse
+    if (!isTeamStep && canManageLiveSources && enabledIntegrations.isError) {
+        return (
+            <OnboardingLayout
+                journey={{ currentStep: 3, steps: ONBOARDING_DATA_STEPS }}
+                stackDepth={2}
+                aside={<StepVisual step="tools" />}
+            >
+                <Stack gap="md" align="flex-start">
+                    <Text c="dimmed">
+                        Couldn't load the tools you can connect.
+                    </Text>
+                    <Button
+                        variant="default"
+                        loading={enabledIntegrations.isFetching}
+                        onClick={() => enabledIntegrations.refetch()}
+                    >
+                        Try again
+                    </Button>
+                </Stack>
             </OnboardingLayout>
         );
     }
@@ -631,6 +677,7 @@ const OnboardingToolsContent: FC<{
                     projectUuid={projectUuid}
                     connection={latestLiveSource}
                     warehouse={project?.warehouseConnection?.type ?? null}
+                    sources={offeredConnectors}
                 />
             }
         >
@@ -641,48 +688,55 @@ const OnboardingToolsContent: FC<{
                     {subtitle && <Text c="dimmed">{subtitle}</Text>}
                 </Stack>
 
-                <ToolGroup title="Product analytics">
-                    <ToolRow
-                        icon={
-                            <LiveSourceIcon
-                                connector={ApiConnectorType.POSTHOG}
-                                size={24}
-                            />
-                        }
-                        label={getLiveSource(ApiConnectorType.POSTHOG).label}
-                        description={
-                            getLiveSource(ApiConnectorType.POSTHOG).description
-                        }
-                        info="AI agents query this PostHog project live with HogQL. Sign in, or use a personal API key with the Query Read scope."
-                        connectedDetail={describeConnections(
-                            postHogConnections,
-                        )}
-                        action={
-                            !isPostHogOpen && (
-                                <Button
-                                    size="xs"
-                                    variant="default"
-                                    onClick={() => setIsPostHogOpen(true)}
-                                >
-                                    {connectLabel(
-                                        postHogConnections.length > 0,
-                                    )}
-                                </Button>
-                            )
-                        }
-                    />
-                    {isPostHogOpen && (
-                        <PostHogInlineConnect
-                            projectUuid={projectUuid}
-                            canSignIn={health.data?.hasPostHogOAuth ?? false}
-                            onDone={() => setIsPostHogOpen(false)}
+                {showPostHog && (
+                    <ToolGroup title="Product analytics">
+                        <ToolRow
+                            icon={
+                                <LiveSourceIcon
+                                    connector={ApiConnectorType.POSTHOG}
+                                    size={24}
+                                />
+                            }
+                            label={
+                                getLiveSource(ApiConnectorType.POSTHOG).label
+                            }
+                            description={
+                                getLiveSource(ApiConnectorType.POSTHOG)
+                                    .description
+                            }
+                            info="AI agents query this PostHog project live with HogQL. Sign in, or use a personal API key with the Query Read scope."
+                            connectedDetail={describeConnections(
+                                postHogConnections,
+                            )}
+                            action={
+                                !isPostHogOpen && (
+                                    <Button
+                                        size="xs"
+                                        variant="default"
+                                        onClick={() => setIsPostHogOpen(true)}
+                                    >
+                                        {connectLabel(
+                                            postHogConnections.length > 0,
+                                        )}
+                                    </Button>
+                                )
+                            }
                         />
-                    )}
-                </ToolGroup>
+                        {isPostHogOpen && (
+                            <PostHogInlineConnect
+                                projectUuid={projectUuid}
+                                canSignIn={
+                                    health.data?.hasPostHogOAuth ?? false
+                                }
+                                onDone={() => setIsPostHogOpen(false)}
+                            />
+                        )}
+                    </ToolGroup>
+                )}
 
                 {showGoogle && (
                     <ToolGroup title="Marketing and search">
-                        {GOOGLE_CONNECTORS.map((connector, index) => {
+                        {googleConnectors.map((connector, index) => {
                             const entry = getLiveSource(connector);
                             const connected = connectionsFor(
                                 connections,

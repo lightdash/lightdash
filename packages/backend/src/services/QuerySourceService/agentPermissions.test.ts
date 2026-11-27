@@ -141,6 +141,9 @@ const setup = (
         agentPermissionService: permissions,
         asyncQueryService,
         lightdashConfig: { ai: { copilot: { maxQueryLimit: 100 } } },
+        featureFlagModel: {
+            getDisabledLiveIntegrations: vi.fn().mockResolvedValue(new Set()),
+        },
     } as unknown as ConstructorParameters<typeof AiAgentToolsService>[0]);
     const composer = (surface: AgentActorSurface, queries: SourceQuery[]) => {
         const runtimeAccount =

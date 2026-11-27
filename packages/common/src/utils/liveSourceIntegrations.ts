@@ -6,6 +6,7 @@ import {
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';
+import { type FeatureFlags } from '../types/featureFlags';
 import { ApiConnectorType } from '../types/querySources';
 import { HYDRA_SETTINGS_SCHEMA } from './hydraLiveSource';
 
@@ -41,6 +42,16 @@ type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
     getTarget: (apiSource: ApiSourceOf<C>) => string;
     /** Offered by the onboarding tools step. Most sources are added later. */
     inOnboarding?: true;
+    /**
+     * The feature flag that turns this integration on or off. On while the
+     * flag has no stored value; otherwise the organization's override, else
+     * the flag's default, decides. Without one the integration is always on.
+     *
+     * To gate an integration, add `LiveSource<Integration> = 'live-source-<connector>'`
+     * to `FeatureFlags` and set it here; nothing else is needed. Off hides it
+     * everywhere and refuses its actions. See docs/feature-flags.md#live-data-source-integrations.
+     */
+    featureFlag?: FeatureFlags;
 };
 
 /**
@@ -300,6 +311,17 @@ export const getLiveIntegrationCatalogEntry = (
         getTarget: entry.getTarget as LiveIntegrationCatalogEntry['getTarget'],
     };
 };
+
+/** The integration's feature flag, if it has one. */
+export const getLiveSourceFeatureFlag = (connector: ApiConnectorType) =>
+    LIVE_INTEGRATION_CATALOG[connector].featureFlag;
+
+/** Every feature flag an integration declares. */
+export const LIVE_SOURCE_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>(
+    Object.values(LIVE_INTEGRATION_CATALOG).flatMap(({ featureFlag }) =>
+        featureFlag ? [featureFlag] : [],
+    ),
+);
 
 /** What a source reads: a PostHog project, a Search Console site, a GA4 property and so on. */
 export const getLiveSourceTarget = (apiSource: ExternalConnectionApiSource) =>

@@ -49,6 +49,7 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'MetricsExplorerController.runMetricSeries': 'read',
     'MetricsExplorerController.compileMetricTotalQuery': 'read',
     'OrganizationController.getOrganization': 'read',
+    'OrgLiveIntegrationsController.getEnabledLiveIntegrations': 'read',
     'OrganizationBrandController.getOrganizationBrand': 'read',
     'OrganizationBrandController.getOrganizationBrandLogo': 'read',
     'OrganizationController.createOrganization': 'write',

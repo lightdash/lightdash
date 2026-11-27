@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS,
+    type ApiConnectorType,
     type HomepageRecommendedActionKey,
     type OrganizationBrand,
     type RegistryChartTypeListItem,
@@ -32,10 +33,16 @@ export type SetupGuideEvidence = {
     swatches: string[];
 };
 
-export type SetupGuidePreview = {
-    kind: 'chart-types';
-    chartTypes: RegistryChartTypeListItem[];
-};
+export type SetupGuidePreview =
+    | {
+          kind: 'chart-types';
+          chartTypes: RegistryChartTypeListItem[];
+      }
+    | {
+          /** The integrations the organization has turned on, drawn on the step */
+          kind: 'live-sources';
+          connectors: ApiConnectorType[];
+      };
 
 export type SetupGuideChoice = {
     kind: 'ask' | 'explore';
@@ -84,8 +91,10 @@ export type SetupGuideFacts = {
     // Semantic Layer page, when its flag is on; review lands there
     semanticStudioUrl: string | null;
     appSourceNames: string[];
-    // The live sources settings page only exists behind its flag and permission
+    // The live sources settings page only exists behind its flag and permission, and with an integration turned on
     canAddLiveSources: boolean;
+    // Turned-on integrations, in display order
+    liveIntegrations: ApiConnectorType[];
     brand: OrganizationBrand | null;
     teammateCount: number;
     // null where the chart type library is unavailable to this org
@@ -179,7 +188,7 @@ const warehouseRow = (facts: SetupGuideFacts): SetupGuideRow => {
 };
 
 const appDataRow = (facts: SetupGuideFacts): SetupGuideRow => {
-    const { projectUuid, appSourceNames } = facts;
+    const { projectUuid, appSourceNames, liveIntegrations } = facts;
     const to = getSemanticStudioLiveSourcesUrl(projectUuid);
     const hasSources = appSourceNames.length > 0;
     return {
@@ -191,7 +200,7 @@ const appDataRow = (facts: SetupGuideFacts): SetupGuideRow => {
             : null,
         action: { label: hasSources ? 'Manage' : 'Connect', to },
         actionKey: null,
-        preview: null,
+        preview: { kind: 'live-sources', connectors: liveIntegrations },
         choices: [],
     };
 };

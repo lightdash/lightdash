@@ -78,12 +78,14 @@ import {
     CatalogSearchContext,
 } from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
+import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { wrapSentryTransaction } from '../../utils';
+import { isExploreOfDisabledLiveIntegration } from '../../utils/disabledLiveIntegrations';
 import {
     redactCatalogMetricSql,
     redactFieldSql,
@@ -112,6 +114,7 @@ export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
     spaceModel: SpaceModel;
     tagsModel: TagsModel;
     spacePermissionService: SpacePermissionService;
+    featureFlagModel: Pick<FeatureFlagModel, 'getDisabledLiveIntegrations'>;
 };
 
 export class CatalogService<
@@ -135,6 +138,8 @@ export class CatalogService<
 
     spacePermissionService: SpacePermissionService;
 
+    featureFlagModel: CatalogArguments['featureFlagModel'];
+
     constructor({
         lightdashConfig,
         analytics,
@@ -145,6 +150,7 @@ export class CatalogService<
         spaceModel,
         tagsModel,
         spacePermissionService,
+        featureFlagModel,
     }: CatalogArguments<T>) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -156,6 +162,7 @@ export class CatalogService<
         this.spaceModel = spaceModel;
         this.tagsModel = tagsModel;
         this.spacePermissionService = spacePermissionService;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private assertJwtCanViewCatalog(
@@ -346,10 +353,21 @@ export class CatalogService<
                 searchQuery: args.catalogSearch.searchQuery,
             },
             async () => {
-                const tablesConfiguration =
-                    await this.projectModel.getTablesConfiguration(
-                        args.projectUuid,
-                    );
+                const [tablesConfiguration, excludedIntegrations] =
+                    await Promise.all([
+                        this.projectModel.getTablesConfiguration(
+                            args.projectUuid,
+                        ),
+                        // The organization is read only once an integration declares a flag
+                        this.featureFlagModel.getDisabledLiveIntegrations(
+                            async () =>
+                                (
+                                    await this.projectModel.getSummary(
+                                        args.projectUuid,
+                                    )
+                                ).organizationUuid,
+                        ),
+                    ]);
 
                 return wrapSentryTransaction(
                     'CatalogService.searchCatalog.modelSearch',
@@ -366,6 +384,7 @@ export class CatalogService<
                             excludeUnmatched: args.excludeUnmatched,
                             fullTextSearchOperator: args.fullTextSearchOperator,
                             filteredExplores: args.filteredExplores,
+                            excludedIntegrations,
                         }),
                 );
             },
@@ -410,7 +429,17 @@ export class CatalogService<
                     storedExploreBytes,
                 });
 
-                const explores = Object.values(cachedExplores);
+                const disabledIntegrations =
+                    await this.featureFlagModel.getDisabledLiveIntegrations(
+                        organizationUuid,
+                    );
+                const explores = Object.values(cachedExplores).filter(
+                    (explore) =>
+                        !isExploreOfDisabledLiveIntegration(
+                            explore,
+                            disabledIntegrations,
+                        ),
+                );
 
                 const userAttributes =
                     await this.userAttributesModel.getAttributeValuesForOrgMember(
@@ -1597,6 +1626,10 @@ export class CatalogService<
             tablesConfiguration:
                 await this.projectModel.getTablesConfiguration(projectUuid),
             hasTimeDimension: true,
+            excludedIntegrations:
+                await this.featureFlagModel.getDisabledLiveIntegrations(
+                    organizationUuid,
+                ),
             // Explicit cap: this v1 endpoint is project-wide when tableName is omitted
             // and could otherwise grow unbounded. Use the v2 paginated endpoint for full results.
             paginateArgs: { page: 1, pageSize: 50 },
@@ -1690,6 +1723,10 @@ export class CatalogService<
                 await this.projectModel.getTablesConfiguration(projectUuid),
             hasTimeDimension: true,
             tags,
+            excludedIntegrations:
+                await this.featureFlagModel.getDisabledLiveIntegrations(
+                    organizationUuid,
+                ),
             paginateArgs,
             sortArgs,
         });

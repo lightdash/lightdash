@@ -6,8 +6,7 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { WarehouseTypeLabels } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import {
     getLiveSourceIconClass,
-    isAvailableLiveSource,
-    LIVE_SOURCE_CATALOG,
+    type AvailableLiveSource,
 } from '../externalConnections/liveSources/liveSourceCatalog';
 import classes from './ConnectionDock.module.css';
 import { KindIcon } from './shared';
@@ -24,9 +23,7 @@ const WAREHOUSE_LOGOS = WarehouseTypeLabels.flatMap((warehouse) =>
         : [],
 );
 
-const LIVE_LOGOS = LIVE_SOURCE_CATALOG.filter(isAvailableLiveSource)
-    .slice(0, 3)
-    .map(({ label, icon }) => ({ label, icon }));
+const LIVE_LOGOS_SHOWN = 3;
 
 /** Pinned under the tree while the project has no warehouse; the supported ones drift past. */
 export const ConnectWarehouseDock: FC<{ path: string }> = ({ path }) => (
@@ -104,8 +101,11 @@ export const VirtualViewSuggestion: FC<{ path: string }> = ({ path }) => (
     </Box>
 );
 
-/** Quiet, like the virtual view nudge: tools queried live, no warehouse needed. */
-export const LiveSourceSuggestion: FC<{ onAdd: () => void }> = ({ onAdd }) => (
+/** Quiet, like the virtual view nudge: tools queried live, no warehouse needed; shows the turned-on integrations. */
+export const LiveSourceSuggestion: FC<{
+    sources: readonly AvailableLiveSource[];
+    onAdd: () => void;
+}> = ({ sources, onAdd }) => (
     <Box
         component="button"
         type="button"
@@ -113,7 +113,7 @@ export const LiveSourceSuggestion: FC<{ onAdd: () => void }> = ({ onAdd }) => (
         onClick={onAdd}
     >
         <Box className={classes.miniLogos} aria-hidden>
-            {LIVE_LOGOS.map(({ label, icon }) => (
+            {sources.slice(0, LIVE_LOGOS_SHOWN).map(({ label, icon }) => (
                 <img
                     key={label}
                     src={icon}
