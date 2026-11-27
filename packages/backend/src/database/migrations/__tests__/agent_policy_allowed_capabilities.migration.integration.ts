@@ -86,7 +86,6 @@ test('a historical null list preserves custom grants until a save narrows them',
             .returning('organization_uuid');
         await trx('organization_agent_capability_policies').insert({
             organization_uuid: org.organization_uuid,
-            mode: 'managed',
             version: 1,
             allowed_capabilities: null,
             allowed_group_uuids: null,
@@ -195,7 +194,6 @@ test('obsolete saved people and project lists do not restrict role capabilities 
             .where('organization_uuid', org.organization_uuid)
             .first();
         expect(row).toMatchObject({
-            mode: 'managed',
             allowed_user_uuids: [excludedUser],
             allowed_project_uuids: [excludedProject],
         });

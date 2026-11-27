@@ -21,13 +21,6 @@ type StoredPolicy = Pick<
     'version' | 'allowed_capabilities' | 'allowed_group_uuids'
 >;
 
-// The mode column is still written so the previous release keeps working, but
-// nothing reads it: a saved capability list is what restricts agents.
-const storedModeFor = (
-    allowedCapabilities: AgentCapability[] | null,
-): DbAgentCapabilityPolicy['mode'] =>
-    allowedCapabilities === null ? 'legacy' : 'managed';
-
 export interface AgentEnforcementPolicy {
     version: number;
     allowedCapabilities: AgentCapability[] | null;
@@ -167,7 +160,6 @@ export class AgentCapabilityPolicyModel {
             const query = transaction(AgentCapabilityPoliciesTableName)
                 .insert({
                     organization_uuid: organizationUuid,
-                    mode: storedModeFor(normalizedCapabilities),
                     version: 1,
                     allowed_capabilities: normalizedCapabilities,
                     allowed_project_uuids: null,
@@ -178,7 +170,6 @@ export class AgentCapabilityPolicyModel {
                 .onConflict('organization_uuid')
                 .merge({
                     ...(allowedCapabilities !== undefined && {
-                        mode: storedModeFor(normalizedCapabilities),
                         allowed_capabilities: normalizedCapabilities,
                     }),
                     allowed_project_uuids: null,

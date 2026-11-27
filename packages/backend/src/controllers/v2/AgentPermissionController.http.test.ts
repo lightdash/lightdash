@@ -40,7 +40,6 @@ const setup = () => {
         { action: 'manage', subject: 'all' },
     ]);
     const row = {
-        mode: 'managed' as 'managed' | 'legacy',
         version: 2,
         allowed_capabilities: [AgentCapability.Query] as
             | AgentCapability[]
@@ -71,13 +70,12 @@ const setup = () => {
             if (query.sql.includes('where') && version !== row.version)
                 return [];
             // A save that omits the capability list leaves it out of the
-            // update, so the stored list and mode stay as they were.
+            // update, so the stored list stays as it was.
             if (
                 query.sql
                     .slice(query.sql.indexOf('do update set'))
                     .includes('"allowed_capabilities"')
             ) {
-                row.mode = values.mode;
                 row.allowed_capabilities = values.allowed_capabilities;
             }
             row.allowed_user_uuids = values.allowed_user_uuids;
@@ -192,7 +190,6 @@ test('generated GET, new PUT and reset return the final shape', async () => {
     expect(saved.status).toBe(200);
     expect(saved.body.results).not.toHaveProperty('mode');
     expect(h.row.allowed_capabilities).toEqual([]);
-    expect(h.row.mode).toBe('managed');
     const reset = await h.call('POST', `${path}/reset`, { version: 3 });
     expect(reset.status).toBe(200);
     expect(reset.body.results).toEqual({
@@ -200,7 +197,7 @@ test('generated GET, new PUT and reset return the final shape', async () => {
         allowedCapabilities: null,
         allowedGroupUuids: ['saved-group'],
     });
-    expect(h.row.mode).toBe('legacy');
+    expect(h.row.allowed_capabilities).toBeNull();
     expect((await h.call('POST', `${path}/reset`)).status).toBe(200);
 });
 
@@ -212,7 +209,7 @@ test('generated PUT removes the restrictions when the capability list is null', 
     });
     expect(result.status).toBe(200);
     expect(result.body.results).toMatchObject({ allowedCapabilities: null });
-    expect(h.row).toMatchObject({ mode: 'legacy', allowed_capabilities: null });
+    expect(h.row).toMatchObject({ allowed_capabilities: null });
 });
 
 test.each(['legacy', 'managed', 'invalid'])(
@@ -228,10 +225,12 @@ test.each(['legacy', 'managed', 'invalid'])(
         expect(result.body.results).toMatchObject({
             allowedCapabilities: [AgentCapability.Export],
         });
-        expect(h.row).toMatchObject({
-            mode: 'managed',
-            allowed_capabilities: [AgentCapability.Export],
-        });
+        expect(h.row).toEqual(
+            expect.objectContaining({
+                allowed_capabilities: [AgentCapability.Export],
+            }),
+        );
+        expect(h.row).not.toHaveProperty('mode');
     },
 );
 
