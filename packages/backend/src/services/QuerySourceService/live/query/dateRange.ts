@@ -18,13 +18,32 @@ export type LiveDateRange = { start: LiveDateBound; end: LiveDateBound };
 const daysAgo = (days: number): LiveDateBound => ({ daysAgo: days });
 const onDate = (date: string): LiveDateBound => ({ date });
 
-const DAY_MS = 86_400_000;
+export const DAY_MS = 86_400_000;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
 
-const toUtcDate = (isoDate: string) => new Date(`${isoDate}T00:00:00Z`);
-const toIsoDate = (date: Date) => date.toISOString().slice(0, 10);
-const addDays = (isoDate: string, days: number) =>
+/** Midnight UTC of a YYYY-MM-DD day. */
+export const toUtcDate = (isoDate: string) => new Date(`${isoDate}T00:00:00Z`);
+/** A date's UTC day, as YYYY-MM-DD. */
+export const toIsoDate = (date: Date) => date.toISOString().slice(0, 10);
+/** The YYYY-MM-DD day `days` after `isoDate` (before, when negative). */
+export const addDays = (isoDate: string, days: number) =>
     toIsoDate(new Date(toUtcDate(isoDate).getTime() + days * DAY_MS));
+/** The YYYY-MM-DD day `months` after `isoDate`; past a month's end it rolls over, as `Date` does. */
+export const addMonths = (isoDate: string, months: number) => {
+    const date = toUtcDate(isoDate);
+    date.setUTCMonth(date.getUTCMonth() + months);
+    return toIsoDate(date);
+};
+/** The first day of `isoDate`'s week, which starts on `weekStart`. */
+export const toWeekStart = (
+    isoDate: string,
+    weekStart: 'sunday' | 'monday',
+) => {
+    const day = toUtcDate(isoDate).getUTCDay();
+    return addDays(isoDate, -(weekStart === 'sunday' ? day : (day + 6) % 7));
+};
+/** The first day of `isoDate`'s month. */
+export const toMonthStart = (isoDate: string) => `${isoDate.slice(0, 7)}-01`;
 const daysBetween = (from: string, to: string) =>
     Math.round((toUtcDate(to).getTime() - toUtcDate(from).getTime()) / DAY_MS);
 

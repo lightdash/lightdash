@@ -34,6 +34,7 @@ export type {
 } from './types';
 
 // Explores and fields
+export { LIVE_FILTERS } from './explores/filterPresets';
 export {
     ADDITIVE,
     dimension,
@@ -59,14 +60,26 @@ export {
 // Compiling and running queries
 export { parseRetryAfterSeconds } from './calls';
 export {
+    addDays,
+    addMonths,
+    DAY_MS,
     getIsoDateInTimeZone,
     getLiveDateRange,
     resolveAbsoluteDateRange,
     splitDateRangeFilter,
     toAbsoluteDateRange,
+    toIsoDate,
+    toMonthStart,
+    toUtcDate,
+    toWeekStart,
     type LiveDateBound,
 } from './query/dateRange';
 export { escapeRe2 } from './query/escapeRe2';
+export {
+    summarizeTestWith,
+    toLiveHttpError,
+    type LiveHttpErrorMessages,
+} from './query/httpError';
 export { getGrainIssues, type LiveGrain } from './query/grain';
 export { getFinestLevel, isFinerLevel } from './query/levels';
 export { refuseLiveQuery } from './query/refuse';
