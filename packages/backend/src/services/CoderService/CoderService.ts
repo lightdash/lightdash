@@ -3643,25 +3643,30 @@ export class CoderService extends BaseService {
         spaceUuid: string;
     } | null> {
         // A uuid resolves in this project only; slugs are unique per project
-        const slug = CoderService.isUuid(composerChartUuidOrSlug)
+        const resolved = CoderService.isUuid(composerChartUuidOrSlug)
             ? await this.composerChartModel
                   .getUuidByUuidOrSlug(projectUuid, composerChartUuidOrSlug)
                   .then((uuid) => this.composerChartModel.get(uuid))
                   .then(
-                      (stored) => stored.slug,
+                      ({ uuid, slug }) => ({ uuid, slug }),
                       (error) => {
                           if (error instanceof NotFoundError) return null;
                           throw error;
                       },
                   )
-            : composerChartUuidOrSlug;
-        if (slug === null) return null;
+            : { uuid: null, slug: composerChartUuidOrSlug };
+        if (resolved === null) return null;
         const [chart] = await this.findViewableComposerCharts(
             account,
             projectUuid,
-            [slug],
+            [resolved.slug],
         );
-        if (!chart) return null;
+        if (
+            !chart ||
+            (resolved.uuid !== null && chart.uuid !== resolved.uuid)
+        ) {
+            return null;
+        }
         const [composerChart] = await this.getComposerChartsAsCode(
             projectUuid,
             CoderService.withSpaceSlugs([chart]),
