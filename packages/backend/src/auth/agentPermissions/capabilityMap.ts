@@ -918,6 +918,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.externalFetch': [
         AgentCapability.ExternalTools,
     ],
+    'ExternalConnectionController.getEnabledLiveIntegrations': [
+        AgentCapability.ReadDiscover,
+    ],
     'ExternalConnectionController.getExternalConnection': [
         AgentCapability.ReadDiscover,
     ],

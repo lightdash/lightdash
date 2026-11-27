@@ -235,6 +235,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'ExternalConnectionController.createExternalConnection',
     'ExternalConnectionController.deleteExternalConnection',
     'ExternalConnectionController.deleteExternalConnectionSample',
+    'ExternalConnectionController.getEnabledLiveIntegrations',
     'ExternalConnectionController.getExternalConnection',
     'ExternalConnectionController.getExternalConnectionApiUsage',
     'ExternalConnectionController.getExternalConnectionRateLimitUsage',
