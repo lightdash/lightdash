@@ -96,6 +96,16 @@ const describeUsage = (charts: number): string | null =>
 
 type ChipState = 'removed' | 'unbuilt' | 'on' | 'off';
 
+const chipStateOf = (
+    isRemoved: boolean,
+    isUnbuilt: boolean,
+    isOn: boolean,
+): ChipState => {
+    if (isRemoved) return 'removed';
+    if (isUnbuilt) return 'unbuilt';
+    return isOn ? 'on' : 'off';
+};
+
 const describeChip = (state: ChipState, usage: string | null): string => {
     switch (state) {
         case 'removed':
@@ -124,9 +134,7 @@ const FieldChip: FC<{
         !isOff &&
         (field.isMetric ? metrics : dimensions).includes(field.fieldId);
     const usage = describeUsage(charts);
-    let state: ChipState = isOn ? 'on' : 'off';
-    if (isRemoved) state = 'removed';
-    else if (isUnbuilt) state = 'unbuilt';
+    const state = chipStateOf(isRemoved, isUnbuilt, isOn);
     return (
         <Tooltip multiline w={240} label={describeChip(state, usage)}>
             <Button

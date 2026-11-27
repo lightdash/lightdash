@@ -1,9 +1,10 @@
 import {
+    findCatalogColumn,
     getItemId,
     getTableColumnReferences,
+    indexWarehouseCatalog,
     isExploreError,
     parseAllReferences,
-    type CompiledTable,
     type Explore,
     type ExploreError,
     type SemanticStudioUnbuiltField,
@@ -11,54 +12,54 @@ import {
     type WarehouseTableSchema,
 } from '@lightdash/common';
 
-const findKey = <T>(record: Record<string, T> | undefined, key: string) =>
-    Object.entries(record ?? {}).find(
-        ([name]) => name.toLowerCase() === key.toLowerCase(),
-    )?.[1];
+/** A field the warehouse cannot answer, and the explore whose model it belongs to. */
+type FieldWithoutColumn = SemanticStudioUnbuiltField & { explore: string };
 
-/** A table's built columns, lower-cased; an empty set when its schema is known and the table is not there, null when nothing is known. */
-const findBuiltColumns = (
-    catalog: WarehouseCatalog,
-    table: CompiledTable,
-): Set<string> | null => {
-    const schema = findKey(findKey(catalog, table.database), table.schema);
-    if (!schema) return null;
-    const columns: WarehouseTableSchema | undefined =
-        findKey(schema, table.originalName ?? table.name) ??
-        findKey(schema, table.name);
-    return new Set(
-        Object.keys(columns ?? {}).map((name) => name.toLowerCase()),
+const isBuilt = (columns: WarehouseTableSchema, column: string) =>
+    findCatalogColumn(columns, column, false) !== undefined ||
+    // A nested column is kept under its dotted path, without its parent.
+    Object.keys(columns).some((name) =>
+        name.toLowerCase().startsWith(`${column.toLowerCase()}.`),
     );
-};
 
-const hasColumn = (columns: Set<string>, column: string) =>
-    columns.has(column) ||
-    // A nested column is kept under its dotted path.
-    [...columns].some((name) => name.startsWith(`${column}.`));
-
-/** The fields that read a column their built table does not have, and the fields defined on those. */
-const findFieldsWithoutColumns = (
+/**
+ * The fields that read a column their model's built table does not have, and
+ * the fields defined on those. A model the catalog does not know is skipped,
+ * unless it is new, where no field has a table to read. The catalog is the
+ * project's last compile, so a table built since then still reads as it was.
+ */
+export const findFieldsWithoutColumns = (
     explores: (Explore | ExploreError)[],
     catalog: WarehouseCatalog,
-): SemanticStudioUnbuiltField[] => {
+    isNewModel: (exploreName: string) => boolean,
+): FieldWithoutColumn[] => {
+    const { lookup } = indexWarehouseCatalog(catalog, false);
     const fields = explores.flatMap((explore) => {
         if (isExploreError(explore)) return [];
         const table = explore.tables[explore.baseTable];
         if (!table) return [];
-        const columns = findBuiltColumns(catalog, table);
+        const built = lookup(
+            table.database,
+            table.schema,
+            table.originalName ?? table.name,
+        );
+        if (!built && !isNewModel(explore.name)) return [];
         return [
             ...Object.values(table.dimensions),
             ...Object.values(table.metrics),
-        ].map((field) => ({ field, columns }));
+        ].map((field) => ({
+            field,
+            explore: explore.name,
+            lacksColumn:
+                !built ||
+                getTableColumnReferences(field.sql).some(
+                    (column) => !isBuilt(built.columns, column),
+                ),
+        }));
     });
     const unbuilt = new Set(
-        fields.flatMap(({ field, columns }) =>
-            columns !== null &&
-            getTableColumnReferences(field.sql).some(
-                (column) => !hasColumn(columns, column.toLowerCase()),
-            )
-                ? [getItemId(field)]
-                : [],
+        fields.flatMap(({ field, lacksColumn }) =>
+            lacksColumn ? [getItemId(field)] : [],
         ),
     );
     // A field defined on an unbuilt one cannot be queried either.
@@ -76,10 +77,11 @@ const findFieldsWithoutColumns = (
             }
         });
     }
-    return fields.flatMap(({ field }) =>
+    return fields.flatMap(({ field, explore }) =>
         unbuilt.has(getItemId(field)) && !field.hidden
             ? [
                   {
+                      explore,
                       model: field.table,
                       fieldId: getItemId(field),
                       label: field.label,
@@ -89,21 +91,13 @@ const findFieldsWithoutColumns = (
     );
 };
 
-/**
- * The fields a draft adds or changes that cannot be queried until it merges and
- * its model is built; a field that is already missing its column in what is
- * published is not the draft's doing. The catalog is the project's last
- * compile, so a table built since then still reads as it was.
- */
-export const findUnbuiltFields = (
-    draft: (Explore | ExploreError)[],
-    live: (Explore | ExploreError)[],
-    catalog: WarehouseCatalog,
+/** The fields a draft leaves unbuilt, without those already missing their column in what is published: those are not the draft's doing. */
+export const dropAlreadyMissing = (
+    draft: FieldWithoutColumn[],
+    published: FieldWithoutColumn[],
 ): SemanticStudioUnbuiltField[] => {
-    const already = new Set(
-        findFieldsWithoutColumns(live, catalog).map(({ fieldId }) => fieldId),
-    );
-    return findFieldsWithoutColumns(draft, catalog).filter(
-        ({ fieldId }) => !already.has(fieldId),
-    );
+    const already = new Set(published.map(({ fieldId }) => fieldId));
+    return draft
+        .filter(({ fieldId }) => !already.has(fieldId))
+        .map(({ model, fieldId, label }) => ({ model, fieldId, label }));
 };

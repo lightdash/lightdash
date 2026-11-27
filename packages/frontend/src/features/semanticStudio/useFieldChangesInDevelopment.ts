@@ -11,7 +11,8 @@ import {
     PUBLISHED_HEADERS,
 } from './developmentView';
 import { diffModelFields, type FieldChange } from './modelFieldDiff';
-import { MODEL_VERSION_KEY } from './studioQueryKeys';
+import { MODEL_VERSION_KEY, UNBUILT_FIELDS_KEY } from './studioQueryKeys';
+import { useDraftCheckout } from './useSemanticLayerModel';
 
 type LightdashApi = ReturnType<typeof useLightdashApi>;
 
@@ -53,11 +54,17 @@ export const useModelVersion = (
     );
 };
 
-/** The fields of the checked-out draft that cannot be queried until its model is built; read again with the model versions. */
+/** The fields of the checked-out draft that cannot be queried until its model is built; read again for each compile of the draft. */
 export const useUnbuiltFields = (projectUuid: string) => {
     const lightdashApi = useLightdashApi();
-    return useQuery<SemanticStudioUnbuiltField[], ApiError>({
-        queryKey: [MODEL_VERSION_KEY, projectUuid, 'unbuilt-fields'],
+    const checkout = useDraftCheckout(projectUuid);
+    const compile = checkout.data?.branchCompile;
+    const fields = useQuery<SemanticStudioUnbuiltField[], ApiError>({
+        queryKey: [
+            UNBUILT_FIELDS_KEY,
+            projectUuid,
+            compile?.compileRequestUuid ?? null,
+        ],
         queryFn: () =>
             lightdashApi<SemanticStudioUnbuiltField[]>({
                 version: 'v1',
@@ -65,8 +72,14 @@ export const useUnbuiltFields = (projectUuid: string) => {
                 method: 'GET',
                 body: undefined,
             }),
+        // Only a draft that compiled has fields to check.
+        enabled: compile?.status === 'ready',
         retry: false,
     });
+    return {
+        data: fields.data,
+        isLoading: checkout.isInitialLoading || fields.isInitialLoading,
+    };
 };
 
 const NO_LIVE: Explore[] = [];

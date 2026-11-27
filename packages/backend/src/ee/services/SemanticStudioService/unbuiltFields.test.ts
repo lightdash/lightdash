@@ -4,7 +4,7 @@ import {
     type WarehouseCatalog,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { findUnbuiltFields } from './unbuiltFields';
+import { dropAlreadyMissing, findFieldsWithoutColumns } from './unbuiltFields';
 
 const field = (table: string, name: string, sql: string) => ({
     table,
@@ -45,7 +45,11 @@ const catalog: WarehouseCatalog = {
     },
 };
 
-describe('findUnbuiltFields', () => {
+const isLive = () => false;
+const idsOf = (fields: { fieldId: string }[]) =>
+    fields.map(({ fieldId }) => fieldId);
+
+describe('findFieldsWithoutColumns', () => {
     it('finds fields that read a column the built table lacks, and the fields defined on them', () => {
         const payments = explore(
             'payments',
@@ -61,9 +65,7 @@ describe('findUnbuiltFields', () => {
             ],
         );
         expect(
-            findUnbuiltFields([payments], [], catalog).map(
-                ({ fieldId }) => fieldId,
-            ),
+            idsOf(findFieldsWithoutColumns([payments], catalog, isLive)),
         ).toEqual([
             'payments_usage_channel',
             'payments_channel_group',
@@ -71,28 +73,45 @@ describe('findUnbuiltFields', () => {
         ]);
     });
 
-    it('takes every field of a model whose table is not built, and says nothing about a schema it does not know', () => {
+    it('takes every field of a new model with no table, and says nothing about a published model the catalog does not know', () => {
         const refunds = explore('refunds', [
             field('refunds', 'id', '${TABLE}.id'),
         ]);
-        expect(findUnbuiltFields([refunds], [], catalog)).toEqual([
-            { model: 'refunds', fieldId: 'refunds_id', label: 'id' },
+        expect(
+            findFieldsWithoutColumns([refunds], catalog, () => true),
+        ).toEqual([
+            {
+                explore: 'refunds',
+                model: 'refunds',
+                fieldId: 'refunds_id',
+                label: 'id',
+            },
         ]);
-        expect(findUnbuiltFields([refunds], [], { other: {} })).toEqual([]);
+        expect(findFieldsWithoutColumns([refunds], catalog, isLive)).toEqual(
+            [],
+        );
     });
+});
 
+describe('dropAlreadyMissing', () => {
     it('leaves out a field that already lacks its column in what is published', () => {
-        const published = explore('payments', [
-            field('payments', 'legacy', '${TABLE}.legacy'),
-        ]);
+        const legacy = field('payments', 'legacy', '${TABLE}.legacy');
+        const published = explore('payments', [legacy]);
         const draft = explore('payments', [
-            field('payments', 'legacy', '${TABLE}.legacy'),
+            legacy,
             field('payments', 'usage_channel', '${TABLE}.usage_channel'),
         ]);
         expect(
-            findUnbuiltFields([draft], [published], catalog).map(
-                ({ fieldId }) => fieldId,
+            dropAlreadyMissing(
+                findFieldsWithoutColumns([draft], catalog, isLive),
+                findFieldsWithoutColumns([published], catalog, isLive),
             ),
-        ).toEqual(['payments_usage_channel']);
+        ).toEqual([
+            {
+                model: 'payments',
+                fieldId: 'payments_usage_channel',
+                label: 'usage_channel',
+            },
+        ]);
     });
 });

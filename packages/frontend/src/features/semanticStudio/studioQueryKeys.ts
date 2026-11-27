@@ -11,6 +11,7 @@ export const CHECKOUT_KEY = 'semantic-studio-checkout';
 export const WORKSPACES_KEY = 'semantic-studio-workspaces';
 export const SOURCES_KEY = 'semantic-studio-sources';
 export const MODEL_VERSION_KEY = 'semantic-studio-model-version';
+export const UNBUILT_FIELDS_KEY = 'semantic-studio-unbuilt-fields';
 
 /** What a Studio write moved; the workspace list is always read again. */
 type StudioInvalidation = {

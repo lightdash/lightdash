@@ -21,6 +21,9 @@ type Dependencies = {
 
 const toolDefinition = verifyToolDefinition.for('agent');
 
+/** How many unbuilt fields the agent is shown by name. */
+const MAX_LISTED_FIELDS = 20;
+
 export const describeCheck = (check: BranchCompileCheck): string => {
     switch (check.status) {
         case 'ready':
@@ -31,10 +34,18 @@ export const describeCheck = (check: BranchCompileCheck): string => {
                 return [
                     'The pull request branch compiled and every model loaded. The fields below read columns the warehouse table does not have yet, so they cannot be tried or queried until the pull request merges and dbt builds the model. Tell the person that in one sentence, and do not query them.',
                     quoteCompileOutput(
-                        check.unbuiltFields
-                            .slice(0, 20)
-                            .map(({ model, label }) => `${model}: ${label}`)
-                            .join('\n'),
+                        [
+                            ...check.unbuiltFields
+                                .slice(0, MAX_LISTED_FIELDS)
+                                .map(
+                                    ({ model, label }) => `${model}: ${label}`,
+                                ),
+                            ...(check.unbuiltFields.length > MAX_LISTED_FIELDS
+                                ? [
+                                      `and ${check.unbuiltFields.length - MAX_LISTED_FIELDS} more`,
+                                  ]
+                                : []),
+                        ].join('\n'),
                     ),
                 ].join('\n');
             }

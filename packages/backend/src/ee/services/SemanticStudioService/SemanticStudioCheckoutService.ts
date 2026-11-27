@@ -68,7 +68,7 @@ import {
     type ModelProject,
 } from './studioProject';
 import { getStudioProjectMode, getStudioTurnSetup } from './studioTurn';
-import { findUnbuiltFields } from './unbuiltFields';
+import { dropAlreadyMissing, findFieldsWithoutColumns } from './unbuiltFields';
 
 export type SemanticStudioCheckoutServiceArguments = {
     analytics: Pick<LightdashAnalytics, 'track'>;
@@ -87,6 +87,7 @@ export type SemanticStudioCheckoutServiceArguments = {
         findExploresFromCache: (
             projectUuid: string,
             key: 'name',
+            exploreNames?: string[],
         ) => Promise<Record<string, Explore | ExploreError>>;
         getWarehouseFromCache: (
             projectUuid: string,
@@ -354,11 +355,26 @@ export class SemanticStudioCheckoutService extends BaseService {
         const catalog =
             await this.projectModel.getWarehouseFromCache(projectUuid);
         if (!catalog) return [];
+        const published = new Set(
+            (await this.projectModel.getAllExploreSummaries(projectUuid)).map(
+                ({ name }) => name,
+            ),
+        );
+        const unbuilt = findFieldsWithoutColumns(
+            explores,
+            catalog,
+            (name) => !published.has(name),
+        );
+        if (unbuilt.length === 0) return [];
         const live = await this.projectModel.findExploresFromCache(
             projectUuid,
             'name',
+            unbuilt.map(({ explore }) => explore),
         );
-        return findUnbuiltFields(explores, Object.values(live), catalog);
+        return dropAlreadyMissing(
+            unbuilt,
+            findFieldsWithoutColumns(Object.values(live), catalog, () => false),
+        );
     }
 
     /** The fields of the person's checked-out dbt change that read columns the warehouse does not have yet. */
