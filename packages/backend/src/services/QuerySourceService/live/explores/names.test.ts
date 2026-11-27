@@ -119,6 +119,15 @@ const SOURCES: {
         scan: {},
     },
     {
+        name: 'Sentry',
+        apiSource: {
+            connector: ApiConnectorType.SENTRY,
+            organizationSlug: 'acme',
+            projectSlugs: ['mobile-ios'],
+        },
+        scan: {},
+    },
+    {
         name: 'Attio',
         apiSource: { connector: ApiConnectorType.ATTIO },
         scan: {

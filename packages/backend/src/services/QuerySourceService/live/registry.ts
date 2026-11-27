@@ -20,6 +20,7 @@ import { postHogIntegration } from './integrations/postHog';
 import { pylonIntegration } from './integrations/pylon';
 import { salesforceIntegration } from './integrations/salesforce';
 import { searchConsoleIntegration } from './integrations/searchConsole';
+import { sentryIntegration } from './integrations/sentry';
 import { supabaseIntegration } from './integrations/supabase';
 import { youtubeAnalyticsIntegration } from './integrations/youtubeAnalytics';
 import { type LiveIntegration } from './types';
@@ -44,6 +45,7 @@ const LIVE_INTEGRATIONS: {
     [ApiConnectorType.MIXPANEL]: mixpanelIntegration,
     [ApiConnectorType.INTERCOM]: intercomIntegration,
     [ApiConnectorType.SUPABASE]: supabaseIntegration,
+    [ApiConnectorType.SENTRY]: sentryIntegration,
     [ApiConnectorType.HYDRA]: hydraIntegration,
 };
 

@@ -431,6 +431,21 @@ describe('filterExternalResponseHeaders', () => {
         });
     });
 
+    it('keeps the one rate limit header of Sentry that an integration reads', () => {
+        expect(
+            filterExternalResponseHeaders({
+                headers: {
+                    'X-Sentry-Rate-Limit-Reset': '1795800060',
+                    'X-Sentry-Rate-Limit-Remaining': '0',
+                    'X-Sentry-Rate-Limit-Internal-Note': 'team payments',
+                    'X-Sentry-Error': 'internal',
+                },
+                requestUrl,
+                queryApiKeyName: null,
+            }),
+        ).toEqual({ 'x-sentry-rate-limit-reset': '1795800060' });
+    });
+
     it('removes an injected query API key from reusable Link targets', () => {
         expect(
             filterExternalResponseHeaders({

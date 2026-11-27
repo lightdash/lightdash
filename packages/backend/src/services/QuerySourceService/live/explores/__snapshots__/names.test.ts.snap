@@ -745,6 +745,75 @@ exports[`live data source names > Search Console explore names and field ids nev
 }
 `;
 
+exports[`live data source names > Sentry explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "sentry_errors_date",
+        "sentry_errors_device_family",
+        "sentry_errors_environment",
+        "sentry_errors_error_type",
+        "sentry_errors_events",
+        "sentry_errors_issue",
+        "sentry_errors_issues",
+        "sentry_errors_level",
+        "sentry_errors_os_name",
+        "sentry_errors_platform",
+        "sentry_errors_project",
+        "sentry_errors_release",
+        "sentry_errors_title",
+        "sentry_errors_unhandled",
+        "sentry_errors_users_affected",
+      ],
+      "name": "sentry_errors",
+    },
+    {
+      "fieldIds": [
+        "sentry_issues_category",
+        "sentry_issues_environment",
+        "sentry_issues_events",
+        "sentry_issues_first_seen",
+        "sentry_issues_last_seen",
+        "sentry_issues_level",
+        "sentry_issues_platform",
+        "sentry_issues_priority",
+        "sentry_issues_project",
+        "sentry_issues_release",
+        "sentry_issues_short_id",
+        "sentry_issues_status",
+        "sentry_issues_substatus",
+        "sentry_issues_title",
+        "sentry_issues_unhandled",
+        "sentry_issues_url",
+        "sentry_issues_users",
+      ],
+      "name": "sentry_issues",
+    },
+    {
+      "fieldIds": [
+        "sentry_sessions_crash_free_sessions",
+        "sentry_sessions_crash_free_users",
+        "sentry_sessions_date",
+        "sentry_sessions_environment",
+        "sentry_sessions_project",
+        "sentry_sessions_release",
+        "sentry_sessions_session_status",
+        "sentry_sessions_sessions",
+        "sentry_sessions_users",
+      ],
+      "name": "sentry_sessions",
+    },
+  ],
+  "reservedExploreNames": [
+    "sentry_releases",
+    "sentry_transactions",
+    "sentry_logs",
+    "sentry_monitors",
+  ],
+}
+`;
+
 exports[`live data source names > YouTube Analytics explore names and field ids never change 1`] = `
 {
   "explores": [

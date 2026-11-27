@@ -27,6 +27,8 @@ export type SemanticStudioProps = {
     permissions: StudioPermissions;
     /** Whether project settings open, so Settings links lead somewhere. */
     canOpenSettings: boolean;
+    /** Whether live data sources are on here, so anyone opens their add dialog. */
+    isLiveAvailable: boolean;
     /** The page in the URL: what is selected. */
     route: StudioRoute;
     /** Moves to another page; `replace` for steps that shouldn't stack up. */
@@ -40,6 +42,7 @@ export const useSemanticStudio = ({
     project,
     permissions,
     canOpenSettings,
+    isLiveAvailable,
     route,
     onNavigate,
 }: SemanticStudioProps) => {
@@ -84,6 +87,7 @@ export const useSemanticStudio = ({
         project,
         permissions,
         canOpenSettings,
+        isLiveAvailable,
         /** Only live data sources save field edits today. */
         canEditFields: (explore: Explore) => {
             const source = getSource(project, explore.sourceId);

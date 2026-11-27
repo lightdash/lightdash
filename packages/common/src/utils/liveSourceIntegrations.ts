@@ -2,7 +2,9 @@ import { z } from 'zod';
 import {
     getHubspotReadScopes,
     HUBSPOT_OBJECTS,
+    isSentrySlug,
     isSupabaseTableName,
+    SENTRY_MAX_PROJECTS,
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';
@@ -291,6 +293,34 @@ export const LIVE_INTEGRATION_CATALOG: {
             }),
         }),
         getTarget: ({ table }) => `Table ${table}`,
+    },
+    [ApiConnectorType.SENTRY]: {
+        id: 'sentry',
+        label: 'Sentry',
+        defaultName: 'Sentry',
+        messageLabel: 'Sentry',
+        agentLabel: 'Sentry',
+        description: 'Errors, issues and release health',
+        setup: 'token',
+        scopes: ['org:read', 'project:read', 'event:read'],
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.SENTRY),
+            organizationSlug: z.string().refine(isSentrySlug, {
+                message: 'Use the organization slug, like acme',
+            }),
+            projectSlugs: z
+                .array(
+                    z.string().refine(isSentrySlug, {
+                        message: 'Use project slugs, like mobile-ios',
+                    }),
+                )
+                .min(1, 'Name at least one project')
+                .max(SENTRY_MAX_PROJECTS)
+                // A project named two times would be read two times
+                .transform((slugs) => [...new Set(slugs)]),
+        }),
+        getTarget: ({ organizationSlug, projectSlugs }) =>
+            `${organizationSlug}: ${projectSlugs.join(', ')}`,
     },
     [ApiConnectorType.HYDRA]: {
         id: 'hydra',

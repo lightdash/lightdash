@@ -32,6 +32,8 @@ export const LIVE_SOURCE_DEFAULT_CACHE_TTL_SECONDS: Record<
     [ApiConnectorType.INTERCOM]: DEFAULT_CACHE_TTL_SECONDS,
     // Rows change as the app writes them; reads count against the project's compute
     [ApiConnectorType.SUPABASE]: DEFAULT_CACHE_TTL_SECONDS,
+    // Calls count against Sentry's limits per endpoint, shared by the token's other uses
+    [ApiConnectorType.SENTRY]: DEFAULT_CACHE_TTL_SECONDS,
     // Like every other source, so cache tests see the default window
     [ApiConnectorType.HYDRA]: DEFAULT_CACHE_TTL_SECONDS,
 };
