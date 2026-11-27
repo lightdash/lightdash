@@ -41,8 +41,8 @@ import { useThreadModel } from '../../hooks/useThreadModel';
 import {
     clearPendingPrompt,
     clearPinnedContext,
-    openPanel,
     startThreadKeepingContext,
+    threadCreated,
 } from '../../store/aiAgentLauncherSlice';
 import {
     selectThreadSqlMode,
@@ -221,7 +221,7 @@ const NewThreadPanel: FC<{
                     title: thread.firstMessage.message,
                 });
                 dispatch(
-                    openPanel({
+                    threadCreated({
                         threadId: thread.uuid,
                         agentUuid: thread.agentUuid,
                     }),

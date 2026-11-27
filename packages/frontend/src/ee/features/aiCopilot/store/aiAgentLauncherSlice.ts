@@ -140,6 +140,19 @@ export const aiAgentLauncherSlice = createSlice({
             state.activeAgentUuid = action.payload.agentUuid;
             state.pendingContext = action.payload.pendingContext ?? null;
         },
+        // The new thread got its first prompt. What was pinned went with it;
+        // a dashboard dismissed while writing it stays dismissed.
+        threadCreated: (
+            state,
+            action: PayloadAction<{ threadId: string; agentUuid: string }>,
+        ) => {
+            state.mode = 'panel-open';
+            state.view = 'chat';
+            state.activeThreadId = action.payload.threadId;
+            state.activeAgentUuid = action.payload.agentUuid;
+            state.pendingContext = null;
+            state.pinnedContext = [];
+        },
         // Panel showing AI analysis of the current view; the adapter that
         // feeds it lives outside the store (launcherAnalysisAdapter).
         openAnalysisPanel: (state) => {
@@ -295,6 +308,7 @@ export const {
     clearPendingPrompt,
     pendingContextResolved,
     startThreadKeepingContext,
+    threadCreated,
     unpinContext,
     openPanel,
     openAnalysisPanel,
