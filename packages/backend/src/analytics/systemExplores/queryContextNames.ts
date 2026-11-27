@@ -45,6 +45,7 @@ export const queryContextNames: Record<QueryExecutionContext, string> = {
     // A few sample rows of a chart, read while a data app is being generated
     [QueryExecutionContext.DATA_APP_SAMPLE]: 'Data app builder sample',
     [QueryExecutionContext.DESKTOP]: 'Desktop app',
+    [QueryExecutionContext.DATA_APP]: 'Data app',
 };
 
 // SQL that turns the recorded value in `column` into its plain name.
