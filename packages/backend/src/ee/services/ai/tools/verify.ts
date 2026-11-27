@@ -24,6 +24,20 @@ const toolDefinition = verifyToolDefinition.for('agent');
 export const describeCheck = (check: BranchCompileCheck): string => {
     switch (check.status) {
         case 'ready':
+            if (
+                check.exploreErrors.length === 0 &&
+                check.unbuiltFields.length > 0
+            ) {
+                return [
+                    'The pull request branch compiled and every model loaded. The fields below read columns the warehouse table does not have yet, so they cannot be tried or queried until the pull request merges and dbt builds the model. Tell the person that in one sentence, and do not query them.',
+                    quoteCompileOutput(
+                        check.unbuiltFields
+                            .slice(0, 20)
+                            .map(({ model, label }) => `${model}: ${label}`)
+                            .join('\n'),
+                    ),
+                ].join('\n');
+            }
             return check.exploreErrors.length === 0
                 ? 'The pull request branch compiled and every model loaded.'
                 : [

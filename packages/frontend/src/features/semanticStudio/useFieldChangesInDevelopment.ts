@@ -1,4 +1,9 @@
-import { isApiError, type ApiError, type Explore } from '@lightdash/common';
+import {
+    isApiError,
+    type ApiError,
+    type Explore,
+    type SemanticStudioUnbuiltField,
+} from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import {
@@ -46,6 +51,22 @@ export const useModelVersion = (
     return useQuery<Explore | null, ApiError>(
         modelVersionQuery(lightdashApi, projectUuid, model, headers, enabled),
     );
+};
+
+/** The fields of the checked-out draft that cannot be queried until its model is built; read again with the model versions. */
+export const useUnbuiltFields = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<SemanticStudioUnbuiltField[], ApiError>({
+        queryKey: [MODEL_VERSION_KEY, projectUuid, 'unbuilt-fields'],
+        queryFn: () =>
+            lightdashApi<SemanticStudioUnbuiltField[]>({
+                version: 'v1',
+                url: `/projects/${projectUuid}/semantic-studio/checkout/unbuilt-fields`,
+                method: 'GET',
+                body: undefined,
+            }),
+        retry: false,
+    });
 };
 
 const NO_LIVE: Explore[] = [];

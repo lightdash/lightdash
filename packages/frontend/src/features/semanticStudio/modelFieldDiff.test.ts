@@ -1,6 +1,7 @@
 import { type Explore } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    describeUnbuiltFields,
     describeUnchangedFields,
     diffModelFields,
     findTouchedFields,
@@ -165,5 +166,20 @@ describe('describeUnchangedFields', () => {
     it('says nothing when a field changes or no model is read', () => {
         expect(describeUnchangedFields([[], some], true, 2)).toBeNull();
         expect(describeUnchangedFields([null, null], true, 2)).toBeNull();
+    });
+});
+
+describe('describeUnbuiltFields', () => {
+    it('names one or two fields and counts more', () => {
+        expect(describeUnbuiltFields([])).toBeNull();
+        expect(describeUnbuiltFields(['Usage channel'])).toBe(
+            'Usage channel is not in the warehouse yet. You can try it once this merges and dbt builds the model.',
+        );
+        expect(describeUnbuiltFields(['Usage channel', 'Cost'])).toBe(
+            'Usage channel and Cost are not in the warehouse yet. You can try them once this merges and dbt builds the model.',
+        );
+        expect(describeUnbuiltFields(['a', 'b', 'c'])).toBe(
+            '3 fields are not in the warehouse yet. You can try them once this merges and dbt builds the model.',
+        );
     });
 });

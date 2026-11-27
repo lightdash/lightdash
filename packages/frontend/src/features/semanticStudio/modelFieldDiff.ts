@@ -157,3 +157,13 @@ export const describeUnchangedFields = (
             : '';
     return `${files}No field is added, changed or removed.`;
 };
+
+/** Why some of a draft's fields cannot be tried yet, in one line; null when all can. */
+export const describeUnbuiltFields = (labels: string[]): string | null => {
+    if (labels.length === 0) return null;
+    const one = labels.length === 1;
+    let named = `${labels.length} fields`;
+    if (one) [named] = labels;
+    else if (labels.length === 2) named = labels.join(' and ');
+    return `${named} ${one ? 'is' : 'are'} not in the warehouse yet. You can try ${one ? 'it' : 'them'} once this merges and dbt builds the model.`;
+};
