@@ -1,3 +1,10 @@
+## [3.420.8](https://github.com/lightdash/lightdash/compare/3.420.7...3.420.8) (2026-11-27)
+
+
+### Bug Fixes
+
+* **spaces:** stop promotion renaming the Default User Spaces folder and recreate it when missing ([#33524](https://github.com/lightdash/lightdash/issues/33524)) ([eff219b](https://github.com/lightdash/lightdash/commit/eff219bc9f3b9a10b9eae0784a2a73f4ed7fbdca))
+
 ## [3.420.7](https://github.com/lightdash/lightdash/compare/3.420.6...3.420.7) (2026-11-27)
 
 
