@@ -712,8 +712,8 @@ dashboard keep the top navbar.
 ## Live data source integrations
 
 Each live data source integration (PostHog, HubSpot, GA4 and so on) can have its
-own flag that turns it on or off for every organization or for one. Today none
-declares a flag, so every integration is on.
+own flag that turns it on or off for every organization or for one. Stripe
+(`live-source-stripe`) declares one; every other integration is always on.
 
 To put an integration behind a flag, for example Attio:
 

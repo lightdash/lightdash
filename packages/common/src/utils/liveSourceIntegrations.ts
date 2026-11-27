@@ -7,7 +7,7 @@ import {
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';
-import { type FeatureFlags } from '../types/featureFlags';
+import { FeatureFlags } from '../types/featureFlags';
 import { ApiConnectorType } from '../types/querySources';
 import { HYDRA_SETTINGS_SCHEMA } from './hydraLiveSource';
 
@@ -271,6 +271,7 @@ export const LIVE_INTEGRATION_CATALOG: {
         agentLabel: 'Stripe',
         description: 'Payments, payouts, fees, disputes and MRR changes',
         setup: 'token',
+        featureFlag: FeatureFlags.LiveSourceStripe,
         scopes: [STRIPE_QUERIES_PERMISSION],
         settings: z.object({
             connector: z.literal(ApiConnectorType.STRIPE),

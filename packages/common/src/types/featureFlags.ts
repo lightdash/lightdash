@@ -294,6 +294,11 @@ export enum FeatureFlags {
      * only, so user and organization overrides both apply.
      */
     LeftNavigation = 'left-navigation',
+    /**
+     * The Stripe live data source integration. Organization scope; on unless
+     * the Console turns it off (see docs/feature-flags.md).
+     */
+    LiveSourceStripe = 'live-source-stripe',
 }
 
 export type FeatureFlag = {
