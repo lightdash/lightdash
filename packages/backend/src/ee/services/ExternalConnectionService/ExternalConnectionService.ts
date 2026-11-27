@@ -1895,7 +1895,7 @@ export class ExternalConnectionService extends BaseService {
                         rateLimitDeadlineMs: LIVE_RATE_LIMIT_DEADLINES_MS.sync,
                     });
                 return (
-                    (await integration.discovery?.discover({
+                    (await integration.model.discovery?.discover({
                         settings,
                         runtime,
                     })) ?? {}
@@ -1931,7 +1931,7 @@ export class ExternalConnectionService extends BaseService {
                     scannedFields,
                     // An explore made only of scanned fields starts with all of them
                     isExistingSource:
-                        getLiveIntegration(apiSource.connector).discovery
+                        getLiveIntegration(apiSource.connector).model.discovery
                             ?.inUseByDefault === true ||
                         (await this.projectModel.hasApiSourceExplores(
                             projectUuid,
@@ -3117,7 +3117,10 @@ export class ExternalConnectionService extends BaseService {
         apiSource: ExternalConnectionApiSource,
     ): LiveRateLimits {
         const integration = getLiveIntegration(apiSource.connector);
-        return integration.rateLimitsFor?.(apiSource) ?? integration.rateLimits;
+        return (
+            integration.spec.rateLimitsFor?.(apiSource) ??
+            integration.spec.rateLimits
+        );
     }
 
     /** What the rate-limit gate limits for a live source: the lower of the integration's limits and the admin's. */
@@ -3191,7 +3194,9 @@ export class ExternalConnectionService extends BaseService {
         let callsThisQuery = 0;
         const integration = getLiveIntegration(apiSource.connector);
         const { label } = integration;
-        const { limits } = integration;
+        const {
+            query: { limits },
+        } = integration;
         const usage: LiveCallUsage = {
             apiCalls: 0,
             responseBytes: 0,

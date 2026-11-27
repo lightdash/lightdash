@@ -135,7 +135,7 @@ describe('youtubeAnalyticsIntegration run', () => {
         ).rejects.toThrow(ParameterError);
         await expect(
             execute(source, { ...BASE, filters: 'video==a&ids=x' }),
-        ).rejects.toThrow('Invalid YouTube Analytics report request');
+        ).rejects.toThrow('Invalid YouTube Analytics request');
         expect(send).not.toHaveBeenCalled();
     });
 

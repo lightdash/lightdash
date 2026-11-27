@@ -351,7 +351,7 @@ describe('Hydra through the shared engine', () => {
             request: { method: 'GET', path: '/v1/account', body: undefined },
         });
         expect(
-            hydraIntegration.summarizeTest?.(body, settingsWith()),
+            hydraIntegration.connection.summarizeTest?.(body, settingsWith()),
         ).toMatchObject({
             summary: expect.stringMatching(
                 /^Connected to Hydra account hydra-/,
@@ -364,7 +364,7 @@ describe('Hydra through the shared engine', () => {
     });
 
     it('declares the vendor limits by default, its own, or none', () => {
-        expect(hydraIntegration.rateLimitsFor?.(settingsWith())).toEqual({
+        expect(hydraIntegration.spec.rateLimitsFor?.(settingsWith())).toEqual({
             concurrentCalls: 2,
             callsPerSecond: null,
             buckets: [
@@ -383,7 +383,7 @@ describe('Hydra through the shared engine', () => {
             ],
         });
         expect(
-            hydraIntegration.rateLimitsFor?.(
+            hydraIntegration.spec.rateLimitsFor?.(
                 settingsWith({
                     declaredLimits: {
                         concurrentCalls: 1,
@@ -407,7 +407,7 @@ describe('Hydra through the shared engine', () => {
             ],
         });
         expect(
-            hydraIntegration.rateLimitsFor?.(
+            hydraIntegration.spec.rateLimitsFor?.(
                 settingsWith({ declaredLimits: null }),
             ),
         ).toMatchObject({ callsPerSecond: null, buckets: [] });

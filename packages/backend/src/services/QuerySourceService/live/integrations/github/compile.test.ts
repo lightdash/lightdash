@@ -30,7 +30,7 @@ const build = (definition: LiveExploreDefinition) =>
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.GITHUB,
         baseVersion: 1,
-        capabilities: githubIntegration.capabilities,
+        capabilities: githubIntegration.query.capabilities,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),

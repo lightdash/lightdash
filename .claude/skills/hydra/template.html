@@ -221,10 +221,10 @@ const overview = (integrations) => `
   <h1>${esc(data.title)}</h1>
   <div class="subtitle">${integrations.length} integrations</div>
   <div class="list overview">
-    <div class="row head"><span>Integration</span><span>Level</span><span>Auth</span><span>Possible</span><span>Rate limits</span><span>Paging</span></div>
+    <div class="row head"><span>Integration</span><span>Kind</span><span>Auth</span><span>Possible</span><span>Rate limits</span><span>Paging</span></div>
     ${integrations.map((i) => `<a class="row" href="#${esc(i.name)}">
       <span class="name">${esc(i.label)}</span>
-      <span class="mono t2">L${i.level.value}</span>
+      <span class="mono t2">${esc(i.kind)}</span>
       <span>${authChip(i)}</span>
       ${coverage(i.useCases)}
       ${i.rateLimits ? limitTags(i.rateLimits) : '<span class="t3">Not set</span>'}
@@ -351,11 +351,10 @@ const detail = (i) => {
     <span class="mono t3">${esc(i.name)}</span>
   </div>
   <div class="subtitle" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-    ${chip(`Level ${i.level.value}`)} ${chip(`${share.yes} of ${share.total} possible`)} ${i.results ? tally(i.results) : ''}
+    ${chip(i.kind)} ${chip(`${share.yes} of ${share.total} possible`)} ${i.results ? tally(i.results) : ''}
   </div>
   ${i.verdict ? verdictBlock(i.verdict) : ''}
   <div class="props">
-    <div class="prop"><div class="k">Level <span class="mono">${i.level.value}/5</span></div><div class="v">${esc(i.level.description)}</div></div>
     <div class="prop"><div class="k">Auth <span class="status">${dot(RATING_COLOR[i.authScore.rating])}${esc(i.authScore.rating)}</span></div><div class="v">${esc(i.auth.description)}</div></div>
     <div class="prop"><div class="k">Paging</div><div class="v">${esc(i.paging.description)}</div></div>
     <div class="prop"><div class="k">Access</div>${authAccess(i.auth)}</div>
@@ -390,7 +389,7 @@ const render = () => {
         <a href="#" class="${selected ? '' : 'on'}"><span class="grow">Overview</span></a>
         <div class="label">Integrations</div>
         ${data.integrations.map((i) => `<a href="#${esc(i.name)}" class="${selected === i ? 'on' : ''}">
-          ${dot(coverageColor(i.useCases))}<span class="grow">${esc(i.label)}</span><span class="mono t3">L${i.level.value}</span>
+          ${dot(coverageColor(i.useCases))}<span class="grow">${esc(i.label)}</span><span class="mono t3">${esc(i.kind)}</span>
         </a>`).join('')}
       </nav>` : ''}
       <main>${selected ? detail(selected) : overview(data.integrations)}</main>

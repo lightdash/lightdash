@@ -1,5 +1,6 @@
 import { ParameterError } from '@lightdash/common';
 import type { MeteredLiveSource } from '../calls';
+import { parseLiveRequest } from '../integration';
 import type { LiveColumn } from '../types';
 
 export type LiveQueryResult = {
@@ -26,7 +27,12 @@ export const runLiveRequest = async (
     if (!Number.isInteger(limit) || limit < 1) {
         throw new ParameterError('limit must be a positive number of rows');
     }
-    const request = integration.parseRequest(query);
-    const result = await integration.run({ settings, request, limit, runtime });
+    const request = parseLiveRequest(integration, query);
+    const result = await integration.query.run({
+        settings,
+        request,
+        limit,
+        runtime,
+    });
     return { bytesRead: null, ...result };
 };

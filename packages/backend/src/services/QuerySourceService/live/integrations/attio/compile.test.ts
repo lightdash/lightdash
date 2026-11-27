@@ -39,7 +39,7 @@ const DEALS = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.ATTIO,
     baseVersion: 1,
-    capabilities: attioIntegration.capabilities,
+    capabilities: attioIntegration.query.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),
@@ -173,7 +173,7 @@ describe('Attio explores', () => {
             'users',
             'workspaces',
         ]);
-        expect(attioIntegration.explores).toBe(ATTIO_EXPLORES);
+        expect(attioIntegration.model.explores).toBe(ATTIO_EXPLORES);
     });
 
     it('reads each object from its explore name', () => {

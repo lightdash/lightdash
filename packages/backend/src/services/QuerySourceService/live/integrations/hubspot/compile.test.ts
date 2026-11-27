@@ -36,7 +36,7 @@ const DEALS = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.HUBSPOT,
     baseVersion: 1,
-    capabilities: hubspotIntegration.capabilities,
+    capabilities: hubspotIntegration.query.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),
@@ -587,7 +587,7 @@ describe('compileHubspotQuery pipeline stages', () => {
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.HUBSPOT,
         baseVersion: 1,
-        capabilities: hubspotIntegration.capabilities,
+        capabilities: hubspotIntegration.query.capabilities,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),

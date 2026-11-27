@@ -29,7 +29,7 @@ const explore = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.SEARCH_CONSOLE,
     baseVersion: 1,
-    capabilities: searchConsoleIntegration.capabilities,
+    capabilities: searchConsoleIntegration.query.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),

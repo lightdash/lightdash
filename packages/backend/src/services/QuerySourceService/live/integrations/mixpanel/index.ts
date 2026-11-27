@@ -11,7 +11,6 @@ import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
     getIsoDateInTimeZone,
-    jsonRequest,
     readRule,
 } from '../../sdk';
 import { compileMixpanelQuery } from './compile';
@@ -39,108 +38,111 @@ const PROJECT_ID = /^\d{1,20}$/;
 export const mixpanelIntegration = defineLiveIntegration({
     connector: ApiConnectorType.MIXPANEL,
     label: LABEL,
-    settings: CATALOG.settings,
-    origins: [
-        MIXPANEL_REGION_ORIGINS.us,
-        MIXPANEL_REGION_ORIGINS.eu,
-        MIXPANEL_REGION_ORIGINS.in,
-    ],
-    access: () => ({
-        rules: Object.values(MIXPANEL_PATHS).map((path) =>
-            readRule('GET', path),
-        ),
-    }),
-    limits: {
-        callsPerQuery: MIXPANEL_CALLS_PER_QUERY,
-        timeoutMs: 60_000,
-        maxRows: MIXPANEL_MAX_QUERY_ROWS,
-    },
-    // Reports take one date range in the project's time zone, by day or month
-    // (retention by day, week or month), and `where` filters of `==` and `!=`
-    // on event properties, ANDed.
-    capabilities: {
-        filters: {
-            operators: {
-                string: MIXPANEL_PROPERTY_FILTERS,
-                number: MIXPANEL_NUMBER_FILTERS,
-                date: MIXPANEL_DATE_FILTERS,
-            },
-            multipleValues: true,
-            or: false,
-            nestedGroups: false,
-        },
-        metricFilters: false,
-        dates: {
-            rangeRequired: true,
-            operators: MIXPANEL_DATE_FILTERS,
-            grains: [TimeFrames.DAY, TimeFrames.WEEK, TimeFrames.MONTH],
-            timezone: 'fixed',
-        },
-        pushdown: ALL_PUSHDOWN_REFUSED,
-    },
-    explores: MIXPANEL_EXPLORES,
-    plannedModelNames: ['profiles', 'insights', 'property_sums'],
-    level: {
-        value: 3,
-        description:
-            'Segmentation and retention return counts, uniques and averages per event, period and property; funnels return the steps of a funnel saved in the app.',
-    },
     kind: 'reports',
-    auth: {
-        description:
-            'A service account (username and secret over HTTP Basic) added to the project; no vendor review. The Query API needs a Growth or Enterprise plan.',
-        testWith: 'paid_account',
-        needs: ['gmail', 'card'],
-        token: true,
-        oauth: 'none',
-    },
-    paging: {
-        description:
-            'No paging: segmentation returns up to 10,000 property values per call, funnels and retention every cohort and step at once.',
-    },
-    // Mixpanel allows 60 Query API calls an hour and 5 at once per project,
-    // shared with every other client. One call at a time and 40 an hour leave
-    // room for them.
-    rateLimits: {
-        concurrentCalls: 1,
-        callsPerSecond: null,
-        buckets: [
-            {
-                id: 'hour',
-                label: 'per hour',
-                windowMs: 3_600_000,
-                capacity: 40,
-            },
+    connection: {
+        settings: CATALOG.settings,
+        origins: [
+            MIXPANEL_REGION_ORIGINS.us,
+            MIXPANEL_REGION_ORIGINS.eu,
+            MIXPANEL_REGION_ORIGINS.in,
         ],
-        note: 'Mixpanel allows 60 queries an hour and 5 at once per project, shared with every other client; Lightdash keeps to 40 an hour.',
-    },
-    useCases: mixpanelUseCases,
-    validate: ({ projectId }) => {
-        if (!PROJECT_ID.test(projectId)) {
-            throw new ParameterError(
-                'Mixpanel project IDs are numbers: the one after /project/ in the project URL',
-            );
-        }
-    },
-    checkAuth: ({ type }) => {
-        if (type !== 'api_key') {
-            throw new ParameterError(
-                'Mixpanel live data sources sign in with a service account username and secret',
-            );
-        }
-    },
-    describeTarget: ({ origin, settings, targetLabel }) => {
-        const region = getMixpanelRegion(origin).toUpperCase();
-        return `Mixpanel project ${settings.projectId}${targetLabel ? ` "${targetLabel}"` : ''}, ${region} data region`;
-    },
-    parseRequest: jsonRequest(`${LABEL} report`, mixpanelRequestSchema),
-    compile: ({ explore, metricQuery, timezone, now }) =>
-        compileMixpanelQuery({
-            explore,
-            metricQuery,
-            today: getIsoDateInTimeZone(now, timezone),
+        access: () => ({
+            rules: Object.values(MIXPANEL_PATHS).map((path) =>
+                readRule('GET', path),
+            ),
         }),
-    run: runMixpanelQuery,
-    toError: (response) => toMixpanelError(response),
-    summarizeTest: summarizeMixpanelTest,
+        checkAuth: ({ type }) => {
+            if (type !== 'api_key') {
+                throw new ParameterError(
+                    'Mixpanel live data sources sign in with a service account username and secret',
+                );
+            }
+        },
+        validate: ({ projectId }) => {
+            if (!PROJECT_ID.test(projectId)) {
+                throw new ParameterError(
+                    'Mixpanel project IDs are numbers: the one after /project/ in the project URL',
+                );
+            }
+        },
+        describeTarget: ({ origin, settings, targetLabel }) => {
+            const region = getMixpanelRegion(origin).toUpperCase();
+            return `Mixpanel project ${settings.projectId}${targetLabel ? ` "${targetLabel}"` : ''}, ${region} data region`;
+        },
+        summarizeTest: summarizeMixpanelTest,
+    },
+    model: {
+        explores: MIXPANEL_EXPLORES,
+        plannedNames: ['profiles', 'insights', 'property_sums'],
+    },
+    query: {
+        request: mixpanelRequestSchema,
+        compile: ({ explore, metricQuery, timezone, now }) =>
+            compileMixpanelQuery({
+                explore,
+                metricQuery,
+                today: getIsoDateInTimeZone(now, timezone),
+            }),
+        run: runMixpanelQuery,
+        toError: (response) => toMixpanelError(response),
+        // Reports take one date range in the project's time zone, by day or month
+        // (retention by day, week or month), and `where` filters of `==` and `!=`
+        // on event properties, ANDed.
+        capabilities: {
+            filters: {
+                operators: {
+                    string: MIXPANEL_PROPERTY_FILTERS,
+                    number: MIXPANEL_NUMBER_FILTERS,
+                    date: MIXPANEL_DATE_FILTERS,
+                },
+                multipleValues: true,
+                or: false,
+                nestedGroups: false,
+            },
+            metricFilters: false,
+            dates: {
+                rangeRequired: true,
+                operators: MIXPANEL_DATE_FILTERS,
+                grains: [TimeFrames.DAY, TimeFrames.WEEK, TimeFrames.MONTH],
+                timezone: 'fixed',
+            },
+            pushdown: ALL_PUSHDOWN_REFUSED,
+        },
+        limits: {
+            callsPerQuery: MIXPANEL_CALLS_PER_QUERY,
+            timeoutMs: 60_000,
+            maxRows: MIXPANEL_MAX_QUERY_ROWS,
+        },
+    },
+    spec: {
+        auth: {
+            description:
+                'A service account (username and secret over HTTP Basic) added to the project; no vendor review. The Query API needs a Growth or Enterprise plan.',
+            testWith: 'paid_account',
+            needs: ['gmail', 'card'],
+            token: true,
+            oauth: 'none',
+        },
+        paging: {
+            description:
+                'No paging: segmentation returns up to 10,000 property values per call, funnels and retention every cohort and step at once.',
+        },
+        // Mixpanel allows 60 Query API calls an hour and 5 at once per project,
+        // shared with every other client. One call at a time and 40 an hour leave
+        // room for them.
+        rateLimits: {
+            concurrentCalls: 1,
+            callsPerSecond: null,
+            buckets: [
+                {
+                    id: 'hour',
+                    label: 'per hour',
+                    windowMs: 3_600_000,
+                    capacity: 40,
+                },
+            ],
+            note: 'Mixpanel allows 60 queries an hour and 5 at once per project, shared with every other client; Lightdash keeps to 40 an hour.',
+        },
+        useCases: mixpanelUseCases,
+    },
 });

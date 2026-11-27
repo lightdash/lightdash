@@ -34,7 +34,7 @@ const build = (definition: LiveExploreDefinition) => {
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.MIXPANEL,
         baseVersion: 1,
-        capabilities: mixpanelIntegration.capabilities,
+        capabilities: mixpanelIntegration.query.capabilities,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),

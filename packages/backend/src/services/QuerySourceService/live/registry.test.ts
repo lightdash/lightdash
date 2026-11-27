@@ -12,7 +12,7 @@ import {
     toScannedLiveSourceFields,
 } from './explores/build';
 import { getInitialLiveSourceFieldEdits } from './explores/fields';
-import { findAccessRule } from './integration';
+import { describeLiveExplores, findAccessRule } from './integration';
 import { connectLiveSource } from './liveSource.mock';
 import {
     getLiveIntegration,
@@ -116,7 +116,9 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         const integration = getLiveIntegration(settings.connector);
 
         test('stores its settings as they are', () => {
-            expect(integration.settings.parse(settings)).toEqual(settings);
+            expect(integration.connection.settings.parse(settings)).toEqual(
+                settings,
+            );
         });
 
         test('reads a stored source that carries the engine keys too', () => {
@@ -133,10 +135,10 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         });
 
         test('discovers fields only for explores it has, besides its first', () => {
-            const [first, ...others] = integration.explores.map(
+            const [first, ...others] = integration.model.explores.map(
                 ({ name }) => name,
             );
-            (integration.discovery?.models ?? []).forEach((model) => {
+            (integration.model.discovery?.models ?? []).forEach((model) => {
                 expect(others).toContain(model);
                 expect(model).not.toBe(first);
             });
@@ -181,13 +183,12 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
                 }),
             });
             // A metric where the explore has one, else a dimension
-            const [builtIn] = integration.explores;
-            const definition =
-                scan && integration.discovery
-                    ? (integration.discovery
-                          .describe(scan)
-                          .find(({ name }) => name === builtIn.name) ?? builtIn)
-                    : builtIn;
+            const [builtIn] = integration.model.explores;
+            const definition = scan
+                ? (describeLiveExplores(integration.model, scan).find(
+                      ({ name }) => name === builtIn.name,
+                  ) ?? builtIn)
+                : builtIn;
             const [metric] = definition.metrics;
             const [dimension] = definition.dimensions;
             const metricQuery: MetricQuery = {
@@ -216,27 +217,19 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
             await expect(run).rejects.not.toBeInstanceOf(ParameterError);
             expect(send).toHaveBeenCalled();
             // Every call it makes is one its access rules allow
-            const { rules } = integration.access(settings);
+            const { rules } = integration.connection.access(settings);
             send.mock.calls.forEach(([request]) => {
                 expect(findAccessRule(rules, request)).toBeDefined();
             });
         });
 
         test('states its access as read rules', () => {
-            const { rules } = integration.access(settings);
+            const { rules } = integration.connection.access(settings);
             expect(rules.length).toBeGreaterThan(0);
             rules.forEach((rule) => {
                 expect(rule.effect).toBe('read');
                 expect(rule.path).toMatch(/^\//);
             });
-        });
-
-        test('describes the explores it declares, in the same order', () => {
-            if (!integration.discovery) return;
-            const catalog = SAMPLE_SCANS[settings.connector] ?? {};
-            expect(
-                integration.discovery.describe(catalog).map(({ name }) => name),
-            ).toEqual(integration.explores.map(({ name }) => name));
         });
     },
 );

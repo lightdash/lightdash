@@ -25,7 +25,7 @@ const explore = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.LINKEDIN_ADS,
     baseVersion: 1,
-    capabilities: linkedInAdsIntegration.capabilities,
+    capabilities: linkedInAdsIntegration.query.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),

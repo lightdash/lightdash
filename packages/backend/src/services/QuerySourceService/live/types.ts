@@ -16,25 +16,43 @@ import type {
     LiveExploreDefinition,
     LivePeriodFormat,
 } from './explores/definition';
-import type { LiveIntegrationSpec, LiveRateLimits } from './spec/types';
+import type {
+    LiveIntegrationKind,
+    LiveIntegrationSpec,
+    LiveRateLimits,
+} from './spec/types';
 
 /**
- * One external API Lightdash queries live: a source's settings, what it may
- * call, its explores, how a metric query becomes calls and rows, and what
- * its code can't know about the tool (`LiveIntegrationSpec`). Write
- * one with `defineLiveIntegration` and list it in `registry.ts`.
+ * One external API Lightdash queries live, in four parts read top to
+ * bottom: how a source connects, what it can query, how a query runs, and
+ * the vendor's facts. Write one with `defineLiveIntegration` and list it in
+ * `registry.ts`.
  *
  * Integrations hold no state. A function that takes `runtime` may call the
  * API; every other function is pure. The service owns credentials, rate
- * limits, stored scans and field edits.
+ * limits, stored catalogs and field edits.
  */
 export type LiveIntegration<
     C extends ApiConnectorType = ApiConnectorType,
     Request = unknown,
     Catalog extends LiveCatalog = LiveCatalog,
-> = LiveIntegrationSpec & {
+> = {
     connector: C;
     label: string;
+    /**
+     * How Integrations 2.0 answers it: `reports` when the API computes
+     * totals at a grain, `records` when it returns rows, `sql` when it runs a
+     * query language. Nothing reads it yet.
+     */
+    kind: LiveIntegrationKind;
+    connection: LiveConnection<C>;
+    model: LiveModel<C, Catalog>;
+    query: LiveQuery<C, Request>;
+    spec: LiveIntegrationSpec<C>;
+};
+
+/** What an admin enters, what a source may call, and how its sign-in is checked. */
+export type LiveConnection<C extends ApiConnectorType = ApiConnectorType> = {
     /** The shape stored on the connection. */
     settings: z.ZodType<ApiSourceOf<C>>;
     /** The hosts a source may call; several when the API has regions. */
@@ -47,18 +65,10 @@ export type LiveIntegration<
     acceptsOrigin?: (origin: string) => boolean;
     /** What a source may call on its origin, whatever its stored connection says. */
     access: (settings: ApiSourceOf<C>) => LiveAccess;
-    limits: LiveLimits;
-    /** A source's own rate limits, when its settings set them; omitted, every source gets `rateLimits`. */
-    rateLimitsFor?: (settings: ApiSourceOf<C>) => LiveRateLimits;
-    capabilities: LiveCapabilities;
-    /** The first is the wide model; discovered fields and field edits apply to it and to `discovery.models`. */
-    explores: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
-    /** Explore names reserved for models not built yet. */
-    plannedModelNames: readonly string[];
-    /** Throws a ParameterError naming the setting the admin has to change. */
-    validate: (settings: ApiSourceOf<C>) => void;
     /** Throws a ParameterError when the connection signs in the wrong way. */
     checkAuth: (connection: LiveConnectionCheck) => void;
+    /** Throws a ParameterError naming the setting the admin has to change. */
+    validate?: (settings: ApiSourceOf<C>) => void;
     /**
      * Says what a source reads, for the AI agent. `targetLabel` is the name
      * the connection picker showed, absent on sources connected without one.
@@ -69,20 +79,6 @@ export type LiveIntegration<
         targetLabel: string | null;
     }) => string;
     /**
-     * Reads one query, as compile writes it and as an agent may send it raw.
-     * Throws a ParameterError saying what to fix; `jsonRequest` covers JSON.
-     */
-    parseRequest: (query: string) => Request;
-    compile: (args: LiveCompileArgs) => LiveCompiledRequest;
-    /**
-     * Time grains the API returns as compact periods (e.g. GA4's YYYYWW);
-     * their columns are turned into the period's first day.
-     */
-    periodFormats?: Partial<Record<TimeFrames, LivePeriodFormat>>;
-    run: (args: LiveRunArgs<C, Request>) => Promise<LiveRunResult>;
-    /** Turns a response outside 2xx into an error that says what to change. */
-    toError: (response: LiveHttpResponse, settings: ApiSourceOf<C>) => Error;
-    /**
      * Reads the setup dialog's test response into what an admin checks: the
      * account it reached and a few counts. Null when the body is not the
      * test's shape; omitted, a 2xx reads as plain "Connected to <label>".
@@ -91,31 +87,71 @@ export type LiveIntegration<
         body: unknown,
         settings: ApiSourceOf<C>,
     ) => LiveTestSummary | null;
+};
+
+/** The explores a source offers. */
+export type LiveModel<
+    C extends ApiConnectorType = ApiConnectorType,
+    Catalog extends LiveCatalog = LiveCatalog,
+> = {
+    /** The first is the wide model; discovered fields and field edits apply to it and to `discovery.models`. */
+    explores: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
+    /** Explore names reserved for models not built yet. */
+    plannedNames?: readonly string[];
     /** Reads fields the API reports itself; omitted when every field is built in. */
-    discovery?: {
-        /** Reads what the API has now; the service runs it when a source is created or refreshed. */
-        discover: (args: {
-            settings: ApiSourceOf<C>;
-            runtime: LiveRuntime;
-        }) => Promise<Catalog>;
-        /**
-         * `explores` with the fields `discover` found, in the same order and
-         * under the same names. Only the first explore and `models` read it.
-         */
-        describe: (catalog: Catalog) => LiveExploreDefinition[];
-        /** Discovered fields kept out of the default field list. */
-        isInternalField?: (apiName: string) => boolean;
-        /**
-         * A new source starts with every discovered field in use, for
-         * integrations whose explore is only what discovery finds.
-         */
-        inUseByDefault?: true;
-        /**
-         * Names of the explores besides the first that discovered fields are
-         * added to, each curated on its own. Omitted, only the first is.
-         */
-        models?: readonly string[];
-    };
+    discovery?: LiveDiscovery<C, Catalog>;
+};
+
+export type LiveDiscovery<
+    C extends ApiConnectorType = ApiConnectorType,
+    Catalog extends LiveCatalog = LiveCatalog,
+> = {
+    /** Reads what the API has now; the service runs it when a source is created or refreshed. */
+    discover: (args: {
+        settings: ApiSourceOf<C>;
+        runtime: LiveRuntime;
+    }) => Promise<Catalog>;
+    /**
+     * Names of the explores besides the first that discovered fields are
+     * added to, each curated on its own. Omitted, only the first is.
+     */
+    models?: readonly string[];
+    /** One explore with the fields `discover` found; the service applies it to the first explore and `models`. */
+    withFields: (
+        definition: LiveExploreDefinition,
+        catalog: Catalog,
+    ) => LiveExploreDefinition;
+    /** Discovered fields kept out of the default field list. */
+    isInternalField?: (apiName: string) => boolean;
+    /**
+     * A new source starts with every discovered field in use, for
+     * integrations whose explore is only what discovery finds.
+     */
+    inUseByDefault?: true;
+};
+
+/** How a metric query becomes calls and rows. */
+export type LiveQuery<
+    C extends ApiConnectorType = ApiConnectorType,
+    Request = unknown,
+> = {
+    /**
+     * The request compile writes and an agent may send raw: a zod schema for
+     * a JSON body, or a parser for a query language. A parser throws a
+     * ParameterError saying what to fix.
+     */
+    request: z.ZodType<Request> | ((query: string) => Request);
+    compile: (args: LiveCompileArgs) => LiveCompiledRequest;
+    run: (args: LiveRunArgs<C, Request>) => Promise<LiveRunResult>;
+    /** Turns a response outside 2xx into an error that says what to change. */
+    toError: (response: LiveHttpResponse, settings: ApiSourceOf<C>) => Error;
+    capabilities: LiveCapabilities;
+    limits: LiveLimits;
+    /**
+     * Time grains the API returns as compact periods (e.g. GA4's YYYYWW);
+     * their columns are turned into the period's first day.
+     */
+    periodFormats?: Partial<Record<TimeFrames, LivePeriodFormat>>;
     /** Defaults to DuckDB, which only runs the compiled explore's SQL shape. */
     warehouseSqlBuilder?: WarehouseSqlBuilder;
 };

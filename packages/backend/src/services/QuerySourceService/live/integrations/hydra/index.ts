@@ -12,7 +12,6 @@ import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
     getIsoDateInTimeZone,
-    jsonRequest,
     readRule,
     type LiveLimits,
 } from '../../sdk';
@@ -44,82 +43,84 @@ const LIMITS: LiveLimits = {
 export const hydraIntegration = defineLiveIntegration({
     connector: ApiConnectorType.HYDRA,
     label: LABEL,
-    settings: CATALOG.settings,
-    origins: [HYDRA_ORIGIN],
-    access: () => ({
-        rules: [
-            readRule('POST', HYDRA_REPORT_PATH),
-            readRule('GET', HYDRA_ACCOUNT_PATH),
-        ],
-    }),
-    limits: LIMITS,
-    rateLimitsFor: getHydraDeclaredLimits,
-    // One AND of report filters, each keeping or dropping a list of values.
-    // Events are read over one range of UTC days.
-    capabilities: {
-        filters: {
-            operators: {
-                string: HYDRA_STRING_FILTERS,
-                date: HYDRA_DATE_FILTERS,
-            },
-            multipleValues: true,
-            or: false,
-            nestedGroups: false,
-        },
-        metricFilters: false,
-        dates: {
-            rangeRequired: true,
-            operators: HYDRA_DATE_FILTERS,
-            grains: [],
-            timezone: 'fixed',
-        },
-        pushdown: ALL_PUSHDOWN_REFUSED,
-    },
-    explores: HYDRA_EXPLORES,
-    plannedModelNames: [],
-    level: {
-        value: 3,
-        description:
-            'Reports return totals per dimension, filtered and sorted by the API.',
-    },
     kind: 'reports',
-    auth: {
-        description:
-            'A test integration: any token signs in, and each token seeds its own rows.',
-        testWith: 'test_account',
-        needs: ['invite'],
-        token: true,
-        oauth: 'none',
-    },
-    paging: {
-        description:
-            "One call returns up to 10,000 groups, or the source's pageSize, and says where the next page starts.",
-    },
-    rateLimits: getHydraDeclaredLimits(HYDRA_DEFAULT_SOURCE),
-    useCases: hydraUseCases,
-    validate: (settings) => {
-        const problem = getHydraSettingsProblem(settings);
-        if (problem) {
-            throw new ParameterError(`The Hydra setting ${problem}`);
-        }
-    },
-    checkAuth: ({ type }) => {
-        if (type !== 'bearer_token') {
-            throw new ParameterError(
-                'Hydra connections authenticate with a token',
-            );
-        }
-    },
-    describeTarget: () =>
-        'Hydra test data: seeded product events and users, for testing',
-    parseRequest: jsonRequest(LABEL, hydraReportSchema),
-    compile: ({ explore, metricQuery, now }) =>
-        compileHydraQuery({
-            explore,
-            metricQuery,
-            today: getIsoDateInTimeZone(now, 'UTC'),
+    connection: {
+        settings: CATALOG.settings,
+        origins: [HYDRA_ORIGIN],
+        access: () => ({
+            rules: [
+                readRule('POST', HYDRA_REPORT_PATH),
+                readRule('GET', HYDRA_ACCOUNT_PATH),
+            ],
         }),
-    run: runHydraQuery,
-    toError: (response) => toHydraError(response),
-    summarizeTest: summarizeHydraTest,
+        checkAuth: ({ type }) => {
+            if (type !== 'bearer_token') {
+                throw new ParameterError(
+                    'Hydra connections authenticate with a token',
+                );
+            }
+        },
+        validate: (settings) => {
+            const problem = getHydraSettingsProblem(settings);
+            if (problem) {
+                throw new ParameterError(`The Hydra setting ${problem}`);
+            }
+        },
+        describeTarget: () =>
+            'Hydra test data: seeded product events and users, for testing',
+        summarizeTest: summarizeHydraTest,
+    },
+    model: {
+        explores: HYDRA_EXPLORES,
+    },
+    query: {
+        request: hydraReportSchema,
+        compile: ({ explore, metricQuery, now }) =>
+            compileHydraQuery({
+                explore,
+                metricQuery,
+                today: getIsoDateInTimeZone(now, 'UTC'),
+            }),
+        run: runHydraQuery,
+        toError: (response) => toHydraError(response),
+        // One AND of report filters, each keeping or dropping a list of values.
+        // Events are read over one range of UTC days.
+        capabilities: {
+            filters: {
+                operators: {
+                    string: HYDRA_STRING_FILTERS,
+                    date: HYDRA_DATE_FILTERS,
+                },
+                multipleValues: true,
+                or: false,
+                nestedGroups: false,
+            },
+            metricFilters: false,
+            dates: {
+                rangeRequired: true,
+                operators: HYDRA_DATE_FILTERS,
+                grains: [],
+                timezone: 'fixed',
+            },
+            pushdown: ALL_PUSHDOWN_REFUSED,
+        },
+        limits: LIMITS,
+    },
+    spec: {
+        auth: {
+            description:
+                'A test integration: any token signs in, and each token seeds its own rows.',
+            testWith: 'test_account',
+            needs: ['invite'],
+            token: true,
+            oauth: 'none',
+        },
+        paging: {
+            description:
+                "One call returns up to 10,000 groups, or the source's pageSize, and says where the next page starts.",
+        },
+        rateLimits: getHydraDeclaredLimits(HYDRA_DEFAULT_SOURCE),
+        rateLimitsFor: getHydraDeclaredLimits,
+        useCases: hydraUseCases,
+    },
 });

@@ -25,7 +25,7 @@ const explore = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.META_ADS,
     baseVersion: 1,
-    capabilities: metaAdsIntegration.capabilities,
+    capabilities: metaAdsIntegration.query.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),

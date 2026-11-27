@@ -13,9 +13,7 @@ import {
 import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
-    describeExplores,
     getIsoDateInTimeZone,
-    jsonRequest,
     readRule,
 } from '../../sdk';
 import {
@@ -54,125 +52,39 @@ const LABEL = CATALOG.messageLabel;
 export const salesforceIntegration = defineLiveIntegration({
     connector: ApiConnectorType.SALESFORCE,
     label: LABEL,
-    settings: CATALOG.settings,
-    origins: ['https://<your domain>.my.salesforce.com'],
-    acceptsOrigin: isSalesforceInstanceOrigin,
-    access: () => ({
-        rules: [
-            readRule('GET', SALESFORCE_QUERY_PATH),
-            ...SALESFORCE_OBJECTS.map((object) =>
-                readRule('GET', getSalesforceDescribePath(object)),
-            ),
-            readRule('GET', SALESFORCE_LIMITS_PATH),
-        ],
-    }),
-    limits: {
-        callsPerQuery: SALESFORCE_MAX_CALLS,
-        timeoutMs: 60_000,
-        maxRows: SALESFORCE_MAX_RECORD_ROWS,
-    },
-    // SOQL takes any AND/OR tree in WHERE and HAVING. Dates group by UTC
-    // calendar periods.
-    capabilities: {
-        filters: {
-            operators: {
-                string: SALESFORCE_TEXT_FILTERS,
-                number: SALESFORCE_NUMBER_FILTERS,
-                boolean: SALESFORCE_BOOLEAN_FILTERS,
-                date: SALESFORCE_DATE_FILTERS,
-                timestamp: SALESFORCE_DATE_FILTERS,
-                metric: SALESFORCE_METRIC_FILTERS,
-            },
-            multipleValues: true,
-            or: true,
-            nestedGroups: true,
-        },
-        metricFilters: true,
-        dates: {
-            rangeRequired: false,
-            operators: SALESFORCE_DATE_FILTERS,
-            grains: [
-                TimeFrames.DAY,
-                TimeFrames.MONTH,
-                TimeFrames.QUARTER,
-                TimeFrames.YEAR,
-            ],
-            timezone: 'fixed',
-        },
-        pushdown: ALL_PUSHDOWN_REFUSED,
-    },
-    explores: SALESFORCE_EXPLORES,
-    plannedModelNames: [],
-    // The sign-in decides the org; the settings name only the connector
-    level: {
-        value: 4,
-        description:
-            'SOQL supports GROUP BY and aggregates (COUNT, SUM, AVG), so Salesforce totals itself.',
-    },
     kind: 'records',
-    auth: {
-        description: 'No vendor review is needed.',
-        testWith: 'test_account',
-        needs: ['gmail'],
-        token: false,
-        oauth: 'no_review',
-    },
-    paging: {
-        description:
-            'Records come in batches of up to 2,000, followed by a next-records URL; aggregate queries return up to 2,000 groups.',
-    },
-    // Every call counts against the org's API calls per 24 hours (15,000 on
-    // Developer Edition, 100,000 and up on paid editions), which its other
-    // apps share. 500 an hour keeps one source under the smallest daily limit.
-    rateLimits: {
-        concurrentCalls: 2,
-        callsPerSecond: null,
-        buckets: [
-            {
-                id: 'hour',
-                label: 'per hour',
-                windowMs: 3_600_000,
-                capacity: 500,
-            },
-            {
-                id: 'day',
-                label: 'per day',
-                windowMs: 86_400_000,
-                capacity: 2_000,
-            },
-        ],
-        note: "The org's daily API allowance is shared with its other apps.",
-    },
-    useCases: salesforceUseCases,
-    validate: () => {},
-    checkAuth: ({ type, oauthTokenUrl }) => {
-        if (
-            type !== 'oauth_authorization_code' ||
-            getSalesforceEnvironment(oauthTokenUrl ?? null) === null
-        ) {
-            throw new ParameterError(
-                'Salesforce live data sources sign in with Salesforce',
-            );
-        }
-    },
-    describeTarget: () =>
-        'Salesforce org: opportunities, accounts, leads and contacts',
-    parseRequest: jsonRequest(`${LABEL} query`, salesforceRequestSchema),
-    compile: ({ explore, metricQuery, now }) =>
-        compileSalesforceQuery({
-            explore,
-            metricQuery,
-            today: getIsoDateInTimeZone(now, 'UTC'),
+    connection: {
+        settings: CATALOG.settings,
+        origins: ['https://<your domain>.my.salesforce.com'],
+        acceptsOrigin: isSalesforceInstanceOrigin,
+        access: () => ({
+            rules: [
+                readRule('GET', SALESFORCE_QUERY_PATH),
+                ...SALESFORCE_OBJECTS.map((object) =>
+                    readRule('GET', getSalesforceDescribePath(object)),
+                ),
+                readRule('GET', SALESFORCE_LIMITS_PATH),
+            ],
         }),
-    run: runSalesforceQuery,
-    toError: toSalesforceError,
-    summarizeTest: summarizeSalesforceTest,
-    discovery: {
-        discover: scanSalesforceDescribe,
-        describe: describeExplores(
-            SALESFORCE_EXPLORES,
-            SALESFORCE_SCANNED_MODELS,
-            (definition, catalog: SalesforceCatalog) =>
+        checkAuth: ({ type, oauthTokenUrl }) => {
+            if (
+                type !== 'oauth_authorization_code' ||
+                getSalesforceEnvironment(oauthTokenUrl ?? null) === null
+            ) {
+                throw new ParameterError(
+                    'Salesforce live data sources sign in with Salesforce',
+                );
+            }
+        },
+        describeTarget: () =>
+            'Salesforce org: opportunities, accounts, leads and contacts',
+        summarizeTest: summarizeSalesforceTest,
+    },
+    model: {
+        explores: SALESFORCE_EXPLORES,
+        discovery: {
+            discover: scanSalesforceDescribe,
+            withFields: (definition, catalog: SalesforceCatalog) =>
                 withSalesforceFields(
                     definition,
                     readSalesforceDescribe(
@@ -180,9 +92,91 @@ export const salesforceIntegration = defineLiveIntegration({
                         toSalesforceObject(definition.name),
                     ),
                 ),
-        ),
-        isInternalField: isInternalSalesforceField,
-        // Opportunities is the first explore; the other objects are scanned too
-        models: SALESFORCE_SCANNED_MODELS,
+            isInternalField: isInternalSalesforceField,
+            // Opportunities is the first explore; the other objects are scanned too
+            models: SALESFORCE_SCANNED_MODELS,
+        },
+    },
+    query: {
+        request: salesforceRequestSchema,
+        compile: ({ explore, metricQuery, now }) =>
+            compileSalesforceQuery({
+                explore,
+                metricQuery,
+                today: getIsoDateInTimeZone(now, 'UTC'),
+            }),
+        run: runSalesforceQuery,
+        toError: toSalesforceError,
+        // SOQL takes any AND/OR tree in WHERE and HAVING. Dates group by UTC
+        // calendar periods.
+        capabilities: {
+            filters: {
+                operators: {
+                    string: SALESFORCE_TEXT_FILTERS,
+                    number: SALESFORCE_NUMBER_FILTERS,
+                    boolean: SALESFORCE_BOOLEAN_FILTERS,
+                    date: SALESFORCE_DATE_FILTERS,
+                    timestamp: SALESFORCE_DATE_FILTERS,
+                    metric: SALESFORCE_METRIC_FILTERS,
+                },
+                multipleValues: true,
+                or: true,
+                nestedGroups: true,
+            },
+            metricFilters: true,
+            dates: {
+                rangeRequired: false,
+                operators: SALESFORCE_DATE_FILTERS,
+                grains: [
+                    TimeFrames.DAY,
+                    TimeFrames.MONTH,
+                    TimeFrames.QUARTER,
+                    TimeFrames.YEAR,
+                ],
+                timezone: 'fixed',
+            },
+            pushdown: ALL_PUSHDOWN_REFUSED,
+        },
+        limits: {
+            callsPerQuery: SALESFORCE_MAX_CALLS,
+            timeoutMs: 60_000,
+            maxRows: SALESFORCE_MAX_RECORD_ROWS,
+        },
+    },
+    spec: {
+        auth: {
+            description: 'No vendor review is needed.',
+            testWith: 'test_account',
+            needs: ['gmail'],
+            token: false,
+            oauth: 'no_review',
+        },
+        paging: {
+            description:
+                'Records come in batches of up to 2,000, followed by a next-records URL; aggregate queries return up to 2,000 groups.',
+        },
+        // Every call counts against the org's API calls per 24 hours (15,000 on
+        // Developer Edition, 100,000 and up on paid editions), which its other
+        // apps share. 500 an hour keeps one source under the smallest daily limit.
+        rateLimits: {
+            concurrentCalls: 2,
+            callsPerSecond: null,
+            buckets: [
+                {
+                    id: 'hour',
+                    label: 'per hour',
+                    windowMs: 3_600_000,
+                    capacity: 500,
+                },
+                {
+                    id: 'day',
+                    label: 'per day',
+                    windowMs: 86_400_000,
+                    capacity: 2_000,
+                },
+            ],
+            note: "The org's daily API allowance is shared with its other apps.",
+        },
+        useCases: salesforceUseCases,
     },
 });

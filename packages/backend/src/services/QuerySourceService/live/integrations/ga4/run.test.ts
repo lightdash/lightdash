@@ -174,7 +174,7 @@ describe('ga4Integration run', () => {
         ],
         [
             JSON.stringify({ ...request, metrics: [] }),
-            'Invalid GA4 report request at metrics',
+            'Invalid Google Analytics request at metrics',
         ],
         [JSON.stringify({ ...request, offset: 10 }), 'Unrecognized key'],
         [

@@ -10830,7 +10830,10 @@ export class ProjectService
                     );
                     // A leg cut short at the integration's cap would join
                     // as if its missing rows did not exist
-                    const { label, limits } = getLiveIntegration(integration);
+                    const {
+                        label,
+                        query: { limits },
+                    } = getLiveIntegration(integration);
                     if (resolvedMetricQuery.limit > limits.maxRows) {
                         throw new ParameterError(
                             `Merge source "${source.id}" asks for ${resolvedMetricQuery.limit.toLocaleString(

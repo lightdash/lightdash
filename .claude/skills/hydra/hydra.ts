@@ -14,14 +14,18 @@ import { fileURLToPath } from 'url';
 import { getLiveIntegration } from '../../../packages/backend/src/services/QuerySourceService/live/registry';
 import { getLiveAuthScore } from '../../../packages/backend/src/services/QuerySourceService/live/spec/auth';
 import { crossToolUseCases } from '../../../packages/backend/src/services/QuerySourceService/live/spec/crossToolUseCases';
-import type { LiveIntegrationSpec } from '../../../packages/backend/src/services/QuerySourceService/live/spec/types';
+import type {
+    LiveIntegrationKind,
+    LiveIntegrationSpec,
+} from '../../../packages/backend/src/services/QuerySourceService/live/spec/types';
 
 type PageIntegration = Pick<
     LiveIntegrationSpec,
-    'level' | 'auth' | 'paging' | 'rateLimits' | 'useCases'
+    'auth' | 'paging' | 'rateLimits' | 'useCases'
 > & {
     name: string;
     label: string;
+    kind: LiveIntegrationKind;
     /** assess: how much it's worth and what it costs; the page derives the call from the two. */
     verdict?: {
         value: { level: 'high' | 'medium' | 'low'; reason: string };
@@ -50,12 +54,15 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(homedir(), '.hydra');
 
 const toPageIntegration = (connector: ApiConnectorType): PageIntegration => {
-    const { label, level, auth, paging, rateLimits, useCases } =
-        getLiveIntegration(connector);
+    const {
+        label,
+        kind,
+        spec: { auth, paging, rateLimits, useCases },
+    } = getLiveIntegration(connector);
     return {
         name: connector,
         label,
-        level,
+        kind,
         auth,
         paging,
         rateLimits,

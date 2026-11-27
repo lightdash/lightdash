@@ -432,7 +432,7 @@ describe('salesforceIntegration access', () => {
     });
 
     it('reads only the query, describe and limits endpoints, with GET', () => {
-        expect(salesforceIntegration.access(SETTINGS)).toEqual({
+        expect(salesforceIntegration.connection.access(SETTINGS)).toEqual({
             rules: [
                 '/services/data/v62.0/query',
                 '/services/data/v62.0/sobjects/Opportunity/describe',

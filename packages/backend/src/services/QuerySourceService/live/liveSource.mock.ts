@@ -22,7 +22,7 @@ export const connectLiveSource = <C extends ApiConnectorType>(
         run: (args: { query: string; limit: number }) =>
             runLiveRequest(source, args),
         discover: (): Promise<LiveCatalog> =>
-            integration.discovery?.discover({
+            integration.model.discovery?.discover({
                 settings,
                 runtime: source.runtime,
             }) ?? Promise.resolve({}),

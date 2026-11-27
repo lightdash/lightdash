@@ -47,7 +47,7 @@ export const readLiveRateLimit = (
     now: Date,
 ): { resumesAt: Date | null } | null => {
     if (isOk(response.status)) return null;
-    const error = integration.toError(response, settings);
+    const error = integration.query.toError(response, settings);
     const isRateLimit =
         error instanceof TooManyRequestsError || response.status === 429;
     if (!isRateLimit) return null;
@@ -74,7 +74,7 @@ export const createLiveRuntime = (
     const send = async (request: LiveHttpRequest) => {
         const response = await transport(request);
         if (!isOk(response.status)) {
-            throw integration.toError(response, settings);
+            throw integration.query.toError(response, settings);
         }
         return response;
     };

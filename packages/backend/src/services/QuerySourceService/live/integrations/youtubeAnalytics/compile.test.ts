@@ -25,7 +25,7 @@ const explore = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.YOUTUBE_ANALYTICS,
     baseVersion: 1,
-    capabilities: youtubeAnalyticsIntegration.capabilities,
+    capabilities: youtubeAnalyticsIntegration.query.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),

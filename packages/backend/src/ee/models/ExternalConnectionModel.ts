@@ -210,7 +210,9 @@ const readSourceDetails = (value: unknown) => {
 /** Connector settings only: drops any server-owned key a caller sent. */
 const toApiSourceSettingsJson = (apiSource: ExternalConnectionApiSource) =>
     JSON.stringify(
-        getLiveIntegration(apiSource.connector).settings.parse(apiSource),
+        getLiveIntegration(apiSource.connector).connection.settings.parse(
+            apiSource,
+        ),
     );
 
 /** The curation edits of a live source, saved together. */

@@ -30,7 +30,7 @@ const build = (definition: LiveExploreDefinition) =>
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.PYLON,
         baseVersion: 1,
-        capabilities: pylonIntegration.capabilities,
+        capabilities: pylonIntegration.query.capabilities,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),

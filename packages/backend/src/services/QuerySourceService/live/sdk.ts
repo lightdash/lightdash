@@ -10,9 +10,7 @@ export {
     ALL_PUSHDOWN_REFUSED,
     assertMaxRows,
     defineLiveIntegration,
-    describeExplores,
     formatTestCount,
-    jsonRequest,
     readRule,
 } from './integration';
 export type { LiveRateLimits, LiveUseCases } from './spec/types';

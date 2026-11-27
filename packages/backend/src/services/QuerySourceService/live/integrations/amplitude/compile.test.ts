@@ -35,7 +35,7 @@ const build = (definition: LiveExploreDefinition) => {
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.AMPLITUDE,
         baseVersion: 1,
-        capabilities: amplitudeIntegration.capabilities,
+        capabilities: amplitudeIntegration.query.capabilities,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),

@@ -10,7 +10,6 @@ import {
     ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
     getIsoDateInTimeZone,
-    jsonRequest,
     readRule,
 } from '../../sdk';
 import { compileGithubQuery } from './compile';
@@ -41,119 +40,122 @@ const GITHUB_REPO = /^(?!\.{1,2}$)[A-Za-z0-9._-]{1,100}$/;
 export const githubIntegration = defineLiveIntegration({
     connector: ApiConnectorType.GITHUB,
     label: LABEL,
-    settings: CATALOG.settings,
-    origins: [GITHUB_ORIGIN],
-    // Search reads any repository the token can, but every request names
-    // this one; see toGithubSearchQuery.
-    access: ({ owner, repo }) => ({
-        rules: [
-            readRule('GET', GITHUB_SEARCH_PATH),
-            readRule('GET', getGithubContributorsPath(owner, repo)),
-        ],
-        headers: {
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-            'User-Agent': 'Lightdash',
-        },
-    }),
-    limits: {
-        callsPerQuery: GITHUB_CALLS_PER_QUERY,
-        timeoutMs: 30_000,
-        maxRows: GITHUB_MAX_QUERY_ROWS,
-    },
-    // Search ANDs one flat list of qualifiers, one value each; counts come
-    // from the search total and can't be grouped. Dates are UTC days.
-    capabilities: {
-        filters: {
-            operators: {
-                string: [...GITHUB_VALUE_FILTERS, ...GITHUB_TEXT_FILTERS],
-                number: GITHUB_NUMBER_FILTERS,
-                boolean: GITHUB_BOOLEAN_FILTERS,
-                date: GITHUB_DATE_FILTERS,
-            },
-            multipleValues: false,
-            or: false,
-            nestedGroups: false,
-        },
-        metricFilters: false,
-        dates: {
-            rangeRequired: false,
-            operators: GITHUB_DATE_FILTERS,
-            grains: [],
-            timezone: 'fixed',
-        },
-        pushdown: ALL_PUSHDOWN_REFUSED,
-    },
-    explores: GITHUB_EXPLORES,
-    plannedModelNames: ['workflow_runs', 'releases'],
-    level: {
-        value: 2,
-        description:
-            'Search returns a total count per filter; nothing else is totalled.',
-    },
     kind: 'records',
-    auth: {
-        description: 'No vendor review is needed.',
-        testWith: 'test_account',
-        needs: ['gmail', 'phone'],
-        token: true,
-        oauth: 'no_review',
-    },
-    paging: {
-        description:
-            'Search returns 100 results a page and stops at 1,000 results.',
-    },
-    // Search allows 30 calls a minute per token, the tightest of GitHub's
-    // limits; the REST API allows 5,000 an hour.
-    rateLimits: {
-        concurrentCalls: 3,
-        callsPerSecond: null,
-        buckets: [
-            {
-                id: 'minute',
-                label: 'per minute',
-                windowMs: 60_000,
-                capacity: 30,
+    connection: {
+        settings: CATALOG.settings,
+        origins: [GITHUB_ORIGIN],
+        // Search reads any repository the token can, but every request names
+        // this one; see toGithubSearchQuery.
+        access: ({ owner, repo }) => ({
+            rules: [
+                readRule('GET', GITHUB_SEARCH_PATH),
+                readRule('GET', getGithubContributorsPath(owner, repo)),
+            ],
+            headers: {
+                Accept: 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                'User-Agent': 'Lightdash',
             },
-            {
-                id: 'hour',
-                label: 'per hour',
-                windowMs: 3_600_000,
-                capacity: 1_800,
-            },
-        ],
-        note: 'Search allows 30 calls a minute per token; REST allows 5,000 an hour.',
-    },
-    useCases: githubUseCases,
-    validate: ({ owner, repo }) => {
-        if (!GITHUB_OWNER.test(owner)) {
-            throw new ParameterError(
-                'The GitHub owner must be a user or organization name, like lightdash',
-            );
-        }
-        if (!GITHUB_REPO.test(repo)) {
-            throw new ParameterError(
-                'The GitHub repository must be its name without the owner, like lightdash',
-            );
-        }
-    },
-    checkAuth: ({ type }) => {
-        if (type !== 'bearer_token') {
-            throw new ParameterError(
-                'GitHub connections authenticate with a personal access token',
-            );
-        }
-    },
-    describeTarget: ({ settings: { owner, repo } }) =>
-        `GitHub repository ${owner}/${repo}`,
-    parseRequest: jsonRequest(LABEL, githubRequestSchema),
-    compile: ({ explore, metricQuery, now }) =>
-        compileGithubQuery({
-            explore,
-            metricQuery,
-            today: getIsoDateInTimeZone(now, 'UTC'),
         }),
-    run: runGithubQuery,
-    toError: (response, settings) => toGithubError(response, settings),
-    summarizeTest: summarizeGithubTest,
+        checkAuth: ({ type }) => {
+            if (type !== 'bearer_token') {
+                throw new ParameterError(
+                    'GitHub connections authenticate with a personal access token',
+                );
+            }
+        },
+        validate: ({ owner, repo }) => {
+            if (!GITHUB_OWNER.test(owner)) {
+                throw new ParameterError(
+                    'The GitHub owner must be a user or organization name, like lightdash',
+                );
+            }
+            if (!GITHUB_REPO.test(repo)) {
+                throw new ParameterError(
+                    'The GitHub repository must be its name without the owner, like lightdash',
+                );
+            }
+        },
+        describeTarget: ({ settings: { owner, repo } }) =>
+            `GitHub repository ${owner}/${repo}`,
+        summarizeTest: summarizeGithubTest,
+    },
+    model: {
+        explores: GITHUB_EXPLORES,
+        plannedNames: ['workflow_runs', 'releases'],
+    },
+    query: {
+        request: githubRequestSchema,
+        compile: ({ explore, metricQuery, now }) =>
+            compileGithubQuery({
+                explore,
+                metricQuery,
+                today: getIsoDateInTimeZone(now, 'UTC'),
+            }),
+        run: runGithubQuery,
+        toError: (response, settings) => toGithubError(response, settings),
+        // Search ANDs one flat list of qualifiers, one value each; counts come
+        // from the search total and can't be grouped. Dates are UTC days.
+        capabilities: {
+            filters: {
+                operators: {
+                    string: [...GITHUB_VALUE_FILTERS, ...GITHUB_TEXT_FILTERS],
+                    number: GITHUB_NUMBER_FILTERS,
+                    boolean: GITHUB_BOOLEAN_FILTERS,
+                    date: GITHUB_DATE_FILTERS,
+                },
+                multipleValues: false,
+                or: false,
+                nestedGroups: false,
+            },
+            metricFilters: false,
+            dates: {
+                rangeRequired: false,
+                operators: GITHUB_DATE_FILTERS,
+                grains: [],
+                timezone: 'fixed',
+            },
+            pushdown: ALL_PUSHDOWN_REFUSED,
+        },
+        limits: {
+            callsPerQuery: GITHUB_CALLS_PER_QUERY,
+            timeoutMs: 30_000,
+            maxRows: GITHUB_MAX_QUERY_ROWS,
+        },
+    },
+    spec: {
+        auth: {
+            description: 'No vendor review is needed.',
+            testWith: 'test_account',
+            needs: ['gmail', 'phone'],
+            token: true,
+            oauth: 'no_review',
+        },
+        paging: {
+            description:
+                'Search returns 100 results a page and stops at 1,000 results.',
+        },
+        // Search allows 30 calls a minute per token, the tightest of GitHub's
+        // limits; the REST API allows 5,000 an hour.
+        rateLimits: {
+            concurrentCalls: 3,
+            callsPerSecond: null,
+            buckets: [
+                {
+                    id: 'minute',
+                    label: 'per minute',
+                    windowMs: 60_000,
+                    capacity: 30,
+                },
+                {
+                    id: 'hour',
+                    label: 'per hour',
+                    windowMs: 3_600_000,
+                    capacity: 1_800,
+                },
+            ],
+            note: 'Search allows 30 calls a minute per token; REST allows 5,000 an hour.',
+        },
+        useCases: githubUseCases,
+    },
 });

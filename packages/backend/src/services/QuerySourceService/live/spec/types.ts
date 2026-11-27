@@ -1,11 +1,4 @@
-import { type ApiConnectorType } from '@lightdash/common';
-
-/**
- * How much of a question the tool's API answers by itself: 5 runs SQL,
- * 4 runs its own query language, 3 runs reports from a fixed menu,
- * 2 filters records with no totals, 1 lists records with no filtering.
- */
-export type LiveIntegrationLevel = 1 | 2 | 3 | 4 | 5;
+import { type ApiConnectorType, type ApiSourceOf } from '@lightdash/common';
 
 /** Where a tester gets real data; `unknown` when no way is known. */
 export type LiveAuthTestWith =
@@ -88,47 +81,39 @@ export type LiveRateLimits = {
     cardNote?: string;
 };
 
+/** How Integrations 2.0 answers a tool; see `LiveIntegration.kind`. */
+export type LiveIntegrationKind = 'reports' | 'records' | 'sql';
+
 /**
  * What an integration's code can't know about the tool it calls, written
  * into its definition. Prose sections carry a `description`; rate limits
  * are numbers, with a `note` only when the numbers can't say it.
  */
-export type LiveIntegrationKind = 'reports' | 'records' | 'sql';
-
-export type LiveIntegrationSpec = {
-    /**
-     * How much the API answers by itself: 5 runs SQL, 4 its own query
-     * language, 3 reports from a fixed menu, 2 filters records but has no
-     * totals, 1 only lists records.
-     */
-    level: { value: LiveIntegrationLevel; description: string };
-    /**
-     * How Integrations 2.0 answers it: `reports` when the API computes
-     * totals at a grain, `records` when it returns rows, `sql` when it runs a
-     * query language. Nothing reads it yet.
-     */
-    kind: LiveIntegrationKind;
-    /**
-     * How hard access is, for testers and for customers connecting.
-     * Token and OAuth are separate ways in.
-     */
-    auth: {
-        /** What the vendor must review or approve, if anything. */
-        description: string;
-        testWith: LiveAuthTestWith;
-        needs: [LiveAuthNeed, ...LiveAuthNeed[]];
+export type LiveIntegrationSpec<C extends ApiConnectorType = ApiConnectorType> =
+    {
         /**
-         * The ways in the vendor offers, whatever the integration's
-         * `checkAuth` accepts today: a token or key a customer creates and
-         * pastes, and OAuth sign-in with or without a vendor review.
+         * How hard access is, for testers and for customers connecting.
+         * Token and OAuth are separate ways in.
          */
-        token: boolean;
-        oauth: 'none' | 'no_review' | 'needs_review';
+        auth: {
+            /** What the vendor must review or approve, if anything. */
+            description: string;
+            testWith: LiveAuthTestWith;
+            needs: [LiveAuthNeed, ...LiveAuthNeed[]];
+            /**
+             * The ways in the vendor offers, whatever the integration's
+             * `checkAuth` accepts today: a token or key a customer creates and
+             * pastes, and OAuth sign-in with or without a vendor review.
+             */
+            token: boolean;
+            oauth: 'none' | 'no_review' | 'needs_review';
+        };
+        /** How the vendor's API pages results and where it stops. */
+        paging: { description: string };
+        /** The vendor's rate limits, as limits one connection stays under. */
+        rateLimits: LiveRateLimits;
+        /** A source's own rate limits, when its settings set them; omitted, every source gets `rateLimits`. */
+        rateLimitsFor?: (settings: ApiSourceOf<C>) => LiveRateLimits;
+        /** What people expect to ask it and build with it, and whether each is possible today. */
+        useCases: LiveUseCases;
     };
-    /** How the vendor's API pages results and where it stops. */
-    paging: { description: string };
-    /** The vendor's rate limits, as limits one connection stays under. */
-    rateLimits: LiveRateLimits;
-    /** What people expect to ask it and build with it, and whether each is possible today. */
-    useCases: LiveUseCases;
-};

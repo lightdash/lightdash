@@ -20,6 +20,7 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { createHash } from 'crypto';
 import { isPlainObject, memoize } from 'es-toolkit/compat';
+import { describeLiveExplores } from '../integration';
 import { tooManyRowsError } from '../query/rows';
 import { getLiveIntegration, isLiveIntegrationRegistered } from '../registry';
 import { type LiveCapabilities, type LiveCatalog } from '../types';
@@ -81,13 +82,12 @@ export type LiveBaseLayer = {
 export const getLiveBaseLayer = (
     connector: ApiConnectorType,
 ): LiveBaseLayer => {
-    const { capabilities, explores, plannedModelNames } =
-        getLiveIntegration(connector);
+    const { query, model } = getLiveIntegration(connector);
     return {
         baseVersion: 1,
-        capabilities,
-        definitions: explores,
-        plannedModelNames,
+        capabilities: query.capabilities,
+        definitions: model.explores,
+        plannedModelNames: model.plannedNames ?? [],
     };
 };
 
@@ -123,7 +123,7 @@ export const getLiveScannedModels = (
         definitions: [wide, ...others],
     } = getLiveBaseLayer(connector);
     const models = new Set(
-        getLiveIntegration(connector).discovery?.models ?? [],
+        getLiveIntegration(connector).model.discovery?.models ?? [],
     );
     return [
         { model: null, definition: wide },
@@ -138,11 +138,11 @@ export const toScannedLiveSourceFields = (
     connector: ApiConnectorType,
     catalog: LiveCatalog,
 ): ScannedLiveSourceField[] => {
-    const { discovery } = getLiveIntegration(connector);
+    const integrationModel = getLiveIntegration(connector).model;
     const isInternal = (apiName: string) =>
-        discovery?.isInternalField?.(apiName) ?? false;
+        integrationModel.discovery?.isInternalField?.(apiName) ?? false;
     const described = new Map(
-        (discovery?.describe(catalog) ?? []).map((definition) => [
+        describeLiveExplores(integrationModel, catalog).map((definition) => [
             definition.name,
             definition,
         ]),
@@ -200,7 +200,7 @@ const buildDefinitionExplore = (
         baseVersion,
         capabilities,
         warehouseSqlBuilder:
-            getLiveIntegration(connector).warehouseSqlBuilder ??
+            getLiveIntegration(connector).query.warehouseSqlBuilder ??
             DEFAULT_SQL_BUILDER,
     });
 };
@@ -311,7 +311,7 @@ export const describeLiveTarget = (
     origin: string,
     targetLabel: string | null,
 ): string =>
-    getLiveIntegration(apiSource.connector).describeTarget({
+    getLiveIntegration(apiSource.connector).connection.describeTarget({
         settings: apiSource,
         origin,
         targetLabel,
@@ -446,9 +446,9 @@ export const compileLiveMetricQuery = ({
             `"${explore.name}" isn't a live data source explore`,
         );
     }
-    const { compile, limits, periodFormats } = getLiveIntegration(
-        apiSource.integration,
-    );
+    const {
+        query: { compile, limits, periodFormats },
+    } = getLiveIntegration(apiSource.integration);
     const {
         query,
         localSorts = [],
