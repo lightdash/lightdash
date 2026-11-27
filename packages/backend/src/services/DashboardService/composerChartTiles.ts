@@ -4,6 +4,7 @@ import {
     type DashboardComposerChartTile,
     type DashboardTile,
     type RegisteredAccount,
+    type UUID,
 } from '@lightdash/common';
 import { isEqual } from 'es-toolkit/compat';
 import { type Knex } from 'knex';
@@ -29,7 +30,7 @@ export const duplicateComposerChartTiles = async (
         'findOwnedByDashboard' | 'duplicate'
     >,
     tiles: DashboardTile[],
-    source: { dashboardUuid: string },
+    source: { dashboardUuid: UUID },
     target: { dashboardUuid: string; userUuid: string },
 ): Promise<{ from: string; tile: DashboardComposerChartTile }[]> => {
     const owned = new Set(
@@ -76,7 +77,7 @@ export const lockComposerChartsForRollback = async (
     project: ProjectSubject,
     targetVersion: Pick<Dashboard, 'uuid' | 'tiles' | 'versionUuid'>,
     trx: Knex.Transaction,
-): Promise<string[]> => {
+): Promise<UUID[]> => {
     const chartUuids = [...getComposerChartUuids(targetVersion.tiles)];
     if (chartUuids.length === 0) return [];
     const pipelines = await composerChartModel.lockRollbackPipelines(
@@ -101,7 +102,7 @@ export const lockComposerChartsForRollback = async (
 
 export const rollbackComposerCharts = async (
     composerChartModel: Pick<ComposerChartModel, 'rollbackToDashboardVersion'>,
-    ownedChartUuids: string[],
+    ownedChartUuids: UUID[],
     dashboardVersionUuid: string,
     userUuid: string,
     trx: Knex.Transaction,

@@ -194,3 +194,37 @@ describe('CoderService composer chart upsert for the agent', () => {
         expect(writeFromCode).toHaveBeenCalledOnce();
     });
 });
+
+describe('CoderService composer chart tiles on dashboard upload', () => {
+    it("leaves out a tile whose chart is gone, when it is the upload's only composer tile", async () => {
+        const service = new CoderService({
+            composerChartModel: { findBySlugs: vi.fn(async () => []) },
+            composerChartService: { isEnabled: vi.fn(async () => true) },
+        } as AnyType);
+        const markdown = {
+            type: 'markdown',
+            properties: { title: '', content: 'hello' },
+        };
+
+        await expect(
+            (
+                service as unknown as {
+                    resolveUploadedComposerChartTiles: (
+                        ...args: AnyType[]
+                    ) => Promise<AnyType[]>;
+                }
+            ).resolveUploadedComposerChartTiles(
+                user,
+                { projectUuid: PROJECT_UUID, organizationUuid: ORG_UUID },
+                [
+                    markdown,
+                    {
+                        type: 'composer_chart',
+                        properties: { title: 'Gone', chartSlug: null },
+                    },
+                ],
+                undefined,
+            ),
+        ).resolves.toEqual([markdown]);
+    });
+});

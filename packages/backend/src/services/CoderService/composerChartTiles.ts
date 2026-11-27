@@ -35,9 +35,8 @@ export const toComposerChartTileAsCode = (
 });
 
 /**
- * Points each uploaded composer tile at the composer chart named by its slug.
- * Only composer charts are searched, and the dashboard must own the chart.
- * A tile whose chart is gone (null slug) is left out until a tile can hold no chart.
+ * Points each composer tile at the chart its dashboard owns, named by slug among composer charts.
+ * A gone chart's tile (null slug) is left out, as downloads once did, until a tile can hold no chart.
  */
 export const resolveComposerChartTiles = (
     tiles: DashboardTileWithSlug[],

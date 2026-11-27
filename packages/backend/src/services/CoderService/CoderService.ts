@@ -6300,7 +6300,12 @@ export class CoderService extends BaseService {
                 ? [tile.properties.chartSlug]
                 : [],
         );
-        if (slugs.length === 0) return tiles;
+        if (
+            !tiles.some(
+                (tile) => tile.type === DashboardTileTypes.COMPOSER_CHART,
+            )
+        )
+            return tiles;
         const charts = await this.composerChartModel.findBySlugs(
             project.projectUuid,
             slugs,
