@@ -70,10 +70,17 @@ const getDocumentCount = (
 const getComposerChartCountSql = (filters: ContentFilters): string => {
     if (!filters.composerCharts) return '';
     return filters.includeDescendantCounts
-        ? `UNION ALL
-            SELECT 1 FROM ${ComposerChartsTableName} cc
-                INNER JOIN ${SpaceTableName} s2 ON s2.space_uuid = cc.space_uuid
-                WHERE s2.project_id = ${SpaceTableName}.project_id AND s2.path <@ ${SpaceTableName}.path`
+        ? ` + (
+            WITH RECURSIVE composer_spaces AS (
+                SELECT ${SpaceTableName}.space_uuid
+                UNION ALL
+                SELECT child.space_uuid
+                FROM ${SpaceTableName} child
+                JOIN composer_spaces parent ON child.parent_space_uuid = parent.space_uuid
+            )
+            SELECT count(*) FROM ${ComposerChartsTableName} cc
+            WHERE cc.space_uuid IN (SELECT space_uuid FROM composer_spaces)
+        )`
         : ` + (SELECT count(*) FROM ${ComposerChartsTableName} cc
                 WHERE cc.space_uuid = ${SpaceTableName}.space_uuid
                 AND cc.deleted_at IS NULL)`;
@@ -186,7 +193,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                         }),
                         'chartCount', (${
                             filters.includeDescendantCounts
-                                ? `SELECT count(*) FROM (
+                                ? `(SELECT count(*) FROM (
                                         SELECT sq.saved_query_id FROM ${SavedChartsTableName} sq
                                             INNER JOIN ${SpaceTableName} s2 ON s2.space_id = sq.space_id WHERE s2.path <@ ${SpaceTableName}.path
                                         UNION ALL
@@ -200,8 +207,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                         SELECT 1 FROM ${SavedSqlTableName} ss
                                             INNER JOIN ${DashboardsTableName} d ON d.dashboard_uuid = ss.dashboard_uuid
                                             INNER JOIN ${SpaceTableName} s2 ON s2.space_id = d.space_id WHERE s2.path <@ ${SpaceTableName}.path
-                                        ${getComposerChartCountSql(filters)}
-                                    ) _`
+                                    ) _)${getComposerChartCountSql(filters)}`
                                 : `(SELECT count(DISTINCT ${SavedChartsTableName}.saved_query_id)
                                     FROM ${SavedChartsTableName}
                                     WHERE ${SavedChartsTableName}.space_id = ${SpaceTableName}.space_id

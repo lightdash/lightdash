@@ -956,6 +956,26 @@ describe('Composer charts', () => {
             expect(run.status).toBe(403);
         });
 
+        it('lists a space chart only for a role that views charts', async () => {
+            const created = await createComposerSpaceChart(
+                apiClientSend(admin),
+            );
+            tracker.trackSpace(created.space.uuid);
+            const listedFor = async (client: ApiClient) =>
+                (
+                    await client.get<Body<{ data: SummaryContent[] }>>(
+                        `/api/v2/content?projectUuids=${projectUuid}&spaceUuids=${created.space.uuid}&contentTypes=${ContentType.COMPOSER_CHART}`,
+                    )
+                ).body.results.data.map((item) => item.uuid);
+
+            expect(await listedFor(await roleUser(['view:Dashboard']))).toEqual(
+                [],
+            );
+            expect(
+                await listedFor(await roleUser(['view:SavedChart'])),
+            ).toEqual([created.chart.uuid]);
+        });
+
         const authorScopes = [
             'view:Dashboard',
             'view:SavedChart',
@@ -2011,6 +2031,45 @@ describe('Composer charts', () => {
                     (await admin.post(flagUrl, { enabled: true })).status,
                 ).toBe(200);
             }
+        });
+
+        it("counts a child space's chart in a deleted space's Recently deleted row", async () => {
+            const parent = await createSpace();
+            const child = await admin.post<Body<Space>>(
+                `/api/v1/projects/${projectUuid}/spaces`,
+                {
+                    name: uniqueName('Composer child space'),
+                    parentSpaceUuid: parent.uuid,
+                },
+            );
+            expect(child.status).toBe(200);
+            tracker.trackSpace(child.body.results.uuid);
+            expect(
+                (
+                    await postChart(
+                        composerSpaceChartBody(child.body.results.uuid),
+                    )
+                ).status,
+            ).toBe(201);
+            expect(
+                (
+                    await admin.delete(
+                        `/api/v1/projects/${projectUuid}/spaces/${parent.uuid}`,
+                    )
+                ).status,
+            ).toBe(200);
+
+            const deleted = await admin.get<
+                Body<{ data: { uuid: string; chartCount?: number }[] }>
+            >(
+                `/api/v2/content/deleted?projectUuids=${projectUuid}&contentTypes=${ContentType.SPACE}&pageSize=100`,
+            );
+            expect(deleted.status).toBe(200);
+            expect(
+                deleted.body.results.data.find(
+                    (item) => item.uuid === parent.uuid,
+                ),
+            ).toMatchObject({ chartCount: 1 });
         });
 
         it('leaves a chart out of the listing for an editor who cannot see its space', async () => {

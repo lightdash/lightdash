@@ -3,7 +3,7 @@ import { type SummaryContentRow } from '../ContentModelTypes';
 import { composerChartContentConfiguration } from './ComposerChartContentConfiguration';
 
 const listed = {
-    composerCharts: true,
+    composerCharts: { allowedSpaceUuids: ['space'] },
     contentTypes: [ContentType.CHART, ContentType.COMPOSER_CHART],
 };
 
@@ -12,11 +12,11 @@ describe('Composer chart content', () => {
         const included =
             composerChartContentConfiguration.shouldQueryBeIncluded;
         expect(included(listed)).toBe(true);
-        expect(included({ ...listed, composerCharts: false })).toBe(false);
-        expect(included({ composerCharts: true })).toBe(false);
+        expect(included({ ...listed, composerCharts: undefined })).toBe(false);
+        expect(included({ composerCharts: listed.composerCharts })).toBe(false);
         expect(
             included({
-                composerCharts: true,
+                composerCharts: listed.composerCharts,
                 contentTypes: [ContentType.CHART],
             }),
         ).toBe(false);

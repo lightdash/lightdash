@@ -43,7 +43,7 @@ export const composerChartContentConfiguration: ContentConfiguration<ComposerCha
     {
         // Opt-in by type, like spaces, so callers that list "everything" never meet a type they cannot handle.
         shouldQueryBeIncluded: (filters: ContentFilters) =>
-            filters.composerCharts === true &&
+            filters.composerCharts !== undefined &&
             !filters.deleted &&
             !filters.sharedWithMe &&
             !filters.ownerUserUuids &&
@@ -142,6 +142,10 @@ export const composerChartContentConfiguration: ContentConfiguration<ComposerCha
                 .whereNull(`${ComposerChartsTableName}.dashboard_uuid`)
                 .whereNull(`${ComposerChartsTableName}.deleted_at`)
                 .whereNull(`${SpaceTableName}.deleted_at`)
+                .whereIn(
+                    `${SpaceTableName}.space_uuid`,
+                    filters.composerCharts?.allowedSpaceUuids ?? [],
+                )
                 .where((builder) => {
                     if (filters.projectUuids) {
                         void builder.whereIn(

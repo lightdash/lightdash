@@ -129,8 +129,7 @@ export class ContentService extends BaseService {
         this.featureFlagModel = args.featureFlagModel;
     }
 
-    /** Composer charts are listed, and counted in space rows, only with the flag on. */
-    private async resolveComposerChartsFilter(
+    private async isComposerChartsEnabled(
         user: SessionUser,
         contentTypes: ContentType[] | undefined,
     ): Promise<boolean> {
@@ -358,10 +357,23 @@ export class ContentService extends BaseService {
         const results = await this.contentModel.findSummaryContents(
             {
                 ...filters,
-                composerCharts: await this.resolveComposerChartsFilter(
+                composerCharts: (await this.isComposerChartsEnabled(
                     user,
                     filters.contentTypes,
-                ),
+                ))
+                    ? {
+                          allowedSpaceUuids: documentSpaces.flatMap(
+                              ({ target, context }) =>
+                                  context &&
+                                  auditedAbility.can(
+                                      'view',
+                                      subject('SavedChart', context),
+                                  )
+                                      ? [target.spaceUuid]
+                                      : [],
+                          ),
+                      }
+                    : undefined,
                 projectUuids: allowedProjectUuids,
                 spaceUuids: isAllDocuments ? undefined : allowedSpaceUuids,
                 space: {
@@ -1035,10 +1047,13 @@ export class ContentService extends BaseService {
                 deletedByUserUuids,
                 dataAppVizsFilter: filters.dataAppVizsFilter,
                 documents: { allowedSpaceUuids: [] },
-                composerCharts: await this.resolveComposerChartsFilter(
+                // Counts only: composer rows never list in Recently deleted yet.
+                composerCharts: (await this.isComposerChartsEnabled(
                     user,
                     contentTypes,
-                ),
+                ))
+                    ? { allowedSpaceUuids: [] }
+                    : undefined,
             },
             paginateArgs,
         );
