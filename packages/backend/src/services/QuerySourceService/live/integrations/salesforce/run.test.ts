@@ -14,8 +14,9 @@ import { type LiveHttpResponse } from '../../types';
 import {
     SALESFORCE_MAX_AGGREGATE_ROWS,
     SALESFORCE_MAX_RECORD_ROWS,
+    toSalesforceError,
 } from './api';
-import { toSalesforceError } from './errors';
+import { summarizeSalesforceTest } from './connection';
 import {
     AGGREGATE_RESPONSE,
     LIMITS_RESPONSE,
@@ -23,7 +24,6 @@ import {
     recordsBatch,
     salesforceError,
 } from './salesforce.fixtures';
-import { summarizeSalesforceTest } from './testSummary';
 
 const SETTINGS = { connector: ApiConnectorType.SALESFORCE } as const;
 

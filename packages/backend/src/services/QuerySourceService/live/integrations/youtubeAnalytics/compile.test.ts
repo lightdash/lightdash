@@ -13,7 +13,7 @@ import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { connectLiveSource } from '../../liveSource.mock';
 import { compileYoutubeAnalyticsQuery } from './compile';
-import { YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE } from './explores';
+import { YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE } from './model';
 
 const EXPLORE = 'youtube_activity';
 const TODAY = '2026-11-09';

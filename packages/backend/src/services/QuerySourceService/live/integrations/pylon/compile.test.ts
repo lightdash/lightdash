@@ -19,7 +19,7 @@ import {
     PYLON_ACCOUNTS_EXPLORE,
     PYLON_CONTACTS_EXPLORE,
     PYLON_ISSUES_EXPLORE,
-} from './explores';
+} from './model';
 import { PYLON_MAX_QUERY_ROWS } from './run';
 
 const build = (definition: LiveExploreDefinition) =>

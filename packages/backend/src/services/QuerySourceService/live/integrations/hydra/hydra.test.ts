@@ -17,8 +17,8 @@ import {
 import { assertLiveQuery } from '../../explores/definition';
 import { getInitialLiveSourceFieldEdits } from '../../explores/fields';
 import { connectLiveSource } from '../../liveSource.mock';
+import { createHydraServer, type HydraServer } from './fake/server';
 import { HYDRA_MAX_QUERY_ROWS } from './run';
-import { createHydraServer, type HydraServer } from './server';
 
 const NOW = new Date('2026-11-23T12:00:00Z');
 

@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import { assertMaxRows, type LiveRunArgs, type LiveRunResult } from '../../sdk';
-import { HYDRA_REPORTS, type HydraReportRequest } from './report';
+import { HYDRA_REPORTS, type HydraReportRequest } from './fake/report';
 
 /** The most rows one query returns, kept small so tests reach it. */
 export const HYDRA_MAX_QUERY_ROWS = 500;

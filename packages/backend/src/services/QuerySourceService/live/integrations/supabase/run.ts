@@ -1,8 +1,6 @@
 import {
     DimensionType,
     getSupabaseTablePath,
-    ParameterError,
-    SUPABASE_REST_PATH,
     type ApiConnectorType,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -12,7 +10,6 @@ import {
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-    type LiveRuntime,
 } from '../../sdk';
 
 const LABEL = 'Supabase';
@@ -252,39 +249,4 @@ export const runSupabaseQuery = async ({
         rows,
         hasMoreRows,
     };
-};
-
-const openApiSchema = z.object({
-    definitions: z.record(z.string(), z.unknown()).optional(),
-});
-
-/** The source's table under `definitions` in the Supabase Data API's OpenAPI description. */
-export type SupabaseCatalog = { supabaseTable?: unknown };
-
-/**
- * Reads the table's columns from the Data API's OpenAPI description. Only
- * secret (service role) keys may read it, and only tables the key can see
- * are listed.
- */
-export const scanSupabaseTable = async ({
-    settings,
-    runtime,
-}: {
-    settings: { table: string };
-    runtime: LiveRuntime;
-}): Promise<SupabaseCatalog> => {
-    const description = await runtime.fetch(
-        { method: 'GET', path: SUPABASE_REST_PATH, body: undefined },
-        openApiSchema,
-    );
-    const definitions = description.definitions ?? {};
-    if (!Object.hasOwn(definitions, settings.table)) {
-        const known = Object.keys(definitions).slice(0, 10);
-        throw new ParameterError(
-            `Supabase has no table or view called "${settings.table}" in the exposed schema${
-                known.length > 0 ? `; it has ${known.join(', ')}` : ''
-            }. Check the table name, and that the schema is exposed in the project's Data API settings.`,
-        );
-    }
-    return { supabaseTable: definitions[settings.table] };
 };

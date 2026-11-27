@@ -24,9 +24,9 @@ import {
     ATTIO_SORT_FIELDS,
     isAttioChoiceProperty,
     parseAttioApiName,
-} from './attributes';
+    toAttioObject,
+} from './model';
 import { type AttioRequest, type AttioSort } from './run';
-import { toAttioObject } from './scanFields';
 
 type AttioCondition = Record<string, unknown>;
 

@@ -18,7 +18,7 @@ import {
     type LiveSourceFieldEdits,
     type LiveSourceFieldState,
 } from '../../../services/QuerySourceService/live/explores/fields';
-import { POSTHOG_EVENTS_EXPLORE } from '../../../services/QuerySourceService/live/integrations/postHog/explores';
+import { POSTHOG_EVENTS_EXPLORE } from '../../../services/QuerySourceService/live/integrations/postHog/model';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';

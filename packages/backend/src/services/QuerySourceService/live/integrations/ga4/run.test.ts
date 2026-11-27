@@ -9,7 +9,7 @@ import {
 import { ga4Integration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { getGa4ReportPath } from './run';
+import { getGa4ReportPath } from './api';
 
 const jsonResponse = (
     body: unknown,

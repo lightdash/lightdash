@@ -9,7 +9,7 @@ import {
 import { youtubeAnalyticsIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { YOUTUBE_ANALYTICS_REPORTS_PATH } from './run';
+import { YOUTUBE_ANALYTICS_REPORTS_PATH } from './api';
 
 const CHANNEL = 'UCabcdefghijklmnopqrstuv';
 

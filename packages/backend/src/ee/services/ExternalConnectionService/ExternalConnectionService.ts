@@ -129,13 +129,13 @@ import {
     LINKEDIN_ADS_ORIGIN,
     LINKEDIN_ADS_REQUEST_HEADERS,
     LINKEDIN_ADS_TOKEN_URL,
-} from '../../../services/QuerySourceService/live/integrations/linkedInAds/run';
-import { getPostHogOAuthEndpoints } from '../../../services/QuerySourceService/live/integrations/postHog/run';
+} from '../../../services/QuerySourceService/live/integrations/linkedInAds/api';
+import { getPostHogOAuthEndpoints } from '../../../services/QuerySourceService/live/integrations/postHog/api';
 import {
     scanPostHogSchema,
     toFailedScan,
     toPostHogSchemaTable,
-} from '../../../services/QuerySourceService/live/integrations/postHog/scan';
+} from '../../../services/QuerySourceService/live/integrations/postHog/model';
 import { refuseLiveQuery } from '../../../services/QuerySourceService/live/query/refuse';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { LIVE_RATE_LIMIT_DEADLINES_MS } from '../../../services/QuerySourceService/live/rateLimitDeadlines';

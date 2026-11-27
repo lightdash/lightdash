@@ -12,7 +12,7 @@ import {
     resolveAbsoluteDateRange,
     type LiveCompiledRequest,
 } from '../../sdk';
-import { type HydraReportName, type HydraReportRequest } from './report';
+import { type HydraReportName, type HydraReportRequest } from './fake/report';
 
 const isReportName = (name: string): name is HydraReportName =>
     name === 'events' || name === 'users';

@@ -12,9 +12,9 @@ import {
     type ItemsMap,
     type MetricQuery,
 } from '@lightdash/common';
-import { HYDRA_USERS_EXPLORE } from '../integrations/hydra/explores';
+import { HYDRA_USERS_EXPLORE } from '../integrations/hydra/model';
 import { compileSearchConsoleQuery } from '../integrations/searchConsole/compile';
-import { SEARCH_CONSOLE_PERFORMANCE_EXPLORE } from '../integrations/searchConsole/explores';
+import { SEARCH_CONSOLE_PERFORMANCE_EXPLORE } from '../integrations/searchConsole/model';
 import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from '../integrations/searchConsole/run';
 import { type LiveCatalog } from '../types';
 import {

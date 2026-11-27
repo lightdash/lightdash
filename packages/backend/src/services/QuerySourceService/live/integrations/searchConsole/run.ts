@@ -6,9 +6,7 @@ import {
     type LiveRunArgs,
     type LiveRunResult,
 } from '../../sdk';
-
-export const SEARCH_CONSOLE_ORIGIN = 'https://searchconsole.googleapis.com';
-export const SEARCH_CONSOLE_SITES_PATH = '/webmasters/v3/sites/';
+import { SEARCH_CONSOLE_SITES_PATH } from './api';
 
 /**
  * The most rows one query can ask for: one fewer than the API's 25,000, so

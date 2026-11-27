@@ -1,5 +1,5 @@
 import { HYDRA_DEFAULT_SOURCE, type HydraApiSource } from '@lightdash/common';
-import { createHydraServer } from '../../../services/QuerySourceService/live/integrations/hydra/server';
+import { createHydraServer } from '../../../services/QuerySourceService/live/integrations/hydra/fake/server';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import { fetchFromHydra } from './hydraFetch';
 

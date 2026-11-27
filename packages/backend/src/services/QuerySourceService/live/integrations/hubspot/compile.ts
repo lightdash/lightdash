@@ -31,8 +31,8 @@ import {
     toHubspotObject,
     type HubspotPipelineColumn,
 } from './api';
+import { toHubspotPropertyName } from './model';
 import { type HubspotFilter, type HubspotRequest } from './run';
-import { toHubspotPropertyName } from './scanFields';
 
 // Placeholder for the open side of a one-sided date filter; never sent
 const EARLIEST_DATE = '1900-01-01';

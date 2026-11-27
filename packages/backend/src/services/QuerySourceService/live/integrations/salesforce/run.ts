@@ -1,9 +1,7 @@
 import {
     ApiConnectorType,
     DimensionType,
-    getSalesforceDescribePath,
     ParameterError,
-    SALESFORCE_OBJECTS,
     SALESFORCE_QUERY_PATH,
     type SalesforceObject,
 } from '@lightdash/common';
@@ -20,7 +18,6 @@ import {
     SALESFORCE_MAX_CALLS,
     SALESFORCE_MAX_RECORD_ROWS,
 } from './api';
-import { SalesforceObjectAccessError } from './errors';
 import {
     parseSalesforceExpression,
     toSoql,
@@ -284,48 +281,3 @@ export const runSalesforceQuery = async ({
     request.kind === 'aggregate'
         ? runAggregate(request.object, request, limit, runtime)
         : runRecords(request.object, request, limit, runtime);
-
-/** Each object's describe, as Salesforce returns it. */
-export type SalesforceCatalog = { salesforceDescribe?: unknown };
-
-/**
- * Reads each object's describe, whose fields become its explore's fields.
- * An object the signed-in user can't read keeps its built-in fields; any
- * other failed call, such as a throttled one, fails the scan so the last
- * good scan stays.
- */
-export const scanSalesforceDescribe = async ({
-    runtime,
-}: {
-    runtime: LiveRuntime;
-}): Promise<SalesforceCatalog> => {
-    const results = await Promise.allSettled(
-        SALESFORCE_OBJECTS.map((object) =>
-            runtime.fetch(
-                {
-                    method: 'GET',
-                    path: getSalesforceDescribePath(object),
-                    body: undefined,
-                },
-                z.unknown(),
-            ),
-        ),
-    );
-    const failed = results.flatMap((result) =>
-        result.status === 'rejected' ? [result.reason as unknown] : [],
-    );
-    const [unexpected] = failed.filter(
-        (error) => !(error instanceof SalesforceObjectAccessError),
-    );
-    if (unexpected !== undefined) {
-        throw unexpected;
-    }
-    const read = SALESFORCE_OBJECTS.flatMap((object, index) => {
-        const result = results[index];
-        return result.status === 'fulfilled' ? [[object, result.value]] : [];
-    });
-    if (read.length === 0) {
-        throw failed[0];
-    }
-    return { salesforceDescribe: Object.fromEntries(read) };
-};

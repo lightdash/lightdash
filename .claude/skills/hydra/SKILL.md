@@ -7,7 +7,7 @@ allowed-tools: Read, Edit, Write, Glob, Grep, Bash
 
 # hydra
 
-Every live integration carries a `kind`, a `spec` (`auth` and `useCases`) and `query.limits`, which hold its rate limits. The types are in `packages/backend/src/services/QuerySourceService/live/spec/types.ts`, and each integration's use cases are in `integrations/<name>/useCases.ts`. Each use case says whether it is `possible` today. Cases that span tools are in `spec/crossToolUseCases.ts`.
+Every live integration carries a `kind`, a `spec` (`auth` and `useCases`) and `query.limits`, which hold its rate limits. The types are in `packages/backend/src/services/QuerySourceService/live/spec/types.ts`, and each integration's use cases are in `integrations/<name>/spec.ts`. Each use case says whether it is `possible` today. Cases that span tools are in `spec/crossToolUseCases.ts`.
 
 Every mode ends with an HTML page in `~/.hydra/`. Give the user its path. `hydra.sh` is in this folder; run it from anywhere in the checkout:
 
@@ -45,7 +45,7 @@ Check that the integration still answers what its use cases say. How far to go i
 - Judge each case against `possible`:
   - `pass` when it matches.
   - `regression` when a possible case fails.
-  - `flip` when an impossible case now works; flip it in `useCases.ts`.
+  - `flip` when an impossible case now works; flip it in `spec.ts`.
   - `blocked` when you couldn't try it, with the reason.
 - Add `results: { <case id>: { outcome, note? } }` to the integration from `specs`, set `mode: "test"`, and render it. A note says what happened, in a line.
 

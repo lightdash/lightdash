@@ -17,7 +17,7 @@ import {
     compileSearchConsoleQuery,
     getSearchConsoleEarliestDate,
 } from './compile';
-import { SEARCH_CONSOLE_PERFORMANCE_EXPLORE } from './explores';
+import { SEARCH_CONSOLE_PERFORMANCE_EXPLORE } from './model';
 
 const EXPLORE = 'search_console_performance';
 const MAX_ROWS = 24_999;

@@ -15,15 +15,15 @@ import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { ATTIO_MAX_RECORDS } from './api';
 import { ATTIO_DEAL_ATTRIBUTES } from './attio.fixtures';
-import { isInternalAttioField } from './attributes';
 import { compileAttioQuery } from './compile';
-import { ATTIO_EXPLORES } from './explores';
 import {
+    ATTIO_EXPLORES,
     ATTIO_SCANNED_MODELS,
+    isInternalAttioField,
     readAttioAttributes,
     toAttioObject,
     withAttioAttributeFields,
-} from './scanFields';
+} from './model';
 
 const DEALS_EXPLORE = ATTIO_EXPLORES.find(({ name }) => name === 'deals')!;
 

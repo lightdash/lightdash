@@ -3,7 +3,6 @@ import {
     ATTIO_OBJECTS,
     ATTIO_WORKSPACE_MEMBERS_PATH,
     DimensionType,
-    getAttioAttributesPath,
     getAttioRecordsQueryPath,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -15,9 +14,13 @@ import {
     type LiveRunResult,
     type LiveRuntime,
 } from '../../sdk';
-import { ATTIO_MAX_PAGES, ATTIO_MAX_RECORDS, ATTIO_PAGE_SIZE } from './api';
-import { parseAttioApiName, type AttioValueProperty } from './attributes';
-import { AttioObjectAccessError } from './errors';
+import {
+    ATTIO_MAX_PAGES,
+    ATTIO_MAX_RECORDS,
+    ATTIO_PAGE_SIZE,
+    AttioObjectAccessError,
+} from './api';
+import { parseAttioApiName, type AttioValueProperty } from './model';
 
 const LABEL = 'Attio';
 
@@ -334,49 +337,4 @@ export const runAttioQuery = async ({
         rows,
         hasMoreRows,
     };
-};
-
-/** Each standard object's attribute list, by slug, as Attio returns it. */
-export type AttioCatalog = { attioAttributes?: unknown };
-
-/**
- * Reads each object's attributes, which become its explore's fields. An
- * object the token can't read, or the workspace lacks, keeps its built-in
- * fields; any other failed call, such as a throttled one, fails the scan so
- * the last good scan stays.
- */
-export const scanAttioAttributes = async ({
-    runtime,
-}: {
-    runtime: LiveRuntime;
-}): Promise<AttioCatalog> => {
-    const results = await Promise.allSettled(
-        ATTIO_OBJECTS.map((object) =>
-            runtime.fetch(
-                {
-                    method: 'GET',
-                    path: getAttioAttributesPath(object),
-                    body: undefined,
-                },
-                z.unknown(),
-            ),
-        ),
-    );
-    const failed = results.flatMap((result) =>
-        result.status === 'rejected' ? [result.reason as unknown] : [],
-    );
-    const [unexpected] = failed.filter(
-        (error) => !(error instanceof AttioObjectAccessError),
-    );
-    if (unexpected !== undefined) {
-        throw unexpected;
-    }
-    const read = ATTIO_OBJECTS.flatMap((object, index) => {
-        const result = results[index];
-        return result.status === 'fulfilled' ? [[object, result.value]] : [];
-    });
-    if (read.length === 0) {
-        throw failed[0];
-    }
-    return { attioAttributes: Object.fromEntries(read) };
 };

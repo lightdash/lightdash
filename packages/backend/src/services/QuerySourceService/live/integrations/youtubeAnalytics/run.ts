@@ -6,10 +6,7 @@ import {
     type LiveRunArgs,
     type LiveRunResult,
 } from '../../sdk';
-
-export const YOUTUBE_ANALYTICS_ORIGIN =
-    'https://youtubeanalytics.googleapis.com';
-export const YOUTUBE_ANALYTICS_REPORTS_PATH = '/v2/reports';
+import { YOUTUBE_ANALYTICS_REPORTS_PATH } from './api';
 
 // reports.query documents no row maximum; this keeps results near other api
 // sources. The query asks for one more row to detect truncation.

@@ -26,7 +26,7 @@ import { TypedEETaskList } from '../../scheduler/types';
 import { type JiraAppService } from '../../services/JiraAppService/JiraAppService';
 import { type LinearAppService } from '../../services/LinearAppService/LinearAppService';
 import { type IncrementalCompileResult } from '../../services/ProjectService/ProjectService';
-import { toFailedScan } from '../../services/QuerySourceService/live/integrations/postHog/scan';
+import { toFailedScan } from '../../services/QuerySourceService/live/integrations/postHog/model';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';

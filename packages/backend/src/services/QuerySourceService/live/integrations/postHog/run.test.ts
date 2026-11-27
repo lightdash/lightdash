@@ -12,10 +12,8 @@ import { postHogIntegration } from '.';
 import { type LiveTransport } from '../../calls';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import {
-    clickHouseTypeToDimensionType,
-    getPostHogPropertyDefinitionsPrefix,
-} from './run';
+import { getPostHogPropertyDefinitionsPrefix } from './api';
+import { clickHouseTypeToDimensionType } from './run';
 
 // Trimmed from real PostHog responses; values replaced with neutral ones.
 const weeklyActiveUsers = {

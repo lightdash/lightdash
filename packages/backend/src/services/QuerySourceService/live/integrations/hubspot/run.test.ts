@@ -9,8 +9,8 @@ import {
 import { hubspotIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { HUBSPOT_MAX_ROWS } from './api';
-import { toHubspotError } from './errors';
+import { HUBSPOT_MAX_ROWS, toHubspotError } from './api';
+import { summarizeHubspotTest } from './connection';
 import {
     HUBSPOT_DEAL_PIPELINES,
     HUBSPOT_DEAL_PROPERTIES,
@@ -18,7 +18,6 @@ import {
     hubspotDeal,
     hubspotSearchPage,
 } from './hubspot.fixtures';
-import { summarizeHubspotTest } from './testSummary';
 
 const response = (
     body: unknown,

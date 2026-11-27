@@ -12,8 +12,11 @@ import { supabaseIntegration } from '.';
 import { buildLiveExplore } from '../../explores/definition';
 import { parseLiveRequest } from '../../integration';
 import { compileSupabaseQuery } from './compile';
-import { SUPABASE_TABLE_EXPLORE } from './explores';
-import { readSupabaseColumns, withSupabaseColumns } from './scanFields';
+import {
+    readSupabaseColumns,
+    SUPABASE_TABLE_EXPLORE,
+    withSupabaseColumns,
+} from './model';
 import { ORDERS_TABLE } from './supabase.fixtures';
 
 const DEFINITION = withSupabaseColumns(

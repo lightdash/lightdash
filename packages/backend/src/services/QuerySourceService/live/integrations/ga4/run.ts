@@ -9,10 +9,8 @@ import {
     type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-    type LiveRuntime,
 } from '../../sdk';
-
-export const GA4_DATA_ORIGIN = 'https://analyticsdata.googleapis.com';
+import { getGa4ReportPath } from './api';
 
 // One report returns up to 250,000 rows; results stay at the size of other
 // api sources. The connector asks for one more than the limit to detect
@@ -81,12 +79,6 @@ const responseSchema = z.object({
 
 export type Ga4Request = z.infer<typeof ga4RequestSchema>;
 
-export const getGa4ReportPath = (propertyId: string) =>
-    `/v1beta/properties/${propertyId}:runReport`;
-
-export const getGa4MetadataPath = (propertyId: string) =>
-    `/v1beta/properties/${propertyId}/metadata`;
-
 // GA4 names custom fields like customEvent:plan; columns need plain names.
 export const toGa4ColumnName = (name: string) =>
     name.replace(/[^A-Za-z0-9_]/g, '_');
@@ -101,25 +93,6 @@ const toNumber = (value: string | undefined) => {
     if (value === undefined || value === '') return null;
     const number = Number(value);
     return Number.isFinite(number) ? number : null;
-};
-
-/** The property's metadata, as GA4 returns it. */
-export type Ga4Catalog = { ga4Metadata?: unknown };
-
-/** Reads the property's dimensions and metrics, including its custom ones. */
-export const scanGa4Metadata = async ({
-    settings: { propertyId },
-    runtime,
-}: {
-    settings: { propertyId: string };
-    runtime: LiveRuntime;
-}): Promise<Ga4Catalog> => {
-    const response = await runtime.send({
-        method: 'GET',
-        path: getGa4MetadataPath(propertyId),
-        body: null,
-    });
-    return { ga4Metadata: response.body };
 };
 
 /** Runs one report, asking for one row more than the limit. */

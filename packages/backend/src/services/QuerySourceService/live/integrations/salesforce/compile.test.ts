@@ -14,9 +14,12 @@ import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { salesforceIntegration } from '.';
 import { buildLiveExplore } from '../../explores/definition';
 import { compileSalesforceQuery } from './compile';
-import { SALESFORCE_EXPLORES } from './explores';
+import {
+    isInternalSalesforceField,
+    SALESFORCE_EXPLORES,
+    withSalesforceFields,
+} from './model';
 import { OPPORTUNITY_DESCRIBE } from './salesforce.fixtures';
-import { isInternalSalesforceField, withSalesforceFields } from './scanFields';
 import {
     salesforceRequestSchema,
     toSoql,

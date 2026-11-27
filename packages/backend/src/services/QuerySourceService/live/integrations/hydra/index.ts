@@ -1,125 +1,21 @@
-import {
-    ApiConnectorType,
-    getHydraSettingsProblem,
-    HYDRA_ACCOUNT_PATH,
-    HYDRA_DEFAULT_SOURCE,
-    HYDRA_ORIGIN,
-    HYDRA_REPORT_PATH,
-    LIVE_INTEGRATION_CATALOG,
-    ParameterError,
-} from '@lightdash/common';
-import {
-    ALL_PUSHDOWN_REFUSED,
-    defineLiveIntegration,
-    getIsoDateInTimeZone,
-    readRule,
-    type LiveLimits,
-} from '../../sdk';
-import { compileHydraQuery } from './compile';
-import { getHydraDeclaredLimits } from './declaredLimits';
-import { toHydraError } from './errors';
-import { HYDRA_EXPLORES } from './explores';
-import { HYDRA_DATE_FILTERS, HYDRA_STRING_FILTERS } from './filters';
-import { hydraReportSchema } from './report';
-import { HYDRA_MAX_QUERY_ROWS, runHydraQuery } from './run';
-import { summarizeHydraTest } from './testSummary';
-import { hydraUseCases } from './useCases';
-
-const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.HYDRA];
-const LABEL = CATALOG.messageLabel;
-
-const LIMITS: LiveLimits = {
-    timeoutMs: 30_000,
-    maxRows: HYDRA_MAX_QUERY_ROWS,
-    // Enough pages for the row cap at the smallest page size, 10
-    callsPerQuery: 51,
-    ...getHydraDeclaredLimits(HYDRA_DEFAULT_SOURCE),
-};
+import { ApiConnectorType, LIVE_INTEGRATION_CATALOG } from '@lightdash/common';
+import { defineLiveIntegration } from '../../sdk';
+import { hydraConnection } from './connection';
+import { hydraModel } from './model';
+import { hydraQuery } from './query';
+import { hydraSpec } from './spec';
 
 /**
  * Hydra, the test integration: a normal integration run by the shared
- * engine, whose API is answered in-process (see `server.ts`). Registered only
- * when LIVE_SOURCES_HYDRA_ENABLED is true.
+ * engine, whose API is answered in-process (see `fake/server.ts`). Registered
+ * only when LIVE_SOURCES_HYDRA_ENABLED is true.
  */
 export const hydraIntegration = defineLiveIntegration({
     connector: ApiConnectorType.HYDRA,
-    label: LABEL,
+    label: LIVE_INTEGRATION_CATALOG[ApiConnectorType.HYDRA].messageLabel,
     kind: 'reports',
-    connection: {
-        settings: CATALOG.settings,
-        origins: [HYDRA_ORIGIN],
-        access: () => ({
-            rules: [
-                readRule('POST', HYDRA_REPORT_PATH),
-                readRule('GET', HYDRA_ACCOUNT_PATH),
-            ],
-        }),
-        checkAuth: ({ type }) => {
-            if (type !== 'bearer_token') {
-                throw new ParameterError(
-                    'Hydra connections authenticate with a token',
-                );
-            }
-        },
-        validate: (settings) => {
-            const problem = getHydraSettingsProblem(settings);
-            if (problem) {
-                throw new ParameterError(`The Hydra setting ${problem}`);
-            }
-        },
-        describeTarget: () =>
-            'Hydra test data: seeded product events and users, for testing',
-        summarizeTest: summarizeHydraTest,
-    },
-    model: {
-        explores: HYDRA_EXPLORES,
-    },
-    query: {
-        request: hydraReportSchema,
-        compile: ({ explore, metricQuery, now }) =>
-            compileHydraQuery({
-                explore,
-                metricQuery,
-                today: getIsoDateInTimeZone(now, 'UTC'),
-            }),
-        run: runHydraQuery,
-        toError: (response) => toHydraError(response),
-        // One AND of report filters, each keeping or dropping a list of values.
-        // Events are read over one range of UTC days.
-        capabilities: {
-            filters: {
-                operators: {
-                    string: HYDRA_STRING_FILTERS,
-                    date: HYDRA_DATE_FILTERS,
-                },
-                multipleValues: true,
-                or: false,
-                nestedGroups: false,
-            },
-            metricFilters: false,
-            dates: {
-                rangeRequired: true,
-                operators: HYDRA_DATE_FILTERS,
-                grains: [],
-                timezone: 'fixed',
-            },
-            pushdown: ALL_PUSHDOWN_REFUSED,
-        },
-        limits: LIMITS,
-        limitsFor: (settings) => ({
-            ...LIMITS,
-            ...getHydraDeclaredLimits(settings),
-        }),
-    },
-    spec: {
-        auth: {
-            description:
-                'A test integration: any token signs in, and each token seeds its own rows.',
-            testWith: 'test_account',
-            needs: ['invite'],
-            token: true,
-            oauth: 'none',
-        },
-        useCases: hydraUseCases,
-    },
+    connection: hydraConnection,
+    model: hydraModel,
+    query: hydraQuery,
+    spec: hydraSpec,
 });
