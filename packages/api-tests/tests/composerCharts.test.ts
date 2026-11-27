@@ -2033,7 +2033,16 @@ describe('Composer charts', () => {
             }
         });
 
-        it("counts a child space's chart in a deleted space's Recently deleted row", async () => {
+        // Skipped when SOFT_DELETE_ENABLED is off (delete is permanent)
+        it("counts a child space's chart in a deleted space's Recently deleted row", async (ctx) => {
+            const health =
+                await admin.get<Body<{ softDelete: { enabled: boolean } }>>(
+                    '/api/v1/health',
+                );
+            if (!health.body.results.softDelete.enabled) {
+                // oxlint-disable-next-line vitest-js/no-disabled-tests -- runtime skip when soft delete is disabled on the server
+                ctx.skip();
+            }
             const parent = await createSpace();
             const child = await admin.post<Body<Space>>(
                 `/api/v1/projects/${projectUuid}/spaces`,
