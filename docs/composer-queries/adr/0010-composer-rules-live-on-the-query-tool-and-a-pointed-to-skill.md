@@ -4,7 +4,7 @@ On the MCP server, the rules for building a `query` pipeline live in two
 places: the core rules (one semanticLayer node per explore, merge versus
 duckdb, one pipeline per answer, when a sql node is allowed, follow-up reuse)
 on the `query` tool description within 4,096 characters, and the full rule
-set in the built-in `composer-querying` skill served by `read_skill`. The
+set in the built-in `query-pipelines` skill served by `read_skill`. The
 description's first sentence and the composer server instructions' first line
 point to the skill; the instructions otherwise carry only the workflow and
 rules about the server. The rule text has one source, shared with the in-app

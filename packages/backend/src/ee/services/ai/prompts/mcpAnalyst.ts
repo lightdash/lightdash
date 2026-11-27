@@ -1,6 +1,6 @@
 import {
     assertUnreachable,
-    COMPOSER_QUERYING_SKILL_POINTER,
+    QUERY_PIPELINES_SKILL_POINTER,
     type AiAgent,
 } from '@lightdash/common';
 import type { McpQueryPath } from '../../McpService/mcpQueryPath';
@@ -98,7 +98,7 @@ const buildMcpComposerPrompt = (
     sqlRunnerEnabled: boolean,
     documentsEnabled: boolean,
     agentIdentityEnabled: boolean,
-): string => `${COMPOSER_QUERYING_SKILL_POINTER}
+): string => `${QUERY_PIPELINES_SKILL_POINTER}
 
 ## Query Building Workflow
 

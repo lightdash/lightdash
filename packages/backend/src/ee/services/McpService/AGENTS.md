@@ -11,12 +11,12 @@
 ## Where composer rules live
 
 - A rule every `query` pipeline needs goes on the `query` tool description (`MCP_TOOL_QUERY_DESCRIPTION`), under "Plan the pipeline". Budget: 4,096 chars, guarded by "keeps registered MCP tool descriptions within their char budget" in `mcpToolContracts.snapshot.test.ts`.
-- Detail only some pipelines need goes in the `composer-querying` skill (`../ai/skills/composerQueryingSkill.ts`; its `SKILL.md` is generated).
+- Detail only some pipelines need goes in the `query-pipelines` skill (`../ai/skills/queryPipelinesSkill.ts`; its `SKILL.md` is generated).
 - Rule text lives once, in `COMPOSER_RULES` (`packages/common/src/ee/AiAgent/schemas/tools/composerQueryRules.ts`), which feeds the agent prompt (`../ai/prompts/systemV2QueryingComposer.ts`), the skill and the `query` description. Edit a shared rule there; write wording only one consumer needs in that consumer.
 - Composer server instructions (`buildMcpComposerPrompt` in `../ai/prompts/mcpAnalyst.ts`) carry the skill pointer, the workflow and rules about the server itself: explore choice, the connect link, other skills' pointers.
-- A skill a model must read gets a pointer in the first sentence of the description of the tool that needs it; a skill nobody points to goes unread. For `composer-querying` that sentence is `COMPOSER_QUERYING_SKILL_POINTER`, also the instructions' first line.
+- A skill a model must read gets a pointer in the first sentence of the description of the tool that needs it; a skill nobody points to goes unread. For `query-pipelines` that sentence is `QUERY_PIPELINES_SKILL_POINTER`, also the instructions' first line.
 
-Done when `mcpToolContracts.snapshot.test.ts` and `../ai/skills/builtInSkills.test.ts` pass, the snapshot changed only in the entries you meant to change, and `composer-querying/SKILL.md` and `mcp-tools-1.0.json` are regenerated.
+Done when `mcpToolContracts.snapshot.test.ts` and `../ai/skills/builtInSkills.test.ts` pass, the snapshot changed only in the entries you meant to change, and `query-pipelines/SKILL.md` and `mcp-tools-1.0.json` are regenerated.
 
 Why the rules live here, and the alternatives measured: `docs/composer-queries/adr/0010-composer-rules-live-on-the-query-tool-and-a-pointed-to-skill.md`.
 Before sizing or moving any MCP text, read `client-limits.md`.

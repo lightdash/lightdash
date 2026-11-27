@@ -1,11 +1,11 @@
 import { Ability } from '@casl/ability';
 import {
-    COMPOSER_QUERYING_SKILL_POINTER,
     defineUserAbility,
     FeatureFlags,
     mcpToolDefinitions,
     OrganizationMemberRole,
     ProjectMemberRole,
+    QUERY_PIPELINES_SKILL_POINTER,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
@@ -1154,7 +1154,7 @@ describe('MCP tool contracts', () => {
         },
     );
 
-    it('points composer clients to the composer-querying skill first', async () => {
+    it('points composer clients to the query-pipelines skill first', async () => {
         const mcpService = makeMcpService();
         mockRegisteredMcpTools.length = 0;
         await mcpService.createServer(
@@ -1170,10 +1170,10 @@ describe('MCP tool contracts', () => {
             ({ name }) => name === McpToolName.QUERY,
         );
         expect(query?.config.description.split('\n')[0]).toBe(
-            COMPOSER_QUERYING_SKILL_POINTER,
+            QUERY_PIPELINES_SKILL_POINTER,
         );
         expect(getLatestMcpServerInstructions().split('\n')[0]).toBe(
-            COMPOSER_QUERYING_SKILL_POINTER,
+            QUERY_PIPELINES_SKILL_POINTER,
         );
     });
 

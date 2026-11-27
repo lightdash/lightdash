@@ -1,4 +1,4 @@
-// Composer rules shared by the agent prompt, the MCP `query` description and the MCP `composer-querying` skill.
+// Composer rules shared by the agent prompt, the MCP `query` description and the MCP `query-pipelines` skill.
 export const COMPOSER_RULES = {
     oneNodePerExplore: 'Query each explore with one semanticLayer node.',
     merge: 'Combine semanticLayer nodes that meet on dimensions they share at the same grain (both by month, both by customer) with a merge node.',
@@ -38,7 +38,7 @@ export const getComposerFollowUpChangeRule = (keepsChartType: boolean) =>
         keepsChartType ? 'sort, chart type' : 'sort'
     } and the rows shown, zero and small values included. Claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.`;
 
-export const COMPOSER_QUERYING_SKILL_NAME = 'composer-querying';
+export const QUERY_PIPELINES_SKILL_NAME = 'query-pipelines';
 
 /** First sentence of the MCP `query` description and first line of the composer server instructions. */
-export const COMPOSER_QUERYING_SKILL_POINTER = `Before your first query call, read the composer query rules: call read_skill with name "${COMPOSER_QUERYING_SKILL_NAME}".`;
+export const QUERY_PIPELINES_SKILL_POINTER = `Before your first query call, read the query pipeline rules and examples: call read_skill with name "${QUERY_PIPELINES_SKILL_NAME}".`;

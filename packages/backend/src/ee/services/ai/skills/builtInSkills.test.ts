@@ -1,8 +1,8 @@
-import { COMPOSER_QUERYING_SKILL_NAME } from '@lightdash/common';
+import { QUERY_PIPELINES_SKILL_NAME } from '@lightdash/common';
 import { parse as parseFormula } from '@lightdash/formula';
 import { BuiltInSkills } from './builtInSkills';
-import { COMPOSER_QUERYING_SKILL } from './composerQueryingSkill';
 import { FILTER_EXPRESSION_SKILL } from './filterExpressionSkill';
+import { QUERY_PIPELINES_SKILL } from './queryPipelinesSkill';
 
 describe('BuiltInSkills', () => {
     const artifactSkill = 'mcp-artifact-integration';
@@ -54,8 +54,8 @@ describe('BuiltInSkills', () => {
     it.each([
         { name: 'filter-expressions', generated: FILTER_EXPRESSION_SKILL },
         {
-            name: COMPOSER_QUERYING_SKILL_NAME,
-            generated: COMPOSER_QUERYING_SKILL,
+            name: QUERY_PIPELINES_SKILL_NAME,
+            generated: QUERY_PIPELINES_SKILL,
         },
     ])(
         'serves the generated $name skill identically through native resources and fallback tools',
@@ -114,7 +114,7 @@ describe('BuiltInSkills', () => {
         }
     });
 
-    it.each(['filter-expressions', 'table-calculations', 'composer-querying'])(
+    it.each(['filter-expressions', 'table-calculations', 'query-pipelines'])(
         'never advertises the MCP-only %s skill to Agents',
         async (name) => {
             expect(
@@ -130,7 +130,7 @@ describe('BuiltInSkills', () => {
         '  FILTER-EXPRESSIONS  ',
         'table-calculations',
         '  TABLE-CALCULATIONS  ',
-        'composer-querying',
+        'query-pipelines',
     ])('prevents Agent direct reads of %s', async (name) => {
         expect(await BuiltInSkills.getAiAgentSkill(name)).toBeUndefined();
     });

@@ -6,7 +6,7 @@
     "main": "dist/index",
     "scripts": {
         "generate-api": "tsoa spec-and-routes --configuration tsoa.yml",
-        "generate:composer-querying-skill": "tsx --tsconfig tsconfig.scripts.json src/scripts/generate-composer-querying-skill.ts && oxfmt --write src/ee/services/ai/skills/builtInSkills/composer-querying/SKILL.md",
+        "generate:query-pipelines-skill": "tsx --tsconfig tsconfig.scripts.json src/scripts/generate-query-pipelines-skill.ts && oxfmt --write src/ee/services/ai/skills/builtInSkills/query-pipelines/SKILL.md",
         "generate:filter-expression-skill": "tsx --tsconfig tsconfig.scripts.json src/scripts/generate-filter-expression-skill.ts && oxfmt --write src/ee/services/ai/skills/builtInSkills/filter-expressions/SKILL.md",
         "generate-api:build": "pnpm run generate-api && pnpm run formatter --write ./src/generated",
         "generate-api-dev": "pnpm run generate-api:build && chokidar './src/**/controllers/**/*.ts' -c 'pnpm run generate-api:build'",

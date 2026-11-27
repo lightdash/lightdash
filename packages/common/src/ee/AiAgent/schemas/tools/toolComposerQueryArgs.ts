@@ -41,8 +41,8 @@ import { structuredToolOutputSchema } from '../outputMetadata';
 import { withLeadingEquals } from '../tableCalcs/tableCalcFormula';
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
-    COMPOSER_QUERYING_SKILL_POINTER,
     COMPOSER_RULES,
+    QUERY_PIPELINES_SKILL_POINTER,
     toComposerRuleBullets,
 } from './composerQueryRules';
 import {
@@ -146,7 +146,7 @@ ${getComposerNodeKindsDescription({
 
 Earlier nodes: a node id names one node for the whole thread. A node reads a node from an earlier call by its node id in "references", or "sources" for a merge, without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
 
-export const MCP_TOOL_QUERY_DESCRIPTION = `${COMPOSER_QUERYING_SKILL_POINTER}
+export const MCP_TOOL_QUERY_DESCRIPTION = `${QUERY_PIPELINES_SKILL_POINTER}
 
 Run one query, or a pipeline of up to ${MAX_SOURCE_QUERIES_PER_SUBMISSION} nodes submitted together, where duckdb and python nodes join or transform other nodes' results.
 

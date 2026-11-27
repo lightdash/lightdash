@@ -132,7 +132,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
 `;
 
 exports[`MCP tool contracts > matches the composer with SQL Runner MCP server instructions snapshot 1`] = `
-"Before your first query call, read the composer query rules: call read_skill with name "composer-querying".
+"Before your first query call, read the query pipeline rules and examples: call read_skill with name "query-pipelines".
 
 ## Query Building Workflow
 
@@ -154,7 +154,7 @@ For raw SQL or a named warehouse table, follow step 0, then skip steps 1–3 and
 `;
 
 exports[`MCP tool contracts > matches the composer without SQL Runner MCP server instructions snapshot 1`] = `
-"Before your first query call, read the composer query rules: call read_skill with name "composer-querying".
+"Before your first query call, read the query pipeline rules and examples: call read_skill with name "query-pipelines".
 
 ## Query Building Workflow
 
@@ -184,7 +184,7 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
       },
       "description": "Guidelines for querying Lightdash data using MCP tools. Call get_context first, pass projectUuid to every project-scoped tool, and pass route_agent results as agentUuid when scoped agent behavior is desired. Includes explore selection, query building, and visualization rules. Inject this into your system prompt for best results.",
       "name": "lightdash-analyst",
-      "prompt": "Before your first query call, read the composer query rules: call read_skill with name "composer-querying".
+      "prompt": "Before your first query call, read the query pipeline rules and examples: call read_skill with name "query-pipelines".
 
 ## Query Building Workflow
 
@@ -10878,7 +10878,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "readOnlyHint": true,
         "title": "Run composer queries",
       },
-      "description": "Before your first query call, read the composer query rules: call read_skill with name "composer-querying".
+      "description": "Before your first query call, read the query pipeline rules and examples: call read_skill with name "query-pipelines".
 
 Run one query, or a pipeline of up to 25 nodes submitted together, where duckdb and python nodes join or transform other nodes' results.
 
