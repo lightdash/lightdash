@@ -49,6 +49,7 @@ import {
     type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { validate as isUuid } from 'uuid';
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import { ComposerChartModel } from '../../models/ComposerChartModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -436,7 +437,9 @@ export class ComposerChartService extends BaseService {
     async preflightCreate(
         account: RegisteredAccount,
         projectUuid: string,
-        data: Pick<CreateComposerChart, 'dashboardUuid' | 'pipeline' | 'chart'>,
+        data: Pick<CreateComposerChart, 'pipeline' | 'chart'> & {
+            dashboardUuid: UUID;
+        },
     ): Promise<void> {
         await this.authorizeWrite(
             account,
@@ -462,15 +465,33 @@ export class ComposerChartService extends BaseService {
         );
     }
 
+    /** A named dashboard owns the chart and the space is ignored; with none, the space owns it. */
+    private static getCreateOwner({
+        dashboardUuid = null,
+        spaceUuid = null,
+    }: Pick<
+        CreateComposerChart,
+        'dashboardUuid' | 'spaceUuid'
+    >): ComposerChartOwner {
+        if (dashboardUuid !== null) return { type: 'dashboard', dashboardUuid };
+        if (spaceUuid !== null) {
+            if (!isUuid(spaceUuid)) {
+                throw new ParameterError('spaceUuid must be a UUID');
+            }
+            return { type: 'space', spaceUuid };
+        }
+        throw new ParameterError(
+            'A composer chart requires a dashboardUuid or a spaceUuid',
+        );
+    }
+
+    /** The create the API and the agent go through. */
     async create(
         account: RegisteredAccount,
         projectUuid: string,
         data: CreateComposerChart,
     ): Promise<ComposerChart> {
-        const owner: ComposerChartOwner = {
-            type: 'dashboard',
-            dashboardUuid: data.dashboardUuid,
-        };
+        const owner = ComposerChartService.getCreateOwner(data);
         const { pipeline, chart } = await this.authorizeWrite(
             account,
             projectUuid,
@@ -495,7 +516,7 @@ export class ComposerChartService extends BaseService {
     async writeFromCode(
         account: RegisteredAccount,
         projectUuid: string,
-        data: Omit<CreateComposerChart, 'dashboardUuid'> & {
+        data: Omit<CreateComposerChart, 'dashboardUuid' | 'spaceUuid'> & {
             slug: string;
             /** Owner of a new or revived chart; an existing chart keeps its own. */
             dashboardUuid: string | null;

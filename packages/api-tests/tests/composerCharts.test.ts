@@ -4,6 +4,7 @@ import {
     FeatureFlags,
     FieldType,
     FilterOperator,
+    getContentAsCodePathFromLtreePath,
     MergeJoinType,
     QuerySourceType,
     SEED_DATA_APP_VIZ,
@@ -19,6 +20,7 @@ import {
     type Dashboard,
     type DashboardAsCode,
     type DashboardFieldTarget,
+    type Space,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -34,8 +36,10 @@ import {
 import {
     apiClientSend,
     composerChartBody,
+    composerSpaceChartBody,
     composerTile as composerTileFor,
     createComposerDashboard,
+    createComposerSpaceChart,
 } from '../helpers/composerDashboard';
 import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 
@@ -1817,6 +1821,194 @@ describe('Composer charts', () => {
                     (await admin.post(flagUrl, { enabled: true })).status,
                 ).toBe(200);
             }
+        });
+    });
+
+    describe('space-owned chart', () => {
+        const createSpace = async (inheritParentPermissions = true) => {
+            const resp = await admin.post<Body<Space>>(
+                `/api/v1/projects/${projectUuid}/spaces`,
+                {
+                    name: uniqueName('Composer space'),
+                    inheritParentPermissions,
+                },
+            );
+            expect(resp.status).toBe(200);
+            tracker.trackSpace(resp.body.results.uuid);
+            return resp.body.results;
+        };
+
+        const createSpaceChart = async () => {
+            const created = await createComposerSpaceChart(
+                apiClientSend(admin),
+            );
+            tracker.trackSpace(created.space.uuid);
+            return created;
+        };
+
+        const postChart = (body: unknown, client: ApiClient = admin) =>
+            client.post<
+                Body<ComposerChart> & {
+                    error: {
+                        message: string;
+                        data?: { featureFlagId?: string };
+                    };
+                }
+            >(chartsUrl, body, { failOnStatusCode: false });
+
+        it('creates a chart the space owns, which a viewer of the space reads and no one from another organization', async () => {
+            const { space, chart } = await createSpaceChart();
+            expect(chart).toMatchObject({
+                projectUuid,
+                owner: { type: 'space', spaceUuid: space.uuid },
+                pipeline: composerSpaceChartBody(space.uuid).pipeline,
+            });
+
+            const viewer = await loginAsViewer();
+            const read = await viewer.get<Body<ComposerChart>>(
+                `${chartsUrl}/${chart.uuid}`,
+            );
+            expect(read.status).toBe(200);
+            expect(read.body.results.owner).toEqual({
+                type: 'space',
+                spaceUuid: space.uuid,
+            });
+
+            const outsider = await anotherLogin();
+            const refused = await outsider.get(`${chartsUrl}/${chart.uuid}`, {
+                failOnStatusCode: false,
+            });
+            expect(refused.status).toBe(403);
+        });
+
+        it('keeps a named dashboard as the owner and ignores the space', async () => {
+            const dashboard = await createDashboard();
+            const space = await createSpace();
+            const created = await postChart({
+                ...composerChartBody(dashboard.uuid),
+                spaceUuid: space.uuid,
+            });
+            expect(created.status).toBe(201);
+            expect(created.body.results.owner).toEqual({
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+            });
+        });
+
+        it('refuses a create naming no owner, a malformed, missing or deleted space', async () => {
+            const { dashboardUuid: _, ...noOwner } = composerChartBody('');
+            expect((await postChart(noOwner)).status).toBe(400);
+            expect(
+                (
+                    await postChart({
+                        ...noOwner,
+                        dashboardUuid: null,
+                        spaceUuid: null,
+                    })
+                ).status,
+            ).toBe(400);
+            expect(
+                (await postChart(composerSpaceChartBody(randomUUID()))).status,
+            ).toBe(404);
+            expect(
+                (await postChart(composerSpaceChartBody('not-a-uuid'))).status,
+            ).toBe(400);
+
+            const deleted = await createSpace();
+            expect(
+                (
+                    await admin.delete(
+                        `/api/v1/projects/${projectUuid}/spaces/${deleted.uuid}`,
+                    )
+                ).status,
+            ).toBe(200);
+            expect(
+                (await postChart(composerSpaceChartBody(deleted.uuid))).status,
+            ).toBe(404);
+        });
+
+        it('refuses a project viewer, and an editor in a space they cannot see, creating', async () => {
+            const space = await createSpace();
+            const viewer = await loginAsViewer();
+            expect(
+                (await postChart(composerSpaceChartBody(space.uuid), viewer))
+                    .status,
+            ).toBe(403);
+
+            const privateSpace = await createSpace(false);
+            const editor = await loginAsEditor();
+            expect(
+                (
+                    await postChart(
+                        composerSpaceChartBody(privateSpace.uuid),
+                        editor,
+                    )
+                ).status,
+            ).toBe(403);
+            expect(
+                (await postChart(composerSpaceChartBody(space.uuid), editor))
+                    .status,
+            ).toBe(201);
+        });
+
+        it('refuses an editor reading a chart in a space they cannot see', async () => {
+            const privateSpace = await createSpace(false);
+            const hidden = await postChart(
+                composerSpaceChartBody(privateSpace.uuid),
+            );
+            expect(hidden.status).toBe(201);
+            const editor = await loginAsEditor();
+            const read = await editor.get(
+                `${chartsUrl}/${hidden.body.results.uuid}`,
+                { failOnStatusCode: false },
+            );
+            expect(read.status).toBe(403);
+        });
+
+        it('refuses a create with the flag off while an existing chart still reads', async () => {
+            const { space, chart } = await createSpaceChart();
+            expect((await admin.post(flagUrl, { enabled: false })).status).toBe(
+                200,
+            );
+            try {
+                const refused = await postChart(
+                    composerSpaceChartBody(space.uuid),
+                );
+                expect(refused.status).toBe(403);
+                expect(refused.body.error.data?.featureFlagId).toBe(
+                    FeatureFlags.ComposerCharts,
+                );
+                expect((await getChart(chart.uuid)).status).toBe(200);
+            } finally {
+                expect(
+                    (await admin.post(flagUrl, { enabled: true })).status,
+                ).toBe(200);
+            }
+        });
+
+        it('downloads as code under its own space with no dashboard, and refuses the file on upload', async () => {
+            const { space, chart } = await createSpaceChart();
+            const codeUrl = `/api/v1/projects/${projectUuid}/code/composerCharts`;
+            const download = await admin.get<
+                Body<{ composerCharts: ComposerChartAsCode[] }>
+            >(`${codeUrl}?ids=${chart.slug}`);
+            expect(download.status).toBe(200);
+            const [file] = download.body.results.composerCharts;
+            expect(file).toMatchObject({
+                slug: chart.slug,
+                dashboardSlug: null,
+                spaceSlug: getContentAsCodePathFromLtreePath(space.path),
+            });
+
+            const uploaded = await admin.post<{ error: { message: string } }>(
+                `${codeUrl}/${file.slug}`,
+                file,
+                { failOnStatusCode: false },
+            );
+            expect(uploaded.status).toBe(400);
+            expect(uploaded.body.error.message).toContain(
+                `Composer chart "${chart.slug}" belongs to a space`,
+            );
         });
     });
 });

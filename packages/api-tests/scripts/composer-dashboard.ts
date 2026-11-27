@@ -1,8 +1,10 @@
-// Usage: SITE_URL=... LDPAT=... pnpm -F api-tests composer-dashboard create | delete <dashboardUuid>
+// Usage: SITE_URL=... LDPAT=... pnpm -F api-tests composer-dashboard create | delete <dashboardUuid> | create-space | delete-space <spaceUuid>
 /* eslint-disable no-console */
 import {
     createComposerDashboard,
+    createComposerSpaceChart,
     deleteComposerDashboard,
+    deleteComposerSpace,
     fetchSend,
 } from '../helpers/composerDashboard';
 
@@ -11,7 +13,7 @@ if (!SITE_URL || !LDPAT) throw new Error('Set SITE_URL and LDPAT');
 const send = fetchSend(SITE_URL.replace(/\/$/, ''), {
     Authorization: `ApiKey ${LDPAT}`,
 });
-const [command, dashboardUuid] = process.argv.slice(2);
+const [command, uuid] = process.argv.slice(2);
 
 const run = async () => {
     if (command === 'create') {
@@ -23,12 +25,24 @@ const run = async () => {
                 url: `${SITE_URL}/projects/${dashboard.projectUuid}/dashboards/${dashboard.uuid}/view`,
             }),
         );
-    } else if (command === 'delete' && dashboardUuid) {
-        await deleteComposerDashboard(send, dashboardUuid);
-        console.log(`Deleted ${dashboardUuid}`);
+    } else if (command === 'delete' && uuid) {
+        await deleteComposerDashboard(send, uuid);
+        console.log(`Deleted ${uuid}`);
+    } else if (command === 'create-space') {
+        const { space, chart } = await createComposerSpaceChart(send);
+        console.log(
+            JSON.stringify({
+                spaceUuid: space.uuid,
+                composerChartUuid: chart.uuid,
+                apiUrl: `${SITE_URL}/api/v2/projects/${chart.projectUuid}/composer-charts/${chart.uuid}`,
+            }),
+        );
+    } else if (command === 'delete-space' && uuid) {
+        await deleteComposerSpace(send, uuid);
+        console.log(`Deleted ${uuid}`);
     } else {
         throw new Error(
-            'Usage: composer-dashboard create | delete <dashboardUuid>',
+            'Usage: composer-dashboard create | delete <dashboardUuid> | create-space | delete-space <spaceUuid>',
         );
     }
 };
