@@ -142,27 +142,98 @@ export class CartesianChartDataModel {
             : customFormat;
     }
 
+    // The values a y-axis has to span: every point, plus the totals of
+    // stacked series, which reach past any single value in the stack.
+    private static getYAxisValues(
+        rows: RawResultRow[],
+        seriesReferences: string[],
+        seriesStacks: Map<string, string>,
+    ): number[] {
+        return rows.flatMap((row) => {
+            const values: number[] = [];
+            const stackTotals = new Map<string, [number, number]>();
+            seriesReferences.forEach((reference) => {
+                const value = Number(row[reference]);
+                if (!Number.isFinite(value)) return;
+                values.push(value);
+
+                const stack = seriesStacks.get(reference);
+                if (!stack) return;
+                const [above, below] = stackTotals.get(stack) ?? [0, 0];
+                stackTotals.set(
+                    stack,
+                    value > 0 ? [above + value, below] : [above, below + value],
+                );
+            });
+            stackTotals.forEach((totals) => values.push(...totals));
+            return values;
+        });
+    }
+
+    // Approximates the ticks ECharts draws on a value axis: about five steps
+    // of 1, 2, 3 or 5 times a power of ten, covering the values and zero.
+    private static getYAxisTicks(values: number[]): number[] {
+        const min = values.reduce(
+            (lowest, value) => Math.min(lowest, value),
+            0,
+        );
+        const max = values.reduce(
+            (highest, value) => Math.max(highest, value),
+            0,
+        );
+        if (min === max) return [min];
+
+        const roughStep = (max - min) / 5;
+        const exponent = Math.floor(Math.log10(roughStep));
+        const magnitude = 10 ** exponent;
+        const niceSteps: [number, number][] = [
+            [1.5, 1],
+            [2.5, 2],
+            [4, 3],
+            [7, 5],
+        ];
+        const step =
+            (niceSteps.find(([limit]) => roughStep / magnitude < limit)?.[1] ??
+                10) * magnitude;
+
+        const decimals = Math.max(0, -exponent);
+        const firstTick = Math.floor(min / step);
+        const lastTick = Math.ceil(max / step);
+        return Array.from({ length: lastTick - firstTick + 1 }, (_, index) =>
+            Number(((firstTick + index) * step).toFixed(decimals)),
+        );
+    }
+
     // Formatted tick labels (currency, decimals, prefixes) can be wider than
     // the default gap, which would put the axis title on top of them.
     private static getYAxisNameGap(
         formatter: ((value: number) => string) | undefined,
         rows: RawResultRow[],
         seriesReferences: string[],
+        seriesStacks: Map<string, string>,
     ): number {
         const defaultNameGap = 50;
         if (!formatter) return defaultNameGap;
 
-        const longestLabel = rows.reduce((longest, row) => {
-            const labelLengths = seriesReferences
-                .map((reference) => Number(row[reference]))
-                .filter((value) => Number.isFinite(value))
-                .map((value) => formatter(value).length);
-            return Math.max(longest, ...labelLengths);
-        }, 0);
-        if (longestLabel === 0) return defaultNameGap;
+        const values = CartesianChartDataModel.getYAxisValues(
+            rows,
+            seriesReferences,
+            seriesStacks,
+        );
+        if (values.length === 0) return defaultNameGap;
+
+        // Conditional formats can give an intermediate tick a longer label
+        // than any value in the data, so size from the ticks as well
+        const longestLabel = [
+            ...values,
+            ...CartesianChartDataModel.getYAxisTicks(values),
+        ].reduce(
+            (longest, value) => Math.max(longest, formatter(value).length),
+            0,
+        );
 
         // Approximate label width at the axis font size, with one character
-        // of slack because ticks round up past the largest value
+        // of slack for glyphs wider than the average
         const approximateCharacterWidth = 7;
         const labelMargin = 14;
         return Math.max(
@@ -178,6 +249,16 @@ export class CartesianChartDataModel {
         return (value: number) => applyCustomFormat(value, customFormat);
     }
 
+    // Regular stacked bars hand ECharts tuple rows, read by the encoded index;
+    // every other series reads object rows by dimension name.
+    // Echarts doesn't export the types for these params
+    private static getValueLabelValue(params: AnyType): unknown {
+        const yIndex = params.encode.y[0];
+        return Array.isArray(params.value)
+            ? params.value[yIndex]
+            : params.value[params.dimensionNames[yIndex]];
+    }
+
     // Get the formatter for the value label,
     // which has more complex inputs
     static getValueFormatter(
@@ -189,7 +270,7 @@ export class CartesianChartDataModel {
         if (isStack100) {
             return (params: AnyType) => {
                 const value =
-                    params.value[params.dimensionNames[params.encode.y[0]]];
+                    CartesianChartDataModel.getValueLabelValue(params);
                 return typeof value === 'number'
                     ? `${formatNumberValue(value, {
                           type: CustomFormatType.NUMBER,
@@ -202,13 +283,11 @@ export class CartesianChartDataModel {
         const customFormat = CartesianChartDataModel.toCustomFormat(format);
         if (!customFormat) return undefined;
 
-        // Echarts doesn't export the types for this function
-        return (params: AnyType) => {
-            const value =
-                params.value[params.dimensionNames[params.encode.y[0]]];
-
-            return applyCustomFormat(value, customFormat);
-        };
+        return (params: AnyType) =>
+            applyCustomFormat(
+                CartesianChartDataModel.getValueLabelValue(params),
+                customFormat,
+            );
     }
 
     mergeConfig(
@@ -688,6 +767,8 @@ export class CartesianChartDataModel {
             string,
             (value: number) => string
         >();
+        // Stack id per stacked series column, for sizing the y-axis
+        const seriesStacks = new Map<string, string>();
 
         // Calculate dynamic border radius for non-stacked bars
         const barSeriesCount = transformedData.valuesColumns.filter(
@@ -798,13 +879,16 @@ export class CartesianChartDataModel {
                 const isLineOrArea = seriesType === CartesianSeriesType.LINE;
                 const showSymbol = isLineOrArea && dataToRender.length <= 100;
 
+                const seriesStack =
+                    shouldStack && seriesType === 'bar'
+                        ? `stack-${seriesColumn.referenceField}` // Use referenceField for stack ID
+                        : undefined;
+                if (seriesStack) seriesStacks.set(seriesColumnId, seriesStack);
+
                 return {
                     dimensions: [xAxisReference, seriesColumnId],
                     type: seriesType ?? defaultSeriesType,
-                    stack:
-                        shouldStack && seriesType === 'bar'
-                            ? `stack-${seriesColumn.referenceField}` // Use referenceField for stack ID
-                            : undefined,
+                    stack: seriesStack,
                     name:
                         seriesLabel ||
                         capitalize(seriesColumnId.toLowerCase()).replaceAll(
@@ -1067,6 +1151,7 @@ export class CartesianChartDataModel {
                         leftYAxisFormatter,
                         dataToRender,
                         leftYAxisSeriesReferences,
+                        seriesStacks,
                     ),
                     nameRotate: 90,
                     nameTextStyle: getAxisTitleStyle(),
@@ -1102,6 +1187,7 @@ export class CartesianChartDataModel {
                         rightYAxisFormatter,
                         dataToRender,
                         rightYAxisSeriesReferences,
+                        seriesStacks,
                     ),
                     nameRotate: -90,
                     nameTextStyle: getAxisTitleStyle(),
