@@ -409,5 +409,4 @@ export const GITHUB_EXPLORES = [
 
 export const githubModel: LiveModel<ApiConnectorType.GITHUB> = {
     explores: GITHUB_EXPLORES,
-    plannedNames: ['workflow_runs', 'releases'],
 };

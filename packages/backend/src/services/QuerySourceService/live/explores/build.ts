@@ -58,8 +58,7 @@ const DEFAULT_SQL_BUILDER = warehouseSqlBuilderFromType(
  * - display names change no id: renaming a source or relabelling a field
  *   keeps every chart working
  * - models are only ever added: today's model of each integration stays
- *   as its permanent wide model, and planned models reserve their names
- *   up front (`plannedModelNames`) so a dbt explore can't take them first
+ *   as its permanent wide model
  *
  * `explores/names.test.ts` snapshots every integration's explore names and
  * field ids; a failing snapshot means saved content would break.
@@ -78,7 +77,6 @@ export type LiveBaseLayer = {
         NamedLiveExploreDefinition,
         ...NamedLiveExploreDefinition[],
     ];
-    plannedModelNames: readonly string[];
 };
 
 export const getLiveBaseLayer = (
@@ -89,7 +87,6 @@ export const getLiveBaseLayer = (
         baseVersion: 1,
         capabilities: query.capabilities,
         definitions: model.explores,
-        plannedModelNames: model.plannedNames ?? [],
     };
 };
 
@@ -100,15 +97,6 @@ export const getLiveExploreNames = (
 ): string[] =>
     getLiveBaseLayer(connector).definitions.map(({ name }) =>
         getLiveExploreName(sourceName, name),
-    );
-
-/** The explore names kept free for the integration's planned models. */
-export const getLiveReservedExploreNames = (
-    connector: ApiConnectorType,
-    sourceName: string,
-): string[] =>
-    getLiveBaseLayer(connector).plannedModelNames.map((modelName) =>
-        getLiveExploreName(sourceName, modelName),
     );
 
 const buildDefinitionExplore = (
@@ -150,39 +138,62 @@ const toStableJson = (value: unknown): string =>
     );
 
 /**
- * What the integration's code currently builds, by model name. Each hash
- * comes from the explore built with placeholders for everything specific to
- * one source (prefix, label, connection, discovered fields, field edits), so it
- * changes when the code's output does, and nobody has to bump a version.
+ * What the integration's code builds from one explore definition: its
+ * declared fields and the ones the source's facts add. The hash comes from
+ * the explore built with placeholders for everything else specific to one
+ * source (prefix, label, connection, field edits), so it changes when the
+ * code's output does, and nobody has to bump a version.
  */
-export const getLiveDefinitionHashes = memoize(
-    (connector: ApiConnectorType): Record<string, string> =>
-        Object.fromEntries(
-            getLiveBaseLayer(connector).definitions.map((definition) => [
-                definition.name,
-                createHash('sha256')
-                    .update(
-                        toStableJson(
-                            buildDefinitionExplore(connector, {
-                                definition,
-                                exploreName: getLiveExploreName(
-                                    'source',
-                                    definition.name,
-                                ),
-                                label: definition.label,
-                                groupLabel: 'source',
-                                connectionUuid: 'connection',
-                                // A placeholder for the source's hints, so
-                                // a change to how hints are built still
-                                // changes the hash
-                                aiHint: ['hint', definition.aiHint ?? ''],
-                            }),
+export const getLiveDefinitionHash = memoize(
+    (
+        connector: ApiConnectorType,
+        definition: NamedLiveExploreDefinition,
+    ): string =>
+        createHash('sha256')
+            .update(
+                toStableJson(
+                    buildDefinitionExplore(connector, {
+                        definition,
+                        exploreName: getLiveExploreName(
+                            'source',
+                            definition.name,
                         ),
-                    )
-                    .digest('hex'),
-            ]),
-        ),
+                        label: definition.label,
+                        groupLabel: 'source',
+                        connectionUuid: 'connection',
+                        // A placeholder for the source's hints, so a change
+                        // to how hints are built still changes the hash
+                        aiHint: ['hint', definition.aiHint ?? ''],
+                    }),
+                ),
+            )
+            .digest('hex'),
+    (connector, definition) => `${connector}:${toStableJson(definition)}`,
 );
+
+/** The hash of each explore a source builds, by model name. */
+export const getLiveSourceDefinitionHashes = (
+    connector: ApiConnectorType,
+    state: Pick<
+        LiveSourceFieldState,
+        'discovered' | 'modelNames' | 'explores'
+    > &
+        Partial<Pick<LiveSourceFieldState, 'legacy'>>,
+): Record<string, string> =>
+    Object.fromEntries(
+        getLiveSourceModels(connector, state)
+            .filter((model) =>
+                isLiveExploreInUse(
+                    state.explores,
+                    model.name,
+                    model.onByDefault,
+                ),
+            )
+            .map((model) => [
+                model.name,
+                getLiveDefinitionHash(connector, model.definition),
+            ]),
+    );
 
 /**
  * Field ids stored today that a rebuild would lose, which would break the
@@ -305,16 +316,16 @@ export const buildLiveExplores = ({
     state?: Pick<
         LiveSourceFieldState,
         'discovered' | 'modelNames' | 'fields' | 'explores'
-    >;
+    > &
+        Partial<Pick<LiveSourceFieldState, 'legacy'>>;
     /** The target first, then the admin's source hint; each explore's own hint follows. */
     aiHint?: string[];
     /** Who can query the source; copied onto each explore's base table. */
     accessRule?: LiveSourceAccessRule | null;
     /** The source's tags, carried by each of its explores. */
     tags?: string[];
-}): Explore[] => {
-    const definitionHashes = getLiveDefinitionHashes(apiSource.connector);
-    return getLiveSourceModels(apiSource.connector, state)
+}): Explore[] =>
+    getLiveSourceModels(apiSource.connector, state)
         .filter((model) =>
             isLiveExploreInUse(state.explores, model.name, model.onByDefault),
         )
@@ -338,10 +349,11 @@ export const buildLiveExplores = ({
                     label: exploreEdit?.label ?? definition.label,
                     groupLabel: label,
                     connectionUuid,
-                    // Only a declared explore changes with a deploy
-                    definitionHash: model.isDeclared
-                        ? definitionHashes[model.name]
-                        : undefined,
+                    // A deploy rebuilds a source whose code output changed
+                    definitionHash: getLiveDefinitionHash(
+                        apiSource.connector,
+                        model.definition,
+                    ),
                     // An admin's hint replaces the integration's
                     aiHint: [
                         ...(aiHint ?? []),
@@ -354,7 +366,6 @@ export const buildLiveExplores = ({
                 accessRule,
             );
         });
-};
 
 /**
  * Compiles a metric query on a live data source explore into its

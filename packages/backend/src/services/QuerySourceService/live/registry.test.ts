@@ -7,14 +7,8 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { buildLiveExplores, compileLiveMetricQuery } from './explores/build';
-import { type LiveExploreDefinition } from './explores/definition';
 import { getLiveSourceModels } from './explores/source';
 import { findAccessRule } from './integration';
-import {
-    readSupabaseColumns,
-    SUPABASE_TABLE_EXPLORE,
-    withSupabaseColumns,
-} from './integrations/supabase/model';
 import { connectLiveSource } from './liveSource.mock';
 import {
     getLiveIntegration,
@@ -23,18 +17,13 @@ import {
 } from './registry';
 import { type LiveHttpResponse } from './types';
 
-/** What a Refresh finds, for integrations whose explore has no fields until then. */
-const SAMPLE_DISCOVERIES: Partial<
-    Record<ApiConnectorType, LiveExploreDefinition[]>
-> = {
-    [ApiConnectorType.SUPABASE]: [
-        withSupabaseColumns(
-            SUPABASE_TABLE_EXPLORE,
-            readSupabaseColumns({
-                properties: { id: { type: 'integer', format: 'bigint' } },
-            }),
-        ),
-    ],
+/** What a Refresh stores for an integration whose declared explore has no fields of its own. */
+const SAMPLE_FACTS: Partial<Record<ApiConnectorType, unknown>> = {
+    [ApiConnectorType.SUPABASE]: {
+        supabaseTable: {
+            properties: { id: { type: 'integer', format: 'bigint' } },
+        },
+    },
 };
 
 /**
@@ -175,10 +164,10 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         });
 
         test('runs what it compiles, and explains a failed call', async () => {
-            const explores = SAMPLE_DISCOVERIES[settings.connector];
+            const found = SAMPLE_FACTS[settings.connector];
             const state = {
-                discovered: explores
-                    ? { refreshedAt: '2026-11-06T12:00:00Z', explores }
+                discovered: found
+                    ? { refreshedAt: '2026-11-06T12:00:00Z', found }
                     : null,
                 modelNames: {},
                 fields: {},

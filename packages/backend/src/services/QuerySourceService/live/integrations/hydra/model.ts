@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     ADDITIVE,
+    defineLiveDiscovery,
     dimension,
     metric,
     NON_ADDITIVE,
@@ -258,28 +259,32 @@ export const toHydraObjectExplore = (
 });
 
 /**
- * The events and users explores, then one per object the workspace has. A
- * source that declares no objects is never asked, so its call numbers and
- * limits stay as its tests expect.
+ * The workspace's objects. A source that declares no objects is never
+ * asked, so its call numbers and limits stay as its tests expect.
  */
-export const discoverHydraExplores = async ({
+export const readHydraObjects = async ({
     settings,
     runtime,
 }: {
     settings: HydraApiSource;
     runtime: LiveRuntime;
-}): Promise<LiveExploreDefinition[]> => {
-    if (withHydraDefaults(settings).objects.length === 0) {
-        return [...HYDRA_EXPLORES];
-    }
-    const { objects } = await runtime.fetch(
-        { method: 'GET', path: HYDRA_OBJECTS_PATH, body: undefined },
-        hydraObjectsResponseSchema,
-    );
-    return [...HYDRA_EXPLORES, ...objects.map(toHydraObjectExplore)];
-};
+}): Promise<HydraObjectsResponse> =>
+    withHydraDefaults(settings).objects.length === 0
+        ? { objects: [] }
+        : runtime.fetch(
+              { method: 'GET', path: HYDRA_OBJECTS_PATH, body: undefined },
+              hydraObjectsResponseSchema,
+          );
 
+/** The events and users explores, then one per object the workspace has. */
 export const hydraModel: LiveModel<ApiConnectorType.HYDRA> = {
     explores: HYDRA_EXPLORES,
-    discover: discoverHydraExplores,
+    discover: defineLiveDiscovery({
+        read: readHydraObjects,
+        schema: hydraObjectsResponseSchema,
+        explores: ({ objects }) => [
+            ...HYDRA_EXPLORES,
+            ...objects.map(toHydraObjectExplore),
+        ],
+    }),
 };

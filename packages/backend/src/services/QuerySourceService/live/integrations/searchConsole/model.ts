@@ -171,5 +171,4 @@ export const SEARCH_CONSOLE_EXPLORES = [
 
 export const searchConsoleModel: LiveModel<ApiConnectorType.SEARCH_CONSOLE> = {
     explores: SEARCH_CONSOLE_EXPLORES,
-    plannedNames: ['search_appearance'],
 };

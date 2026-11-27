@@ -304,10 +304,4 @@ export const linkedInAdsModel: LiveModel<ApiConnectorType.LINKEDIN_ADS> = {
     explores: LINKEDIN_ADS_EXPLORES,
     // organic_shares needs another API, permission and account, so it may
     // become its own integration; the name stays reserved here.
-    plannedNames: [
-        'creatives',
-        'demographics',
-        'conversions',
-        'organic_shares',
-    ],
 };

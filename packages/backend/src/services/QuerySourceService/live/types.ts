@@ -65,9 +65,9 @@ export type LiveConnection<C extends ApiConnectorType = ApiConnectorType> = {
     acceptsOrigin?: (origin: string) => boolean;
     /**
      * What a source may call on its origin, whatever its stored connection
-     * says. `explores` are the source's explores as its last Refresh found
-     * them (`model.explores` before the first), so an explore's own paths
-     * can be allowed by its `apiName`.
+     * says. `explores` are the source's explores, built from what its last
+     * Refresh stored (`model.explores` before the first), so an explore's
+     * own paths can be allowed by its `apiName`.
      */
     access: (
         settings: ApiSourceOf<C>,
@@ -108,8 +108,11 @@ export type LiveConnection<C extends ApiConnectorType = ApiConnectorType> = {
 };
 
 /**
- * The explores a source offers: one list, whether written by hand or found
- * by `discover`. The core treats every explore and field in it the same.
+ * The explores a source offers. `explores` is the integration's model;
+ * `discover`, for an API with a schema of its own, reads what the vendor's
+ * workspace has, and the core stores those facts and builds explores from
+ * them and the model each time, so a deploy changes every source's
+ * explores without calling any API.
  */
 export type LiveModel<C extends ApiConnectorType = ApiConnectorType> = {
     /**
@@ -120,19 +123,30 @@ export type LiveModel<C extends ApiConnectorType = ApiConnectorType> = {
         NamedLiveExploreDefinition,
         ...NamedLiveExploreDefinition[],
     ];
-    /** Explore names reserved for models not built yet. */
-    plannedNames?: readonly string[];
+    discover?: LiveDiscovery<C>;
+};
+
+/**
+ * What a Refresh reads from the vendor, and how the core turns it into
+ * explores. Write one with `defineLiveDiscovery`.
+ */
+export type LiveDiscovery<C extends ApiConnectorType = ApiConnectorType> = {
     /**
-     * Reads what the API offers now, as the source's whole explore list:
-     * `explores` with the fields the API reports merged in, then any explore
-     * only the API knows, keyed by its `apiName`. The service runs it when a
-     * source is created and on Refresh, and stores the list. Omitted,
-     * `explores` is the list.
+     * Reads what the vendor's workspace has now, as plain JSON in the
+     * vendor's terms: only the parts `explores` reads. The service runs it
+     * on Refresh and stores the result whole.
      */
-    discover?: (args: {
+    read: (args: {
         settings: ApiSourceOf<C>;
         runtime: LiveRuntime;
-    }) => Promise<LiveExploreDefinition[]>;
+    }) => Promise<unknown>;
+    /**
+     * The source's whole explore list from what `read` stored: `explores`
+     * with the fields the vendor reports added, then any explore only the
+     * vendor has, keyed by its `apiName`. Null when the stored facts aren't
+     * this integration's shape. The core calls it on every build.
+     */
+    explores: (found: unknown) => LiveExploreDefinition[] | null;
 };
 
 /** How a metric query becomes calls and rows. */

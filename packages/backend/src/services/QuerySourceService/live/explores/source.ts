@@ -27,10 +27,11 @@ import {
  * A source's explores, built the same way whether its integration declared
  * them or `discover` found them:
  *
- * - the list is `model.explores`, or what the last Refresh's `discover`
- *   returned, stored whole (`discovered`) and replaced on each Refresh
+ * - a Refresh stores what the vendor reported (`discovered.found`), not
+ *   explores; each build turns those facts into explores with the
+ *   integration's code, so a deploy changes every source without a Refresh
  * - a declared explore always comes from the code, with the fields the
- *   Refresh found for it after its own, so a deploy updates it
+ *   facts add after its own
  * - an explore the integration left unnamed is named once from its
  *   `apiName` and keeps that name (`modelNames`), so charts on it survive
  *   its label changing or it going away and coming back
@@ -40,9 +41,15 @@ import {
  *   counts the first time a source sees an item
  */
 
-/** What a Refresh stored: the explores `discover` returned. */
+/** What a Refresh stored: the vendor's facts, as `discover.read` returned them. */
 export type LiveSourceDiscovery = {
     /** ISO timestamp of the Refresh. */
+    refreshedAt: string;
+    found: unknown;
+};
+
+/** The explores of a source last refreshed before facts were stored, read from its scan. */
+export type LiveSourceLegacyScan = {
     refreshedAt: string;
     explores: LiveExploreDefinition[];
 };
@@ -51,6 +58,8 @@ export type LiveSourceDiscovery = {
 export type LiveSourceFieldState = {
     /** Null before the first Refresh of an integration that discovers. */
     discovered: LiveSourceDiscovery | null;
+    /** Read only, never written: a source's scan from before facts were stored, until its next Refresh. */
+    legacy: LiveSourceLegacyScan | null;
     /** The model name the core gave each explore its integration left unnamed, by `apiName`. */
     modelNames: Record<string, string>;
     fields: LiveSourceFieldEdits;
@@ -154,6 +163,32 @@ export const checkDiscoveredExplores = (
     );
 };
 
+/**
+ * The explores a source's stored facts give, or its old scan's; none
+ * before its first Refresh. As at Refresh, an `apiName` that can't be one
+ * path segment is left out, and so is a second explore under one key.
+ */
+export const getLiveDiscoveredExplores = (
+    connector: ApiConnectorType,
+    state: Pick<LiveSourceFieldState, 'discovered'> &
+        Partial<Pick<LiveSourceFieldState, 'legacy'>>,
+): LiveExploreDefinition[] => {
+    const explores = state.discovered
+        ? (getLiveIntegration(connector).model.discover?.explores(
+              state.discovered.found,
+          ) ?? [])
+        : (state.legacy?.explores ?? []);
+    const seen = new Set<string>();
+    return explores.filter((explore) => {
+        const key = getLiveExploreKey(explore);
+        const isKept =
+            !seen.has(key) &&
+            (explore.apiName === undefined || isPathSafe(explore.apiName));
+        seen.add(key);
+        return isKept;
+    });
+};
+
 const legacyFieldSchema = z.object({
     name: z.string(),
     apiName: z.string(),
@@ -202,7 +237,7 @@ const fieldStateSchema = z.object({
     targetLabel: z.string().nullish().catch(null),
     tags: z.array(z.string()).nullish().catch(null),
     discovered: z
-        .object({ refreshedAt: z.string(), explores: exploresSchema })
+        .object({ refreshedAt: z.string(), found: z.unknown() })
         .nullish()
         .catch(null),
     lastScan: legacyScanSchema.nullish(),
@@ -237,6 +272,7 @@ const fieldStateSchema = z.object({
 
 const EMPTY_STATE: LiveSourceFieldState = {
     discovered: null,
+    legacy: null,
     modelNames: {},
     fields: {},
     explores: {},
@@ -255,7 +291,7 @@ const fromLegacyScan = (
     connector: ApiConnectorType,
     scan: z.infer<typeof legacyScanSchema>,
     storedEdits: LiveSourceFieldEdits | null,
-): { discovered: LiveSourceDiscovery; fields: LiveSourceFieldEdits } => {
+): { legacy: LiveSourceLegacyScan; fields: LiveSourceFieldEdits } => {
     const [first] = getLiveIntegration(connector).model.explores;
     const byModel = new Map<
         string,
@@ -286,7 +322,7 @@ const fromLegacyScan = (
         }
     });
     return {
-        discovered: {
+        legacy: {
             refreshedAt: scan.scannedAt,
             explores: [...byModel].map(([name, fields]) => ({
                 name,
@@ -323,7 +359,10 @@ export const parseLiveSourceFieldState = (
     if (data.discovered) {
         return {
             ...base,
-            discovered: data.discovered,
+            discovered: {
+                refreshedAt: data.discovered.refreshedAt,
+                found: data.discovered.found,
+            },
             fields: data.fields ?? {},
         };
     }
@@ -344,7 +383,13 @@ export const parseLiveSourceFieldState = (
     return { ...base, fields: data.fields ?? {} };
 };
 
-/** Model names an unnamed explore can't take: declared, planned, fixed and given ones. */
+/** Whether a source has been refreshed: it stored facts, or an old scan. */
+export const hasLiveRefresh = (
+    state: Pick<LiveSourceFieldState, 'discovered'> &
+        Partial<Pick<LiveSourceFieldState, 'legacy'>>,
+): boolean => state.discovered !== null || (state.legacy ?? null) !== null;
+
+/** Model names an unnamed explore can't take: declared, fixed and given ones. */
 const getTakenModelNames = (
     connector: ApiConnectorType,
     explores: readonly LiveExploreDefinition[],
@@ -353,7 +398,6 @@ const getTakenModelNames = (
     const { model } = getLiveIntegration(connector);
     return new Set([
         ...model.explores.map(({ name }) => name),
-        ...(model.plannedNames ?? []),
         ...explores.flatMap(({ name }) => (name ? [name] : [])),
         ...Object.values(modelNames),
     ]);
@@ -408,10 +452,11 @@ export const nameLiveExplores = ({
  */
 export const getLiveSourceModels = (
     connector: ApiConnectorType,
-    state: Pick<LiveSourceFieldState, 'discovered' | 'modelNames'>,
+    state: Pick<LiveSourceFieldState, 'discovered' | 'modelNames'> &
+        Partial<Pick<LiveSourceFieldState, 'legacy'>>,
 ): LiveSourceModel[] => {
     const declared = getLiveIntegration(connector).model.explores;
-    const discovered = state.discovered?.explores ?? [];
+    const discovered = getLiveDiscoveredExplores(connector, state);
     const declaredNames = new Set(declared.map(({ name }) => name));
     const fromCode = declared.map((definition, index): LiveSourceModel => {
         const fieldNames = new Set(

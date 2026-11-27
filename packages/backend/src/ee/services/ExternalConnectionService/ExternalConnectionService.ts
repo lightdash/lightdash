@@ -110,10 +110,9 @@ import {
     buildLiveExplores,
     describeLiveTarget,
     getLiveBaseLayer,
-    getLiveDefinitionHashes,
     getLiveExploreName,
     getLiveExploreNames,
-    getLiveReservedExploreNames,
+    getLiveSourceDefinitionHashes,
     getLostLiveFieldIds,
 } from '../../../services/QuerySourceService/live/explores/build';
 import { type LiveExploreDefinition } from '../../../services/QuerySourceService/live/explores/definition';
@@ -130,9 +129,11 @@ import {
 } from '../../../services/QuerySourceService/live/explores/fields';
 import {
     checkDiscoveredExplores,
+    getLiveDiscoveredExplores,
     getLiveRefreshSummary,
     getLiveSourceModels,
     getUnnamedApiNames,
+    hasLiveRefresh,
     nameLiveExplores,
     pinLiveDefaults,
     type LiveSourceFieldState,
@@ -1239,11 +1240,11 @@ export class ExternalConnectionService extends BaseService {
         const hasSavedScan =
             isLiveSource &&
             isEqual(updated.apiSource, existing.apiSource) &&
-            (
+            hasLiveRefresh(
                 await this.externalConnectionModel.getLiveSourceFieldState(
                     connectionUuid,
-                )
-            ).discovered !== null;
+                ),
+            );
         await this.syncApiSourceExploresAfterChange(
             account,
             updated,
@@ -2034,20 +2035,31 @@ export class ExternalConnectionService extends BaseService {
             return EMPTY_REFRESH_SUMMARY;
         }
         const { connector } = apiSource;
-        const discover = async (): Promise<LiveExploreDefinition[] | null> => {
+        const discover = async (): Promise<{
+            found: unknown;
+            explores: LiveExploreDefinition[];
+        } | null> => {
             try {
                 const { integration, settings, runtime } =
                     this.createLiveSource(account, connection, {
                         isPerQuery: false,
                         rateLimitDeadlineMs: LIVE_RATE_LIMIT_DEADLINES_MS.sync,
                     });
-                const { model } = integration;
-                return checkDiscoveredExplores(
-                    connector,
-                    model.discover
-                        ? await model.discover({ settings, runtime })
-                        : model.explores,
-                );
+                const { discover: discovery } = integration.model;
+                if (!discovery) {
+                    return null;
+                }
+                const found = await discovery.read({ settings, runtime });
+                const explores = discovery.explores(found);
+                if (!explores) {
+                    throw new UnexpectedServerError(
+                        `${integration.label} reported its schema in an unexpected shape`,
+                    );
+                }
+                return {
+                    found,
+                    explores: checkDiscoveredExplores(connector, explores),
+                };
             } catch (error) {
                 if (onScanError === 'throw') {
                     throw error;
@@ -2062,14 +2074,15 @@ export class ExternalConnectionService extends BaseService {
             connection,
             apiSource,
         );
-        const explores = await discover();
+        const discovery = await discover();
         const { externalConnectionUuid } = connection;
         const previous =
             await this.externalConnectionModel.getLiveSourceFieldState(
                 externalConnectionUuid,
             );
         let current = previous;
-        if (explores) {
+        if (discovery) {
+            const { found, explores } = discovery;
             const unavailable = await this.findUnavailableModelNames(
                 { ...connection, apiSource },
                 sourceName,
@@ -2084,7 +2097,8 @@ export class ExternalConnectionService extends BaseService {
                     (stored) => {
                         // Named under the lock, so two Refreshes can't name one explore twice
                         const next = {
-                            discovered: { refreshedAt, explores },
+                            discovered: { refreshedAt, found },
+                            legacy: null,
                             modelNames: nameLiveExplores({
                                 connector,
                                 explores,
@@ -2113,7 +2127,7 @@ export class ExternalConnectionService extends BaseService {
             apiSource,
         );
         // A source never refreshed has nothing to compare with
-        return previous.discovered === null || !explores
+        return !hasLiveRefresh(previous) || !discovery
             ? EMPTY_REFRESH_SUMMARY
             : getLiveRefreshSummary({
                   previous: getLiveSourceModels(connector, previous),
@@ -2128,12 +2142,13 @@ export class ExternalConnectionService extends BaseService {
         connector: ApiConnectorType,
         sourceName: string,
         state: Pick<LiveSourceFieldState, 'modelNames'> &
-            Partial<Pick<LiveSourceFieldState, 'discovered'>>,
+            Partial<Pick<LiveSourceFieldState, 'discovered' | 'legacy'>>,
     ): string[] {
         return [
             ...new Set([
                 ...getLiveSourceModels(connector, {
                     discovered: state.discovered ?? null,
+                    legacy: state.legacy ?? null,
                     modelNames: state.modelNames,
                 }).map(({ name }) => name),
                 ...Object.values(state.modelNames),
@@ -2242,18 +2257,16 @@ export class ExternalConnectionService extends BaseService {
             const { externalConnectionUuid } = source;
             try {
                 const built = stored[externalConnectionUuid] ?? [];
-                // Only a declared explore has a hash: Refresh and edits rebuild the rest
                 const hashes = built.flatMap(({ definitionHash }) =>
                     definitionHash ? [definitionHash] : [],
                 );
                 // A switched-off explore isn't built, so it has no stored hash
-                const expected = Object.entries(
-                    getLiveDefinitionHashes(source.connector),
-                )
-                    .filter(
-                        ([model]) => !source.switchedOffModels.includes(model),
-                    )
-                    .map(([, hash]) => hash);
+                const expected = Object.values(
+                    getLiveSourceDefinitionHashes(
+                        source.connector,
+                        source.state,
+                    ),
+                );
                 // Explores built before hashes have none, so they're out of date
                 const isCurrent =
                     isEqual([...hashes].sort(), [...expected].sort()) &&
@@ -2658,7 +2671,10 @@ export class ExternalConnectionService extends BaseService {
         return {
             exploreName: first.exploreName,
             usedByChartCount,
-            scannedAt: state.discovered?.refreshedAt ?? null,
+            scannedAt:
+                state.discovered?.refreshedAt ??
+                state.legacy?.refreshedAt ??
+                null,
             fields: first.fields,
             explores,
         };
@@ -2710,8 +2726,8 @@ export class ExternalConnectionService extends BaseService {
     }
 
     /**
-     * The prefixes another source holds, or whose explore names, built or
-     * kept free for planned models, belong to something else.
+     * The prefixes another source holds, or whose explore names belong to
+     * something else.
      */
     private async findUnavailableExplorePrefixes(
         projectUuid: string,
@@ -2719,10 +2735,8 @@ export class ExternalConnectionService extends BaseService {
         prefixes: string[],
         connectionUuid: string | null,
     ): Promise<Set<string>> {
-        const getNames = (prefix: string) => [
-            ...getLiveExploreNames(connector, prefix),
-            ...getLiveReservedExploreNames(connector, prefix),
-        ];
+        const getNames = (prefix: string) =>
+            getLiveExploreNames(connector, prefix);
         const [held, taken] = await Promise.all([
             this.externalConnectionModel.listHeldLiveSourceNames(
                 projectUuid,
@@ -3403,16 +3417,16 @@ export class ExternalConnectionService extends BaseService {
         if (!apiSource) return [];
         const integration = getLiveIntegration(apiSource.connector);
         // A connection tested before it is saved hasn't been refreshed yet
-        const { discovered } =
+        const state =
             externalConnectionUuid === UNSAVED_CONNECTION_UUID
                 ? { discovered: null }
                 : await this.externalConnectionModel.getLiveSourceFieldState(
                       externalConnectionUuid,
                   );
-        return integration.connection.access(
-            apiSource,
-            discovered?.explores ?? integration.model.explores,
-        ).rules;
+        return integration.connection.access(apiSource, [
+            ...integration.model.explores,
+            ...getLiveDiscoveredExplores(apiSource.connector, state),
+        ]).rules;
     }
 
     /**

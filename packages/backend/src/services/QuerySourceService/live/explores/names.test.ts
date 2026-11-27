@@ -13,7 +13,7 @@ import { OPPORTUNITY_DESCRIBE } from '../integrations/salesforce/salesforce.fixt
 import { connectLiveSource } from '../liveSource.mock';
 import { getLiveIntegration } from '../registry';
 import { type LiveHttpRequest } from '../types';
-import { buildLiveExplores, getLiveReservedExploreNames } from './build';
+import { buildLiveExplores } from './build';
 import { getLiveFieldEditKey, type LiveSourceFieldEdits } from './fields';
 import { getLiveSourceModels } from './source';
 
@@ -219,13 +219,13 @@ describe('live data source names', () => {
                 apiSource.connector,
                 name,
             );
-            const explores = await connectLiveSource(
+            const found = await connectLiveSource(
                 getLiveIntegration(apiSource.connector),
                 apiSource,
                 answerBy(answers),
-            ).discover();
+            ).read();
             const state = {
-                discovered: { refreshedAt: '2026-01-01T00:00:00Z', explores },
+                discovered: { refreshedAt: '2026-01-01T00:00:00Z', found },
                 modelNames: {},
             };
             // Every field in use, so the snapshot holds every id a chart can store
@@ -253,10 +253,6 @@ describe('live data source names', () => {
                     name: explore.name,
                     fieldIds: Object.keys(getItemMap(explore)).sort(),
                 })),
-                reservedExploreNames: getLiveReservedExploreNames(
-                    apiSource.connector,
-                    sourceName,
-                ),
             }).toMatchSnapshot();
         },
     );

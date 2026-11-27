@@ -9,7 +9,9 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
+    defineLiveDiscovery,
     dimension,
+    keepParsed,
     withFieldsOffByDefault,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
@@ -620,7 +622,9 @@ export const scanAttioAttributes = async ({
     }
     const read = ATTIO_OBJECTS.flatMap((object, index) => {
         const result = results[index];
-        return result.status === 'fulfilled' ? [[object, result.value]] : [];
+        return result.status === 'fulfilled'
+            ? [[object, keepParsed(attributesSchema, result.value)]]
+            : [];
     });
     if (read.length === 0) {
         throw failed[0];
@@ -631,20 +635,22 @@ export const scanAttioAttributes = async ({
 export const attioModel: LiveModel<ApiConnectorType.ATTIO> = {
     explores: ATTIO_EXPLORES,
     // Every object's explore gets the attributes the workspace has
-    discover: async ({ runtime }) => {
-        const { attioAttributes } = await scanAttioAttributes({ runtime });
-        return ATTIO_EXPLORES.map((definition) =>
-            withFieldsOffByDefault(
-                definition,
-                withAttioAttributeFields(
+    discover: defineLiveDiscovery({
+        read: scanAttioAttributes,
+        schema: z.object({ attioAttributes: z.unknown() }),
+        explores: ({ attioAttributes }) =>
+            ATTIO_EXPLORES.map((definition) =>
+                withFieldsOffByDefault(
                     definition,
-                    readAttioAttributes(
-                        attioAttributes,
-                        toAttioObject(definition.name),
+                    withAttioAttributeFields(
+                        definition,
+                        readAttioAttributes(
+                            attioAttributes,
+                            toAttioObject(definition.name),
+                        ),
                     ),
+                    isAttioSystemField,
                 ),
-                isAttioSystemField,
             ),
-        );
-    },
+    }),
 };

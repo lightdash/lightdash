@@ -7,6 +7,8 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
+    defineLiveDiscovery,
+    keepParsed,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveModel,
@@ -248,18 +250,23 @@ export const scanSupabaseTable = async ({
             }. Check the table name, and that the schema is exposed in the project's Data API settings.`,
         );
     }
-    return { supabaseTable: definitions[settings.table] };
+    return {
+        supabaseTable: keepParsed(tableSchema, definitions[settings.table]),
+    };
 };
 
 export const supabaseModel: LiveModel<ApiConnectorType.SUPABASE> = {
     explores: SUPABASE_EXPLORES,
     // The table's columns are the explore, every one in use from the start
-    discover: async (args) => {
-        const { supabaseTable } = await scanSupabaseTable(args);
-        const [table, ...others] = SUPABASE_EXPLORES;
-        return [
-            withSupabaseColumns(table, readSupabaseColumns(supabaseTable)),
-            ...others,
-        ];
-    },
+    discover: defineLiveDiscovery({
+        read: scanSupabaseTable,
+        schema: z.object({ supabaseTable: z.unknown() }),
+        explores: ({ supabaseTable }) => {
+            const [table, ...others] = SUPABASE_EXPLORES;
+            return [
+                withSupabaseColumns(table, readSupabaseColumns(supabaseTable)),
+                ...others,
+            ];
+        },
+    }),
 };

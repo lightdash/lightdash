@@ -241,10 +241,4 @@ export const YOUTUBE_ANALYTICS_EXPLORES = [
 export const youtubeAnalyticsModel: LiveModel<ApiConnectorType.YOUTUBE_ANALYTICS> =
     {
         explores: YOUTUBE_ANALYTICS_EXPLORES,
-        plannedNames: [
-            'demographics',
-            'playlists',
-            'revenue',
-            'audience_retention',
-        ],
     };

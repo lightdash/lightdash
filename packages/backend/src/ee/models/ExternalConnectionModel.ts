@@ -1424,7 +1424,7 @@ export class ExternalConnectionModel {
             externalConnectionUuid: string;
             projectUuid: string;
             connector: ApiConnectorType;
-            switchedOffModels: string[];
+            state: LiveSourceFieldState;
         }[]
     > {
         const rows = await this.database(ExternalConnectionsTableName)
@@ -1436,27 +1436,20 @@ export class ExternalConnectionModel {
                     external_connection_uuid: string;
                     project_uuid: string;
                     connector: ApiConnectorType;
-                    explores: unknown;
+                    api_source: unknown;
                 }[]
             >(
                 'external_connection_uuid',
                 'project_uuid',
                 this.database.raw("api_source->>'connector' as connector"),
-                this.database.raw("api_source->'explores' as explores"),
+                'api_source',
             );
-        return rows.map((row) => {
-            const { explores } = parseLiveSourceFieldState({
-                explores: row.explores,
-            });
-            return {
-                externalConnectionUuid: row.external_connection_uuid,
-                projectUuid: row.project_uuid,
-                connector: row.connector,
-                switchedOffModels: Object.keys(explores).filter(
-                    (model) => !isLiveExploreInUse(explores, model),
-                ),
-            };
-        });
+        return rows.map((row) => ({
+            externalConnectionUuid: row.external_connection_uuid,
+            projectUuid: row.project_uuid,
+            connector: row.connector,
+            state: parseLiveSourceFieldState(row.api_source),
+        }));
     }
 
     /**
@@ -1498,7 +1491,11 @@ export class ExternalConnectionModel {
      */
     async updateLiveSourceEdits(
         uuid: string,
-        update: (current: LiveSourceEdits) => LiveSourceEdits,
+        update: (
+            current: LiveSourceEdits & {
+                legacy: LiveSourceFieldState['legacy'];
+            },
+        ) => LiveSourceEdits,
         outerTrx?: Knex.Transaction,
     ): Promise<LiveSourceEdits> {
         const run = async (trx: Knex.Transaction) => {
@@ -1514,6 +1511,7 @@ export class ExternalConnectionModel {
             const state = parseLiveSourceFieldState(row.api_source);
             const next = update({
                 discovered: state.discovered,
+                legacy: state.legacy,
                 modelNames: state.modelNames,
                 fields: state.fields,
                 explores: state.explores,

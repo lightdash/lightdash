@@ -17,9 +17,12 @@ import {
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
-import { getLiveDefinitionHashes } from '../../../services/QuerySourceService/live/explores/build';
+import { getLiveSourceDefinitionHashes } from '../../../services/QuerySourceService/live/explores/build';
 import { type LiveSourceFieldEdits } from '../../../services/QuerySourceService/live/explores/fields';
-import { type LiveSourceFieldState } from '../../../services/QuerySourceService/live/explores/source';
+import {
+    parseLiveSourceFieldState,
+    type LiveSourceFieldState,
+} from '../../../services/QuerySourceService/live/explores/source';
 import { POSTHOG_EVENTS_EXPLORE } from '../../../services/QuerySourceService/live/integrations/postHog/model';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
@@ -118,6 +121,7 @@ const buildService = ({
 } = {}) => {
     let fieldState: LiveSourceFieldState = {
         discovered: null,
+        legacy: null,
         modelNames: {},
         fields: {},
         explores: {},
@@ -1817,16 +1821,20 @@ describe('ExternalConnectionService live source explores', () => {
     });
 
     describe('rebuilding after a code change', () => {
+        const neverCurated = parseLiveSourceFieldState({});
         const refs = [
             {
                 externalConnectionUuid: 'conn-1',
                 projectUuid: 'proj-1',
                 connector: ApiConnectorType.POSTHOG,
-                switchedOffModels: [] as string[],
+                state: neverCurated,
             },
         ];
         const currentHashes = Object.values(
-            getLiveDefinitionHashes(ApiConnectorType.POSTHOG),
+            getLiveSourceDefinitionHashes(
+                ApiConnectorType.POSTHOG,
+                neverCurated,
+            ),
         ).map((definitionHash) => ({
             connectionUuid: 'conn-1',
             definitionHash,
@@ -1871,7 +1879,7 @@ describe('ExternalConnectionService live source explores', () => {
             ).not.toHaveBeenCalled();
         });
 
-        it('leaves a source whose custom-object explores carry no hash', async () => {
+        it('leaves a source whose other built explores carry no hash', async () => {
             const { service, projectModel } = setUp([
                 ...currentHashes,
                 {
@@ -1889,7 +1897,10 @@ describe('ExternalConnectionService live source explores', () => {
         });
 
         it('leaves a source whose only missing explore is switched off', async () => {
-            const hashes = getLiveDefinitionHashes(ApiConnectorType.HYDRA);
+            const hashes = getLiveSourceDefinitionHashes(
+                ApiConnectorType.HYDRA,
+                neverCurated,
+            );
             const { service, projectModel, externalConnectionModel } = setUp([
                 { connectionUuid: 'conn-1', definitionHash: hashes.events },
             ]);
@@ -1897,7 +1908,10 @@ describe('ExternalConnectionService live source explores', () => {
                 {
                     ...refs[0],
                     connector: ApiConnectorType.HYDRA,
-                    switchedOffModels: ['users'],
+                    state: {
+                        ...neverCurated,
+                        explores: { users: { inUse: false } },
+                    },
                 },
             ]);
             await expect(
@@ -2475,18 +2489,6 @@ describe('ExternalConnectionService live source explores', () => {
         );
     });
 
-    it('refuses a prefix whose planned model name another explore has', async () => {
-        const { service } = buildService({
-            takenExploreNames: ['web_persons'],
-        });
-        await expect(
-            service.create(account, 'proj-1', {
-                ...postHogSource,
-                explorePrefix: 'web',
-            }),
-        ).rejects.toThrow(AlreadyExistsError);
-    });
-
     it('refuses a badly formatted prefix', async () => {
         const { service } = buildService();
         await expect(
@@ -2500,7 +2502,7 @@ describe('ExternalConnectionService live source explores', () => {
     it('reports a taken prefix with the explore names it would give', async () => {
         const { service } = buildService({
             deletedSources: [deletedSource()],
-            takenExploreNames: ['posthog_2_sessions'],
+            takenExploreNames: ['posthog_2_events'],
         });
 
         await expect(

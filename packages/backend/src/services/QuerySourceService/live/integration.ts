@@ -11,6 +11,7 @@ import { refuseLiveQuery } from './query/refuse';
 import type {
     LiveAccessRule,
     LiveCapabilities,
+    LiveDiscovery,
     LiveIntegration,
     LiveLimits,
 } from './types';
@@ -22,6 +23,39 @@ import type {
 export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
     integration: LiveIntegration<C, Request>,
 ): LiveIntegration<C> => integration as unknown as LiveIntegration<C>;
+
+/**
+ * What `schema` keeps of a vendor response, or undefined when it doesn't
+ * match: a discovery stores only the parts its explores read.
+ */
+export const keepParsed = <T>(
+    schema: z.ZodType<T>,
+    value: unknown,
+): T | undefined => {
+    const parsed = schema.safeParse(value);
+    return parsed.success ? parsed.data : undefined;
+};
+
+/**
+ * A discovery whose stored facts `schema` checks before `explores` reads
+ * them, so facts stored by an older version of the integration read as
+ * absent rather than breaking a build.
+ */
+export const defineLiveDiscovery = <C extends ApiConnectorType, Found>({
+    read,
+    schema,
+    explores,
+}: {
+    read: (args: Parameters<LiveDiscovery<C>['read']>[0]) => Promise<Found>;
+    schema: z.ZodType<Found>;
+    explores: (found: Found) => LiveExploreDefinition[];
+}): LiveDiscovery<C> => ({
+    read,
+    explores: (found) => {
+        const parsed = schema.safeParse(found);
+        return parsed.success ? explores(parsed.data) : null;
+    },
+});
 
 /**
  * Reads a JSON request checked by `schema`. `name` names it in errors, as

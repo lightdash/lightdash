@@ -12,12 +12,7 @@ import {
     type ItemsMap,
     type MetricQuery,
 } from '@lightdash/common';
-import { GA4_EXPLORES, withGa4MetadataFields } from '../integrations/ga4/model';
 import { HYDRA_USERS_EXPLORE } from '../integrations/hydra/model';
-import {
-    POSTHOG_EVENTS_EXPLORE,
-    withPostHogPropertyFields,
-} from '../integrations/postHog/model';
 import { compileSearchConsoleQuery } from '../integrations/searchConsole/compile';
 import { SEARCH_CONSOLE_PERFORMANCE_EXPLORE } from '../integrations/searchConsole/model';
 import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from '../integrations/searchConsole/run';
@@ -27,24 +22,22 @@ import {
     compileLiveMetricQuery,
     describeLiveTarget,
     findSwitchedOffLiveExplore,
-    getLiveDefinitionHashes,
+    getLiveBaseLayer,
+    getLiveDefinitionHash,
     getLiveExploreNames,
+    getLiveSourceDefinitionHashes,
     getLostLiveFieldIds,
     toLiveResult,
     toPeriodStart,
 } from './build';
-import {
-    assertLiveQuery,
-    getLiveDefinitionName,
-    type LiveExploreDefinition,
-} from './definition';
+import { assertLiveQuery, getLiveDefinitionName } from './definition';
 import { type LiveSourceExploreEdits } from './fields';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
 
 const buildOne = (
     apiSource: Parameters<typeof buildLiveExplores>[0]['apiSource'],
-    discovered?: LiveExploreDefinition[],
+    found?: unknown,
 ): Explore => {
     const [explore, ...rest] = buildLiveExplores({
         connectionUuid: CONNECTION_UUID,
@@ -54,7 +47,7 @@ const buildOne = (
         ),
         name: 'Marketing site',
         apiSource,
-        state: discovered && getRefreshedLiveState(discovered),
+        state: found === undefined ? undefined : getRefreshedLiveState(found),
     });
     expect(rest).toEqual([]);
     return explore;
@@ -67,11 +60,8 @@ const searchConsole = () =>
         connector: ApiConnectorType.SEARCH_CONSOLE,
         siteUrl: 'sc-domain:example.com',
     });
-const posthog = (discovered?: LiveExploreDefinition[]) =>
-    buildOne(
-        { connector: ApiConnectorType.POSTHOG, projectId: '42' },
-        discovered,
-    );
+const posthog = (found?: unknown) =>
+    buildOne({ connector: ApiConnectorType.POSTHOG, projectId: '42' }, found);
 
 const query = (
     explore: Explore,
@@ -178,8 +168,8 @@ describe('buildLiveExplores', () => {
     test('adds the fields a Refresh found to the declared ones', () => {
         const explore = buildOne(
             { connector: ApiConnectorType.GA4, propertyId: '123' },
-            [
-                withGa4MetadataFields(GA4_EXPLORES[0], {
+            {
+                ga4Metadata: {
                     dimensions: [
                         {
                             apiName: 'customEvent:plan_type',
@@ -187,8 +177,8 @@ describe('buildLiveExplores', () => {
                             customDefinition: true,
                         },
                     ],
-                }),
-            ],
+                },
+            },
         );
         const fieldIds = Object.keys(explore.apiSource?.fields ?? {});
         expect(fieldIds).toContain(
@@ -200,12 +190,12 @@ describe('buildLiveExplores', () => {
     });
 
     test('keeps the declared PostHog fields when nothing was found', () => {
-        const scanned = posthog([
-            withPostHogPropertyFields(POSTHOG_EVENTS_EXPLORE, {
+        const scanned = posthog({
+            posthogProperties: {
                 event: { results: [{ name: 'plan' }] },
                 person: { results: [] },
-            }),
-        ]);
+            },
+        });
         expect(Object.keys(scanned.apiSource?.fields ?? {})).toContain(
             'posthog_03386598_events_property_plan',
         );
@@ -222,7 +212,10 @@ describe('switching explores off and editing them', () => {
             sourceName: 'hydra',
             name: 'Hydra',
             apiSource: { connector: ApiConnectorType.HYDRA },
-            state: getRefreshedLiveState([], { explores: exploreEdits }),
+            state: getRefreshedLiveState(
+                { objects: [] },
+                { explores: exploreEdits },
+            ),
             aiHint: ['Hydra target', 'Source hint'],
         });
 
@@ -274,7 +267,10 @@ describe('findSwitchedOffLiveExplore', () => {
         name: 'Product Hydra',
         sourceName: 'hydra',
         connector: ApiConnectorType.HYDRA,
-        state: getRefreshedLiveState([], { explores: exploreEdits }),
+        state: getRefreshedLiveState(
+            { objects: [] },
+            { explores: exploreEdits },
+        ),
     });
 
     it('names the source and explore of a switched-off explore', () => {
@@ -405,16 +401,18 @@ describe('compileLiveMetricQuery', () => {
             connector: ApiConnectorType.POSTHOG,
             projectId: '42',
         } as const;
-        const discovered = withPostHogPropertyFields(POSTHOG_EVENTS_EXPLORE, {
-            event: { results: [{ name: 'plan' }] },
-            person: { results: [] },
-        });
+        const found = {
+            posthogProperties: {
+                event: { results: [{ name: 'plan' }] },
+                person: { results: [] },
+            },
+        };
         const [explore] = buildLiveExplores({
             connectionUuid: CONNECTION_UUID,
             sourceName: 'posthog',
             name: 'PostHog',
             apiSource,
-            state: getRefreshedLiveState([discovered], {
+            state: getRefreshedLiveState(found, {
                 fields: { property_plan: { inUse: false, lastEdit: null } },
             }),
         });
@@ -633,7 +631,11 @@ describe('definition hashes', () => {
     it.each(Object.values(ApiConnectorType))(
         'hashes %s from code alone, the same for every source',
         (connector) => {
-            const hashes = getLiveDefinitionHashes(connector);
+            const hashes = getLiveSourceDefinitionHashes(connector, {
+                discovered: null,
+                modelNames: {},
+                explores: {},
+            });
             expect(Object.values(hashes).length).toBeGreaterThan(0);
             Object.values(hashes).forEach((hash) =>
                 expect(hash).toMatch(/^[0-9a-f]{64}$/),
@@ -648,17 +650,17 @@ describe('definition hashes', () => {
             second.apiSource?.definitionHash,
         );
         expect(first.apiSource?.definitionHash).toBe(
-            Object.values(
-                getLiveDefinitionHashes(ApiConnectorType.SEARCH_CONSOLE),
-            )[0],
+            getLiveDefinitionHash(
+                ApiConnectorType.SEARCH_CONSOLE,
+                getLiveBaseLayer(ApiConnectorType.SEARCH_CONSOLE)
+                    .definitions[0],
+            ),
         );
     });
 
     it('changes the hash when a declared explore hint changes', () => {
-        const hashOf = () => {
-            getLiveDefinitionHashes.cache.clear?.();
-            return getLiveDefinitionHashes(ApiConnectorType.HYDRA).users;
-        };
+        const hashOf = () =>
+            getLiveDefinitionHash(ApiConnectorType.HYDRA, HYDRA_USERS_EXPLORE);
         const { aiHint } = HYDRA_USERS_EXPLORE;
         const before = hashOf();
         try {
@@ -666,7 +668,6 @@ describe('definition hashes', () => {
             expect(hashOf()).not.toBe(before);
         } finally {
             HYDRA_USERS_EXPLORE.aiHint = aiHint;
-            getLiveDefinitionHashes.cache.clear?.();
         }
     });
 
@@ -681,7 +682,7 @@ describe('definition hashes', () => {
             sourceName: 'site',
             name: 'Site',
             apiSource,
-            state: getRefreshedLiveState([], {
+            state: getRefreshedLiveState(null, {
                 fields: { query: { label: 'Search term', lastEdit: null } },
             }),
         });

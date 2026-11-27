@@ -9,7 +9,9 @@ import {
 import { z } from 'zod';
 import {
     ADDITIVE,
+    defineLiveDiscovery,
     dimension,
+    keepParsed,
     metric,
     withFieldsOffByDefault,
     type LiveDimensionDefinition,
@@ -765,7 +767,7 @@ export const scanHubspotProperties = async ({
             HUBSPOT_OBJECTS.flatMap((object, index) => {
                 const list = lists[index];
                 return list.status === 'fulfilled'
-                    ? [[object, list.value]]
+                    ? [[object, keepParsed(propertiesSchema, list.value)]]
                     : [];
             }),
         ),
@@ -775,17 +777,22 @@ export const scanHubspotProperties = async ({
 export const hubspotModel: LiveModel<ApiConnectorType.HUBSPOT> = {
     explores: HUBSPOT_EXPLORES,
     // Every object's explore gets the properties the account has
-    discover: async (args) => {
-        const { hubspotProperties } = await scanHubspotProperties(args);
-        return HUBSPOT_EXPLORES.map((definition) =>
-            withFieldsOffByDefault(
-                definition,
-                withHubspotPropertyFields(
+    discover: defineLiveDiscovery({
+        read: scanHubspotProperties,
+        schema: z.object({ hubspotProperties: z.unknown() }),
+        explores: ({ hubspotProperties }) =>
+            HUBSPOT_EXPLORES.map((definition) =>
+                withFieldsOffByDefault(
                     definition,
-                    readHubspotProperties(hubspotProperties, definition.name),
+                    withHubspotPropertyFields(
+                        definition,
+                        readHubspotProperties(
+                            hubspotProperties,
+                            definition.name,
+                        ),
+                    ),
+                    isHubspotSystemField,
                 ),
-                isHubspotSystemField,
             ),
-        );
-    },
+    }),
 };

@@ -684,11 +684,4 @@ export const AMPLITUDE_EXPLORES = [
 
 export const amplitudeModel: LiveModel<ApiConnectorType.AMPLITUDE> = {
     explores: AMPLITUDE_EXPLORES,
-    plannedNames: [
-        'lifecycle',
-        'stickiness',
-        'revenue',
-        'composition',
-        'cohorts',
-    ],
 };

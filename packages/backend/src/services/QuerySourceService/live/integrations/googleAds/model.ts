@@ -509,11 +509,4 @@ export const GOOGLE_ADS_EXPLORES = [GOOGLE_ADS_PERFORMANCE_EXPLORE] as const;
 
 export const googleAdsModel: LiveModel<ApiConnectorType.GOOGLE_ADS> = {
     explores: GOOGLE_ADS_EXPLORES,
-    plannedNames: [
-        'ads',
-        'keywords',
-        'search_terms',
-        'conversions',
-        'locations',
-    ],
 };

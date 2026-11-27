@@ -1,8 +1,13 @@
 import { ApiConnectorType, DimensionType } from '@lightdash/common';
-import { getRefreshedLiveState } from '../liveSource.mock';
+import {
+    getLiveStateWithExplores,
+    getRefreshedLiveState,
+} from '../liveSource.mock';
+import { getLiveSourceDefinitionHashes } from './build';
 import { type LiveExploreDefinition } from './definition';
 import {
     checkDiscoveredExplores,
+    getLiveDiscoveredExplores,
     getLiveRefreshSummary,
     getLiveSourceModels,
     nameLiveExplores,
@@ -61,10 +66,11 @@ describe('a source stored before Refresh returned explores', () => {
     });
 
     it('reads its scan as the explores a Refresh found', () => {
-        const { discovered } = parseLiveSourceFieldState(stored(null));
-        expect(discovered?.refreshedAt).toBe('2026-11-24T10:00:00.000Z');
+        const { discovered, legacy } = parseLiveSourceFieldState(stored(null));
+        expect(discovered).toBe(null);
+        expect(legacy?.refreshedAt).toBe('2026-11-24T10:00:00.000Z');
         expect(
-            discovered?.explores.map(({ name, dimensions }) => [
+            legacy?.explores.map(({ name, dimensions }) => [
                 name,
                 dimensions.map((field) => [field.name, field.onByDefault]),
             ]),
@@ -99,7 +105,7 @@ describe('a source stored before Refresh returned explores', () => {
 
     it('keeps a found field’s value labels', () => {
         const valueLabels = { closedwon: 'Closed Won' };
-        const { discovered } = parseLiveSourceFieldState({
+        const { legacy } = parseLiveSourceFieldState({
             connector: HUBSPOT,
             fields: null,
             lastScan: {
@@ -113,18 +119,22 @@ describe('a source stored before Refresh returned explores', () => {
                 ],
             },
         });
-        expect(discovered?.explores[0].dimensions[0]).toMatchObject({
+        expect(legacy?.explores[0].dimensions[0]).toMatchObject({
             valueLabels,
         });
     });
 
     it('reads what a Refresh stored over an older scan', () => {
-        const explores = [explore([dimension('amount')], { name: 'deals' })];
+        const found = { hubspotProperties: {} };
         const state = parseLiveSourceFieldState({
             ...stored(null),
-            discovered: { refreshedAt: '2026-11-25T10:00:00.000Z', explores },
+            discovered: { refreshedAt: '2026-11-25T10:00:00.000Z', found },
         });
-        expect(state.discovered?.explores).toEqual(explores);
+        expect(state.discovered).toEqual({
+            refreshedAt: '2026-11-25T10:00:00.000Z',
+            found,
+        });
+        expect(state.legacy).toBe(null);
         expect(state.fields).toEqual({});
     });
 });
@@ -184,7 +194,7 @@ describe('a Refresh that changes a default', () => {
     ) =>
         getLiveSourceModels(
             HUBSPOT,
-            getRefreshedLiveState(
+            getLiveStateWithExplores(
                 [
                     explore([dimension('total', fieldOn)], {
                         apiName: 'Invoice',
@@ -228,7 +238,7 @@ describe('a Refresh that changes a default', () => {
         const before = models(true, true);
         const after = getLiveSourceModels(
             HUBSPOT,
-            getRefreshedLiveState([
+            getLiveStateWithExplores([
                 explore([dimension('amount_2')], { name: 'deals' }),
             ]),
         );
@@ -244,5 +254,39 @@ describe('a Refresh that changes a default', () => {
             addedFields: { hubspot_deals: ['amount_2'] },
             removedFields: {},
         });
+    });
+});
+
+describe('explores built from the facts a Refresh stored', () => {
+    const { POSTHOG } = ApiConnectorType;
+    const withPlan = getRefreshedLiveState({
+        posthogProperties: {
+            event: { results: [{ name: 'plan' }] },
+            person: { results: [] },
+        },
+    });
+    const fieldsOf = (state: typeof withPlan) =>
+        getLiveSourceModels(POSTHOG, state)[0].definition.dimensions.map(
+            ({ name }) => name,
+        );
+
+    it('turns the stored facts into fields with the code of today', () => {
+        expect(fieldsOf(withPlan)).toContain('property_plan');
+    });
+
+    it('reads facts stored in a shape the code no longer knows as none', () => {
+        const unknown = getRefreshedLiveState({
+            posthogProperties: 'not an object',
+        });
+        expect(getLiveDiscoveredExplores(POSTHOG, unknown)).toEqual([]);
+        expect(fieldsOf(unknown)).not.toContain('property_plan');
+    });
+
+    it('changes an explore’s hash when the facts add a field, so a deploy rebuilds it', () => {
+        const hashOf = (state: typeof withPlan) =>
+            getLiveSourceDefinitionHashes(POSTHOG, state).events;
+        expect(hashOf(withPlan)).not.toBe(
+            hashOf(getRefreshedLiveState({ posthogProperties: undefined })),
+        );
     });
 });

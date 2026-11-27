@@ -9,7 +9,9 @@
 export {
     ALL_PUSHDOWN_REFUSED,
     assertMaxRows,
+    defineLiveDiscovery,
     defineLiveIntegration,
+    keepParsed,
     formatTestCount,
     jsonRequest,
     readRule,
@@ -23,6 +25,7 @@ export type {
 export type {
     LiveColumn,
     LiveConnection,
+    LiveDiscovery,
     LiveModel,
     LiveQuery,
     LiveHttpRequest,

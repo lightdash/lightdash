@@ -11,7 +11,9 @@ import {
 import { z } from 'zod';
 import {
     ADDITIVE,
+    defineLiveDiscovery,
     dimension,
+    keepParsed,
     metric,
     withFieldsOffByDefault,
     type LiveDimensionDefinition,
@@ -868,7 +870,9 @@ export const scanSalesforceDescribe = async ({
     }
     const read = SALESFORCE_OBJECTS.flatMap((object, index) => {
         const result = results[index];
-        return result.status === 'fulfilled' ? [[object, result.value]] : [];
+        return result.status === 'fulfilled'
+            ? [[object, keepParsed(describeSchema, result.value)]]
+            : [];
     });
     if (read.length === 0) {
         throw failed[0];
@@ -879,20 +883,22 @@ export const scanSalesforceDescribe = async ({
 export const salesforceModel: LiveModel<ApiConnectorType.SALESFORCE> = {
     explores: SALESFORCE_EXPLORES,
     // Every object's explore gets the fields the org has
-    discover: async (args) => {
-        const { salesforceDescribe } = await scanSalesforceDescribe(args);
-        return SALESFORCE_EXPLORES.map((definition) =>
-            withFieldsOffByDefault(
-                definition,
-                withSalesforceFields(
+    discover: defineLiveDiscovery({
+        read: scanSalesforceDescribe,
+        schema: z.object({ salesforceDescribe: z.unknown() }),
+        explores: ({ salesforceDescribe }) =>
+            SALESFORCE_EXPLORES.map((definition) =>
+                withFieldsOffByDefault(
                     definition,
-                    readSalesforceDescribe(
-                        salesforceDescribe,
-                        toSalesforceObject(definition.name),
+                    withSalesforceFields(
+                        definition,
+                        readSalesforceDescribe(
+                            salesforceDescribe,
+                            toSalesforceObject(definition.name),
+                        ),
                     ),
+                    isSalesforceSystemField,
                 ),
-                isSalesforceSystemField,
             ),
-        );
-    },
+    }),
 };
