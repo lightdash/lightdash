@@ -1,3 +1,10 @@
+## [3.420.9](https://github.com/lightdash/lightdash/compare/3.420.8...3.420.9) (2026-11-27)
+
+
+### Bug Fixes
+
+* **frontend:** reload at once when the app starts on an out-of-date build ([#33533](https://github.com/lightdash/lightdash/issues/33533)) ([54f9b1d](https://github.com/lightdash/lightdash/commit/54f9b1d71ae1ee1afdce8d1fdbd80cedda1b6a9a))
+
 ## [3.420.8](https://github.com/lightdash/lightdash/compare/3.420.7...3.420.8) (2026-11-27)
 
 
