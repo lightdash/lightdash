@@ -13,8 +13,8 @@ import {
     resolveAbsoluteDateRange,
     type LiveCompiledRequest,
 } from '../../sdk';
-import { type HydraReportName, type HydraReportRequest } from './fake/report';
 import { type HydraObjectReportRequest } from './objects';
+import { type HydraReportName, type HydraReportRequest } from './report';
 
 const isReportName = (name: string): name is HydraReportName =>
     name === 'events' || name === 'users';
@@ -53,7 +53,7 @@ export const compileHydraQuery = ({
         const request: HydraObjectReportRequest = {
             object,
             dimensions: metricQuery.dimensions.map(apiName),
-            // The object's one metric is its record count; the API refuses others
+            // The object's one metric is its record count; it has no others
             metrics: metricQuery.metrics.map(
                 apiName,
             ) as HydraObjectReportRequest['metrics'],

@@ -6,8 +6,8 @@ import {
     type LiveQuery,
 } from '../../sdk';
 import { compileHydraQuery } from './compile';
-import { parseHydraRequest, type HydraRequest } from './fake/report';
 import { HYDRA_DATE_FILTERS, HYDRA_STRING_FILTERS } from './model';
+import { parseHydraRequest, type HydraRequest } from './report';
 import { HYDRA_MAX_QUERY_ROWS, runHydraQuery } from './run';
 
 // Hydra calls nothing, so its limits only cap how many rows a query reads

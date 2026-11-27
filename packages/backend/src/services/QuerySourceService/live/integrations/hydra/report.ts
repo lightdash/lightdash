@@ -1,11 +1,11 @@
 import { ParameterError } from '@lightdash/common';
 import { z } from 'zod';
-import { jsonRequest } from '../../../sdk';
+import { jsonRequest } from '../../sdk';
+import { type HydraDataset } from './data';
 import {
     hydraObjectReportSchema,
     type HydraObjectReportRequest,
-} from '../objects';
-import { type HydraDataset } from './data';
+} from './objects';
 
 /** What each of Hydra's reports groups by and totals. */
 export const HYDRA_REPORTS = {
@@ -62,7 +62,7 @@ export const hydraReportSchema = z
                     .strict(),
             )
             .default([]),
-        // Agents often copy the API's own limit; the smaller limit wins.
+        // Agents often copy a limit of their own; the smaller limit wins.
         limit: z.number().int().positive().optional(),
     })
     .strict()
@@ -170,7 +170,7 @@ const compare = (a: string | number, b: string | number) => {
 };
 
 /**
- * Runs a report the way Hydra's API would: filters, groups, totals and
+ * Runs a report over the seeded rows: filters, groups, totals and
  * sorts every matching row. Returns every group; the caller cuts it.
  */
 export const runHydraReport = (

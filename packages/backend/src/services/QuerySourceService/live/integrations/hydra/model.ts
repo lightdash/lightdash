@@ -20,9 +20,9 @@ import {
 } from '../../sdk';
 import {
     HYDRA_RECORD_COUNT,
-    hydraObjectsResponseSchema,
+    hydraObjectsSchema,
     listHydraObjects,
-    type HydraObjectsResponse,
+    type HydraObjects,
 } from './objects';
 
 /** Each report filter takes a list of values to keep or drop. */
@@ -213,7 +213,7 @@ const DIMENSION_TYPES: Record<string, DimensionType> = {
 /** A field id as a field name: `Amount__c` → `amount__c`. */
 const toFieldName = (id: string) => id.toLowerCase();
 
-type HydraListedObject = HydraObjectsResponse['objects'][number];
+type HydraListedObject = HydraObjects['objects'][number];
 
 /**
  * One workspace object's explore, keyed by the object's id and named by the
@@ -264,13 +264,13 @@ export const readHydraObjects = async ({
     settings,
 }: {
     settings: HydraApiSource;
-}): Promise<HydraObjectsResponse> =>
+}): Promise<HydraObjects> =>
     listHydraObjects(withHydraDefaults(settings).objects);
 
 /** The events and users explores, then one per object the workspace has. */
 export const hydraModel: LiveModel<ApiConnectorType.HYDRA> = defineLiveModel({
     explores: HYDRA_EXPLORES,
     scan: readHydraObjects,
-    metadata: hydraObjectsResponseSchema,
+    metadata: hydraObjectsSchema,
     extend: ({ objects }) => ({ explores: objects.map(toHydraObjectExplore) }),
 });

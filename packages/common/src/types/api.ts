@@ -900,8 +900,6 @@ export type HealthState = {
     hasLinkedInAdsOAuth: boolean;
     hasSalesforceOAuth: boolean;
     hasGoogleLiveSources: boolean;
-    /** @deprecated Always false. Hydra is turned on by its feature flag. */
-    hasHydraLiveSource: boolean;
     hasHeadlessBrowser: boolean;
     hasManagedAnalytics?: boolean;
     hasExtendedUsageAnalytics: boolean;

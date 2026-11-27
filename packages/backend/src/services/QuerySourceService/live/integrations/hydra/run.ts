@@ -6,19 +6,19 @@ import {
     type HydraApiSource,
 } from '@lightdash/common';
 import { assertMaxRows, type LiveRunArgs, type LiveRunResult } from '../../sdk';
-import { buildHydraDataset, type HydraDataset } from './fake/data';
-import {
-    HYDRA_REPORTS,
-    isHydraObjectRequest,
-    runHydraReport,
-    type HydraRequest,
-} from './fake/report';
+import { buildHydraDataset, type HydraDataset } from './data';
 import {
     buildHydraObjectRecords,
     HYDRA_RECORD_COUNT,
     listHydraObjects,
     runHydraObjectReport,
 } from './objects';
+import {
+    HYDRA_REPORTS,
+    isHydraObjectRequest,
+    runHydraReport,
+    type HydraRequest,
+} from './report';
 
 /** The most rows one query returns, kept small so tests reach it. */
 export const HYDRA_MAX_QUERY_ROWS = 500;
@@ -36,7 +36,7 @@ const getDataset = (rowCount: number, today: string): HydraDataset => {
     if (lastDataset?.key !== key) {
         lastDataset = {
             key,
-            dataset: buildHydraDataset({ token: HYDRA_SEED, rowCount, today }),
+            dataset: buildHydraDataset({ seed: HYDRA_SEED, rowCount, today }),
         };
     }
     return lastDataset.dataset;
@@ -71,7 +71,7 @@ const readRows = (
         );
     }
     return runHydraObjectReport(
-        buildHydraObjectRecords({ token: HYDRA_SEED, object, today }),
+        buildHydraObjectRecords({ seed: HYDRA_SEED, object, today }),
         request,
     );
 };

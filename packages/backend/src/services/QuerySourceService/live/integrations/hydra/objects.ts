@@ -1,11 +1,11 @@
 import { type HydraObject } from '@lightdash/common';
 import { z } from 'zod';
-import { addDays, createRandom, toSeed } from './fake/data';
+import { addDays, createRandom, toSeed } from './data';
 
 /**
- * Hydra's workspace objects, as its vendor side keeps them: the objects a
- * source declares in `objects`, listed with their fields, and records seeded
- * from the sign-in token that a report groups and counts.
+ * Hydra's workspace objects: the objects a source declares in `objects`,
+ * listed with their fields, and the records seeded for each, which a report
+ * groups and counts.
  */
 
 /** Records seeded per object when the object doesn't say. */
@@ -19,8 +19,8 @@ export const HYDRA_RECORD_ID_FIELD = 'id';
 /** The one total an object report gives. */
 export const HYDRA_RECORD_COUNT = 'record_count';
 
-/** How Hydra lists a source's objects. */
-export const hydraObjectsResponseSchema = z.object({
+/** A source's objects with their fields: what a Refresh stores. */
+export const hydraObjectsSchema = z.object({
     objects: z.array(
         z.object({
             id: z.string(),
@@ -38,12 +38,10 @@ export const hydraObjectsResponseSchema = z.object({
     ),
 });
 
-export type HydraObjectsResponse = z.infer<typeof hydraObjectsResponseSchema>;
+export type HydraObjects = z.infer<typeof hydraObjectsSchema>;
 
 /** The objects a source declares, with the record id field each has. */
-export const listHydraObjects = (
-    objects: HydraObject[],
-): HydraObjectsResponse => ({
+export const listHydraObjects = (objects: HydraObject[]): HydraObjects => ({
     objects: objects.map((object) => ({
         id: object.id,
         label: object.label,
@@ -104,17 +102,17 @@ export type HydraObjectReportRequest = z.infer<typeof hydraObjectReportSchema>;
 
 type HydraRecord = Record<string, string | number>;
 
-/** An object's records for one token; the same token always seeds the same ones. */
+/** An object's records; the same seed word always gives the same ones. */
 export const buildHydraObjectRecords = ({
-    token,
+    seed,
     object,
     today,
 }: {
-    token: string;
+    seed: string;
     object: HydraObject;
     today: string;
 }): HydraRecord[] => {
-    const random = createRandom(toSeed(`${token}:${object.id}`));
+    const random = createRandom(toSeed(`${seed}:${object.id}`));
     return Array.from(
         { length: object.recordCount ?? HYDRA_DEFAULT_RECORD_COUNT },
         (_, index) =>
@@ -161,7 +159,7 @@ const compare = (a: string | number, b: string | number) =>
         : String(a).localeCompare(String(b));
 
 /**
- * Runs a report on one object the way Hydra's API would: filters, groups,
+ * Runs a report on one object's records: filters, groups,
  * counts and sorts every matching record. Returns every group.
  */
 export const runHydraObjectReport = (
