@@ -330,6 +330,7 @@ const EXPOSED_RESPONSE_HEADER_PREFIXES = [
     'ratelimit-',
     'x-ratelimit-',
     'x-rate-limit-',
+    'x-sentry-rate-limit-',
 ] as const;
 
 /** Matches Node's default maximum inbound response-header size. Keep a local

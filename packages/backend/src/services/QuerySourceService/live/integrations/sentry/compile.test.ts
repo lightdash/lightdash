@@ -462,7 +462,7 @@ describe('the shared check on Sentry explores', () => {
         ).map((problem) => `${problem.code}: ${problem.message}`);
 
         expect(message).toEqual([
-            "live_source.refused.field_combination: Session status can't be combined with Release: Sentry does not say when a list of sessions by status and by another field is cut short, so the result could be incomplete. Filter Release, Project or Environment instead.",
+            "live_source.refused.field_combination: Session status can't be combined with Release: Sentry does not say when it cuts short a list of sessions by status and by another field, so the result could be incomplete. Filter Release, Project or Environment instead.",
         ]);
         // Alone, or by day, the statuses are one short list
         expect(

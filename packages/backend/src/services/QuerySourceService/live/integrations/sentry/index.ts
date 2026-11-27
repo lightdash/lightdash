@@ -31,7 +31,7 @@ import {
     SENTRY_MAX_QUERY_ROWS,
     sentryRequestSchema,
 } from './run';
-import { summarizeSentryTest } from './testSummary';
+import { getSentryTestRequest, summarizeSentryTest } from './testSummary';
 import { sentryUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.SENTRY];
@@ -48,8 +48,9 @@ export const sentryIntegration = defineLiveIntegration({
     ],
     // Reads only, and only of this organization. The token reads every
     // project of it, so each call names the source's projects; see
-    // getProjects. No request names an event or an issue, so the paths under
-    // these that return one are never called.
+    // getProjects. No path lists the organization's projects. No request
+    // names an event or an issue, so the paths under these that return one
+    // are never called.
     access: ({ organizationSlug }) => ({
         pathPrefixes: Object.values(getSentryPaths(organizationSlug)),
         methods: ['GET'],
@@ -91,11 +92,11 @@ export const sentryIntegration = defineLiveIntegration({
     level: {
         value: 4,
         description:
-            'Events are grouped and totalled with its own search syntax; issues are a filtered list.',
+            'Sentry groups and totals events with its own search syntax. It lists issues with filters.',
     },
     auth: {
         description:
-            'A token from an internal integration needs no vendor review. OAuth needs a public integration, which Sentry must publish before other organizations can install it.',
+            'A token from an internal integration needs no vendor review. OAuth needs a public integration, and Sentry must publish it before another organization can install it.',
         testWith: 'test_account',
         needs: ['gmail'],
         token: true,
@@ -103,7 +104,7 @@ export const sentryIntegration = defineLiveIntegration({
     },
     paging: {
         description:
-            'Events and issues return up to 100 rows a page, with a cursor in the Link header. Sessions return up to 10,000 data points a call.',
+            'Events and issues return up to 100 rows a page, with a cursor in the Link header. Sessions return up to 10,000 data points a call, and Sentry counts one group more than a call asks for.',
     },
     rateLimits: {
         concurrentCalls: 3,
@@ -122,30 +123,30 @@ export const sentryIntegration = defineLiveIntegration({
                 capacity: 2_000,
             },
         ],
-        note: 'Sentry publishes no numbers: it limits each endpoint per caller and reports the limit in X-Sentry-Rate-Limit headers. These are set low on purpose.',
+        note: 'Sentry publishes no numbers. It limits each endpoint for each caller and reports the limit in X-Sentry-Rate-Limit headers. These limits are low on purpose.',
     },
     useCases: sentryUseCases,
     validate: ({ organizationSlug, projectSlugs }) => {
         if (!isSentrySlug(organizationSlug)) {
             throw new ParameterError(
-                'The Sentry organization must be its slug, like acme',
+                'Give the Sentry organization as its slug, for example acme.',
             );
         }
         if (projectSlugs.length === 0 || !projectSlugs.every(isSentrySlug)) {
             throw new ParameterError(
-                'Name the Sentry projects to read by their slugs, like mobile-ios',
+                'Give each Sentry project as its slug, for example mobile-ios. Sentry reads a slug of digits only as an ID.',
             );
         }
     },
     checkAuth: ({ type }) => {
         if (type !== 'bearer_token') {
             throw new ParameterError(
-                'Sentry connections authenticate with an auth token',
+                'A Sentry live data source signs in with an auth token.',
             );
         }
     },
     describeTarget: ({ settings: { organizationSlug, projectSlugs } }) =>
-        `Sentry organization ${organizationSlug}: errors, issues and release health of ${projectSlugs.join(', ')}`,
+        `The Sentry organization ${organizationSlug}, with the errors, issues and release health of ${projectSlugs.join(', ')}`,
     parseRequest: jsonRequest(LABEL, sentryRequestSchema),
     compile: ({ explore, metricQuery, now }) =>
         compileSentryQuery({
@@ -155,5 +156,6 @@ export const sentryIntegration = defineLiveIntegration({
         }),
     run: runSentryQuery,
     toError: (response, settings) => toSentryError(response, settings),
+    testRequest: getSentryTestRequest,
     summarizeTest: summarizeSentryTest,
 });

@@ -365,9 +365,13 @@ export const SENTRY_REGION_ORIGINS = {
     eu: 'https://de.sentry.io',
 } as const;
 
-/** An organization or project slug as Sentry writes it: lowercase letters, digits, dashes and underscores. */
+/**
+ * An organization or project slug as Sentry writes it: lowercase letters,
+ * digits, dashes and underscores. Not digits only, which Sentry reads as an
+ * ID and not a name.
+ */
 export const isSentrySlug = (slug: string) =>
-    /^[a-z0-9][a-z0-9_-]{0,99}$/.test(slug);
+    /^(?!\d+$)[a-z0-9][a-z0-9_-]{0,99}$/.test(slug);
 
 /** The most projects one source reads. */
 export const SENTRY_MAX_PROJECTS = 20;
@@ -375,14 +379,17 @@ export const SENTRY_MAX_PROJECTS = 20;
 const getSentryOrganizationPath = (organizationSlug: string) =>
     `/api/0/organizations/${organizationSlug}`;
 
-/** The organization endpoints a source reads; each takes a trailing slash. */
+/**
+ * The organization endpoints a source reads; each takes a trailing slash.
+ * Each takes the projects to read as parameters. The list of the
+ * organization's projects is not one of them.
+ */
 export const getSentryPaths = (organizationSlug: string) => {
     const organization = getSentryOrganizationPath(organizationSlug);
     return {
         events: `${organization}/events/`,
         issues: `${organization}/issues/`,
         sessions: `${organization}/sessions/`,
-        projects: `${organization}/projects/`,
     } as const;
 };
 

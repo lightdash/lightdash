@@ -21,9 +21,11 @@ export const SENTRY_TOKEN_FORM = {
     origin: SENTRY_ORIGIN,
     account: {
         label: 'Organization and projects',
-        description: 'As organization/project, with more projects after commas',
+        description:
+            'Write the organization slug, a slash and the project slugs. Put a comma between project slugs.',
         placeholder: 'acme/mobile-ios,mobile-android',
-        invalidMessage: 'Use the organization/project format, with slugs',
+        invalidMessage:
+            'Use the form organization/project. A slug has lowercase letters, digits or dashes, and not digits only.',
         normalize: (value) => value.toLowerCase().replace(/\s+/g, ''),
         isValid: (value) => {
             const { organizationSlug, projectSlugs } = splitTarget(value);
@@ -39,7 +41,7 @@ export const SENTRY_TOKEN_FORM = {
     },
     tokenLabel: 'Auth token',
     tokenHint:
-        'From an internal integration with read access to Organization, Project and Issue & Event',
+        'Create it in an internal integration that has read access to Organization, Project and Issue & Event.',
     toApiSource: (target) => ({
         connector: ApiConnectorType.SENTRY,
         ...splitTarget(target),
@@ -55,9 +57,10 @@ export const SENTRY_TOKEN_FORM = {
         ),
         allowedContentTypes: ['application/json'],
     }),
+    // The server writes the test request itself, for the projects named
     getTestRequest: (target) => ({
         method: 'GET',
-        path: getSentryPaths(splitTarget(target).organizationSlug).projects,
+        path: getSentryPaths(splitTarget(target).organizationSlug).events,
         query: {},
     }),
 } satisfies TokenLiveSourceForm;

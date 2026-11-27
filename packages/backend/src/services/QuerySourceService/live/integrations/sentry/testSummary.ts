@@ -1,41 +1,51 @@
+import { getSentryPaths } from '@lightdash/common';
 import { z } from 'zod';
 import { formatTestCount } from '../../integration';
-import { type LiveTestSummary } from '../../types';
+import { type LiveHttpRequest, type LiveTestSummary } from '../../types';
+import { toRawQuery } from './run';
 
-// The setup test lists the organization's projects
-const testResponseSchema = z.array(z.object({ slug: z.string() }));
+type SentrySettings = { organizationSlug: string; projectSlugs: string[] };
 
-/** The projects endpoint lists this many a page. */
-const PAGE_SIZE = 100;
+const TEST_FIELD = 'count()';
+
+/**
+ * The setup test: a count of the error events of the source's projects over
+ * a day. It names each project, so Sentry refuses one the token can't read,
+ * and its answer holds a number and nothing of another project.
+ */
+export const getSentryTestRequest = ({
+    organizationSlug,
+    projectSlugs,
+}: SentrySettings): LiveHttpRequest => ({
+    method: 'GET',
+    path: getSentryPaths(organizationSlug).events,
+    rawQuery: toRawQuery([
+        ['dataset', 'errors'],
+        ['field', TEST_FIELD],
+        ['statsPeriod', '24h'],
+        ...projectSlugs.map((slug): [string, string] => ['project', slug]),
+    ]),
+    body: undefined,
+});
+
+const testResponseSchema = z.object({
+    data: z.array(z.record(z.string(), z.unknown())),
+});
 
 export const summarizeSentryTest = (
     body: unknown,
-    {
-        organizationSlug,
-        projectSlugs,
-    }: { organizationSlug: string; projectSlugs: string[] },
+    { organizationSlug, projectSlugs }: SentrySettings,
 ): LiveTestSummary | null => {
     const parsed = testResponseSchema.safeParse(body);
     if (!parsed.success) return null;
-    const listed = new Set(parsed.data.map(({ slug }) => slug));
-    // A full page may leave a project out, so nothing is said to be missing
-    const missing =
-        parsed.data.length < PAGE_SIZE
-            ? projectSlugs.filter((slug) => !listed.has(slug))
-            : [];
+    const count = Number(parsed.data.data[0]?.[TEST_FIELD] ?? 0);
     return {
-        summary:
-            missing.length > 0
-                ? `Connected to ${organizationSlug}, but it has no project ${missing.join(', ')}`
-                : `Connected to the Sentry organization ${organizationSlug}`,
+        summary: `The token reaches the Sentry organization ${organizationSlug}.`,
         facts: [
+            { label: 'Projects', value: projectSlugs.join(', ') },
             {
-                label: 'Projects read',
-                value: formatTestCount(projectSlugs.length - missing.length),
-            },
-            {
-                label: 'Projects in the organization',
-                value: formatTestCount(parsed.data.length),
+                label: 'Error events in the last 24 hours',
+                value: formatTestCount(Number.isFinite(count) ? count : 0),
             },
         ],
     };

@@ -5,6 +5,7 @@ import {
     UnexpectedServerError,
     WarehouseConnectionError,
     WarehouseQueryError,
+    type SentryApiSource,
 } from '@lightdash/common';
 import { sentryIntegration } from '.';
 import { connectLiveSource } from '../../liveSource.mock';
@@ -721,12 +722,16 @@ describe('sentryIntegration sessions', () => {
     it('keeps totals under the point cap too', async () => {
         const { source, send } = connect(response({ groups: [] }));
 
-        await run(source, {
-            kind: 'sessions',
-            columns: ['release', 'sessions'],
-            start: '2026-06-01',
-            end: '2026-11-27',
-        });
+        await run(
+            source,
+            {
+                kind: 'sessions',
+                columns: ['release', 'sessions'],
+                start: '2026-06-01',
+                end: '2026-11-27',
+            },
+            500,
+        );
 
         expect(sent(send).get('per_page')).toEqual(['54']);
     });
@@ -757,7 +762,7 @@ describe('sentryIntegration errors from Sentry', () => {
         [403, WarehouseConnectionError, /read access to Organization/],
         [404, WarehouseConnectionError, /organization "acme"/],
         [400, WarehouseQueryError, /couldn't run this query\. Check/],
-        [503, UnexpectedServerError, /returned 503$/],
+        [503, UnexpectedServerError, /returned the status 503\.$/],
     ])('explains a %i in its own words', async (status, type, message) => {
         const { source } = connect(response({ detail: SENTRY_TEXT }, status));
 
@@ -808,7 +813,7 @@ describe('sentryIntegration errors from Sentry', () => {
 });
 
 describe('sentryIntegration setup test', () => {
-    const settings = {
+    const settings: SentryApiSource = {
         connector: ApiConnectorType.SENTRY,
         organizationSlug: 'acme',
         projectSlugs: ['mobile-ios', 'mobile-android'],
@@ -845,7 +850,7 @@ describe('sentryIntegration setup test', () => {
                 settings,
             ),
         ).toEqual({
-            summary: 'Connected to the Sentry organization acme',
+            summary: 'The token reaches the Sentry organization acme.',
             facts: [
                 { label: 'Projects', value: 'mobile-ios, mobile-android' },
                 { label: 'Error events in the last 24 hours', value: '1,204' },
@@ -883,7 +888,9 @@ describe('sentryIntegration filters keep their meaning', () => {
         values,
     });
     const queryOf = async (request: Record<string, unknown>) => {
-        const { source, send } = connect(response({ data: [] }), response([]));
+        const { source, send } = connect(
+            response(request.kind === 'issues' ? [] : { data: [] }),
+        );
         await run(source, request);
         return sent(send);
     };
@@ -936,9 +943,11 @@ describe('sentryIntegration filters keep their meaning', () => {
         expect(await send('is', 'unresolved', 'resolved', 'ignored')).toEqual([
             '',
         ]);
+        // Which leaves one status, so it is asked for by its name
         expect(await send('is_not', 'unresolved', 'resolved')).toEqual([
-            '!is:unresolved !is:resolved',
+            'is:archived',
         ]);
+        expect(await send('is_not', 'unresolved')).toEqual(['!is:unresolved']);
 
         const { source, send: transport } = connect();
         await expect(

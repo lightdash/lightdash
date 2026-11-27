@@ -214,7 +214,7 @@ const compileIssues = ({
         );
         if (dateRules.length > 1) {
             throw new ParameterError(
-                'Filter each issue date once: combine its filters into one range.',
+                'Filter each issue date one time. Combine its filters into one range.',
             );
         }
         return dateRules[0]

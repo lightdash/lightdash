@@ -2,12 +2,14 @@ import {
     DimensionType,
     getSentryPaths,
     ParameterError,
+    SENTRY_MAX_PROJECTS,
     UnexpectedServerError,
     type ApiConnectorType,
 } from '@lightdash/common';
 import { z } from 'zod';
 import { assertMaxRows } from '../../integration';
-import { readRowsWithinCap } from '../../query/rows';
+import { refuseLiveQuery } from '../../query/refuse';
+import { readRowsWithinCap, tooManyRowsError } from '../../query/rows';
 import {
     type LiveCalls,
     type LiveColumn,
@@ -21,8 +23,6 @@ const LABEL = 'Sentry';
 /** Events and issues return 100 rows a page; sessions, 100 groups. */
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
-/** Enough for an organization of 300 projects, when sessions name them. */
-const MAX_PROJECT_PAGES = 3;
 
 /**
  * The most rows one query can return: one fewer than ten pages hold, so
@@ -30,10 +30,18 @@ const MAX_PROJECT_PAGES = 3;
  */
 export const SENTRY_MAX_QUERY_ROWS = PAGE_SIZE * MAX_PAGES - 1;
 
-export const SENTRY_CALLS_PER_QUERY = MAX_PAGES + MAX_PROJECT_PAGES;
+/** Sessions by project are read one project a call, each over its pages. */
+export const SENTRY_CALLS_PER_QUERY = MAX_PAGES + SENTRY_MAX_PROJECTS;
 
 /** The sessions API returns at most this many data points in one call. */
 const SESSIONS_MAX_DATA_POINTS = 10_000;
+
+/**
+ * Groups asked for when sessions are read by status. Sentry adds a group
+ * for each status after it limits the groups, and takes one off when their
+ * count is one more than asked. This is far from the count of statuses.
+ */
+const SESSION_STATUS_PAGE_SIZE = 10;
 
 type SentrySettings = { organizationSlug: string; projectSlugs: string[] };
 
@@ -77,7 +85,6 @@ const toErrorOrderField = (column: ErrorColumn) =>
 const ISSUE_COLUMNS = [
     'short_id',
     'title',
-    'culprit',
     'level',
     'status',
     'substatus',
@@ -119,6 +126,12 @@ const SESSION_COLUMNS: [SessionColumn, ...SessionColumn[]] = [
 const SESSION_RATES: SessionColumn[] = [
     'crash_free_sessions',
     'crash_free_users',
+];
+/** The groupings Session status can't be read with; see SESSION_STATUS_PAGE_SIZE. */
+const SESSION_STATUS_ALONE: SessionColumn[] = [
+    'project',
+    'release',
+    'environment',
 ];
 
 /** Each filter's key in Sentry's search syntax, per request kind. */
@@ -163,14 +176,17 @@ const filterSchema = (fields: string[]) =>
             ({ field, operator }) =>
                 operator === 'is' ||
                 !SCOPE_FILTERS.some((scope) => scope === field),
-            { message: 'project and environment filters take "is" only' },
+            {
+                message:
+                    'A project filter or an environment filter takes "is" only.',
+            },
         );
 
 const dayRangeSchema = z
     .object({ start: day, end: day })
     .strict()
     .refine(({ start, end }) => start <= end, {
-        message: 'start must be on or before end',
+        message: 'The start must be on or before the end.',
     });
 
 const errorsRequestSchema = z
@@ -232,14 +248,14 @@ export const sentryRequestSchema = z
     ])
     .refine(
         (request) => request.kind === 'issues' || request.start <= request.end,
-        { message: 'The date range starts after it ends' },
+        { message: 'The date range starts after it ends.' },
     )
     .refine(
         (request) =>
             request.kind !== 'errors' ||
             !request.sort ||
             request.columns.includes(request.sort.column),
-        { message: 'sort.column must be one of columns' },
+        { message: 'The sort column must be one of the columns.' },
     )
     .refine(
         (request) =>
@@ -248,7 +264,19 @@ export const sentryRequestSchema = z
             !request.columns.some((column) => SESSION_RATES.includes(column)),
         {
             message:
-                'A crash-free rate has no value for one session status; read sessions by session_status instead',
+                'A crash-free rate has no value for one session status. Read sessions by session_status instead.',
+        },
+    )
+    .refine(
+        (request) =>
+            request.kind !== 'sessions' ||
+            !request.columns.includes('session_status') ||
+            !request.columns.some((column) =>
+                SESSION_STATUS_ALONE.includes(column),
+            ),
+        {
+            message:
+                'Sentry does not say when it cuts short a list by session_status and by project, release or environment. Filter them instead.',
         },
     );
 
@@ -258,9 +286,9 @@ type SentryIssuesRequest = z.infer<typeof issuesRequestSchema>;
 type SentrySessionsRequest = z.infer<typeof sessionsRequestSchema>;
 export type SentryFilter = NonNullable<SentryErrorsRequest['filters']>[number];
 
-type Params = [string, string][];
+export type Params = [string, string][];
 
-const toRawQuery = (params: Params) =>
+export const toRawQuery = (params: Params) =>
     params
         .map(
             ([key, value]) =>
@@ -268,12 +296,29 @@ const toRawQuery = (params: Params) =>
         )
         .join('&');
 
-/** The cursor of the next page, when the Link header says it has results. */
+/**
+ * The cursor of the next page, when the Link header says it has results.
+ * Sentry writes it in the link's target and may repeat it as an attribute.
+ * The target is only read, never called.
+ */
 export const getNextCursor = (link: string | undefined): string | undefined => {
-    const next = (link ?? '')
-        .split(',')
-        .find((part) => /rel="next"/.test(part) && /results="true"/.test(part));
-    return next?.match(/cursor="([^"]+)"/)?.[1];
+    const next = [...(link ?? '').matchAll(/<([^<>]*)>([^<]*)/g)].find(
+        ([, , attributes]) =>
+            /rel="next"/.test(attributes) && /results="true"/.test(attributes),
+    );
+    if (!next) return undefined;
+    const [, target, attributes] = next;
+    const attribute = attributes.match(/cursor="([^"]+)"/)?.[1];
+    if (attribute) return attribute;
+    try {
+        return (
+            new URL(target, 'https://sentry.invalid').searchParams.get(
+                'cursor',
+            ) ?? undefined
+        );
+    } catch {
+        return undefined;
+    }
 };
 
 const get = async <T>(
@@ -300,6 +345,23 @@ const get = async <T>(
     };
 };
 
+/** Refuses a day the calendar doesn't have, such as 2026-02-30. */
+const assertRealDays = (...values: (string | undefined)[]) => {
+    values.forEach((value) => {
+        if (value === undefined) return;
+        const date = new Date(`${value}T00:00:00Z`);
+        if (
+            Number.isNaN(date.getTime()) ||
+            date.toISOString().slice(0, 10) !== value
+        ) {
+            throw refuseLiveQuery(
+                'live_source.refused.date_range',
+                `"${value}" isn't a day of the calendar. Use a real date, as YYYY-MM-DD.`,
+            );
+        }
+    });
+};
+
 const addDays = (isoDate: string, days: number) => {
     const date = new Date(`${isoDate}T00:00:00Z`);
     date.setUTCDate(date.getUTCDate() + days);
@@ -319,43 +381,113 @@ const quote = (value: string) =>
 
 const toBoolean = (value: string) => {
     if (value === 'true' || value === 'false') return value;
-    throw new ParameterError('unhandled filters take true or false');
+    throw new ParameterError('An Unhandled filter takes true or false.');
 };
 
-const ISSUE_STATUSES: Record<string, string> = {
+/** The three statuses of an issue, by the name Sentry's search gives each. */
+const ISSUE_STATUS_TERMS = {
     unresolved: 'unresolved',
     resolved: 'resolved',
     ignored: 'archived',
-    archived: 'archived',
+} as const;
+type IssueStatus = keyof typeof ISSUE_STATUS_TERMS;
+const ISSUE_STATUSES = Object.keys(ISSUE_STATUS_TERMS) as IssueStatus[];
+
+const toIssueStatus = (value: string): IssueStatus => {
+    // Sentry's own screens name an ignored issue "archived"
+    const status = value === 'archived' ? 'ignored' : value;
+    if (!ISSUE_STATUSES.some((known) => known === status)) {
+        throw new ParameterError(
+            'Status must be one of: unresolved, resolved, ignored.',
+        );
+    }
+    return status as IssueStatus;
 };
 
-/** One search term per filter; several values match any of them. */
-const toSearchTerm = (key: string, { operator, values }: SentryFilter) => {
+/**
+ * A status filter as search terms. Sentry's issue search has no "or", and
+ * an issue has one of three statuses, so two of them are "not the third".
+ */
+const toStatusTerms = (values: string[], isNegative: boolean): string[] => {
+    const named = new Set(values.map(toIssueStatus));
+    const kept = ISSUE_STATUSES.filter(
+        (status) => named.has(status) !== isNegative,
+    );
+    if (kept.length === 0) {
+        throw new ParameterError(
+            'The status filter leaves no issue to read. Remove a status from it.',
+        );
+    }
+    if (kept.length === ISSUE_STATUSES.length) return [];
+    return kept.length === 1
+        ? [`is:${ISSUE_STATUS_TERMS[kept[0]]}`]
+        : ISSUE_STATUSES.filter((status) => !kept.includes(status)).map(
+              (status) => `!is:${ISSUE_STATUS_TERMS[status]}`,
+          );
+};
+
+/**
+ * The search terms of one filter, ANDed; several values match any of them.
+ * None when the filter keeps every row.
+ */
+const toSearchTerms = (
+    kind: keyof typeof SEARCH_KEYS,
+    key: string,
+    { operator, values }: SentryFilter,
+): string[] => {
     const isNegative = operator === 'is_not' || operator === 'not_contains';
     const not = isNegative ? '!' : '';
     if (operator === 'contains' || operator === 'not_contains') {
-        // Each value is its own term: any of them when kept, none when dropped
         const terms = values.map(
             (value) => `${not}${key}:"*${quote(value).slice(1, -1)}*"`,
         );
-        return isNegative || terms.length === 1
-            ? terms.join(' ')
-            : `(${terms.join(' OR ')})`;
-    }
-    if (key === 'error.unhandled') {
-        return `${not}${key}:${toBoolean(values[0])}`;
-    }
-    if (key === 'is') {
-        if (values.length !== 1 || !Object.hasOwn(ISSUE_STATUSES, values[0])) {
+        // None of the parts when dropped: each is its own term
+        if (isNegative || terms.length === 1) return terms;
+        if (kind === 'issues') {
             throw new ParameterError(
-                'Status must be one of: unresolved, resolved, ignored.',
+                'Sentry issue search has no "or", so a Title filter on Issues takes one value. Use one value in each filter, or use the Errors explore.',
             );
         }
-        return `${not}is:${ISSUE_STATUSES[values[0]]}`;
+        return [`(${terms.join(' OR ')})`];
     }
-    return values.length === 1
-        ? `${not}${key}:${quote(values[0])}`
-        : `${not}${key}:[${values.map(quote).join(',')}]`;
+    if (key === 'error.unhandled') {
+        const named = new Set(values.map(toBoolean));
+        // Both values keep every error when kept, and none when dropped
+        if (named.size > 1) {
+            if (isNegative) {
+                throw new ParameterError(
+                    'The Unhandled filter leaves no row to read. Use one value.',
+                );
+            }
+            return [];
+        }
+        return [`${not}${key}:${[...named][0]}`];
+    }
+    if (key === 'is') {
+        return toStatusTerms(values, isNegative);
+    }
+    return [
+        values.length === 1
+            ? `${not}${key}:${quote(values[0])}`
+            : `${not}${key}:[${values.map(quote).join(',')}]`,
+    ];
+};
+
+/**
+ * The values every filter on `field` keeps, or null with no such filter.
+ * Filters are ANDed, so a value must be in each of them.
+ */
+const getKeptValues = (
+    filters: SentryFilter[],
+    field: (typeof SCOPE_FILTERS)[number],
+): string[] | null => {
+    const named = filters
+        .filter((filter) => filter.field === field)
+        .map(({ values }) => values.map((value) => value.trim()));
+    if (named.length === 0) return null;
+    return [...new Set(named[0])].filter((value) =>
+        named.every((values) => values.includes(value)),
+    );
 };
 
 /**
@@ -365,60 +497,98 @@ const toSearchTerm = (key: string, { operator, values }: SentryFilter) => {
  */
 const getProjects = (
     { projectSlugs }: SentrySettings,
-    filters: SentryFilter[],
+    filters: SentryFilter[] = [],
 ): string[] => {
-    const projectFilters = filters.filter(({ field }) => field === 'project');
-    if (projectFilters.length === 0) return projectSlugs;
-    const requested = projectFilters.map(
-        ({ values }) => new Set(values.map((value) => value.trim())),
-    );
-    const outside = [...new Set(requested.flatMap((set) => [...set]))].filter(
-        (slug) => !projectSlugs.includes(slug),
-    );
+    const outside = filters
+        .filter(({ field }) => field === 'project')
+        .flatMap(({ values }) => values.map((value) => value.trim()))
+        .filter((slug) => !projectSlugs.includes(slug));
     if (outside.length > 0) {
         throw new ParameterError(
-            `This Sentry source reads only these projects: ${projectSlugs.join(', ')}. It can't read ${outside.join(', ')}.`,
+            `This Sentry source reads only these projects: ${projectSlugs.join(', ')}. It can't read ${[...new Set(outside)].join(', ')}.`,
         );
     }
-    // Several project filters are ANDed: a project must match each of them
-    const projects = projectSlugs.filter((slug) =>
-        requested.every((set) => set.has(slug)),
-    );
-    if (projects.length === 0) {
+    const kept = getKeptValues(filters, 'project');
+    if (kept === null) return projectSlugs;
+    if (kept.length === 0) {
         throw new ParameterError(
             'The project filters leave no project to read. Filter Project once.',
         );
     }
-    return projects;
+    return projectSlugs.filter((slug) => kept.includes(slug));
+};
+
+/**
+ * The environments a request reads, none meaning all of them. Sentry reads
+ * every environment when none is named, so filters that share none are
+ * refused and not sent as no filter.
+ */
+const getEnvironments = (filters: SentryFilter[] = []): string[] => {
+    const kept = getKeptValues(filters, 'environment');
+    if (kept === null) return [];
+    if (kept.length === 0) {
+        throw new ParameterError(
+            'The environment filters leave no environment to read. Filter Environment once.',
+        );
+    }
+    return kept;
 };
 
 /** Projects and environments as parameters, everything else as one search. */
 const toFilterParams = (
     kind: keyof typeof SEARCH_KEYS,
-    settings: SentrySettings,
+    projects: string[],
     filters: SentryFilter[] = [],
     extraTerms: string[] = [],
 ): Params => {
     const keys: Record<string, string> = SEARCH_KEYS[kind];
-    const projects = getProjects(settings, filters);
-    const scope = (field: (typeof SCOPE_FILTERS)[number]) =>
-        filters
-            .filter((filter) => filter.field === field)
-            .flatMap(({ values }) =>
-                values.map((value): [string, string] => [field, value.trim()]),
-            );
     const terms = [
         ...filters
             .filter(({ field }) => Object.hasOwn(keys, field))
-            .map((filter) => toSearchTerm(keys[filter.field], filter)),
+            .flatMap((filter) =>
+                toSearchTerms(kind, keys[filter.field], filter),
+            ),
         ...extraTerms,
     ];
     return [
         ...projects.map((slug): [string, string] => ['project', slug]),
-        ...scope('environment'),
+        ...getEnvironments(filters).map((environment): [string, string] => [
+            'environment',
+            environment,
+        ]),
         // Sent even when empty: issues default to unresolved ones without it
         ['query', terms.join(' ')],
     ];
+};
+
+/**
+ * Reads rows over Sentry's pages. A query that asks for every row one query
+ * can read is refused when Sentry has more, and not answered from part of
+ * them. A smaller limit is a top of the list, and says that more exist.
+ */
+const readSentryRows = async ({
+    requestedRows,
+    pageSize,
+    fetchPage,
+}: Pick<
+    Parameters<typeof readRowsWithinCap>[0],
+    'requestedRows' | 'pageSize' | 'fetchPage'
+>) => {
+    const result = await readRowsWithinCap({
+        label: LABEL,
+        requestedRows,
+        maxRows: SENTRY_MAX_QUERY_ROWS,
+        pageSize,
+        maxPages: MAX_PAGES,
+        fetchPage,
+    });
+    if (result.hasMoreRows && requestedRows >= SENTRY_MAX_QUERY_ROWS) {
+        throw tooManyRowsError({
+            label: LABEL,
+            maxRows: SENTRY_MAX_QUERY_ROWS,
+        });
+    }
+    return result;
 };
 
 const toDay = (value: unknown) =>
@@ -522,15 +692,16 @@ const runErrors = async ({
         ['dataset', 'errors'],
         ...fields.map((field): [string, string] => ['field', field]),
         ...toRangeParams(request),
-        ...toFilterParams('errors', settings, request.filters),
+        ...toFilterParams(
+            'errors',
+            getProjects(settings, request.filters),
+            request.filters,
+        ),
         ...sorts.map((field): [string, string] => ['sort', field]),
     ];
-    const { rows, hasMoreRows } = await readRowsWithinCap({
-        label: LABEL,
+    const { rows, hasMoreRows } = await readSentryRows({
         requestedRows: Math.min(limit, request.limit ?? limit),
-        maxRows: SENTRY_MAX_QUERY_ROWS,
         pageSize: PAGE_SIZE,
-        maxPages: MAX_PAGES,
         fetchPage: async ({ limit: perPage, cursor }) => {
             const { data, nextCursor } = await get(
                 calls,
@@ -574,7 +745,6 @@ const runErrors = async ({
 const issueSchema = z.object({
     shortId: z.string(),
     title: z.string().nullish(),
-    culprit: z.string().nullish(),
     level: z.string().nullish(),
     status: z.string().nullish(),
     substatus: z.string().nullish(),
@@ -599,8 +769,6 @@ const readIssueColumn = (issue: SentryIssue, column: IssueColumn): unknown => {
             return issue.shortId;
         case 'title':
             return toText(issue.title);
-        case 'culprit':
-            return toText(issue.culprit);
         case 'level':
             return toText(issue.level);
         case 'status':
@@ -669,22 +837,24 @@ const runIssues = async ({
 }): Promise<LiveRunResult> => {
     const { columns } = request;
     const params: Params = [
-        ...toFilterParams('issues', settings, request.filters, [
-            ...toSeenTerms('firstSeen', request.firstSeen),
-            ...toSeenTerms('lastSeen', request.lastSeen),
-        ]),
+        ...toFilterParams(
+            'issues',
+            getProjects(settings, request.filters),
+            request.filters,
+            [
+                ...toSeenTerms('firstSeen', request.firstSeen),
+                ...toSeenTerms('lastSeen', request.lastSeen),
+            ],
+        ),
         ['statsPeriod', `${SENTRY_RETENTION_DAYS}d`],
         ['sort', request.sort ?? 'date'],
         // Lifetime totals are not read. Collapsing "stats" too would drop
         // the events, users, first seen and last seen of each issue.
         ['collapse', 'lifetime'],
     ];
-    const { rows, hasMoreRows } = await readRowsWithinCap({
-        label: LABEL,
+    const { rows, hasMoreRows } = await readSentryRows({
         requestedRows: Math.min(limit, request.limit ?? limit),
-        maxRows: SENTRY_MAX_QUERY_ROWS,
         pageSize: PAGE_SIZE,
-        maxPages: MAX_PAGES,
         fetchPage: async ({ limit: perPage, cursor }) => {
             const { data, nextCursor } = await get(
                 calls,
@@ -738,35 +908,6 @@ const sessionsResponseSchema = z.object({
 });
 type SessionsResponse = z.infer<typeof sessionsResponseSchema>;
 
-const projectsResponseSchema = z.array(
-    z.object({ id: z.union([z.string(), z.number()]), slug: z.string() }),
-);
-
-/** Sessions name a project by its ID; every other explore, by its slug. */
-const fetchProjectSlugs = async (
-    { organizationSlug }: SentrySettings,
-    calls: LiveCalls,
-): Promise<Map<string, string>> => {
-    const slugs = new Map<string, string>();
-    let cursor: string | undefined;
-    for (let page = 0; page < MAX_PROJECT_PAGES; page += 1) {
-        // eslint-disable-next-line no-await-in-loop
-        const { data, nextCursor } = await get(
-            calls,
-            getSentryPaths(organizationSlug).projects,
-            [
-                ['per_page', String(PAGE_SIZE)],
-                ...(cursor ? ([['cursor', cursor]] as Params) : []),
-            ],
-            projectsResponseSchema,
-        );
-        data.forEach(({ id, slug }) => slugs.set(String(id), slug));
-        cursor = nextCursor;
-        if (!cursor) break;
-    }
-    return slugs;
-};
-
 const SESSION_HELPER = SESSION_FIELDS.sessions;
 
 const isSessionMetric = (column: SessionColumn): column is SessionMetric =>
@@ -774,24 +915,27 @@ const isSessionMetric = (column: SessionColumn): column is SessionMetric =>
 const isSessionGroup = (column: SessionColumn): column is SessionGroup =>
     Object.hasOwn(SESSION_GROUPS, column);
 
-/** One row per group, or per group and day; days with no sessions have none. */
+/**
+ * One row per group, or per group and day; days with no sessions have none.
+ * Project is not read from the groups, where Sentry writes it as a number:
+ * the caller reads one named project a call.
+ */
 const toSessionRows = (
     { groups, intervals = [] }: SessionsResponse,
     columns: SessionColumn[],
-    projectSlugs: Map<string, string>,
+    project: string | null,
 ): Record<string, unknown>[] => {
     const byDay = columns.includes('date');
     const readGroup = (by: SessionsResponse['groups'][number]['by']) =>
         Object.fromEntries(
-            columns.filter(isSessionGroup).map((column) => {
-                const value = by[SESSION_GROUPS[column]];
-                return [
+            columns
+                .filter(isSessionGroup)
+                .map((column) => [
                     column,
-                    column === 'project' && value !== null
-                        ? (projectSlugs.get(String(value)) ?? String(value))
-                        : toText(value),
-                ];
-            }),
+                    column === 'project'
+                        ? project
+                        : toText(by[SESSION_GROUPS[column]]),
+                ]),
         );
     const readMetrics = (read: (field: string) => number | null | undefined) =>
         Object.fromEntries(
@@ -833,6 +977,25 @@ const SESSION_COLUMN_TYPES: Partial<Record<SessionColumn, DimensionType>> = {
 
 const DAY_MS = 86_400_000;
 
+/**
+ * The groups one call may ask for over a range of days. Sentry counts a
+ * point for each group and day, and reads one group more than asked to find
+ * the next page, so that group is in the budget.
+ */
+const getSessionGroupsPerPage = (days: number) => {
+    const groups = Math.min(
+        PAGE_SIZE,
+        Math.floor(SESSIONS_MAX_DATA_POINTS / (days + 1)) - 1,
+    );
+    if (groups < 1) {
+        throw refuseLiveQuery(
+            'live_source.refused.date_range',
+            `Sentry can't read sessions over ${days.toLocaleString('en-US')} days in one query. Narrow the date range.`,
+        );
+    }
+    return groups;
+};
+
 const runSessions = async ({
     settings,
     request,
@@ -846,22 +1009,16 @@ const runSessions = async ({
 }): Promise<LiveRunResult> => {
     const { columns } = request;
     const byDay = columns.includes('date');
+    const byStatus = columns.includes('session_status');
     const days =
         Math.round(
             (Date.parse(`${request.end}T00:00:00Z`) -
                 Date.parse(`${request.start}T00:00:00Z`)) /
                 DAY_MS,
         ) + 1;
-    // Each group returns a point per day, and Sentry caps the points
-    const groupsPerPage = byDay
-        ? Math.max(
-              1,
-              Math.min(
-                  PAGE_SIZE,
-                  Math.floor(SESSIONS_MAX_DATA_POINTS / (days + 1)),
-              ),
-          )
-        : PAGE_SIZE;
+    const groupsPerPage = byStatus
+        ? Math.min(SESSION_STATUS_PAGE_SIZE, getSessionGroupsPerPage(days))
+        : getSessionGroupsPerPage(days);
     const fields = [
         ...new Set([
             ...columns
@@ -871,10 +1028,19 @@ const runSessions = async ({
             SESSION_HELPER,
         ]),
     ];
-    const params: Params = [
+    const projects = getProjects(settings, request.filters);
+    // Grouped by project, Sentry names each by a number. One named project
+    // a call needs no list of the organization's projects to read them.
+    const reads = columns.includes('project')
+        ? projects.map((project) => ({ projects: [project], project }))
+        : [{ projects, project: null }];
+    const toParams = (readProjects: string[]): Params => [
         ...fields.map((field): [string, string] => ['field', field]),
         ...columns
-            .filter(isSessionGroup)
+            .filter(
+                (column): column is SessionGroup =>
+                    isSessionGroup(column) && column !== 'project',
+            )
             .map((column): [string, string] => [
                 'groupBy',
                 SESSION_GROUPS[column],
@@ -883,35 +1049,69 @@ const runSessions = async ({
         ['interval', '1d'],
         ['includeSeries', byDay ? '1' : '0'],
         ['includeTotals', byDay ? '0' : '1'],
-        ...toFilterParams('sessions', settings, request.filters),
+        ...toFilterParams('sessions', readProjects, request.filters),
     ];
-    const projectSlugs = columns.includes('project')
-        ? await fetchProjectSlugs(settings, calls)
-        : new Map<string, string>();
-    const { rows, hasMoreRows } = await readRowsWithinCap({
-        label: LABEL,
-        requestedRows: limit,
-        maxRows: SENTRY_MAX_QUERY_ROWS,
-        pageSize: groupsPerPage,
-        maxPages: MAX_PAGES,
-        fetchPage: async ({ limit: perPage, cursor }) => {
-            const { data, nextCursor } = await get(
-                calls,
-                getSentryPaths(settings.organizationSlug).sessions,
-                [
-                    ...params,
-                    // A group is several rows when read by day
-                    ['per_page', String(byDay ? groupsPerPage : perPage)],
-                    ...(cursor ? ([['cursor', cursor]] as Params) : []),
-                ],
-                sessionsResponseSchema,
-            );
-            return {
-                rows: toSessionRows(data, [...columns], projectSlugs),
-                nextCursor,
-            };
-        },
-    });
+    const rows: Record<string, unknown>[] = [];
+    let hasMoreRows = false;
+    for (let index = 0; index < reads.length; index += 1) {
+        const read = reads[index];
+        const params = toParams(read.projects);
+        // With every row asked for already read, one more row of the next
+        // project says the result has more
+        const wanted = Math.max(1, limit - rows.length);
+        // eslint-disable-next-line no-await-in-loop
+        const page = await readSentryRows({
+            requestedRows: wanted,
+            pageSize: groupsPerPage,
+            fetchPage: async ({ limit: perPage, cursor }) => {
+                const { data, nextCursor } = await get(
+                    calls,
+                    getSentryPaths(settings.organizationSlug).sessions,
+                    [
+                        ...params,
+                        // A group is several rows when read by day or status
+                        [
+                            'per_page',
+                            String(
+                                byDay || byStatus
+                                    ? groupsPerPage
+                                    : Math.min(perPage, groupsPerPage),
+                            ),
+                        ],
+                        ...(cursor ? ([['cursor', cursor]] as Params) : []),
+                    ],
+                    sessionsResponseSchema,
+                );
+                if (byStatus && nextCursor !== undefined) {
+                    // See SESSION_STATUS_PAGE_SIZE: Sentry took a status off
+                    throw refuseLiveQuery(
+                        'live_source.refused.row_limit',
+                        'Sentry cut this list of sessions by status short, so its result would be incomplete. Remove Session status, or select fewer fields.',
+                    );
+                }
+                return {
+                    rows: toSessionRows(data, [...columns], read.project),
+                    nextCursor,
+                };
+            },
+        });
+        if (rows.length >= limit) {
+            hasMoreRows = page.rows.length > 0;
+            if (hasMoreRows) break;
+        } else {
+            rows.push(...page.rows);
+            if (page.hasMoreRows) {
+                hasMoreRows = true;
+                break;
+            }
+        }
+    }
+    if (hasMoreRows && limit >= SENTRY_MAX_QUERY_ROWS) {
+        throw tooManyRowsError({
+            label: LABEL,
+            maxRows: SENTRY_MAX_QUERY_ROWS,
+        });
+    }
     return {
         columns: columns.map(
             (name): LiveColumn => ({
@@ -935,6 +1135,16 @@ export const runSentryQuery = async ({
     SentryRequest
 >): Promise<LiveRunResult> => {
     assertMaxRows(limit, SENTRY_MAX_QUERY_ROWS);
+    if (request.kind === 'issues') {
+        assertRealDays(
+            request.firstSeen?.start,
+            request.firstSeen?.end,
+            request.lastSeen?.start,
+            request.lastSeen?.end,
+        );
+    } else {
+        assertRealDays(request.start, request.end);
+    }
     switch (request.kind) {
         case 'errors':
             return runErrors({ settings, request, limit, calls });
@@ -943,6 +1153,6 @@ export const runSentryQuery = async ({
         case 'sessions':
             return runSessions({ settings, request, limit, calls });
         default:
-            throw new ParameterError('Unknown Sentry request kind');
+            throw new ParameterError('The Sentry request kind is unknown.');
     }
 };

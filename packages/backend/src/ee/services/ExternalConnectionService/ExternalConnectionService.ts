@@ -145,7 +145,10 @@ import { runLiveRequest } from '../../../services/QuerySourceService/live/query/
 import { LIVE_RATE_LIMIT_DEADLINES_MS } from '../../../services/QuerySourceService/live/rateLimitDeadlines';
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
 import { type LiveRateLimits } from '../../../services/QuerySourceService/live/spec/types';
-import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
+import {
+    getLiveSourceTestCheck,
+    getLiveSourceTestRequest,
+} from '../../../services/QuerySourceService/live/testCheck';
 import { type LiveCatalog } from '../../../services/QuerySourceService/live/types';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { checkUserAttributesAccess } from '../../../services/UserAttributesService/UserAttributeUtils';
@@ -5224,20 +5227,33 @@ export class ExternalConnectionService extends BaseService {
         },
         account: RegisteredAccount,
     ): Promise<ExternalConnectionTestResponse> {
+        // An integration that fixes its test request reads only what its
+        // source may, whatever path and query the caller sent
+        const fixedRequest = connection.apiSource
+            ? getLiveSourceTestRequest(connection.apiSource)
+            : null;
         try {
             const { response } = await this.executeExternalFetch(
                 connection,
                 secret,
-                req,
+                fixedRequest ?? req,
                 { account, appUuid: null },
             );
             if (!connection.apiSource) return response;
+            const liveCheck = getLiveSourceTestCheck(
+                connection.apiSource,
+                response,
+            );
+            if (!fixedRequest) return { ...response, liveCheck };
+            // The check says what the admin needs; the API's own answer
+            // can name more than the source may read
             return {
-                ...response,
-                liveCheck: getLiveSourceTestCheck(
-                    connection.apiSource,
-                    response,
-                ),
+                status: response.status,
+                contentType: response.contentType,
+                headers: {},
+                body: null,
+                truncated: false,
+                liveCheck,
             };
         } catch (error) {
             if (error instanceof SecureFetchError) {

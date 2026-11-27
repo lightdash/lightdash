@@ -35,10 +35,10 @@ export const toSentryError = (
     if (response.status === 429) {
         const retryAfterSeconds = getRetryAfterSeconds(response.headers, now);
         return new TooManyRequestsError(
-            `Sentry rate limit reached. Sentry limits each endpoint per caller; retry ${
+            `Sentry refused the call because of its rate limit. Sentry limits each endpoint for each caller. Retry in ${
                 retryAfterSeconds
-                    ? `in ${retryAfterSeconds} seconds`
-                    : 'shortly'
+                    ? `${retryAfterSeconds} seconds`
+                    : 'a short time'
             }.`,
             { retryAfterSeconds },
         );
@@ -50,12 +50,12 @@ export const toSentryError = (
     }
     if (response.status === 403) {
         return new WarehouseConnectionError(
-            "The Sentry auth token can't read this. Give the internal integration read access to Organization, Project and Issue & Event.",
+            "The Sentry auth token can't read this. Check the project slugs, and give the internal integration read access to Organization, Project and Issue & Event.",
         );
     }
     if (response.status === 404) {
         return new WarehouseConnectionError(
-            `Sentry can't find the organization "${organizationSlug}" or one of its projects. Check the slugs and that the token belongs to the organization.`,
+            `Sentry can't find the organization "${organizationSlug}" or one of its projects. Check the slugs. Check that the token belongs to the organization.`,
         );
     }
     if (response.status >= 400 && response.status < 500) {
@@ -63,5 +63,7 @@ export const toSentryError = (
             "Sentry couldn't run this query. Check the filter values and the date range, or select fewer fields.",
         );
     }
-    return new UnexpectedServerError(`Sentry returned ${response.status}`);
+    return new UnexpectedServerError(
+        `Sentry returned the status ${response.status}.`,
+    );
 };
