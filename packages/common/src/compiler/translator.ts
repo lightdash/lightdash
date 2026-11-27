@@ -2553,7 +2553,8 @@ const foldedCatalogTableKey = (
         table.toLowerCase(),
     );
 
-const indexWarehouseCatalog = (
+/** Indexes a warehouse catalog once for table lookups by database, schema and table. */
+export const indexWarehouseCatalog = (
     warehouseCatalog: WarehouseCatalog,
     caseSensitiveMatching: boolean,
 ) => {
@@ -2633,7 +2634,8 @@ const indexWarehouseCatalog = (
 const tableKeyFor = (caseSensitiveMatching: boolean) =>
     caseSensitiveMatching ? catalogTableKey : foldedCatalogTableKey;
 
-const findCatalogColumn = (
+/** The catalog's own name for a column of a table; undefined when the table does not have it. */
+export const findCatalogColumn = (
     columns: WarehouseTableSchema,
     columnName: string,
     caseSensitiveMatching: boolean,
