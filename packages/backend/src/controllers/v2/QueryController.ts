@@ -51,6 +51,7 @@ import {
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncSqlChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
+    type ExecuteComposerChartRequest,
     type MetricQuery,
     type UUID,
 } from '@lightdash/common';
@@ -934,6 +935,36 @@ export class QueryController extends BaseController {
             status: 'ok',
             results,
         };
+    }
+
+    /**
+     * Runs a composer chart that a space owns, on its own, with no dashboard
+     * filters or date zoom. Parameters override the values saved on the
+     * chart's nodes. A chart a dashboard owns is refused: run it with Execute
+     * dashboard composer chart. Poll each node's query with the standard
+     * results endpoint.
+     * @summary Execute composer chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/composer-chart')
+    @OperationId('executeAsyncComposerChartQuery')
+    async executeAsyncComposerChartQuery(
+        @Body() body: ExecuteComposerChartRequest,
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiComposerChartRunResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getComposerChartService()
+            .runChart(
+                req.account,
+                projectUuid,
+                body,
+                QueryExecutionContext.COMPOSER_CHART_VIEW,
+            );
+        this.setStatus(200);
+        return { status: 'ok', results };
     }
 
     /**

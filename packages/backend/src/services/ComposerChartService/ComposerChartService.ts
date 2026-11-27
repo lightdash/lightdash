@@ -25,6 +25,7 @@ import {
     parseComposerPipeline,
     parseComposerStoredChart,
     parseDashboardComposerChartRunRequest,
+    parseExecuteComposerChartRequest,
     QueryExecutionContext,
     QuerySourceType,
     type Account,
@@ -43,6 +44,7 @@ import {
     type DashboardComposerChartRunRequest,
     type DashboardFilters,
     type DateZoom,
+    type ExecuteComposerChartRequest,
     type Explore,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -55,6 +57,7 @@ import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resour
 import { ComposerChartModel } from '../../models/ComposerChartModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import type { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { traceSpan } from '../../tracing/tracing';
 import type { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
@@ -64,6 +67,7 @@ import type { QuerySourceService } from '../QuerySourceService/QuerySourceServic
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { ComposerRunBinding } from './ComposerRunBinding';
 import {
+    applyCallerParametersToComposerNodes,
     applyDashboardFiltersToComposerNodes,
     applyDashboardParametersToComposerNodes,
     getComposerNodeDateZooms,
@@ -81,6 +85,7 @@ type ComposerChartServiceArguments = {
     appModel: Parameters<typeof resolveDataAppVizBinding>[0]['appModel'];
     dashboardModel: DashboardModel;
     featureFlagModel: FeatureFlagModel;
+    projectParametersModel: Pick<ProjectParametersModel, 'find'>;
     spacePermissionService: SpacePermissionService;
     queryHistoryModel: Pick<QueryHistoryModel, 'getByQueryUuid'>;
     getQuerySourceService: () => Pick<QuerySourceService, 'submitComposerRun'>;
@@ -96,6 +101,15 @@ export type ComposerChartRunContext =
     | QueryExecutionContext.DASHBOARD
     | QueryExecutionContext.SCHEDULED_DELIVERY
     | QueryExecutionContext.CSV;
+
+/** A chart run is recorded as the chart's page or an AI agent. */
+export type ComposerChartViewRunContext =
+    | QueryExecutionContext.COMPOSER_CHART_VIEW
+    | QueryExecutionContext.AI;
+
+export type ComposerBoundRunContext =
+    | ComposerChartRunContext
+    | ComposerChartViewRunContext;
 
 type ComposerTileRunRequest = Pick<
     ComposerChartRunRequest,
@@ -120,13 +134,20 @@ type ComposerResolvedRun = {
         parameters: ParametersValuesMap;
     };
     dateZoomByNodeId: Record<string, DateZoom>;
+    /** Null for a chart run, which has no dashboard. */
     tile: {
         dashboardUuid: string;
         tileUuid: string;
         dashboardFilters: DashboardFilters;
         /** The semantic-layer filters written on; SQL column targets join once the run reports its columns. */
         appliedDashboardFiltersByNodeId: Record<string, DashboardFilters>;
-    };
+    } | null;
+};
+
+const NO_DASHBOARD_FILTERS: DashboardFilters = {
+    dimensions: [],
+    metrics: [],
+    tableCalculations: [],
 };
 
 export type ProjectSubject = { organizationUuid: string; projectUuid: string };
@@ -139,6 +160,8 @@ export class ComposerChartService extends BaseService {
     private readonly dashboardModel: DashboardModel;
 
     private readonly featureFlagModel: FeatureFlagModel;
+
+    private readonly projectParametersModel: ComposerChartServiceArguments['projectParametersModel'];
 
     private readonly spacePermissionService: SpacePermissionService;
 
@@ -154,6 +177,7 @@ export class ComposerChartService extends BaseService {
         this.appModel = args.appModel;
         this.dashboardModel = args.dashboardModel;
         this.featureFlagModel = args.featureFlagModel;
+        this.projectParametersModel = args.projectParametersModel;
         this.spacePermissionService = args.spacePermissionService;
         this.queryHistoryModel = args.queryHistoryModel;
         this.getQuerySourceService = args.getQuerySourceService;
@@ -880,6 +904,65 @@ export class ComposerChartService extends BaseService {
         });
     }
 
+    /** A chart run: a chart a space owns, on its own, for anyone who can view it. Runs with the flag off, so a chart stays usable. */
+    async runChart(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        body: ExecuteComposerChartRequest,
+        context: ComposerChartViewRunContext,
+    ): Promise<ComposerChartRunResults> {
+        const request = parseExecuteComposerChartRequest(body);
+        return this.runBound(account, projectUuid, {
+            resolve: () => this.resolveChartRun(account, projectUuid, request),
+            context,
+            invalidateCache: request.invalidateCache,
+        });
+    }
+
+    private async resolveChartRun(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        { composerChartUuid, parameters }: ExecuteComposerChartRequest,
+    ): Promise<ComposerResolvedRun> {
+        const { organizationUuid, owner } = await this.assertCanView(
+            account,
+            projectUuid,
+            composerChartUuid,
+        );
+        if (owner.type === 'dashboard') {
+            const dashboard = await this.dashboardModel.getByIdOrSlug(
+                owner.dashboardUuid,
+                { projectUuid },
+            );
+            throw new NotSupportedError(
+                `This composer chart belongs to the dashboard "${dashboard.name}" (${dashboard.uuid}); run it through its tile on that dashboard`,
+            );
+        }
+        const chart = await this.composerChartModel.get(composerChartUuid);
+        const [exploreByNodeId, projectParameters] = await Promise.all([
+            this.getNodeExplores(
+                account,
+                { organizationUuid, projectUuid },
+                chart.pipeline,
+            ),
+            this.projectParametersModel.find(projectUuid),
+        ]);
+        return {
+            chart,
+            exploreByNodeId,
+            resolved: applyCallerParametersToComposerNodes({
+                nodes: chart.pipeline.nodes,
+                exploreByNodeId,
+                projectDefinitions: Object.fromEntries(
+                    projectParameters.map(({ name, config }) => [name, config]),
+                ),
+                callerValues: parameters ?? {},
+            }),
+            dateZoomByNodeId: {},
+            tile: null,
+        };
+    }
+
     private async runOnTile(
         account: RegisteredAccount,
         projectUuid: UUID,
@@ -1002,7 +1085,7 @@ export class ComposerChartService extends BaseService {
             invalidateCache,
         }: {
             resolve: () => Promise<ComposerResolvedRun>;
-            context: ComposerChartRunContext;
+            context: ComposerBoundRunContext;
             invalidateCache: boolean;
         },
     ): Promise<ComposerChartRunResults> {
@@ -1013,10 +1096,10 @@ export class ComposerChartService extends BaseService {
         const binding = ComposerRunBinding.forAuthorizedViewer({
             account,
             chart,
-            dashboardUuid: tile.dashboardUuid,
-            tileUuid: tile.tileUuid,
+            dashboardUuid: tile?.dashboardUuid ?? null,
+            tileUuid: tile?.tileUuid ?? null,
             resolved,
-            dashboardFilters: tile.dashboardFilters,
+            dashboardFilters: tile?.dashboardFilters ?? NO_DASHBOARD_FILTERS,
             dateZoomByNodeId,
         });
         const { queries } = await traceSpan(
@@ -1069,16 +1152,23 @@ export class ComposerChartService extends BaseService {
                     : [],
             ),
         );
-        const applied = withSqlColumnFilters(tile, {
-            tileUuid: tile.tileUuid,
-            dashboardFilters: tile.dashboardFilters,
-            sqlColumnsByNodeId: Object.fromEntries(
-                Object.entries(sqlColumnsByNodeId).map(([nodeId, columns]) => [
-                    nodeId,
-                    columns.map((column) => column.reference),
-                ]),
-            ),
-        });
+        const applied = tile
+            ? withSqlColumnFilters(tile, {
+                  tileUuid: tile.tileUuid,
+                  dashboardFilters: tile.dashboardFilters,
+                  sqlColumnsByNodeId: Object.fromEntries(
+                      Object.entries(sqlColumnsByNodeId).map(
+                          ([nodeId, columns]) => [
+                              nodeId,
+                              columns.map((column) => column.reference),
+                          ],
+                      ),
+                  ),
+              })
+            : {
+                  appliedDashboardFilters: NO_DASHBOARD_FILTERS,
+                  appliedDashboardFiltersByNodeId: {},
+              };
         return {
             queries: queries.map(({ nodeId, sourceType, queryUuid }) => ({
                 nodeId,
@@ -1117,10 +1207,12 @@ export class ComposerChartService extends BaseService {
                         : [];
                 }),
             ),
-            zoomableFields: getComposerZoomableFields(
-                chart.pipeline.nodes,
-                exploreByNodeId,
-            ),
+            zoomableFields: tile
+                ? getComposerZoomableFields(
+                      chart.pipeline.nodes,
+                      exploreByNodeId,
+                  )
+                : [],
         };
     }
 }

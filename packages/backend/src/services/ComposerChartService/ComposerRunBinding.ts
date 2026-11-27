@@ -39,9 +39,9 @@ export class ComposerRunBinding {
     }: {
         account: RegisteredAccount;
         chart: ComposerChart;
-        /** The dashboard the tile is on, checked against the chart's owner by the caller. */
-        dashboardUuid: string;
-        tileUuid: string;
+        /** The dashboard and tile the run is shown on, checked by the caller; null for a chart run. */
+        dashboardUuid: string | null;
+        tileUuid: string | null;
         /** The stored nodes with the dashboard's filters and parameters written on, and the shared parameter map. */
         resolved: {
             nodes: ComposerChartPipelineNode[];

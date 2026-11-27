@@ -19,6 +19,7 @@ import {
     isSubDayGranularity,
     MERGE_TABLE_NAME,
     metricQueryOfSemanticNode,
+    omitDisallowedParameterValues,
     QuerySourceType,
     resolveToBaseTimeDimension,
     type ChartZoomableField,
@@ -218,6 +219,58 @@ export const applyDashboardParametersToComposerNodes = ({
             chartSavedValues: {},
             excludedKeys,
         }),
+    };
+};
+
+const getExploreDefinitions = (explore: Explore): ParameterDefinitions =>
+    getAvailableParametersFromTables(Object.values(explore.tables));
+
+/** A chart run's precedence: each semantic-layer node runs defaults < its saved value < the caller's; the shared map gets the caller's values only. */
+export const applyCallerParametersToComposerNodes = ({
+    nodes,
+    exploreByNodeId,
+    projectDefinitions,
+    callerValues,
+}: {
+    nodes: ComposerChartPipelineNode[];
+    exploreByNodeId: ComposerNodeExplores;
+    projectDefinitions: ParameterDefinitions;
+    callerValues: ParametersValuesMap;
+}): { nodes: ComposerChartPipelineNode[]; parameters: ParametersValuesMap } => {
+    // Explore keys are prefixed by their table, so checking the shared map against every explore narrows only those keys
+    const sharedDefinitions = getEffectiveParameterDefinitions({
+        projectDefinitions,
+        exploreDefinitions: Object.values(
+            exploreByNodeId,
+        ).reduce<ParameterDefinitions>(
+            (acc, explore) => ({ ...acc, ...getExploreDefinitions(explore) }),
+            {},
+        ),
+    });
+    return {
+        nodes: nodes.map((node): ComposerChartPipelineNode => {
+            const explore = exploreByNodeId[node.nodeId];
+            if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER || !explore)
+                return node;
+            const definitions = getEffectiveParameterDefinitions({
+                projectDefinitions,
+                exploreDefinitions: getExploreDefinitions(explore),
+            });
+            return {
+                ...node,
+                parameters: {
+                    ...omitDisallowedParameterValues(
+                        node.parameters ?? {},
+                        definitions,
+                    ),
+                    ...omitDisallowedParameterValues(callerValues, definitions),
+                },
+            };
+        }),
+        parameters: omitDisallowedParameterValues(
+            callerValues,
+            sharedDefinitions,
+        ),
     };
 };
 

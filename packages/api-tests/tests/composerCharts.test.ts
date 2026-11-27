@@ -20,6 +20,8 @@ import {
     type DashboardAsCode,
     type DashboardComposerChartRunRequest,
     type DashboardFieldTarget,
+    type ExecuteComposerChartRequest,
+    type QueryHistoryListItem,
     type Space,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
@@ -48,6 +50,7 @@ const chartsUrl = `/api/v2/projects/${projectUuid}/composer-charts`;
 const flagUrl = `/api/v2/feature-flag/${FeatureFlags.ComposerCharts}`;
 
 const tileRunUrl = `/api/v2/projects/${projectUuid}/query/dashboard-composer-chart`;
+const chartRunUrl = `/api/v2/projects/${projectUuid}/query/composer-chart`;
 
 const runRequest = (
     composerChartUuid: string,
@@ -1874,9 +1877,12 @@ describe('Composer charts', () => {
             return resp.body.results;
         };
 
-        const createSpaceChart = async () => {
+        const createSpaceChart = async (
+            stored: Parameters<typeof createComposerSpaceChart>[1] = {},
+        ) => {
             const created = await createComposerSpaceChart(
                 apiClientSend(admin),
+                stored,
             );
             tracker.trackSpace(created.space.uuid);
             return created;
@@ -2020,6 +2026,211 @@ describe('Composer charts', () => {
                     (await admin.post(flagUrl, { enabled: true })).status,
                 ).toBe(200);
             }
+        });
+
+        const runChart = (
+            client: ApiClient,
+            body: ExecuteComposerChartRequest,
+        ) =>
+            client.post<
+                Body<ComposerChartRunResults> & { error: { message: string } }
+            >(chartRunUrl, body, { failOnStatusCode: false });
+
+        it('runs a chart its space owns for a viewer of the space, recorded as the chart view with no dashboard', async () => {
+            const { chart } = await createSpaceChart();
+            const viewer = await loginAsViewer();
+            const run = await runChart(viewer, {
+                composerChartUuid: chart.uuid,
+                invalidateCache: false,
+            });
+            expect(run.status).toBe(200);
+            const [{ queryUuid }] = run.body.results.queries;
+            expect((await pollRows(viewer, queryUuid)).length).toBeGreaterThan(
+                0,
+            );
+            const history = await viewer.get<
+                Body<{ data: QueryHistoryListItem[] }>
+            >(`/api/v2/projects/${projectUuid}/query/history?pageSize=100`);
+            expect(
+                history.body.results.data.find(
+                    (row) => row.queryUuid === queryUuid,
+                ),
+            ).toMatchObject({
+                context: 'composerChartView',
+                dashboardUuid: null,
+            });
+
+            const outsider = await anotherLogin();
+            expect(
+                (
+                    await runChart(outsider, {
+                        composerChartUuid: chart.uuid,
+                        invalidateCache: false,
+                    })
+                ).status,
+            ).toBe(403);
+        });
+
+        it('refuses an editor running a chart in a space they cannot see', async () => {
+            const privateSpace = await createSpace(false);
+            const hidden = await postChart(
+                composerSpaceChartBody(privateSpace.uuid),
+            );
+            expect(hidden.status).toBe(201);
+            const editor = await loginAsEditor();
+            const refused = await runChart(editor, {
+                composerChartUuid: hidden.body.results.uuid,
+                invalidateCache: false,
+            });
+            expect(refused.status).toBe(403);
+        });
+
+        it('refuses a chart a dashboard owns, naming its dashboard, and a request carrying dashboard state', async () => {
+            const { dashboard, chart } = await createComposerDashboard(
+                apiClientSend(admin),
+            );
+            tracker.trackDashboard(dashboard.uuid);
+            const refused = await runChart(admin, {
+                composerChartUuid: chart.uuid,
+                invalidateCache: false,
+            });
+            expect(refused.status).toBe(400);
+            expect(refused.body.error.message).toContain(
+                `dashboard "${dashboard.name}"`,
+            );
+
+            const space = await createSpaceChart();
+            const withFilters = await admin.post(
+                chartRunUrl,
+                {
+                    composerChartUuid: space.chart.uuid,
+                    invalidateCache: false,
+                    dashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                },
+                { failOnStatusCode: false },
+            );
+            expect(withFilters.status).toBe(400);
+        });
+
+        it('runs with the flag off', async () => {
+            const { chart } = await createSpaceChart();
+            expect((await admin.post(flagUrl, { enabled: false })).status).toBe(
+                200,
+            );
+            try {
+                const run = await runChart(admin, {
+                    composerChartUuid: chart.uuid,
+                    invalidateCache: false,
+                });
+                expect(run.status).toBe(200);
+            } finally {
+                expect(
+                    (await admin.post(flagUrl, { enabled: true })).status,
+                ).toBe(200);
+            }
+        });
+
+        it("a caller's value beats a node's saved value, which beats the default; DuckDB reads caller values only", async () => {
+            const { chart } = await createSpaceChart({
+                pipeline: {
+                    schemaVersion: 1,
+                    terminalNodeId: 'tagged',
+                    nodes: [
+                        {
+                            sourceType: QuerySourceType.SEMANTIC_LAYER,
+                            nodeId: 'dates',
+                            title: 'Dates',
+                            exploreName: 'orders',
+                            dimensions: ['orders_date_custom_param_test'],
+                            metrics: ['orders_unique_order_count'],
+                            // Default 2025-08-06 puts every order before it
+                            parameters: {
+                                date_custom_parameter: '2000-01-01',
+                                currency: 'gbp',
+                            },
+                        },
+                        {
+                            sourceType: QuerySourceType.DUCKDB,
+                            nodeId: 'tagged',
+                            title: 'Tagged',
+                            // eslint-disable-next-line no-template-curly-in-string
+                            sql: 'SELECT ${lightdash.parameters.currency} AS currency, count(*) AS n FROM dates',
+                            references: ['dates'],
+                        },
+                    ],
+                },
+                chart: {
+                    schemaVersion: 1,
+                    columns: [
+                        {
+                            reference: 'currency',
+                            fieldType: FieldType.DIMENSION,
+                        },
+                        { reference: 'n', fieldType: FieldType.METRIC },
+                    ],
+                    chartConfig: {
+                        type: ChartType.CARTESIAN,
+                        config: {
+                            layout: { xField: 'currency', yField: ['n'] },
+                            eChartsConfig: {},
+                        },
+                    },
+                    pivotConfig: null,
+                    tableConfig: { columnOrder: [] },
+                },
+            });
+            const viewer = await loginAsViewer();
+            const rawValues = (rows: unknown[], column: string) =>
+                [
+                    ...new Set(
+                        (
+                            rows as Record<
+                                string,
+                                { value: { raw: unknown } }
+                            >[]
+                        ).map((row) => row[column]?.value.raw),
+                    ),
+                ].sort();
+            const runWith = async (parameters?: Record<string, string>) => {
+                const run = await runChart(viewer, {
+                    composerChartUuid: chart.uuid,
+                    invalidateCache: false,
+                    ...(parameters && { parameters }),
+                });
+                expect(run.status).toBe(200);
+                const queryOf = (nodeId: string) =>
+                    run.body.results.queries.find((q) => q.nodeId === nodeId)!
+                        .queryUuid;
+                return {
+                    dates: rawValues(
+                        await pollRows(viewer, queryOf('dates')),
+                        'orders_date_custom_param_test',
+                    ),
+                    currency: rawValues(
+                        await pollRows(viewer, queryOf('tagged')),
+                        'currency',
+                    ),
+                };
+            };
+
+            expect(await runWith()).toEqual({
+                dates: ['I feel great!!!'],
+                currency: ['usd'],
+            });
+            expect(
+                await runWith({
+                    date_custom_parameter: '2100-01-01',
+                    currency: 'eur',
+                }),
+            ).toEqual({ dates: ['I feel less than...'], currency: ['eur'] });
+            expect(await runWith({ currency: 'jpy' })).toEqual({
+                dates: ['I feel great!!!'],
+                currency: ['usd'],
+            });
         });
 
         it('downloads as code under its own space with no dashboard, and refuses the file on upload', async () => {
