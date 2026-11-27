@@ -1898,6 +1898,14 @@ describe('Composer charts', () => {
                 }
             >(chartsUrl, body, { failOnStatusCode: false });
 
+        const runChart = (
+            client: ApiClient,
+            body: ExecuteComposerChartRequest,
+        ) =>
+            client.post<
+                Body<ComposerChartRunResults> & { error: { message: string } }
+            >(chartRunUrl, body, { failOnStatusCode: false });
+
         it('creates a chart the space owns, which a viewer of the space reads and no one from another organization', async () => {
             const { space, chart } = await createSpaceChart();
             expect(chart).toMatchObject({
@@ -2007,7 +2015,7 @@ describe('Composer charts', () => {
             expect(read.status).toBe(403);
         });
 
-        it('refuses a create with the flag off while an existing chart still reads', async () => {
+        it('refuses a create with the flag off while an existing chart still reads and runs', async () => {
             const { space, chart } = await createSpaceChart();
             expect((await admin.post(flagUrl, { enabled: false })).status).toBe(
                 200,
@@ -2021,20 +2029,20 @@ describe('Composer charts', () => {
                     FeatureFlags.ComposerCharts,
                 );
                 expect((await getChart(chart.uuid)).status).toBe(200);
+                expect(
+                    (
+                        await runChart(admin, {
+                            composerChartUuid: chart.uuid,
+                            invalidateCache: false,
+                        })
+                    ).status,
+                ).toBe(200);
             } finally {
                 expect(
                     (await admin.post(flagUrl, { enabled: true })).status,
                 ).toBe(200);
             }
         });
-
-        const runChart = (
-            client: ApiClient,
-            body: ExecuteComposerChartRequest,
-        ) =>
-            client.post<
-                Body<ComposerChartRunResults> & { error: { message: string } }
-            >(chartRunUrl, body, { failOnStatusCode: false });
 
         it('runs a chart its space owns for a viewer of the space, recorded as the chart view with no dashboard', async () => {
             const { chart } = await createSpaceChart();
@@ -2114,24 +2122,6 @@ describe('Composer charts', () => {
                 { failOnStatusCode: false },
             );
             expect(withFilters.status).toBe(400);
-        });
-
-        it('runs with the flag off', async () => {
-            const { chart } = await createSpaceChart();
-            expect((await admin.post(flagUrl, { enabled: false })).status).toBe(
-                200,
-            );
-            try {
-                const run = await runChart(admin, {
-                    composerChartUuid: chart.uuid,
-                    invalidateCache: false,
-                });
-                expect(run.status).toBe(200);
-            } finally {
-                expect(
-                    (await admin.post(flagUrl, { enabled: true })).status,
-                ).toBe(200);
-            }
         });
 
         it("a caller's value beats a node's saved value, which beats the default; DuckDB reads caller values only", async () => {

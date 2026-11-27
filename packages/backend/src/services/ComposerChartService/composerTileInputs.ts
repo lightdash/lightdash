@@ -169,6 +169,9 @@ export const withSqlColumnFilters = (
     };
 };
 
+const getExploreDefinitions = (explore: Explore): ParameterDefinitions =>
+    getAvailableParametersFromTables(Object.values(explore.tables));
+
 // Classic tile precedence: each semantic-layer node's map becomes its explore's overrides; the shared map gets the dashboard's values
 export const applyDashboardParametersToComposerNodes = ({
     nodes,
@@ -181,18 +184,10 @@ export const applyDashboardParametersToComposerNodes = ({
     exploreByNodeId: ComposerNodeExplores;
     projectDefinitions: ParameterDefinitions;
 }): { nodes: ComposerChartPipelineNode[]; parameters: ParametersValuesMap } => {
-    const definitionsFor = (explores: Explore[]) =>
+    const definitionsFor = (explore: Explore) =>
         getEffectiveParameterDefinitions({
             projectDefinitions,
-            exploreDefinitions: explores.reduce<ParameterDefinitions>(
-                (acc, explore) => ({
-                    ...acc,
-                    ...getAvailableParametersFromTables(
-                        Object.values(explore.tables),
-                    ),
-                }),
-                {},
-            ),
+            exploreDefinitions: getExploreDefinitions(explore),
         });
     return {
         nodes: nodes.map((node): ComposerChartPipelineNode => {
@@ -202,7 +197,7 @@ export const applyDashboardParametersToComposerNodes = ({
             return {
                 ...node,
                 parameters: getDashboardTileParameterOverrides({
-                    definitions: definitionsFor([explore]),
+                    definitions: definitionsFor(explore),
                     dashboardValues,
                     chartSavedValues: node.parameters ?? {},
                     excludedKeys,
@@ -221,9 +216,6 @@ export const applyDashboardParametersToComposerNodes = ({
         }),
     };
 };
-
-const getExploreDefinitions = (explore: Explore): ParameterDefinitions =>
-    getAvailableParametersFromTables(Object.values(explore.tables));
 
 /** A chart run's precedence: each semantic-layer node runs defaults < its saved value < the caller's; the shared map gets the caller's values only. */
 export const applyCallerParametersToComposerNodes = ({

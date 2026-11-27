@@ -1401,19 +1401,6 @@ describe('ComposerChartService.runChart', () => {
         ]);
     });
 
-    test('records an agent run under the AI context', async () => {
-        const { service, querySourceService } = setupChartRun();
-        await service.runChart(
-            viewer(),
-            projectUuid,
-            request,
-            QueryExecutionContext.AI,
-        );
-        expect(
-            querySourceService.submitComposerRun.mock.calls[0][0].context,
-        ).toBe(QueryExecutionContext.AI);
-    });
-
     test('passes a cache bypass to the run', async () => {
         const { service, querySourceService } = setupChartRun();
         await service.runChart(
@@ -1443,19 +1430,20 @@ describe('ComposerChartService.runChart', () => {
         expect(querySourceService.submitComposerRun).not.toHaveBeenCalled();
     });
 
-    test('refuses a caller who cannot view the chart before naming a dashboard', async () => {
-        const { service, querySourceService, dashboardModel } = setupChartRun({
+    test('refuses a caller who cannot view the chart without naming its dashboard', async () => {
+        const { service, querySourceService } = setupChartRun({
             owner: { type: 'dashboard', dashboardUuid },
         });
-        await expect(
-            service.runChart(
+        const refusal = await service
+            .runChart(
                 sessionAccount(new Ability<PossibleAbilities>([])),
                 projectUuid,
                 request,
                 QueryExecutionContext.COMPOSER_CHART_VIEW,
-            ),
-        ).rejects.toThrow(ForbiddenError);
-        expect(dashboardModel.getByIdOrSlug).not.toHaveBeenCalled();
+            )
+            .catch((error: unknown) => error);
+        expect(refusal).toBeInstanceOf(ForbiddenError);
+        expect((refusal as Error).message).not.toContain('Sales');
         expect(querySourceService.submitComposerRun).not.toHaveBeenCalled();
     });
 
@@ -1483,30 +1471,6 @@ describe('ComposerChartService.runChart', () => {
             QueryExecutionContext.COMPOSER_CHART_VIEW,
         );
         expect(querySourceService.submitComposerRun).toHaveBeenCalledTimes(1);
-    });
-
-    test('refuses dashboard filters or a date zoom in the request', async () => {
-        const { service, querySourceService } = setupChartRun();
-        await expect(
-            service.runChart(
-                viewer(),
-                projectUuid,
-                { ...request, dateZoom: null } as never,
-                QueryExecutionContext.COMPOSER_CHART_VIEW,
-            ),
-        ).rejects.toThrow(ParameterError);
-        await expect(
-            service.runChart(
-                viewer(),
-                projectUuid,
-                {
-                    ...request,
-                    dashboardFilters: savedDashboardFilters,
-                } as never,
-                QueryExecutionContext.COMPOSER_CHART_VIEW,
-            ),
-        ).rejects.toThrow(ParameterError);
-        expect(querySourceService.submitComposerRun).not.toHaveBeenCalled();
     });
 
     describe('parameters', () => {

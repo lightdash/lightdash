@@ -102,7 +102,6 @@ export type ComposerChartRunContext =
     | QueryExecutionContext.SCHEDULED_DELIVERY
     | QueryExecutionContext.CSV;
 
-/** A chart run is recorded as the chart's page or an AI agent. */
 export type ComposerChartViewRunContext =
     | QueryExecutionContext.COMPOSER_CHART_VIEW
     | QueryExecutionContext.AI;
