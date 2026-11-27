@@ -137,6 +137,7 @@ const createMcpService = () =>
             agentUuid: 'agent-uuid',
         }),
         recordDisabledToolRefusal: vi.fn().mockResolvedValue(undefined),
+        captureClientInfo: vi.fn().mockResolvedValue(undefined),
         isContentToolsEnabled: vi.fn().mockResolvedValue(false),
         isCreateScheduledDeliveryEnabled: vi.fn().mockResolvedValue(false),
         isEnabled: vi.fn().mockResolvedValue(true),

@@ -546,8 +546,12 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     await this.mcpToolCallModel.deleteToolCallsOlderThan(
                         MCP_TOOL_CALL_RETENTION_DAYS,
                     );
+                const deletedSessionClientInfo =
+                    await this.mcpToolCallModel.deleteSessionClientInfoOlderThan(
+                        MCP_TOOL_CALL_RETENTION_DAYS,
+                    );
                 Logger.info(
-                    `MCP tool call cleanup completed. Records deleted: ${deleted}`,
+                    `MCP tool call cleanup completed. Records deleted: ${deleted}; session client info deleted: ${deletedSessionClientInfo}`,
                 );
             },
             [EE_SCHEDULER_TASKS.CLEAN_RATE_COUNTERS]: async () => {

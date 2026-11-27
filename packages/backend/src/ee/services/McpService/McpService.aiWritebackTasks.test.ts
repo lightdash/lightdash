@@ -163,7 +163,7 @@ const makeMcpService = ({
         },
         mcpToolCallModel: {
             createToolCall: vi.fn(),
-            findClientInfo: vi.fn(),
+            findSessionClientInfo: vi.fn(),
         },
         projectModel: {},
         projectService: {
