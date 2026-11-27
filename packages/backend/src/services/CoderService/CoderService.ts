@@ -3634,31 +3634,38 @@ export class CoderService extends BaseService {
         );
     }
 
-    /** Slug-list read for AI/MCP read_content: no export gate; view through the chart's owner still applies. */
-    async getComposerChartsForRead(
+    /** One chart for AI/MCP read_content, with its owner's space: no export gate; view through the owner still applies. */
+    async getComposerChartForRead(
         account: RegisteredAccount,
         projectUuid: string,
-        slugs: string[],
-    ): Promise<ApiComposerChartAsCodeListResponse['results']> {
-        return this.findComposerChartsAsCode(
+        slug: string,
+    ): Promise<{
+        composerChart: ComposerChartAsCode;
+        spaceUuid: string;
+    } | null> {
+        const [chart] = await this.findViewableComposerCharts(
             account,
             projectUuid,
-            slugs,
-            undefined,
+            [slug],
         );
+        if (!chart) return null;
+        const [composerChart] = await this.getComposerChartsAsCode(
+            projectUuid,
+            await this.withSpaceSlugs([chart]),
+        );
+        return { composerChart, spaceUuid: chart.spaceUuid };
     }
 
-    private async findComposerChartsAsCode(
+    // Viewing a composer chart follows its owner, as on every other read
+    private async findViewableComposerCharts(
         account: RegisteredAccount,
         projectUuid: string,
         slugs: string[] | undefined,
-        offset: number | undefined,
-    ): Promise<ApiComposerChartAsCodeListResponse['results']> {
+    ) {
         const charts = await this.composerChartModel.findForCode(
             projectUuid,
             slugs,
         );
-        // Viewing a composer chart follows its owner, as on every other read
         const viewable = await Promise.all(
             charts.map((chart) =>
                 this.composerChartService
@@ -3672,20 +3679,30 @@ export class CoderService extends BaseService {
                     ),
             ),
         );
+        return charts.filter((_, index) => viewable[index]);
+    }
+
+    private async findComposerChartsAsCode(
+        account: RegisteredAccount,
+        projectUuid: string,
+        slugs: string[] | undefined,
+        offset: number | undefined,
+    ): Promise<ApiComposerChartAsCodeListResponse['results']> {
+        const viewable = await this.findViewableComposerCharts(
+            account,
+            projectUuid,
+            slugs,
+        );
         const {
             page,
             total,
             offset: nextOffset,
         } = paginateAsCode({
-            items: charts.filter((_, index) => viewable[index]),
+            items: viewable,
             offset,
             pageSize: this.lightdashConfig.contentAsCode.maxDownloads,
         });
-        const found = new Set(
-            charts
-                .filter((_, index) => viewable[index])
-                .map(({ slug }) => slug),
-        );
+        const found = new Set(viewable.map(({ slug }) => slug));
         return {
             composerCharts: await this.getComposerChartsAsCode(
                 projectUuid,

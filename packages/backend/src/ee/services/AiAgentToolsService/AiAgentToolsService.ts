@@ -3377,34 +3377,45 @@ export class AiAgentToolsService extends BaseService {
         await this.assertComposerChartsEnabled(context, notFound);
         const { account } = context;
         assertRegisteredAccount(account);
-        const { composerCharts } =
-            await this.coderService.getComposerChartsForRead(
-                account,
-                context.projectUuid,
-                [slug],
-            );
-        const composerChart = composerCharts[0];
-        if (!composerChart) {
+        const read = await this.coderService.getComposerChartForRead(
+            account,
+            context.projectUuid,
+            slug,
+        );
+        if (!read) {
             throw new NotFoundError(notFound);
         }
-        await this.assertContentSpaceInScope(
+        const { composerChart, spaceUuid } = read;
+        // By uuid: two spaces can share a path
+        if (
+            !AiAgentToolsService.hasAgentSpaceAccess(
+                context.spaceAccess,
+                spaceUuid,
+            )
+        ) {
+            await this.recordRefusal(
+                context,
+                'content',
+                action,
+                'agent_scope',
+                'content_outside_agent_scope',
+                undefined,
+                null,
+            );
+            throw new NotFoundError(notFound);
+        }
+        await this.assertSpaceWritable(
             context,
-            composerChart.spaceSlug,
-            notFound,
+            'content',
             action,
+            spaceUuid,
+            null,
         );
         if (!composerChart.dashboardSlug) {
-            const [space] = await this.spaceModel.find({
-                projectUuid: context.projectUuid,
-                path: getLtreePathFromContentAsCodePath(
-                    composerChart.spaceSlug,
-                ),
-            });
-            if (!space) throw new NotFoundError(notFound);
             return {
                 type: 'composer_chart',
                 content: composerChart,
-                href: AiAgentToolsService.getSpaceUrl(context, space.uuid),
+                href: AiAgentToolsService.getSpaceUrl(context, spaceUuid),
             };
         }
         const dashboard = await this.dashboardService.getByIdOrSlug(

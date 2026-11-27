@@ -3668,13 +3668,14 @@ describe('AiAgentToolsService', () => {
         const makeComposerService = ({
             spaceModel,
             flagEnabled = true,
-            getComposerChartsForRead = vi.fn().mockResolvedValue({
-                composerCharts: [composerChartAsCode],
+            getComposerChartForRead = vi.fn().mockResolvedValue({
+                composerChart: composerChartAsCode,
+                spaceUuid: 'allowed-space-uuid',
             }),
         }: {
             spaceModel?: Record<string, unknown>;
             flagEnabled?: boolean;
-            getComposerChartsForRead?: import('vitest').Mock;
+            getComposerChartForRead?: import('vitest').Mock;
         } = {}) => {
             const run = vi.fn().mockResolvedValue({
                 queries: [
@@ -3697,7 +3698,7 @@ describe('AiAgentToolsService', () => {
             });
             const service = makeService({
                 spaceModel,
-                coderService: { getComposerChartsForRead },
+                coderService: { getComposerChartForRead },
                 dashboardService: {
                     getByIdOrSlug: vi.fn().mockResolvedValue(salesDashboard),
                 },
@@ -3734,14 +3735,10 @@ describe('AiAgentToolsService', () => {
         it('reads a space-owned composer chart as code, linked to its space', async () => {
             const spaceChart = { ...composerChartAsCode, dashboardSlug: null };
             const { service } = makeComposerService({
-                spaceModel: {
-                    find: vi
-                        .fn()
-                        .mockResolvedValue([{ uuid: 'allowed-space-uuid' }]),
-                },
-                getComposerChartsForRead: vi
-                    .fn()
-                    .mockResolvedValue({ composerCharts: [spaceChart] }),
+                getComposerChartForRead: vi.fn().mockResolvedValue({
+                    composerChart: spaceChart,
+                    spaceUuid: 'allowed-space-uuid',
+                }),
             });
 
             const read = await service
@@ -3759,11 +3756,7 @@ describe('AiAgentToolsService', () => {
         });
 
         it('hides a composer chart whose dashboard is outside the agent spaces', async () => {
-            const { service } = makeComposerService({
-                spaceModel: {
-                    hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(false),
-                },
-            });
+            const { service } = makeComposerService();
 
             await expect(
                 service
@@ -3800,9 +3793,7 @@ describe('AiAgentToolsService', () => {
 
         it('reports a slug no composer chart has as not found', async () => {
             const { service } = makeComposerService({
-                getComposerChartsForRead: vi
-                    .fn()
-                    .mockResolvedValue({ composerCharts: [] }),
+                getComposerChartForRead: vi.fn().mockResolvedValue(null),
             });
 
             await expect(
@@ -4057,8 +4048,9 @@ describe('AiAgentToolsService', () => {
             const upsertChart = vi.fn();
             const service = makeService({
                 coderService: {
-                    getComposerChartsForRead: vi.fn(async () => ({
-                        composerCharts: [editableChart],
+                    getComposerChartForRead: vi.fn(async () => ({
+                        composerChart: editableChart,
+                        spaceUuid: 'jaffle-uuid',
                     })),
                     getChartsForRead: vi.fn(async () => ({
                         charts: [{ slug: 'orders-by-status' }],
@@ -5371,14 +5363,13 @@ describe('AiAgentToolsService createContent composer_chart', () => {
             },
             coderService: {
                 toStoredComposerChart: vi.fn(async (_project, chart) => chart),
-                getComposerChartsForRead: vi.fn(async () => ({
-                    composerCharts: [
-                        {
-                            slug: 'amount-by-status',
-                            dashboardSlug: 'sales',
-                            spaceSlug: 'jaffle',
-                        },
-                    ],
+                getComposerChartForRead: vi.fn(async () => ({
+                    composerChart: {
+                        slug: 'amount-by-status',
+                        dashboardSlug: 'sales',
+                        spaceSlug: 'jaffle',
+                    },
+                    spaceUuid: 'space-uuid',
                 })),
             },
             composerChartService: {

@@ -158,17 +158,31 @@ describe('CoderService composer chart download', () => {
 });
 
 describe('CoderService composer chart read for the agent', () => {
-    it('reads without the content as code permission and still hides charts on dashboards the caller cannot view', async () => {
-        const result = await makeService().getComposerChartsForRead(
-            account,
-            PROJECT_UUID,
-            ['visible', 'hidden'],
-        );
+    it('reads without the content as code permission, with the space that owns the chart', async () => {
+        await expect(
+            makeService([spaceChart('in-space')]).getComposerChartForRead(
+                account,
+                PROJECT_UUID,
+                'in-space',
+            ),
+        ).resolves.toEqual({
+            composerChart: expect.objectContaining({
+                slug: 'in-space',
+                dashboardSlug: null,
+                spaceSlug: 'marketing/growth',
+            }),
+            spaceUuid: 'marketing-uuid',
+        });
+    });
 
-        expect(result.composerCharts.map(({ slug }) => slug)).toEqual([
-            'visible',
-        ]);
-        expect(result.missingIds).toEqual(['hidden']);
+    it('hides a chart the caller cannot view', async () => {
+        await expect(
+            makeService([storedChart('hidden')]).getComposerChartForRead(
+                account,
+                PROJECT_UUID,
+                'hidden',
+            ),
+        ).resolves.toBeNull();
     });
 });
 
