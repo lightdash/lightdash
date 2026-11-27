@@ -1888,7 +1888,7 @@ describe('ComposerChartService lifecycle writes', () => {
                 name: ' Renamed ',
                 description: null,
             });
-            expect(update).toHaveBeenCalledWith('chart-uuid', {
+            expect(update).toHaveBeenCalledWith('chart-uuid', sourceSpaceUuid, {
                 name: 'Renamed',
                 description: null,
             });
@@ -1901,7 +1901,7 @@ describe('ComposerChartService lifecycle writes', () => {
             await service.update(account, projectUuid, 'chart-uuid', {
                 description: 'Why',
             });
-            expect(update).toHaveBeenCalledWith('chart-uuid', {
+            expect(update).toHaveBeenCalledWith('chart-uuid', sourceSpaceUuid, {
                 description: 'Why',
             });
         });
@@ -1962,6 +1962,7 @@ describe('ComposerChartService lifecycle writes', () => {
                 {
                     projectUuid,
                     composerChartUuid: 'chart-uuid',
+                    sourceSpaceUuid,
                     targetSpaceUuid,
                 },
                 { tx: 'tx' },

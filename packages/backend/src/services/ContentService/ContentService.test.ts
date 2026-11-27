@@ -187,7 +187,6 @@ const createService = ({
                 composerChartService as unknown as ComposerChartService,
         }),
         projectModel,
-        composerChartService,
         savedChartService,
         savedSqlService,
         dashboardService,
@@ -1063,55 +1062,6 @@ describe('ContentService composer chart actions', () => {
         uuid: 'composer-chart-uuid',
         contentType: ContentType.COMPOSER_CHART,
     } as const;
-
-    const transactionalContentModel = () =>
-        ({
-            getDatabase: () => ({
-                transaction: async (fn: (tx: unknown) => unknown) => fn('tx'),
-            }),
-        }) as unknown as ContentModel;
-
-    it('moves a composer chart through the composer chart service', async () => {
-        const deps = createService();
-        await deps.service.move(createUser(), projectUuid, item, 'space');
-        expect(deps.composerChartService.moveToSpace).toHaveBeenCalledWith(
-            expect.objectContaining({
-                user: expect.objectContaining({ userUuid }),
-            }),
-            { projectUuid, itemUuid: item.uuid, targetSpaceUuid: 'space' },
-        );
-    });
-
-    it('moves a composer chart with the rest of a bulk move, in its transaction', async () => {
-        const deps = createService({
-            contentModel: transactionalContentModel(),
-        });
-        await deps.service.bulkMove(
-            createUser(),
-            projectUuid,
-            [
-                {
-                    uuid: 'chart-uuid',
-                    contentType: ContentType.CHART,
-                    source: ChartSourceType.DBT_EXPLORE,
-                },
-                item,
-            ],
-            'space',
-        );
-        expect(deps.savedChartService.moveToSpace).toHaveBeenCalledWith(
-            expect.anything(),
-            expect.objectContaining({ itemUuid: 'chart-uuid' }),
-            expect.objectContaining({ tx: 'tx', checkForAccess: true }),
-        );
-        expect(deps.composerChartService.moveToSpace).toHaveBeenCalledWith(
-            expect.objectContaining({
-                user: expect.objectContaining({ userUuid }),
-            }),
-            { projectUuid, itemUuid: item.uuid, targetSpaceUuid: 'space' },
-            { tx: 'tx' },
-        );
-    });
 
     it.each([
         [

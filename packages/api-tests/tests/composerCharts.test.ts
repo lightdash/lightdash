@@ -2843,6 +2843,36 @@ describe('Composer charts', () => {
                 );
                 expect(composer.status).toBe(201);
 
+                // One refused item rolls the whole bulk move back
+                const privateSpace = await createSpace(false);
+                const hidden = await postChart(
+                    composerSpaceChartBody(privateSpace.uuid),
+                );
+                const editor = await loginAsEditor();
+                const refused = await editor.post(
+                    `/api/v2/content/bulk-action/${projectUuid}/move`,
+                    {
+                        content: [
+                            {
+                                uuid: classic.body.results.uuid,
+                                contentType: ContentType.CHART,
+                                source: ChartSourceType.DBT_EXPLORE,
+                            },
+                            {
+                                uuid: hidden.body.results.uuid,
+                                contentType: ContentType.COMPOSER_CHART,
+                            },
+                        ],
+                        action: { type: 'move', targetSpaceUuid: target.uuid },
+                    },
+                    { failOnStatusCode: false },
+                );
+                expect(refused.status).toBe(403);
+                const unmoved = await admin.get<Body<{ spaceUuid: string }>>(
+                    `/api/v1/saved/${classic.body.results.uuid}`,
+                );
+                expect(unmoved.body.results.spaceUuid).toBe(source.uuid);
+
                 const moved = await admin.post(
                     `/api/v2/content/bulk-action/${projectUuid}/move`,
                     {

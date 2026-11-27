@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ChartType,
+    ConflictError,
     NotFoundError,
     parseComposerPipeline,
     parseComposerStoredChart,
@@ -124,32 +125,38 @@ export class ComposerChartModel {
         return { projectUuid: row.project_uuid, owner: toOwner(uuid, row) };
     }
 
-    /** Name and description of a live space-owned chart; versions are untouched. */
+    /** Name and description of a live chart still in the space checked; versions are untouched. */
     async update(
         uuid: string,
+        spaceUuid: string,
         fields: { name?: string; description?: string | null },
     ): Promise<ComposerChart> {
         if (fields.name !== undefined || fields.description !== undefined) {
             const count = await this.database(ComposerChartsTableName)
                 .update(fields)
                 .where('composer_chart_uuid', uuid)
-                .whereNotNull('space_uuid')
+                .where('space_uuid', spaceUuid)
                 .whereNull('deleted_at');
             if (count !== 1) {
-                throw new NotFoundError('Composer chart not found');
+                throw new ConflictError(
+                    'This composer chart moved or was deleted. Reload and try again.',
+                );
             }
         }
         return this.get(uuid);
     }
 
+    /** Moves a live chart still in the space checked. */
     async moveToSpace(
         {
             projectUuid,
             composerChartUuid,
+            sourceSpaceUuid,
             targetSpaceUuid,
         }: {
             projectUuid: string;
             composerChartUuid: string;
+            sourceSpaceUuid: string;
             targetSpaceUuid: string;
         },
         { tx = this.database }: { tx?: Knex } = {},
@@ -158,9 +165,13 @@ export class ComposerChartModel {
             .update({ space_uuid: targetSpaceUuid })
             .where('composer_chart_uuid', composerChartUuid)
             .where('project_uuid', projectUuid)
-            .whereNotNull('space_uuid')
+            .where('space_uuid', sourceSpaceUuid)
             .whereNull('deleted_at');
-        if (count !== 1) throw new NotFoundError('Composer chart not found');
+        if (count !== 1) {
+            throw new ConflictError(
+                'This composer chart moved or was deleted. Reload and try again.',
+            );
+        }
     }
 
     /** Copies the chart and its latest version, unparsed, onto another dashboard. */

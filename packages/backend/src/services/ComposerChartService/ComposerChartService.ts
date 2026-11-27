@@ -671,7 +671,7 @@ export class ComposerChartService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         composerChartUuid: string,
-    ): Promise<void> {
+    ): Promise<string> {
         const { projectUuid: chartProjectUuid, owner } =
             await this.composerChartModel.getOwner(composerChartUuid);
         if (chartProjectUuid !== projectUuid) {
@@ -686,7 +686,7 @@ export class ComposerChartService extends BaseService {
         );
         switch (owner.type) {
             case 'space':
-                return;
+                return owner.spaceUuid;
             case 'dashboard':
                 throw new ParameterError(
                     'This composer chart belongs to a dashboard. Edit it from the dashboard.',
@@ -707,12 +707,12 @@ export class ComposerChartService extends BaseService {
         if (name === '') {
             throw new ParameterError('Composer chart name is required');
         }
-        await this.assertCanWriteSpaceChart(
+        const spaceUuid = await this.assertCanWriteSpaceChart(
             account,
             projectUuid,
             composerChartUuid,
         );
-        return this.composerChartModel.update(composerChartUuid, {
+        return this.composerChartModel.update(composerChartUuid, spaceUuid, {
             ...(name !== undefined ? { name } : {}),
             ...(data.description !== undefined
                 ? { description: data.description }
@@ -737,7 +737,7 @@ export class ComposerChartService extends BaseService {
         if (targetSpaceUuid === null) {
             throw new ParameterError('A composer chart must stay in a space');
         }
-        await this.assertCanWriteSpaceChart(
+        const sourceSpaceUuid = await this.assertCanWriteSpaceChart(
             account,
             projectUuid,
             composerChartUuid,
@@ -750,7 +750,12 @@ export class ComposerChartService extends BaseService {
             composerChartUuid,
         );
         await this.composerChartModel.moveToSpace(
-            { projectUuid, composerChartUuid, targetSpaceUuid },
+            {
+                projectUuid,
+                composerChartUuid,
+                sourceSpaceUuid,
+                targetSpaceUuid,
+            },
             { tx },
         );
     }

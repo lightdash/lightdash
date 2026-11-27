@@ -47,6 +47,7 @@ import {
 } from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { canWriteComposerChart } from '../../../features/composerCharts/hooks/useCanWriteComposerChart';
 import { getListedDocumentAccess } from '../../../features/documents/listedDocumentAccess';
 import {
     useContentBulkAction,
@@ -1052,6 +1053,17 @@ const InfiniteResourceTable = ({
                       typeof contentTableProps.enableRowSelection === 'function'
                           ? contentTableProps.enableRowSelection(row)
                           : true;
+                  if (
+                      allowed &&
+                      isResourceViewComposerChartItem(row.original)
+                  ) {
+                      const { projectUuid, spaceUuid } = row.original.data;
+                      return canWriteComposerChart(
+                          user.data,
+                          projectUuid,
+                          spaces.find(({ uuid }) => uuid === spaceUuid),
+                      );
+                  }
                   if (!allowed || !isResourceViewDocumentItem(row.original)) {
                       return allowed;
                   }
