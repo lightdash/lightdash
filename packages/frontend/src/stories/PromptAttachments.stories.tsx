@@ -82,8 +82,12 @@ const meta: Meta<typeof Scenario> = {
     args: {
         externalSources: [],
         pendingCsvFiles: [],
+        threadFiles: [],
+        pendingThreadFiles: [],
         elementRefs: [],
         composerNodes: [],
+        onRemoveThreadFile: fn(),
+        onCancelPendingFile: fn(),
         onRemoveExternalSource: fn(),
         onRemoveElementRef: fn(),
         onRemoveComposerNode: fn(),
@@ -136,6 +140,28 @@ export const Mixed: Story = {
             { id: 1, filename: 'customers.csv', status: 'preparing' },
         ],
         elementRefs: [heading, buttonWithoutLoc, longText],
+    },
+};
+
+export const Files: Story = {
+    args: {
+        threadFiles: [
+            {
+                type: 'thread_file',
+                fileUuid: 'file-1',
+                fileName: 'ai-thread-dump-e0eac525-7d02-436c-b4fb.json',
+                sizeBytes: 48_213,
+            },
+            {
+                type: 'thread_file',
+                fileUuid: 'file-2',
+                fileName: 'orders.csv',
+                sizeBytes: 1_204,
+            },
+        ],
+        pendingThreadFiles: [
+            { id: 1, filename: 'notes.md', kind: 'text', status: 'uploading' },
+        ],
     },
 };
 

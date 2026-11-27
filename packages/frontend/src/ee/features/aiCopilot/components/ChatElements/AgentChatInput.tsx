@@ -29,10 +29,8 @@ import {
     IconArrowUp,
     IconAlertTriangle,
     IconCheck,
-    IconFileText,
     IconFolderSearch,
     IconPaperclip,
-    IconPhoto,
     IconPlayerStopFilled,
     IconPlus,
     IconTelescope,
@@ -361,6 +359,22 @@ const extractToolHints = (editor: Editor | null): string[] => {
     return hints;
 };
 
+const TABULAR_FILE_PICKER_TYPES = [
+    '.csv',
+    '.tsv',
+    'text/csv',
+    'text/tab-separated-values',
+];
+const IMAGE_FILE_PICKER_TYPES = [
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.webp',
+];
+
 /**
  * Walkthrough action for create:AiDeepResearch: switching the composer to
  * deep research, the control that starts a run. Nothing is submitted; the
@@ -487,7 +501,6 @@ export const AgentChatInput = ({
             storeDispatch(clearThreadComposerNodes({ threadUuid }));
         }
     }, [storeDispatch, threadUuid]);
-    const resetCsvFileInputRef = useRef<() => void>(null);
     const { data: composeSqlRunnerFlag } = useServerFeatureFlag(
         FeatureFlags.ComposeSqlRunner,
     );
@@ -567,9 +580,7 @@ export const AgentChatInput = ({
     );
     const isPreparingAttachments =
         isPreparingCsv || isUploadingThreadFile || routingFileCount > 0;
-    const resetDocumentFileInputRef = useRef<() => void>(null);
-    const resetImageMenuFileInputRef = useRef<() => void>(null);
-    const resetImageToolbarFileInputRef = useRef<() => void>(null);
+    const resetAttachFileInputRef = useRef<() => void>(null);
     const [hasClickedInput, setHasClickedInput] = useState(
         !revealControlsOnFocus,
     );
@@ -1124,6 +1135,19 @@ export const AgentChatInput = ({
         !canSteer,
     );
     const canUseAttachControl = showAttachControl && composerMode === 'ask';
+    const canPickImages = Boolean(
+        canAttachThreadFile &&
+        imagesEnabled &&
+        !imageAttachmentsUnavailableReason,
+    );
+    const attachLabel = canPickImages
+        ? 'Attach an image or file'
+        : 'Attach a file';
+    const attachAccept = [
+        ...(canAttachThreadFile ? AI_THREAD_FILE_PICKER_EXTENSIONS : []),
+        ...(canAttachExternalSource ? TABULAR_FILE_PICKER_TYPES : []),
+        ...(canPickImages ? IMAGE_FILE_PICKER_TYPES : []),
+    ].join(',');
     // Dropped files take the same routes as the menu: CSV/TSV go to the
     // external-source flow when available. Sniffed images never hit text upload.
     const handleDroppedFiles = useCallback(
@@ -1251,11 +1275,11 @@ export const AgentChatInput = ({
                 </Stack>
             </Box>
         ) : null;
-    const showDeepResearchInComposerMenu = canStartDeepResearch && !disabled;
+    const showDeepResearchToggle = canStartDeepResearch && !disabled;
     const showComposerActionsMenu = Boolean(
         showSqlModeControl ||
         showAttachControl ||
-        showDeepResearchInComposerMenu ||
+        showDeepResearchToggle ||
         showThemeControl,
     );
 
@@ -1463,65 +1487,50 @@ export const AgentChatInput = ({
             </Box>
         );
 
+    // One picker for every kind of file; each is routed the way a dropped
+    // file is.
+    const renderAttachPicker = (
+        renderTrigger: (props: { onClick: () => void }) => ReactNode,
+    ) => (
+        <FileButton
+            accept={attachAccept}
+            multiple
+            resetRef={resetAttachFileInputRef}
+            inputProps={{ 'aria-label': 'Attachments' }}
+            onChange={(files) => {
+                resetAttachFileInputRef.current?.();
+                if (files.length > 0) void handleDroppedFiles(files);
+            }}
+        >
+            {renderTrigger}
+        </FileButton>
+    );
+    const attachAriaLabel = canUseAttachControl
+        ? attachLabel
+        : `${attachLabel} unavailable in deep research`;
+    const isAttachUnavailable = isPreparingAttachments || !canUseAttachControl;
+
+    const isDeepResearch = composerMode === 'deep_research';
+    // A run only takes the question, so files would be left behind.
+    const hasFileAttachments =
+        externalSourceAttachments.length > 0 ||
+        pendingCsvFiles.length > 0 ||
+        threadFileAttachments.length > 0 ||
+        pendingThreadFiles.length > 0;
+    const deepResearchBlockedReason = hasActiveDeepResearchRun
+        ? ACTIVE_DEEP_RESEARCH_DISABLED_REASON
+        : hasFileAttachments && !isDeepResearch
+          ? 'Remove the attachments to use deep research.'
+          : null;
+    const toggleDeepResearch = () =>
+        setComposerMode(isDeepResearch ? 'ask' : 'deep_research');
+
     const renderComposerActionsMenu = () => {
         if (!showComposerActionsMenu) {
             return null;
         }
 
-        const deepResearchMenuItem = (
-            <Menu.Item
-                aria-label={
-                    hasActiveDeepResearchRun
-                        ? `Deep research unavailable. ${ACTIVE_DEEP_RESEARCH_DISABLED_REASON}`
-                        : composerMode === 'deep_research'
-                          ? 'Disable deep research'
-                          : 'Enable deep research'
-                }
-                disabled={hasActiveDeepResearchRun}
-                closeMenuOnClick={false}
-                {...(composerMode === 'deep_research'
-                    ? {}
-                    : deepResearchTourAction)}
-                onClick={() =>
-                    setComposerMode(
-                        composerMode === 'deep_research'
-                            ? 'ask'
-                            : 'deep_research',
-                    )
-                }
-                leftSection={
-                    <MantineIcon
-                        icon={IconTelescope}
-                        size={14}
-                        color={
-                            composerMode === 'deep_research'
-                                ? 'indigo.5'
-                                : 'ldGray.6'
-                        }
-                    />
-                }
-                rightSection={
-                    composerMode === 'deep_research' ? (
-                        <MantineIcon
-                            icon={IconCheck}
-                            size={14}
-                            color="indigo.5"
-                        />
-                    ) : null
-                }
-            >
-                <Text component="span" size="sm">
-                    Deep research
-                </Text>
-                {hasActiveDeepResearchRun && (
-                    <Text component="span" display="block" size="xs" c="dimmed">
-                        {ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
-                    </Text>
-                )}
-            </Menu.Item>
-        );
-
-        // keepMounted: the file inputs live inside the dropdown. If it
+        // keepMounted: the file input lives inside the dropdown. If it
         // unmounted on item click, the native picker's result would land on a
         // detached input and never reach onChange.
         return (
@@ -1536,8 +1545,8 @@ export const AgentChatInput = ({
                         data-tour-hint="Open the composer options"
                         className={
                             showDeepResearchNudge &&
-                            !hasActiveDeepResearchRun &&
-                            composerMode !== 'deep_research'
+                            deepResearchBlockedReason === null &&
+                            !isDeepResearch
                                 ? styles.deepResearchNudge
                                 : undefined
                         }
@@ -1548,84 +1557,23 @@ export const AgentChatInput = ({
                 <Menu.Dropdown>
                     {showAttachControl && (
                         <>
-                            {canAttachExternalSource && (
-                                <FileButton
-                                    accept=".csv,.tsv,text/csv,text/tab-separated-values"
-                                    multiple
-                                    resetRef={resetCsvFileInputRef}
-                                    onChange={(files) => {
-                                        resetCsvFileInputRef.current?.();
-                                        if (files.length > 0) {
-                                            void attachCsvFiles(files);
-                                        }
-                                    }}
+                            {renderAttachPicker((fileButtonProps) => (
+                                <Menu.Item
+                                    {...fileButtonProps}
+                                    aria-label={attachAriaLabel}
+                                    disabled={isAttachUnavailable}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconPaperclip}
+                                            size={14}
+                                        />
+                                    }
                                 >
-                                    {(fileButtonProps) => (
-                                        <Menu.Item
-                                            {...fileButtonProps}
-                                            aria-label={
-                                                canUseAttachControl
-                                                    ? 'Attach a CSV'
-                                                    : 'Attach a CSV unavailable in deep research'
-                                            }
-                                            disabled={
-                                                isPreparingCsv ||
-                                                !canUseAttachControl
-                                            }
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconPaperclip}
-                                                    size={14}
-                                                />
-                                            }
-                                        >
-                                            Attach a CSV
-                                        </Menu.Item>
-                                    )}
-                                </FileButton>
-                            )}
-                            {canAttachThreadFile && (
-                                <FileButton
-                                    accept={AI_THREAD_FILE_PICKER_EXTENSIONS.filter(
-                                        (ext) =>
-                                            ext !== '.csv' && ext !== '.tsv',
-                                    ).join(',')}
-                                    multiple
-                                    resetRef={resetDocumentFileInputRef}
-                                    onChange={(files) => {
-                                        resetDocumentFileInputRef.current?.();
-                                        if (files.length > 0) {
-                                            void attachThreadFiles(files);
-                                        }
-                                    }}
-                                >
-                                    {(fileButtonProps) => (
-                                        <Menu.Item
-                                            {...fileButtonProps}
-                                            aria-label={
-                                                canUseAttachControl
-                                                    ? 'Attach a document'
-                                                    : 'Attach a document unavailable in deep research'
-                                            }
-                                            disabled={
-                                                isUploadingThreadFile ||
-                                                !canUseAttachControl
-                                            }
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconFileText}
-                                                    size={14}
-                                                />
-                                            }
-                                        >
-                                            Attach a document
-                                        </Menu.Item>
-                                    )}
-                                </FileButton>
-                            )}
-                            {renderImageAttachControl(true)}
+                                    {attachLabel}
+                                </Menu.Item>
+                            ))}
                             {(showSqlModeControl ||
-                                showDeepResearchInComposerMenu ||
+                                showDeepResearchToggle ||
                                 showThemeControl) && (
                                 <Menu.Divider role="separator" mx="sm" />
                             )}
@@ -1641,30 +1589,57 @@ export const AgentChatInput = ({
                             closeMenuOnClick={false}
                             onClick={() => onSqlModeChange?.(!sqlMode)}
                             leftSection={
-                                <MantineIcon
-                                    icon={IconTerminal2}
-                                    size={14}
-                                    color={sqlMode ? 'indigo.5' : 'ldGray.6'}
-                                />
+                                <MantineIcon icon={IconTerminal2} size={14} />
                             }
                             rightSection={
                                 sqlMode ? (
-                                    <MantineIcon
-                                        icon={IconCheck}
-                                        size={14}
-                                        color="indigo.5"
-                                    />
+                                    <MantineIcon icon={IconCheck} size={14} />
                                 ) : null
                             }
                         >
                             SQL Runner
                         </Menu.Item>
                     )}
-                    {showDeepResearchInComposerMenu && deepResearchMenuItem}
+                    {showDeepResearchToggle && (
+                        <Menu.Item
+                            aria-label={
+                                deepResearchBlockedReason
+                                    ? `Deep research unavailable. ${deepResearchBlockedReason}`
+                                    : isDeepResearch
+                                      ? 'Disable deep research'
+                                      : 'Enable deep research'
+                            }
+                            disabled={deepResearchBlockedReason !== null}
+                            closeMenuOnClick={false}
+                            {...(isDeepResearch ? {} : deepResearchTourAction)}
+                            onClick={toggleDeepResearch}
+                            leftSection={
+                                <MantineIcon icon={IconTelescope} size={14} />
+                            }
+                            rightSection={
+                                isDeepResearch ? (
+                                    <MantineIcon icon={IconCheck} size={14} />
+                                ) : null
+                            }
+                        >
+                            <Text component="span" size="sm">
+                                Deep research
+                            </Text>
+                            {deepResearchBlockedReason && (
+                                <Text
+                                    component="span"
+                                    display="block"
+                                    size="xs"
+                                    c="dimmed"
+                                >
+                                    {deepResearchBlockedReason}
+                                </Text>
+                            )}
+                        </Menu.Item>
+                    )}
                     {showThemeControl && (
                         <>
-                            {(showSqlModeControl ||
-                                showDeepResearchInComposerMenu) && (
+                            {(showSqlModeControl || showDeepResearchToggle) && (
                                 <Menu.Divider role="separator" mx="sm" />
                             )}
                             <ComposerThemeMenuEntry
@@ -1680,142 +1655,52 @@ export const AgentChatInput = ({
         );
     };
 
-    const renderImageAttachControl = (inMenu: boolean) => {
-        if (
-            !canAttachThreadFile ||
-            !imagesEnabled ||
-            !showAttachControl ||
-            imageAttachmentsUnavailableReason
-        )
-            return null;
-        const resetRef = inMenu
-            ? resetImageMenuFileInputRef
-            : resetImageToolbarFileInputRef;
-        const unavailable = isPreparingAttachments || !canUseAttachControl;
-        return (
-            <FileButton
-                accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
-                multiple
-                resetRef={resetRef}
-                disabled={unavailable}
-                inputProps={{ 'aria-label': 'Image attachments' }}
-                onChange={(files) => {
-                    resetRef.current?.();
-                    if (files.length > 0) void attachThreadImages(files);
-                }}
-            >
-                {(props) =>
-                    inMenu ? (
-                        <Menu.Item
-                            {...props}
-                            disabled={unavailable}
-                            aria-label="Attach an image"
-                            leftSection={
-                                <MantineIcon icon={IconPhoto} size={14} />
-                            }
+    // A mode that is on shows by the model; the menu is where it changes.
+    const showSqlModeOn = showSqlModeControl && sqlMode === true;
+    const showDeepResearchOn = showDeepResearchToggle && isDeepResearch;
+    const renderActiveModes = () =>
+        showSqlModeOn || showDeepResearchOn ? (
+            <Group gap={4} wrap="nowrap">
+                {showSqlModeOn && (
+                    <Tooltip
+                        label="SQL Runner is on"
+                        position="top"
+                        openDelay={300}
+                    >
+                        <Box
+                            role="img"
+                            aria-label="SQL Runner is on"
+                            className={styles.activeMode}
                         >
-                            Attach an image
-                        </Menu.Item>
-                    ) : (
-                        <Tooltip
-                            label="Attach an image"
-                            position="top"
-                            openDelay={300}
+                            <MantineIcon
+                                icon={IconTerminal2}
+                                size={16}
+                                color="dimmed"
+                            />
+                        </Box>
+                    </Tooltip>
+                )}
+                {showDeepResearchOn && (
+                    <Tooltip
+                        label="Deep research is on"
+                        position="top"
+                        openDelay={300}
+                    >
+                        <Box
+                            role="img"
+                            aria-label="Deep research is on"
+                            className={styles.activeMode}
                         >
-                            <ActionIcon
-                                {...props}
-                                size="xs"
-                                variant="transparent"
-                                disabled={unavailable}
-                                aria-label="Attach an image"
-                            >
-                                <MantineIcon
-                                    icon={IconPhoto}
-                                    size={14}
-                                    color="dimmed"
-                                />
-                            </ActionIcon>
-                        </Tooltip>
-                    )
-                }
-            </FileButton>
-        );
-    };
-
-    // Mid-thread the mode is fixed, so SQL, deep research and the model are labels.
-    const renderThreadToolbarStart = () => (
-        <Group gap="sm" align="center" wrap="wrap">
-            {canAttachThreadFile && showAttachControl && (
-                <FileButton
-                    accept={AI_THREAD_FILE_PICKER_EXTENSIONS.filter(
-                        (ext) => ext !== '.csv' && ext !== '.tsv',
-                    ).join(',')}
-                    multiple
-                    resetRef={resetDocumentFileInputRef}
-                    onChange={(files) => {
-                        resetDocumentFileInputRef.current?.();
-                        if (files.length > 0) {
-                            void attachThreadFiles(files);
-                        }
-                    }}
-                >
-                    {(fileButtonProps) => (
-                        <Tooltip
-                            label="Attach a document"
-                            position="top"
-                            openDelay={300}
-                        >
-                            <ActionIcon
-                                {...fileButtonProps}
-                                size="xs"
-                                variant="transparent"
-                                aria-label={
-                                    canUseAttachControl
-                                        ? 'Attach a document'
-                                        : 'Attach a document unavailable in deep research'
-                                }
-                                disabled={
-                                    isUploadingThreadFile ||
-                                    !canUseAttachControl
-                                }
-                            >
-                                <MantineIcon
-                                    icon={IconPaperclip}
-                                    size={14}
-                                    color="dimmed"
-                                />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </FileButton>
-            )}
-            {renderImageAttachControl(false)}
-            {sqlMode && (
-                <Group gap={4} wrap="nowrap">
-                    <MantineIcon
-                        icon={IconTerminal2}
-                        size={14}
-                        color="dimmed"
-                    />
-                    <Text size="xs" c="dimmed">
-                        Can run SQL
-                    </Text>
-                </Group>
-            )}
-            {composerMode === 'deep_research' && (
-                <Group gap={4} wrap="nowrap">
-                    <MantineIcon
-                        icon={IconTelescope}
-                        size={14}
-                        color="dimmed"
-                    />
-                    <Text size="xs" c="dimmed">
-                        Deep research
-                    </Text>
-                </Group>
-            )}
-        </Group>
-    );
+                            <MantineIcon
+                                icon={IconTelescope}
+                                size={16}
+                                color="dimmed"
+                            />
+                        </Box>
+                    </Tooltip>
+                )}
+            </Group>
+        ) : null;
 
     const renderThreadToolbarEnd = () =>
         threadModelName && (
@@ -1907,6 +1792,17 @@ export const AgentChatInput = ({
                 }}
             />
         ) : undefined;
+
+    // Everything that goes out with the prompt sits above the text.
+    const composerPinned =
+        pinnedContext && renderedAttachments ? (
+            <Stack gap={6}>
+                {pinnedContext}
+                {renderedAttachments}
+            </Stack>
+        ) : (
+            (pinnedContext ?? renderedAttachments)
+        );
 
     const renderComposerAction = (size: 'sm' | 'lg') => {
         if (canSteer && hasValue) {
@@ -2015,8 +1911,7 @@ export const AgentChatInput = ({
                                     ? styles.agentComposer
                                     : undefined
                             }
-                            attachments={renderedAttachments}
-                            pinned={pinnedContext}
+                            pinned={composerPinned}
                             toolbarLeft={
                                 // Wraps in a thread so labels never push send out of a narrow card.
                                 <Group
@@ -2027,12 +1922,11 @@ export const AgentChatInput = ({
                                     {renderComposerActionsMenu()}
                                     {renderThemeButton()}
                                     {toolbarStart}
-                                    {showThreadToolbar &&
-                                        renderThreadToolbarStart()}
                                 </Group>
                             }
                             toolbarRight={
                                 <Group gap="sm" align="center" wrap="nowrap">
+                                    {renderActiveModes()}
                                     {showThreadToolbar &&
                                         renderThreadToolbarEnd()}
                                     {renderComposerAction('sm')}
@@ -2093,8 +1987,7 @@ export const AgentChatInput = ({
                         resizeHandle={isThreadInput ? 'top' : 'bottom'}
                         className={styles.agentComposer}
                         onMouseDown={handleInputCardMouseDown}
-                        attachments={renderedAttachments}
-                        pinned={pinnedContext}
+                        pinned={composerPinned}
                         toolbarLeft={
                             <Group
                                 gap="xs"
@@ -2114,6 +2007,7 @@ export const AgentChatInput = ({
                                 wrap="nowrap"
                                 miw={0}
                             >
+                                {renderActiveModes()}
                                 <Box
                                     className={styles.toolbarSelectors}
                                     data-compact={isCompactLayout}
