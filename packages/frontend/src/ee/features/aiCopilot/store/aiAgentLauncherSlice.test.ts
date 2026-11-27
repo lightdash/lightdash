@@ -11,6 +11,7 @@ import {
     pendingContextResolved,
     resetActivePanel,
     setCurrentDashboard,
+    threadCreated,
     unpinContext,
     type AiAgentLauncherState,
     type LauncherPinnedContextEntry,
@@ -271,6 +272,35 @@ describe('content pinned to the next prompt', () => {
             }),
         );
         const state = reducer(dismissed, clearPinnedContext());
+        expect(state.pinnedContext).toEqual([]);
+        expect(state.pageContextDismissed).toBe(true);
+    });
+
+    it('keeps the dashboard dismissed once the new thread it was removed from is created', () => {
+        const writingNewThread = reducer(
+            reducer(
+                reducer(initial(), openDefaultAgentPanel({})),
+                setCurrentDashboard({
+                    projectUuid: 'p1',
+                    uuid: 'd1',
+                    name: 'd1',
+                    activeTabUuid: null,
+                    runtimeOverrides: null,
+                }),
+            ),
+            pendingContextResolved([chartEntry('c1')]),
+        );
+        const dismissed = reducer(
+            writingNewThread,
+            unpinContext({ key: 'dashboard:d1', dashboardUuid: 'd1' }),
+        );
+
+        const state = reducer(
+            dismissed,
+            threadCreated({ threadId: 't1', agentUuid: 'a1' }),
+        );
+
+        expect(state.activeThreadId).toBe('t1');
         expect(state.pinnedContext).toEqual([]);
         expect(state.pageContextDismissed).toBe(true);
     });
