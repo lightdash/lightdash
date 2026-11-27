@@ -1,15 +1,19 @@
 import {
     ChartType,
     DashboardTileTypes,
+    FeatureFlags,
     MAX_RESULTS_CACHE_TTL_SECONDS,
     MIN_RESULTS_CACHE_TTL_SECONDS,
     QueryExecutionContext,
     SEED_PROJECT,
     type ApiExecuteAsyncDashboardChartQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
+    type ApiQueryHistoryListResponse,
+    type ComposerChartRunResults,
     type CreateChartInSpace,
     type CreateDashboard,
     type Dashboard,
+    type DashboardComposerChartRunRequest,
     type ResultsCacheInvalidation,
     type ResultsCacheProjectSettings,
     type ResultsCacheStatus,
@@ -23,6 +27,11 @@ import {
     loginAsViewer,
     loginWithPermissions,
 } from '../helpers/auth';
+import {
+    apiClientSend,
+    createComposerDashboard,
+    type ComposerDashboard,
+} from '../helpers/composerDashboard';
 import { pollUntil } from '../helpers/polling';
 
 const settingsUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/results-cache-config`;
@@ -401,6 +410,75 @@ describe('Project results cache settings', () => {
                 { failOnStatusCode: false },
             );
             expect(dashboardResp.status).toBe(403);
+        });
+    });
+
+    describe('composer tile refresh', () => {
+        const queryUrl = `/api/v2/projects/${SEED_PROJECT.project_uuid}/query`;
+        const flagUrl = `/api/v2/feature-flag/${FeatureFlags.ComposerCharts}`;
+        let clearFlag = false;
+        let composer: ComposerDashboard;
+
+        beforeAll(async () => {
+            const flag = await admin.get<Body<{ enabled: boolean }>>(flagUrl);
+            if (!flag.body.results.enabled) {
+                await admin.post(flagUrl, { enabled: true });
+                clearFlag = true;
+            }
+            composer = await createComposerDashboard(apiClientSend(admin));
+        });
+
+        afterAll(async () => {
+            await admin.delete(
+                `/api/v1/dashboards/${composer.dashboard.uuid}`,
+                {
+                    failOnStatusCode: false,
+                },
+            );
+            if (clearFlag) await admin.delete(flagUrl);
+        });
+
+        const runComposerTile = async (invalidateCache: boolean) => {
+            const resp = await admin.post<Body<ComposerChartRunResults>>(
+                `${queryUrl}/dashboard-composer-chart`,
+                {
+                    composerChartUuid: composer.chart.uuid,
+                    dashboardUuid: composer.dashboard.uuid,
+                    tileUuid: composer.dashboard.tiles[0].uuid,
+                    dashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    parameters: {},
+                    excludedParameterKeys: [],
+                    invalidateCache,
+                } satisfies DashboardComposerChartRunRequest,
+            );
+            const [{ queryUuid }] = resp.body.results.queries;
+            await pollUntil<Body<{ status: string }>>(
+                admin,
+                `${queryUrl}/${queryUuid}`,
+                {
+                    timeout: 60_000,
+                    condition: (body) => body.results.status === 'ready',
+                },
+            );
+            const history = await admin.get<ApiQueryHistoryListResponse>(
+                `${queryUrl}/history?pageSize=100`,
+            );
+            const run = history.body.results.data.find(
+                (item) => item.queryUuid === queryUuid,
+            );
+            if (!run) throw new Error(`Query ${queryUuid} not in history`);
+            return run.cacheHit;
+        };
+
+        it('runs a composer tile fresh on refresh, and from the cache otherwise', async () => {
+            await runComposerTile(false);
+            expect(await runComposerTile(false)).toBe(true);
+            expect(await runComposerTile(true)).toBe(false);
+            expect(await runComposerTile(false)).toBe(true);
         });
     });
 });
