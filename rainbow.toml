@@ -7,7 +7,7 @@
 # supervisor kill it before scheduler jobs release their locks.
 [[app.service]]
 name = "dev"
-command = "exec bash scripts/rainbow/start-backend.sh"
+command = """cd packages/backend && { if [ -n "$${GOOGLE_SHEETS_DEV_REFRESH_TOKEN:-}" ]; then timeout --kill-after=2s 20s pnpm seed --specific=19_google_sheets_dev_grant.ts || echo "Google Sheets dev grant seed skipped" >&2; fi; unset GOOGLE_SHEETS_DEV_REFRESH_TOKEN && exec node --import tsx src/index.ts; }"""
 port = 8080
 serve = true
 restart_on_inject = true           # read the fork's SITE_URL and apply rotated secrets without re-seeding the DB
@@ -552,6 +552,5 @@ UPLOADS_S3_BUCKET = "config"
 AUTH_GOOGLE_OAUTH2_CLIENT_ID = "oauth-client"
 AUTH_GOOGLE_OAUTH2_CLIENT_SECRET = "oauth-client"
 GOOGLE_DRIVE_API_KEY = "api-key"
-# The shared test account's grant for the seeded admin. Replace it when a sync
-# fails with invalid_grant, or to rotate it on purpose (see the rainbow-env skill).
-GOOGLE_SHEETS_TEST_REFRESH_TOKEN = "oauth-refresh-token"
+# Shared test account refresh token for the development database seed.
+GOOGLE_SHEETS_DEV_REFRESH_TOKEN = "oauth-refresh-token"
