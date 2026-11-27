@@ -410,6 +410,7 @@ const projectModel = {
         tokenSource: { getIdToken: vi.fn() },
     }),
     countCachedExploresForDbtSource: vi.fn(async () => 2),
+    findApiSourceExploreNamesByIntegration: vi.fn(async () => []),
     hasExploreNameAllocations: vi.fn(async () => false),
     reconnectSharedSignIn: vi.fn<ProjectModel['reconnectSharedSignIn']>(
         async () => ({ kind: 'skipped' }),
