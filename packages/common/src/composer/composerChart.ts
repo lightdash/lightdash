@@ -586,7 +586,6 @@ export type ApiComposerChartResponse = {
 export type ComposerChartDashboard = {
     uuid: string;
     name: string;
-    slug: string;
 };
 
 export type ApiComposerChartDashboardsResponse = {

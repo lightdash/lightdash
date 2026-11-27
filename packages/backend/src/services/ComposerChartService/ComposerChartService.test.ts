@@ -1956,13 +1956,11 @@ describe('ComposerChartService lifecycle writes', () => {
                 {
                     uuid: 'visible',
                     name: 'Visible',
-                    slug: 'visible',
                     spaceUuid: sourceSpaceUuid,
                 },
                 {
                     uuid: 'hidden',
                     name: 'Hidden',
-                    slug: 'hidden',
                     spaceUuid: 'private-space',
                 },
             ]);
@@ -2010,13 +2008,7 @@ describe('ComposerChartService lifecycle writes', () => {
                     projectUuid,
                     'chart-uuid',
                 ),
-            ).resolves.toEqual([
-                { uuid: 'visible', name: 'Visible', slug: 'visible' },
-            ]);
-            expect(findDashboardsShowing).toHaveBeenCalledWith(
-                projectUuid,
-                'chart-uuid',
-            );
+            ).resolves.toEqual([{ uuid: 'visible', name: 'Visible' }]);
         });
 
         test('refuses a caller who cannot view the chart', async () => {

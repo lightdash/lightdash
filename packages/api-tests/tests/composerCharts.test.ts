@@ -2951,9 +2951,18 @@ describe('Composer charts', () => {
                 expect(second.status).toBe(201);
                 const editor = await loginAsEditor();
 
-                expect((await deleteChart(chart.uuid, editor)).status).toBe(
-                    200,
+                const viaContent = await editor.post(
+                    `/api/v2/content/${projectUuid}/delete`,
+                    {
+                        item: {
+                            uuid: chart.uuid,
+                            contentType: ContentType.COMPOSER_CHART,
+                        },
+                        action: { type: 'delete' },
+                    },
+                    { failOnStatusCode: false },
                 );
+                expect(viaContent.status).toBe(200);
                 expect((await getChart(chart.uuid)).status).toBe(404);
                 expect(
                     (
@@ -2972,18 +2981,10 @@ describe('Composer charts', () => {
                     (await admin.post(flagUrl, { enabled: false })).status,
                 ).toBe(200);
                 try {
-                    const viaContent = await admin.post(
-                        `/api/v2/content/${projectUuid}/delete`,
-                        {
-                            item: {
-                                uuid: second.body.results.uuid,
-                                contentType: ContentType.COMPOSER_CHART,
-                            },
-                            action: { type: 'delete' },
-                        },
-                        { failOnStatusCode: false },
-                    );
-                    expect(viaContent.status).toBe(200);
+                    expect(
+                        (await deleteChart(second.body.results.uuid, editor))
+                            .status,
+                    ).toBe(200);
                 } finally {
                     expect(
                         (await admin.post(flagUrl, { enabled: true })).status,
@@ -3035,13 +3036,7 @@ describe('Composer charts', () => {
                 ).toBe(200);
                 expect(
                     (await dashboardsShowing(owned.uuid)).body.results,
-                ).toEqual([
-                    {
-                        uuid: dashboard.uuid,
-                        name: dashboard.name,
-                        slug: dashboard.slug,
-                    },
-                ]);
+                ).toEqual([{ uuid: dashboard.uuid, name: dashboard.name }]);
 
                 const privateSpace = await createSpace(false);
                 const hidden = await postChart(
@@ -3168,7 +3163,7 @@ describe('Composer charts', () => {
                     {
                         uuid: owned.uuid,
                         contentType: ContentType.COMPOSER_CHART,
-                        reason: 'This composer chart belongs to a dashboard. Edit it from the dashboard.',
+                        reason: 'This composer chart belongs to a dashboard. Change it from that dashboard.',
                     },
                 ]);
 

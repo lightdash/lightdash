@@ -44,8 +44,8 @@ export const ComposerChartDeleteModal: FC<Props> = ({
     const count = dashboards.data?.length ?? 0;
     const plural = count > 1 ? 's' : '';
     const dashboardWarningTitle = softDeleteEnabled
-        ? `This chart tile will be removed from ${count} dashboard${plural}. The chart can be restored from Recently deleted.`
-        : `This action will permanently remove a chart tile from ${count} dashboard${plural}:`;
+        ? `Tiles on ${count} dashboard${plural} will show the chart as deleted. You can restore the chart from Recently deleted.`
+        : `Tiles on ${count} dashboard${plural} will show the chart as deleted:`;
 
     return (
         <MantineModal

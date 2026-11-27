@@ -680,7 +680,7 @@ export class ComposerChartService extends BaseService {
         account: RegisteredAccount,
         projectUuid: UUID,
         composerChartUuid: UUID,
-        action: 'update' | 'delete' = 'update',
+        action: 'update' | 'delete',
     ): Promise<UUID> {
         const { projectUuid: chartProjectUuid, owner } =
             await this.composerChartModel.getOwner(composerChartUuid);
@@ -699,7 +699,7 @@ export class ComposerChartService extends BaseService {
                 return owner.spaceUuid;
             case 'dashboard':
                 throw new ParameterError(
-                    'This composer chart belongs to a dashboard. Edit it from the dashboard.',
+                    'This composer chart belongs to a dashboard. Change it from that dashboard.',
                 );
             default:
                 return assertUnreachable(owner, 'Unknown composer chart owner');
@@ -721,6 +721,7 @@ export class ComposerChartService extends BaseService {
             account,
             projectUuid,
             composerChartUuid,
+            'update',
         );
         return this.composerChartModel.update(composerChartUuid, spaceUuid, {
             ...(name !== undefined ? { name } : {}),
@@ -779,7 +780,7 @@ export class ComposerChartService extends BaseService {
             ]),
         );
         const ability = this.createAuditedAbility(account);
-        return dashboards.flatMap(({ uuid, name, slug }) => {
+        return dashboards.flatMap(({ uuid, name }) => {
             const context = contexts.get(uuid);
             return context &&
                 ability.can(
@@ -789,7 +790,7 @@ export class ComposerChartService extends BaseService {
                         metadata: { dashboardUuid: uuid },
                     }),
                 )
-                ? [{ uuid, name, slug }]
+                ? [{ uuid, name }]
                 : [];
         });
     }
@@ -815,6 +816,7 @@ export class ComposerChartService extends BaseService {
             account,
             projectUuid,
             composerChartUuid,
+            'update',
         );
         await this.assertChartPermission(
             account,

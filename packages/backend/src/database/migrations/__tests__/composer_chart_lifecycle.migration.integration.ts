@@ -334,7 +334,6 @@ describe('composer charts follow their dashboard on the real schema', () => {
             {
                 uuid: showing.uuid,
                 name: showing.name,
-                slug: showing.slug,
                 spaceUuid: fixture.spaceUuid,
             },
         ]);

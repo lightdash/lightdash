@@ -7,6 +7,7 @@ import {
     parseComposerStoredChart,
     UnexpectedServerError,
     type ComposerChart,
+    type ComposerChartDashboard,
     type ComposerChartOwner,
     type ComposerChartPipeline,
     type ComposerChartWithDetails,
@@ -202,9 +203,7 @@ export class ComposerChartModel {
     async findDashboardsShowing(
         projectUuid: string,
         uuid: string,
-    ): Promise<
-        Array<{ uuid: string; name: string; slug: string; spaceUuid: string }>
-    > {
+    ): Promise<Array<ComposerChartDashboard & { spaceUuid: string }>> {
         return this.database(DashboardTileComposerChartsTableName)
             .innerJoin(
                 DashboardVersionsTableName,
@@ -249,7 +248,6 @@ export class ComposerChartModel {
             .distinct({
                 uuid: `${DashboardsTableName}.dashboard_uuid`,
                 name: `${DashboardsTableName}.name`,
-                slug: `${DashboardsTableName}.slug`,
                 spaceUuid: `${SpaceTableName}.space_uuid`,
             })
             .orderBy([{ column: 'name' }, { column: 'uuid' }]);

@@ -129,11 +129,11 @@ export class ComposerChartController extends BaseController {
 
     /**
      * Deletes a composer chart that a space owns. With soft delete on, the
-     * chart moves to Recently deleted; otherwise it is removed permanently.
-     * Dashboard tiles that show it stay on their dashboards. Requires
-     * permission to delete charts in the chart's space. Returns 400 for a
-     * composer chart that a dashboard owns, because that chart is removed
-     * with its tile.
+     * chart moves to Recently deleted. With soft delete off, the server
+     * deletes it permanently. Dashboard tiles that show the chart stay and
+     * show it as deleted. Requires permission to delete charts in the
+     * chart's space. Returns 400 for a composer chart that a dashboard owns,
+     * because deleting its tile deletes that chart.
      * @summary Delete composer chart
      */
     @Middlewares([
@@ -158,9 +158,9 @@ export class ComposerChartController extends BaseController {
     }
 
     /**
-     * Lists the dashboards whose latest version has a tile showing a composer
-     * chart, leaving out those the caller cannot view. Anyone who can view
-     * the chart can read the list.
+     * Lists the dashboards whose latest version has a tile that shows the
+     * composer chart. Leaves out dashboards the caller cannot view. Anyone
+     * who can view the chart can read the list.
      * @summary List dashboards showing composer chart
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

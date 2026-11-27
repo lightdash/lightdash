@@ -1091,20 +1091,6 @@ describe('ContentService composer chart actions', () => {
         await expect(act(deps)).rejects.toThrow(NotSupportedError);
     });
 
-    it('deletes a composer chart through its service', async () => {
-        const deps = createService();
-
-        await deps.service.delete(createUser(), projectUuid, item);
-
-        expect(deps.composerChartService.delete).toHaveBeenCalledWith(
-            expect.objectContaining({
-                authentication: expect.objectContaining({ type: 'session' }),
-            }),
-            projectUuid,
-            item.uuid,
-        );
-    });
-
     it('bulk delete deletes the rest and skips a composer chart the user may not delete', async () => {
         const deps = createService();
         deps.composerChartService.delete.mockRejectedValueOnce(

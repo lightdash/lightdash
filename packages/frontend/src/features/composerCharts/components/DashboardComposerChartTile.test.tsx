@@ -212,7 +212,6 @@ describe('DashboardComposerChartTile "Export image"', () => {
 describe('DashboardComposerChartTile with a deleted chart', () => {
     afterEach(cleanup);
 
-    // The dashboard read names only live charts, so a trashed chart arrives without a name
     it('shows the deleted-chart state when the chart is in Recently deleted', async () => {
         renderWithProviders(
             <DashboardStoreTestProvider store={createDashboardTestStore({})}>
