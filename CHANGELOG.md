@@ -1,3 +1,10 @@
+## [3.420.5](https://github.com/lightdash/lightdash/compare/3.420.4...3.420.5) (2026-11-27)
+
+
+### Bug Fixes
+
+* keep the Metrics Catalog category filter on empty results ([#32372](https://github.com/lightdash/lightdash/issues/32372)) ([af5c67c](https://github.com/lightdash/lightdash/commit/af5c67cf3a6e40bf7dab185895864ae4c8f3cf17))
+
 ## [3.420.4](https://github.com/lightdash/lightdash/compare/3.420.3...3.420.4) (2026-11-27)
 
 
