@@ -1,4 +1,10 @@
-import { SearchItemType, type SearchResults } from '@lightdash/common';
+import {
+    ChartKind,
+    SearchItemType,
+    type ComposerChartSearchResult,
+    type SearchResults,
+} from '@lightdash/common';
+import { IconChartLine } from '@tabler/icons-react';
 import { describe, expect, it } from 'vitest';
 import { getSearchItemMap } from './getSearchItemMap';
 
@@ -13,6 +19,7 @@ const emptyResults = {
     fields: [],
     pages: [],
     dataApps: [],
+    composerCharts: [],
 } as SearchResults;
 
 describe('getSearchItemMap', () => {
@@ -105,5 +112,45 @@ describe('getSearchItemMap', () => {
         expect(result.savedCharts[0].location.pathname).toBe(
             '/projects/project-slug/saved/chart-slug',
         );
+    });
+
+    it('ranks composer charts with saved charts and links them to their page', () => {
+        const composerChart: ComposerChartSearchResult = {
+            uuid: 'composer-uuid',
+            slug: 'composer-slug',
+            name: 'Revenue',
+            description: null,
+            spaceUuid: 'space-uuid',
+            projectUuid: 'project-uuid',
+            chartType: ChartKind.LINE,
+            chartSource: 'composer',
+            createdBy: null,
+            search_rank: 0.8,
+        };
+        const result = getSearchItemMap(
+            {
+                ...emptyResults,
+                savedCharts: [
+                    { uuid: 'high', slug: 'high', search_rank: 0.9 },
+                    { uuid: 'low', slug: 'low', search_rank: 0.1 },
+                ],
+                composerCharts: [composerChart],
+            } as SearchResults,
+            'project-uuid',
+            'project-slug',
+        );
+
+        expect(result).not.toHaveProperty('composerCharts');
+        expect(result.savedCharts.map(({ searchRank }) => searchRank)).toEqual([
+            0.9, 0.8, 0.1,
+        ]);
+        expect(result.savedCharts[1]).toMatchObject({
+            type: SearchItemType.COMPOSER_CHART,
+            icon: IconChartLine,
+            location: {
+                pathname:
+                    '/projects/project-uuid/composer-charts/composer-uuid',
+            },
+        });
     });
 });

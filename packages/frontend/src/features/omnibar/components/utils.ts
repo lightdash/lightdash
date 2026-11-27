@@ -30,6 +30,7 @@ export const getOmnibarItemColor = (itemType: SearchItemType) => {
         case SearchItemType.DASHBOARD:
             return 'green.6';
         case SearchItemType.CHART:
+        case SearchItemType.COMPOSER_CHART:
             return 'blue.6';
         case SearchItemType.SPACE:
             return 'violet.6';
@@ -68,6 +69,7 @@ export const getOmnibarItemIcon = (item: SearchItem) => {
             return IconLayoutDashboard;
         case SearchItemType.CHART:
         case SearchItemType.SQL_CHART:
+        case SearchItemType.COMPOSER_CHART:
             return getChartIcon(
                 // FIXME: typing is loose here
                 (item.item as SavedChartSearchResult)?.chartType,

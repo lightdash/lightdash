@@ -1,6 +1,7 @@
 import {
     AllChartsSearchResult,
     ChartKind,
+    ComposerChartSearchResult,
     ContentType,
     ContentVerificationInfo,
     DashboardChartSummary,
@@ -12,6 +13,7 @@ import {
     ExploreError,
     ExploreType,
     FieldSearchResult,
+    getChartKind,
     hasIntersection,
     isDimension,
     isExploreError,
@@ -27,12 +29,17 @@ import {
     TableSearchResult,
     TableSelectionType,
     type ApiConnectorType,
+    type ChartConfig,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     AppsTableName,
     AppVersionsTableName,
 } from '../../database/entities/apps';
+import {
+    ComposerChartsTableName,
+    ComposerChartVersionsTableName,
+} from '../../database/entities/composerCharts';
 import { ContentVerificationTableName } from '../../database/entities/contentVerification';
 import {
     DashboardsTableName,
@@ -1306,6 +1313,127 @@ export class SearchModel {
         }));
     }
 
+    async searchComposerCharts(
+        projectUuid: string,
+        query: string,
+        filters?: SearchFilters,
+    ): Promise<ComposerChartSearchResult[]> {
+        // The "Charts" filter covers composer charts; they can't be verified
+        if (
+            filters?.verifiedOnly ||
+            !(
+                shouldSearchForType(
+                    SearchItemType.COMPOSER_CHART,
+                    filters?.type,
+                ) || shouldSearchForType(SearchItemType.CHART, filters?.type)
+            )
+        ) {
+            return [];
+        }
+        const searchVectorColumn = `${ComposerChartsTableName}.search_vector`;
+        const searchRank = getFullTextSearchRankCalcSql({
+            database: this.database,
+            variables: { searchVectorColumn, searchQuery: query },
+            nameColumn: `${ComposerChartsTableName}.name`,
+        });
+        const searchFilter = getFullTextSearchFilterSql({
+            database: this.database,
+            searchVectorColumn,
+            searchQuery: query,
+        });
+        // Space-owned only: the inner join on space_uuid drops dashboard-owned charts
+        const baseQuery = this.database(ComposerChartsTableName)
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_uuid`,
+                `${ComposerChartsTableName}.space_uuid`,
+            )
+            .leftJoin(
+                `${UserTableName} as creator`,
+                'creator.user_uuid',
+                `${ComposerChartsTableName}.created_by_user_uuid`,
+            )
+            .select(
+                { uuid: `${ComposerChartsTableName}.composer_chart_uuid` },
+                `${ComposerChartsTableName}.slug`,
+                `${ComposerChartsTableName}.name`,
+                `${ComposerChartsTableName}.description`,
+                { projectUuid: `${ComposerChartsTableName}.project_uuid` },
+                { spaceUuid: `${SpaceTableName}.space_uuid` },
+                { search_rank: searchRank },
+                { firstName: 'creator.first_name' },
+                { lastName: 'creator.last_name' },
+                { userUuid: 'creator.user_uuid' },
+            )
+            .where(`${ComposerChartsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${ComposerChartsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .whereRaw(searchFilter)
+            .orderBy('search_rank', 'desc')
+            .orderBy(`${ComposerChartsTableName}.composer_chart_uuid`)
+            .limit(SEARCH_LIMIT_PER_ITEM_TYPE);
+        const dateFiltered = filterByCreatedAt(
+            ComposerChartsTableName,
+            baseQuery,
+            filters,
+        );
+        const rows: (Omit<
+            ComposerChartSearchResult,
+            'createdBy' | 'chartType' | 'chartSource'
+        > & {
+            firstName: string | null;
+            lastName: string | null;
+            userUuid: string | null;
+        })[] = await filterByCreatedByUuid(
+            dateFiltered,
+            {
+                tableName: ComposerChartsTableName,
+                tableUserUuidColumnName: 'created_by_user_uuid',
+            },
+            filters,
+        );
+        if (rows.length === 0) return [];
+
+        // Stored charts passed the strict chart parser when written
+        const latestChartConfigs = await this.database(
+            ComposerChartVersionsTableName,
+        )
+            .distinctOn('composer_chart_uuid')
+            .select<
+                { composer_chart_uuid: string; chart_config: ChartConfig }[]
+            >(
+                'composer_chart_uuid',
+                this.database.raw(`chart -> 'chartConfig' AS chart_config`),
+            )
+            .whereIn(
+                'composer_chart_uuid',
+                rows.map(({ uuid }) => uuid),
+            )
+            .orderBy([
+                { column: 'composer_chart_uuid' },
+                { column: 'created_at', order: 'desc' },
+            ]);
+        const chartKindByUuid = new Map(
+            latestChartConfigs.map(({ composer_chart_uuid, chart_config }) => [
+                composer_chart_uuid,
+                getChartKind(chart_config.type, chart_config.config) ?? null,
+            ]),
+        );
+
+        return rows.map(({ firstName, lastName, userUuid, ...chart }) => ({
+            ...chart,
+            chartType: chartKindByUuid.get(chart.uuid) ?? null,
+            chartSource: 'composer' as const,
+            createdBy: userUuid
+                ? {
+                      firstName: firstName ?? '',
+                      lastName: lastName ?? '',
+                      userUuid,
+                  }
+                : null,
+        }));
+    }
+
     async searchDataApps(
         projectUuid: string,
         query: string,
@@ -2048,6 +2176,7 @@ export class SearchModel {
                 dashboardTabs: [],
                 dataApps: [],
                 documents: [],
+                composerCharts: [],
             };
         }
 
@@ -2107,6 +2236,11 @@ export class SearchModel {
             query,
             filters,
         );
+        const composerCharts = await this.searchComposerCharts(
+            projectUuid,
+            query,
+            filters,
+        );
 
         const explores = await this.getProjectExplores(
             projectUuid,
@@ -2144,6 +2278,7 @@ export class SearchModel {
             dashboardTabs,
             dataApps,
             documents,
+            composerCharts,
         };
     }
 }

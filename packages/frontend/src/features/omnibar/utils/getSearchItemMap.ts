@@ -8,6 +8,7 @@ import {
     SearchItemType,
     type SearchResults,
 } from '@lightdash/common';
+import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { type SearchItem } from '../types/searchItem';
 
@@ -70,6 +71,18 @@ export const getSearchItemMap = (
         searchRank: item.search_rank,
         location: {
             pathname: `/projects/${projectUrlIdentifier}/saved/${item.slug}`,
+        },
+    }));
+
+    const composerCharts = results.composerCharts.map<SearchItem>((item) => ({
+        type: SearchItemType.COMPOSER_CHART,
+        title: item.name,
+        description: item.description ?? undefined,
+        icon: getChartIcon(item.chartType ?? undefined),
+        item,
+        searchRank: item.search_rank,
+        location: {
+            pathname: `/projects/${projectUuid}/composer-charts/${item.uuid}`,
         },
     }));
 
@@ -182,7 +195,10 @@ export const getSearchItemMap = (
         spaces,
         documents,
         dashboards,
-        savedCharts,
+        // Composer charts share the "Charts" group, ranked together
+        savedCharts: [...savedCharts, ...composerCharts].sort(
+            (a, b) => (b.searchRank ?? 0) - (a.searchRank ?? 0),
+        ),
         sqlCharts,
         tables,
         fields,

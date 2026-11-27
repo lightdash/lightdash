@@ -58,5 +58,9 @@
     {
         "column": "ai_thread_file.storage_key",
         "reason": "Previous releases read and update ai_thread_file only through single-table queries in AiThreadFileModel; no existing join can become ambiguous when the nullable object reference is added."
+    },
+    {
+        "column": "composer_charts.search_vector",
+        "reason": "Generated column, never written. Previous releases select composer chart columns by name and qualify every search_vector they read, so no join with spaces, dashboards or saved charts becomes ambiguous."
     }
 ]

@@ -7,6 +7,7 @@ import {
     getContentAsCodePathFromLtreePath,
     MergeJoinType,
     QuerySourceType,
+    SearchItemType,
     SEED_DATA_APP_VIZ,
     SEED_ORG_1,
     SEED_ORG_1_EDITOR,
@@ -25,6 +26,7 @@ import {
     type DashboardFieldTarget,
     type ExecuteComposerChartRequest,
     type QueryHistoryListItem,
+    type SearchResults,
     type Space,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
@@ -2350,6 +2352,50 @@ describe('Composer charts', () => {
                 dates: ['I feel great!!!'],
                 currency: ['usd'],
             });
+        });
+
+        it('search finds a chart for viewers of its space under the Charts filter, and none with the flag off', async () => {
+            const token = `ledger${randomUUID().slice(0, 8)}`;
+            const create = async (space: Space) => {
+                const created = await postChart({
+                    ...composerSpaceChartBody(space.uuid),
+                    name: `Composer ${token}`,
+                });
+                expect(created.status).toBe(201);
+                return created.body.results;
+            };
+            const shared = await create(await createSpace());
+            const hidden = await create(await createSpace(false));
+            const search = async (client: ApiClient, type?: SearchItemType) => {
+                const resp = await client.get<Body<SearchResults>>(
+                    `/api/v1/projects/${projectUuid}/search/${token}${
+                        type ? `?type=${type}` : ''
+                    }`,
+                );
+                expect(resp.status).toBe(200);
+                return resp.body.results.composerCharts.map(({ uuid }) => uuid);
+            };
+
+            expect((await search(admin)).sort()).toEqual(
+                [shared.uuid, hidden.uuid].sort(),
+            );
+            const editor = await loginAsEditor();
+            expect(await search(editor)).toEqual([shared.uuid]);
+            expect(await search(editor, SearchItemType.CHART)).toEqual([
+                shared.uuid,
+            ]);
+            expect(await search(editor, SearchItemType.SQL_CHART)).toEqual([]);
+
+            expect((await admin.post(flagUrl, { enabled: false })).status).toBe(
+                200,
+            );
+            try {
+                expect(await search(admin)).toEqual([]);
+            } finally {
+                expect(
+                    (await admin.post(flagUrl, { enabled: true })).status,
+                ).toBe(200);
+            }
         });
 
         it('downloads as code under its own space with no dashboard, and refuses the file on upload', async () => {
