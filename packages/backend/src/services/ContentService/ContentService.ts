@@ -367,7 +367,7 @@ export class ContentService extends BaseService {
                                   context &&
                                   auditedAbility.can(
                                       'view',
-                                      subject('SavedChart', context),
+                                      subject('SavedChart', { ...context }),
                                   )
                                       ? [target.spaceUuid]
                                       : [],
