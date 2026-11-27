@@ -1,5 +1,11 @@
-import { ForbiddenError } from '@lightdash/common';
+import {
+    BigqueryMissingTableError,
+    ForbiddenError,
+    SCHEDULER_TASKS,
+    type GsheetsNotificationPayload,
+} from '@lightdash/common';
 import { getDailyDatesFromCron } from './SchedulerClient';
+import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 import { SchedulerWorker } from './SchedulerWorker';
 
 describe('Cron converter', () => {
@@ -177,4 +183,153 @@ describe('connection jobs at the Graphile dispatch boundary', () => {
             expect(session).not.toHaveBeenCalled();
         },
     );
+});
+
+describe('recurring Google Sheets uploads at the worker boundary', () => {
+    const cronScheduledAt = '2026-11-26T18:00:00.000Z';
+    const missing = new BigqueryMissingTableError(
+        'warehouse error',
+        'project:Sales.Orders',
+        'EU',
+    );
+    class SheetsWorker extends SchedulerWorker {
+        public uploadGsheets = vi.fn();
+        public handleScheduledDelivery = vi.fn();
+        public notifyGsheetsDeliveryFailure = vi.fn();
+
+        public get tasks() {
+            return this.getFullTaskList();
+        }
+    }
+
+    const setup = (cause: Error) => {
+        const recordBigQueryTableOutcome = vi.fn().mockResolvedValue(undefined);
+        const notifyBigQueryTableAttempt = vi.fn().mockResolvedValue(undefined);
+        const worker = new SheetsWorker({
+            lightdashConfig: { scheduler: { tasks: [], jobTimeout: 10000 } },
+            schedulerService: {
+                recordBigQueryTableOutcome,
+                notifyBigQueryTableAttempt,
+            },
+        } as unknown as ConstructorParameters<typeof SchedulerWorker>[0]);
+        const error = new SchedulerDeliveryError({
+            cause,
+            createdByUserUuid: 'owner',
+            notification: {
+                organizationUuid: 'org',
+                recipientEmail: undefined,
+                schedulerName: 'daily',
+                deliveryUrl: '',
+            },
+        });
+        worker.uploadGsheets.mockRejectedValue(error);
+        const payload: GsheetsNotificationPayload = {
+            schedulerUuid: 'scheduler',
+            projectUuid: 'project',
+            userUuid: 'owner',
+            organizationUuid: 'org',
+            scheduledTime: new Date(),
+            jobGroup: 'parent-job',
+        };
+        const helpers = (attempts: number) =>
+            ({
+                job: {
+                    id: 'job',
+                    attempts,
+                    max_attempts: 6,
+                    run_at: new Date(),
+                },
+            }) as never;
+        const upload = (attempt: number, occurrence?: string) =>
+            worker.tasks[SCHEDULER_TASKS.UPLOAD_GSHEETS](
+                { ...payload, cronScheduledAt: occurrence },
+                helpers(attempt),
+            );
+        return {
+            worker,
+            upload,
+            notifyBigQueryTableAttempt,
+            recordBigQueryTableOutcome,
+            payload,
+            helpers,
+        };
+    };
+
+    it('alerts on each attempt and records the table only when retries are exhausted', async () => {
+        const {
+            worker,
+            upload,
+            notifyBigQueryTableAttempt,
+            recordBigQueryTableOutcome,
+        } = setup(missing);
+        await expect(upload(1, cronScheduledAt)).rejects.toBe(missing);
+        expect(recordBigQueryTableOutcome).not.toHaveBeenCalled();
+        await expect(upload(6, cronScheduledAt)).rejects.toBe(missing);
+        expect(notifyBigQueryTableAttempt.mock.calls).toEqual([
+            ['scheduler', 'job', 1, new Date(cronScheduledAt)],
+            ['scheduler', 'job', 6, new Date(cronScheduledAt)],
+        ]);
+        expect(recordBigQueryTableOutcome).toHaveBeenCalledExactlyOnceWith(
+            'scheduler',
+            new Date(cronScheduledAt),
+            'project:Sales.Orders in EU',
+        );
+        expect(worker.notifyGsheetsDeliveryFailure).not.toHaveBeenCalled();
+    });
+
+    it('leaves manual and unmarked queued jobs on the standard notification path', async () => {
+        const {
+            worker,
+            upload,
+            notifyBigQueryTableAttempt,
+            recordBigQueryTableOutcome,
+        } = setup(missing);
+        await expect(upload(6)).rejects.toBe(missing);
+        expect(notifyBigQueryTableAttempt).not.toHaveBeenCalled();
+        expect(recordBigQueryTableOutcome).not.toHaveBeenCalled();
+        expect(worker.notifyGsheetsDeliveryFailure).toHaveBeenCalledOnce();
+    });
+
+    it('resets only on terminal unrelated errors even when their message looks identical', async () => {
+        const cause = new Error(
+            'Not found: Table project:Sales.Orders was not found in location EU',
+        );
+        const {
+            worker,
+            upload,
+            notifyBigQueryTableAttempt,
+            recordBigQueryTableOutcome,
+        } = setup(cause);
+        await expect(upload(1, cronScheduledAt)).rejects.toBe(cause);
+        expect(recordBigQueryTableOutcome).not.toHaveBeenCalled();
+        await expect(upload(6, cronScheduledAt)).rejects.toBe(cause);
+        expect(recordBigQueryTableOutcome).toHaveBeenCalledExactlyOnceWith(
+            'scheduler',
+            new Date(cronScheduledAt),
+            null,
+        );
+        expect(notifyBigQueryTableAttempt).not.toHaveBeenCalled();
+        expect(worker.notifyGsheetsDeliveryFailure).toHaveBeenCalledOnce();
+    });
+
+    it('resets on a terminal parent failure before enqueue and leaves successful dispatch to the upload', async () => {
+        const { worker, recordBigQueryTableOutcome, helpers, payload } =
+            setup(missing);
+        const dispatch = (attempt: number) =>
+            worker.tasks[SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY](
+                { ...payload, cronScheduledAt },
+                helpers(attempt),
+            );
+        await dispatch(1);
+        const error = new Error('schedule lookup failed');
+        worker.handleScheduledDelivery.mockRejectedValue(error);
+        await expect(dispatch(1)).rejects.toBe(error);
+        expect(recordBigQueryTableOutcome).not.toHaveBeenCalled();
+        await expect(dispatch(6)).rejects.toBe(error);
+        expect(recordBigQueryTableOutcome).toHaveBeenCalledExactlyOnceWith(
+            'scheduler',
+            new Date(cronScheduledAt),
+            null,
+        );
+    });
 });

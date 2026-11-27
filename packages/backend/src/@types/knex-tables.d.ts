@@ -498,6 +498,8 @@ import {
     SchedulerMsTeamsTargetTableName,
     SchedulerSlackTargetTable,
     SchedulerSlackTargetTableName,
+    SchedulerBigQueryAttemptsTable,
+    SchedulerBigQueryAttemptsTableName,
     SchedulerTable,
     SchedulerTableName,
 } from '../database/entities/scheduler';
@@ -959,6 +961,7 @@ declare module 'knex/types/tables' {
         [PinnedSpaceTableName]: PinnedSpaceTable;
         [PinnedAppTableName]: PinnedAppTable;
         [PinnedDocumentTableName]: PinnedDocumentTable;
+        [SchedulerBigQueryAttemptsTableName]: SchedulerBigQueryAttemptsTable;
         [SchedulerTableName]: SchedulerTable;
         [SchedulerSlackTargetTableName]: SchedulerSlackTargetTable;
         [SchedulerEmailTargetTableName]: SchedulerEmailTargetTable;

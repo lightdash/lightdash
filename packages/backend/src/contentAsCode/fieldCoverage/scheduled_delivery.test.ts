@@ -4,7 +4,10 @@ describeContentAsCodeSchemaContract({
     resource: 'scheduled_delivery',
     modelSchema: 'SchedulerAndTargets',
     documentSchema: 'ScheduledDeliveryAsCode',
-    serverMetadataFields: ['automaticallyDisabledReason'],
+    serverMetadataFields: [
+        'automaticallyDisabledReason',
+        'missingTableWarning',
+    ],
     skippedModelFields: [
         'appName',
         'appState',

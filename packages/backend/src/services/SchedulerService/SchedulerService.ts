@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertIsAccountWithOrg,
+    type BigQueryTableNoticePayload,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     DATA_APP_VIZ_TEMPLATE,
@@ -85,9 +86,16 @@ import { BaseService } from '../BaseService';
 import type { SoftDeleteOptions } from '../SoftDeletableService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
+import type { BigQueryTableFailureNotice } from './BigQueryTableNotifications';
 import { assertCanReplaceChartFilters } from './chartFilterOverridesAccess';
 
+type SendBigQueryNotice = (
+    notice: BigQueryTableFailureNotice,
+    channel: BigQueryTableNoticePayload['channel'],
+) => Promise<void>;
+
 type SchedulerServiceArguments = {
+    sendBigQueryNotice: SendBigQueryNotice;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     schedulerModel: SchedulerModel;
@@ -158,7 +166,10 @@ export class SchedulerService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    private readonly sendBigQueryNotice: SendBigQueryNotice;
+
     constructor({
+        sendBigQueryNotice,
         lightdashConfig,
         analytics,
         schedulerModel,
@@ -177,6 +188,7 @@ export class SchedulerService extends BaseService {
         spacePermissionService,
     }: SchedulerServiceArguments) {
         super();
+        this.sendBigQueryNotice = sendBigQueryNotice;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.schedulerModel = schedulerModel;
@@ -1162,6 +1174,63 @@ export class SchedulerService extends BaseService {
         );
 
         return scheduler;
+    }
+
+    async notifyBigQueryTableAttempt(
+        schedulerUuid: string,
+        jobId: string,
+        attempt: number,
+        scheduledTime: Date,
+    ): Promise<void> {
+        await this.schedulerModel.enqueueBigQueryTableAttempt(
+            schedulerUuid,
+            jobId,
+            attempt,
+            scheduledTime,
+        );
+    }
+
+    async recordBigQueryTableOutcome(
+        schedulerUuid: string,
+        scheduledTime: Date,
+        missingTable: string | null,
+    ): Promise<void> {
+        await this.schedulerModel.recordBigQueryTableOutcome(
+            schedulerUuid,
+            scheduledTime,
+            missingTable,
+        );
+    }
+
+    async deliverBigQueryTableNotice({
+        schedulerUuid,
+        event,
+        channel,
+    }: BigQueryTableNoticePayload): Promise<void> {
+        const scheduler =
+            await this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
+        const { projectUuid, organizationUuid } =
+            await this.getSchedulerProjectContext(scheduler);
+        const { resourceType, resourceId } =
+            getSchedulerResourceTypeAndId(scheduler);
+        const paths = {
+            [SchedulerResourceType.CHART]: `saved/${resourceId}/view`,
+            [SchedulerResourceType.DASHBOARD]: `dashboards/${resourceId}/view`,
+            [SchedulerResourceType.SQL_CHART]: `sql-runner/${resourceId}`,
+            [SchedulerResourceType.APP]: `apps/${resourceId}/view`,
+        };
+        const deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/${paths[resourceType]}?scheduler_uuid=${schedulerUuid}&isSync=true`;
+        await this.sendBigQueryNotice(
+            {
+                organizationUuid,
+                schedulerUuid,
+                ownerUuid: scheduler.createdBy,
+                schedulerName: scheduler.name,
+                deliveryUrl,
+                event,
+            },
+            channel,
+        );
     }
 
     async setSchedulerEnabled(

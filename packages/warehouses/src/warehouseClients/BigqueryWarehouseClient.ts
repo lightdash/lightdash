@@ -19,6 +19,7 @@ import {
     BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     BigqueryAuthenticationType,
     BigqueryDataset,
+    BigqueryMissingTableError,
     BigqueryProject,
     BigqueryProjectRecommendation,
     BigqueryTokenError,
@@ -1180,6 +1181,19 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             return new WarehouseQueryError(getErrorMessage(error));
         }
         switch (error?.reason) {
+            case 'notFound': {
+                const missing = error.message?.match(
+                    /^Not found: Table ([\w.-]+:\w+\.[\w$-]+) was not found in location ([\w-]+)$/,
+                );
+                if (missing) {
+                    return new BigqueryMissingTableError(
+                        `Bigquery warehouse error: notFound - ${error.message}`,
+                        missing[1],
+                        missing[2],
+                    );
+                }
+                break;
+            }
             case 'accessDenied':
                 if (error.message?.includes('Drive credentials')) {
                     return new WarehouseQueryError(

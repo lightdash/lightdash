@@ -178,6 +178,7 @@ const buildUser = (
 
 const buildService = () =>
     new SchedulerService({
+        sendBigQueryNotice: vi.fn(),
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         schedulerModel: schedulerModel as unknown as SchedulerModel,
@@ -391,6 +392,7 @@ describe('SchedulerService', () => {
                     joinChannels: vi.fn(async () => {}),
                 };
                 const appSendService = new SchedulerService({
+                    sendBigQueryNotice: vi.fn(),
                     lightdashConfig: lightdashConfigMock,
                     analytics: analyticsMock,
                     schedulerModel: {} as SchedulerModel,
@@ -779,6 +781,7 @@ describe('SchedulerService', () => {
                 ),
             };
             const appListService = new SchedulerService({
+                sendBigQueryNotice: vi.fn(),
                 lightdashConfig: lightdashConfigMock,
                 analytics: analyticsMock,
                 schedulerModel:
@@ -947,6 +950,7 @@ describe('SchedulerService', () => {
             };
 
             const reassignService = new SchedulerService({
+                sendBigQueryNotice: vi.fn(),
                 lightdashConfig: lightdashConfigMock,
                 analytics: analyticsMock,
                 schedulerModel:
@@ -1070,6 +1074,7 @@ describe('SchedulerService', () => {
             };
 
             const updateService = new SchedulerService({
+                sendBigQueryNotice: vi.fn(),
                 lightdashConfig: lightdashConfigMock,
                 analytics: analyticsMock,
                 schedulerModel:
@@ -1271,6 +1276,7 @@ describe('SchedulerService', () => {
             };
             const getRefreshToken = vi.fn().mockResolvedValue('refresh-token');
             const appService = new SchedulerService({
+                sendBigQueryNotice: vi.fn(),
                 lightdashConfig: lightdashConfigMock,
                 analytics: analyticsMock,
                 schedulerModel: appSchedulerModel as unknown as SchedulerModel,
@@ -1706,6 +1712,7 @@ describe('SchedulerService', () => {
                 deleteScheduledLogs: vi.fn(async () => {}),
             };
             const appUpdateService = new SchedulerService({
+                sendBigQueryNotice: vi.fn(),
                 lightdashConfig: lightdashConfigMock,
                 analytics: analyticsMock,
                 schedulerModel:
@@ -1955,6 +1962,7 @@ describe('checkForStuckJobs', () => {
         };
         const model = { logSchedulerJob: vi.fn(async () => {}) };
         const service = new SchedulerService({
+            sendBigQueryNotice: vi.fn(),
             lightdashConfig: lightdashConfigMock,
             analytics: analyticsMock,
             schedulerModel: model as unknown as SchedulerModel,

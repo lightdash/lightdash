@@ -5599,6 +5599,30 @@ export default class SchedulerTask {
                 },
             });
         }
+
+        await this.recordScheduledSheetsOutcome(notification, null);
+    }
+
+    protected async recordScheduledSheetsOutcome(
+        payload: Pick<
+            GsheetsNotificationPayload,
+            'schedulerUuid' | 'cronScheduledAt'
+        >,
+        missingTable: string | null,
+    ): Promise<void> {
+        if (!payload.cronScheduledAt) return;
+        await this.schedulerService
+            .recordBigQueryTableOutcome(
+                payload.schedulerUuid,
+                new Date(payload.cronScheduledAt),
+                missingTable,
+            )
+            .catch((error) => {
+                // A bookkeeping failure after a successful upload must not replay the delivery.
+                Logger.error(
+                    `Failed to record scheduled Sheets outcome: ${getErrorMessage(error)}`,
+                );
+            });
     }
 
     protected async notifyGsheetsDeliveryFailure(
@@ -6222,6 +6246,9 @@ export default class SchedulerTask {
                     traceProperties,
                     perChannelPages,
                     aiSummaryDelivery,
+                    !isInlineScheduler
+                        ? schedulerPayload.cronScheduledAt
+                        : undefined,
                 );
 
             // The notification jobs are now queued: nothing below may

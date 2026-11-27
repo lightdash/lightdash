@@ -434,6 +434,50 @@ describe('SchedulerClient per-org delivery queue', () => {
         },
     );
 
+    it('marks only recurring Sheets jobs and forwards the original due time to the upload', async () => {
+        const client = makeClient(false);
+        graphileAddJob.mockClear();
+        const sheets = { ...scheduler, format: SchedulerFormat.GSHEETS };
+        await client.generateDailyJobsForScheduler(
+            sheets,
+            traceProperties,
+            'UTC',
+            startingDateTime,
+        );
+        expect(graphileAddJob.mock.calls.length).toBeGreaterThan(0);
+        for (const [, payload, options] of graphileAddJob.mock.calls) {
+            expect(payload.cronScheduledAt).toBe(options.runAt.toISOString());
+        }
+
+        const dueTime = graphileAddJob.mock.calls[0][1].cronScheduledAt;
+        graphileAddJob.mockClear();
+        await client.generateJobsForSchedulerTargets(
+            new Date(),
+            sheets,
+            undefined,
+            'parent',
+            traceProperties,
+            undefined,
+            undefined,
+            dueTime,
+        );
+        expect(graphileAddJob.mock.calls[0][1].cronScheduledAt).toBe(dueTime);
+
+        graphileAddJob.mockClear();
+        await client.addScheduledDeliveryJob(
+            new Date(),
+            {
+                ...traceProperties,
+                schedulerUuid: scheduler.schedulerUuid,
+                executionUserUuid: traceProperties.userUuid,
+            },
+            scheduler.schedulerUuid,
+        );
+        expect(graphileAddJob.mock.calls[0][1]).not.toHaveProperty(
+            'cronScheduledAt',
+        );
+    });
+
     it('routes recurring deliveries into a per-org queue on multi-org instances', async () => {
         const client = makeClient(true);
         const addJob = vi

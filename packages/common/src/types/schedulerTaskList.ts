@@ -261,7 +261,20 @@ export const EE_SCHEDULER_TASKS = {
     SWEEP_MOBILE_PUSH_LIVE_ACTIVITIES: 'sweepMobilePushLiveActivities',
 } as const;
 
+export type BigQueryTableNotice = {
+    schedulerUuid: string;
+    event:
+        | { type: 'attempt'; jobId: string; attempt: number }
+        | { type: 'paused'; scheduledTime: string };
+};
+
+export type BigQueryTableNoticePayload = BigQueryTableNotice &
+    Partial<TraceTaskBase> & {
+        channel: 'email' | 'slack';
+    };
+
 export const SCHEDULER_TASKS = {
+    NOTIFY_BIGQUERY_TABLE_FAILURE: 'notifyBigQueryTableFailure',
     HANDLE_SCHEDULED_DELIVERY: 'handleScheduledDelivery',
     // Legacy individual notification tasks (deprecated, kept for backwards compatibility)
     SEND_SLACK_NOTIFICATION: 'sendSlackNotification',
@@ -335,6 +348,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SEND_EMAIL_BATCH_NOTIFICATION]: EmailBatchNotificationPayload;
     [SCHEDULER_TASKS.SEND_MSTEAMS_BATCH_NOTIFICATION]: MsTeamsBatchNotificationPayload;
     [SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION]: GoogleChatBatchNotificationPayload;
+    [SCHEDULER_TASKS.NOTIFY_BIGQUERY_TABLE_FAILURE]: BigQueryTableNoticePayload;
     [SCHEDULER_TASKS.UPLOAD_GSHEETS]: GsheetsNotificationPayload;
     [SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY]: UploadGsheetPayload;
     [SCHEDULER_TASKS.VALIDATE_PROJECT]: ValidateProjectPayload;

@@ -146,6 +146,7 @@ export type SchedulerBase = {
     thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
     enabled: boolean;
     automaticallyDisabledReason?: string;
+    missingTableWarning?: { consecutiveFailures: number; firstFailedAt: Date };
     notificationFrequency?: NotificationFrequency;
     includeLinks: boolean;
     /**
@@ -357,6 +358,7 @@ export type CreateSchedulerAndTargets = Omit<
     | 'updatedAt'
     | 'createdByName'
     | 'automaticallyDisabledReason'
+    | 'missingTableWarning'
     | 'savedChartName'
     | 'dashboardName'
     | 'savedSqlName'
@@ -747,6 +749,7 @@ export type ScheduledDeliveryPayload = TraceTaskBase &
         | SendNowScheduler
         | (Pick<Scheduler, 'schedulerUuid'> & {
               executionUserUuid?: string;
+              cronScheduledAt?: string;
           })
     );
 
@@ -847,6 +850,8 @@ export type EmailNotificationPayload = TraceTaskBase &
     };
 
 export type GsheetsNotificationPayload = TraceTaskBase & {
+    // Original cron occurrence; absent on manual and previously queued jobs.
+    cronScheduledAt?: string;
     schedulerUuid: string;
     scheduledTime: Date;
     jobGroup: string;

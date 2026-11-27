@@ -1,5 +1,7 @@
 import {
     AgentActorSurface,
+    BigqueryMissingTableError,
+    WarehouseTypes,
     buildAgentIdentityClaim,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -522,6 +524,53 @@ describe('QueryHistoryModel', () => {
             );
         });
     });
+});
+
+describe('QueryHistoryModel polling warehouse errors', () => {
+    const message =
+        'Bigquery warehouse error: notFound - Not found: Table project:Sales.Orders was not found in location US';
+    const metadata = {
+        type: WarehouseTypes.BIGQUERY,
+        jobLocation: 'US',
+        missingTable: 'project:Sales.Orders',
+    } as const;
+
+    it.each([
+        [QueryHistoryStatus.ERROR, metadata, 'scheduler', true],
+        [QueryHistoryStatus.ERROR, metadata, 'other', false],
+        [QueryHistoryStatus.ERROR, metadata, undefined, false],
+        [QueryHistoryStatus.ERROR, null, 'scheduler', false],
+        [QueryHistoryStatus.EXPIRED, metadata, 'scheduler', false],
+    ] as const)(
+        'restores classified warehouse failures only for the scheduler poller',
+        async (status, warehouseQueryMetadata, source, classified) => {
+            const model = new QueryHistoryModel({ database: {} as Knex });
+            vi.spyOn(model, 'getByQueryUuid').mockResolvedValue({
+                status,
+                warehouseQueryMetadata,
+                error: message,
+            } as QueryHistory);
+            const error = await model
+                .pollForQueryCompletion({
+                    queryUuid: 'query',
+                    projectUuid: 'project',
+                    account: null,
+                    source,
+                })
+                .catch((e: unknown) => e);
+            expect(error).toMatchObject({ message });
+            expect(error instanceof BigqueryMissingTableError).toBe(classified);
+            if (classified) {
+                expect(error).toMatchObject({
+                    table: metadata.missingTable,
+                    location: metadata.jobLocation,
+                });
+            } else {
+                expect(error).toBeInstanceOf(Error);
+                expect(error).toMatchObject({ name: 'Error' });
+            }
+        },
+    );
 });
 
 describe('QueryHistoryModel polling cancellation', () => {
