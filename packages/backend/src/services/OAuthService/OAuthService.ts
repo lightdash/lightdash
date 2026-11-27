@@ -27,7 +27,7 @@ import {
 } from '../../auth/oauthScopes/oauthResources';
 import { OAuthBearerRefusalError } from '../../auth/oauthScopes/security';
 import { LightdashConfig } from '../../config/parseConfig';
-import { OAuth2Model } from '../../models/OAuth2Model';
+import { isMobileOAuthClient, OAuth2Model } from '../../models/OAuth2Model';
 import { isAllowedStrictRedirectUri } from '../../models/oauthStrictRedirectUri';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
@@ -304,6 +304,12 @@ export class OAuthService extends BaseService {
                 client,
             );
         return this.oauthModel.validateRedirectUri(redirectUri, client);
+    }
+
+    public async isMobileClient(clientId: string): Promise<boolean> {
+        if (isClientIdMetadataDocumentUrl(clientId)) return false;
+        const client = await this.oauthModel.getClient(clientId);
+        return client !== false && isMobileOAuthClient(client.redirectUris);
     }
 
     public async isMobileAppAccessDenied(

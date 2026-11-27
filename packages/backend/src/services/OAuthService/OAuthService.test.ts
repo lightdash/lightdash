@@ -257,6 +257,40 @@ describe('OAuthService edge cases', () => {
         });
     });
 
+    describe('isMobileClient', () => {
+        it.each([
+            [['com.lightdash.mobile://oauth/callback'], true],
+            [['http://localhost:8100/callback'], false],
+            [['cursor://anysphere.cursor-mcp/oauth/callback'], false],
+        ])(
+            'classifies a client with redirects %j as %s',
+            async (uris, mobile) => {
+                mockOAuthModel.getClient.mockResolvedValue({
+                    id: 'client',
+                    grants: ['authorization_code'],
+                    redirectUris: uris,
+                });
+                await expect(
+                    oauthService.isMobileClient('client'),
+                ).resolves.toBe(mobile);
+            },
+        );
+
+        it('refuses an unknown client', async () => {
+            mockOAuthModel.getClient.mockResolvedValue(false);
+            await expect(oauthService.isMobileClient('gone')).resolves.toBe(
+                false,
+            );
+        });
+
+        it('refuses a document client without resolving its document', async () => {
+            await expect(
+                oauthService.isMobileClient('https://claude.ai/oauth/client'),
+            ).resolves.toBe(false);
+            expect(mockOAuthModel.getClient).not.toHaveBeenCalled();
+        });
+    });
+
     describe('revokeToken', () => {
         const refreshToken = {
             refreshToken: 'refresh-token',
