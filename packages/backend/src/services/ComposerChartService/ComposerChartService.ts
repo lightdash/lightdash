@@ -183,7 +183,7 @@ export class ComposerChartService extends BaseService {
             throw new ForbiddenError(
                 action === 'view'
                     ? "You don't have permission to view this composer chart"
-                    : "You don't have permission to save charts here",
+                    : "You don't have permission to save composer charts here",
             );
         }
         return access;
