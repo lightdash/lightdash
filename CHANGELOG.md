@@ -1,3 +1,10 @@
+## [3.420.3](https://github.com/lightdash/lightdash/compare/3.420.2...3.420.3) (2026-11-27)
+
+
+### Bug Fixes
+
+* **ai-agents:** delete thread looks up agent before deletion flag ([#33522](https://github.com/lightdash/lightdash/issues/33522)) ([63ababf](https://github.com/lightdash/lightdash/commit/63ababff9aacb95dbc3e69df71f0e568878edbe5))
+
 ## [3.420.2](https://github.com/lightdash/lightdash/compare/3.420.1...3.420.2) (2026-11-27)
 
 
