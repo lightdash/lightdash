@@ -42,6 +42,7 @@ import { CHANGE_KIND_LABELS, findFieldBlock } from './modelCode';
 import { MOD_KEY } from './pierreEditor';
 import { ProtoFieldCode, type DbtEdit, type FieldWord } from './ProtoFieldCode';
 import { ProtoFileSearchContext, protoPlace } from './protoFlag';
+import { useUnsavedFields } from './protoUnsaved';
 import { FieldTypeIcon, NodeIcon } from './shared';
 import { useAddToStudioChat } from './studioChatRefs';
 import classes from './StudioProto.module.css';
@@ -1148,6 +1149,7 @@ const ProtoModel: FC<ModelProps & { files: FilesTarget[] }> = ({
         );
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isLoaded]);
+    const unsavedFields = useUnsavedFields(projectUuid, explore.name);
     const [filter, setFilter] = useState('');
     const needle = filter.trim().toLowerCase();
     // The model's own fields first, then each joined table's; dimensions before metrics
@@ -1227,6 +1229,11 @@ const ProtoModel: FC<ModelProps & { files: FilesTarget[] }> = ({
                                     >
                                         {field.label}
                                     </Text>
+                                    {unsavedFields.has(field.name) ? (
+                                        <span className={classes.changeTag}>
+                                            Not saved
+                                        </span>
+                                    ) : null}
                                     {field.draftState ? (
                                         <span
                                             className={classes.changeTag}

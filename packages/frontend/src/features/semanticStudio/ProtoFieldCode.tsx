@@ -18,6 +18,7 @@ import {
 } from '../writeback/pierreDiffConfig';
 import { findFieldBlock } from './modelCode';
 import { createEditor, MOD_KEY } from './pierreEditor';
+import { keep, readUnsaved } from './protoUnsaved';
 import { readProperty, writeProperty } from './protoYaml';
 import { type SourcesTarget } from './SourcesView';
 import { type StoredThread } from './studioChange';
@@ -62,17 +63,27 @@ const indentOf = (line: string) => line.length - line.trimStart().length;
 // The field's own lines from its file, typed into where the field is and saved back into the file
 const FieldCodeEditor: FC<{
     fieldName: string;
+    /** Names this field's unsaved typing across the page. */
+    draftKey: string;
     source: Source;
     words: FieldWord[];
     actions: ReactNode;
-}> = ({ fieldName, source, words, actions }) => {
+}> = ({ fieldName, draftKey, source, words, actions }) => {
     const colorScheme = useComputedColorScheme('light');
-    const [text, setText] = useState<string | null>(null);
+    const [text, setTextOnly] = useState<string | null>(
+        () => readUnsaved(draftKey) ?? null,
+    );
+    const setText = (next: string | null) => {
+        keep(draftKey, next);
+        setTextOnly(next);
+    };
     const [saved, setSaved] = useState<string | null>(null);
     const [mount, setMount] = useState(0);
     const [notice, setNotice] = useState<string | null>(null);
     // What the editor was last drawn from; typing in a property redraws it a moment later
-    const [seed, setSeed] = useState<string | null>(null);
+    const [seed, setSeed] = useState<string | null>(
+        () => readUnsaved(draftKey) ?? null,
+    );
     const [typing, setTyping] = useState<{ key: string; value: string } | null>(
         null,
     );
@@ -114,7 +125,10 @@ const FieldCodeEditor: FC<{
                 ...lines.slice(block.end),
             ].join('\n'),
             (error) => {
-                if (error === null) setSaved(typed);
+                if (error === null) {
+                    setSaved(typed);
+                    keep(draftKey, null);
+                }
                 setNotice(error ?? 'Saved');
             },
         );
@@ -255,9 +269,17 @@ const DbtFieldCode: FC<{
     fieldName: string;
     path: string;
     edit: DbtEdit;
+    draftKey: string;
     words: FieldWord[];
     actions: ReactNode;
-}> = ({ fieldName, path, edit: { target, onSaved }, words, actions }) => {
+}> = ({
+    fieldName,
+    path,
+    edit: { target, onSaved },
+    draftKey,
+    words,
+    actions,
+}) => {
     const { data: file, isFetching } = useStudioSourceFile(
         target.projectUuid,
         target.prUrl,
@@ -268,6 +290,7 @@ const DbtFieldCode: FC<{
     return (
         <FieldCodeEditor
             fieldName={fieldName}
+            draftKey={draftKey}
             words={words}
             actions={actions}
             source={{
@@ -306,6 +329,7 @@ const DraftFieldCode: FC<{
     projectUuid: string;
     modelName: string;
     readOnlyReason: string | null;
+    draftKey: string;
     words: FieldWord[];
     actions: ReactNode;
 }> = ({
@@ -313,6 +337,7 @@ const DraftFieldCode: FC<{
     projectUuid,
     modelName,
     readOnlyReason,
+    draftKey,
     words,
     actions,
 }) => {
@@ -323,6 +348,7 @@ const DraftFieldCode: FC<{
     return (
         <FieldCodeEditor
             fieldName={fieldName}
+            draftKey={draftKey}
             words={words}
             actions={actions}
             source={{
@@ -403,6 +429,7 @@ export const ProtoFieldCode: FC<{
             projectUuid={projectUuid}
             modelName={modelName}
             readOnlyReason={readOnlyReason}
+            draftKey={`${projectUuid}:${modelName}:${fieldName}`}
             words={words}
             actions={actions}
         />
@@ -411,6 +438,7 @@ export const ProtoFieldCode: FC<{
             fieldName={fieldName}
             path={path}
             edit={dbt}
+            draftKey={`${projectUuid}:${modelName}:${fieldName}`}
             words={words}
             actions={actions}
         />
