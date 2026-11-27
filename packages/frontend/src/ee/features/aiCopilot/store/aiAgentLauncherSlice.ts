@@ -115,8 +115,31 @@ export const aiAgentLauncherSlice = createSlice({
             state.pendingContext = action.payload.pendingContext ?? null;
             state.pendingPrompt = action.payload.pendingPrompt ?? null;
         },
+        // Pins the context to the thread on screen; with none, a new thread.
+        attachContextOrStartThread: (
+            state,
+            action: PayloadAction<{
+                pendingContext: LauncherPendingContext | null;
+            }>,
+        ) => {
+            const hasThreadOnScreen =
+                state.mode === 'panel-open' &&
+                state.view === 'chat' &&
+                state.activeThreadId !== null;
+            if (!hasThreadOnScreen) {
+                state.activeThreadId = null;
+                state.activeAgentUuid = null;
+                state.pendingPrompt = null;
+            }
+            state.mode = 'panel-open';
+            state.view = 'chat';
+            state.pendingContext = action.payload.pendingContext;
+        },
         clearPendingPrompt: (state) => {
             state.pendingPrompt = null;
+        },
+        clearPendingContext: (state) => {
+            state.pendingContext = null;
         },
         setActiveAgent: (
             state,
@@ -183,6 +206,8 @@ export const aiAgentLauncherSlice = createSlice({
 });
 
 export const {
+    attachContextOrStartThread,
+    clearPendingContext,
     clearPendingPrompt,
     openPanel,
     openAnalysisPanel,

@@ -7,7 +7,7 @@ import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
 import { store as aiAgentStore } from '../../store';
-import { openDefaultAgentPanel } from '../../store/aiAgentLauncherSlice';
+import { attachContextOrStartThread } from '../../store/aiAgentLauncherSlice';
 import { buildNewThreadUrl } from '../Launcher/newThreadUrl';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
@@ -30,7 +30,8 @@ type Args = {
 
 /**
  * Shared logic for the "Ask AI Agent" entry points: resolves whether the action
- * should be shown and starts a new conversation on click.
+ * should be shown and, on click, pins the content to the thread on screen or
+ * starts a new one.
  * `canAsk` is false when AI agents are disabled, the user lacks permission, or
  * no default agent can be resolved. Data app context additionally requires
  * data apps to be enabled.
@@ -89,7 +90,7 @@ export const useAskAiAgentAction = ({
         switch (mode) {
             case 'panel':
                 aiAgentStore.dispatch(
-                    openDefaultAgentPanel({ pendingContext }),
+                    attachContextOrStartThread({ pendingContext }),
                 );
                 return;
             case 'navigate':
