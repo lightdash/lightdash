@@ -31,7 +31,13 @@ export type LiveSourceField = {
 
 /** One explore of a live data source, with its fields when they can be curated. */
 export type LiveSourceExploreFields = {
+    /**
+     * For a custom object never turned on, the name it would get now; the
+     * name is fixed when an admin first turns it on.
+     */
     exploreName: string;
+    /** The vendor's id of a custom object; null for a built-in explore. */
+    objectId: string | null;
     label: string;
     description: string;
     aiHint: string | null;
@@ -50,7 +56,7 @@ export type LiveSourceFields = {
     exploreName: string;
     /** Saved charts on any of the source's explores, each counted once. */
     usedByChartCount: number;
-    /** ISO timestamp of the last scan, or null when the source was never scanned. */
+    /** ISO timestamp of the last Refresh, or null when the source was never refreshed. */
     scannedAt: string | null;
     fields: LiveSourceField[];
     /** Every explore of the source, in use or not, the first one included. */
@@ -77,6 +83,11 @@ export type LiveSourceFieldChange = {
 /** One explore change; unset keys stay as they are, null clears an override. */
 export type LiveSourceExploreChange = {
     exploreName: string;
+    /**
+     * Names a custom object instead of `exploreName`, for one never turned
+     * on: turning it on gives it its explore name.
+     */
+    objectId?: string;
     inUse?: boolean;
     label?: string | null;
     description?: string | null;
@@ -102,4 +113,21 @@ export type LiveSourceContentUsage = {
 export type ApiLiveSourceContentUsageResponse = {
     status: 'ok';
     results: LiveSourceContentUsage;
+};
+
+/** What a Refresh changed: objects and fields the integration added or removed. */
+export type LiveSourceRefreshSummary = {
+    /** Custom objects found for the first time; an admin turns them on. */
+    addedObjects: string[];
+    /** Custom objects gone from the integration; their explores are removed. */
+    removedObjects: string[];
+    /** Fields new on the source's explores, by explore name. */
+    addedFields: Record<string, string[]>;
+    /** Fields gone from the source's explores, by explore name. */
+    removedFields: Record<string, string[]>;
+};
+
+export type ApiLiveSourceRefreshResponse = {
+    status: 'ok';
+    results: LiveSourceRefreshSummary;
 };

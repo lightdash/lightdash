@@ -193,6 +193,29 @@ export type HydraApiSource = {
     declaredLimits?: 'vendor' | HydraRateLimits | null;
     /** Fake answers a test sets for given calls, counted per source from 1; the first match wins. */
     mockResponses?: HydraMockResponse[];
+    /**
+     * The workspace's own objects, which Hydra lists at `HYDRA_OBJECTS_PATH`
+     * and reports on per object. Empty, Hydra is never asked for them.
+     */
+    customObjects?: HydraCustomObject[];
+};
+
+/** One custom object a Hydra source has, as a CRM workspace would. */
+export type HydraCustomObject = {
+    /** The vendor id, e.g. `Invoice__c`; letters, digits and underscores. */
+    id: string;
+    label: string;
+    /** Records seeded per sign-in token. */
+    recordCount?: number;
+    fields: HydraCustomField[];
+};
+
+export type HydraCustomField = {
+    id: string;
+    label: string;
+    type: 'string' | 'number' | 'date' | 'boolean';
+    /** Bookkeeping the vendor keeps, hidden until an admin shows it. */
+    internal?: boolean;
 };
 
 /** A Hydra source's settings with every default filled in. */
@@ -344,6 +367,11 @@ export const isSupabaseOrigin = (origin: string) => {
 export const HYDRA_ORIGIN = 'https://hydra.invalid';
 export const HYDRA_REPORT_PATH = '/v1/report';
 export const HYDRA_ACCOUNT_PATH = '/v1/account';
+/** Lists a source's custom objects and their fields. */
+export const HYDRA_OBJECTS_PATH = '/v1/objects';
+/** Reports on one custom object's records. */
+export const getHydraObjectReportPath = (objectId: string) =>
+    `${HYDRA_OBJECTS_PATH}/${objectId}/report`;
 /** Set to "true" to register Hydra; it is absent everywhere otherwise. */
 export const HYDRA_ENABLED_ENV = 'LIVE_SOURCES_HYDRA_ENABLED';
 

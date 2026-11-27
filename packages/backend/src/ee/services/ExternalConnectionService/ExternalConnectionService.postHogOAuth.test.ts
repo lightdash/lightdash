@@ -100,6 +100,8 @@ const buildService = ({
         getProjectOrganizationUuid: vi.fn().mockResolvedValue('org-1'),
         purgeLiveSourceCache: vi.fn().mockResolvedValue(undefined),
         getDecryptedSecret: vi.fn(async () => storedSecret),
+        // No custom objects: the access rules come from the settings alone
+        getLiveSourceFieldState: vi.fn(async () => ({ catalog: null })),
         updateSecretLocked: vi.fn(
             async (
                 _uuid: string,

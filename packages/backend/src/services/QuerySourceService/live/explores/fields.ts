@@ -9,6 +9,12 @@ import {
     type LiveSourceFieldEditor,
 } from '@lightdash/common';
 import { z } from 'zod';
+import { type LiveConfiguredCatalog } from '../types';
+import {
+    liveConfiguredObjectsSchema,
+    liveSourceCatalogSchema,
+    type LiveSourceCatalog,
+} from './catalogState';
 import {
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
@@ -117,7 +123,12 @@ export const isLiveExploreInUse = (
 
 /** How a source's fields are curated, as stored next to its settings. */
 export type LiveSourceFieldState = {
+    /** The built-in explores' discovered fields, from the last Refresh. */
     lastScan: LiveSourceScan | null;
+    /** The discovered catalog; null before the first Refresh that stored one. */
+    catalog: LiveSourceCatalog | null;
+    /** The configured catalog's custom objects, by vendor id. */
+    objects: LiveConfiguredCatalog['objects'];
     /** Absent until the source's first build under curation. */
     fields: LiveSourceFieldEdits | null;
     explores: LiveSourceExploreEdits;
@@ -199,6 +210,8 @@ const fieldStateSchema = z.object({
         )
         .nullish()
         .catch(null),
+    catalog: liveSourceCatalogSchema.nullish().catch(null),
+    objects: liveConfiguredObjectsSchema.nullish().catch(null),
 });
 
 /** Reads the curation keys of a stored `api_source`; unreadable keys read as absent. */
@@ -209,6 +222,8 @@ export const parseLiveSourceFieldState = (
     if (!parsed.success) {
         return {
             lastScan: null,
+            catalog: null,
+            objects: {},
             fields: null,
             explores: {},
             aiHint: null,
@@ -218,6 +233,8 @@ export const parseLiveSourceFieldState = (
     }
     return {
         lastScan: parsed.data.lastScan ?? null,
+        catalog: parsed.data.catalog ?? null,
+        objects: parsed.data.objects ?? {},
         fields: parsed.data.fields ?? null,
         explores: parsed.data.explores ?? {},
         aiHint: parsed.data.aiHint ?? null,
@@ -268,11 +285,20 @@ const resolveFields = ({
 export const getRequiredFieldNames = (base: LiveExploreDefinition) =>
     base.dateRange ? [base.dateRange.dimension] : [];
 
+/**
+ * Whether a field is built. Unedited, a built-in field is; a discovered one
+ * is when its explore shows them by default (a custom object's), unless the
+ * vendor marks it internal.
+ */
 const isFieldInUse = (
     field: Omit<ResolvedField, 'edit'>,
     edit: LiveSourceFieldEdit | undefined,
     required: Set<string>,
-) => required.has(field.definition.name) || (edit?.inUse ?? field.isBuiltIn);
+    discoveredInUse: boolean,
+) =>
+    required.has(field.definition.name) ||
+    (edit?.inUse ??
+        (field.isBuiltIn || (discoveredInUse && !field.isInternal)));
 
 /** Every field of a source with its current state, for the Fields page and the agent. */
 export const listLiveSourceFields = ({
@@ -280,11 +306,14 @@ export const listLiveSourceFields = ({
     scannedFields,
     edits,
     usageByFieldName,
+    discoveredInUse = false,
 }: {
     base: LiveExploreDefinition;
     scannedFields: ScannedLiveSourceField[];
     edits: LiveSourceFieldEdits;
     usageByFieldName: Record<string, number>;
+    /** Discovered fields start in use, as a custom object's do. */
+    discoveredInUse?: boolean;
 }): LiveSourceField[] => {
     const required = new Set(getRequiredFieldNames(base));
     return resolveFields({ base, scannedFields }).map((field) => {
@@ -304,7 +333,7 @@ export const listLiveSourceFields = ({
             isBuiltIn: field.isBuiltIn,
             isInternal: field.isInternal,
             isRequired: required.has(field.definition.name),
-            inUse: isFieldInUse(field, edit, required),
+            inUse: isFieldInUse(field, edit, required, discoveredInUse),
             usedByChartCount: usageByFieldName[field.definition.name] ?? 0,
             lastEdit: edit?.lastEdit ?? null,
         };
@@ -316,17 +345,20 @@ export const applyLiveSourceFieldEdits = ({
     base,
     scannedFields,
     edits,
+    discoveredInUse = false,
 }: {
     base: LiveExploreDefinition;
     scannedFields: ScannedLiveSourceField[];
     edits: LiveSourceFieldEdits;
+    /** Discovered fields start in use, as a custom object's do. */
+    discoveredInUse?: boolean;
 }): LiveExploreDefinition => {
     const required = new Set(getRequiredFieldNames(base));
     const inUse = resolveFields({ base, scannedFields }).flatMap((field) => {
         const edit = Object.hasOwn(edits, field.definition.name)
             ? edits[field.definition.name]
             : undefined;
-        if (!isFieldInUse(field, edit, required)) {
+        if (!isFieldInUse(field, edit, required, discoveredInUse)) {
             return [];
         }
         return [

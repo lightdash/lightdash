@@ -64,7 +64,10 @@ export type LiveMetricDefinition = ApiSourceFieldDefinition & {
 
 /** One explore of an integration's semantic layer, written by hand or found by a scan. */
 export type LiveExploreDefinition = {
+    /** The model name; the explore is `<source prefix>_<name>`. */
     name: string;
+    /** The vendor id of the custom object it reads; absent on built-in explores. */
+    object?: string;
     label: string;
     /** What the explore holds, written for people browsing it. */
     description: string;
@@ -215,6 +218,9 @@ export const buildLiveExplore = ({
             integration,
             baseVersion,
             definitionHash,
+            ...(definition.object !== undefined
+                ? { object: definition.object }
+                : {}),
             // Kept for readers of explores built before capabilities
             filterGroups: {
                 or: capabilities.filters.or,
@@ -316,6 +322,10 @@ export const getLiveExplore = (explore: Explore): ApiSourceExplore => {
  * The name of the definition a live explore was built from, such as
  * `pull_requests`, for integrations with more than one explore.
  */
+/** The vendor id of the custom object a live explore reads, or null for a built-in one. */
+export const getLiveObjectId = (explore: Explore): string | null =>
+    getLiveExplore(explore).object ?? null;
+
 export const getLiveDefinitionName = (explore: Explore): string => {
     getLiveExplore(explore);
     const { sqlTable } = explore.tables[explore.baseTable];

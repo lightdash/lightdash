@@ -15,6 +15,7 @@ import type {
     LiveIntegration,
     LiveLimits,
     LiveModel,
+    LiveObjectCatalog,
 } from './types';
 
 /**
@@ -141,14 +142,37 @@ export type LiveAccessRules = Required<
 > &
     Pick<CreateExternalConnection, 'customHeaders'>;
 
+/**
+ * The fixed part of a rule's path, which covers every path it allows: up to
+ * its first `{name}` segment.
+ */
+const getStaticPathPrefix = (path: string) => {
+    const segments = path.split('/');
+    const templated = segments.findIndex((segment) => /^\{.+\}$/.test(segment));
+    return templated === -1
+        ? path
+        : segments.slice(0, templated).join('/') || '/';
+};
+
+/** A source's catalog before its first Refresh: no custom objects. */
+export const EMPTY_LIVE_CATALOG: LiveObjectCatalog = { entries: [] };
+
+/**
+ * What a source can reach, as the connection stores it. The proxy checks a
+ * live source's requests against its rules (`findAccessRule`); these lists
+ * only cover them, a path prefix per rule.
+ */
 export const getLiveAccessRules = <C extends ApiConnectorType>(
     integration: LiveIntegration<C>,
     settings: ApiSourceOf<C>,
+    catalog: LiveObjectCatalog = EMPTY_LIVE_CATALOG,
 ): LiveAccessRules => {
-    const access = integration.connection.access(settings);
+    const access = integration.connection.access(settings, catalog);
     const unique = <T>(values: T[]) => [...new Set(values)];
     return {
-        allowedPathPrefixes: unique(access.rules.map(({ path }) => path)),
+        allowedPathPrefixes: unique(
+            access.rules.map(({ path }) => getStaticPathPrefix(path)),
+        ),
         allowedMethods: unique(access.rules.map(({ method }) => method)),
         allowedContentTypes: ['application/json'],
         timeoutMs: integration.query.limits.timeoutMs,
@@ -190,25 +214,64 @@ export const validateLiveConnection = <C extends ApiConnectorType>(
     integration.connection.checkAuth({ type, origin, oauthTokenUrl });
 };
 
-/** A request a source may send to read data. */
+/**
+ * A request a source may send to read data: `path` and the paths under it,
+ * or only `path` itself when `exact`. A `{name}` segment matches any one
+ * segment; `entry` names the catalog entry the rule serves.
+ */
 export const readRule = (
     method: LiveAccessRule['method'],
     path: string,
-): LiveAccessRule => ({ method, path, effect: 'read' });
+    { exact, entry }: { exact?: boolean; entry?: string } = {},
+): LiveAccessRule => ({
+    method,
+    path,
+    effect: 'read',
+    ...(exact ? { exact: true } : {}),
+    ...(entry !== undefined ? { entry } : {}),
+});
+
+const isTemplateSegment = (segment: string) => /^\{.+\}$/.test(segment);
+
+/** Whether `path` is the rule's path, or under it unless the rule is exact. */
+const matchesRulePath = (rule: LiveAccessRule, path: string): boolean => {
+    if (!rule.exact && !rule.path.split('/').some(isTemplateSegment)) {
+        return (
+            path === rule.path ||
+            path.startsWith(
+                rule.path.endsWith('/') ? rule.path : `${rule.path}/`,
+            )
+        );
+    }
+    const ruleSegments = rule.path.replace(/\/+$/, '').split('/');
+    const segments = path.split('/');
+    const isTrailingSlashOnly =
+        segments.length === ruleSegments.length + 1 && segments.at(-1) === '';
+    if (
+        segments.length < ruleSegments.length ||
+        (rule.exact &&
+            segments.length !== ruleSegments.length &&
+            !isTrailingSlashOnly)
+    ) {
+        return false;
+    }
+    return ruleSegments.every((ruleSegment, index) =>
+        isTemplateSegment(ruleSegment)
+            ? segments[index] !== ''
+            : segments[index] === ruleSegment,
+    );
+};
 
 /**
- * The rule that lets a source send `request`: same method, and a path that
- * is the rule's path or under it, segment by segment.
+ * The rule that lets a source send `request`: the same method, and a path
+ * the rule allows (see `readRule`). The proxy refuses anything else.
  */
 export const findAccessRule = (
     rules: LiveAccessRule[],
     request: Pick<LiveAccessRule, 'method' | 'path'>,
 ): LiveAccessRule | undefined =>
     rules.find(
-        ({ method, path }) =>
-            method === request.method &&
-            (request.path === path ||
-                request.path.startsWith(
-                    path.endsWith('/') ? path : `${path}/`,
-                )),
+        (rule) =>
+            rule.method === request.method &&
+            matchesRulePath(rule, request.path),
     );

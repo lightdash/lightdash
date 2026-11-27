@@ -8,7 +8,7 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { salesforceIntegration } from '.';
-import { validateLiveConnection } from '../../integration';
+import { EMPTY_LIVE_CATALOG, validateLiveConnection } from '../../integration';
 import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
 import {
@@ -432,7 +432,12 @@ describe('salesforceIntegration access', () => {
     });
 
     it('reads only the query, describe and limits endpoints, with GET', () => {
-        expect(salesforceIntegration.connection.access(SETTINGS)).toEqual({
+        expect(
+            salesforceIntegration.connection.access(
+                SETTINGS,
+                EMPTY_LIVE_CATALOG,
+            ),
+        ).toEqual({
             rules: [
                 '/services/data/v62.0/query',
                 '/services/data/v62.0/sobjects/Opportunity/describe',

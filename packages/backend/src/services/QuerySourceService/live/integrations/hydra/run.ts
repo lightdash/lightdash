@@ -1,11 +1,16 @@
 import {
     ApiConnectorType,
     DimensionType,
+    getHydraObjectReportPath,
     HYDRA_REPORT_PATH,
 } from '@lightdash/common';
 import { z } from 'zod';
 import { assertMaxRows, type LiveRunArgs, type LiveRunResult } from '../../sdk';
-import { HYDRA_REPORTS, type HydraReportRequest } from './fake/report';
+import {
+    HYDRA_REPORTS,
+    isHydraObjectRequest,
+    type HydraRequest,
+} from './fake/report';
 
 /** The most rows one query returns, kept small so tests reach it. */
 export const HYDRA_MAX_QUERY_ROWS = 500;
@@ -29,7 +34,7 @@ export const runHydraQuery = async ({
     runtime,
 }: LiveRunArgs<
     ApiConnectorType.HYDRA,
-    HydraReportRequest
+    HydraRequest
 >): Promise<LiveRunResult> => {
     assertMaxRows(limit, HYDRA_MAX_QUERY_ROWS);
     const rowLimit = Math.min(limit, request.limit ?? limit);
@@ -40,7 +45,9 @@ export const runHydraQuery = async ({
         const page: z.infer<typeof responseSchema> = await runtime.fetch(
             {
                 method: 'POST',
-                path: HYDRA_REPORT_PATH,
+                path: isHydraObjectRequest(request)
+                    ? getHydraObjectReportPath(request.object)
+                    : HYDRA_REPORT_PATH,
                 body: { ...request, limit: rowLimit + 1, offset },
             },
             responseSchema,
@@ -48,8 +55,11 @@ export const runHydraQuery = async ({
         rows.push(...page.rows);
         offset = page.nextOffset;
     }
-    const dates: readonly string[] = HYDRA_REPORTS[request.report].dates;
+    const dates: readonly string[] = isHydraObjectRequest(request)
+        ? []
+        : HYDRA_REPORTS[request.report].dates;
     return {
+        // A custom object's column types come from its explore's fields
         columns: [
             ...request.dimensions.map((name) => ({
                 name,

@@ -1,17 +1,21 @@
 import {
     ApiConnectorType,
+    getHydraObjectReportPath,
     getHydraSettingsProblem,
     HYDRA_ACCOUNT_PATH,
+    HYDRA_OBJECTS_PATH,
     HYDRA_ORIGIN,
     HYDRA_REPORT_PATH,
     LIVE_INTEGRATION_CATALOG,
     ParameterError,
+    type HydraApiSource,
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
     formatTestCount,
     readRule,
     type LiveConnection,
+    type LiveObjectCatalog,
     type LiveTestSummary,
 } from '../../sdk';
 
@@ -34,17 +38,32 @@ export const summarizeHydraTest = (body: unknown): LiveTestSummary | null => {
     };
 };
 
+/** The reports and account, the object list, and each custom object's report path. */
+export const getHydraAccess = (
+    _settings: HydraApiSource,
+    catalog: LiveObjectCatalog,
+) => ({
+    rules: [
+        readRule('POST', HYDRA_REPORT_PATH),
+        readRule('GET', HYDRA_ACCOUNT_PATH),
+        readRule('GET', HYDRA_OBJECTS_PATH, { exact: true }),
+        ...catalog.entries
+            .filter(({ builtIn }) => !builtIn)
+            .map(({ id }) =>
+                readRule('POST', getHydraObjectReportPath(id), {
+                    exact: true,
+                    entry: id,
+                }),
+            ),
+    ],
+});
+
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.HYDRA];
 
 export const hydraConnection: LiveConnection<ApiConnectorType.HYDRA> = {
     settings: CATALOG.settings,
     origins: [HYDRA_ORIGIN],
-    access: () => ({
-        rules: [
-            readRule('POST', HYDRA_REPORT_PATH),
-            readRule('GET', HYDRA_ACCOUNT_PATH),
-        ],
-    }),
+    access: getHydraAccess,
     checkAuth: ({ type }) => {
         if (type !== 'bearer_token') {
             throw new ParameterError(

@@ -24,6 +24,7 @@ import { describeLiveExplores } from '../integration';
 import { tooManyRowsError } from '../query/rows';
 import { getLiveIntegration, isLiveIntegrationRegistered } from '../registry';
 import { type LiveCapabilities, type LiveCatalog } from '../types';
+import { type LiveCustomModel } from './catalog';
 import {
     buildLiveExplore,
     getApiName,
@@ -359,12 +360,18 @@ export const buildLiveExplores = ({
     aiHint,
     accessRule = null,
     tags,
+    customModels = [],
 }: {
     connectionUuid: string;
     sourceName: string;
     name: string;
     apiSource: ExternalConnectionApiSource;
     scannedFields: ScannedLiveSourceField[];
+    /**
+     * The custom objects an admin turned on (`getLiveCustomModels`), built
+     * after the built-in explores. Their discovered fields start in use.
+     */
+    customModels?: LiveCustomModel[];
     edits: LiveSourceFieldEdits;
     exploreEdits?: LiveSourceExploreEdits;
     /** The target first, then the admin's source hint; each explore's own hint follows. */
@@ -379,6 +386,11 @@ export const buildLiveExplores = ({
     const definitionHashes = getLiveDefinitionHashes(apiSource.connector);
     const build = (definition: LiveExploreDefinition) => {
         const exploreEdit = getLiveExploreEdit(exploreEdits, definition.name);
+        // A custom object's explore comes from the source's catalog, not the code
+        const definitionHash =
+            definition.object === undefined
+                ? definitionHashes[definition.name]
+                : undefined;
         return buildDefinitionExplore(apiSource.connector, {
             definition: exploreEdit?.description
                 ? { ...definition, description: exploreEdit.description }
@@ -389,7 +401,7 @@ export const buildLiveExplores = ({
             label: exploreEdit?.label ?? definition.label,
             groupLabel: label,
             connectionUuid,
-            definitionHash: definitionHashes[definition.name],
+            definitionHash,
             // An admin's hint replaces the built-in one
             aiHint: [
                 ...(aiHint ?? []),
@@ -400,7 +412,7 @@ export const buildLiveExplores = ({
             tags,
         });
     };
-    return definitions
+    const builtIn = definitions
         .filter(({ name }) => isLiveExploreInUse(exploreEdits, name))
         .map((definition) => {
             const scanned = scannedModels.find(
@@ -422,6 +434,25 @@ export const buildLiveExplores = ({
                 accessRule,
             );
         });
+    const custom = customModels
+        .filter(({ model }) => isLiveExploreInUse(exploreEdits, model))
+        .map(({ base, model, scannedFields: modelFields }) =>
+            withAccessRule(
+                build(
+                    applyLiveSourceFieldEdits({
+                        base,
+                        ...getLiveModelFieldInputs({
+                            model,
+                            scannedFields: modelFields,
+                            edits,
+                        }),
+                        discoveredInUse: true,
+                    }),
+                ),
+                accessRule,
+            ),
+        );
+    return [...builtIn, ...custom];
 };
 
 /**
@@ -659,6 +690,10 @@ export type StoredLiveSourceExplores = {
     sourceName: string;
     connector: ApiConnectorType;
     exploreEdits: LiveSourceExploreEdits;
+    /** Custom objects turned on at least once, by vendor id, with their model names. */
+    objects?: Record<string, { name: string }>;
+    /** The discovered catalog's entries, for a custom object's label. */
+    catalogEntries?: { id: string; label: string }[];
 };
 
 /**
@@ -671,8 +706,8 @@ export const findSwitchedOffLiveExplore = (
 ): { sourceName: string; exploreLabel: string } | undefined =>
     sources
         .filter(({ connector }) => isLiveIntegrationRegistered(connector))
-        .flatMap((source) =>
-            getLiveBaseLayer(source.connector)
+        .flatMap((source) => [
+            ...getLiveBaseLayer(source.connector)
                 .definitions.filter(
                     (definition) =>
                         getLiveExploreName(
@@ -690,5 +725,20 @@ export const findSwitchedOffLiveExplore = (
                         getLiveExploreEdit(source.exploreEdits, definition.name)
                             ?.label ?? definition.label,
                 })),
-        )
+            ...Object.entries(source.objects ?? {})
+                .filter(
+                    ([, { name }]) =>
+                        getLiveExploreName(source.sourceName, name) ===
+                            exploreName &&
+                        !isLiveExploreInUse(source.exploreEdits, name),
+                )
+                .map(([objectId, { name }]) => ({
+                    sourceName: source.name,
+                    exploreLabel:
+                        getLiveExploreEdit(source.exploreEdits, name)?.label ??
+                        source.catalogEntries?.find(({ id }) => id === objectId)
+                            ?.label ??
+                        objectId,
+                })),
+        ])
         .at(0);

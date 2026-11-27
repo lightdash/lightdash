@@ -47,6 +47,7 @@ import {
     type ApiUpdateLiveSourceCacheRequest,
     type ApiUpdateLiveSourceRateLimitsRequest,
     type CreateExternalConnection,
+    type Explore,
     type ExplorePrefixCheck,
     type ExternalConnection,
     type ExternalConnectionApiSource,
@@ -69,9 +70,11 @@ import {
     type LiveSourceAccessRule,
     type LiveSourceContentUsage,
     type LiveSourceExploreChange,
+    type LiveSourceExploreFields,
     type LiveSourceFieldChange,
     type LiveSourceFieldEditor,
     type LiveSourceFields,
+    type LiveSourceRefreshSummary,
     type QuerySourceSchemaTable,
     type ReattachableLiveSource,
     type RegisteredAccount,
@@ -112,6 +115,13 @@ import {
     toScannedLiveSourceFields,
 } from '../../../services/QuerySourceService/live/explores/build';
 import {
+    getLiveCustomModels,
+    getLiveCustomObjects,
+    getLiveObjectName,
+    toLiveSourceCatalog,
+    type LiveCustomModel,
+} from '../../../services/QuerySourceService/live/explores/catalog';
+import {
     applyLiveSourceExploreChanges,
     applyLiveSourceFieldChanges,
     getInitialLiveSourceFieldEdits,
@@ -121,8 +131,14 @@ import {
     getRequiredFieldNames,
     isLiveExploreInUse,
     listLiveSourceFields,
+    type LiveSourceExploreModelChange,
+    type LiveSourceFieldEdits,
+    type LiveSourceFieldState,
 } from '../../../services/QuerySourceService/live/explores/fields';
-import { getLiveLimits } from '../../../services/QuerySourceService/live/integration';
+import {
+    findAccessRule,
+    getLiveLimits,
+} from '../../../services/QuerySourceService/live/integration';
 import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
 import {
     getLinkedInAdsAccountPath,
@@ -142,7 +158,10 @@ import { LIVE_RATE_LIMIT_DEADLINES_MS } from '../../../services/QuerySourceServi
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
 import { type LiveRateLimits } from '../../../services/QuerySourceService/live/spec/types';
 import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
-import { type LiveCatalog } from '../../../services/QuerySourceService/live/types';
+import {
+    type LiveAccessRule,
+    type LiveCatalog,
+} from '../../../services/QuerySourceService/live/types';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { checkUserAttributesAccess } from '../../../services/UserAttributesService/UserAttributeUtils';
 import {
@@ -158,6 +177,7 @@ import {
 import {
     type DeletedLiveSource,
     type ExternalConnectionModel,
+    type LiveSourceEdits,
 } from '../../models/ExternalConnectionModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { generateExternalConnectionConfigProposal } from '../ai/agents/externalConnectionConfigGenerator';
@@ -345,6 +365,19 @@ export type GoogleOAuthSession = {
     connectionUuid: string | null;
     redirectUri: string;
     codeVerifier: string;
+};
+
+/** Stands in for the uuid of a connection tested before it is saved. */
+const UNSAVED_CONNECTION_UUID = 'unsaved';
+
+/** Names tried per custom object before giving up on the project's explores. */
+const MAX_OBJECT_NAME_ATTEMPTS = 20;
+
+const EMPTY_REFRESH_SUMMARY: LiveSourceRefreshSummary = {
+    addedObjects: [],
+    removedObjects: [],
+    addedFields: {},
+    removedFields: {},
 };
 
 /** A Google sign-in that can read several properties, waiting for the admin to pick one. */
@@ -1854,12 +1887,16 @@ export class ExternalConnectionService extends BaseService {
         return { ...connection, apiSource: connection.apiSource };
     }
 
-    /** Rebuilds the explores a live data source answers metric queries with. */
+    /**
+     * Refresh: reads what the integration offers now, stores it as the
+     * source's discovered catalog and rebuilds its explores. Returns what
+     * changed.
+     */
     async refreshApiSourceExplores(
         account: RegisteredAccount,
         projectUuid: string,
         connectionUuid: string,
-    ): Promise<void> {
+    ): Promise<LiveSourceRefreshSummary> {
         const connection = await this.getOwnedConnection(
             account,
             projectUuid,
@@ -1870,7 +1907,7 @@ export class ExternalConnectionService extends BaseService {
                 `"${connection.name}" is not a live data source`,
             );
         }
-        await this.syncApiSourceExplores(account, connection, 'throw');
+        return this.syncApiSourceExplores(account, connection, 'throw');
     }
 
     /**
@@ -1883,10 +1920,10 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         connection: ExternalConnection,
         onScanError: 'throw' | 'useBaseLayer',
-    ): Promise<void> {
+    ): Promise<LiveSourceRefreshSummary> {
         const { apiSource } = connection;
         if (connection.kind !== 'live_source' || !apiSource) {
-            return;
+            return EMPTY_REFRESH_SUMMARY;
         }
         const getScan = async (): Promise<LiveCatalog | null> => {
             try {
@@ -1916,15 +1953,30 @@ export class ExternalConnectionService extends BaseService {
             apiSource,
         );
         const scan = await getScan();
+        const { externalConnectionUuid, projectUuid } = connection;
+        const [previous, previousFieldIds] = await Promise.all([
+            this.externalConnectionModel.getLiveSourceFieldState(
+                externalConnectionUuid,
+            ),
+            this.projectModel.getApiSourceFieldIds(
+                projectUuid,
+                externalConnectionUuid,
+            ),
+        ]);
         if (scan) {
-            const { externalConnectionUuid, projectUuid } = connection;
+            const refreshedAt = new Date();
             const scannedFields = toScannedLiveSourceFields(
                 apiSource.connector,
                 scan,
             );
             await this.externalConnectionModel.saveLiveSourceScan(
                 externalConnectionUuid,
-                { scannedAt: new Date().toISOString(), fields: scannedFields },
+                { scannedAt: refreshedAt.toISOString(), fields: scannedFields },
+            );
+            // Replaced whole; the configured catalog stays as admins left it
+            await this.externalConnectionModel.saveLiveSourceCatalog(
+                externalConnectionUuid,
+                toLiveSourceCatalog(apiSource.connector, scan, refreshedAt),
             );
             await this.externalConnectionModel.initLiveSourceFieldEdits(
                 externalConnectionUuid,
@@ -1941,10 +1993,110 @@ export class ExternalConnectionService extends BaseService {
                 }),
             );
         }
-        await this.rebuildApiSourceExplores(
+        const explores = await this.rebuildApiSourceExplores(
             { ...connection, liveSourceName: sourceName },
             apiSource,
         );
+        const current = scan
+            ? await this.externalConnectionModel.getLiveSourceFieldState(
+                  externalConnectionUuid,
+              )
+            : previous;
+        return ExternalConnectionService.getRefreshSummary({
+            previousObjects: getLiveCustomObjects(previous.catalog),
+            objects: getLiveCustomObjects(current.catalog),
+            previousFieldIds,
+            explores,
+            exploreNames: [
+                ...ExternalConnectionService.getLiveSourceExploreNames(
+                    apiSource.connector,
+                    sourceName,
+                    previous,
+                ),
+                ...explores.map(({ name }) => name),
+            ],
+        });
+    }
+
+    /** What a Refresh changed: custom objects, and fields by explore. */
+    private static getRefreshSummary({
+        previousObjects,
+        objects,
+        previousFieldIds,
+        explores,
+        exploreNames,
+    }: {
+        previousObjects: { id: string }[];
+        objects: { id: string }[];
+        previousFieldIds: string[];
+        explores: Explore[];
+        exploreNames: string[];
+    }): LiveSourceRefreshSummary {
+        const ids = (entries: { id: string }[]) =>
+            new Set(entries.map(({ id }) => id));
+        const before = ids(previousObjects);
+        const after = ids(objects);
+        const fieldIds = explores.flatMap(({ apiSource }) =>
+            Object.keys(apiSource?.fields ?? {}),
+        );
+        // Longest first, so `src_deals_2` wins over `src_deals` for its fields
+        const names = [...new Set(exploreNames)].sort(
+            (left, right) => right.length - left.length,
+        );
+        const byExplore = (fields: string[]) =>
+            fields.reduce<Record<string, string[]>>((grouped, fieldId) => {
+                const explore = names.find((name) =>
+                    fieldId.startsWith(`${name}_`),
+                );
+                if (!explore) return grouped;
+                return {
+                    ...grouped,
+                    [explore]: [
+                        ...(grouped[explore] ?? []),
+                        fieldId.slice(explore.length + 1),
+                    ],
+                };
+            }, {});
+        const kept = new Set(previousFieldIds);
+        const built = new Set(fieldIds);
+        return {
+            addedObjects: [...after].filter((id) => !before.has(id)),
+            removedObjects: [...before].filter((id) => !after.has(id)),
+            // A source never built before has no fields to compare with
+            addedFields:
+                previousFieldIds.length === 0
+                    ? {}
+                    : byExplore(fieldIds.filter((id) => !kept.has(id))),
+            removedFields: byExplore(
+                previousFieldIds.filter((id) => !built.has(id)),
+            ),
+        };
+    }
+
+    /** Every explore name a source has: built-in ones, and each custom object turned on. */
+    private static getLiveSourceExploreNames(
+        connector: ApiConnectorType,
+        sourceName: string,
+        state: Pick<LiveSourceFieldState, 'objects'>,
+    ): string[] {
+        return [
+            ...getLiveExploreNames(connector, sourceName),
+            ...Object.values(state.objects).map(({ name }) =>
+                getLiveExploreName(sourceName, name),
+            ),
+        ];
+    }
+
+    /** The custom objects an admin turned on, ready to build. */
+    private static getCustomModels(
+        apiSource: ExternalConnectionApiSource,
+        state: Pick<LiveSourceFieldState, 'catalog' | 'objects'>,
+    ): LiveCustomModel[] {
+        return getLiveCustomModels({
+            connector: apiSource.connector,
+            catalog: state.catalog,
+            configured: { objects: state.objects },
+        });
     }
 
     /**
@@ -1960,9 +2112,9 @@ export class ExternalConnectionService extends BaseService {
             keepFields = false,
             trx,
         }: { keepFields?: boolean; trx?: Knex.Transaction } = {},
-    ): Promise<void> {
+    ): Promise<Explore[]> {
         const { externalConnectionUuid, projectUuid } = connection;
-        await this.externalConnectionModel.withLiveSourceBuildLock(
+        return this.externalConnectionModel.withLiveSourceBuildLock(
             externalConnectionUuid,
             async (lockTrx) => {
                 const [sourceName, state, stored] = await Promise.all([
@@ -2001,6 +2153,10 @@ export class ExternalConnectionService extends BaseService {
                     ],
                     accessRule: stored?.accessRule ?? null,
                     tags: state.tags,
+                    customModels: ExternalConnectionService.getCustomModels(
+                        apiSource,
+                        state,
+                    ),
                 });
                 if (keepFields) {
                     const lost = getLostLiveFieldIds({
@@ -2028,6 +2184,7 @@ export class ExternalConnectionService extends BaseService {
                     explores,
                     lockTrx,
                 );
+                return explores;
             },
             trx,
         );
@@ -2055,8 +2212,10 @@ export class ExternalConnectionService extends BaseService {
         for (const source of sources) {
             const { externalConnectionUuid } = source;
             try {
-                const hashes = (stored[externalConnectionUuid] ?? []).map(
-                    ({ definitionHash }) => definitionHash,
+                // A custom object's explore has no hash: Refresh and edits rebuild it
+                const hashes = (stored[externalConnectionUuid] ?? []).flatMap(
+                    ({ definitionHash, object }) =>
+                        object ? [] : [definitionHash],
                 );
                 // A switched-off explore isn't built, so it has no stored hash
                 const isCurrent = isEqual(
@@ -2143,17 +2302,34 @@ export class ExternalConnectionService extends BaseService {
                 connectionUuid,
             ),
         ]);
-        const models = getLiveScannedModels(apiSource.connector);
-        const scannedFields = state.lastScan?.fields ?? [];
+        const customModels = ExternalConnectionService.getCustomModels(
+            apiSource,
+            state,
+        );
+        // Every explore whose fields can be edited, with the fields it has
+        const models = [
+            ...getLiveScannedModels(apiSource.connector).map(
+                ({ model, definition }) => ({
+                    model,
+                    definition,
+                    scannedFields: state.lastScan?.fields ?? [],
+                }),
+            ),
+            ...customModels.map(({ model, base, scannedFields }) => ({
+                model: model as string | null,
+                definition: base,
+                scannedFields,
+            })),
+        ];
         const toModel = (exploreName: string | undefined) => {
             const found =
                 exploreName === undefined
                     ? models[0]
                     : models.find(
-                          ({ definition }) =>
+                          ({ model, definition }) =>
                               getLiveExploreName(
                                   sourceName,
-                                  definition.name,
+                                  model ?? definition.name,
                               ) === exploreName,
                       );
             if (!found) {
@@ -2164,7 +2340,7 @@ export class ExternalConnectionService extends BaseService {
             return found.model;
         };
         const knownNames = new Set(
-            models.flatMap(({ model, definition }) =>
+            models.flatMap(({ model, definition, scannedFields }) =>
                 [
                     ...definition.dimensions.map(({ name }) => name),
                     ...definition.metrics.map(({ name }) => name),
@@ -2187,21 +2363,87 @@ export class ExternalConnectionService extends BaseService {
             ...change,
             name: getLiveFieldEditKey(toModel(exploreName), change.name),
         }));
-        const { definitions } = getLiveBaseLayer(apiSource.connector);
-        const modelChanges = exploreChanges.map(
-            ({ exploreName, ...change }) => {
-                const definition = definitions.find(
-                    ({ name }) =>
-                        getLiveExploreName(sourceName, name) === exploreName,
-                );
-                if (!definition) {
-                    throw new ParameterError(
-                        `"${exploreName}" isn't an explore of this source.`,
-                    );
-                }
-                return { ...change, model: definition.name };
-            },
+        const objectIds = new Set(
+            getLiveCustomObjects(state.catalog).map(({ id }) => id),
         );
+        // Names a custom object can't take because the project has them
+        const unavailableModels = await this.findUnavailableObjectModels(
+            connection,
+            apiSource,
+            sourceName,
+            state,
+            exploreChanges.flatMap(({ objectId }) =>
+                objectId !== undefined && objectIds.has(objectId)
+                    ? [objectId]
+                    : [],
+            ),
+        );
+        const { definitions } = getLiveBaseLayer(apiSource.connector);
+        const toModelChanges = (
+            objects: LiveSourceEdits['objects'],
+        ): {
+            changes: LiveSourceExploreModelChange[];
+            objects: LiveSourceEdits['objects'];
+        } =>
+            exploreChanges.reduce<{
+                changes: LiveSourceExploreModelChange[];
+                objects: LiveSourceEdits['objects'];
+            }>(
+                (result, { exploreName, objectId, ...change }) => {
+                    if (objectId !== undefined) {
+                        if (!objectIds.has(objectId)) {
+                            throw new ParameterError(
+                                `"${objectId}" isn't an object of this source.`,
+                            );
+                        }
+                        const isNamed = Object.hasOwn(result.objects, objectId);
+                        if (!isNamed && change.inUse !== true) {
+                            throw new ParameterError(
+                                `Turn "${objectId}" on before editing it.`,
+                            );
+                        }
+                        // Named once, when first turned on, and kept for good
+                        const model = getLiveObjectName({
+                            connector: apiSource.connector,
+                            configured: { objects: result.objects },
+                            objectId,
+                            isTaken: (name) => unavailableModels.has(name),
+                        });
+                        return {
+                            changes: [...result.changes, { ...change, model }],
+                            objects: isNamed
+                                ? result.objects
+                                : {
+                                      ...result.objects,
+                                      [objectId]: { name: model },
+                                  },
+                        };
+                    }
+                    const model =
+                        definitions.find(
+                            ({ name }) =>
+                                getLiveExploreName(sourceName, name) ===
+                                exploreName,
+                        )?.name ??
+                        Object.values(result.objects).find(
+                            ({ name }) =>
+                                getLiveExploreName(sourceName, name) ===
+                                exploreName,
+                        )?.name;
+                    if (model === undefined) {
+                        throw new ParameterError(
+                            `"${exploreName}" isn't an explore of this source.`,
+                        );
+                    }
+                    return {
+                        ...result,
+                        changes: [...result.changes, { ...change, model }],
+                    };
+                },
+                { changes: [], objects },
+            );
+        // Fails early, before any write, on an unknown object or explore
+        toModelChanges(state.objects);
         const editor: LiveSourceFieldEditor = {
             userUuid: account.user.id,
             userName:
@@ -2214,20 +2456,25 @@ export class ExternalConnectionService extends BaseService {
             async (trx) => {
                 await this.externalConnectionModel.updateLiveSourceEdits(
                     connectionUuid,
-                    (current) => ({
-                        fields: applyLiveSourceFieldChanges({
-                            current: current.fields,
-                            changes: keyedChanges,
-                            knownNames,
-                            requiredNames,
-                            editor,
-                        }),
-                        explores: applyLiveSourceExploreChanges({
-                            current: current.explores,
-                            changes: modelChanges,
-                            editor,
-                        }),
-                    }),
+                    (current) => {
+                        // Names read under the lock, so two admins can't name one object twice
+                        const modelChanges = toModelChanges(current.objects);
+                        return {
+                            fields: applyLiveSourceFieldChanges({
+                                current: current.fields,
+                                changes: keyedChanges,
+                                knownNames,
+                                requiredNames,
+                                editor,
+                            }),
+                            explores: applyLiveSourceExploreChanges({
+                                current: current.explores,
+                                changes: modelChanges.changes,
+                                editor,
+                            }),
+                            objects: modelChanges.objects,
+                        };
+                    },
                     trx,
                 );
                 await this.rebuildApiSourceExplores(
@@ -2256,6 +2503,65 @@ export class ExternalConnectionService extends BaseService {
     }
 
     /**
+     * The model names that would clash with an explore something else in
+     * the project has, for each custom object about to be named. Names the
+     * objects in order, as a change does, one batched lookup per round, so
+     * the result lets every one be named.
+     */
+    private async findUnavailableObjectModels(
+        connection: ExternalConnection,
+        apiSource: ExternalConnectionApiSource,
+        sourceName: string,
+        state: Pick<LiveSourceFieldState, 'objects'>,
+        objectIds: string[],
+    ): Promise<Set<string>> {
+        const unnamed = objectIds.filter(
+            (objectId) => !Object.hasOwn(state.objects, objectId),
+        );
+        const getNames = (unavailable: Set<string>) =>
+            unnamed.reduce<LiveSourceFieldState['objects']>(
+                (objects, objectId) => ({
+                    ...objects,
+                    [objectId]: {
+                        name: getLiveObjectName({
+                            connector: apiSource.connector,
+                            configured: { objects },
+                            objectId,
+                            isTaken: (name) => unavailable.has(name),
+                        }),
+                    },
+                }),
+                state.objects,
+            );
+        const unavailable = new Set<string>();
+        /* eslint-disable no-await-in-loop -- each round depends on the names refused before it */
+        for (
+            let attempt = 0;
+            attempt < MAX_OBJECT_NAME_ATTEMPTS && unnamed.length > 0;
+            attempt += 1
+        ) {
+            const named = getNames(unavailable);
+            const models = unnamed.map((objectId) => named[objectId].name);
+            const taken = new Set(
+                await this.projectModel.findExploreNamesTakenByOthers(
+                    connection.projectUuid,
+                    connection.externalConnectionUuid,
+                    models.map((model) =>
+                        getLiveExploreName(sourceName, model),
+                    ),
+                ),
+            );
+            const refused = models.filter((model) =>
+                taken.has(getLiveExploreName(sourceName, model)),
+            );
+            if (refused.length === 0) break;
+            refused.forEach((model) => unavailable.add(model));
+        }
+        /* eslint-enable no-await-in-loop */
+        return unavailable;
+    }
+
+    /**
      * The saved charts on one explore of a live source, or on one of its
      * fields, and their dashboards: what switching it off stops. Needs the
      * same access as editing the source's fields.
@@ -2274,14 +2580,18 @@ export class ExternalConnectionService extends BaseService {
         );
         const apiSource =
             ExternalConnectionService.getLiveSourceSettings(connection);
-        const sourceName = await this.resolveLiveSourceName(
-            connection,
-            apiSource,
-        );
+        const [sourceName, state] = await Promise.all([
+            this.resolveLiveSourceName(connection, apiSource),
+            this.externalConnectionModel.getLiveSourceFieldState(
+                connectionUuid,
+            ),
+        ]);
         if (
-            !getLiveExploreNames(apiSource.connector, sourceName).includes(
-                exploreName,
-            )
+            !ExternalConnectionService.getLiveSourceExploreNames(
+                apiSource.connector,
+                sourceName,
+                state,
+            ).includes(exploreName)
         ) {
             throw new ParameterError(
                 `"${exploreName}" isn't an explore of this source.`,
@@ -2352,7 +2662,11 @@ export class ExternalConnectionService extends BaseService {
         const usedByChartCount =
             await this.savedChartModel.getChartCountForExplores(
                 projectUuid,
-                getLiveExploreNames(apiSource.connector, sourceName),
+                ExternalConnectionService.getLiveSourceExploreNames(
+                    apiSource.connector,
+                    sourceName,
+                    state,
+                ),
             );
         const scannedFields = state.lastScan?.fields ?? [];
         const edits =
@@ -2380,6 +2694,7 @@ export class ExternalConnectionService extends BaseService {
                         );
                     const exploreState = {
                         exploreName,
+                        objectId: null,
                         label: exploreEdit?.label ?? definition.label,
                         description:
                             exploreEdit?.description ??
@@ -2441,14 +2756,144 @@ export class ExternalConnectionService extends BaseService {
                 },
             ),
         );
+        const customExplores = await this.readLiveSourceCustomObjects(
+            connection,
+            apiSource,
+            sourceName,
+            state,
+            edits,
+        );
         const [first] = explores;
         return {
             exploreName: first.exploreName,
             usedByChartCount,
-            scannedAt: state.lastScan?.scannedAt ?? null,
+            scannedAt:
+                state.catalog?.refreshedAt ?? state.lastScan?.scannedAt ?? null,
             fields: first.fields,
-            explores,
+            explores: [...explores, ...customExplores],
         };
+    }
+
+    /**
+     * The custom objects of the source's catalog: those an admin turned on
+     * with their fields, the others listed to turn on, under the name they
+     * would get now.
+     */
+    private async readLiveSourceCustomObjects(
+        connection: ExternalConnection,
+        apiSource: ExternalConnectionApiSource,
+        sourceName: string,
+        state: LiveSourceFieldState,
+        edits: LiveSourceFieldEdits,
+    ): Promise<LiveSourceExploreFields[]> {
+        const { projectUuid } = connection;
+        const models = ExternalConnectionService.getCustomModels(
+            apiSource,
+            state,
+        );
+        const entries = getLiveCustomObjects(state.catalog);
+        // The names objects still off would get now, past the project's explores
+        const unavailable = await this.findUnavailableObjectModels(
+            connection,
+            apiSource,
+            sourceName,
+            state,
+            entries
+                .filter(
+                    ({ id }) => !models.some(({ objectId }) => objectId === id),
+                )
+                .map(({ id }) => id),
+        );
+        const provisional = entries.reduce(
+            (objects, { id }) =>
+                Object.hasOwn(objects, id)
+                    ? objects
+                    : {
+                          ...objects,
+                          [id]: {
+                              name: getLiveObjectName({
+                                  connector: apiSource.connector,
+                                  configured: { objects },
+                                  objectId: id,
+                                  isTaken: (name) => unavailable.has(name),
+                              }),
+                          },
+                      },
+            state.objects,
+        );
+        return Promise.all(
+            entries.map(async (entry) => {
+                const model = models.find(
+                    ({ objectId }) => objectId === entry.id,
+                );
+                if (!model) {
+                    return {
+                        exploreName: getLiveExploreName(
+                            sourceName,
+                            provisional[entry.id].name,
+                        ),
+                        objectId: entry.id,
+                        label: entry.label,
+                        description: '',
+                        aiHint: null,
+                        inUse: false,
+                        usedByChartCount: 0,
+                        lastEdit: null,
+                        canEditFields: false,
+                        fields: [],
+                    };
+                }
+                const exploreName = getLiveExploreName(sourceName, model.model);
+                const exploreEdit = getLiveExploreEdit(
+                    state.explores,
+                    model.model,
+                );
+                const inputs = getLiveModelFieldInputs({
+                    model: model.model,
+                    scannedFields: model.scannedFields,
+                    edits,
+                });
+                const fieldNames = [
+                    ...model.base.dimensions,
+                    ...model.base.metrics,
+                    ...inputs.scannedFields.map(({ definition }) => definition),
+                ].map(({ name }) => name);
+                const [exploreChartCount, usage] = await Promise.all([
+                    this.savedChartModel.getChartCountForExplores(projectUuid, [
+                        exploreName,
+                    ]),
+                    this.savedChartModel.getChartCountPerField(
+                        projectUuid,
+                        fieldNames.map((name) =>
+                            getItemId({ table: exploreName, name }),
+                        ),
+                    ),
+                ]);
+                return {
+                    exploreName,
+                    objectId: entry.id,
+                    label: exploreEdit?.label ?? model.base.label,
+                    description:
+                        exploreEdit?.description ?? model.base.description,
+                    aiHint: exploreEdit?.aiHint ?? model.base.aiHint ?? null,
+                    inUse: isLiveExploreInUse(state.explores, model.model),
+                    usedByChartCount: exploreChartCount,
+                    lastEdit: exploreEdit?.lastEdit ?? null,
+                    canEditFields: true,
+                    fields: listLiveSourceFields({
+                        base: model.base,
+                        ...inputs,
+                        usageByFieldName: Object.fromEntries(
+                            usage.map(({ fieldId, count }) => [
+                                fieldId.slice(exploreName.length + 1),
+                                count,
+                            ]),
+                        ),
+                        discoveredInUse: true,
+                    }),
+                };
+            }),
+        );
     }
 
     /**
@@ -2715,10 +3160,12 @@ export class ExternalConnectionService extends BaseService {
         );
         const sources = await Promise.all(
             deleted.map(async (source): Promise<ReattachableLiveSource[]> => {
-                const exploreNames = getLiveExploreNames(
-                    apiSource.connector,
-                    source.explorePrefix,
-                );
+                const exploreNames =
+                    ExternalConnectionService.getLiveSourceExploreNames(
+                        apiSource.connector,
+                        source.explorePrefix,
+                        source,
+                    );
                 const usedByChartCount =
                     await this.savedChartModel.getChartCountForExplores(
                         projectUuid,
@@ -2784,7 +3231,13 @@ export class ExternalConnectionService extends BaseService {
         );
         const chartCount = await this.savedChartModel.getChartCountForExplores(
             projectUuid,
-            getLiveExploreNames(connector, currentPrefix),
+            ExternalConnectionService.getLiveSourceExploreNames(
+                connector,
+                currentPrefix,
+                await this.externalConnectionModel.getLiveSourceFieldState(
+                    connectionUuid,
+                ),
+            ),
         );
         if (chartCount > 0) {
             throw new ParameterError(
@@ -2795,7 +3248,11 @@ export class ExternalConnectionService extends BaseService {
         const [clash] = await this.projectModel.findExploreNamesTakenByOthers(
             projectUuid,
             connectionUuid,
-            getLiveExploreNames(connector, explorePrefix),
+            ExternalConnectionService.getLiveSourceExploreNames(
+                connector,
+                explorePrefix,
+                deleted,
+            ),
         );
         if (clash) {
             throw new AlreadyExistsError(`Explore "${clash}" already exists`);
@@ -2818,6 +3275,7 @@ export class ExternalConnectionService extends BaseService {
                           })
                         : null),
                 deleted.exploreEdits,
+                deleted.objects,
             );
         if (!isReattached) {
             throw new AlreadyExistsError(
@@ -3168,6 +3626,30 @@ export class ExternalConnectionService extends BaseService {
     }
 
     /**
+     * What a live source may send: its integration's rules for its settings
+     * and stored catalog, so each custom object's paths are allowed.
+     */
+    private async getLiveAccessRules(
+        connection: ExternalConnection,
+    ): Promise<LiveAccessRule[]> {
+        const { apiSource, externalConnectionUuid } = connection;
+        if (!apiSource) return [];
+        // A connection tested before it is saved has no catalog yet
+        const { catalog } =
+            externalConnectionUuid === UNSAVED_CONNECTION_UUID
+                ? { catalog: null }
+                : await this.externalConnectionModel.getLiveSourceFieldState(
+                      externalConnectionUuid,
+                  );
+        return getLiveIntegration(apiSource.connector).connection.access(
+            apiSource,
+            {
+                entries: catalog?.entries ?? [],
+            },
+        ).rules;
+    }
+
+    /**
      * The source's integration with calls over the guarded fetch. A
      * per-query source refuses to make more calls than one query may.
      */
@@ -3194,6 +3676,8 @@ export class ExternalConnectionService extends BaseService {
         const integration = getLiveIntegration(apiSource.connector);
         const { label } = integration;
         const limits = getLiveLimits(integration);
+        // Read once per source, on its first call
+        let accessRules: Promise<LiveAccessRule[]> | undefined;
         const usage: LiveCallUsage = {
             apiCalls: 0,
             responseBytes: 0,
@@ -3217,7 +3701,12 @@ export class ExternalConnectionService extends BaseService {
                             rawQuery: request.rawQuery,
                             body: request.body,
                         },
-                        { account, appUuid: null },
+                        {
+                            account,
+                            appUuid: null,
+                            liveAccessRules: await (accessRules ??=
+                                this.getLiveAccessRules(connection)),
+                        },
                     );
                 usage.responseBytes += responseBytes;
                 usage.providerStatus = response.status;
@@ -4757,16 +5246,32 @@ export class ExternalConnectionService extends BaseService {
             rawQuery?: string;
             body?: unknown;
         },
-        context: { account: Account; appUuid: string | null },
+        context: {
+            account: Account;
+            appUuid: string | null;
+            /** A live source's rules, when the caller already read them. */
+            liveAccessRules?: LiveAccessRule[];
+        },
     ): Promise<{
         response: ExternalFetchResponse;
         requestBytes: number;
         responseBytes: number;
     }> {
-        // Validate + normalize the path against the allowlist.
+        // Validate + normalize the path against the allowlist. A live
+        // source allows a method and path together, by its access rules.
+        const liveAccessRules = connection.apiSource
+            ? (context.liveAccessRules ??
+              (await this.getLiveAccessRules(connection)))
+            : null;
         const validatedPath = normalizeAndValidatePath(
             req.path,
-            connection.allowedPathPrefixes,
+            liveAccessRules
+                ? (path) =>
+                      findAccessRule(liveAccessRules, {
+                          method: req.method as LiveAccessRule['method'],
+                          path,
+                      }) !== undefined
+                : connection.allowedPathPrefixes,
         );
 
         // Start from the app's query; add api_key-in-query if configured.
@@ -5438,7 +5943,7 @@ export class ExternalConnectionService extends BaseService {
         // In-memory connection — never persisted. Numeric limits fall back to
         // the same defaults create applies, since the proxy core reads them.
         const connection: ExternalConnection = {
-            externalConnectionUuid: 'unsaved',
+            externalConnectionUuid: UNSAVED_CONNECTION_UUID,
             projectUuid,
             organizationUuid,
             name: data.name,

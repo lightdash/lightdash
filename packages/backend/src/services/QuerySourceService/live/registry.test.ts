@@ -12,7 +12,11 @@ import {
     toScannedLiveSourceFields,
 } from './explores/build';
 import { getInitialLiveSourceFieldEdits } from './explores/fields';
-import { describeLiveExplores, findAccessRule } from './integration';
+import {
+    describeLiveExplores,
+    EMPTY_LIVE_CATALOG,
+    findAccessRule,
+} from './integration';
 import { connectLiveSource } from './liveSource.mock';
 import {
     getLiveIntegration,
@@ -217,14 +221,20 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
             await expect(run).rejects.not.toBeInstanceOf(ParameterError);
             expect(send).toHaveBeenCalled();
             // Every call it makes is one its access rules allow
-            const { rules } = integration.connection.access(settings);
+            const { rules } = integration.connection.access(
+                settings,
+                EMPTY_LIVE_CATALOG,
+            );
             send.mock.calls.forEach(([request]) => {
                 expect(findAccessRule(rules, request)).toBeDefined();
             });
         });
 
         test('states its access as read rules', () => {
-            const { rules } = integration.connection.access(settings);
+            const { rules } = integration.connection.access(
+                settings,
+                EMPTY_LIVE_CATALOG,
+            );
             expect(rules.length).toBeGreaterThan(0);
             rules.forEach((rule) => {
                 expect(rule.effect).toBe('read');

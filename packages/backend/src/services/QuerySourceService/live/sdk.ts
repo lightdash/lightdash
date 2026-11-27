@@ -11,6 +11,7 @@ export {
     assertMaxRows,
     defineLiveIntegration,
     formatTestCount,
+    jsonRequest,
     readRule,
 } from './integration';
 export type {
@@ -20,13 +21,17 @@ export type {
 } from './spec/types';
 export type {
     LiveCatalog,
+    LiveCatalogEntry,
+    LiveCatalogField,
     LiveColumn,
+    LiveConfiguredCatalog,
     LiveConnection,
     LiveModel,
     LiveQuery,
     LiveHttpRequest,
     LiveHttpResponse,
     LiveLimits,
+    LiveObjectCatalog,
     LiveRunArgs,
     LiveRunResult,
     LiveRuntime,
@@ -46,6 +51,7 @@ export {
     getApiName,
     getLiveDefinitionName,
     getLiveExplore,
+    getLiveObjectId,
     getLiveRequestLimit,
     toFieldCombinationIssue,
     toLiveQueryError,

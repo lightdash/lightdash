@@ -37,6 +37,7 @@ import {
     type RetentionCleanupOptions,
     type RetentionCleanupResult,
 } from '../../models/retentionCleanup';
+import { type LiveSourceCatalog } from '../../services/QuerySourceService/live/explores/catalogState';
 import {
     isLiveExploreInUse,
     parseLiveSourceFieldState,
@@ -49,6 +50,7 @@ import {
     getLiveIntegration,
     parseStoredApiSource,
 } from '../../services/QuerySourceService/live/registry';
+import { type LiveConfiguredCatalog } from '../../services/QuerySourceService/live/types';
 import {
     normalizeCredentialUrlHref,
     normalizeCredentialUrlOrigin,
@@ -130,6 +132,8 @@ export const parseApiSourceSchemaScan = (
 const SERVER_OWNED_API_SOURCE_KEYS = [
     'sourceName',
     'lastScan',
+    'catalog',
+    'objects',
     'fields',
     'explores',
     'aiHint',
@@ -215,10 +219,14 @@ const toApiSourceSettingsJson = (apiSource: ExternalConnectionApiSource) =>
         ),
     );
 
-/** The curation edits of a live source, saved together. */
+/**
+ * The configured catalog of a live source, saved together: field and
+ * explore edits, and the custom objects turned on with their names.
+ */
 export type LiveSourceEdits = {
     fields: LiveSourceFieldEdits;
     explores: LiveSourceExploreEdits;
+    objects: LiveConfiguredCatalog['objects'];
 };
 
 /** A deleted live source, kept so a new one can reattach to its name. */
@@ -232,6 +240,8 @@ export type DeletedLiveSource = {
     /** Null when the source was deleted before fields could be curated. */
     fieldEdits: LiveSourceFieldEdits | null;
     exploreEdits: LiveSourceExploreEdits;
+    /** Custom objects it had turned on, so their explores keep their names. */
+    objects: LiveConfiguredCatalog['objects'];
     aiHint: string | null;
     targetLabel: string | null;
     accessRule: LiveSourceAccessRule | null;
@@ -1246,6 +1256,7 @@ export class ExternalConnectionModel {
         sourceName: string,
         fieldEdits: LiveSourceFieldEdits | null,
         exploreEdits: LiveSourceExploreEdits = {},
+        objects: LiveConfiguredCatalog['objects'] = {},
     ): Promise<boolean> {
         return this.database.transaction(async (trx) => {
             await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
@@ -1274,15 +1285,22 @@ export class ExternalConnectionModel {
                       JSON.stringify(fieldEdits),
                   ])
                 : withName;
+            const withExplores =
+                Object.keys(exploreEdits).length > 0
+                    ? trx.raw(`jsonb_set(?, '{explores}', ?::jsonb)`, [
+                          withFields,
+                          JSON.stringify(exploreEdits),
+                      ])
+                    : withFields;
             await trx(ExternalConnectionsTableName)
                 .where('external_connection_uuid', uuid)
                 .update({
-                    api_source: (Object.keys(exploreEdits).length > 0
-                        ? trx.raw(`jsonb_set(?, '{explores}', ?::jsonb)`, [
-                              withFields,
-                              JSON.stringify(exploreEdits),
+                    api_source: (Object.keys(objects).length > 0
+                        ? trx.raw(`jsonb_set(?, '{objects}', ?::jsonb)`, [
+                              withExplores,
+                              JSON.stringify(objects),
                           ])
-                        : withFields) as unknown as string,
+                        : withExplores) as unknown as string,
                 });
             return true;
         });
@@ -1472,6 +1490,22 @@ export class ExternalConnectionModel {
         return parseLiveSourceFieldState(row?.api_source ?? null);
     }
 
+    /** Replaces the source's discovered catalog, as a Refresh read it. */
+    async saveLiveSourceCatalog(
+        uuid: string,
+        catalog: LiveSourceCatalog,
+    ): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', uuid)
+            .whereNotNull('api_source')
+            .update({
+                api_source: this.database.raw(
+                    `jsonb_set(api_source, '{catalog}', ?::jsonb)`,
+                    [JSON.stringify(catalog)],
+                ) as unknown as string,
+            });
+    }
+
     async saveLiveSourceScan(
         uuid: string,
         scan: LiveSourceScan,
@@ -1528,15 +1562,17 @@ export class ExternalConnectionModel {
             const next = update({
                 fields: state.fields ?? {},
                 explores: state.explores,
+                objects: state.objects,
             });
             await trx(ExternalConnectionsTableName)
                 .where('external_connection_uuid', uuid)
                 .update({
                     api_source: trx.raw(
-                        `jsonb_set(jsonb_set(api_source, '{fields}', ?::jsonb), '{explores}', ?::jsonb)`,
+                        `jsonb_set(jsonb_set(jsonb_set(api_source, '{fields}', ?::jsonb), '{explores}', ?::jsonb), '{objects}', ?::jsonb)`,
                         [
                             JSON.stringify(next.fields),
                             JSON.stringify(next.explores),
+                            JSON.stringify(next.objects),
                         ],
                     ) as unknown as string,
                 });
@@ -1577,6 +1613,8 @@ export class ExternalConnectionModel {
                           exploreEdits: parseLiveSourceFieldState(
                               row.api_source,
                           ).explores,
+                          objects: parseLiveSourceFieldState(row.api_source)
+                              .objects,
                           ...readSourceDetails(row.api_source),
                           accessRule: readLiveSourceAccessRule(row.api_source),
                       },

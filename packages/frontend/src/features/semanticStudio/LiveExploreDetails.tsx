@@ -112,6 +112,8 @@ export const LiveExploreRows: FC<
         update.mutate(
             changed.map((explore) => ({
                 exploreName: explore.exploreName,
+                // A custom object's explore is named when first turned on
+                ...(explore.objectId ? { objectId: explore.objectId } : {}),
                 inUse: isOn(explore),
             })),
             {
@@ -322,7 +324,12 @@ export const LiveExploreEditAction: FC<
                 confirmLoading={isSaving}
                 onConfirm={() => {
                     if (!draft) return;
-                    const change = toChange(exploreName, draft, saved);
+                    const change = {
+                        ...toChange(exploreName, draft, saved),
+                        ...(explore.objectId
+                            ? { objectId: explore.objectId }
+                            : {}),
+                    };
                     save(explore, change, () => {
                         setDraft(null);
                         if (change.inUse === false) onSwitchedOff();

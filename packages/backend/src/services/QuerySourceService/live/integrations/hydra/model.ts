@@ -2,17 +2,24 @@ import {
     ApiConnectorType,
     DimensionType,
     FilterOperator,
+    HYDRA_OBJECTS_PATH,
     MetricType,
     TimeFrames,
+    withHydraDefaults,
+    type HydraApiSource,
 } from '@lightdash/common';
 import {
     ADDITIVE,
     dimension,
     metric,
     NON_ADDITIVE,
+    type LiveCatalog,
+    type LiveCatalogEntry,
     type LiveExploreDefinition,
     type LiveModel,
+    type LiveRuntime,
 } from '../../sdk';
+import { HYDRA_RECORD_COUNT, hydraObjectsResponseSchema } from './objects';
 
 /** Each report filter takes a list of values to keep or drop. */
 export const HYDRA_STRING_FILTERS = [
@@ -193,6 +200,96 @@ export const HYDRA_EXPLORES = [
     HYDRA_USERS_EXPLORE,
 ] as const;
 
+/**
+ * Lists the source's custom objects. A source that declares none is never
+ * asked, so its call numbers and limits stay as its tests expect.
+ */
+export const discoverHydraObjects = async ({
+    settings,
+    runtime,
+}: {
+    settings: HydraApiSource;
+    runtime: LiveRuntime;
+}): Promise<LiveCatalog> => {
+    if (withHydraDefaults(settings).customObjects.length === 0) {
+        return { entries: [] };
+    }
+    const { objects } = await runtime.fetch(
+        { method: 'GET', path: HYDRA_OBJECTS_PATH, body: undefined },
+        hydraObjectsResponseSchema,
+    );
+    return {
+        entries: objects.map(
+            (object): LiveCatalogEntry => ({
+                id: object.id,
+                label: object.label,
+                builtIn: false,
+                recordIdField: object.recordIdField,
+                fields: object.fields.map((field) => ({
+                    id: field.id,
+                    label: field.label,
+                    vendorType: field.type,
+                    ...(field.internal ? { internal: true } : {}),
+                })),
+            }),
+        ),
+    };
+};
+
+const DIMENSION_TYPES: Record<string, DimensionType> = {
+    number: DimensionType.NUMBER,
+    date: DimensionType.DATE,
+    boolean: DimensionType.BOOLEAN,
+};
+
+/** A field id as a field name: `Amount__c` → `amount__c`. */
+const toFieldName = (id: string) => id.toLowerCase();
+
+/**
+ * A custom object's explore: every field as a dimension, filtered by value
+ * when it is text, and a count of records. Reads the catalog entry only.
+ */
+export const describeHydraObject = (
+    entry: LiveCatalogEntry,
+): Omit<LiveExploreDefinition, 'name' | 'object'> => ({
+    label: entry.label,
+    description: `Records of the ${entry.label} custom object in Hydra's test workspace.`,
+    aiHint: 'Seeded test data from a Hydra custom object.',
+    maxDimensions: null,
+    maxMetrics: null,
+    dateRange: null,
+    incompatible: [],
+    dimensions: entry.fields.map((field) =>
+        dimension({
+            name: toFieldName(field.id),
+            apiName: field.id,
+            label: field.label,
+            type: DIMENSION_TYPES[field.vendorType] ?? DimensionType.STRING,
+            filterOperators:
+                field.vendorType === 'string' ? HYDRA_STRING_FILTERS : [],
+            description: field.description ?? `${field.label} of the record.`,
+        }),
+    ),
+    // Reports can't filter on totals
+    metrics: [
+        metric({
+            name: HYDRA_RECORD_COUNT,
+            label: 'Records',
+            type: MetricType.COUNT,
+            filterOperators: [],
+            description: 'Number of records.',
+            aggregation: ADDITIVE,
+        }),
+    ],
+});
+
 export const hydraModel: LiveModel<ApiConnectorType.HYDRA> = {
     explores: HYDRA_EXPLORES,
+    // The built-in explores have no discovered fields; custom objects are
+    // the workspace's own, listed by the API
+    discovery: {
+        discover: discoverHydraObjects,
+        withFields: (definition) => definition,
+        describeObject: describeHydraObject,
+    },
 };

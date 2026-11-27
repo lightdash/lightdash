@@ -4,6 +4,7 @@ import {
     type LiveSourceExploreChange,
     type LiveSourceFieldChange,
     type LiveSourceFields,
+    type LiveSourceRefreshSummary,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../api';
@@ -129,28 +130,59 @@ const refreshFields = async (
     lightdashApi: LightdashApi,
     params: LiveSourceParams,
 ) => {
-    await lightdashApi<undefined>({
+    const summary = await lightdashApi<LiveSourceRefreshSummary>({
         url: `/ee/projects/${params.projectUuid}/external-connections/${params.connectionUuid}/refresh-explores`,
         method: 'POST',
         body: undefined,
     });
-    return lightdashApi<LiveSourceFields>({
+    const fields = await lightdashApi<LiveSourceFields>({
         url: getFieldsUrl(params),
         method: 'GET',
         body: undefined,
     });
+    return { summary, fields };
 };
 
-/** Scans the integration again for fields it added since the last scan. */
+const countOf = (count: number, noun: string) =>
+    `${count} ${noun}${count === 1 ? '' : 's'}`;
+
+/** What a Refresh found, in a sentence; null when nothing changed. */
+const describeLiveSourceRefresh = (
+    summary: LiveSourceRefreshSummary,
+): string | null => {
+    const fieldCount = (byExplore: Record<string, string[]>) =>
+        Object.values(byExplore).reduce((sum, names) => sum + names.length, 0);
+    const parts = [
+        [summary.addedObjects.length, 'new object'],
+        [summary.removedObjects.length, 'removed object'],
+        [fieldCount(summary.addedFields), 'new field'],
+        [fieldCount(summary.removedFields), 'removed field'],
+    ] as const;
+    const changes = parts
+        .filter(([count]) => count > 0)
+        .map(([count, noun]) => countOf(count, noun));
+    return changes.length > 0 ? changes.join(', ') : null;
+};
+
+/** Reads what the integration offers now: new fields and objects, and ones gone. */
 export const useRefreshLiveSourceFields = (params: LiveSourceParams) => {
     const lightdashApi = useLightdashApi();
     const applyFields = useApplyFields(params);
     const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<LiveSourceFields, ApiError>({
+    return useMutation<
+        { summary: LiveSourceRefreshSummary; fields: LiveSourceFields },
+        ApiError
+    >({
         mutationFn: () => refreshFields(lightdashApi, params),
-        onSuccess: async (fields) => {
+        onSuccess: async ({ summary, fields }) => {
             await applyFields(fields);
-            showToastSuccess({ title: 'Fields refreshed' });
+            const changes = describeLiveSourceRefresh(summary);
+            showToastSuccess({
+                title: 'Fields refreshed',
+                subtitle: changes
+                    ? `Found ${changes}.${summary.addedObjects.length > 0 ? ' New objects start switched off.' : ''}`
+                    : 'Nothing changed since the last refresh.',
+            });
         },
         onError: ({ error }) => {
             showToastApiError({

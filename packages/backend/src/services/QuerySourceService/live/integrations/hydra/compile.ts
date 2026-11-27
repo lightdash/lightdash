@@ -9,10 +9,12 @@ import {
     getApiName,
     getLiveDefinitionName,
     getLiveExplore,
+    getLiveObjectId,
     resolveAbsoluteDateRange,
     type LiveCompiledRequest,
 } from '../../sdk';
 import { type HydraReportName, type HydraReportRequest } from './fake/report';
+import { type HydraObjectReportRequest } from './objects';
 
 const isReportName = (name: string): name is HydraReportName =>
     name === 'events' || name === 'users';
@@ -32,11 +34,39 @@ export const compileHydraQuery = ({
     today: string;
 }): LiveCompiledRequest => {
     const apiSource = getLiveExplore(explore);
+    const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
+    const toFilters = (filters: MetricQuery['filters']['dimensions']) =>
+        getActiveFilterRules(filters).map((rule) => ({
+            field: apiName(rule.target.fieldId),
+            operator:
+                rule.operator === FilterOperator.NOT_EQUALS
+                    ? ('not_in' as const)
+                    : ('in' as const),
+            values: (rule.values ?? []).map(String),
+        }));
+    const orderBy = metricQuery.sorts.map(({ fieldId, descending }) => ({
+        field: apiName(fieldId),
+        descending,
+    }));
+    const object = getLiveObjectId(explore);
+    if (object !== null) {
+        const request: HydraObjectReportRequest = {
+            object,
+            dimensions: metricQuery.dimensions.map(apiName),
+            // The object's one metric is its record count; the API refuses others
+            metrics: metricQuery.metrics.map(
+                apiName,
+            ) as HydraObjectReportRequest['metrics'],
+            filters: toFilters(metricQuery.filters.dimensions),
+            orderBy,
+            limit: metricQuery.limit,
+        };
+        return { query: JSON.stringify(request) };
+    }
     const report = getLiveDefinitionName(explore);
     if (!isReportName(report)) {
         throw new ParameterError(`Hydra has no ${report} report`);
     }
-    const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const { startDate, endDate, otherFilters } = apiSource.dateRange
         ? resolveAbsoluteDateRange({
               dateRange: apiSource.dateRange,
@@ -53,16 +83,8 @@ export const compileHydraQuery = ({
         dimensions: metricQuery.dimensions.map(apiName),
         metrics: metricQuery.metrics.map(apiName),
         ...(startDate && endDate ? { startDate, endDate } : {}),
-        filters: getActiveFilterRules(otherFilters).map((rule) => ({
-            field: apiName(rule.target.fieldId),
-            operator:
-                rule.operator === FilterOperator.NOT_EQUALS ? 'not_in' : 'in',
-            values: (rule.values ?? []).map(String),
-        })),
-        orderBy: metricQuery.sorts.map(({ fieldId, descending }) => ({
-            field: apiName(fieldId),
-            descending,
-        })),
+        filters: toFilters(otherFilters),
+        orderBy,
         limit: metricQuery.limit,
     };
     return { query: JSON.stringify(request) };
