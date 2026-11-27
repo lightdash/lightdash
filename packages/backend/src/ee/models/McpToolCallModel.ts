@@ -32,7 +32,7 @@ export type CreateMcpToolCall = Omit<
     result_metadata: object | null;
 };
 
-export type CreateMcpSessionClientInfo = {
+export type SaveMcpSessionClientInfo = {
     sessionId: string;
     userUuid: string;
     organizationUuid: string;
@@ -78,9 +78,7 @@ export class McpToolCallModel {
         });
     }
 
-    async createSessionClientInfo(
-        data: CreateMcpSessionClientInfo,
-    ): Promise<void> {
+    async saveSessionClientInfo(data: SaveMcpSessionClientInfo): Promise<void> {
         await this.database(McpSessionClientInfoTableName)
             .insert({
                 mcp_session_id: data.sessionId,
@@ -545,26 +543,26 @@ export class McpToolCallModel {
         };
     }
 
-    async deleteSessionClientInfoOlderThan(days: number): Promise<number> {
-        if (!Number.isInteger(days) || days <= 0) {
-            throw new Error(`Invalid retention days: ${days}`);
-        }
-        return this.database(McpSessionClientInfoTableName)
-            .where(
-                'created_at',
-                '<',
-                this.database.raw('now() - make_interval(days => ?)', [days]),
-            )
-            .delete();
+    async deleteToolCallsOlderThan(days: number): Promise<number> {
+        return this.deleteOlderThan(McpToolCallTableName, days);
     }
 
-    async deleteToolCallsOlderThan(days: number): Promise<number> {
+    async deleteSessionClientInfoOlderThan(days: number): Promise<number> {
+        return this.deleteOlderThan(McpSessionClientInfoTableName, days);
+    }
+
+    private async deleteOlderThan(
+        tableName:
+            | typeof McpToolCallTableName
+            | typeof McpSessionClientInfoTableName,
+        days: number,
+    ): Promise<number> {
         // A non-positive retention would compute a future cutoff and delete
         // everything
         if (!Number.isInteger(days) || days <= 0) {
             throw new Error(`Invalid retention days: ${days}`);
         }
-        return this.database(McpToolCallTableName)
+        return this.database(tableName)
             .where(
                 'created_at',
                 '<',

@@ -2,7 +2,7 @@ import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { Request, Response } from 'express';
 import { fromApiKey } from '../auth/account/account';
 import { defaultSessionUser } from '../auth/account/account.mock';
-import type { CreateMcpSessionClientInfo } from '../ee/models/McpToolCallModel';
+import type { SaveMcpSessionClientInfo } from '../ee/models/McpToolCallModel';
 import { McpService } from '../ee/services/McpService/McpService';
 import mcpRouter from './mcpRouter';
 
@@ -22,13 +22,11 @@ const projectUuid = '11111111-1111-4111-8111-111111111111';
 const sharedUserAgent = 'Claude-User';
 
 const buildService = () => {
-    const sessions: CreateMcpSessionClientInfo[] = [];
+    const sessions: SaveMcpSessionClientInfo[] = [];
     const mcpToolCallModel = {
-        createSessionClientInfo: vi.fn(
-            async (data: CreateMcpSessionClientInfo) => {
-                sessions.push(data);
-            },
-        ),
+        saveSessionClientInfo: vi.fn(async (data: SaveMcpSessionClientInfo) => {
+            sessions.push(data);
+        }),
         findSessionClientInfo: vi.fn(
             async (sessionId: string, userUuid: string, orgUuid: string) => {
                 const row = sessions.find(

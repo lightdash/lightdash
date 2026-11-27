@@ -7238,7 +7238,7 @@ export class McpService extends BaseService {
             if (!user.organizationUuid) {
                 return;
             }
-            await this.mcpToolCallModel.createSessionClientInfo({
+            await this.mcpToolCallModel.saveSessionClientInfo({
                 sessionId,
                 userUuid: user.userUuid,
                 organizationUuid: user.organizationUuid,
