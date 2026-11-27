@@ -57,7 +57,7 @@ per-node permissions. There is no delete for the chart alone yet: deleting its
 space deletes it. With soft delete on, the chart stays in the trashed space,
 refused for everything, until the space is purged.
 
-The script does both in a new space that inherits project access:
+The script creates a new space that inherits project access with a chart in it, and deletes it:
 
 ```bash
 SITE_URL=… LDPAT=… pnpm -F api-tests composer-dashboard create-space

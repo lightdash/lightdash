@@ -1927,7 +1927,7 @@ describe('Composer charts', () => {
             ).toBe(404);
         });
 
-        it('refuses a project viewer, and an editor in a space they cannot see, creating or reading', async () => {
+        it('refuses a project viewer, and an editor in a space they cannot see, creating', async () => {
             const space = await createSpace();
             const viewer = await loginAsViewer();
             expect(
@@ -1949,11 +1949,15 @@ describe('Composer charts', () => {
                 (await postChart(composerSpaceChartBody(space.uuid), editor))
                     .status,
             ).toBe(201);
+        });
 
+        it('refuses an editor reading a chart in a space they cannot see', async () => {
+            const privateSpace = await createSpace(false);
             const hidden = await postChart(
                 composerSpaceChartBody(privateSpace.uuid),
             );
             expect(hidden.status).toBe(201);
+            const editor = await loginAsEditor();
             const read = await editor.get(
                 `${chartsUrl}/${hidden.body.results.uuid}`,
                 { failOnStatusCode: false },
