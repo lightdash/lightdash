@@ -127,6 +127,7 @@ import {
     type ParameterDefinitions,
     type RegisteredAccount,
     type SpaceSummaryBase,
+    type UUID,
 } from '@lightdash/common';
 import { isEqual, isPlainObject, omit } from 'es-toolkit/compat';
 import type { Knex } from 'knex';
@@ -3637,7 +3638,7 @@ export class CoderService extends BaseService {
     /** One chart for AI/MCP read_content, with its owner's space: no export gate; view through the owner still applies. */
     async getComposerChartForRead(
         account: RegisteredAccount,
-        projectUuid: string,
+        projectUuid: UUID,
         slug: string,
     ): Promise<{
         composerChart: ComposerChartAsCode;
@@ -3659,7 +3660,7 @@ export class CoderService extends BaseService {
     // Viewing a composer chart follows its owner, as on every other read
     private async findViewableComposerCharts(
         account: RegisteredAccount,
-        projectUuid: string,
+        projectUuid: UUID,
         slugs: string[] | undefined,
     ) {
         const charts = await this.composerChartModel.findForCode(
