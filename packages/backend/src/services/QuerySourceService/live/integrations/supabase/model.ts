@@ -9,6 +9,7 @@ import { z } from 'zod';
 import {
     defineLiveModel,
     keepParsed,
+    pickLiveFields,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveModel,
@@ -261,10 +262,16 @@ export const supabaseModel: LiveModel<ApiConnectorType.SUPABASE> =
         scan: scanSupabaseTable,
         metadata: z.object({ supabaseTable: z.unknown() }),
         extend: ({ supabaseTable }) => {
-            const [table, ...others] = SUPABASE_EXPLORES;
-            return [
-                withSupabaseColumns(table, readSupabaseColumns(supabaseTable)),
-                ...others,
-            ];
+            const [table] = SUPABASE_EXPLORES;
+            return {
+                fields: {
+                    [table.name]: pickLiveFields(
+                        withSupabaseColumns(
+                            table,
+                            readSupabaseColumns(supabaseTable),
+                        ),
+                    ),
+                },
+            };
         },
     });

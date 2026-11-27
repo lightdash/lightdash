@@ -14,6 +14,7 @@ import {
     keepParsed,
     metric,
     NON_ADDITIVE,
+    pickLiveFields,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveMetricDefinition,
@@ -568,7 +569,13 @@ export const ga4Model: LiveModel<ApiConnectorType.GA4> = defineLiveModel({
     scan: scanGa4Metadata,
     metadata: z.object({ ga4Metadata: z.unknown() }),
     extend: ({ ga4Metadata }) => {
-        const [report, ...others] = GA4_EXPLORES;
-        return [withGa4MetadataFields(report, ga4Metadata), ...others];
+        const [report] = GA4_EXPLORES;
+        return {
+            fields: {
+                [report.name]: pickLiveFields(
+                    withGa4MetadataFields(report, ga4Metadata),
+                ),
+            },
+        };
     },
 });

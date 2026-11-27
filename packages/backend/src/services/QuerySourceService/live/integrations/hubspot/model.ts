@@ -13,6 +13,7 @@ import {
     dimension,
     keepParsed,
     metric,
+    pickLiveFields,
     withFieldsOffByDefault,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
@@ -779,18 +780,24 @@ export const hubspotModel: LiveModel<ApiConnectorType.HUBSPOT> =
         // Every object's explore gets the properties the account has
         scan: scanHubspotProperties,
         metadata: z.object({ hubspotProperties: z.unknown() }),
-        extend: ({ hubspotProperties }) =>
-            HUBSPOT_EXPLORES.map((definition) =>
-                withFieldsOffByDefault(
-                    definition,
-                    withHubspotPropertyFields(
-                        definition,
-                        readHubspotProperties(
-                            hubspotProperties,
-                            definition.name,
+        extend: ({ hubspotProperties }) => ({
+            fields: Object.fromEntries(
+                HUBSPOT_EXPLORES.map((definition) => [
+                    definition.name,
+                    pickLiveFields(
+                        withFieldsOffByDefault(
+                            definition,
+                            withHubspotPropertyFields(
+                                definition,
+                                readHubspotProperties(
+                                    hubspotProperties,
+                                    definition.name,
+                                ),
+                            ),
+                            isHubspotSystemField,
                         ),
                     ),
-                    isHubspotSystemField,
-                ),
+                ]),
             ),
+        }),
     });

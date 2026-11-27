@@ -12,6 +12,7 @@ import {
     defineLiveModel,
     dimension,
     keepParsed,
+    pickLiveFields,
     withFieldsOffByDefault,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
@@ -636,18 +637,24 @@ export const attioModel: LiveModel<ApiConnectorType.ATTIO> = defineLiveModel({
     // Every object's explore gets the attributes the workspace has
     scan: scanAttioAttributes,
     metadata: z.object({ attioAttributes: z.unknown() }),
-    extend: ({ attioAttributes }) =>
-        ATTIO_EXPLORES.map((definition) =>
-            withFieldsOffByDefault(
-                definition,
-                withAttioAttributeFields(
-                    definition,
-                    readAttioAttributes(
-                        attioAttributes,
-                        toAttioObject(definition.name),
+    extend: ({ attioAttributes }) => ({
+        fields: Object.fromEntries(
+            ATTIO_EXPLORES.map((definition) => [
+                definition.name,
+                pickLiveFields(
+                    withFieldsOffByDefault(
+                        definition,
+                        withAttioAttributeFields(
+                            definition,
+                            readAttioAttributes(
+                                attioAttributes,
+                                toAttioObject(definition.name),
+                            ),
+                        ),
+                        isAttioSystemField,
                     ),
                 ),
-                isAttioSystemField,
-            ),
+            ]),
         ),
+    }),
 });

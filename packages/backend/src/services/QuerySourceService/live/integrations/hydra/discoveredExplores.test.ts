@@ -16,7 +16,7 @@ import {
     type LiveExploreDefinition,
 } from '../../explores/definition';
 import { type LiveSourceExploreEdits } from '../../explores/fields';
-import { checkDiscoveredExplores } from '../../explores/source';
+import { checkLiveExtension, getLiveExtension } from '../../explores/source';
 import { extendLiveModel, findAccessRule } from '../../integration';
 import {
     connectLiveSource,
@@ -67,9 +67,13 @@ const connect = (settings: HydraApiSource) => {
 const refresh = async (objects: HydraObject[]) => {
     const { source } = connect(settingsWith(objects));
     const metadata = await source.scan();
-    const { explores, dropped } = checkDiscoveredExplores(
+    const { dropped } = checkLiveExtension(
         ApiConnectorType.HYDRA,
         extendLiveModel(hydraIntegration.model, metadata),
+    );
+    const { explores } = getLiveExtension(
+        ApiConnectorType.HYDRA,
+        getRefreshedLiveState(metadata),
     );
     return { metadata, explores, dropped };
 };

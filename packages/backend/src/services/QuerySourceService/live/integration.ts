@@ -11,6 +11,8 @@ import { refuseLiveQuery } from './query/refuse';
 import type {
     LiveAccessRule,
     LiveCapabilities,
+    LiveExtension,
+    LiveExtraFields,
     LiveIntegration,
     LiveLimits,
     LiveModel,
@@ -48,7 +50,7 @@ export const defineLiveModel = <C extends ApiConnectorType, Metadata>(model: {
         runtime: LiveRuntime;
     }) => Promise<Metadata>;
     metadata: z.ZodType<Metadata>;
-    extend: (metadata: Metadata) => LiveExploreDefinition[];
+    extend: (metadata: Metadata) => LiveExtension;
 }): LiveModel<C> => model as unknown as LiveModel<C>;
 
 const MODEL_NAME_MAX_LENGTH = 40;
@@ -69,15 +71,21 @@ export const toLiveModelName = (apiName: string): string => {
 export const isLiveModelName = (name: string): boolean =>
     name.length <= MODEL_NAME_MAX_LENGTH && /^[a-z][a-z0-9_]*$/.test(name);
 
+/** An explore's fields, as `extend` returns them for a declared explore. */
+export const pickLiveFields = ({
+    dimensions,
+    metrics,
+}: LiveExtraFields): LiveExtraFields => ({ dimensions, metrics });
+
 /**
- * The explores a model's `extend` gives for stored metadata. Null when the
- * model doesn't scan, or the metadata isn't in its shape: stored by an
- * older version of the integration, say.
+ * What a model's `extend` adds for stored metadata. Null when the model
+ * doesn't scan, or the metadata isn't in its shape: stored by an older
+ * version of the integration, say.
  */
 export const extendLiveModel = <C extends ApiConnectorType>(
     model: LiveModel<C>,
     metadata: unknown,
-): LiveExploreDefinition[] | null => {
+): LiveExtension | null => {
     if (!model.extend) {
         return null;
     }

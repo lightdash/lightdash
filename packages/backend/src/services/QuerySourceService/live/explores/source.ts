@@ -9,6 +9,7 @@ import {
 import { z } from 'zod';
 import { extendLiveModel, isLiveModelName } from '../integration';
 import { getLiveIntegration, isLiveIntegrationRegistered } from '../registry';
+import { type LiveExtension, type LiveExtraFields } from '../types';
 import {
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
@@ -23,8 +24,8 @@ import {
 } from './fields';
 
 /**
- * A source's explores, built the same way whether its integration declared
- * them or `extend` added them:
+ * A source's explores: the ones its integration declares, with what its
+ * `extend` adds:
  *
  * - a Refresh stores the metadata the vendor reported (`scan.metadata`),
  *   not explores; each build turns it into explores with the integration's
@@ -32,8 +33,8 @@ import {
  * - a declared explore always comes from the code, with the fields the
  *   metadata adds after its own
  * - every explore has a `name`, its one identity. One that `extend` adds
- *   is left out when its name isn't a model name, an earlier explore has
- *   it, or a declared explore has it for something else
+ *   is left out when its name isn't a model name, or another explore has
+ *   it
  * - every explore and field is on as an admin set it, else as its
  *   definition's `onByDefault` (on when absent). A Refresh that sees a
  *   default change keeps the state the source had, so `onByDefault` only
@@ -47,10 +48,10 @@ export type LiveSourceScan = {
     metadata: unknown;
 };
 
-/** The explores of a source last refreshed before metadata was stored, read from its `lastScan`. */
+/** What the `lastScan` of a source last refreshed before metadata was stored adds. */
 export type LiveSourceLegacyScan = {
     at: string;
-    explores: LiveExploreDefinition[];
+    extension: LiveExtension;
 };
 
 /** How a source's explores and fields are curated, as stored next to its settings. */
@@ -114,9 +115,22 @@ const exploreSchema = z
     })
     .passthrough();
 
-const exploresSchema = z.array(exploreSchema) as unknown as z.ZodType<
-    LiveExploreDefinition[]
->;
+const extensionSchema = z.object({
+    fields: z
+        .record(
+            z.string(),
+            z.object({
+                dimensions: z.array(
+                    fieldSchema.extend({ type: z.nativeEnum(DimensionType) }),
+                ),
+                metrics: z.array(
+                    fieldSchema.extend({ type: z.nativeEnum(MetricType) }),
+                ),
+            }),
+        )
+        .optional(),
+    explores: z.array(exploreSchema).optional(),
+}) as unknown as z.ZodType<LiveExtension>;
 
 /**
  * Whether an id can sit in one path segment of an access rule as it is: no
@@ -126,81 +140,99 @@ const exploresSchema = z.array(exploreSchema) as unknown as z.ZodType<
 const isPathSafe = (id: string) => !/[/{}?#\s%]/.test(id);
 
 /**
- * The explores `extend` gave that a source can have, and the names of the
- * ones left out. One is left out when:
+ * What an extension gives a source, and the names of the explores left out
+ * of it. Fields count only for an explore the model declares. An explore is
+ * left out when:
  *
  * - its name isn't a model name, so it can't be part of an explore name
  * - its `apiName` can't be one path segment, so it could widen the source's
  *   access
- * - an earlier one has its name
- * - a declared explore has its name for something else (another `apiName`)
+ * - a declared explore, or an earlier one, has its name
  */
-export const keepLiveExplores = (
+const keepLiveExtension = (
     connector: ApiConnectorType,
-    explores: readonly LiveExploreDefinition[],
-): { kept: LiveExploreDefinition[]; dropped: string[] } => {
-    const declared = new Map(
-        getLiveIntegration(connector).model.explores.map((explore) => [
-            explore.name,
-            explore.apiName,
-        ]),
+    extension: LiveExtension,
+): { extension: Required<LiveExtension>; dropped: string[] } => {
+    const declared = new Set(
+        getLiveIntegration(connector).model.explores.map(({ name }) => name),
     );
-    const seen = new Set<string>();
-    return explores.reduce<{
-        kept: LiveExploreDefinition[];
+    const fields = Object.fromEntries(
+        Object.entries(extension.fields ?? {}).filter(([name]) =>
+            declared.has(name),
+        ),
+    );
+    const seen = new Set(declared);
+    return (extension.explores ?? []).reduce<{
+        extension: Required<LiveExtension>;
         dropped: string[];
     }>(
-        ({ kept, dropped }, explore) => {
+        (result, explore) => {
             const isKept =
                 isLiveModelName(explore.name) &&
                 (explore.apiName === undefined ||
                     isPathSafe(explore.apiName)) &&
-                !seen.has(explore.name) &&
-                (!declared.has(explore.name) ||
-                    declared.get(explore.name) === explore.apiName);
+                !seen.has(explore.name);
             seen.add(explore.name);
             return isKept
-                ? { kept: [...kept, explore], dropped }
-                : { kept, dropped: [...dropped, explore.name] };
+                ? {
+                      ...result,
+                      extension: {
+                          fields,
+                          explores: [...result.extension.explores, explore],
+                      },
+                  }
+                : { ...result, dropped: [...result.dropped, explore.name] };
         },
-        { kept: [], dropped: [] },
+        { extension: { fields, explores: [] }, dropped: [] },
     );
 };
 
-/** What `extend` returned at a Refresh, checked: the explores the source can have, and the names left out. */
-export const checkDiscoveredExplores = (
+/**
+ * What `extend` returned at a Refresh, checked: the names of the explores
+ * left out. Refuses another shape, and fields for an explore the model
+ * doesn't declare, which is a mistake in the integration.
+ */
+export const checkLiveExtension = (
     connector: ApiConnectorType,
-    discovered: unknown,
-): { explores: LiveExploreDefinition[]; dropped: string[] } => {
-    const { label } = getLiveIntegration(connector);
-    const parsed = exploresSchema.safeParse(discovered);
+    extension: unknown,
+): { dropped: string[] } => {
+    const { label, model } = getLiveIntegration(connector);
+    const parsed = extensionSchema.safeParse(extension);
     if (!parsed.success) {
         throw new UnexpectedServerError(
             `${label} reported its explores in an unexpected shape`,
         );
     }
-    const { kept, dropped } = keepLiveExplores(connector, parsed.data);
-    return { explores: kept, dropped };
+    const declared = new Set(model.explores.map(({ name }) => name));
+    const unknown = Object.keys(parsed.data.fields ?? {}).filter(
+        (name) => !declared.has(name),
+    );
+    if (unknown.length > 0) {
+        throw new UnexpectedServerError(
+            `${label} reported fields for explores it doesn't have: ${unknown.join(', ')}`,
+        );
+    }
+    return { dropped: keepLiveExtension(connector, parsed.data).dropped };
 };
 
 /**
- * The explores a source's stored metadata gives, or its old scan's; none
- * before its first Refresh. The same ones are left out as at Refresh.
+ * What a source's stored metadata adds, or its old scan; nothing before its
+ * first Refresh. The same explores are left out as at Refresh.
  */
-export const getLiveDiscoveredExplores = (
+export const getLiveExtension = (
     connector: ApiConnectorType,
     state: Pick<LiveSourceFieldState, 'scan'> &
         Partial<Pick<LiveSourceFieldState, 'legacy'>>,
-): LiveExploreDefinition[] =>
-    keepLiveExplores(
+): Required<LiveExtension> =>
+    keepLiveExtension(
         connector,
         state.scan
             ? (extendLiveModel(
                   getLiveIntegration(connector).model,
                   state.scan.metadata,
-              ) ?? [])
-            : (state.legacy?.explores ?? []),
-    ).kept;
+              ) ?? {})
+            : (state.legacy?.extension ?? {}),
+    ).extension;
 
 const legacyFieldSchema = z.object({
     name: z.string(),
@@ -293,7 +325,7 @@ const EMPTY_STATE: LiveSourceFieldState = {
 };
 
 /**
- * A stored scan read as stored explores. Its fields keep the state they had:
+ * A stored scan read as what it adds. Its fields keep the state they had:
  * all on when the source was never curated (`fields` absent), else on only
  * when an admin turned them on. Their default is on unless the vendor marked
  * them as its own bookkeeping, so edits pin the fields whose state differs.
@@ -304,13 +336,7 @@ const fromLegacyScan = (
     storedEdits: LiveSourceFieldEdits | null,
 ): { legacy: LiveSourceLegacyScan; fields: LiveSourceFieldEdits } => {
     const [first] = getLiveIntegration(connector).model.explores;
-    const byModel = new Map<
-        string,
-        {
-            dimensions: LiveDimensionDefinition[];
-            metrics: LiveMetricDefinition[];
-        }
-    >();
+    const byModel = new Map<string, LiveExtraFields>();
     const pins: LiveSourceFieldEdits = {};
     scan.fields.forEach((field) => {
         const model = field.model ?? first.name;
@@ -335,16 +361,7 @@ const fromLegacyScan = (
     return {
         legacy: {
             at: scan.scannedAt,
-            explores: [...byModel].map(([name, fields]) => ({
-                name,
-                label: name,
-                description: '',
-                maxDimensions: null,
-                maxMetrics: null,
-                dateRange: null,
-                incompatible: [],
-                ...fields,
-            })),
+            extension: { fields: Object.fromEntries(byModel) },
         },
         fields: { ...storedEdits, ...pins },
     };
@@ -406,15 +423,16 @@ export const getLiveSourceModels = (
         Partial<Pick<LiveSourceFieldState, 'legacy'>>,
 ): LiveSourceModel[] => {
     const declared = getLiveIntegration(connector).model.explores;
-    const discovered = getLiveDiscoveredExplores(connector, state);
-    const declaredNames = new Set(declared.map(({ name }) => name));
+    const extension = getLiveExtension(connector, state);
     const fromCode = declared.map((definition, index): LiveSourceModel => {
         const fieldNames = new Set(
             [...definition.dimensions, ...definition.metrics].map(
                 ({ name }) => name,
             ),
         );
-        const found = discovered.find(({ name }) => name === definition.name);
+        const added = Object.hasOwn(extension.fields, definition.name)
+            ? extension.fields[definition.name]
+            : undefined;
         const isNew = ({ name }: { name: string }) => !fieldNames.has(name);
         return {
             name: definition.name,
@@ -423,11 +441,11 @@ export const getLiveSourceModels = (
                 ...definition,
                 dimensions: [
                     ...definition.dimensions,
-                    ...(found?.dimensions.filter(isNew) ?? []),
+                    ...(added?.dimensions.filter(isNew) ?? []),
                 ],
                 metrics: [
                     ...definition.metrics,
-                    ...(found?.metrics.filter(isNew) ?? []),
+                    ...(added?.metrics.filter(isNew) ?? []),
                 ],
             },
             isDeclared: true,
@@ -435,18 +453,16 @@ export const getLiveSourceModels = (
             onByDefault: definition.onByDefault ?? true,
         };
     });
-    const fromRefresh = discovered
-        .filter(({ name }) => !declaredNames.has(name))
-        .map(
-            (definition): LiveSourceModel => ({
-                name: definition.name,
-                editModel: definition.name,
-                definition,
-                isDeclared: false,
-                declaredNames: new Set(),
-                onByDefault: definition.onByDefault ?? true,
-            }),
-        );
+    const fromRefresh = extension.explores.map(
+        (definition): LiveSourceModel => ({
+            name: definition.name,
+            editModel: definition.name,
+            definition,
+            isDeclared: false,
+            declaredNames: new Set(),
+            onByDefault: definition.onByDefault ?? true,
+        }),
+    );
     return [...fromCode, ...fromRefresh];
 };
 

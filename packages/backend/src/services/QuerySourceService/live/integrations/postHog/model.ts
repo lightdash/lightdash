@@ -14,6 +14,7 @@ import {
     dimension,
     metric,
     NON_ADDITIVE,
+    pickLiveFields,
     withFieldsOffByDefault,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
@@ -603,19 +604,22 @@ export const postHogModel: LiveModel<ApiConnectorType.POSTHOG> =
                 .optional(),
         }),
         extend: ({ posthogProperties }) => {
-            const [events, ...others] = POSTHOG_EXPLORES;
-            return [
-                posthogProperties
-                    ? withFieldsOffByDefault(
-                          events,
-                          withPostHogPropertyFields(events, {
-                              event: posthogProperties.event,
-                              person: posthogProperties.person,
-                          }),
-                          isPostHogSystemProperty,
-                      )
-                    : events,
-                ...others,
-            ];
+            const [events] = POSTHOG_EXPLORES;
+            return posthogProperties
+                ? {
+                      fields: {
+                          [events.name]: pickLiveFields(
+                              withFieldsOffByDefault(
+                                  events,
+                                  withPostHogPropertyFields(events, {
+                                      event: posthogProperties.event,
+                                      person: posthogProperties.person,
+                                  }),
+                                  isPostHogSystemProperty,
+                              ),
+                          ),
+                      },
+                  }
+                : {};
         },
     });
