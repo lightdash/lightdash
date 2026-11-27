@@ -11,6 +11,7 @@ import {
     APP_SDK_INSIGHTS_REQUEST_MESSAGE,
     APP_SDK_MOUNTED_QUERIES_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
+    DATA_APP_ANALYSIS_TEXT_MAX_CHARS_CEILING,
     DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT,
     APP_SDK_VIZ_DRILL_DOWN_PATH,
     APP_SDK_VIZ_POINT_MENU_PATH,
@@ -753,6 +754,21 @@ export function useAppSdkBridge({
     onCaptureHold,
 }: UseAppSdkBridgeParams) {
     const lightdashApi = useLightdashApi();
+    // What the app last declared, before the org cap; undefined until it does.
+    const declaredInstructionsRef = useRef<string | null | undefined>(
+        undefined,
+    );
+    // The org cap can load after the app declared its instructions, and the
+    // SDK does not resend them, so reapply it to what was declared.
+    useEffect(() => {
+        const declared = declaredInstructionsRef.current;
+        if (declared === undefined) return;
+        onInsightInstructionsChange?.(
+            declared?.slice(0, analysisTextMaxChars) ?? null,
+        );
+        // Only a cap change reapplies; a new callback identity must not re-emit.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [analysisTextMaxChars]);
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
     //     (the parent in embed mode has no session, only the JWT).
@@ -954,12 +970,22 @@ export function useAppSdkBridge({
                     onInsightsInUse?.();
                 }
                 // App code is untrusted: cap the author guidance here so a
-                // runaway string never reaches the analysis request.
-                onInsightInstructionsChange?.(
+                // runaway string never reaches the analysis request. The
+                // declaration is kept so a cap that arrives later reapplies.
+                declaredInstructionsRef.current =
                     typeof instructions === 'string'
-                        ? instructions.trim().slice(0, analysisTextMaxChars) ||
-                              null
-                        : null,
+                        ? instructions
+                              .trim()
+                              .slice(
+                                  0,
+                                  DATA_APP_ANALYSIS_TEXT_MAX_CHARS_CEILING,
+                              ) || null
+                        : null;
+                onInsightInstructionsChange?.(
+                    declaredInstructionsRef.current?.slice(
+                        0,
+                        analysisTextMaxChars,
+                    ) ?? null,
                 );
                 onInsightAnalyseOnLoadChange?.(
                     typeof analyseOnLoad === 'boolean' ? analyseOnLoad : null,

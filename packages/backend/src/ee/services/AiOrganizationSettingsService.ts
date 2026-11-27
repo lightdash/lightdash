@@ -481,7 +481,8 @@ export class AiOrganizationSettingsService extends BaseService {
                 organizationUuid,
             ),
             this.isAiAgentMemoryEnabled(user),
-            this.isAmbientKeySelfManaged(organizationUuid),
+            // Display-safe: settings must load with an unreadable credential.
+            this.isAmbientKeySelfManaged(organizationUuid, 'display'),
         ]);
 
         const [
@@ -703,13 +704,18 @@ export class AiOrganizationSettingsService extends BaseService {
     /** Whether AI analysis runs on a key the org pays for itself. */
     private async isAmbientKeySelfManaged(
         organizationUuid: string,
+        purpose: 'enforce' | 'display' = 'enforce',
     ): Promise<boolean> {
         const copilotConfig =
-            await this.orgAiCopilotConfigResolver.getCopilotConfig({
-                organizationUuid,
-                projectUuid: null,
-                credentialUuid: null,
-            });
+            purpose === 'display'
+                ? await this.orgAiCopilotConfigResolver.getCopilotConfigForDisplay(
+                      organizationUuid,
+                  )
+                : await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                      organizationUuid,
+                      projectUuid: null,
+                      credentialUuid: null,
+                  });
         return (
             resolveKeyManagement(
                 copilotConfig,

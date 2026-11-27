@@ -16,6 +16,7 @@ import {
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
+    resolveDataAppAnalysisTextMaxChars,
     ResultsExpiredError,
     SchedulerJobStatus,
     TooManyRequestsError,
@@ -728,6 +729,40 @@ export class DataAppAnalysisService extends BaseService {
         }
     }
 
+    /**
+     * An instruction runs on the selected agent's model, so its cap follows
+     * that agent's key, not the organization's ambient one.
+     */
+    private async assertInstructionWithinAgentCap(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        instruction: string,
+    ): Promise<void> {
+        if (instruction.length <= DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT) {
+            return;
+        }
+        const [limits, keyManagement] = await Promise.all([
+            this.aiOrganizationSettingsService.getDataAppAnalysisLimits(
+                user.organizationUuid!,
+            ),
+            this.aiAgentService.getAgentKeyManagement(user, {
+                projectUuid,
+                agentUuid,
+                modelConfig: null,
+            }),
+        ]);
+        const maxChars = resolveDataAppAnalysisTextMaxChars(
+            limits,
+            keyManagement === 'self-managed',
+        );
+        if (instruction.length > maxChars) {
+            throw new ParameterError(
+                `Instructions are limited to ${maxChars} characters`,
+            );
+        }
+    }
+
     private static validateInstructions(
         raw: string | undefined,
     ): string | null {
@@ -756,9 +791,17 @@ export class DataAppAnalysisService extends BaseService {
                 organizationUuid,
             );
         if (!orgDefault) return appInstructions;
-        return appInstructions
-            ? `${orgDefault}\n\n${appInstructions}`
-            : orgDefault;
+        // Saved under a higher cap than applies now (the org left its own key).
+        const capped =
+            orgDefault.length > DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT
+                ? orgDefault.slice(
+                      0,
+                      await this.aiOrganizationSettingsService.getDataAppAnalysisTextMaxChars(
+                          organizationUuid,
+                      ),
+                  )
+                : orgDefault;
+        return appInstructions ? `${capped}\n\n${appInstructions}` : capped;
     }
 
     private static toDetection(
@@ -1684,12 +1727,13 @@ export class DataAppAnalysisService extends BaseService {
     ): Promise<{ jobId: string }> {
         const instruction = DataAppAnalysisService.validateInstruction(body);
         const { user } = await this.assertViewer(account, projectUuid, locator);
-        await this.assertTextWithinOrgCap(
-            user.organizationUuid!,
-            instruction,
-            'Instructions',
-        );
         await this.assertAgentUsable(user, projectUuid, body.agentUuid);
+        await this.assertInstructionWithinAgentCap(
+            user,
+            projectUuid,
+            body.agentUuid,
+            instruction,
+        );
         // Instruction runs share the anomaly investigations' buckets: one
         // agent run is one agent run, whatever asked for it.
         await this.assertRate(
@@ -2093,6 +2137,13 @@ export class DataAppAnalysisService extends BaseService {
                 user,
                 payload.projectUuid,
                 payload.agentUuid,
+            );
+            // The agent's key or the org limit may have changed while queued.
+            await this.assertInstructionWithinAgentCap(
+                user,
+                payload.projectUuid,
+                payload.agentUuid,
+                payload.instruction,
             );
             const { content, truncated } = await this.buildContent(
                 account,
