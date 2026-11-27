@@ -5,6 +5,7 @@ import {
     getHubspotPropertiesPath,
     getItemMap,
     getSalesforceDescribePath,
+    HUBSPOT_SCHEMAS_PATH,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
 import { getGa4MetadataPath } from '../integrations/ga4/api';
@@ -176,6 +177,8 @@ const SOURCES: {
             [getHubspotPropertiesPath('contacts')]: {
                 results: [{ name: 'email', label: 'Email', type: 'string' }],
             },
+            // No custom objects
+            [HUBSPOT_SCHEMAS_PATH]: { results: [] },
         },
     },
     {

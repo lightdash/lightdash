@@ -6,6 +6,7 @@ import {
     HUBSPOT_OBJECTS,
     HUBSPOT_ORIGIN,
     HUBSPOT_PIPELINE_OBJECTS,
+    HUBSPOT_SCHEMAS_PATH,
     LIVE_INTEGRATION_CATALOG,
     ParameterError,
 } from '@lightdash/common';
@@ -16,6 +17,7 @@ import {
     type LiveConnection,
     type LiveTestSummary,
 } from '../../sdk';
+import { HUBSPOT_CUSTOM_OBJECT_ID } from './api';
 
 // The setup test lists the object's properties
 const testResponseSchema = z.object({ results: z.array(z.unknown()) });
@@ -40,7 +42,7 @@ const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.HUBSPOT];
 export const hubspotConnection: LiveConnection<ApiConnectorType.HUBSPOT> = {
     settings: CATALOG.settings,
     origins: [HUBSPOT_ORIGIN],
-    access: () => ({
+    access: (_settings, explores) => ({
         rules: [
             ...HUBSPOT_OBJECTS.flatMap((object) => [
                 readRule('GET', getHubspotPropertiesPath(object)),
@@ -48,6 +50,18 @@ export const hubspotConnection: LiveConnection<ApiConnectorType.HUBSPOT> = {
             ]),
             ...HUBSPOT_PIPELINE_OBJECTS.map((object) =>
                 readRule('GET', getHubspotPipelinesPath(object)),
+            ),
+            readRule('GET', HUBSPOT_SCHEMAS_PATH, { exact: true }),
+            // Each custom object the last Refresh found is searched by its id
+            ...explores.flatMap(({ apiName }) =>
+                apiName !== undefined && HUBSPOT_CUSTOM_OBJECT_ID.test(apiName)
+                    ? [
+                          readRule('POST', getHubspotSearchPath(apiName), {
+                              exact: true,
+                              entry: apiName,
+                          }),
+                      ]
+                    : [],
             ),
         ],
     }),
@@ -59,6 +73,6 @@ export const hubspotConnection: LiveConnection<ApiConnectorType.HUBSPOT> = {
         }
     },
     describeTarget: () =>
-        'HubSpot CRM: deals, contacts, companies, tickets and leads, plus deal and ticket pipeline stages',
+        'HubSpot CRM: deals, contacts, companies, tickets and leads, plus deal and ticket pipeline stages and custom objects',
     summarizeTest: summarizeHubspotTest,
 };

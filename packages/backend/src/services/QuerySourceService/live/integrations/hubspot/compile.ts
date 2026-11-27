@@ -18,6 +18,7 @@ import {
     getLiveDateRange,
     getLiveDefinitionName,
     getLiveExplore,
+    getLiveExploreApiName,
     refuseLiveQuery,
     toAbsoluteDateRange,
     type LiveCompiledRequest,
@@ -28,7 +29,7 @@ import {
     HUBSPOT_MAX_FILTERS,
     HUBSPOT_OBJECT_LABELS,
     HUBSPOT_PIPELINE_STAGES,
-    toHubspotObject,
+    toHubspotSearchObject,
     type HubspotPipelineColumn,
 } from './api';
 import { toHubspotPropertyName } from './model';
@@ -407,7 +408,10 @@ export const compileHubspotQuery = ({
     if (definitionName === HUBSPOT_PIPELINE_STAGES) {
         return compilePipelineStages(apiSource, metricQuery);
     }
-    const object = toHubspotObject(definitionName);
+    const object = toHubspotSearchObject(
+        getLiveExploreApiName(explore),
+        definitionName,
+    );
     const itemsMap = getItemMap(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const valueLabelsOf = (fieldId: string) =>

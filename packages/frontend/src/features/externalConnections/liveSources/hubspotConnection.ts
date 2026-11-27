@@ -5,6 +5,7 @@ import {
     getHubspotSearchPath,
     HUBSPOT_OBJECTS,
     HUBSPOT_PIPELINE_OBJECTS,
+    HUBSPOT_SCHEMAS_PATH,
     HUBSPOT_ORIGIN,
 } from '@lightdash/common';
 import { type TokenLiveSourceForm } from './tokenLiveSource';
@@ -24,6 +25,7 @@ export const HUBSPOT_TOKEN_FORM = {
                 getHubspotSearchPath(object),
             ]),
             ...HUBSPOT_PIPELINE_OBJECTS.map(getHubspotPipelinesPath),
+            HUBSPOT_SCHEMAS_PATH,
         ],
         allowedContentTypes: ['application/json'],
     }),
