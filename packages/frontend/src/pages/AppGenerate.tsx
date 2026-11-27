@@ -3813,6 +3813,12 @@ const AppGenerate: FC = () => {
                                         onInsightInstructionsChange={
                                             setInsightInstructions
                                         }
+                                        analysisTextMaxChars={
+                                            analysisAvailability.status ===
+                                            'available'
+                                                ? analysisAvailability.textMaxChars
+                                                : undefined
+                                        }
                                         onInsightAnalyseOnLoadChange={
                                             setInsightAnalyseOnLoad
                                         }

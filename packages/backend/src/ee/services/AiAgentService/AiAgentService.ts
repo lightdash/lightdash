@@ -285,7 +285,10 @@ import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
 import { Readable } from 'stream';
 import { z } from 'zod';
-import { getAiUsageChannel } from '../../../analytics/aiUsage';
+import {
+    getAiUsageChannel,
+    type AiKeyManagement,
+} from '../../../analytics/aiUsage';
 import {
     AiAgentCreatedEvent,
     AiAgentDeletedEvent,
@@ -10256,24 +10259,43 @@ export class AiAgentService extends BaseService {
     ): Promise<void> {
         await this.aiCreditService.assertAiCreditsAvailable({
             user,
-            resolveKeyManagement: async () => {
-                const copilotConfig =
-                    await this.orgAiCopilotConfigResolver.getCopilotConfig({
-                        organizationUuid: user.organizationUuid ?? null,
-                        projectUuid,
-                        credentialUuid:
-                            await this.aiAgentModel.findProviderCredentialUuid(
-                                agentUuid,
-                            ),
-                    });
-                return getModel(copilotConfig, {
-                    enableReasoning: modelConfig?.reasoning,
-                    modelName: modelConfig?.modelName,
-                    provider: modelConfig?.modelProvider as AnyType,
-                }).keyManagement;
-            },
+            resolveKeyManagement: () =>
+                this.getAgentKeyManagement(user, {
+                    projectUuid,
+                    agentUuid,
+                    modelConfig,
+                }),
             isEmbedViewer: aiCreditCheck.isEmbedViewer,
         });
+    }
+
+    /** Who pays for the key this agent's model runs on. */
+    async getAgentKeyManagement(
+        user: Pick<SessionUser, 'organizationUuid'>,
+        {
+            projectUuid,
+            agentUuid,
+            modelConfig,
+        }: {
+            projectUuid: string | null;
+            agentUuid: string | null;
+            modelConfig: AiAgentModelConfig | null;
+        },
+    ): Promise<AiKeyManagement> {
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                organizationUuid: user.organizationUuid ?? null,
+                projectUuid,
+                credentialUuid:
+                    await this.aiAgentModel.findProviderCredentialUuid(
+                        agentUuid,
+                    ),
+            });
+        return getModel(copilotConfig, {
+            enableReasoning: modelConfig?.reasoning,
+            modelName: modelConfig?.modelName,
+            provider: modelConfig?.modelProvider as AnyType,
+        }).keyManagement;
     }
 
     async generateAgentThreadResponse(

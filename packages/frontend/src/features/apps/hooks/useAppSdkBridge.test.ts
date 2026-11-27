@@ -2418,6 +2418,81 @@ describe('color scheme push', () => {
         );
     });
 
+    it.each([
+        [undefined, 2000],
+        [5000, 3000],
+    ])(
+        'trims analysis instructions to the organization cap (%s)',
+        async (analysisTextMaxChars, expectedLength) => {
+            const onInsightInstructionsChange = vi.fn();
+            renderHook(() =>
+                useAppSdkBridge({
+                    iframeRef,
+                    expectedPreviewOrigin: window.location.origin,
+                    projectUuid: PROJECT_UUID,
+                    appUuid: APP_UUID,
+                    previewToken: PREVIEW_TOKEN,
+                    colorScheme: 'light',
+                    onInsightInstructionsChange,
+                    analysisTextMaxChars,
+                }),
+            );
+            window.dispatchEvent(
+                new MessageEvent('message', {
+                    data: {
+                        type: APP_SDK_INSIGHTS_REQUEST_MESSAGE,
+                        instructions: 'x'.repeat(3000),
+                    },
+                    source: window,
+                    origin: window.location.origin,
+                }),
+            );
+            await vi.waitFor(() =>
+                expect(onInsightInstructionsChange).toHaveBeenCalledWith(
+                    'x'.repeat(expectedLength),
+                ),
+            );
+        },
+    );
+
+    it('reapplies the cap to declared instructions when it arrives late', async () => {
+        const onInsightInstructionsChange = vi.fn();
+        const { rerender } = renderHook(
+            ({ analysisTextMaxChars }: { analysisTextMaxChars?: number }) =>
+                useAppSdkBridge({
+                    iframeRef,
+                    expectedPreviewOrigin: window.location.origin,
+                    projectUuid: PROJECT_UUID,
+                    appUuid: APP_UUID,
+                    previewToken: PREVIEW_TOKEN,
+                    colorScheme: 'light',
+                    onInsightInstructionsChange,
+                    analysisTextMaxChars,
+                }),
+            { initialProps: {} },
+        );
+        window.dispatchEvent(
+            new MessageEvent('message', {
+                data: {
+                    type: APP_SDK_INSIGHTS_REQUEST_MESSAGE,
+                    instructions: 'x'.repeat(3000),
+                },
+                source: window,
+                origin: window.location.origin,
+            }),
+        );
+        await vi.waitFor(() =>
+            expect(onInsightInstructionsChange).toHaveBeenLastCalledWith(
+                'x'.repeat(2000),
+            ),
+        );
+        // Settings load after the app declared its instructions.
+        rerender({ analysisTextMaxChars: 5000 });
+        expect(onInsightInstructionsChange).toHaveBeenLastCalledWith(
+            'x'.repeat(3000),
+        );
+    });
+
     it('ignores a theme request from a window that is not the iframe', async () => {
         const postSpy = vi.spyOn(window, 'postMessage');
         renderWithColorScheme('dark');
