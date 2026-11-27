@@ -148,6 +148,8 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             contentType: ContentType.DATA_APP,
                         },
                     });
+                case ResourceViewItemType.COMPOSER_CHART:
+                    return undefined;
                 default:
                     return assertUnreachable(
                         item,
@@ -189,6 +191,8 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     projectUuid,
                     appUuid: action.item.data.uuid,
                 });
+            case ResourceViewItemType.COMPOSER_CHART:
+                return undefined;
             default:
                 return assertUnreachable(
                     action.item,
@@ -269,6 +273,8 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             onConfirm={handleReset}
                         />
                     );
+                case ResourceViewItemType.COMPOSER_CHART:
+                    return null;
                 default:
                     return assertUnreachable(
                         action.item,
@@ -344,6 +350,8 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             onConfirm={handleReset}
                         />
                     );
+                case ResourceViewItemType.COMPOSER_CHART:
+                    return null;
                 default:
                     return assertUnreachable(
                         action.item,

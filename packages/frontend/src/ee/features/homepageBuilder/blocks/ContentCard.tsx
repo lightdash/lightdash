@@ -76,6 +76,7 @@ const CONTENT_KIND_LABEL: Record<SummaryContent['contentType'], string> = {
     [ContentType.SPACE]: 'Space',
     [ContentType.DATA_APP]: 'Data app',
     [ContentType.DOCUMENT]: 'Document',
+    [ContentType.COMPOSER_CHART]: 'Chart',
 };
 
 const ViewsCount: FC<{ content: SummaryContent; projectUuid: string }> = ({
@@ -83,7 +84,10 @@ const ViewsCount: FC<{ content: SummaryContent; projectUuid: string }> = ({
     projectUuid,
 }) => {
     const item = contentToResourceViewItem(content);
-    if (item.type === ResourceViewItemType.DOCUMENT) {
+    if (
+        item.type === ResourceViewItemType.DOCUMENT ||
+        item.type === ResourceViewItemType.COMPOSER_CHART
+    ) {
         return null;
     }
     return (

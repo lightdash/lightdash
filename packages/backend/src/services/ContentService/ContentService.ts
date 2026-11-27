@@ -5,6 +5,7 @@ import {
     assertUnreachable,
     BulkActionable,
     ChartSourceType,
+    ComposerChartContent,
     ContentActionDelete,
     ContentActionMove,
     ContentBulkDeleteResults,
@@ -18,6 +19,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
+    NotSupportedError,
     ParameterError,
     SessionUser,
     SpaceContentBase,
@@ -45,6 +47,15 @@ import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SavedSqlService } from '../SavedSqlService/SavedSqlService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { SpaceService } from '../SpaceService/SpaceService';
+
+const composerChartActionNotSupported = (action: string) =>
+    new NotSupportedError(`${action} composer charts is not supported yet`);
+
+// Composer charts have no direct grants, so "Shared with me" never lists them.
+type DirectAccessContent = Exclude<
+    SummaryContent,
+    SpaceContentBase | ComposerChartContent
+>;
 
 type ContentServiceArguments = {
     documentService: DocumentService;
@@ -551,8 +562,9 @@ export class ContentService extends BaseService {
             // row needs the SpaceContent access enrichment.
             data: results.data
                 .filter(
-                    (item): item is Exclude<SummaryContent, SpaceContentBase> =>
-                        item.contentType !== ContentType.SPACE,
+                    (item): item is DirectAccessContent =>
+                        item.contentType !== ContentType.SPACE &&
+                        item.contentType !== ContentType.COMPOSER_CHART,
                 )
                 .map((item) => ({
                     ...item,
@@ -565,7 +577,7 @@ export class ContentService extends BaseService {
     }
 
     private static getDirectAccessResourceType(
-        item: Exclude<SummaryContent, SpaceContentBase>,
+        item: DirectAccessContent,
     ): DirectAccessResourceType {
         switch (item.contentType) {
             case ContentType.DOCUMENT:
@@ -610,6 +622,9 @@ export class ContentService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+        if (content.some((c) => c.contentType === ContentType.COMPOSER_CHART)) {
+            throw composerChartActionNotSupported('Moving');
         }
 
         const database = this.contentModel.getDatabase();
@@ -674,6 +689,8 @@ export class ContentService extends BaseService {
                             moveToSpaceArgs,
                             moveToSpaceOptions,
                         );
+                    case ContentType.COMPOSER_CHART:
+                        throw composerChartActionNotSupported('Moving');
                     default:
                         return assertUnreachable(c, 'Unknown content type');
                 }
@@ -776,6 +793,8 @@ export class ContentService extends BaseService {
                     moveToSpaceArgs,
                     moveToSpaceOptions,
                 );
+            case ContentType.COMPOSER_CHART:
+                throw composerChartActionNotSupported('Moving');
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }
@@ -858,6 +877,8 @@ export class ContentService extends BaseService {
                 throw new ParameterError(
                     'Data apps cannot be deleted via content actions',
                 );
+            case ContentType.COMPOSER_CHART:
+                throw composerChartActionNotSupported('Deleting');
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }
@@ -878,6 +899,10 @@ export class ContentService extends BaseService {
         content: ApiContentBulkActionBody<ContentActionDelete>['content'],
     ): Promise<ContentBulkDeleteResults> {
         await this.assertProjectViewAccess(user, projectUuid);
+
+        if (content.some((c) => c.contentType === ContentType.COMPOSER_CHART)) {
+            throw composerChartActionNotSupported('Deleting');
+        }
 
         const skipped: ContentBulkDeleteResults['skipped'] = [];
         let deletedCount = 0;
@@ -1048,6 +1073,8 @@ export class ContentService extends BaseService {
                     projectUuid,
                     item.uuid,
                 );
+            case ContentType.COMPOSER_CHART:
+                throw composerChartActionNotSupported('Restoring');
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }
@@ -1122,6 +1149,8 @@ export class ContentService extends BaseService {
                     projectUuid,
                     item.uuid,
                 );
+            case ContentType.COMPOSER_CHART:
+                throw composerChartActionNotSupported('Permanently deleting');
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }

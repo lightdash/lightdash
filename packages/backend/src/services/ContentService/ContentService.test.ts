@@ -5,6 +5,7 @@ import {
     DirectAccessResourceType,
     ForbiddenError,
     KnexPaginatedData,
+    NotSupportedError,
     OrganizationMemberRole,
     ProjectMemberRole,
     SpaceMemberRole,
@@ -106,6 +107,7 @@ const createService = ({
         }),
     };
     const savedChartService = {
+        moveToSpace: vi.fn().mockResolvedValue(undefined),
         restore: vi.fn().mockResolvedValue(undefined),
         permanentDelete: vi.fn().mockResolvedValue(undefined),
         delete: vi.fn().mockResolvedValue(undefined),
@@ -1040,6 +1042,98 @@ describe('ContentService.bulkDelete', () => {
                 ],
             ),
         ).rejects.toThrow(ForbiddenError);
+        expect(deps.dashboardService.delete).not.toHaveBeenCalled();
+    });
+});
+
+describe('ContentService composer chart actions', () => {
+    const item = {
+        uuid: 'composer-chart-uuid',
+        contentType: ContentType.COMPOSER_CHART,
+    } as const;
+
+    it.each([
+        [
+            'move',
+            (deps: ReturnType<typeof createService>) =>
+                deps.service.move(createUser(), projectUuid, item, 'space'),
+        ],
+        [
+            'bulk move',
+            (deps: ReturnType<typeof createService>) =>
+                deps.service.bulkMove(
+                    createUser(),
+                    projectUuid,
+                    [item],
+                    'space',
+                ),
+        ],
+        [
+            'delete',
+            (deps: ReturnType<typeof createService>) =>
+                deps.service.delete(createUser(), projectUuid, item),
+        ],
+        [
+            'restore',
+            (deps: ReturnType<typeof createService>) =>
+                deps.service.restoreContent(createUser(), projectUuid, item),
+        ],
+        [
+            'permanent delete',
+            (deps: ReturnType<typeof createService>) =>
+                deps.service.permanentlyDeleteContent(
+                    createUser(),
+                    projectUuid,
+                    item,
+                ),
+        ],
+    ])('refuses %s as not supported yet', async (_, act) => {
+        const deps = createService({
+            contentModel: {
+                getDatabase: () => ({
+                    transaction: async (fn: (tx: unknown) => unknown) => fn({}),
+                }),
+            } as unknown as ContentModel,
+        });
+        await expect(act(deps)).rejects.toThrow(NotSupportedError);
+    });
+
+    it('moves nothing when a bulk move mixes a composer chart in', async () => {
+        const deps = createService({
+            contentModel: {
+                getDatabase: () => ({
+                    transaction: async (fn: (tx: unknown) => unknown) => fn({}),
+                }),
+            } as unknown as ContentModel,
+        });
+
+        await expect(
+            deps.service.bulkMove(
+                createUser(),
+                projectUuid,
+                [
+                    {
+                        uuid: 'chart-uuid',
+                        contentType: ContentType.CHART,
+                        source: ChartSourceType.DBT_EXPLORE,
+                    },
+                    item,
+                ],
+                'space',
+            ),
+        ).rejects.toThrow(NotSupportedError);
+        expect(deps.savedChartService.moveToSpace).not.toHaveBeenCalled();
+    });
+
+    it('deletes nothing when a bulk delete mixes a composer chart in', async () => {
+        const deps = createService();
+
+        await expect(
+            deps.service.bulkDelete(createUser(), projectUuid, [
+                { uuid: 'dashboard-uuid', contentType: ContentType.DASHBOARD },
+                item,
+            ]),
+        ).rejects.toThrow(NotSupportedError);
         expect(deps.dashboardService.delete).not.toHaveBeenCalled();
     });
 });

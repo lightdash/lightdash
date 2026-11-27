@@ -8,6 +8,7 @@ import {
     ContentType,
     FeatureFlags,
     isResourceViewDataAppItem,
+    isResourceViewComposerChartItem,
     isResourceViewDocumentItem,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
@@ -396,7 +397,8 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (
                     isResourceViewSpaceItem(row.original) ||
-                    isResourceViewDocumentItem(row.original)
+                    isResourceViewDocumentItem(row.original) ||
+                    isResourceViewComposerChartItem(row.original)
                 )
                     return (
                         <Text fz="xs" fw={500} c="dimmed">
@@ -589,6 +591,7 @@ const InfiniteResourceTable = ({
             page.data.forEach((content) => {
                 if (
                     content.contentType !== ContentType.SPACE &&
+                    content.contentType !== ContentType.COMPOSER_CHART &&
                     content.directAccessRoles.length > 0
                 ) {
                     roles[content.uuid] = content.directAccessRoles;
@@ -1128,6 +1131,9 @@ const InfiniteResourceTable = ({
                                         contentType: ContentType.DATA_APP,
                                     },
                                 ];
+                            // Moving composer charts is not supported yet.
+                            case ContentType.COMPOSER_CHART:
+                                return [];
                             default:
                                 return assertUnreachable(
                                     item,
