@@ -33,8 +33,10 @@ import {
     IconPhoto,
     IconRefresh,
     IconTableExport,
+    IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC, type RefObject } from 'react';
+import { useNavigate } from 'react-router';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../components/common/ChartDownload/chartDownloadUtils';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import ErrorState from '../../../components/common/ErrorState';
@@ -73,6 +75,7 @@ import {
 } from '../hooks/useComposerChartPage';
 import { ComposerRunParametersContext } from '../lineage/composerRunParametersContext';
 import { getComposerChartParameterValues } from '../utils/composerChartParameterValues';
+import { ComposerChartDeleteModal } from './ComposerChartDeleteModal';
 import styles from './ComposerChartPage.module.css';
 import { ComposerChartUpdateModal } from './ComposerChartUpdateModal';
 import { ComposerChartVisualization } from './ComposerChartVisualization';
@@ -181,6 +184,9 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
         useDisclosure(false);
     const [moveOpened, { open: openMove, close: closeMove }] =
         useDisclosure(false);
+    const [deleteOpened, { open: openDelete, close: closeDelete }] =
+        useDisclosure(false);
+    const navigate = useNavigate();
     const { mutateAsync: contentAction, isLoading: isMoving } =
         useContentAction(projectUuid);
     const moveItem = useMemo(
@@ -361,6 +367,18 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                                             >
                                                 Move
                                             </Menu.Item>
+                                            <Menu.Divider />
+                                            <Menu.Item
+                                                color="red"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconTrash}
+                                                    />
+                                                }
+                                                onClick={openDelete}
+                                            >
+                                                Delete
+                                            </Menu.Item>
                                         </>
                                     )}
                                 </Menu.Dropdown>
@@ -505,6 +523,20 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                         });
                         closeMove();
                     }}
+                />
+            )}
+            {deleteOpened && (
+                <ComposerChartDeleteModal
+                    opened
+                    projectUuid={projectUuid}
+                    composerChartUuid={composerChartUuid}
+                    name={chart.name}
+                    onClose={closeDelete}
+                    onConfirm={() =>
+                        navigate(
+                            `/projects/${projectUuid}/spaces/${chart.space.uuid}`,
+                        )
+                    }
                 />
             )}
             {canExportImage && (

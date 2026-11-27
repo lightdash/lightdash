@@ -208,3 +208,27 @@ describe('DashboardComposerChartTile "Export image"', () => {
         expect(await screen.findByText('Export Image')).toBeInTheDocument();
     });
 });
+
+describe('DashboardComposerChartTile with a deleted chart', () => {
+    afterEach(cleanup);
+
+    // The dashboard read names only live charts, so a trashed chart arrives without a name
+    it('shows the deleted-chart state when the chart is in Recently deleted', async () => {
+        renderWithProviders(
+            <DashboardStoreTestProvider store={createDashboardTestStore({})}>
+                <DashboardComposerChartTile
+                    tile={{
+                        ...tile,
+                        properties: { ...tile.properties, chartName: null },
+                    }}
+                    isEditMode={false}
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                />
+            </DashboardStoreTestProvider>,
+        );
+        expect(
+            await screen.findByText('This chart has been deleted.'),
+        ).toBeInTheDocument();
+    });
+});

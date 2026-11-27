@@ -582,6 +582,18 @@ export type ApiComposerChartResponse = {
     results: ComposerChart;
 };
 
+/** A dashboard whose latest version has a tile for the chart. */
+export type ComposerChartDashboard = {
+    uuid: string;
+    name: string;
+    slug: string;
+};
+
+export type ApiComposerChartDashboardsResponse = {
+    status: 'ok';
+    results: ComposerChartDashboard[];
+};
+
 // An interface, not an intersection, so the API schema stays one flat object
 /** A composer chart with what its page header shows. */
 export interface ComposerChartWithDetails extends ComposerChart {

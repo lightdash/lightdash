@@ -33,6 +33,7 @@ import {
     type ChartParameterReferencesResult,
     type ComposerAvailableFilterSource,
     type ComposerChart,
+    type ComposerChartDashboard,
     type ComposerChartOwner,
     type ComposerChartParameters,
     type ComposerChartPipeline,
@@ -59,6 +60,7 @@ import * as Sentry from '@sentry/node';
 import type { Knex } from 'knex';
 import { validate as isUuid } from 'uuid';
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
+import type { LightdashConfig } from '../../config/parseConfig';
 import { ComposerChartModel } from '../../models/ComposerChartModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -98,6 +100,7 @@ type ComposerChartServiceArguments = {
         AsyncQueryService,
         'getExplore' | 'getComposerTileContext'
     >;
+    lightdashConfig: Pick<LightdashConfig, 'softDelete'>;
 };
 
 /** Where a bound run is recorded in query history: a dashboard view, a scheduled delivery, a dashboard CSV export or an AI agent. */
@@ -175,6 +178,8 @@ export class ComposerChartService extends BaseService {
 
     private readonly getAsyncQueryService: ComposerChartServiceArguments['getAsyncQueryService'];
 
+    private readonly lightdashConfig: ComposerChartServiceArguments['lightdashConfig'];
+
     constructor(args: ComposerChartServiceArguments) {
         super({ serviceName: 'ComposerChartService' });
         this.composerChartModel = args.composerChartModel;
@@ -186,6 +191,7 @@ export class ComposerChartService extends BaseService {
         this.queryHistoryModel = args.queryHistoryModel;
         this.getQuerySourceService = args.getQuerySourceService;
         this.getAsyncQueryService = args.getAsyncQueryService;
+        this.lightdashConfig = args.lightdashConfig;
     }
 
     /** Access through the owner: its space, or its dashboard with that dashboard's grants, as for a classic dashboard chart. */
@@ -229,7 +235,7 @@ export class ComposerChartService extends BaseService {
     /** Every composer chart permission, checked on `SavedChart` as for classic and SQL charts. */
     private async assertChartPermission(
         account: RegisteredAccount,
-        action: 'view' | 'create' | 'update',
+        action: 'view' | 'create' | 'update' | 'delete',
         projectUuid: string,
         owner: ComposerChartOwner,
         composerChartUuid: string | null,
@@ -245,9 +251,12 @@ export class ComposerChartService extends BaseService {
             )
         ) {
             throw new ForbiddenError(
-                action === 'view'
-                    ? "You don't have permission to view this composer chart"
-                    : "You don't have permission to save composer charts here",
+                {
+                    view: "You don't have permission to view this composer chart",
+                    create: "You don't have permission to save composer charts here",
+                    update: "You don't have permission to save composer charts here",
+                    delete: "You don't have permission to delete this composer chart",
+                }[action],
             );
         }
         return access;
@@ -671,6 +680,7 @@ export class ComposerChartService extends BaseService {
         account: RegisteredAccount,
         projectUuid: UUID,
         composerChartUuid: UUID,
+        action: 'update' | 'delete' = 'update',
     ): Promise<UUID> {
         const { projectUuid: chartProjectUuid, owner } =
             await this.composerChartModel.getOwner(composerChartUuid);
@@ -679,7 +689,7 @@ export class ComposerChartService extends BaseService {
         }
         await this.assertChartPermission(
             account,
-            'update',
+            action,
             projectUuid,
             owner,
             composerChartUuid,
@@ -717,6 +727,70 @@ export class ComposerChartService extends BaseService {
             ...(data.description !== undefined
                 ? { description: data.description }
                 : {}),
+        });
+    }
+
+    /** Deletes a space-owned chart, soft or permanently by the instance setting; works with the flag off. */
+    async delete(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+    ): Promise<void> {
+        const spaceUuid = await this.assertCanWriteSpaceChart(
+            account,
+            projectUuid,
+            composerChartUuid,
+            'delete',
+        );
+        await this.composerChartModel.deleteFromSpace(
+            composerChartUuid,
+            spaceUuid,
+            this.lightdashConfig.softDelete.enabled
+                ? account.user.userUuid
+                : null,
+        );
+    }
+
+    /** Dashboards whose latest version shows the chart, those the caller can view only. */
+    async getDashboardsShowing(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+    ): Promise<ComposerChartDashboard[]> {
+        await this.assertCanView(account, projectUuid, composerChartUuid);
+        const dashboards = await this.composerChartModel.findDashboardsShowing(
+            projectUuid,
+            composerChartUuid,
+        );
+        if (dashboards.length === 0) return [];
+        const accessResults =
+            await this.spacePermissionService.resolveAccessBatch(
+                account.user.userUuid,
+                dashboards.map(({ uuid, spaceUuid }) => ({
+                    type: 'dashboard' as const,
+                    dashboardUuid: uuid,
+                    spaceUuid,
+                })),
+            );
+        const contexts = new Map(
+            accessResults.map(({ target, context }) => [
+                target.dashboardUuid,
+                context,
+            ]),
+        );
+        const ability = this.createAuditedAbility(account);
+        return dashboards.flatMap(({ uuid, name, slug }) => {
+            const context = contexts.get(uuid);
+            return context &&
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        ...context,
+                        metadata: { dashboardUuid: uuid },
+                    }),
+                )
+                ? [{ uuid, name, slug }]
+                : [];
         });
     }
 

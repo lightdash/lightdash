@@ -1,11 +1,13 @@
 import {
     assertRegisteredAccount,
     QueryExecutionContext,
+    type ApiComposerChartDashboardsResponse,
     type ApiComposerChartDetailsResponse,
     type ApiComposerChartParametersResponse,
     type ApiComposerChartResponse,
     type ApiComposerChartRunResponse,
     type ApiErrorPayload,
+    type ApiSuccessEmpty,
     type ComposerChartRunRequest,
     type CreateComposerChart,
     type UpdateComposerChart,
@@ -14,6 +16,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Deprecated,
     Extension,
     Get,
@@ -120,6 +123,59 @@ export class ComposerChartController extends BaseController {
         const results = await this.services
             .getComposerChartService()
             .update(req.account, projectUuid, composerChartUuid, body);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Deletes a composer chart that a space owns. With soft delete on, the
+     * chart moves to Recently deleted; otherwise it is removed permanently.
+     * Dashboard tiles that show it stay on their dashboards. Requires
+     * permission to delete charts in the chart's space. Returns 400 for a
+     * composer chart that a dashboard owns, because that chart is removed
+     * with its tile.
+     * @summary Delete composer chart
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{composerChartUuid}')
+    @OperationId('deleteComposerChart')
+    async delete(
+        @Path() projectUuid: UUID,
+        @Path() composerChartUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getComposerChartService()
+            .delete(req.account, projectUuid, composerChartUuid);
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Lists the dashboards whose latest version has a tile showing a composer
+     * chart, leaving out those the caller cannot view. Anyone who can view
+     * the chart can read the list.
+     * @summary List dashboards showing composer chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{composerChartUuid}/dashboards')
+    @OperationId('getComposerChartDashboards')
+    async getDashboards(
+        @Path() projectUuid: UUID,
+        @Path() composerChartUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiComposerChartDashboardsResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getComposerChartService()
+            .getDashboardsShowing(req.account, projectUuid, composerChartUuid);
         this.setStatus(200);
         return { status: 'ok', results };
     }

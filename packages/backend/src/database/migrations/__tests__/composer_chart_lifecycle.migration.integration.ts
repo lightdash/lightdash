@@ -1,5 +1,6 @@
 import {
     ChartType,
+    ConflictError,
     DashboardTileTypes,
     FieldType,
     NotFoundError,
@@ -295,6 +296,112 @@ describe('composer charts follow their dashboard on the real schema', () => {
         await expect(
             composerChartModel.findForCode(owner.projectUuid, undefined),
         ).resolves.toEqual([]);
+    });
+
+    // No dashboard write can reference a space's chart yet, so the tile is pointed at it directly
+    const showOnDashboard = async (composerChartUuid: string) => {
+        const { dashboard, composerChartUuid: ownChartUuid } =
+            await createDashboardWithChart();
+        await database('dashboard_tile_composer_charts')
+            .where('composer_chart_uuid', ownChartUuid)
+            .update({ composer_chart_uuid: composerChartUuid });
+        return dashboard;
+    };
+
+    it("lists the live dashboards whose latest version shows a space's chart", async () => {
+        const composerChartUuid = await createSpaceChart();
+        const showing = await showOnDashboard(composerChartUuid);
+        const shownEarlier = await showOnDashboard(composerChartUuid);
+        await dashboardModel.addVersion(
+            shownEarlier.uuid,
+            {
+                tiles: [],
+                filters: shownEarlier.filters,
+                tabs: shownEarlier.tabs,
+            },
+            { userUuid: fixture.userUuid },
+            fixture.projectUuid,
+        );
+        const deleted = await showOnDashboard(composerChartUuid);
+        await dashboardModel.softDelete(deleted.uuid, fixture.userUuid);
+
+        await expect(
+            composerChartModel.findDashboardsShowing(
+                fixture.projectUuid,
+                composerChartUuid,
+            ),
+        ).resolves.toEqual([
+            {
+                uuid: showing.uuid,
+                name: showing.name,
+                slug: showing.slug,
+                spaceUuid: fixture.spaceUuid,
+            },
+        ]);
+        await expect(
+            composerChartModel.findDashboardsShowing(
+                randomUUID(),
+                composerChartUuid,
+            ),
+        ).resolves.toEqual([]);
+    });
+
+    it("soft deletes a space's chart once, keeping its tiles, and refuses another space", async () => {
+        const composerChartUuid = await createSpaceChart();
+        await showOnDashboard(composerChartUuid);
+        const other = await createFixture(database);
+
+        await expect(
+            composerChartModel.deleteFromSpace(
+                composerChartUuid,
+                other.spaceUuid,
+                fixture.userUuid,
+            ),
+        ).rejects.toThrow(ConflictError);
+        await composerChartModel.deleteFromSpace(
+            composerChartUuid,
+            fixture.spaceUuid,
+            fixture.userUuid,
+        );
+
+        const row = await database('composer_charts')
+            .where('composer_chart_uuid', composerChartUuid)
+            .first();
+        expect(row?.deleted_at).not.toBeNull();
+        expect(row?.deleted_by_user_uuid).toBe(fixture.userUuid);
+        await expect(
+            database('dashboard_tile_composer_charts')
+                .where('composer_chart_uuid', composerChartUuid)
+                .count({ count: '*' }),
+        ).resolves.toEqual([{ count: '1' }]);
+        await expect(
+            composerChartModel.deleteFromSpace(
+                composerChartUuid,
+                fixture.spaceUuid,
+                fixture.userUuid,
+            ),
+        ).rejects.toThrow(ConflictError);
+    });
+
+    it("permanently deletes a space's chart with its versions", async () => {
+        const composerChartUuid = await createSpaceChart();
+
+        await composerChartModel.deleteFromSpace(
+            composerChartUuid,
+            fixture.spaceUuid,
+            null,
+        );
+
+        await expect(
+            database('composer_charts')
+                .where('composer_chart_uuid', composerChartUuid)
+                .first(),
+        ).resolves.toBeUndefined();
+        await expect(
+            database('composer_chart_versions')
+                .where('composer_chart_uuid', composerChartUuid)
+                .first(),
+        ).resolves.toBeUndefined();
     });
 
     it('reads a space owner', async () => {

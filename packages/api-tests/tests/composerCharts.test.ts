@@ -19,10 +19,12 @@ import {
     type ApiDeletedContentResponse,
     type ComposerChart,
     type ComposerChartAsCode,
+    type ComposerChartDashboard,
     type ComposerChartParameters,
     type ComposerChartPipeline,
     type ComposerChartRunResults,
     type ComposerChartWithDetails,
+    type ContentBulkDeleteResults,
     type CreateComposerChart,
     type Dashboard,
     type DashboardAsCode,
@@ -2916,6 +2918,285 @@ describe('Composer charts', () => {
                     ].sort(),
                 );
                 expect(await listed(source.uuid)).toEqual([]);
+            });
+        });
+
+        describe('delete', () => {
+            const deleteChart = (uuid: string, client: ApiClient = admin) =>
+                client.delete(`${chartsUrl}/${uuid}`, {
+                    failOnStatusCode: false,
+                });
+
+            const dashboardsShowing = (
+                uuid: string,
+                client: ApiClient = admin,
+            ) =>
+                client.get<Body<ComposerChartDashboard[]>>(
+                    `${chartsUrl}/${uuid}/dashboards`,
+                    { failOnStatusCode: false },
+                );
+
+            const listedIn = async (spaceUuid: string) =>
+                (
+                    await admin.get<Body<{ data: SummaryContent[] }>>(
+                        `/api/v2/content?projectUuids=${projectUuid}&spaceUuids=${spaceUuid}&contentTypes=${ContentType.COMPOSER_CHART}&pageSize=100`,
+                    )
+                ).body.results.data.map((item) => item.uuid);
+
+            it('deletes a chart its space owns, with the flag off too, so it no longer reads, runs or lists', async () => {
+                const { space, chart } = await createSpaceChart();
+                const second = await postChart(
+                    composerSpaceChartBody(space.uuid),
+                );
+                expect(second.status).toBe(201);
+                const editor = await loginAsEditor();
+
+                expect((await deleteChart(chart.uuid, editor)).status).toBe(
+                    200,
+                );
+                expect((await getChart(chart.uuid)).status).toBe(404);
+                expect(
+                    (
+                        await runChart(admin, {
+                            composerChartUuid: chart.uuid,
+                            invalidateCache: false,
+                        })
+                    ).status,
+                ).toBe(404);
+                expect((await deleteChart(chart.uuid)).status).toBe(404);
+                expect(await listedIn(space.uuid)).toEqual([
+                    second.body.results.uuid,
+                ]);
+
+                expect(
+                    (await admin.post(flagUrl, { enabled: false })).status,
+                ).toBe(200);
+                try {
+                    const viaContent = await admin.post(
+                        `/api/v2/content/${projectUuid}/delete`,
+                        {
+                            item: {
+                                uuid: second.body.results.uuid,
+                                contentType: ContentType.COMPOSER_CHART,
+                            },
+                            action: { type: 'delete' },
+                        },
+                        { failOnStatusCode: false },
+                    );
+                    expect(viaContent.status).toBe(200);
+                } finally {
+                    expect(
+                        (await admin.post(flagUrl, { enabled: true })).status,
+                    ).toBe(200);
+                }
+                expect((await getChart(second.body.results.uuid)).status).toBe(
+                    404,
+                );
+            });
+
+            it("refuses a delete by a viewer, in a space the editor cannot see, or of a dashboard's chart", async () => {
+                const { chart } = await createSpaceChart();
+                const viewer = await loginAsViewer();
+                expect((await deleteChart(chart.uuid, viewer)).status).toBe(
+                    403,
+                );
+
+                const privateSpace = await createSpace(false);
+                const hidden = await postChart(
+                    composerSpaceChartBody(privateSpace.uuid),
+                );
+                const editor = await loginAsEditor();
+                expect(
+                    (await deleteChart(hidden.body.results.uuid, editor))
+                        .status,
+                ).toBe(403);
+
+                const dashboard = await createDashboard();
+                const owned = await createChart(dashboard.uuid);
+                expect((await deleteChart(owned.uuid)).status).toBe(400);
+
+                expect((await getChart(chart.uuid)).status).toBe(200);
+                expect((await getChart(hidden.body.results.uuid)).status).toBe(
+                    200,
+                );
+                expect((await getChart(owned.uuid)).status).toBe(200);
+            });
+
+            it('names the dashboards showing a chart to those who can view it', async () => {
+                const { chart } = await createSpaceChart();
+                const listed = await dashboardsShowing(chart.uuid);
+                expect(listed.status).toBe(200);
+                expect(listed.body.results).toEqual([]);
+
+                const dashboard = await createDashboard();
+                const owned = await createChart(dashboard.uuid);
+                expect(
+                    (await addComposerTile(dashboard, owned.uuid)).status,
+                ).toBe(200);
+                expect(
+                    (await dashboardsShowing(owned.uuid)).body.results,
+                ).toEqual([
+                    {
+                        uuid: dashboard.uuid,
+                        name: dashboard.name,
+                        slug: dashboard.slug,
+                    },
+                ]);
+
+                const privateSpace = await createSpace(false);
+                const hidden = await postChart(
+                    composerSpaceChartBody(privateSpace.uuid),
+                );
+                const editor = await loginAsEditor();
+                expect(
+                    (await dashboardsShowing(hidden.body.results.uuid, editor))
+                        .status,
+                ).toBe(403);
+            });
+
+            it('bulk deletes what the user may delete, a composer chart among them, and skips the rest', async () => {
+                const open = await createSpace();
+                const privateSpace = await createSpace(false);
+                const classicIn = async (spaceUuid: string) => {
+                    const resp = await admin.post<Body<{ uuid: string }>>(
+                        `/api/v1/projects/${projectUuid}/saved`,
+                        {
+                            ...chartMock,
+                            name: uniqueName('Bulk delete classic'),
+                            spaceUuid,
+                            dashboardUuid: null,
+                        },
+                    );
+                    expect(resp.status).toBe(200);
+                    tracker.trackChart(resp.body.results.uuid);
+                    return resp.body.results.uuid;
+                };
+                const classic = await classicIn(open.uuid);
+                const hiddenClassic = await classicIn(privateSpace.uuid);
+                const sql = await admin.post<Body<{ savedSqlUuid: string }>>(
+                    `/api/v1/projects/${projectUuid}/sqlRunner/saved`,
+                    {
+                        name: uniqueName('Bulk delete SQL'),
+                        description: null,
+                        sql: 'SELECT * FROM postgres.jaffle.payments',
+                        limit: 21,
+                        config: {
+                            display: {},
+                            metadata: { version: 1 },
+                            type: ChartKind.TABLE,
+                            columns: {},
+                        },
+                        spaceUuid: open.uuid,
+                    },
+                );
+                expect(sql.status).toBe(200);
+                const dashboard = await admin.post<Body<Dashboard>>(
+                    `/api/v1/projects/${projectUuid}/dashboards`,
+                    {
+                        name: uniqueName('Bulk delete dashboard'),
+                        spaceUuid: open.uuid,
+                        tiles: [],
+                        tabs: [],
+                    },
+                );
+                expect(dashboard.status).toBe(201);
+                tracker.trackDashboard(dashboard.body.results.uuid);
+                const composer = await postChart(
+                    composerSpaceChartBody(open.uuid),
+                );
+                expect(composer.status).toBe(201);
+                const hiddenComposer = await postChart(
+                    composerSpaceChartBody(privateSpace.uuid),
+                );
+                expect(hiddenComposer.status).toBe(201);
+                const owningDashboard = await createDashboard();
+                const owned = await createChart(owningDashboard.uuid);
+
+                const editor = await loginAsEditor();
+                const resp = await editor.post<Body<ContentBulkDeleteResults>>(
+                    `/api/v2/content/bulk-action/${projectUuid}/delete`,
+                    {
+                        content: [
+                            {
+                                uuid: classic,
+                                contentType: ContentType.CHART,
+                                source: ChartSourceType.DBT_EXPLORE,
+                            },
+                            {
+                                uuid: hiddenComposer.body.results.uuid,
+                                contentType: ContentType.COMPOSER_CHART,
+                            },
+                            {
+                                uuid: sql.body.results.savedSqlUuid,
+                                contentType: ContentType.CHART,
+                                source: ChartSourceType.SQL,
+                            },
+                            {
+                                uuid: hiddenClassic,
+                                contentType: ContentType.CHART,
+                                source: ChartSourceType.DBT_EXPLORE,
+                            },
+                            {
+                                uuid: dashboard.body.results.uuid,
+                                contentType: ContentType.DASHBOARD,
+                            },
+                            {
+                                uuid: owned.uuid,
+                                contentType: ContentType.COMPOSER_CHART,
+                            },
+                            {
+                                uuid: composer.body.results.uuid,
+                                contentType: ContentType.COMPOSER_CHART,
+                            },
+                        ],
+                        action: { type: 'delete' },
+                    },
+                );
+                expect(resp.status).toBe(200);
+                expect(resp.body.results.deletedCount).toBe(4);
+                expect(resp.body.results.skipped).toEqual([
+                    {
+                        uuid: hiddenComposer.body.results.uuid,
+                        contentType: ContentType.COMPOSER_CHART,
+                        reason: 'You do not have permission to delete this content',
+                    },
+                    {
+                        uuid: hiddenClassic,
+                        contentType: ContentType.CHART,
+                        reason: 'You do not have permission to delete this content',
+                    },
+                    {
+                        uuid: owned.uuid,
+                        contentType: ContentType.COMPOSER_CHART,
+                        reason: 'This composer chart belongs to a dashboard. Edit it from the dashboard.',
+                    },
+                ]);
+
+                const status = async (url: string) =>
+                    (await admin.get(url, { failOnStatusCode: false })).status;
+                expect(await status(`/api/v1/saved/${classic}`)).toBe(404);
+                expect(
+                    await status(
+                        `/api/v1/projects/${projectUuid}/sqlRunner/saved/${sql.body.results.savedSqlUuid}`,
+                    ),
+                ).toBe(404);
+                expect(
+                    await status(
+                        `/api/v1/dashboards/${dashboard.body.results.uuid}`,
+                    ),
+                ).toBe(404);
+                expect(
+                    await status(`${chartsUrl}/${composer.body.results.uuid}`),
+                ).toBe(404);
+                expect(await status(`/api/v1/saved/${hiddenClassic}`)).toBe(
+                    200,
+                );
+                expect(
+                    await status(
+                        `${chartsUrl}/${hiddenComposer.body.results.uuid}`,
+                    ),
+                ).toBe(200);
+                expect(await status(`${chartsUrl}/${owned.uuid}`)).toBe(200);
             });
         });
     });

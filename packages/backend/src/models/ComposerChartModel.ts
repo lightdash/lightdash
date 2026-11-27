@@ -25,6 +25,7 @@ import {
     DashboardsTableName,
     DashboardVersionsTableName,
 } from '../database/entities/dashboards';
+import { ProjectTableName } from '../database/entities/projects';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import { generateUniqueSlugScopedToProject } from '../utils/SlugUtils';
@@ -171,6 +172,87 @@ export class ComposerChartModel {
                 'This composer chart moved or was deleted. Reload and try again.',
             );
         }
+    }
+
+    /** Deletes a live chart still in the space checked: soft with `deletedByUserUuid`, permanently without. */
+    async deleteFromSpace(
+        uuid: string,
+        spaceUuid: string,
+        deletedByUserUuid: string | null,
+    ): Promise<void> {
+        const query = this.database(ComposerChartsTableName)
+            .where('composer_chart_uuid', uuid)
+            .where('space_uuid', spaceUuid)
+            .whereNull('deleted_at');
+        const count =
+            deletedByUserUuid === null
+                ? await query.delete()
+                : await query.update({
+                      deleted_at: new Date(),
+                      deleted_by_user_uuid: deletedByUserUuid,
+                  });
+        if (count !== 1) {
+            throw new ConflictError(
+                'This composer chart moved or was deleted. Reload and try again.',
+            );
+        }
+    }
+
+    /** Live dashboards in the project whose latest version has a tile for the chart. */
+    async findDashboardsShowing(
+        projectUuid: string,
+        uuid: string,
+    ): Promise<
+        Array<{ uuid: string; name: string; slug: string; spaceUuid: string }>
+    > {
+        return this.database(DashboardTileComposerChartsTableName)
+            .innerJoin(
+                DashboardVersionsTableName,
+                `${DashboardVersionsTableName}.dashboard_version_id`,
+                `${DashboardTileComposerChartsTableName}.dashboard_version_id`,
+            )
+            .innerJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(
+                `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
+                uuid,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .whereRaw(
+                `?? = (
+                    SELECT latest_version.dashboard_version_id FROM ?? AS latest_version
+                    WHERE latest_version.dashboard_id = ??
+                    ORDER BY latest_version.created_at DESC, latest_version.dashboard_version_id DESC
+                    LIMIT 1
+                )`,
+                [
+                    `${DashboardVersionsTableName}.dashboard_version_id`,
+                    DashboardVersionsTableName,
+                    `${DashboardsTableName}.dashboard_id`,
+                ],
+            )
+            .distinct({
+                uuid: `${DashboardsTableName}.dashboard_uuid`,
+                name: `${DashboardsTableName}.name`,
+                slug: `${DashboardsTableName}.slug`,
+                spaceUuid: `${SpaceTableName}.space_uuid`,
+            })
+            .orderBy([{ column: 'name' }, { column: 'uuid' }]);
     }
 
     /** Copies the chart and its latest version, unparsed, onto another dashboard. */
