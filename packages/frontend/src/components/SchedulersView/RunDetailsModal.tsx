@@ -314,6 +314,12 @@ const JobRow: FC<{
         job.task === 'handleScheduledDelivery' &&
         job.finalStatus === SchedulerJobStatus.COMPLETED &&
         partialFailures.length > 0;
+    // A delivery where every chart failed is an error that still lists them
+    const hasFailureList =
+        isPartialFailure ||
+        (isError &&
+            job.task === 'handleScheduledDelivery' &&
+            partialFailures.length > 0);
     const hasDetails = isError || isPartialFailure;
 
     // Determine status icon
@@ -449,7 +455,7 @@ const JobRow: FC<{
                     {job.errorDetails}
                 </Code>
             )}
-            {isPartialFailure && (
+            {hasFailureList && (
                 <Stack gap="xs">
                     {partialFailures.map((failure, index) => {
                         return (
@@ -807,7 +813,8 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
             (log) =>
                 log.isParent &&
                 log.task === 'handleScheduledDelivery' &&
-                log.status === SchedulerJobStatus.COMPLETED,
+                (log.status === SchedulerJobStatus.COMPLETED ||
+                    log.status === SchedulerJobStatus.ERROR),
         );
 
         if (!parentCompletedLog?.details?.partialFailures) return [];

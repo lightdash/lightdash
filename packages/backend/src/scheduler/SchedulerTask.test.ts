@@ -5320,6 +5320,76 @@ describe('handleScheduledDelivery — app delivery capture', () => {
         expect(captureAppDeliveryManifest).not.toHaveBeenCalled();
     });
 
+    describe('dashboard delivery where charts failed', () => {
+        const chartFailure = (chartName: string) => ({
+            type: PartialFailureType.DASHBOARD_SQL_CHART as const,
+            savedSqlUuid: `${chartName}-uuid`,
+            chartName,
+            tileUuid: `${chartName}-tile`,
+            error: "Query cancelled on user's request",
+        });
+        const dashboardScheduler = () =>
+            appScheduler({
+                appUuid: null,
+                appName: null,
+                dashboardUuid: 'dashboard-1',
+                targets: [{ recipient: 'a@b.com' }],
+            });
+        const finalLog = (task: SchedulerTask) =>
+            (task['schedulerService'].logSchedulerJob as Mock).mock.calls
+                .map(([log]) => log)
+                .filter((log) => log.status !== SchedulerJobStatus.STARTED);
+
+        it('records the run as failed when no chart was delivered, and still notifies', async () => {
+            const failures = [chartFailure('a'), chartFailure('b')];
+            const { task, generateJobsForSchedulerTargets } = setup({
+                page: {
+                    pageType: LightdashPage.DASHBOARD,
+                    csvUrls: [],
+                    failures,
+                },
+            });
+
+            await run(task, dashboardScheduler());
+
+            expect(generateJobsForSchedulerTargets).toHaveBeenCalledTimes(1);
+            expect(finalLog(task)).toEqual([
+                expect.objectContaining({
+                    status: SchedulerJobStatus.ERROR,
+                    details: expect.objectContaining({
+                        error: 'All 2 charts in this delivery failed',
+                        partialFailures: failures,
+                    }),
+                }),
+            ]);
+        });
+
+        it('records a partial failure when at least one chart was delivered', async () => {
+            const failures = [chartFailure('a')];
+            const { task } = setup({
+                page: {
+                    pageType: LightdashPage.DASHBOARD,
+                    csvUrls: [
+                        {
+                            path: 'https://lightdash.example.com/b.csv',
+                            filename: 'b',
+                            localPath: 's3://bucket/b.csv',
+                            truncated: false,
+                        },
+                    ],
+                    failures,
+                },
+            });
+
+            await run(task, dashboardScheduler());
+
+            const [log] = finalLog(task);
+            expect(log.status).toBe(SchedulerJobStatus.COMPLETED);
+            expect(log.details.partialFailures).toEqual(failures);
+            expect(log.details.error).toBeUndefined();
+        });
+    });
+
     const completedEvent = (track: Mock) =>
         track.mock.calls
             .map(([event]) => event)
