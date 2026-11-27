@@ -895,7 +895,9 @@ export class SpaceService
                 uuid: s.uuid,
                 name: s.name,
                 parentSpaceUuid: s.parentSpaceUuid,
-                chartCount: Number(s.chartCount),
+                chartCount:
+                    Number(s.chartCount) +
+                    composerCharts.filter((c) => c.spaceUuid === s.uuid).length,
                 dashboardCount: Number(s.dashboardCount),
                 appCount: Number(s.appCount),
                 documentCount: documentCounts.get(s.uuid) ?? 0,

@@ -121,7 +121,16 @@ describe('Composer charts in the deletion impact', () => {
             },
             spaceModel: {
                 getDescendantSpaceUuids: vi.fn().mockResolvedValue(['child']),
-                find: vi.fn().mockResolvedValue([]),
+                find: vi.fn().mockResolvedValue(
+                    ['space', 'child'].map((uuid) => ({
+                        uuid,
+                        name: uuid,
+                        parentSpaceUuid: null,
+                        chartCount: uuid === 'space' ? 1 : 0,
+                        dashboardCount: 0,
+                        appCount: 0,
+                    })),
+                ),
                 getSpaceQueries: vi.fn().mockResolvedValue([
                     {
                         uuid: 'classic',
@@ -143,6 +152,12 @@ describe('Composer charts in the deletion impact', () => {
 
         const result = await service.getDeleteImpact(user, 'space');
         expect(result.chartCount).toBe(2);
+        expect(
+            result.spaces.map(({ uuid, chartCount }) => [uuid, chartCount]),
+        ).toEqual([
+            ['space', 1],
+            ['child', 1],
+        ]);
         expect(result.charts).toContainEqual({
             uuid: 'composer',
             name: 'Composer chart',
