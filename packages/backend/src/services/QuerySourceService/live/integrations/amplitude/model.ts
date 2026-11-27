@@ -1,4 +1,10 @@
-import { DimensionType, MetricType, TimeFrames } from '@lightdash/common';
+import {
+    ApiConnectorType,
+    DimensionType,
+    FilterOperator,
+    MetricType,
+    TimeFrames,
+} from '@lightdash/common';
 import {
     ADDITIVE,
     dimension,
@@ -6,14 +12,29 @@ import {
     NON_ADDITIVE,
     ratio,
     type LiveExploreDefinition,
+    type LiveModel,
 } from '../../sdk';
 import { AMPLITUDE_INTERVALS } from './api';
-import {
-    AMPLITUDE_DATE_FILTERS,
-    AMPLITUDE_EVENT_FILTERS,
-    AMPLITUDE_NUMBER_FILTERS,
-    AMPLITUDE_PROPERTY_FILTERS,
-} from './filters';
+
+export const AMPLITUDE_DATE_FILTERS = [
+    FilterOperator.IN_THE_PAST,
+    FilterOperator.IN_THE_CURRENT,
+    FilterOperator.IN_BETWEEN,
+    FilterOperator.EQUALS,
+    FilterOperator.GREATER_THAN,
+    FilterOperator.GREATER_THAN_OR_EQUAL,
+];
+
+/** Segment filters on a property: Amplitude's `is` and `is not`. */
+export const AMPLITUDE_PROPERTY_FILTERS = [
+    FilterOperator.EQUALS,
+    FilterOperator.NOT_EQUALS,
+];
+
+/** An event name, or the ordered steps of a funnel. */
+export const AMPLITUDE_EVENT_FILTERS = [FilterOperator.EQUALS];
+
+export const AMPLITUDE_NUMBER_FILTERS = [FilterOperator.EQUALS];
 
 // Event segmentation (/api/2/events/segmentation). Totals add up across days
 // and property values; uniques count each user once per row, so they don't.
@@ -659,3 +680,14 @@ export const AMPLITUDE_EXPLORES = [
     AMPLITUDE_RETENTION_EXPLORE,
     AMPLITUDE_SESSIONS_EXPLORE,
 ] as const;
+
+export const amplitudeModel: LiveModel<ApiConnectorType.AMPLITUDE> = {
+    explores: AMPLITUDE_EXPLORES,
+    plannedNames: [
+        'lifecycle',
+        'stickiness',
+        'revenue',
+        'composition',
+        'cohorts',
+    ],
+};

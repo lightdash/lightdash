@@ -1,7 +1,7 @@
 // What people expect to ask this integration and the dashboards they expect
 // to build, and whether each is possible today. Flip `possible` in the same PR
 // as the code that changes the answer.
-import { type LiveUseCases } from '../../sdk';
+import { type LiveIntegrationSpec, type LiveUseCases } from '../../sdk';
 
 export const amplitudeUseCases: LiveUseCases = {
     questions: [
@@ -313,4 +313,16 @@ export const amplitudeUseCases: LiveUseCases = {
             ],
         },
     ],
+};
+
+export const amplitudeSpec: LiveIntegrationSpec = {
+    auth: {
+        description:
+            'A project API key and secret key, signed in with HTTP Basic; no vendor review. The free plan includes APIs.',
+        testWith: 'test_account',
+        needs: ['gmail'],
+        token: true,
+        oauth: 'none',
+    },
+    useCases: amplitudeUseCases,
 };

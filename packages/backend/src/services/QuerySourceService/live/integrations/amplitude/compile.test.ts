@@ -22,7 +22,7 @@ import {
     AMPLITUDE_RETENTION_EXPLORE,
     AMPLITUDE_SESSIONS_EXPLORE,
     AMPLITUDE_USERS_EXPLORE,
-} from './explores';
+} from './model';
 
 const TODAY = '2026-11-09';
 

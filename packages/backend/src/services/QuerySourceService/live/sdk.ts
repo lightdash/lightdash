@@ -13,9 +13,17 @@ export {
     formatTestCount,
     readRule,
 } from './integration';
-export type { LiveRateLimits, LiveUseCases } from './spec/types';
 export type {
+    LiveIntegrationSpec,
+    LiveRateLimits,
+    LiveUseCases,
+} from './spec/types';
+export type {
+    LiveCatalog,
     LiveColumn,
+    LiveConnection,
+    LiveModel,
+    LiveQuery,
     LiveHttpRequest,
     LiveHttpResponse,
     LiveLimits,
