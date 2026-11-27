@@ -9,7 +9,7 @@ vi.mock('../hooks/useUpdateComposerChart', () => ({
 }));
 
 describe('ComposerChartUpdateModal', () => {
-    it('sends only the name when only the name changed', async () => {
+    it('sends only the name when only the name changed, even next to an untrimmed description', async () => {
         const onConfirm = vi.fn();
         renderWithProviders(
             <ComposerChartUpdateModal
@@ -19,7 +19,7 @@ describe('ComposerChartUpdateModal', () => {
                 projectUuid="project"
                 composerChartUuid="chart"
                 name="Orders"
-                description="Weekly"
+                description=" Weekly "
             />,
         );
         fireEvent.change(screen.getByRole('textbox', { name: 'Chart name' }), {

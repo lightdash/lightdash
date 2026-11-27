@@ -42,14 +42,12 @@ export const ComposerChartUpdateModal: FC<Props> = ({
         validateInputOnChange: true,
     });
 
-    // Send only what changed, so a field someone else edited meanwhile is kept
+    // Send only fields edited since the modal opened, so others' edits are kept
     const handleConfirm = form.onSubmit(async (values) => {
-        const nextName = values.name.trim();
-        const nextDescription = values.description.trim() || null;
         const patch: UpdateComposerChart = {
-            ...(nextName !== name ? { name: nextName } : {}),
-            ...(nextDescription !== description
-                ? { description: nextDescription }
+            ...(form.isDirty('name') ? { name: values.name.trim() } : {}),
+            ...(form.isDirty('description')
+                ? { description: values.description.trim() || null }
                 : {}),
         };
         if (Object.keys(patch).length > 0) await mutateAsync(patch);
