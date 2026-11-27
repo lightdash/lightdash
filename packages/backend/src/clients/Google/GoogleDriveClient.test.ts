@@ -788,7 +788,7 @@ describe('GoogleDriveClient', () => {
 
             // One good chunk, then the first try and 3 retries of the next.
             expect(fake.updateCalls).toHaveLength(5);
-            expect(error).toBeInstanceOf(UnexpectedGoogleSheetsError);
+            expect(error).toBeInstanceOf(GoogleSheetsTransientError);
             expect((error as Error).message).toBe(
                 'Google Sheets could not write 60,001 rows (including header rows, about 4.8 MB) to the tab "Sheet1". The data in the tab was not changed. Google error: Google Drive internal error encountered. Please try again later.',
             );
@@ -947,7 +947,7 @@ describe('GoogleDriveClient', () => {
             ]);
             useFake(fake);
             fake.beforeUpdate = (_call, index) => {
-                if (index >= 1) throw googleInternalError();
+                if (index >= 1) throw googleApiError(400, 'Invalid value');
             };
 
             const error = await settle(
@@ -1126,7 +1126,7 @@ describe('GoogleDriveClient', () => {
             );
 
             expect((error as Error).message).toBe(
-                'Google Sheets could not write 150,001 rows (including header rows, about 6.4 MB) to the tab "Sheet1". The sync stopped part-way. Rows 1-50,000 of the tab are new. The rows after them can be from the previous sync until a later run completes. If the sync was turned off, turn it on again to replace them. Google error: Google Drive internal error encountered. Please try again later.',
+                'Google Sheets could not write 150,001 rows (including header rows, about 6.4 MB) to the tab "Sheet1". The sync stopped part-way. Rows 1-50,000 of the tab are new. The rows after them can be from the previous sync until a later run completes. Google error: Google Drive internal error encountered. Please try again later.',
             );
             expect(fake.tabValues('Sheet1')[49_999][1]).toBe('new-49998');
             expect(fake.tabValues('Sheet1')[50_000][1]).toBe('old-49999');
@@ -1192,7 +1192,7 @@ describe('GoogleDriveClient', () => {
                 ),
             );
 
-            expect(error).toBeInstanceOf(UnexpectedGoogleSheetsError);
+            expect(error).toBeInstanceOf(GoogleSheetsTransientError);
             expect(fake.sheet('Sheet1').basicFilter).toEqual(filter);
         });
 
@@ -2101,7 +2101,7 @@ describe('GoogleDriveClient', () => {
                 makeClient().appendCsvToSheet('refresh-token', 'file-id', rows),
             );
 
-            expect(error).toBeInstanceOf(UnexpectedGoogleSheetsError);
+            expect(error).toBeInstanceOf(GoogleSheetsTransientError);
             expect((error as Error).message).toContain(
                 'The data in the tab was not changed.',
             );

@@ -400,7 +400,7 @@ export class GoogleDriveClient {
             err?.message &&
             err.message.includes('Internal error encountered.')
         ) {
-            return new UnexpectedGoogleSheetsError(
+            return new GoogleSheetsTransientError(
                 GOOGLE_INTERNAL_ERROR_MESSAGE,
             );
         }
@@ -1881,9 +1881,7 @@ export class GoogleDriveClient {
             status === 429 ||
             (status !== undefined && status >= 500 && status <= 599) ||
             mapped instanceof GoogleSheetsQuotaError ||
-            mapped instanceof GoogleSheetsTransientError ||
-            (mapped instanceof UnexpectedGoogleSheetsError &&
-                mapped.message === GOOGLE_INTERNAL_ERROR_MESSAGE)
+            mapped instanceof GoogleSheetsTransientError
         );
     }
 
