@@ -3,12 +3,7 @@ import {
     ChartType,
     FeatureFlags,
     getChartKind,
-    getComposerChartDisplayedQueryUuid,
     getComposerChartExportLabels,
-    getComposerChartDraw,
-    withZoomedColumnLabels,
-    pickComposerChartRows,
-    type ComposerChartDraw,
     type DashboardComposerChartTile as ComposerChartTile,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
@@ -45,7 +40,6 @@ import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardFiltersForTile from '../../../hooks/dashboard/useDashboardFiltersForTile';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useInfiniteQueryResults } from '../../../hooks/useQueryResults';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
@@ -64,6 +58,10 @@ import {
     useTileDashboardParameterInputs,
 } from '../../dashboard/store';
 import {
+    COMPOSER_CHART_SENTRY_TAGS,
+    useComposerChartDraw,
+} from '../hooks/useComposerChartDraw';
+import {
     useComposerChart,
     useComposerChartRun,
 } from '../hooks/useComposerChartRun';
@@ -81,13 +79,6 @@ type Props = Pick<
     ComponentProps<typeof TileBase>,
     'onEdit' | 'onDelete' | 'isEditMode' | 'minimal' | 'tabs'
 > & { tile: ComposerChartTile };
-
-const SENTRY_TAGS = { 'lightdash.chartKind': 'composer' };
-
-type DrawState =
-    | { status: 'loading' }
-    | { status: 'ready'; draw: ComposerChartDraw }
-    | { status: 'error'; message: string };
 
 const noop = () => {};
 
@@ -234,81 +225,24 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
         [chart, run, parameterDefinitions, parameters, excludedKeys],
     );
     const title = getTitle(tile);
-    const terminalQueryUuid = run?.queries.find(
-        ({ nodeId }) => nodeId === chart?.pipeline.terminalNodeId,
-    )?.queryUuid;
-    const displayedQueryUuid =
-        run && chart
-            ? getComposerChartDisplayedQueryUuid(
-                  run,
-                  chart.pipeline.terminalNodeId,
-              )
-            : null;
-    const drawsFromStage =
-        !!displayedQueryUuid && displayedQueryUuid !== terminalQueryUuid;
-    const terminal = useInfiniteQueryResults(
+    const {
+        draw: readyDraw,
+        results,
+        rows,
+        displayedQueryUuid,
+        error: drawError,
+    } = useComposerChartDraw({
         projectUuid,
-        terminalQueryUuid,
+        chart: chart ?? null,
+        run: run ?? null,
         title,
-        null,
-        { toastErrors: false },
-    );
-    const stage = useInfiniteQueryResults(
-        projectUuid,
-        drawsFromStage ? displayedQueryUuid : undefined,
-        title,
-        null,
-        { toastErrors: false },
-    );
-    const results = drawsFromStage ? stage : terminal;
-    useEffect(() => {
-        if (
-            results.queryUuid &&
-            !results.hasFetchedAllRows &&
-            !results.fetchAll
-        )
-            results.setFetchAll(true);
-    }, [results]);
-
-    const drawState = useMemo((): DrawState => {
-        if (!chart || !run || !terminal.columns) return { status: 'loading' };
-        try {
-            return {
-                status: 'ready',
-                draw: getComposerChartDraw({
-                    pipeline: chart.pipeline,
-                    chart: chart.chart,
-                    columns: withZoomedColumnLabels(
-                        Object.values(terminal.columns),
-                        run.zoomedFieldLabels,
-                    ),
-                    fields: run.fields,
-                }),
-            };
-        } catch (error) {
-            Sentry.captureException(error, { tags: SENTRY_TAGS });
-            return {
-                status: 'error',
-                message: error instanceof Error ? error.message : String(error),
-            };
-        }
-    }, [chart, run, terminal.columns]);
-    const readyDraw = drawState.status === 'ready' ? drawState.draw : null;
-
-    const rows = useMemo(() => {
-        if (!readyDraw) return [];
-        return drawsFromStage
-            ? results.rows
-            : pickComposerChartRows(readyDraw, results.rows);
-    }, [readyDraw, drawsFromStage, results.rows]);
+    });
 
     const errorMessage = !composerChartUuid
         ? 'This chart has been deleted.'
         : (chartQuery.error?.error.message ??
           runQuery.error?.error.message ??
-          terminal.error?.error.message ??
-          stage.error?.error.message ??
-          (drawState.status === 'error' ? drawState.message : null));
+          drawError);
     const isLoading =
         errorMessage === null && (!readyDraw || !results.hasFetchedAllRows);
     const { user } = useApp();
@@ -433,7 +367,9 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                 results.hasFetchedAllRows &&
                 projectUuid && (
                     <Sentry.ErrorBoundary
-                        beforeCapture={(scope) => scope.setTags(SENTRY_TAGS)}
+                        beforeCapture={(scope) =>
+                            scope.setTags(COMPOSER_CHART_SENTRY_TAGS)
+                        }
                         fallback={({ error }) => (
                             <TileError
                                 tileUuid={tile.uuid}
@@ -450,8 +386,9 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                             key={chart?.versionUuid}
                             projectUuid={projectUuid}
                             composerChartUuid={composerChartUuid}
-                            dashboardUuid={dashboardUuid}
+                            dashboardUuid={dashboardUuid ?? null}
                             tileUuid={tile.uuid}
+                            isDashboard
                             isTitleHidden={!!tile.properties.hideTitle}
                             minimal={minimal}
                             draw={readyDraw}
@@ -478,8 +415,9 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                             <ComposerChartVisualization
                                 projectUuid={projectUuid}
                                 composerChartUuid={composerChartUuid}
-                                dashboardUuid={dashboardUuid}
+                                dashboardUuid={dashboardUuid ?? null}
                                 tileUuid={tile.uuid}
+                                isDashboard
                                 isTitleHidden
                                 minimal
                                 draw={readyDraw}
