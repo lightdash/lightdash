@@ -8,6 +8,7 @@ import {
     DimensionType,
     FeatureNotEnabledError,
     FieldType,
+    FilterOperator,
     ForbiddenError,
     MergeJoinType,
     MetricType,
@@ -18,6 +19,7 @@ import {
     type ComposerChartOwner,
     type ComposerChartPipelineNode,
     type CreateComposerChart,
+    type DashboardFilterRule,
     type DashboardFilters,
     type DataAppVizSchema,
     type Explore,
@@ -242,6 +244,13 @@ const runFieldsByQuery: Record<string, object> = {
     },
 };
 
+// The columns a SQL node's query discovered before it was queued
+const originalColumnsByQuery: Record<string, object> = {
+    'result-query': {
+        status: { reference: 'status', type: DimensionType.STRING },
+    },
+};
+
 const savedDashboardFilters: DashboardFilters = {
     dimensions: [],
     metrics: [],
@@ -379,6 +388,7 @@ const setup = ({ flagEnabled = true } = {}) => {
                     ...runFieldsByQuery[queryUuid],
                 },
                 usedParameters: usedParametersByQuery[queryUuid] ?? null,
+                originalColumns: originalColumnsByQuery[queryUuid] ?? null,
             })),
         } as unknown as QueryHistoryModel,
         getQuerySourceService: () => querySourceService,
@@ -930,6 +940,53 @@ describe('ComposerChartService.run', () => {
         expect(result.appliedDashboardFilters).toEqual(
             runRequest.dashboardFilters,
         );
+    });
+
+    test("applies a dashboard filter's SQL column target to a SQL node that returned the column", async () => {
+        const { service } = setupRun({ nodes: PIPELINES.sql });
+        const columnTarget = {
+            fieldId: 'status',
+            tableName: 'result',
+            isSqlColumn: true,
+        };
+        const columnRule: DashboardFilterRule = {
+            id: 'status-filter',
+            label: undefined,
+            target: { fieldId: 'orders_status', tableName: 'orders' },
+            tileTargets: { 'tile-uuid': columnTarget },
+            operator: FilterOperator.EQUALS,
+            values: ['shipped'],
+        };
+        const dashboardFilters: DashboardFilters = {
+            dimensions: [columnRule],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            { ...runRequest, dashboardFilters },
+            QueryExecutionContext.DASHBOARD,
+        );
+        expect(result.sqlColumns).toEqual([
+            { reference: 'status', type: DimensionType.STRING },
+        ]);
+        const applied = {
+            dimensions: [
+                {
+                    ...columnRule,
+                    target: columnTarget,
+                    settings: { sourceTarget: columnRule.target },
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        expect(result.appliedDashboardFiltersByNodeId).toEqual({
+            result: applied,
+        });
+        expect(result.appliedDashboardFilters).toEqual(applied);
     });
 
     test('refuses a caller who cannot view the owning dashboard', async () => {
