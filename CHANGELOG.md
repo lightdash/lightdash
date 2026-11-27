@@ -1,3 +1,10 @@
+# [3.432.0](https://github.com/lightdash/lightdash/compare/3.431.0...3.432.0) (2026-11-27)
+
+
+### Features
+
+* **composer:** check every composer chart through SavedChart ([#33579](https://github.com/lightdash/lightdash/issues/33579)) ([8ad7bc1](https://github.com/lightdash/lightdash/commit/8ad7bc1239ca57c28ec3a1a72b2e85bbc68358e4))
+
 # [3.431.0](https://github.com/lightdash/lightdash/compare/3.430.0...3.431.0) (2026-11-27)
 
 
