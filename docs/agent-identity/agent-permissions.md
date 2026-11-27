@@ -17,8 +17,9 @@ The source of truth in code:
 | Coverage tests | `capabilityMap.test.ts`, `AgentPermissionService.test.ts` |
 
 Capability checks and the people-only list apply only when the
-`agent-identity` feature flag is on and "Limit what agents can do" is on.
-MCP owns its two settings in every mode. The permission check does not read them.
+`agent-identity` feature flag is on and the organization, or the project the
+operation targets, restricts agents. MCP owns its two settings whether or not
+agents are restricted. The permission check does not read them.
 
 ## Group admission
 
@@ -28,7 +29,7 @@ least one chosen group. A list whose groups are all deleted reads as `[]` and
 admits nobody. An update that omits the field keeps the stored restriction.
 An explicit empty list is rejected; use `null` to allow everyone.
 
-Group admission applies with capability limits off and on when
+Group admission applies with or without capability restrictions when
 `agent-identity` is on. It covers MCP tools and resource reads,
 in-app and Slack agents, OAuth REST, and query sources. Slack uses the verified
 sender when a group restriction is active. Saved people and project lists no
@@ -43,12 +44,12 @@ The policy has no mode: a saved capability list restricts agents and `null`
 means no restrictions. The policy API accepts group admission either way. A PUT
 with `allowedCapabilities: null` clears the capability list. Omitting
 `allowedCapabilities` keeps the saved list.
-Reset keeps the group restriction. The API returns no per-role matrix. A PUT
-that still sends `systemRoleMatrix` gets no error; the server ignores it.
+Reset keeps the group restriction. A PUT that still sends `mode` or
+`systemRoleMatrix` gets no error; the server ignores both.
 GET, PUT and reset omit the old people and project choices. Old browser tabs
 can still save them, but the server ignores them and clears the old columns.
-The Agents page uses the capability-policy API for Match the person,
-Read and query only, and Custom scope.
+The Agents page uses the capability-policy API for its two choices, No
+restrictions and Restrict.
 
 ## Personal CLI admission by surface
 
@@ -59,13 +60,13 @@ this is an admission rule, not proof of a private client.
 
 | Surface | Personal CLI browser login | PAT |
 | --- | --- | --- |
-| REST | Skips agent group admission and managed capability checks. OAuth scopes and human-only admin guards still apply. | Keeps the existing agent policy exemption and role checks. |
+| REST | Skips agent group admission and capability checks. OAuth scopes and human-only admin guards still apply. | Keeps the existing agent policy exemption and role checks. |
 | MCP, including agent tools and resource reads | Refused: browser login requests `read write`, but MCP requires `mcp:read` or `mcp:write`. | Admitted subject to MCP settings, resource access and role checks; keeps the existing agent policy exemption. |
 | `lightdash agent connect` and `agent revoke --human` | Refused. Log in with `lightdash login <url> --token <personal access token>` first. | Admitted subject to the existing person and organization checks. |
 
 The REST exemption does not change MCP policy. If a CLI OAuth token has MCP
 scopes through another flow, MCP treats it as OAuth and applies agent admission
-and managed capability checks. PATs remain exempt, including MCP tool effects
+and capability checks. PATs remain exempt, including MCP tool effects
 and new queued repo-edit jobs. Old jobs without a saved caller rule keep the
 conservative policy described below. Grant-bound CLI tokens keep agent
 admission, capability and grant checks.
@@ -157,43 +158,54 @@ entry. An operation with no entry is refused (`agent_operation_unmapped`).
 Connected external tools always need External tools, and only tools enabled
 on that connection are callable.
 
-## Organization capability limits
+## Agent restrictions
 
-`allowedCapabilities: null` adds no limit to saved role grants. Existing
-managed policies keep this value until their first save. A saved list limits
-everyone, including people with custom roles. An empty list turns agents off
-on every surface covered by this feature, including turns that need no
-capability. The refusal points to the organization Agents settings page.
+Roles describe the person. Agents start from everything the person can do, and
+one policy narrows it. The policy never adds a permission. Roles, including
+custom roles, carry no agent capabilities of their own.
 
-New policy defaults contain all eleven capabilities. Custom roles keep their
-own agent permissions. The organization list can only narrow them.
-With every capability ticked, limits on still keeps three safeguards that
-"Match the person" does not have: actions reserved for people, refusal of
+The organization policy is the default for every project.
+`allowedCapabilities: null` means no restrictions. A saved list allows only
+the listed capabilities, for everyone. An empty list turns agents off on every
+surface covered by this feature, including turns that need no capability. The
+refusal points to the organization Agents settings page.
+
+A project can have its own policy. It replaces the organization list for
+operations in that project; it does not combine with it. A project row with a
+`null` list means no restrictions in that project, even when the organization
+restricts agents. A project row with a list restricts agents in that project,
+even when the organization does not. Deleting the row makes the project follow
+the organization again. Group admission is set for the organization only.
+
+| Route | Does |
+| --- | --- |
+| `GET /api/v2/org/agent-permissions` | Reads the organization policy. |
+| `PUT /api/v2/org/agent-permissions` | Saves the organization list and group admission. |
+| `POST /api/v2/org/agent-permissions/reset` | Clears the organization list. Keeps group admission. |
+| `GET /api/v2/org/agent-permissions/projects` | Lists the projects that have their own policy. |
+| `PUT /api/v2/org/agent-permissions/projects/{projectUuid}` | Saves a project policy. |
+| `DELETE /api/v2/org/agent-permissions/projects/{projectUuid}` | Removes it, so the project follows the organization. |
+
+An organization save with an omitted list keeps the saved list; a new policy
+starts with no restrictions. A stale version rejects the entire save.
+
+With every capability ticked, a restricted policy still keeps three safeguards
+that No restrictions does not have: actions reserved for people, refusal of
 unmapped operations, and a verified sender on Slack.
 
-A managed save accepts an empty list but rejects explicit `null`. An omitted
-list keeps the saved list or uses all eleven if no list is stored.
-Legacy saves and reset set the list to `null`. Reset keeps the group
-restriction. A stale version rejects the entire save. Rows saved by the
-earlier per-role editor stay in the database, but no check reads them.
-
-The Agents page offers three choices. Match the person stores `legacy`
-with a null capability list. Read and query only stores `managed` with Read and
-discover, Query data, Export results and Raw SQL in the list.
-Custom scope stores `managed` with the selected list. It starts with
-all eleven capabilities on; an organization that already saved a Custom scope
-list gets that list back. Capability and group changes require review.
-Raw SQL follows warehouse permissions; this preset is not a read-only SQL guard.
+The Agents page offers two choices. No restrictions stores a `null` list.
+Restrict stores the selected list. It starts with all eleven capabilities on;
+an organization that already saved a list gets that list back. Capability and
+group changes require review. A project's Agent identity page offers Use
+organization setting, No restrictions and Restrict.
+Raw SQL follows warehouse permissions; allowing only read and query
+capabilities is not a read-only SQL guard.
 
 ## How checks combine
 
-Within a person's roles, capabilities add up (union). A built-in organization
-or project role gives every capability. The person's custom roles and their
-group roles each add the capabilities in their scopes. A role that leaves a
-capability out does not take it away from another role. The organization list
-then intersects that union. A capability excluded by the
-list points to the organization setting. A missing role grant within the list
-keeps the role remedy, including the custom-role link when available.
+The policy that applies is the project's own, when the operation targets a
+project that has one, and the organization's otherwise. A capability outside
+that list is refused, whatever roles the person holds.
 
 Across independent checks, every check must pass (intersection). No check can
 cancel another.
@@ -202,7 +214,7 @@ cancel another.
 | ------------------------------------------------------------------------------------ | -------------------------------------------------------- |
 | The person's own permissions on the resource (CASL) | The service that does the work |
 | The OAuth grant and token scopes | `fromOauth`, `scopedAbility.ts`, `mcpTools.ts` |
-| Group admission, the organization list, and the capabilities from the person's roles | `AgentPermissionService.assertOperation` and `evaluate`  |
+| Group admission and the organization or project capability list | `AgentPermissionService.assertOperation` and `evaluate`  |
 | Project, data and destination limits (pinned project, agent tags, SQL scope) | MCP, agent tools and data services |
 | MCP settings                                                                         | MCP tool registration and configured-agent gates         |
 | Operations only a person can do | `humanOnlyInManaged.ts`, `assertHumanManagedMutation.ts` |
@@ -219,7 +231,7 @@ refused:
 - The person's own permissions: "Your roles do not allow …".
 - Anything else uses neutral text and never blames roles.
 
-A managed refusal also lists the other blockers in `requiredCapabilities`, `blockers`, and `blockersComplete`. A See why link opens My agent identity. Blockers about a project the caller cannot see are left out.
+A capability refusal also lists the other blockers in `requiredCapabilities`, `blockers`, and `blockersComplete`. A See why link opens My agent identity. Blockers about a project the caller cannot see are left out.
 
 ## What is not covered
 
@@ -270,7 +282,7 @@ permission rules stay unchanged.
 When off, MCP refuses `list_agents`, `route_agent` and explicit
 configured-agent scope lookups. It hides
 configured agents from project/context results and ignores saved agent context.
-It does not stop in-app agents, Slack or OAuth API operations in either mode.
+It does not stop in-app agents, Slack or OAuth API operations.
 Other MCP tools still need their independent permissions.
 
 ### Allow content changes via MCP (`mcpContentWritesEnabled`)
@@ -283,14 +295,14 @@ their capabilities and ordinary permissions, but do not read this switch.
 Organization/agent skills and data-app generation/iteration keep the existing
 flag-off gaps in these MCP gates. They are tracked separately.
 
-Previously, with limits on, Agents over MCP off refused agents on every
+Previously, when agents were restricted, Agents over MCP off refused agents on every
 covered surface and the content switch refused content writes on every
 surface. Use Who can use agents or capability limits to restrict other
 surfaces. Untick every capability to turn agents off across covered surfaces.
 
 ### `requireExplicitSlackChannelLinking` (strict Slack channels)
 
-The same in every mode. It is not behind the flag.
+The same with or without agent restrictions. It is not behind the flag.
 
 When on, it refuses linking an agent to a channel from Slack, and refuses
 mentions in a channel with no linked agent before the system fallback or
@@ -300,10 +312,3 @@ in agent settings. Direct messages are a separate path.
 Column `require_explicit_slack_channel_linking`, not null, default false.
 The Slack settings panel shows it inverted as "Automatic channel linking".
 Readers: `AiOrganizationSettingsService` and `AiAgentService`.
-
-## Rolling updates
-
-The additive migration is schema-compatible with old pods. Old API and worker
-pods ignore the new organization list and can still grant an unticked
-capability from a custom role. Keep `agent-identity` disabled, or defer policy
-saves, until all serving pods use this version.

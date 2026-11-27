@@ -367,16 +367,15 @@ retain their original messages.
 ### Agent capability policy
 
 The capability-policy API and `AgentPermissionService` resolve `agent-identity`
-for the target organization only, without a user override. A missing policy starts
-in `legacy` mode. Saving with limits on activates `managed` mode; resetting
-restores `legacy` and clears the organization capability list. Disabling the flag preserves the
-saved policy and makes the permission service return `off` without new checks.
+for the target organization only, without a user override. A missing policy
+means no restrictions. Saving a capability list restricts agents; resetting
+clears the organization list. Disabling the flag preserves the saved policy
+and makes the permission service return `off` without new checks.
 
-Managed policy resolution gives built-in roles every capability, adds
-custom-role capability scopes, then intersects the result with
-`allowedCapabilities` when it is not null. Null preserves existing grants until the first save. New policy
-defaults contain all eleven capabilities. An empty saved list refuses agent
-turns on every covered surface. Custom roles keep their own scopes. MCP owns
+Agents start from everything the person can do. `allowedCapabilities` narrows
+it when it is not null. A project's own policy replaces the organization list
+for that project. Roles, including custom roles, carry no agent capabilities.
+An empty saved list refuses agent turns on every covered surface. MCP owns
 Agents over MCP and Allow content changes via MCP; neither setting limits
 in-app, Slack or OAuth API operations.
 Raw SQL for agents needs the person's own permission and the raw-SQL grant. It
@@ -386,27 +385,27 @@ The credential generation counters on project, shared organization and
 extra-connection credentials are still written when the persistent credentials,
 credential type or credential subject changes. Nothing reads them.
 
-The ceiling applies to MCP tools and resource reads, in-app and Slack agent tools
+The capability list applies to MCP tools and resource reads, in-app and Slack agent tools
 and fast data paths, and OAuth REST operations. SQL nodes in mixed-source
 pipelines and SQL-source schema scans require the raw-SQL grant
 before dispatch or cache access. Semantic-only pipelines require
 the query grant. Connected MCP tools also require `external_tools` and an
 explicit entry in that server's `enabledToolNames`, matched by server UUID and
-original tool name. A null tool list does not admit tools in managed mode.
+original tool name. A null tool list does not admit tools when agents are restricted.
 Personal-access-token and service-account MCP calls are not narrowed, including
 composer SQL nodes and schema scans. Personal-access-token and browser-session
 REST calls are not narrowed. Existing browser-session MCP authentication behavior
-is unchanged. Managed OAuth REST calls cannot change role definitions, role assignments,
+is unchanged. When agents are restricted, OAuth REST calls cannot change role definitions, role assignments,
 membership, space or direct access grants, agent policy, identity or AI-access
 settings, personal tokens, service accounts or OAuth
 clients, even with the administration capability. Role, project membership,
 organization membership, invite creation or resend, and group mutation services
-also reject managed OAuth and agent execution contexts. Space creation, including
-spaces-as-code imports and missing ancestors, is human-only in managed mode.
+also reject restricted OAuth and agent execution contexts. Space creation, including
+spaces-as-code imports and missing ancestors, is human-only when agents are restricted.
 Space updates and spaces-as-code imports reject changes to inheritance,
 project-member access, or user and group grants at the service boundary.
 Metadata-only space edits remain under `content_write`; resubmitting unchanged
-access is allowed, but managed OAuth and agent writes omit those access fields
+access is allowed, but restricted OAuth and agent writes omit those access fields
 so they cannot restore a concurrent human revocation. Ordinary human and PAT
 administration keeps its existing behavior.
 
