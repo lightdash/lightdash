@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.432.0",
-  "previousVersion": "3.431.0",
-  "releaseDate": "2026-11-27T22:06:36.289Z",
+  "version": "3.433.0",
+  "previousVersion": "3.432.0",
+  "releaseDate": "2026-11-27T22:41:00.068Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -17,9 +17,12 @@
   "api": {
     "rest": {
       "checked": true,
-      "breaking": false,
-      "changes": [],
-      "breakingCount": 0,
+      "breaking": true,
+      "changes": [
+        "GET /api/v1/projects/{projectUuid}/code/composerCharts — the response property `results/composerCharts/items/dashboardSlug` became nullable for the status `200`",
+        "GET /api/v1/projects/{projectUuid}/code/composerCharts — the response property `results/composerCharts/items/dashboardSlug` became optional for the status `200`"
+      ],
+      "breakingCount": 2,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -42,5 +45,21 @@
     "requiredStops": []
   },
   "declaredBreaks": [],
-  "declaredAdvisories": []
+  "declaredAdvisories": [
+    {
+      "id": "composer-chart-code-dashboard-slug-nullable",
+      "reason": "GET /api/v1/projects/{projectUuid}/code/composerCharts now returns dashboardSlug as null for a composer chart a space owns. The Lightdash CLI is the only caller. A CLI older than this change downloads such a chart; its lint accepts the null dashboardSlug, and uploading the file back is refused by the server with a named error, so nothing changes or is lost. No space-owned chart can be created until a later release, so during a rolling update every file an old CLI downloads still names its dashboard.",
+      "requiredStop": false,
+      "impact": {
+        "kind": "no-external-callers",
+        "firstPartyOnly": "Only the Lightdash CLI calls this endpoint, from lightdash download. An older CLI's upload of a space-owned file is refused by the server rather than losing data.",
+        "covers": {
+          "rest": [
+            "GET /api/v1/projects/{projectUuid}/code/composerCharts"
+          ],
+          "mcp": []
+        }
+      }
+    }
+  ]
 }

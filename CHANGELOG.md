@@ -1,3 +1,10 @@
+# [3.433.0](https://github.com/lightdash/lightdash/compare/3.432.0...3.433.0) (2026-11-27)
+
+
+### Features
+
+* **composer:** content as code downloads space-owned charts ([#33583](https://github.com/lightdash/lightdash/issues/33583)) ([0e7aecd](https://github.com/lightdash/lightdash/commit/0e7aecdb8e57d37cce2d52e09f193adeeae63ec4))
+
 # [3.432.0](https://github.com/lightdash/lightdash/compare/3.431.0...3.432.0) (2026-11-27)
 
 

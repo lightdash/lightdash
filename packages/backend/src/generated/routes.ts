@@ -8585,7 +8585,13 @@ const models: TsoaRoute.Models = {
                 chart: { ref: 'ComposerStoredChartAsCode', required: true },
                 pipeline: { ref: 'ComposerChartPipeline', required: true },
                 spaceSlug: { dataType: 'string', required: true },
-                dashboardSlug: { dataType: 'string', required: true },
+                dashboardSlug: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 description: {
                     dataType: 'union',
                     subSchemas: [
