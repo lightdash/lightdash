@@ -301,7 +301,9 @@ export const LIVE_INTEGRATION_CATALOG: {
                     }),
                 )
                 .min(1, 'Name at least one project')
-                .max(SENTRY_MAX_PROJECTS),
+                .max(SENTRY_MAX_PROJECTS)
+                // A project named two times would be read two times
+                .transform((slugs) => [...new Set(slugs)]),
         }),
         getTarget: ({ organizationSlug, projectSlugs }) =>
             `${organizationSlug}: ${projectSlugs.join(', ')}`,

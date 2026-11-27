@@ -33,7 +33,9 @@ const toFailureSummary = (label: string, status: number, error: Error) => {
 export const getLiveSourceTestRequest = (
     apiSource: ExternalConnectionApiSource,
 ): LiveHttpRequest | null =>
-    getLiveIntegration(apiSource.connector).connection.testRequest?.(apiSource) ?? null;
+    getLiveIntegration(apiSource.connector).connection.testRequest?.(
+        apiSource,
+    ) ?? null;
 
 /**
  * Reads a live data source test response the way an admin needs it: a 2xx

@@ -92,6 +92,8 @@ export type LiveConnection<C extends ApiConnectorType = ApiConnectorType> = {
      * settings. With it, an admin's test sends this request whatever the
      * dialog asked for, and answers with the check alone, without the API's
      * body or headers. For APIs whose token reads more than the source may.
+     * A saved secret is tested with the saved settings only, so a test of
+     * edited settings needs the secret again.
      * Omitted, the test sends the dialog's request and returns the answer.
      */
     testRequest?: (settings: ApiSourceOf<C>) => LiveHttpRequest;

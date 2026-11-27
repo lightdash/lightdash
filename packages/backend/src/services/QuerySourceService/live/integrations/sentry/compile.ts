@@ -17,7 +17,7 @@ import {
     type LiveCompiledRequest,
 } from '../../sdk';
 import { SENTRY_RETENTION_DAYS } from './api';
-import { type SentryFilter, type SentryRequest } from './run';
+import { assertRealDays, type SentryFilter, type SentryRequest } from './run';
 
 type SentryKind = SentryRequest['kind'];
 type ErrorsRequest = Extract<SentryRequest, { kind: 'errors' }>;
@@ -57,10 +57,26 @@ const addDays = (isoDate: string, days: number) => {
 const getEarliestDate = (today: string) =>
     addDays(today, -SENTRY_RETENTION_DAYS);
 
+/** The date operators whose values count days or periods. */
+const RELATIVE_DATE_OPERATORS = [
+    FilterOperator.IN_THE_PAST,
+    FilterOperator.NOT_IN_THE_PAST,
+    FilterOperator.IN_THE_CURRENT,
+];
+
 const toDayRange = (
     rule: FilterRule | null,
     { today, defaultDays }: { today: string; defaultDays: number },
 ) => {
+    // Before any date arithmetic, which moves a day the calendar doesn't
+    // have into the next month
+    if (rule && !RELATIVE_DATE_OPERATORS.includes(rule.operator)) {
+        assertRealDays(
+            ...(rule.values ?? []).map((value) =>
+                typeof value === 'string' ? value.slice(0, 10) : undefined,
+            ),
+        );
+    }
     const { startDate, endDate } = toAbsoluteDateRange(
         getLiveDateRange({
             rule,

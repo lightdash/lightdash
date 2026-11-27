@@ -337,7 +337,7 @@ const get = async <T>(
 };
 
 /** Refuses a day the calendar doesn't have, such as 2026-02-30. */
-const assertRealDays = (...values: (string | undefined)[]) => {
+export const assertRealDays = (...values: (string | undefined)[]) => {
     values.forEach((value) => {
         if (value === undefined) return;
         const date = new Date(`${value}T00:00:00Z`);
@@ -1117,7 +1117,7 @@ const runSessions = async ({
 
 /** Runs one Sentry request: grouped errors, an issue list, or release health. */
 export const runSentryQuery = async ({
-    settings,
+    settings: source,
     request,
     limit,
     runtime,
@@ -1126,6 +1126,11 @@ export const runSentryQuery = async ({
     SentryRequest
 >): Promise<LiveRunResult> => {
     assertMaxRows(limit, SENTRY_MAX_QUERY_ROWS);
+    // A project named two times would be read, and counted, two times
+    const settings = {
+        ...source,
+        projectSlugs: [...new Set(source.projectSlugs)],
+    };
     if (request.kind === 'issues') {
         assertRealDays(
             request.firstSeen?.start,

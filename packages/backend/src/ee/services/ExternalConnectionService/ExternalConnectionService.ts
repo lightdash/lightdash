@@ -5471,6 +5471,34 @@ export class ExternalConnectionService extends BaseService {
     }
 
     /**
+     * Keeps a saved secret to what it was saved for when a test sends edited
+     * settings. The integration of a live source stays. One that fixes its
+     * test request is tested with its saved settings, unless the admin
+     * sends the secret again: the edited settings would choose the request.
+     */
+    private static assertTestKeepsIntegration(
+        stored: ExternalConnection,
+        config: UpdateExternalConnection,
+    ): void {
+        const { apiSource } = stored;
+        if (!apiSource || config.apiSource === undefined) return;
+        if (config.apiSource?.connector !== apiSource.connector) {
+            throw new ParameterError(
+                'A test cannot remove or change the integration of a live data source.',
+            );
+        }
+        if (
+            !config.secret &&
+            getLiveIntegration(apiSource.connector).connection.testRequest &&
+            !isEqual(config.apiSource, apiSource)
+        ) {
+            throw new ParameterError(
+                'Enter the token again to test the changed settings. A saved token is tested only with its saved settings.',
+            );
+        }
+    }
+
+    /**
      * Admin-only "Test connection". Loads the connection, decrypts its
      * secret, and runs a single request through the SAME validation +
      * SSRF-guarded fetch core the runtime proxy uses (`executeExternalFetch`).
@@ -5502,6 +5530,12 @@ export class ExternalConnectionService extends BaseService {
             await this.assertLiveIntegrationEnabled(
                 storedConnection.organizationUuid,
                 storedConnection.apiSource.connector,
+            );
+        }
+        if (req.config) {
+            ExternalConnectionService.assertTestKeepsIntegration(
+                storedConnection,
+                req.config,
             );
         }
         // Live data sources test against the rules their edited settings get

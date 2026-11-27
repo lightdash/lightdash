@@ -25,7 +25,7 @@ export const SENTRY_TOKEN_FORM = {
             'Write the organization slug, a slash and the project slugs. Put a comma between project slugs.',
         placeholder: 'acme/mobile-ios,mobile-android',
         invalidMessage:
-            'Use the form organization/project. A slug has lowercase letters, digits or dashes, and not digits only.',
+            'Use the form organization/project. A slug has lowercase letters, digits or dashes, and not digits only. Name each project one time.',
         normalize: (value) => value.toLowerCase().replace(/\s+/g, ''),
         isValid: (value) => {
             const { organizationSlug, projectSlugs } = splitTarget(value);
@@ -35,6 +35,7 @@ export const SENTRY_TOKEN_FORM = {
                 projectSlugs.length > 0 &&
                 projectSlugs.length <= SENTRY_MAX_PROJECTS &&
                 projectSlugs.every(isSentrySlug) &&
+                new Set(projectSlugs).size === projectSlugs.length &&
                 projectSlugs.join(',') === value.split('/')[1]
             );
         },

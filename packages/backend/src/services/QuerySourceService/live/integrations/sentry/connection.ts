@@ -36,7 +36,10 @@ export const getSentryTestRequest = ({
         ['dataset', 'errors'],
         ['field', TEST_FIELD],
         ['statsPeriod', '24h'],
-        ...projectSlugs.map((slug): [string, string] => ['project', slug]),
+        ...[...new Set(projectSlugs)].map((slug): [string, string] => [
+            'project',
+            slug,
+        ]),
     ]),
     body: undefined,
 });
@@ -55,7 +58,7 @@ export const summarizeSentryTest = (
     return {
         summary: `The token reaches the Sentry organization ${organizationSlug}.`,
         facts: [
-            { label: 'Projects', value: projectSlugs.join(', ') },
+            { label: 'Projects', value: [...new Set(projectSlugs)].join(', ') },
             {
                 label: 'Error events in the last 24 hours',
                 value: formatTestCount(Number.isFinite(count) ? count : 0),
