@@ -267,6 +267,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                             actorType: index === 0 ? 'user' : 'service_account',
                             toolName: index === 0 ? 'list_explores' : 'run_sql',
                             status: status as 'success' | 'error',
+                            errorKind: index === 0 ? null : 'tool_error',
                             durationMs: 100 * (index + 1),
                             authType: index === 0 ? 'oauth' : 'service-account',
                             clientName: 'Smoke client',

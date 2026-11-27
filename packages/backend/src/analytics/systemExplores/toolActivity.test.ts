@@ -120,6 +120,7 @@ describe('Tool activity with real DuckDB', () => {
             ['tool_activity_client_name'],
             ['tool_activity_tool_name'],
             ['tool_activity_status'],
+            ['tool_activity_error_kind'],
             ['lightdash_users_name'],
             ['lightdash_agents_name'],
             ['tool_activity_event_ts_day'],
@@ -156,6 +157,39 @@ describe('Tool activity with real DuckDB', () => {
                     ).toBe(5);
             }
         }
+    });
+
+    it('splits MCP failures by kind and counts errors without a kind as tool errors', async () => {
+        await db.run(`INSERT INTO mcp_tool_calls (org_id, user_id, actor_id, actor_type, event_ts, tool_call_id, tool_name, status, error_kind, duration_ms) VALUES
+            ('org','user','user','user','2026-09-28','stale','run_metric_query','error','unavailable_tool',1)`);
+        const rows = (
+            await db.runAndReadAll(
+                compile(
+                    ['tool_activity_source', 'tool_activity_error_kind'],
+                    ['total_calls', 'failed_calls'],
+                ),
+            )
+        ).getRowObjectsJson();
+        await db.run("DELETE FROM mcp_tool_calls WHERE tool_call_id = 'stale'");
+        expect(rows).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    tool_activity_source: 'mcp',
+                    tool_activity_error_kind: 'unavailable_tool',
+                    tool_activity_failed_calls: '1',
+                }),
+                expect.objectContaining({
+                    tool_activity_source: 'mcp',
+                    tool_activity_error_kind: 'tool_error',
+                    tool_activity_failed_calls: '1',
+                }),
+                expect.objectContaining({
+                    tool_activity_source: 'mcp',
+                    tool_activity_error_kind: null,
+                    tool_activity_failed_calls: '0',
+                }),
+            ]),
+        );
     });
 
     it('retains legacy calls without IDs, and supports an agent schema predating tool_status', async () => {

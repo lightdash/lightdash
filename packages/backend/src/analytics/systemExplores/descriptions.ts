@@ -216,6 +216,8 @@ const sharedDimensions: Record<string, string> = {
         'Identifier of the recorded actor, including service principals where available. It is not always a registered user identifier.',
     actor_type:
         'Type of actor recorded for the activity. Unknown means the type was not captured; it should not be assumed to be a human.',
+    error_kind:
+        'Why the MCP call failed: tool_error when the tool ran and failed, invalid_arguments when the server rejected the arguments, unavailable_tool when the tool exists but was not offered to this session, unknown_tool when no such tool exists. Empty for successful calls and for errors captured before this field existed.',
     client_name: 'MCP client name reported by the caller, when available.',
     client_version:
         'MCP client version reported by the caller, when available.',
@@ -362,6 +364,8 @@ const modelDimensions: Record<string, Record<string, string>> = {
             'Sum of reported token totals from captured model calls linked to this prompt. Missing usage is not inferred and tokens are not monetary cost.',
     },
     tool_activity: {
+        error_kind:
+            'Why the MCP call failed: tool_error when the tool ran and failed, invalid_arguments when the server rejected the arguments, unavailable_tool when the tool exists but was not offered to this session, unknown_tool when no such tool exists. Empty for successful calls and agent calls; MCP errors captured before this field existed count as tool_error.',
         status: 'Observed success, error or unknown tool outcome. Unknown historical outcomes are excluded from the error-rate denominator.',
     },
     data_app_events: {

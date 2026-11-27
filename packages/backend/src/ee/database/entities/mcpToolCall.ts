@@ -2,6 +2,13 @@ import { Knex } from 'knex';
 
 export const McpToolCallTableName = 'mcp_tool_call';
 
+// Why a call failed: the tool ran and failed, or the server rejected it first
+export type McpToolCallErrorKind =
+    | 'tool_error'
+    | 'invalid_arguments'
+    | 'unavailable_tool'
+    | 'unknown_tool';
+
 export type DbMcpToolCall = {
     mcp_tool_call_uuid: string;
     organization_uuid: string;
@@ -12,6 +19,7 @@ export type DbMcpToolCall = {
     tool_args: object;
     status: 'success' | 'error';
     error_message: string | null;
+    error_kind: McpToolCallErrorKind | null;
     duration_ms: number;
     result_metadata: object | null;
     client_name: string | null;

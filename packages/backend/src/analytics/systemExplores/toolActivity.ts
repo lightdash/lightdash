@@ -14,6 +14,7 @@ export const toolActivityColumns: CompactedStreamColumn[] = [
         'actor_type',
         'tool_name',
         'status',
+        'error_kind',
         'client_name',
         'client_version',
         'auth_type',
@@ -27,12 +28,15 @@ export const toolActivityColumns: CompactedStreamColumn[] = [
 ];
 
 // Read the original tool records once; loop steps are not tool invocations.
+// MCP errors recorded before error_kind existed all came from a tool that ran.
 // Stable identities deduplicate redelivery, not separate attempts. Legacy
 // records without an identity are retained rather than guessed to be duplicates.
 export const toolActivitySql = `(SELECT * FROM (
     SELECT org_id, project_id, user_id, agent_id, event_ts,
         'mcp' AS source, tool_call_id, actor_id, actor_type, tool_name,
-        status, duration_ms, client_name, client_version, auth_type, session_id,
+        status, CASE WHEN status = 'error'
+            THEN COALESCE(error_kind, 'tool_error') END AS error_kind,
+        duration_ms, client_name, client_version, auth_type, session_id,
         NULL::VARCHAR AS prompt_id, NULL::VARCHAR AS thread_id, query_id
     FROM mcp_tool_calls
     UNION ALL
@@ -41,7 +45,7 @@ export const toolActivitySql = `(SELECT * FROM (
         'unknown' AS actor_type, tool_name,
         CASE WHEN tool_status IN ('success', 'error', 'rejected', 'timeout')
             THEN tool_status ELSE 'unknown' END AS status,
-        tool_duration_ms AS duration_ms, NULL::VARCHAR AS client_name,
+        NULL::VARCHAR AS error_kind, tool_duration_ms AS duration_ms, NULL::VARCHAR AS client_name,
         NULL::VARCHAR AS client_version, NULL::VARCHAR AS auth_type,
         NULL::VARCHAR AS session_id, prompt_id, thread_id,
         NULL::VARCHAR AS query_id

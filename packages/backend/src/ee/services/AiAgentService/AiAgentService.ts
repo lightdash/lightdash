@@ -18613,6 +18613,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                         tool_args: data.toolArgs,
                         status: data.status,
                         error_message: data.errorMessage,
+                        error_kind:
+                            data.status === 'error' ? 'tool_error' : null,
                         duration_ms: data.durationMs,
                         result_metadata: null,
                         client_name: null,

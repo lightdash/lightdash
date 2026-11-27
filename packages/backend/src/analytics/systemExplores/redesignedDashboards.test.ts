@@ -430,9 +430,18 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
                 'big_number',
             ],
             [
+                'tools-mcp-failed-calls-by-kind-and-day',
+                0,
+                6,
+                36,
+                7,
+                'customizable-cartesian-chart',
+                'cartesian',
+            ],
+            [
                 'tools-mcp-calls-by-tool-and-day',
                 0,
-                5,
+                13,
                 36,
                 14,
                 'vega-trellis',
@@ -441,7 +450,7 @@ const redesigned: Record<string, Record<string, Tile[]>> = {
             [
                 'mcp-users-clients-tools-and-error-rates',
                 0,
-                19,
+                27,
                 36,
                 9,
                 'sortable-pivot-table',

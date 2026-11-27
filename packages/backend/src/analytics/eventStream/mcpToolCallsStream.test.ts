@@ -11,6 +11,7 @@ const event: McpToolCallEvent = {
         actorType: 'user',
         toolName: 'list_explores',
         status: 'error',
+        errorKind: 'tool_error',
         durationMs: 42,
         authType: 'oauth',
         clientName: 'Client',
@@ -30,6 +31,7 @@ describe('MCP usage projection', () => {
             actor_id: 'user-1',
             actor_type: 'user',
             status: 'error',
+            error_kind: 'tool_error',
             duration_ms: 42,
             query_id: null,
             client_name: 'Client',
@@ -37,6 +39,21 @@ describe('MCP usage projection', () => {
         expect(result.row).not.toHaveProperty('userAgent');
         expect(result.row).not.toHaveProperty('user_agent');
         expect(result.row).not.toHaveProperty('tool_args');
+    });
+    it('projects a server-rejected call with its kind', () => {
+        const result = mcpToolCallsProjections.mcp_tool_call({
+            ...event,
+            properties: {
+                ...event.properties,
+                toolName: 'run_metric_query',
+                errorKind: 'unavailable_tool',
+            },
+        })!;
+        expect(result.row).toMatchObject({
+            tool_name: 'run_metric_query',
+            status: 'error',
+            error_kind: 'unavailable_tool',
+        });
     });
     it('keeps service identity separate from registered users and unknown clients null', () => {
         const result = mcpToolCallsProjections.mcp_tool_call({

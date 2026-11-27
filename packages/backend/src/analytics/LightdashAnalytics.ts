@@ -100,6 +100,7 @@ import ExecutionContext from 'node-execution-context';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
+import type { McpToolCallErrorKind } from '../ee/database/entities/mcpToolCall';
 import { type SuggestionFallbackReason } from '../ee/services/ai/agents/suggestionErrors';
 import type { AiAgentToolCallCompletedProperties } from '../ee/services/ai/analytics/toolCallEvent';
 import Logger from '../logging/logger';
@@ -4136,6 +4137,8 @@ export type McpToolCallEvent = BaseTrack & {
         agentId?: string;
         toolName: string;
         status: 'success' | 'error';
+        // Null on success; otherwise whether the tool ran or the server rejected the call
+        errorKind: McpToolCallErrorKind | null;
         durationMs: number;
         authType: string;
         clientName?: string;

@@ -49,6 +49,20 @@ export const toolsChartSpecs: UsageChartSpec[] = [
         metric: 'tool_activity_failed_calls',
         filters: mcp,
     }),
+    stackedByDay({
+        key: 'tools-mcp-failed-calls-by-kind-and-day',
+        name: 'Failed MCP tool calls by kind and day',
+        description:
+            'Failed MCP tool calls per day, split by why they failed: the tool ran and failed, the server rejected the arguments, the tool was not offered to the session, or no such tool exists.',
+        explore: 'tool_activity',
+        day: toolDay,
+        metric: 'tool_activity_failed_calls',
+        splitBy: 'tool_activity_error_kind',
+        yName: 'Failed calls',
+        splitDescription:
+            'Failed MCP tool calls per day, split by why they failed.',
+        filters: mcp,
+    }),
     trendByCategory({
         key: 'tools-mcp-calls-by-tool-and-day',
         name: 'MCP tool calls by day, one row per tool',
@@ -197,6 +211,14 @@ export const toolsDashboardSpec: UsageDashboardSpec = {
                     layout: 'row',
                     rowHeight: 4,
                     widths: [18, 9, 9],
+                },
+                {
+                    title: 'Failed calls by kind',
+                    description:
+                        'Rejected calls never reached the tool: a client with a stale tool list shows up as unavailable or unknown tools.',
+                    charts: ['tools-mcp-failed-calls-by-kind-and-day'],
+                    layout: 'row',
+                    rowHeight: 7,
                 },
                 {
                     title: 'Calls by tool',

@@ -208,7 +208,10 @@ import {
 import { wrapSentryTransaction } from '../../../utils';
 import { VERSION } from '../../../version';
 import { composerSessionScope } from '../../database/entities/composerQueryNodes';
-import { DbMcpSessionClientInfo } from '../../database/entities/mcpToolCall';
+import {
+    DbMcpSessionClientInfo,
+    type McpToolCallErrorKind,
+} from '../../database/entities/mcpToolCall';
 import type { AiAgentModel } from '../../models/AiAgentModel';
 import { McpToolCallModel } from '../../models/McpToolCallModel';
 import {
@@ -296,6 +299,11 @@ import {
     type McpComposerAgentSettings,
     type McpQueryPath,
 } from './mcpQueryPath';
+import {
+    markToolHandlerStarted,
+    observeRejectedToolCalls,
+    type RejectedMcpToolCall,
+} from './mcpRejectedToolCalls';
 
 export enum McpToolName {
     CONNECT_AGENT = 'connect_agent',
@@ -5878,6 +5886,12 @@ export class McpService extends BaseService {
             ...options.featureAvailability,
             pinnedAgent: options.req.pinnedAgent,
         });
+        observeRejectedToolCalls(newServer, {
+            isToolServed: (name) =>
+                McpService.getServedToolNames(newServer).includes(name),
+            isToolKnown: (name) => knownMcpToolNames.has(name),
+            onRejected: (call) => this.recordRejectedToolCall(call),
+        });
         const scopeContext = options.req.user
             ? getOAuthScopeContext(options.req.user.ability)
             : null;
@@ -6790,6 +6804,7 @@ export class McpService extends BaseService {
                     durationMs: params.durationMs,
                     status: 'success',
                     errorMessage: null,
+                    errorKind: null,
                     resultMetadata: {
                         catalogue: {
                             agentPinned:
@@ -6930,6 +6945,7 @@ export class McpService extends BaseService {
         Callback extends (...cbArgs: AnyType[]) => AnyType,
     >(toolName: string, handler: Callback): Callback {
         const wrapped = async (...cbArgs: AnyType[]) => {
+            markToolHandlerStarted();
             // ToolCallback is (extra) for tools without an input schema and
             // (args, extra) otherwise
             const extra = cbArgs.length > 1 ? cbArgs[1] : cbArgs[0];
@@ -7010,6 +7026,7 @@ export class McpService extends BaseService {
                         response?.isError === true
                             ? McpService.getResultErrorText(response)
                             : null,
+                    errorKind: response?.isError === true ? 'tool_error' : null,
                 });
                 return response;
             } catch (error) {
@@ -7035,6 +7052,7 @@ export class McpService extends BaseService {
                         durationMs: Date.now() - startedAt,
                         status: 'error',
                         errorMessage: error.refusal.message,
+                        errorKind: 'tool_error',
                     });
                     return this.buildToolError(error, null, projectUuid);
                 }
@@ -7061,6 +7079,7 @@ export class McpService extends BaseService {
                     durationMs: Date.now() - startedAt,
                     status: 'error',
                     errorMessage: getErrorMessage(error),
+                    errorKind: 'tool_error',
                 });
                 throw error;
             }
@@ -7088,6 +7107,7 @@ export class McpService extends BaseService {
         durationMs: number;
         status: 'success' | 'error';
         errorMessage: string | null;
+        errorKind: McpToolCallErrorKind | null;
     }): void {
         void Promise.resolve()
             .then(() =>
@@ -7105,6 +7125,33 @@ export class McpService extends BaseService {
             });
     }
 
+    private static ranToolHandler(errorKind: McpToolCallErrorKind): boolean {
+        switch (errorKind) {
+            case 'tool_error':
+                return true;
+            case 'invalid_arguments':
+            case 'unavailable_tool':
+            case 'unknown_tool':
+                return false;
+            default:
+                return assertUnreachable(errorKind, 'Unknown MCP error kind');
+        }
+    }
+
+    // Server-rejected calls never reached a handler: record them like handled ones
+    private recordRejectedToolCall({
+        kind,
+        extra,
+        ...params
+    }: RejectedMcpToolCall): void {
+        this.recordToolCall({
+            ...params,
+            extra,
+            status: 'error',
+            errorKind: kind,
+        });
+    }
+
     private async persistToolCall({
         context,
         queryUuid,
@@ -7113,6 +7160,7 @@ export class McpService extends BaseService {
         durationMs,
         status,
         errorMessage,
+        errorKind,
         resultMetadata,
         trackAnalytics,
     }: {
@@ -7123,6 +7171,7 @@ export class McpService extends BaseService {
         durationMs: number;
         status: 'success' | 'error';
         errorMessage: string | null;
+        errorKind: McpToolCallErrorKind | null;
         resultMetadata: object | null;
         trackAnalytics: boolean;
     }): Promise<void> {
@@ -7130,10 +7179,15 @@ export class McpService extends BaseService {
             McpService.getAccount(context);
         const { userAgent, protocolVersion, headerProjectUuid, sessionId } =
             context.authInfo?.extra ?? {};
+        // Rejected arguments never passed the tool schema, so they attribute nothing
+        const argsValidated =
+            errorKind === null || McpService.ranToolHandler(errorKind);
+        const attributableArgs = argsValidated ? toolArgs : {};
 
         // Prefer the explicit tool scope. Legacy global/context tools fall
         // back to stored context for activity enrichment only.
-        const explicitScope = mcpToolScopeArgsSchema.safeParse(toolArgs);
+        const explicitScope =
+            mcpToolScopeArgsSchema.safeParse(attributableArgs);
         let projectUuid: string | null = explicitScope.success
             ? explicitScope.data.projectUuid
             : (headerProjectUuid ?? null);
@@ -7184,15 +7238,16 @@ export class McpService extends BaseService {
                             : 'user',
                     queryId:
                         queryUuid ??
-                        ('queryUuid' in toolArgs &&
-                        typeof toolArgs.queryUuid === 'string' &&
-                        isValidUuid(toolArgs.queryUuid)
-                            ? toolArgs.queryUuid
+                        ('queryUuid' in attributableArgs &&
+                        typeof attributableArgs.queryUuid === 'string' &&
+                        isValidUuid(attributableArgs.queryUuid)
+                            ? attributableArgs.queryUuid
                             : undefined),
                     projectId: projectUuid ?? undefined,
                     agentId: agentUuid ?? undefined,
                     toolName,
                     status,
+                    errorKind,
                     durationMs,
                     authType,
                     clientName: clientInfo?.client_name,
@@ -7213,6 +7268,7 @@ export class McpService extends BaseService {
             tool_args: toolArgs,
             status,
             error_message: errorMessage,
+            error_kind: errorKind,
             duration_ms: durationMs,
             result_metadata: resultMetadata,
             client_name: clientInfo?.client_name ?? null,

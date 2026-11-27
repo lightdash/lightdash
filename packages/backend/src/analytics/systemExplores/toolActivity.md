@@ -8,6 +8,11 @@ MCP calls use the existing `mcp_tool_call` emission, including non-query tools a
 failures caught by the tool wrapper. The usage projection retains identifiers,
 client metadata, status and duration; it excludes arguments, results, raw user
 agents and error text. `tools/list` protocol discovery is not a tool invocation.
+Calls the server rejects before a tool runs are recorded too. `error_kind` says
+why a call failed: `tool_error`, `invalid_arguments`, `unavailable_tool` (a tool
+this session was not offered, such as a stale client tool list) or
+`unknown_tool`. MCP errors captured before `error_kind` existed count as
+`tool_error`.
 Query UUIDs are populated from structured responses or polling arguments when
 available. Unknown project, client, session and query metadata stays null.
 
@@ -45,6 +50,7 @@ it preserves the summary model's existing counting semantics.
   combinations, duplicate IDs, tenant-safe joins, unknown outcomes and old schemas.
 - `mcpToolCallsStream.test.ts`: projection allowlist and principal attribution.
 - `McpService.queryPolling.test.ts`: early failures and returned query UUID capture.
+- `McpService.rejectedToolCalls.test.ts`: calls rejected before a tool runs.
 - `UsageUserActivityBuilder.smoke.test.ts`: opt-in local MinIO test covering six
   streams, compaction, signed reads, user summaries, duplicates and reruns. Set
   `USAGE_USER_ACTIVITY_SMOKE_ENDPOINT=http://localhost:9000` to run against a
