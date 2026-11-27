@@ -27,6 +27,7 @@ import {
     QueryHistoryWindow,
     QueryLanguage,
     QueryTrigger,
+    type ApiComposerChartRunResponse,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
@@ -39,6 +40,7 @@ import {
     type ApiJobScheduledResponse,
     type ApiQueryCostEstimateResponse,
     type ApiQueryHistoryListResponse,
+    type DashboardComposerChartRunRequest,
     type ExecuteAsyncCalculateTotalRequestParams,
     type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
@@ -932,6 +934,34 @@ export class QueryController extends BaseController {
             status: 'ok',
             results,
         };
+    }
+
+    /**
+     * Runs a composer chart where a dashboard tile shows it, with the
+     * dashboard's filters, parameters and date zoom. The request carries no
+     * nodes; each node's query is polled with the standard results endpoint.
+     * @summary Execute dashboard composer chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/dashboard-composer-chart')
+    @OperationId('executeAsyncDashboardComposerChartQuery')
+    async executeAsyncDashboardComposerChartQuery(
+        @Body() body: DashboardComposerChartRunRequest,
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiComposerChartRunResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getComposerChartService()
+            .runTile(
+                req.account,
+                projectUuid,
+                body,
+                QueryExecutionContext.DASHBOARD,
+            );
+        this.setStatus(200);
+        return { status: 'ok', results };
     }
 
     /**

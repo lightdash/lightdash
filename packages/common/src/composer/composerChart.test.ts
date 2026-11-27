@@ -9,6 +9,7 @@ import {
     parseComposerChartRunRequest,
     parseComposerPipeline,
     parseComposerStoredChart,
+    parseDashboardComposerChartRunRequest,
 } from './composerChart';
 
 const orders = {
@@ -426,6 +427,43 @@ describe('parseComposerChartRunRequest', () => {
         expect(() =>
             parseComposerChartRunRequest({ ...request, ...extra }),
         ).toThrow(key);
+    });
+});
+
+describe('parseDashboardComposerChartRunRequest', () => {
+    const request = {
+        composerChartUuid: 'chart-uuid',
+        dashboardUuid: 'dashboard-uuid',
+        tileUuid: 'tile-uuid',
+        dashboardFilters: {
+            dimensions: [],
+            metrics: [],
+            tableCalculations: [],
+        },
+        parameters: {},
+        excludedParameterKeys: [],
+        invalidateCache: false,
+        dateZoom: null,
+    };
+
+    it('accepts the tile request naming its chart', () => {
+        expect(parseDashboardComposerChartRunRequest(request)).toEqual(request);
+    });
+
+    it('refuses a request naming no chart', () => {
+        const { composerChartUuid, ...withoutChart } = request;
+        expect(() =>
+            parseDashboardComposerChartRunRequest(withoutChart),
+        ).toThrow('composerChartUuid');
+    });
+
+    it('refuses a request carrying nodes', () => {
+        expect(() =>
+            parseDashboardComposerChartRunRequest({
+                ...request,
+                nodes: [{ sourceType: 'sql', sql: 'select 1' }],
+            }),
+        ).toThrow('nodes');
     });
 });
 

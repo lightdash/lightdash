@@ -14,11 +14,11 @@ import {
     type ComposerChart,
     type ComposerChartAsCode,
     type ComposerChartPipeline,
-    type ComposerChartRunRequest,
     type ComposerChartRunResults,
     type CreateComposerChart,
     type Dashboard,
     type DashboardAsCode,
+    type DashboardComposerChartRunRequest,
     type DashboardFieldTarget,
     type Space,
 } from '@lightdash/common';
@@ -47,10 +47,14 @@ const projectUuid = SEED_PROJECT.project_uuid;
 const chartsUrl = `/api/v2/projects/${projectUuid}/composer-charts`;
 const flagUrl = `/api/v2/feature-flag/${FeatureFlags.ComposerCharts}`;
 
+const tileRunUrl = `/api/v2/projects/${projectUuid}/query/dashboard-composer-chart`;
+
 const runRequest = (
+    composerChartUuid: string,
     dashboardUuid: string,
     tileUuid: string,
-): ComposerChartRunRequest => ({
+): DashboardComposerChartRunRequest => ({
+    composerChartUuid,
     dashboardUuid,
     tileUuid,
     dashboardFilters: { dimensions: [], metrics: [], tableCalculations: [] },
@@ -206,7 +210,7 @@ describe('Composer charts', () => {
         return created;
     };
 
-    const runUrl = (composerChartUuid: string) =>
+    const deprecatedRunUrl = (composerChartUuid: string) =>
         `${chartsUrl}/${composerChartUuid}/run`;
 
     const createRunnableDashboard = async () => {
@@ -579,8 +583,8 @@ describe('Composer charts', () => {
             expect(ownSql.status).toBe(403);
 
             const run = await viewer.post<Body<ComposerChartRunResults>>(
-                runUrl(chart.uuid),
-                runRequest(dashboard.uuid, tileUuid),
+                tileRunUrl,
+                runRequest(chart.uuid, dashboard.uuid, tileUuid),
             );
             expect(run.status).toBe(200);
             expect(
@@ -600,9 +604,9 @@ describe('Composer charts', () => {
             const { dashboard, chart, tileUuid } =
                 await createRunnableDashboard();
             const withNodes = await admin.post<{ error: { message: string } }>(
-                runUrl(chart.uuid),
+                tileRunUrl,
                 {
-                    ...runRequest(dashboard.uuid, tileUuid),
+                    ...runRequest(chart.uuid, dashboard.uuid, tileUuid),
                     nodes: [
                         {
                             sourceType: QuerySourceType.SQL,
@@ -618,11 +622,35 @@ describe('Composer charts', () => {
 
             const other = await createRunnableDashboard();
             const otherChart = await admin.post(
-                runUrl(other.chart.uuid),
-                runRequest(dashboard.uuid, tileUuid),
+                tileRunUrl,
+                runRequest(other.chart.uuid, dashboard.uuid, tileUuid),
                 { failOnStatusCode: false },
             );
             expect(otherChart.status).toBe(403);
+        });
+
+        it('still runs a tile for a caller on the deprecated run route, telling it to move', async () => {
+            const { dashboard, chart, tileUuid } =
+                await createRunnableDashboard();
+            const { composerChartUuid, ...oldBody } = runRequest(
+                chart.uuid,
+                dashboard.uuid,
+                tileUuid,
+            );
+            const run = await admin.post<Body<ComposerChartRunResults>>(
+                deprecatedRunUrl(composerChartUuid),
+                oldBody,
+            );
+            expect(run.status).toBe(200);
+            expect(run.headers.get('Deprecation')).not.toBeNull();
+            expect(run.headers.get('Warning')).toContain(
+                'query/dashboard-composer-chart',
+            );
+            expect(
+                run.body.results.queries.map(({ nodeId }) => nodeId).sort(),
+            ).toEqual(
+                everyKindPipeline.nodes.map(({ nodeId }) => nodeId).sort(),
+            );
         });
 
         it('refuses a run from another organization', async () => {
@@ -630,8 +658,8 @@ describe('Composer charts', () => {
                 await createRunnableDashboard();
             const outsider = await anotherLogin();
             const refused = await outsider.post(
-                runUrl(chart.uuid),
-                runRequest(dashboard.uuid, tileUuid),
+                tileRunUrl,
+                runRequest(chart.uuid, dashboard.uuid, tileUuid),
                 { failOnStatusCode: false },
             );
             expect(refused.status).toBe(403);
@@ -644,8 +672,8 @@ describe('Composer charts', () => {
             tracker.trackDashboard(dashboard.uuid);
             const viewer = await loginAsViewer();
             const run = await viewer.post<Body<ComposerChartRunResults>>(
-                runUrl(chart.uuid),
-                runRequest(dashboard.uuid, dashboard.tiles[0].uuid),
+                tileRunUrl,
+                runRequest(chart.uuid, dashboard.uuid, dashboard.tiles[0].uuid),
             );
             expect(run.status).toBe(200);
             expect(run.body.results.chartStageQueryUuid).toBeNull();
@@ -667,8 +695,8 @@ describe('Composer charts', () => {
             );
             tracker.trackDashboard(dashboard.uuid);
             const run = await admin.post<Body<ComposerChartRunResults>>(
-                runUrl(chart.uuid),
-                runRequest(dashboard.uuid, dashboard.tiles[0].uuid),
+                tileRunUrl,
+                runRequest(chart.uuid, dashboard.uuid, dashboard.tiles[0].uuid),
             );
             expect(run.status).toBe(200);
             const [node] = chart.pipeline.nodes;
@@ -767,8 +795,8 @@ describe('Composer charts', () => {
             tracker.trackDashboard(dashboard.uuid);
             const viewer = await loginAsViewer();
             const run = await viewer.post<Body<ComposerChartRunResults>>(
-                runUrl(chart.uuid),
-                runRequest(dashboard.uuid, dashboard.tiles[0].uuid),
+                tileRunUrl,
+                runRequest(chart.uuid, dashboard.uuid, dashboard.tiles[0].uuid),
             );
             expect(run.status).toBe(200);
             const { chartStageQueryUuid, queries } = run.body.results;
@@ -792,9 +820,13 @@ describe('Composer charts', () => {
             try {
                 const refused = await admin.post<{
                     error: { data?: { featureFlagId?: string } };
-                }>(runUrl(chart.uuid), runRequest(dashboard.uuid, tileUuid), {
-                    failOnStatusCode: false,
-                });
+                }>(
+                    tileRunUrl,
+                    runRequest(chart.uuid, dashboard.uuid, tileUuid),
+                    {
+                        failOnStatusCode: false,
+                    },
+                );
                 expect(refused.status).toBe(403);
                 expect(refused.body.error.data?.featureFlagId).toBe(
                     FeatureFlags.ComposerCharts,
@@ -885,8 +917,8 @@ describe('Composer charts', () => {
             const read = await client.get(`${chartsUrl}/${chart.uuid}`);
             expect(read.status).toBe(200);
             const run = await client.post<Body<ComposerChartRunResults>>(
-                runUrl(chart.uuid),
-                runRequest(dashboard.uuid, tileUuid),
+                tileRunUrl,
+                runRequest(chart.uuid, dashboard.uuid, tileUuid),
             );
             expect(run.status).toBe(200);
             const [{ queryUuid }] = run.body.results.queries;
@@ -905,8 +937,8 @@ describe('Composer charts', () => {
             });
             expect(read.status).toBe(403);
             const run = await client.post(
-                runUrl(chart.uuid),
-                runRequest(dashboard.uuid, tileUuid),
+                tileRunUrl,
+                runRequest(chart.uuid, dashboard.uuid, tileUuid),
                 { failOnStatusCode: false },
             );
             expect(run.status).toBe(403);
@@ -1057,9 +1089,13 @@ describe('Composer charts', () => {
             const viewer = await loginAsViewer();
             const runWith = async (parameters: Record<string, string>) => {
                 const run = await viewer.post<Body<ComposerChartRunResults>>(
-                    runUrl(chart.uuid),
+                    tileRunUrl,
                     {
-                        ...runRequest(dashboard.uuid, dashboard.tiles[0].uuid),
+                        ...runRequest(
+                            chart.uuid,
+                            dashboard.uuid,
+                            dashboard.tiles[0].uuid,
+                        ),
                         parameters,
                     },
                 );
@@ -1148,9 +1184,9 @@ describe('Composer charts', () => {
                 dimensions: ReturnType<typeof statusRule>[],
             ) => {
                 const run = await viewer.post<Body<ComposerChartRunResults>>(
-                    runUrl(chart.uuid),
+                    tileRunUrl,
                     {
-                        ...runRequest(dashboard.uuid, tileUuid),
+                        ...runRequest(chart.uuid, dashboard.uuid, tileUuid),
                         dashboardFilters: {
                             dimensions,
                             metrics: [],
@@ -1201,9 +1237,9 @@ describe('Composer charts', () => {
                 dimensions: ReturnType<typeof statusRule>[],
             ) => {
                 const run = await viewer.post<Body<ComposerChartRunResults>>(
-                    runUrl(chart.uuid),
+                    tileRunUrl,
                     {
-                        ...runRequest(dashboard.uuid, tileUuid),
+                        ...runRequest(chart.uuid, dashboard.uuid, tileUuid),
                         dashboardFilters: {
                             dimensions,
                             metrics: [],
@@ -1261,9 +1297,9 @@ describe('Composer charts', () => {
             ]) {
                 // eslint-disable-next-line no-await-in-loop
                 const run = await admin.post<Body<ComposerChartRunResults>>(
-                    runUrl(chart.uuid),
+                    tileRunUrl,
                     {
-                        ...runRequest(dashboard.uuid, tileUuid),
+                        ...runRequest(chart.uuid, dashboard.uuid, tileUuid),
                         dashboardFilters: {
                             dimensions: [rule],
                             metrics: [],

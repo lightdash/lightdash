@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Deprecated,
     Get,
     Middlewares,
     OperationId,
@@ -22,6 +23,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { getDeprecatedRouteMiddleware } from '../authentication';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -89,11 +91,20 @@ export class ComposerChartController extends BaseController {
      * anyone who can view the chart. The request carries no nodes; each node's
      * query is polled with the standard results endpoint.
      * @summary Run composer chart
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/dashboard-composer-chart instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-11-27'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/dashboard-composer-chart instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{composerChartUuid}/run')
     @OperationId('runComposerChart')
+    @Deprecated()
     async run(
         @Path() projectUuid: UUID,
         @Path() composerChartUuid: UUID,

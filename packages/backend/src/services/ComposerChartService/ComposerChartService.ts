@@ -25,6 +25,7 @@ import {
     parseComposerChartRunRequest,
     parseComposerPipeline,
     parseComposerStoredChart,
+    parseDashboardComposerChartRunRequest,
     QueryExecutionContext,
     QuerySourceType,
     type Account,
@@ -40,6 +41,7 @@ import {
     type ComposerStoredChart,
     type CreateComposerChart,
     type DashboardAvailableFiltersTile,
+    type DashboardComposerChartRunRequest,
     type DashboardFilters,
     type DateZoom,
     type Explore,
@@ -821,7 +823,25 @@ export class ComposerChartService extends BaseService {
         );
     }
 
-    /** A bound run for anyone who can view the chart, with the dashboard's filters and parameters written onto its nodes. */
+    /** A tile run for anyone who can view the chart, with the dashboard's filters and parameters written onto its nodes. */
+    async runTile(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        body: DashboardComposerChartRunRequest,
+        context: ComposerChartRunContext,
+    ): Promise<ComposerChartRunResults> {
+        const { composerChartUuid, ...request } =
+            parseDashboardComposerChartRunRequest(body);
+        return this.runTileRequest(
+            account,
+            projectUuid,
+            composerChartUuid,
+            request,
+            context,
+        );
+    }
+
+    /** The deprecated run route's entry: the chart comes from the path. */
     async run(
         account: RegisteredAccount,
         projectUuid: UUID,
@@ -829,7 +849,22 @@ export class ComposerChartService extends BaseService {
         body: ComposerChartRunRequest,
         context: ComposerChartRunContext,
     ): Promise<ComposerChartRunResults> {
-        const request = parseComposerChartRunRequest(body);
+        return this.runTileRequest(
+            account,
+            projectUuid,
+            composerChartUuid,
+            parseComposerChartRunRequest(body),
+            context,
+        );
+    }
+
+    private async runTileRequest(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+        request: ComposerChartRunRequest,
+        context: ComposerChartRunContext,
+    ): Promise<ComposerChartRunResults> {
         return this.runOnTile(account, projectUuid, composerChartUuid, {
             dashboardUuid: request.dashboardUuid,
             tileUuid: request.tileUuid,
@@ -888,7 +923,7 @@ export class ComposerChartService extends BaseService {
         composerChartUuid: UUID,
         request: ComposerTileRunRequest,
     ): Promise<ComposerResolvedRun> {
-        const { organizationUuid, owner } = await this.assertCanView(
+        const { organizationUuid } = await this.assertCanView(
             account,
             projectUuid,
             composerChartUuid,
@@ -900,28 +935,23 @@ export class ComposerChartService extends BaseService {
         if (!enabled) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
-        const notOnTile = new ForbiddenError(
-            'This composer chart is not on that dashboard tile',
-        );
-        // No tile shows a chart a space owns yet
-        if (
-            owner.type !== 'dashboard' ||
-            request.dashboardUuid !== owner.dashboardUuid
-        ) {
-            throw notOnTile;
-        }
-        const { dashboardUuid } = owner;
+        // The tile decides, not ownership: a dashboard can show a chart a space owns
         const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
+            request.dashboardUuid,
             { projectUuid },
         );
+        const dashboardUuid = dashboard.uuid;
         const shown = dashboard.tiles.some(
             (tile) =>
                 tile.uuid === request.tileUuid &&
                 isDashboardComposerChartTile(tile) &&
                 tile.properties.composerChartUuid === composerChartUuid,
         );
-        if (!shown) throw notOnTile;
+        if (!shown) {
+            throw new ForbiddenError(
+                'This composer chart is not on that dashboard tile',
+            );
+        }
         const chart = await this.composerChartModel.get(composerChartUuid);
         const exploreByNodeId = await this.getNodeExplores(
             account,

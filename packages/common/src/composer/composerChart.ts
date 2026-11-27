@@ -610,6 +610,24 @@ export const parseComposerChartRunRequest = (
     return result.data as ComposerChartRunRequest;
 };
 
+/** A tile run: the tile's run request plus the chart the tile shows. */
+export type DashboardComposerChartRunRequest = ComposerChartRunRequest & {
+    composerChartUuid: string;
+};
+
+const dashboardRunRequestSchema = z.strictObject({
+    ...runRequestSchema.shape,
+    composerChartUuid: z.string(),
+});
+
+export const parseDashboardComposerChartRunRequest = (
+    request: unknown,
+): DashboardComposerChartRunRequest => {
+    const result = dashboardRunRequestSchema.safeParse(request);
+    if (!result.success) throw toParameterError('run request', result.error);
+    return result.data as DashboardComposerChartRunRequest;
+};
+
 export type ComposerChartRunResults = {
     queries: Array<{
         nodeId: string;
