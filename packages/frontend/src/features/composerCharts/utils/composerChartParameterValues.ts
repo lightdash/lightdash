@@ -3,15 +3,20 @@ import {
     type ParametersValuesMap,
 } from '@lightdash/common';
 
-/** What the chart page's controls show: the user's pick, else the value the run used on the first node that ran it. */
+/**
+ * What the chart page's controls show: the value the run used on the first node that ran it.
+ * While a run for new picks is pending, the picks show over the previous run's values.
+ */
 export const getComposerChartParameterValues = ({
     nodes,
     usedParameterValuesByNodeId,
     picks,
+    isRunCurrent,
 }: {
     nodes: ComposerChartPipelineNode[];
     usedParameterValuesByNodeId: Record<string, ParametersValuesMap> | null;
     picks: ParametersValuesMap;
+    isRunCurrent: boolean;
 }): ParametersValuesMap => {
     const used = nodes.reduceRight<ParametersValuesMap>(
         (acc, node) => ({
@@ -20,5 +25,5 @@ export const getComposerChartParameterValues = ({
         }),
         {},
     );
-    return { ...used, ...picks };
+    return isRunCurrent ? { ...picks, ...used } : { ...used, ...picks };
 };

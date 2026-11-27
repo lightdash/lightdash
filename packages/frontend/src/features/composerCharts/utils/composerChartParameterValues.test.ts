@@ -34,18 +34,31 @@ describe('getComposerChartParameterValues', () => {
                     tagged: { region: 'US', currency: 'eur' },
                 },
                 picks: {},
+                isRunCurrent: true,
             }),
         ).toEqual({ region: 'EU', currency: 'eur' });
     });
 
-    it('shows a pick over the value the run used', () => {
+    it('shows a pick over the previous run while its run is pending', () => {
         expect(
             getComposerChartParameterValues({
                 nodes: [orders, tagged],
                 usedParameterValuesByNodeId: { orders: { region: 'EU' } },
                 picks: { region: 'UK' },
+                isRunCurrent: false,
             }),
         ).toEqual({ region: 'UK' });
+    });
+
+    it('shows the value the run applied over a pick it dropped', () => {
+        expect(
+            getComposerChartParameterValues({
+                nodes: [orders, tagged],
+                usedParameterValuesByNodeId: { orders: { region: 'EU' } },
+                picks: { region: 'not-an-option' },
+                isRunCurrent: true,
+            }),
+        ).toEqual({ region: 'EU' });
     });
 
     it('shows nothing before the first run', () => {
@@ -54,6 +67,7 @@ describe('getComposerChartParameterValues', () => {
                 nodes: [orders],
                 usedParameterValuesByNodeId: null,
                 picks: {},
+                isRunCurrent: false,
             }),
         ).toEqual({});
     });

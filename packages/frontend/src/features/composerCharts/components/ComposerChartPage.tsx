@@ -30,6 +30,7 @@ import { useCallback, useMemo, useState, type FC, type RefObject } from 'react';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../components/common/ChartDownload/chartDownloadUtils';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import ErrorState from '../../../components/common/ErrorState';
+import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { editorName } from '../../../components/common/Page/editorName';
 import { HeaderInfoPopover } from '../../../components/common/Page/HeaderInfoPopover';
@@ -110,6 +111,8 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
     const isDrawn =
         errorMessage === null && !!draw && results.hasFetchedAllRows;
 
+    // While a new pick or refresh runs, the previous run stays drawn but is not exported
+    const isRunCurrent = !!run && !runQuery.isPreviousData;
     const parameterValues = useMemo(
         () =>
             getComposerChartParameterValues({
@@ -117,8 +120,9 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                 usedParameterValuesByNodeId:
                     run?.usedParameterValuesByNodeId ?? null,
                 picks,
+                isRunCurrent,
             }),
-        [chart.pipeline.nodes, run, picks],
+        [chart.pipeline.nodes, run, picks, isRunCurrent],
     );
     const handleParameterChange = useCallback(
         (key: string, value: ParameterValue | null) => {
@@ -142,8 +146,9 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
         canExportData &&
         view === View.CHART &&
         isDrawn &&
+        isRunCurrent &&
         !CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(draw.chartConfig.type);
-    const exportQueryUuid = isDrawn ? displayedQueryUuid : null;
+    const exportQueryUuid = isDrawn && isRunCurrent ? displayedQueryUuid : null;
     const [echartRef, setEchartRef] = useState<
         RefObject<EChartsReact | null> | undefined
     >();
@@ -308,6 +313,13 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                             ]}
                         />
                         <Group gap="xs" data-testid="composer-chart-parameters">
+                            {parametersQuery.isError && (
+                                <InlineErrorState
+                                    p="xs"
+                                    message="Parameters could not be loaded"
+                                    onRetry={() => parametersQuery.refetch()}
+                                />
+                            )}
                             <Parameters
                                 isEditMode={false}
                                 parameters={
