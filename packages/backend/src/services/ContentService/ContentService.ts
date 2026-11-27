@@ -296,7 +296,7 @@ export class ContentService extends BaseService {
                     : [];
         }
 
-        const documentSpaces =
+        const spaceAccessContexts =
             await this.spacePermissionService.resolveAccessBatch(
                 user.userUuid,
                 [
@@ -346,11 +346,12 @@ export class ContentService extends BaseService {
                       },
                   }
                 : {}),
-            allowedSpaceUuids: documentSpaces.flatMap(({ target, context }) =>
-                context &&
-                auditedAbility.can('view', subject('Document', context))
-                    ? [target.spaceUuid]
-                    : [],
+            allowedSpaceUuids: spaceAccessContexts.flatMap(
+                ({ target, context }) =>
+                    context &&
+                    auditedAbility.can('view', subject('Document', context))
+                        ? [target.spaceUuid]
+                        : [],
             ),
         };
 
@@ -362,11 +363,12 @@ export class ContentService extends BaseService {
                     filters.contentTypes,
                 ))
                     ? {
-                          allowedSpaceUuids: documentSpaces.flatMap(
+                          allowedSpaceUuids: spaceAccessContexts.flatMap(
                               ({ target, context }) =>
                                   context &&
                                   auditedAbility.can(
                                       'view',
+                                      // A copy: CASL tags the object, already cast to Document above.
                                       subject('SavedChart', { ...context }),
                                   )
                                       ? [target.spaceUuid]

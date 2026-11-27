@@ -890,6 +890,14 @@ export class SpaceService
             );
         });
 
+        const composerChartCounts = new Map<string, number>();
+        composerCharts.forEach(({ spaceUuid: composerSpaceUuid }) => {
+            composerChartCounts.set(
+                composerSpaceUuid,
+                (composerChartCounts.get(composerSpaceUuid) ?? 0) + 1,
+            );
+        });
+
         return {
             spaces: spaces.map((s) => ({
                 uuid: s.uuid,
@@ -897,7 +905,7 @@ export class SpaceService
                 parentSpaceUuid: s.parentSpaceUuid,
                 chartCount:
                     Number(s.chartCount) +
-                    composerCharts.filter((c) => c.spaceUuid === s.uuid).length,
+                    (composerChartCounts.get(s.uuid) ?? 0),
                 dashboardCount: Number(s.dashboardCount),
                 appCount: Number(s.appCount),
                 documentCount: documentCounts.get(s.uuid) ?? 0,

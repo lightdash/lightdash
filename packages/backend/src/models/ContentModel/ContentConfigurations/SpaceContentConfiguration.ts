@@ -70,7 +70,8 @@ const getDocumentCount = (
 const getComposerChartCountSql = (filters: ContentFilters): string => {
     if (!filters.composerCharts) return '';
     return filters.includeDescendantCounts
-        ? ` + (
+        ? // parent_space_uuid, not path: a deleted space's path can be reused by a new space.
+          ` + (
             WITH RECURSIVE composer_spaces AS (
                 SELECT ${SpaceTableName}.space_uuid
                 UNION ALL

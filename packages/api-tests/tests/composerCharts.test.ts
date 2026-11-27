@@ -15,6 +15,7 @@ import {
     SEED_ORG_1_EDITOR,
     SEED_PROJECT,
     ServiceAccountScope,
+    type ApiDeletedContentResponse,
     type ComposerChart,
     type ComposerChartAsCode,
     type ComposerChartParameters,
@@ -2068,9 +2069,7 @@ describe('Composer charts', () => {
                 ).status,
             ).toBe(200);
 
-            const deleted = await admin.get<
-                Body<{ data: { uuid: string; chartCount?: number }[] }>
-            >(
+            const deleted = await admin.get<ApiDeletedContentResponse>(
                 `/api/v2/content/deleted?projectUuids=${projectUuid}&contentTypes=${ContentType.SPACE}&pageSize=100`,
             );
             expect(deleted.status).toBe(200);
