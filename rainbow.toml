@@ -557,3 +557,8 @@ AUTH_GOOGLE_OAUTH2_CLIENT_SECRET = "oauth-client"
 GOOGLE_DRIVE_API_KEY = "api-key"
 # Shared test account refresh token for the development database seed.
 GOOGLE_SHEETS_DEV_REFRESH_TOKEN = "oauth-refresh-token"
+
+# TEMP (drop before PR): the Hydra Supabase test project, for the multi-table check
+[[egress.allow]]
+host = "yaiyxgquttygffaekoja.supabase.co"
+port = 443
