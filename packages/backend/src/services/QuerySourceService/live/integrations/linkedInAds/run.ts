@@ -19,7 +19,7 @@ import {
     LINKEDIN_ADS_CAMPAIGN_COLUMNS,
     LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS,
     LINKEDIN_ADS_DATE_COLUMNS,
-} from './explores';
+} from './api';
 
 export const LINKEDIN_ADS_ORIGIN = 'https://api.linkedin.com';
 export const LINKEDIN_ADS_TOKEN_URL =

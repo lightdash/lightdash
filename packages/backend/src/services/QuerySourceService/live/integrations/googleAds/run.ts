@@ -10,7 +10,7 @@ import {
     type LiveRunArgs,
     type LiveRunResult,
 } from '../../types';
-import { GOOGLE_ADS_MICROS_FIELDS } from './explores';
+import { GOOGLE_ADS_MICROS_FIELDS } from './api';
 
 export const GOOGLE_ADS_ORIGIN = 'https://googleads.googleapis.com';
 // Each version is sunset about a year after release; v26 runs to November 2027

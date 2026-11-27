@@ -15,15 +15,12 @@ import {
 import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { compileMixpanelQuery } from './compile';
 import { toMixpanelError } from './errors';
+import { MIXPANEL_EXPLORES } from './explores';
 import {
     MIXPANEL_DATE_FILTERS,
-    MIXPANEL_EVENTS_EXPLORE,
-    MIXPANEL_FUNNEL_EXPLORE,
     MIXPANEL_NUMBER_FILTERS,
     MIXPANEL_PROPERTY_FILTERS,
-    MIXPANEL_RETENTION_EXPLORE,
-    MIXPANEL_TOP_EVENTS_EXPLORE,
-} from './explores';
+} from './filters';
 import {
     MIXPANEL_CALLS_PER_QUERY,
     MIXPANEL_MAX_QUERY_ROWS,
@@ -79,12 +76,7 @@ export const mixpanelIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [
-        MIXPANEL_TOP_EVENTS_EXPLORE,
-        MIXPANEL_EVENTS_EXPLORE,
-        MIXPANEL_FUNNEL_EXPLORE,
-        MIXPANEL_RETENTION_EXPLORE,
-    ],
+    explores: MIXPANEL_EXPLORES,
     plannedModelNames: ['profiles', 'insights', 'property_sums'],
     level: {
         value: 3,

@@ -11,7 +11,8 @@ import { ga4Integration } from '.';
 import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { compileGa4Query, GA4_EARLIEST_DATE } from './compile';
-import { GA4_REPORT_EXPLORE, withGa4MetadataFields } from './explores';
+import { GA4_REPORT_EXPLORE } from './explores';
+import { withGa4MetadataFields } from './scanFields';
 
 const EXPLORE = 'ga4_report';
 

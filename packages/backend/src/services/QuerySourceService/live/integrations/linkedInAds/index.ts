@@ -12,11 +12,8 @@ import {
 } from '../../integration';
 import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { compileLinkedInAdsQuery } from './compile';
-import {
-    LINKEDIN_ADS_DATE_FILTERS,
-    LINKEDIN_ADS_ID_FILTERS,
-    LINKEDIN_ADS_PERFORMANCE_EXPLORE,
-} from './explores';
+import { LINKEDIN_ADS_EXPLORES } from './explores';
+import { LINKEDIN_ADS_DATE_FILTERS, LINKEDIN_ADS_ID_FILTERS } from './filters';
 import {
     getLinkedInAdsAccountPath,
     LINKEDIN_ADS_ANALYTICS_PATH,
@@ -77,7 +74,7 @@ export const linkedInAdsIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [LINKEDIN_ADS_PERFORMANCE_EXPLORE],
+    explores: LINKEDIN_ADS_EXPLORES,
     // organic_shares needs another API, permission and account, so it may
     // become its own integration; the name stays reserved here.
     plannedModelNames: [

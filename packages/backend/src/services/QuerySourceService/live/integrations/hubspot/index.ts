@@ -16,25 +16,26 @@ import {
     jsonRequest,
 } from '../../integration';
 import { getIsoDateInTimeZone } from '../../query/dateRange';
+import { HUBSPOT_MAX_PAGES, HUBSPOT_MAX_ROWS } from './api';
 import { compileHubspotQuery } from './compile';
 import { toHubspotError } from './errors';
+import { HUBSPOT_EXPLORES } from './explores';
 import {
     HUBSPOT_BOOLEAN_FILTERS,
     HUBSPOT_DATE_FILTERS,
-    HUBSPOT_EXPLORES,
-    HUBSPOT_MAX_PAGES,
-    HUBSPOT_MAX_ROWS,
     HUBSPOT_NUMBER_FILTERS,
     HUBSPOT_TEXT_FILTERS,
-    isInternalHubspotField,
-    readHubspotProperties,
-    withHubspotPropertyFields,
-} from './explores';
+} from './filters';
 import {
     hubspotRequestSchema,
     runHubspotQuery,
     scanHubspotProperties,
 } from './run';
+import {
+    isInternalHubspotField,
+    readHubspotProperties,
+    withHubspotPropertyFields,
+} from './scanFields';
 import { summarizeHubspotTest } from './testSummary';
 import { hubspotUseCases } from './useCases';
 

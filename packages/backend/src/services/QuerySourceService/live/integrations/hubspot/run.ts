@@ -18,7 +18,6 @@ import {
     type LiveRunResult,
     type LiveScanResult,
 } from '../../types';
-import { isUnreadableObjectError } from './errors';
 import {
     HUBSPOT_BUILT_IN_COLUMNS,
     HUBSPOT_LABEL_SUFFIX,
@@ -28,10 +27,11 @@ import {
     HUBSPOT_OBJECT_LABELS,
     HUBSPOT_PAGE_SIZE,
     HUBSPOT_PIPELINE_COLUMNS,
-    toHubspotPropertyName,
     type HubspotBuiltInColumn,
     type HubspotPipelineColumn,
-} from './explores';
+} from './api';
+import { isUnreadableObjectError } from './errors';
+import { toHubspotPropertyName } from './scanFields';
 
 const PROPERTY_NAME = /^[a-z][a-z0-9_]*$/;
 

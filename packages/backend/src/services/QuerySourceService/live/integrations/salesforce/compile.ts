@@ -22,7 +22,7 @@ import {
     type LiveCompiledRequest,
 } from '../../explores/definition';
 import { getLiveDateRange, toAbsoluteDateRange } from '../../query/dateRange';
-import { toSalesforceObject } from './explores';
+import { toSalesforceObject } from './api';
 import {
     parseSalesforceExpression,
     type SalesforceColumnType,

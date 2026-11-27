@@ -14,11 +14,8 @@ import {
 import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { compileMetaAdsQuery } from './compile';
 import { toMetaAdsError } from './errors';
-import {
-    META_ADS_DATE_FILTERS,
-    META_ADS_INSIGHTS_EXPLORE,
-    META_ADS_NAME_FILTERS,
-} from './explores';
+import { META_ADS_EXPLORES } from './explores';
+import { META_ADS_DATE_FILTERS, META_ADS_NAME_FILTERS } from './filters';
 import {
     META_ADS_CALLS_PER_QUERY,
     META_ADS_MAX_QUERY_ROWS,
@@ -67,7 +64,7 @@ export const metaAdsIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [META_ADS_INSIGHTS_EXPLORE],
+    explores: META_ADS_EXPLORES,
     plannedModelNames: ['demographics', 'placements', 'creatives'],
     level: {
         value: 3,

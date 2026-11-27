@@ -10,12 +10,12 @@ import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { assertGoogleSignIn } from '../google/signIn';
 import { compileGoogleAdsQuery } from './compile';
 import { toGoogleAdsApiError } from './errors';
+import { GOOGLE_ADS_EXPLORES } from './explores';
 import {
     GOOGLE_ADS_DATE_FILTERS,
     GOOGLE_ADS_METRIC_FILTERS,
-    GOOGLE_ADS_PERFORMANCE_EXPLORE,
     GOOGLE_ADS_STRING_FILTERS,
-} from './explores';
+} from './filters';
 import {
     getGoogleAdsSearchPath,
     GOOGLE_ADS_MAX_QUERY_ROWS,
@@ -79,7 +79,7 @@ export const googleAdsIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [GOOGLE_ADS_PERFORMANCE_EXPLORE],
+    explores: GOOGLE_ADS_EXPLORES,
     plannedModelNames: [
         'ads',
         'keywords',

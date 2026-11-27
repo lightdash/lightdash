@@ -16,16 +16,14 @@ import {
 import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { compilePylonQuery } from './compile';
 import { toPylonError } from './errors';
+import { PYLON_EXPLORES } from './explores';
 import {
-    PYLON_ACCOUNTS_EXPLORE,
-    PYLON_CONTACTS_EXPLORE,
     PYLON_DATE_FILTERS,
-    PYLON_ISSUES_EXPLORE,
     PYLON_NUMBER_FILTERS,
     PYLON_SET_FILTERS,
     PYLON_TEXT_FILTERS,
     PYLON_VALUE_FILTERS,
-} from './explores';
+} from './filters';
 import {
     PYLON_CALLS_PER_QUERY,
     PYLON_MAX_QUERY_ROWS,
@@ -84,11 +82,7 @@ export const pylonIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [
-        PYLON_ISSUES_EXPLORE,
-        PYLON_ACCOUNTS_EXPLORE,
-        PYLON_CONTACTS_EXPLORE,
-    ],
+    explores: PYLON_EXPLORES,
     plannedModelNames: ['messages', 'users', 'teams'],
     level: {
         value: 2,

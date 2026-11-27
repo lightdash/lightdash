@@ -17,7 +17,7 @@ import { resolveAbsoluteDateRange } from '../../query/dateRange';
 import {
     LINKEDIN_ADS_CAMPAIGN_COLUMNS,
     LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS,
-} from './explores';
+} from './api';
 import { LINKEDIN_ADS_MAX_QUERY_ROWS, type LinkedInAdsPivot } from './run';
 
 const REACH_METRIC = 'approximateMemberReach';

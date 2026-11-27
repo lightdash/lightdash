@@ -22,7 +22,7 @@ import {
 import {
     POSTHOG_MAX_SCANNED_PROPERTIES,
     type PostHogPropertyKind,
-} from './explores';
+} from './scanFields';
 
 /**
  * PostHog silently returns at most 50k rows, so a query asks for one more

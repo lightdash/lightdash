@@ -13,11 +13,11 @@ import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { toGoogleApiError } from '../google/errors';
 import { assertGoogleSignIn } from '../google/signIn';
 import { compileSearchConsoleQuery } from './compile';
+import { SEARCH_CONSOLE_EXPLORES } from './explores';
 import {
     SEARCH_CONSOLE_DATE_FILTERS,
-    SEARCH_CONSOLE_PERFORMANCE_EXPLORE,
     SEARCH_CONSOLE_STRING_FILTERS,
-} from './explores';
+} from './filters';
 import {
     runSearchConsoleQuery,
     SEARCH_CONSOLE_MAX_QUERY_ROWS,
@@ -70,7 +70,7 @@ export const searchConsoleIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [SEARCH_CONSOLE_PERFORMANCE_EXPLORE],
+    explores: SEARCH_CONSOLE_EXPLORES,
     plannedModelNames: ['search_appearance'],
     level: { value: 3, description: 'Reports return totals per dimension.' },
     auth: {

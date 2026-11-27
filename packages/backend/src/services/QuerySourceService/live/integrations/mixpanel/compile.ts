@@ -16,7 +16,7 @@ import {
     type LiveCompiledRequest,
 } from '../../explores/definition';
 import { resolveAbsoluteDateRange } from '../../query/dateRange';
-import { isMixpanelProperty, type MixpanelProperty } from './explores';
+import { isMixpanelProperty, type MixpanelProperty } from './api';
 import {
     getRetentionPeriods,
     MIXPANEL_CALLS_PER_QUERY,

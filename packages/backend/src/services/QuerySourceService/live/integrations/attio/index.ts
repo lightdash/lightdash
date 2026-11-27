@@ -15,25 +15,24 @@ import {
     jsonRequest,
 } from '../../integration';
 import { getIsoDateInTimeZone } from '../../query/dateRange';
+import { ATTIO_MAX_PAGES, ATTIO_MAX_RECORDS } from './api';
+import { isInternalAttioField } from './attributes';
+import { compileAttioQuery } from './compile';
+import { toAttioError } from './errors';
+import { ATTIO_EXPLORES } from './explores';
 import {
     ATTIO_BOOLEAN_FILTERS,
     ATTIO_DATE_FILTERS,
     ATTIO_NUMBER_FILTERS,
     ATTIO_TEXT_FILTERS,
-    isInternalAttioField,
-} from './attributes';
-import { compileAttioQuery } from './compile';
-import { toAttioError } from './errors';
+} from './filters';
+import { attioRequestSchema, runAttioQuery, scanAttioAttributes } from './run';
 import {
-    ATTIO_EXPLORES,
-    ATTIO_MAX_PAGES,
-    ATTIO_MAX_RECORDS,
     ATTIO_SCANNED_MODELS,
     readAttioAttributes,
     toAttioObject,
     withAttioAttributeFields,
-} from './explores';
-import { attioRequestSchema, runAttioQuery, scanAttioAttributes } from './run';
+} from './scanFields';
 import { attioUseCases } from './useCases';
 
 const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.ATTIO];

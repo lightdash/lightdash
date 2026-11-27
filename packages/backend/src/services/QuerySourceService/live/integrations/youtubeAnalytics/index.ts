@@ -14,11 +14,11 @@ import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { toGoogleApiError } from '../google/errors';
 import { assertGoogleSignIn } from '../google/signIn';
 import { compileYoutubeAnalyticsQuery } from './compile';
+import { YOUTUBE_ANALYTICS_EXPLORES } from './explores';
 import {
-    YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE,
     YOUTUBE_ANALYTICS_DATE_FILTERS,
     YOUTUBE_ANALYTICS_EXACT_FILTERS,
-} from './explores';
+} from './filters';
 import {
     runYoutubeAnalyticsQuery,
     YOUTUBE_ANALYTICS_MAX_QUERY_ROWS,
@@ -70,7 +70,7 @@ export const youtubeAnalyticsIntegration = defineLiveIntegration({
         },
         pushdown: ALL_PUSHDOWN_REFUSED,
     },
-    explores: [YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE],
+    explores: YOUTUBE_ANALYTICS_EXPLORES,
     plannedModelNames: [
         'demographics',
         'playlists',

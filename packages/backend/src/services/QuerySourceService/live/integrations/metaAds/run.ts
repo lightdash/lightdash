@@ -12,7 +12,7 @@ import {
     type LiveRunArgs,
     type LiveRunResult,
 } from '../../types';
-import { META_ADS_BREAKDOWNS } from './explores';
+import { META_ADS_BREAKDOWNS } from './api';
 
 const LABEL = LIVE_INTEGRATION_CATALOG[ApiConnectorType.META_ADS].messageLabel;
 const INSIGHTS_PAGE_SIZE = 500;
