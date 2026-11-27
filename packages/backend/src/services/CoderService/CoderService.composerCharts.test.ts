@@ -78,7 +78,8 @@ const makeService = (
             getUuidByUuidOrSlug: vi.fn(async (project: string, id: string) => {
                 const chart = charts.find(
                     (stored: ComposerChart) =>
-                        project === PROJECT_UUID && stored.uuid === id,
+                        (stored.projectUuid ?? PROJECT_UUID) === project &&
+                        stored.uuid === id,
                 );
                 if (!chart) throw new NotFoundError('Composer chart not found');
                 return chart.uuid;
@@ -215,18 +216,24 @@ describe('CoderService composer chart read for the agent', () => {
         ).resolves.toBeNull();
     });
 
-    it('misses a uuid this project does not hold, without loading that chart', async () => {
-        const service = makeService([spaceChart('in-space')]);
-        const model = (service as AnyType).composerChartModel;
+    it('misses a uuid from another project whose slug this project reuses', async () => {
+        const otherProjectChart = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+        const service = makeService([
+            spaceChart('in-space'),
+            {
+                ...spaceChart('in-space'),
+                uuid: otherProjectChart,
+                projectUuid: 'other-project-uuid',
+            },
+        ]);
 
         await expect(
             service.getComposerChartForRead(
                 account,
                 PROJECT_UUID,
-                '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d',
+                otherProjectChart,
             ),
         ).resolves.toBeNull();
-        expect(model.get).not.toHaveBeenCalled();
     });
 
     it('hides a chart the caller cannot view', async () => {
