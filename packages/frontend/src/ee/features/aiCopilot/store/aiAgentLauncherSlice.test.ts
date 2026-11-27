@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     aiAgentLauncherSlice,
+    attachContextOrStartThread,
     closePanel,
     dockItemRemoved,
     openAnalysisPanel,
@@ -81,5 +82,71 @@ describe('aiAgentLauncherSlice view', () => {
         const removed = reducer(analysis, dockItemRemoved({ threadId: 't1' }));
         expect(removed.view).toBe('chat');
         expect(removed.mode).toBe('collapsed');
+    });
+});
+
+describe('asking about content from a page', () => {
+    const chart = { chartUuid: 'c1' };
+
+    it('pins the content to the thread on screen', () => {
+        const withThread = reducer(
+            initial(),
+            openPanel({ threadId: 't1', agentUuid: 'a1' }),
+        );
+        const state = reducer(
+            withThread,
+            attachContextOrStartThread({ pendingContext: chart }),
+        );
+        expect(state.activeThreadId).toBe('t1');
+        expect(state.activeAgentUuid).toBe('a1');
+        expect(state.pendingContext).toEqual(chart);
+    });
+
+    it('starts a new thread when no chat is open', () => {
+        const state = reducer(
+            initial(),
+            attachContextOrStartThread({ pendingContext: chart }),
+        );
+        expect(state.mode).toBe('panel-open');
+        expect(state.activeThreadId).toBeNull();
+        expect(state.pendingContext).toEqual(chart);
+    });
+
+    it('starts a new thread when the chat was closed', () => {
+        const closed = reducer(
+            reducer(initial(), openPanel({ threadId: 't1', agentUuid: 'a1' })),
+            closePanel(),
+        );
+        const state = reducer(
+            closed,
+            attachContextOrStartThread({ pendingContext: chart }),
+        );
+        expect(state.mode).toBe('panel-open');
+        expect(state.activeThreadId).toBeNull();
+    });
+
+    it('starts a new thread when the panel shows the analysis view', () => {
+        const analysis = reducer(
+            reducer(initial(), openPanel({ threadId: 't1', agentUuid: 'a1' })),
+            openAnalysisPanel(),
+        );
+        const state = reducer(
+            analysis,
+            attachContextOrStartThread({ pendingContext: chart }),
+        );
+        expect(state.view).toBe('chat');
+        expect(state.activeThreadId).toBeNull();
+    });
+
+    it('drops the pinned content when another thread is opened', () => {
+        const pinned = reducer(
+            reducer(initial(), openPanel({ threadId: 't1', agentUuid: 'a1' })),
+            attachContextOrStartThread({ pendingContext: chart }),
+        );
+        const state = reducer(
+            pinned,
+            openPanel({ threadId: 't2', agentUuid: 'a1' }),
+        );
+        expect(state.pendingContext).toBeNull();
     });
 });

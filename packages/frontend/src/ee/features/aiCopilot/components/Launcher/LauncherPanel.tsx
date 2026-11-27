@@ -3,7 +3,16 @@ import {
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
-import { Avatar, Center, Group, Loader, Stack, Text } from '@mantine/core';
+import {
+    ActionIcon,
+    Avatar,
+    Center,
+    Group,
+    Loader,
+    Stack,
+    Text,
+} from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
 import {
     useCallback,
     useEffect,
@@ -14,6 +23,7 @@ import {
 } from 'react';
 import { createPath, useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useOptionalProjectRoute } from '../../../../../hooks/useProjectRoute';
 import useApp from '../../../../../providers/App/useApp';
 import { findRetryableDeepResearchRun } from '../../deepResearch/deepResearchRegistry';
@@ -40,7 +50,9 @@ import {
 import { useRefreshDocumentOnAgentSave } from '../../hooks/useRefreshDocumentOnAgentSave';
 import { useThreadModel } from '../../hooks/useThreadModel';
 import {
+    clearPendingContext,
     clearPendingPrompt,
+    openDefaultAgentPanel,
     openPanel,
 } from '../../store/aiAgentLauncherSlice';
 import {
@@ -57,7 +69,11 @@ import { AiAgentNewThreadMcpConnections } from '../AiAgentNewThreadMcpConnection
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
 import { getPendingAskUser } from '../ChatElements/askUserQuestions';
-import { contextItemsToContentMentionSuggestions } from '../ChatElements/contentMentions';
+import {
+    contextItemsToContentMentionSuggestions,
+    mergeAiPromptContextInput,
+    mergeAiPromptContextItems,
+} from '../ChatElements/contentMentions';
 import { getPromptContextItemKey } from '../ChatElements/contentReferenceUtils';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import styles from './AiAgentsLauncher.module.css';
@@ -122,6 +138,40 @@ export const LauncherPanel: FC<Props> = ({
         />
     );
 };
+
+const PinnedContextList: FC<{
+    items: AiPromptContext;
+    projectUuid: string;
+    onRemove: (() => void) | null;
+}> = ({ items, projectUuid, onRemove }) =>
+    items.length === 0 ? null : (
+        <Stack gap="xxs" px="md" pb="xs">
+            <Group gap="xxs">
+                <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+                    Pinned context
+                </Text>
+                {onRemove && (
+                    <ActionIcon
+                        size="xs"
+                        onClick={onRemove}
+                        aria-label="Remove pinned context"
+                    >
+                        <MantineIcon icon={IconX} size={12} />
+                    </ActionIcon>
+                )}
+            </Group>
+            <Group gap="xs" wrap="wrap">
+                {items.map((item) => (
+                    <PinnedContextCard
+                        key={getPromptContextItemKey(item)}
+                        item={item}
+                        projectUuid={projectUuid}
+                        previewScope={null}
+                    />
+                ))}
+            </Group>
+        </Stack>
+    );
 
 const NewThreadPanel: FC<{
     projectUuid: string;
@@ -388,23 +438,11 @@ const NewThreadPanel: FC<{
                         />
                     </Stack>
                 )}
-                {previewItemsWithPageContext.length > 0 && (
-                    <Stack gap="xxs" px="md" pb="xs">
-                        <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-                            Pinned context
-                        </Text>
-                        <Group gap="xs" wrap="wrap">
-                            {previewItemsWithPageContext.map((item) => (
-                                <PinnedContextCard
-                                    key={getPromptContextItemKey(item)}
-                                    item={item}
-                                    projectUuid={projectUuid}
-                                    previewScope={null}
-                                />
-                            ))}
-                        </Group>
-                    </Stack>
-                )}
+                <PinnedContextList
+                    items={previewItemsWithPageContext}
+                    projectUuid={projectUuid}
+                    onRemove={null}
+                />
                 {isPickingAgent && (
                     <LauncherAgentPicker
                         candidates={sortedCandidates}
@@ -532,6 +570,37 @@ const ExistingThreadPanel: FC<{
     );
     const isInputDisabled =
         thread?.createdFrom === 'slack' || !isThreadFromCurrentUser;
+
+    const pendingContext = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.pendingContext,
+    );
+    const currentDashboardUuid = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.currentDashboard?.uuid ?? null,
+    );
+    const {
+        contextInput: pendingContextInput,
+        previewItems: pendingPreviewItems,
+        isReady: isPendingContextReady,
+    } = usePinnedContext({
+        projectUuid,
+        chartUuidOrSlug: pendingContext?.chartUuid,
+        // The dashboard on screen is already added to a prompt whenever it
+        // changed since the thread last saw it.
+        dashboardUuidOrSlug:
+            pendingContext?.dashboardUuid === currentDashboardUuid
+                ? null
+                : pendingContext?.dashboardUuid,
+        dataAppUuidOrSlug: pendingContext?.dataAppUuid,
+        documentUuid: pendingContext?.documentUuid,
+        sqlChartUuid: pendingContext?.sqlChartUuid,
+        composerChartUuid: pendingContext?.composerChartUuid,
+    });
+    // A thread that cannot be replied to cannot take the context either.
+    const isReadOnlyThread = !!thread && isInputDisabled;
+    useEffect(() => {
+        if (!pendingContext || !isReadOnlyThread) return;
+        dispatchToStore(openDefaultAgentPanel({ pendingContext }));
+    }, [dispatchToStore, isReadOnlyThread, pendingContext]);
     const contentMentionItems = useMemo(
         () => contextItemsToContentMentionSuggestions(threadContext, 'thread'),
         [threadContext],
@@ -555,7 +624,14 @@ const ExistingThreadPanel: FC<{
             typeof createAgentThreadMessage
         >[0]['optimisticContext'];
     }) => {
-        const curatedContext = curateContext({ context, optimisticContext });
+        const curatedContext = curateContext({
+            context: mergeAiPromptContextInput(pendingContextInput, context),
+            optimisticContext: mergeAiPromptContextItems(
+                pendingPreviewItems,
+                optimisticContext,
+            ),
+        });
+        dispatchToStore(clearPendingContext());
 
         return createAgentThreadMessage({
             prompt: message,
@@ -683,11 +759,16 @@ const ExistingThreadPanel: FC<{
                         );
                     }}
                 >
+                    <PinnedContextList
+                        items={pendingPreviewItems}
+                        projectUuid={projectUuid}
+                        onRemove={() => dispatchToStore(clearPendingContext())}
+                    />
                     <AgentChatInput
                         accessCalloutVariant="inline"
                         disabled={isInputDisabled}
                         disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
-                        loading={isBusy}
+                        loading={isBusy || !isPendingContextReady}
                         onSubmit={handleSubmit}
                         onStartDeepResearch={
                             canStartDeepResearch
