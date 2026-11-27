@@ -16,8 +16,10 @@ import {
     getExplorePrefixError,
     getItemId,
     getLegacyLiveSourceName,
+    getLiveIntegrationCatalogEntry,
     getLiveSourceCacheTtlSeconds,
     getLiveSourceErrorOrigin,
+    getLiveSourceFeatureFlagId,
     getSalesforceDescribePath,
     getSalesforceEnvironment,
     getSalesforceTokenUrl,
@@ -87,6 +89,7 @@ import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { toSessionUser } from '../../../auth/account';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import { type AppModel } from '../../../models/AppModel';
+import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { SavedChartModel } from '../../../models/SavedChartModel';
 import type { UserAttributesModel } from '../../../models/UserAttributesModel';
@@ -282,6 +285,7 @@ type ExternalConnectionServiceArguments = {
         'siteUrl' | 'liveSources' | 'auth' | 'scheduler'
     >;
     prometheusMetrics?: PrometheusMetrics;
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
 };
 
 export type PostHogRegion = keyof typeof POSTHOG_REGION_ORIGINS;
@@ -407,6 +411,8 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly savedChartModel: ExternalConnectionServiceArguments['savedChartModel'];
 
+    private readonly featureFlagModel: ExternalConnectionServiceArguments['featureFlagModel'];
+
     private static readonly DEFAULT_RATE_LIMIT_PER_MINUTE = 60;
 
     private static readonly MAX_PROPOSAL_DESCRIPTION_CHARS = 2_000;
@@ -436,6 +442,55 @@ export class ExternalConnectionService extends BaseService {
         this.projectModel = args.projectModel;
         this.userAttributesModel = args.userAttributesModel;
         this.savedChartModel = args.savedChartModel;
+        this.featureFlagModel = args.featureFlagModel;
+    }
+
+    /** Whether the organization has this integration turned on, by its feature flag. */
+    private async isLiveIntegrationEnabled(
+        organizationUuid: string,
+        connector: ApiConnectorType,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: getLiveSourceFeatureFlagId(connector),
+        });
+        return enabled;
+    }
+
+    /**
+     * Refuses an integration the organization has turned off: nothing new
+     * can be added, and existing sources of it can't be queried or synced
+     * until it is turned back on. Nothing stored changes.
+     */
+    private async assertLiveIntegrationEnabled(
+        organizationUuid: string,
+        connector: ApiConnectorType,
+    ): Promise<void> {
+        if (await this.isLiveIntegrationEnabled(organizationUuid, connector)) {
+            return;
+        }
+        const { messageLabel } = getLiveIntegrationCatalogEntry(connector);
+        throw new ForbiddenError(
+            `The ${messageLabel} integration is turned off for this organization`,
+        );
+    }
+
+    /** The integrations people in the project's organization can add. */
+    async getEnabledLiveIntegrations(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<ApiConnectorType[]> {
+        const organizationUuid = await this.assertCanManageLiveSources(
+            account,
+            projectUuid,
+        );
+        const connectors = Object.values(ApiConnectorType);
+        const enabled = await Promise.all(
+            connectors.map((connector) =>
+                this.isLiveIntegrationEnabled(organizationUuid, connector),
+            ),
+        );
+        return connectors.filter((_, index) => enabled[index]);
     }
 
     /** Data app linking never applies to live data sources. */
@@ -622,6 +677,12 @@ export class ExternalConnectionService extends BaseService {
         const config = withApiSourceAccessRules(data);
         validateExternalConnectionConfig(config, Boolean(config.secret));
         validateApiSourceConnection(config);
+        if (config.apiSource) {
+            await this.assertLiveIntegrationEnabled(
+                organizationUuid,
+                config.apiSource.connector,
+            );
+        }
         if (config.type === 'google_service_account' && config.secret) {
             validateServiceAccountKeyfile(config.secret);
         }
@@ -1472,6 +1533,10 @@ export class ExternalConnectionService extends BaseService {
                 'You do not have permission to query this live data source',
             );
         }
+        await this.assertLiveIntegrationEnabled(
+            connection.organizationUuid,
+            connection.apiSource.connector,
+        );
         return this.getMeteredLiveSource(
             account,
             projectUuid,
@@ -1553,6 +1618,12 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
+        if (connection.apiSource) {
+            await this.assertLiveIntegrationEnabled(
+                connection.organizationUuid,
+                connection.apiSource.connector,
+            );
+        }
         return this.getMeteredLiveSource(
             account,
             projectUuid,
@@ -1869,6 +1940,10 @@ export class ExternalConnectionService extends BaseService {
                 `"${connection.name}" is not a live data source`,
             );
         }
+        await this.assertLiveIntegrationEnabled(
+            connection.organizationUuid,
+            connection.apiSource.connector,
+        );
         await this.syncApiSourceExplores(account, connection, 'throw');
     }
 
@@ -2767,6 +2842,10 @@ export class ExternalConnectionService extends BaseService {
         const apiSource =
             ExternalConnectionService.getLiveSourceSettings(connection);
         const { connector } = apiSource;
+        await this.assertLiveIntegrationEnabled(
+            connection.organizationUuid,
+            connector,
+        );
         const deleted = (
             await this.listDeletedSourcesToReattach(connection, connector)
         ).find(
@@ -3406,6 +3485,10 @@ export class ExternalConnectionService extends BaseService {
             organizationUuid,
             'live_source',
         );
+        await this.assertLiveIntegrationEnabled(
+            organizationUuid,
+            ApiConnectorType.POSTHOG,
+        );
         const { region, connectionUuid, explorePrefix } = request;
         if (!ExternalConnectionService.isPostHogRegion(region)) {
             throw new ParameterError('Pick the US or EU PostHog region');
@@ -3571,6 +3654,12 @@ export class ExternalConnectionService extends BaseService {
     ): Promise<ExternalConnection> {
         validateExternalConnectionConfig(config, true);
         validateApiSourceConnection(config);
+        if (config.apiSource) {
+            await this.assertLiveIntegrationEnabled(
+                organizationUuid,
+                config.apiSource.connector,
+            );
+        }
 
         if (connectionUuid) {
             const existing = await this.getOwnedConnection(
@@ -3753,6 +3842,10 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             organizationUuid,
             'live_source',
+        );
+        await this.assertLiveIntegrationEnabled(
+            organizationUuid,
+            ApiConnectorType.LINKEDIN_ADS,
         );
         const name = request.name.trim();
         if (!name) {
@@ -3949,7 +4042,10 @@ export class ExternalConnectionService extends BaseService {
                 'Signing in to Salesforce is not configured on this server. Set SALESFORCE_OAUTH_CLIENT_ID and SALESFORCE_OAUTH_CLIENT_SECRET.',
             );
         }
-        await this.assertCanManageLiveSources(account, projectUuid);
+        await this.assertLiveIntegrationEnabled(
+            await this.assertCanManageLiveSources(account, projectUuid),
+            ApiConnectorType.SALESFORCE,
+        );
         const name = request.name.trim();
         if (!name) {
             throw new ParameterError('Name is required');
@@ -4188,13 +4284,17 @@ export class ExternalConnectionService extends BaseService {
                 'Signing in with Google is not configured on this server',
             );
         }
-        await this.assertCanManageLiveSources(account, projectUuid);
+        const organizationUuid = await this.assertCanManageLiveSources(
+            account,
+            projectUuid,
+        );
         const { connector, connectionUuid, explorePrefix } = request;
         if (!isGoogleConnector(connector)) {
             throw new ParameterError(
                 `${connector} is not a Google integration`,
             );
         }
+        await this.assertLiveIntegrationEnabled(organizationUuid, connector);
         const name = request.name.trim();
         if (!name) {
             throw new ParameterError('Name is required');
@@ -5422,6 +5522,12 @@ export class ExternalConnectionService extends BaseService {
         const data = withApiSourceAccessRules(requested);
         validateExternalConnectionConfig(data, Boolean(data.secret));
         validateApiSourceConnection(data);
+        if (data.apiSource) {
+            await this.assertLiveIntegrationEnabled(
+                organizationUuid,
+                data.apiSource.connector,
+            );
+        }
         if (data.type === 'google_service_account' && data.secret) {
             validateServiceAccountKeyfile(data.secret);
         }

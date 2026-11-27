@@ -3,6 +3,7 @@ import {
     AlreadyExistsError,
     ApiConnectorType,
     ForbiddenError,
+    getLiveSourceFeatureFlagId,
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
@@ -83,6 +84,7 @@ const buildService = ({
     chartCount = 0,
     userAttributes = {},
     orgAttributeNames = [],
+    disabledIntegrations = [],
 }: {
     connections?: ExternalConnection[];
     canView?: boolean;
@@ -97,6 +99,8 @@ const buildService = ({
     userAttributes?: Record<string, string[]>;
     /** Attribute names that exist in the organization. */
     orgAttributeNames?: string[];
+    /** Integrations whose feature flag is off for the organization. */
+    disabledIntegrations?: ApiConnectorType[];
 } = {}) => {
     let fieldState: LiveSourceFieldState = {
         lastScan: null,
@@ -298,7 +302,17 @@ const buildService = ({
             .fn()
             .mockResolvedValue(orgAttributeNames.map((name) => ({ name }))),
     };
+    const featureFlagModel = {
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled: !disabledIntegrations.some(
+                (connector) =>
+                    getLiveSourceFeatureFlagId(connector) === featureFlagId,
+            ),
+        })),
+    };
     const service = new ExternalConnectionService({
+        featureFlagModel,
         projectModel,
         savedChartModel,
         spacePermissionService,
@@ -323,6 +337,7 @@ const buildService = ({
         projectModel,
         savedChartModel,
         userAttributesModel,
+        featureFlagModel,
     };
 };
 
@@ -3062,5 +3077,98 @@ describe('ExternalConnectionService live source access rule', () => {
         await expect(
             service.listApiSourceConnections(account, 'proj-1'),
         ).resolves.toEqual([]);
+    });
+});
+
+describe('ExternalConnectionService integration feature flags', () => {
+    const postHogCreate: CreateExternalConnection = {
+        name: 'Product analytics',
+        type: 'bearer_token',
+        origin: 'https://eu.posthog.com',
+        secret: 'phx_secret',
+        allowedPathPrefixes: ['/api/projects/303731/query/'],
+        allowedMethods: ['POST'],
+        allowedContentTypes: ['application/json'],
+        apiSource: {
+            connector: ApiConnectorType.POSTHOG,
+            projectId: '303731',
+        },
+    };
+    const turnedOff = {
+        disabledIntegrations: [ApiConnectorType.POSTHOG],
+    };
+
+    it('checks the organization-wide flag of the integration', async () => {
+        const { service, featureFlagModel } = buildService();
+        await service.create(account, 'proj-1', postHogCreate);
+
+        expect(featureFlagModel.get).toHaveBeenCalledWith({
+            user: { organizationUuid: 'org-1' },
+            featureFlagId: 'live-source-posthog',
+        });
+    });
+
+    it('refuses to add an integration the organization has turned off', async () => {
+        const { service, externalConnectionModel } = buildService(turnedOff);
+
+        await expect(
+            service.create(account, 'proj-1', postHogCreate),
+        ).rejects.toThrow(
+            new ForbiddenError(
+                'The PostHog integration is turned off for this organization',
+            ),
+        );
+        expect(externalConnectionModel.create).not.toHaveBeenCalled();
+    });
+
+    it('refuses to query an existing source of a turned-off integration', async () => {
+        const { service } = buildService(turnedOff);
+
+        await expect(
+            service.getLiveSourceForExplore(
+                account,
+                'proj-1',
+                'conn-1',
+                60_000,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        await expect(
+            service.getLiveSource(account, 'proj-1', 'conn-1', 60_000),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('refuses to refresh the explores of a turned-off integration', async () => {
+        const { service, projectModel } = buildService(turnedOff);
+
+        await expect(
+            service.refreshApiSourceExplores(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(ForbiddenError);
+        expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
+    });
+
+    it('lists only the integrations the organization has turned on', async () => {
+        const { service } = buildService({
+            disabledIntegrations: [
+                ApiConnectorType.HUBSPOT,
+                ApiConnectorType.SALESFORCE,
+            ],
+        });
+
+        const enabled = await service.getEnabledLiveIntegrations(
+            account,
+            'proj-1',
+        );
+
+        expect(enabled).toContain(ApiConnectorType.POSTHOG);
+        expect(enabled).not.toContain(ApiConnectorType.HUBSPOT);
+        expect(enabled).not.toContain(ApiConnectorType.SALESFORCE);
+    });
+
+    it('lists integrations only to those who manage live sources', async () => {
+        const { service } = buildService({ canManage: false });
+
+        await expect(
+            service.getEnabledLiveIntegrations(account, 'proj-1'),
+        ).rejects.toThrow(ForbiddenError);
     });
 });

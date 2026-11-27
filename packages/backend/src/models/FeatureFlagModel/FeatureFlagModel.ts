@@ -1,7 +1,9 @@
 import {
     FeatureFlag,
     FeatureFlags,
+    isLiveSourceOnByDefault,
     LightdashUser,
+    LIVE_SOURCE_FEATURE_FLAGS,
     PREVIEW_ENABLED_FEATURE_FLAGS,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -20,8 +22,11 @@ const UUID_REGEX =
 const ORG_OVERRIDE_CONFLICT_TARGET =
     '(flag_id, organization_uuid) WHERE organization_uuid IS NOT NULL AND user_uuid IS NULL';
 
+// Live source integrations are turned on per organization, so a query run
+// for anyone in it, or by the scheduler, agrees with what admins see.
 const ORGANIZATION_ONLY_FLAGS: ReadonlySet<string> = new Set([
     FeatureFlags.MobileAppAccess,
+    ...LIVE_SOURCE_FEATURE_FLAGS.keys(),
 ]);
 
 export type FeatureFlagLogicArgs = {
@@ -65,6 +70,20 @@ export class FeatureFlagModel {
                 this.getMobileAppAccessEnabled.bind(this),
             [FeatureFlags.AiThreadImages]:
                 this.getAiThreadImagesEnabled.bind(this),
+            ...Object.fromEntries(
+                [...LIVE_SOURCE_FEATURE_FLAGS].map(([flagId, connector]) => [
+                    flagId,
+                    (
+                        flagArgs: FeatureFlagLogicArgs,
+                        flagOptions?: FeatureFlagQueryOptions,
+                    ) =>
+                        this.getWithEnvFallback(
+                            flagArgs,
+                            isLiveSourceOnByDefault(connector),
+                            flagOptions,
+                        ),
+                ]),
+            ),
         };
     }
 

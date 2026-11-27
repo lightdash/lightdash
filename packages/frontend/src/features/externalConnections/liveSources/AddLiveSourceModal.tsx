@@ -28,6 +28,8 @@ type Props = {
     canUseSalesforce: boolean;
     /** Hydra, the test integration, only where the server registers it. */
     canUseHydra: boolean;
+    /** The integrations the organization has turned on, by their feature flags. */
+    enabledIntegrations: readonly ApiConnectorType[];
     onPick: (connector: ApiConnectorType) => void;
 };
 
@@ -57,13 +59,16 @@ export const AddLiveSourceModal: FC<Props> = ({
     canUseLinkedInAds,
     canUseSalesforce,
     canUseHydra,
+    enabledIntegrations,
     onPick,
 }) => {
     const { user } = useApp();
     const { track } = useTracking();
     // Only what this instance can connect: Google sources need its Google
-    // sign-in, LinkedIn Ads and Salesforce an app most servers won't have.
+    // sign-in, LinkedIn Ads and Salesforce an app most servers won't have,
+    // and only what the organization has turned on.
     const isConnectable = (connector: ApiConnectorType) => {
+        if (!enabledIntegrations.includes(connector)) return false;
         if (isGoogleConnector(connector)) return canUseGoogle;
         if (connector === ApiConnectorType.LINKEDIN_ADS)
             return canUseLinkedInAds;

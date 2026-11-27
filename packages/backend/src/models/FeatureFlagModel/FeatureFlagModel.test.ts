@@ -1,4 +1,8 @@
-import { FeatureFlags } from '@lightdash/common';
+import {
+    ApiConnectorType,
+    FeatureFlags,
+    getLiveSourceFeatureFlagId,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -745,6 +749,98 @@ describe('FeatureFlagModel', () => {
             });
 
             expect(result.enabled).toBe(true);
+        });
+    });
+
+    describe('live source integration flags', () => {
+        const FLAG_ID = getLiveSourceFeatureFlagId(ApiConnectorType.HUBSPOT);
+
+        it('names each flag after its integration', () => {
+            expect(FLAG_ID).toBe('live-source-hubspot');
+            expect(
+                getLiveSourceFeatureFlagId(ApiConnectorType.SEARCH_CONSOLE),
+            ).toBe('live-source-search-console');
+        });
+
+        it('is on when the flag has no row, so existing organizations keep their integrations', async () => {
+            const model = buildModel({}, buildFakeDatabase({}));
+
+            const result = await model.get({
+                featureFlagId: FLAG_ID,
+                user: dbUser,
+            });
+
+            expect(result).toEqual({ id: FLAG_ID, enabled: true });
+        });
+
+        it('is off everywhere when its default is off', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({ flag: { default_enabled: false } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FLAG_ID,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('lets an organization override turn it on for that organization only', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({
+                    flag: { default_enabled: false },
+                    orgOverride: {
+                        organization_uuid: 'org-uuid',
+                        enabled: true,
+                    },
+                }),
+            );
+
+            const chosen = await model.get({
+                featureFlagId: FLAG_ID,
+                user: dbUser,
+            });
+            const other = await model.get({
+                featureFlagId: FLAG_ID,
+                user: { organizationUuid: 'other-org' },
+            });
+
+            expect(chosen.enabled).toBe(true);
+            expect(other.enabled).toBe(false);
+        });
+
+        it('ignores user overrides, since it applies to a whole organization', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({
+                    flag: { default_enabled: false },
+                    userOverride: { enabled: true },
+                }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FLAG_ID,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('is turned off instance-wide by LIGHTDASH_DISABLE_FEATURE_FLAGS', async () => {
+            const model = buildModel(
+                { disabledFeatureFlags: new Set([FLAG_ID]) },
+                buildFakeDatabase({}),
+            );
+
+            const result = await model.get({
+                featureFlagId: FLAG_ID,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
         });
     });
 

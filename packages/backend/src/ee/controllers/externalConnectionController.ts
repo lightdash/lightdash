@@ -2,6 +2,7 @@ import {
     assertRegisteredAccount,
     ForbiddenError,
     type ApiConnectorType,
+    type ApiEnabledLiveIntegrationsResponse,
     type ApiErrorPayload,
     type ApiExplorePrefixCheckResponse,
     type ApiExternalConnectionApiUsageResponse,
@@ -129,6 +130,29 @@ export class ExternalConnectionController extends BaseController {
         return {
             status: 'ok',
             results: await this.getService().list(req.account, projectUuid),
+        };
+    }
+
+    /**
+     * The integrations the project's organization has turned on, each by its `live-source-<integration>` feature flag
+     * @summary List enabled live integrations
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/live-integrations')
+    @OperationId('getEnabledLiveIntegrations')
+    async getEnabledLiveIntegrations(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiEnabledLiveIntegrationsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getEnabledLiveIntegrations(
+                req.account,
+                projectUuid,
+            ),
         };
     }
 
