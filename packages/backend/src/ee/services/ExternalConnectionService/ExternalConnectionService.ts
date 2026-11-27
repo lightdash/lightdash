@@ -128,8 +128,8 @@ import {
     type LiveSourceExploreModelChange,
 } from '../../../services/QuerySourceService/live/explores/fields';
 import {
-    checkDiscoveredExplores,
-    getLiveDiscoveredExplores,
+    checkLiveExtension,
+    getLiveExtension,
     getLiveRefreshSummary,
     getLiveSourceModels,
     hasLiveRefresh,
@@ -2049,10 +2049,7 @@ export class ExternalConnectionService extends BaseService {
                         `${integration.label} reported its schema in an unexpected shape`,
                     );
                 }
-                const { dropped } = checkDiscoveredExplores(
-                    connector,
-                    extended,
-                );
+                const { dropped } = checkLiveExtension(connector, extended);
                 if (dropped.length > 0) {
                     this.logger.warn(
                         `Live data source ${connection.externalConnectionUuid} left out explores whose names it can't use: ${dropped.join(', ')}`,
@@ -3367,7 +3364,7 @@ export class ExternalConnectionService extends BaseService {
                   );
         return integration.connection.access(apiSource, [
             ...integration.model.explores,
-            ...getLiveDiscoveredExplores(apiSource.connector, state),
+            ...getLiveExtension(apiSource.connector, state).explores,
         ]).rules;
     }
 

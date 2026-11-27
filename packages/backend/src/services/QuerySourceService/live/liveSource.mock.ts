@@ -1,10 +1,14 @@
 import type { ApiConnectorType, ApiSourceOf } from '@lightdash/common';
 import { createLiveRuntime, type LiveTransport } from './calls';
 import type { LiveExploreDefinition } from './explores/definition';
-import type { LiveSourceFieldState } from './explores/source';
-import { extendLiveModel } from './integration';
+import {
+    getLiveSourceModels,
+    type LiveSourceFieldState,
+} from './explores/source';
 import { runLiveRequest } from './query/run';
-import type { LiveIntegration } from './types';
+import type { LiveExtension, LiveIntegration } from './types';
+
+const REFRESHED_AT = '2026-11-06T12:00:00.000Z';
 
 /** One integration over a fake transport, the way the service runs it. */
 export const connectLiveSource = <C extends ApiConnectorType>(
@@ -31,11 +35,13 @@ export const connectLiveSource = <C extends ApiConnectorType>(
             runLiveRequest(source, args),
         /** What a Refresh would store: the vendor's metadata. */
         scan,
-        /** The explores a Refresh's metadata gives, as a build reads them. */
+        /** The source's explores after a Refresh, as a build reads them. */
         discover: async (): Promise<LiveExploreDefinition[]> => {
-            const { model } = source.integration;
+            const { model, connector } = source.integration;
             return model.scan
-                ? (extendLiveModel(model, await scan()) ?? [])
+                ? getLiveSourceModels(connector, {
+                      scan: { at: REFRESHED_AT, metadata: await scan() },
+                  }).map(({ definition }) => definition)
                 : [...model.explores];
         },
     };
@@ -60,22 +66,22 @@ export const getRefreshedLiveState = (
     metadata: unknown,
     curated: Partial<Pick<LiveSourceFieldState, 'fields' | 'explores'>> = {},
 ) => ({
-    scan: { at: '2026-11-06T12:00:00.000Z', metadata },
+    scan: { at: REFRESHED_AT, metadata },
     fields: {},
     explores: {},
     ...curated,
 });
 
 /**
- * A source's state holding `explores` as is, for core tests that need
- * explores no integration builds: they ride in as an old scan's.
+ * A source's state holding `extension` as is, for core tests that need
+ * what no integration adds: it rides in as an old scan's.
  */
-export const getLiveStateWithExplores = (
-    explores: LiveExploreDefinition[],
+export const getLiveStateWithExtension = (
+    extension: LiveExtension,
     curated: Partial<Pick<LiveSourceFieldState, 'fields' | 'explores'>> = {},
 ) => ({
     scan: null,
-    legacy: { at: '2026-11-06T12:00:00.000Z', explores },
+    legacy: { at: REFRESHED_AT, extension },
     fields: {},
     explores: {},
     ...curated,

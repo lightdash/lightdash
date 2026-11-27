@@ -14,6 +14,7 @@ export {
     keepParsed,
     formatTestCount,
     jsonRequest,
+    pickLiveFields,
     readRule,
     toLiveModelName,
     withFieldsOffByDefault,
@@ -26,6 +27,8 @@ export type {
 export type {
     LiveColumn,
     LiveConnection,
+    LiveExtension,
+    LiveExtraFields,
     LiveModel,
     LiveQuery,
     LiveHttpRequest,

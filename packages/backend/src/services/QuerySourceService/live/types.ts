@@ -13,7 +13,9 @@ import type {
 import type { z } from 'zod';
 import type {
     LiveCompiledRequest,
+    LiveDimensionDefinition,
     LiveExploreDefinition,
+    LiveMetricDefinition,
     LivePeriodFormat,
 } from './explores/definition';
 import type {
@@ -106,6 +108,30 @@ export type LiveConnection<C extends ApiConnectorType = ApiConnectorType> = {
     testRequest?: (settings: ApiSourceOf<C>) => LiveHttpRequest;
 };
 
+/** The fields stored metadata adds to one declared explore. */
+export type LiveExtraFields = {
+    dimensions: LiveDimensionDefinition[];
+    metrics: LiveMetricDefinition[];
+};
+
+/**
+ * What stored metadata adds to a model: more fields for the explores the
+ * code declares, and explores only the vendor has. It can't change or
+ * remove anything declared.
+ */
+export type LiveExtension = {
+    /**
+     * More fields for a declared explore, by its `name`. A field named
+     * like one the explore declares is left out.
+     */
+    fields?: Record<string, LiveExtraFields>;
+    /**
+     * Explores only the vendor has, each with its `apiName` and a `name`
+     * made from it.
+     */
+    explores?: LiveExploreDefinition[];
+};
+
 /**
  * The explores a source offers. `explores` is the list the integration's
  * code declares. For an API with a schema of its own, `scan` reads what
@@ -141,13 +167,10 @@ export type LiveModel<C extends ApiConnectorType = ApiConnectorType> = {
            */
           metadata: z.ZodType<unknown>;
           /**
-           * What the stored metadata adds: `explores` with the fields the
-           * vendor reports added, then any explore only the vendor has,
-           * keyed by its `apiName`. The core calls it on every build and
-           * keeps each declared explore as the code wrote it, taking only
-           * the fields it doesn't have.
+           * What the stored metadata adds to `explores`. The core calls it
+           * on every build.
            */
-          extend: (metadata: unknown) => LiveExploreDefinition[];
+          extend: (metadata: unknown) => LiveExtension;
       }
 );
 

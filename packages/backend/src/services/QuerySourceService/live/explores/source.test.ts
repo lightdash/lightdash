@@ -1,14 +1,14 @@
 import { ApiConnectorType, DimensionType } from '@lightdash/common';
 import { toLiveModelName } from '../integration';
 import {
-    getLiveStateWithExplores,
+    getLiveStateWithExtension,
     getRefreshedLiveState,
 } from '../liveSource.mock';
 import { getLiveSourceDefinitionHashes } from './build';
 import { type LiveExploreDefinition } from './definition';
 import {
-    checkDiscoveredExplores,
-    getLiveDiscoveredExplores,
+    checkLiveExtension,
+    getLiveExtension,
     getLiveRefreshSummary,
     getLiveSourceModels,
     parseLiveSourceFieldState,
@@ -71,10 +71,12 @@ describe('a source stored before Refresh returned explores', () => {
         expect(scan).toBe(null);
         expect(legacy?.at).toBe('2026-11-24T10:00:00.000Z');
         expect(
-            legacy?.explores.map(({ name, dimensions }) => [
-                name,
-                dimensions.map((field) => [field.name, field.onByDefault]),
-            ]),
+            Object.entries(legacy?.extension.fields ?? {}).map(
+                ([name, { dimensions }]) => [
+                    name,
+                    dimensions.map((field) => [field.name, field.onByDefault]),
+                ],
+            ),
         ).toEqual([
             [
                 'deals',
@@ -120,7 +122,7 @@ describe('a source stored before Refresh returned explores', () => {
                 ],
             },
         });
-        expect(legacy?.explores[0].dimensions[0]).toMatchObject({
+        expect(legacy?.extension.fields?.deals.dimensions[0]).toMatchObject({
             valueLabels,
         });
     });
@@ -140,43 +142,56 @@ describe('a source stored before Refresh returned explores', () => {
     });
 });
 
-describe('checkDiscoveredExplores', () => {
-    it('refuses explores in another shape', () => {
-        expect(() => checkDiscoveredExplores(HUBSPOT, [{ label: 1 }])).toThrow(
-            'unexpected shape',
-        );
+describe('checkLiveExtension', () => {
+    it('refuses another shape, and fields for an explore the model lacks', () => {
+        expect(() =>
+            checkLiveExtension(HUBSPOT, { explores: [{ label: 1 }] }),
+        ).toThrow('unexpected shape');
+        expect(() =>
+            checkLiveExtension(HUBSPOT, {
+                fields: { invoices: { dimensions: [], metrics: [] } },
+            }),
+        ).toThrow("explores it doesn't have: invoices");
     });
 
     it('leaves out an explore whose id could widen its access', () => {
         expect(
-            checkDiscoveredExplores(HUBSPOT, [
-                explore([], { name: 'invoices', apiName: 'invoice' }),
-                explore([], { name: 'up', apiName: '../deals' }),
-                explore([], { name: 'any', apiName: '{object}' }),
-            ]),
-        ).toMatchObject({
-            explores: [{ name: 'invoices' }],
-            dropped: ['up', 'any'],
-        });
+            checkLiveExtension(HUBSPOT, {
+                explores: [
+                    explore([], { name: 'invoices', apiName: 'invoice' }),
+                    explore([], { name: 'up', apiName: '../deals' }),
+                    explore([], { name: 'any', apiName: '{object}' }),
+                ],
+            }),
+        ).toEqual({ dropped: ['up', 'any'] });
     });
 
     it('leaves out an explore whose name it cannot use, and says which', () => {
-        const { explores, dropped } = checkDiscoveredExplores(HUBSPOT, [
-            explore([], { name: 'invoices', apiName: 'Invoice' }),
-            // An earlier explore has the name
-            explore([], { name: 'invoices', apiName: 'invoice' }),
-            // Not a model name
-            explore([], { name: 'Bad Name', apiName: 'bad' }),
-            // A declared explore has the name for something else
-            explore([], { name: 'deals', apiName: 'custom_deals' }),
-            // More fields for a declared explore
-            explore([dimension('region')], { name: 'contacts' }),
+        const extension = {
+            fields: {
+                contacts: { dimensions: [dimension('region')], metrics: [] },
+            },
+            explores: [
+                explore([], { name: 'invoices', apiName: 'Invoice' }),
+                // An earlier explore has the name
+                explore([], { name: 'invoices', apiName: 'invoice' }),
+                // Not a model name
+                explore([], { name: 'Bad Name', apiName: 'bad' }),
+                // A declared explore has the name
+                explore([], { name: 'deals', apiName: 'custom_deals' }),
+            ],
+        };
+        expect(checkLiveExtension(HUBSPOT, extension)).toEqual({
+            dropped: ['invoices', 'Bad Name', 'deals'],
+        });
+        const kept = getLiveExtension(
+            HUBSPOT,
+            getLiveStateWithExtension(extension),
+        );
+        expect(kept.explores.map(({ apiName }) => apiName)).toEqual([
+            'Invoice',
         ]);
-        expect(explores.map(({ name, apiName }) => [name, apiName])).toEqual([
-            ['invoices', 'Invoice'],
-            ['contacts', undefined],
-        ]);
-        expect(dropped).toEqual(['invoices', 'Bad Name', 'deals']);
+        expect(Object.keys(kept.fields)).toEqual(['contacts']);
     });
 });
 
@@ -196,13 +211,15 @@ describe('a Refresh that changes a default', () => {
     ) =>
         getLiveSourceModels(
             HUBSPOT,
-            getLiveStateWithExplores([
-                explore([dimension('total', fieldOn)], {
-                    name: 'invoices',
-                    apiName: 'Invoice',
-                    onByDefault,
-                }),
-            ]),
+            getLiveStateWithExtension({
+                explores: [
+                    explore([dimension('total', fieldOn)], {
+                        name: 'invoices',
+                        apiName: 'Invoice',
+                        onByDefault,
+                    }),
+                ],
+            }),
         );
 
     it('keeps the explore and its fields as the source had them', () => {
@@ -238,9 +255,11 @@ describe('a Refresh that changes a default', () => {
         const before = models(true, true);
         const after = getLiveSourceModels(
             HUBSPOT,
-            getLiveStateWithExplores([
-                explore([dimension('amount_2')], { name: 'deals' }),
-            ]),
+            getLiveStateWithExtension({
+                fields: {
+                    deals: { dimensions: [dimension('amount_2')], metrics: [] },
+                },
+            }),
         );
         expect(
             getLiveRefreshSummary({
@@ -278,7 +297,10 @@ describe('explores built from the metadata a Refresh stored', () => {
         const unknown = getRefreshedLiveState({
             posthogProperties: 'not an object',
         });
-        expect(getLiveDiscoveredExplores(POSTHOG, unknown)).toEqual([]);
+        expect(getLiveExtension(POSTHOG, unknown)).toEqual({
+            fields: {},
+            explores: [],
+        });
         expect(fieldsOf(unknown)).not.toContain('property_plan');
     });
 

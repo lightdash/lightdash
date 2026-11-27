@@ -15,6 +15,7 @@ import {
     dimension,
     keepParsed,
     metric,
+    pickLiveFields,
     withFieldsOffByDefault,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
@@ -885,18 +886,24 @@ export const salesforceModel: LiveModel<ApiConnectorType.SALESFORCE> =
         // Every object's explore gets the fields the org has
         scan: scanSalesforceDescribe,
         metadata: z.object({ salesforceDescribe: z.unknown() }),
-        extend: ({ salesforceDescribe }) =>
-            SALESFORCE_EXPLORES.map((definition) =>
-                withFieldsOffByDefault(
-                    definition,
-                    withSalesforceFields(
-                        definition,
-                        readSalesforceDescribe(
-                            salesforceDescribe,
-                            toSalesforceObject(definition.name),
+        extend: ({ salesforceDescribe }) => ({
+            fields: Object.fromEntries(
+                SALESFORCE_EXPLORES.map((definition) => [
+                    definition.name,
+                    pickLiveFields(
+                        withFieldsOffByDefault(
+                            definition,
+                            withSalesforceFields(
+                                definition,
+                                readSalesforceDescribe(
+                                    salesforceDescribe,
+                                    toSalesforceObject(definition.name),
+                                ),
+                            ),
+                            isSalesforceSystemField,
                         ),
                     ),
-                    isSalesforceSystemField,
-                ),
+                ]),
             ),
+        }),
     });

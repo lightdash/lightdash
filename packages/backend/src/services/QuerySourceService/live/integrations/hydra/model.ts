@@ -282,8 +282,5 @@ export const hydraModel: LiveModel<ApiConnectorType.HYDRA> = defineLiveModel({
     explores: HYDRA_EXPLORES,
     scan: readHydraObjects,
     metadata: hydraObjectsResponseSchema,
-    extend: ({ objects }) => [
-        ...HYDRA_EXPLORES,
-        ...objects.map(toHydraObjectExplore),
-    ],
+    extend: ({ objects }) => ({ explores: objects.map(toHydraObjectExplore) }),
 });
