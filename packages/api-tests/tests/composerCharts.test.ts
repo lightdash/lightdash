@@ -7,6 +7,7 @@ import {
     MergeJoinType,
     QuerySourceType,
     SEED_DATA_APP_VIZ,
+    SEED_ORG_1,
     SEED_PROJECT,
     ServiceAccountScope,
     type ComposerChart,
@@ -27,6 +28,8 @@ import {
     login,
     loginAsEditor,
     loginAsViewer,
+    loginWithEmail,
+    loginWithPermissions,
 } from '../helpers/auth';
 import {
     apiClientSend,
@@ -813,6 +816,151 @@ describe('Composer charts', () => {
                     (await admin.post(flagUrl, { enabled: true })).status,
                 ).toBe(200);
             }
+        });
+    });
+
+    describe('chart permissions', () => {
+        type RoleUser = { client: ApiClient; roleUuid: string };
+        const roleUsers: RoleUser[] = [];
+
+        const roleUser = async (scopes: string[]): Promise<RoleUser> => {
+            const role = await admin.post<Body<{ roleUuid: string }>>(
+                `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles`,
+                {
+                    name: uniqueName('Composer chart role'),
+                    description: 'Composer chart permission test role',
+                    scopes: ['view:Project', 'view:Space', ...scopes],
+                },
+            );
+            expect(role.status).toBe(201);
+            const { client, email } = await loginWithPermissions('member', []);
+            const user =
+                await client.get<Body<{ userUuid: string }>>('/api/v1/user');
+            const assigned = await admin.post(
+                `/api/v2/projects/${projectUuid}/roles/assignments/user/${user.body.results.userUuid}`,
+                { roleId: role.body.results.roleUuid },
+            );
+            expect(assigned.status).toBe(200);
+            const created = {
+                client: await loginWithEmail(email),
+                roleUuid: role.body.results.roleUuid,
+            };
+            roleUsers.push(created);
+            return created;
+        };
+
+        afterAll(async () => {
+            for (const { roleUuid } of roleUsers) {
+                // eslint-disable-next-line no-await-in-loop
+                await admin.delete(
+                    `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles/${roleUuid}`,
+                    { failOnStatusCode: false },
+                );
+            }
+        });
+
+        const createViewableDashboard = async () => {
+            const created = await createComposerDashboard(apiClientSend(admin));
+            tracker.trackDashboard(created.dashboard.uuid);
+            return {
+                ...created,
+                tileUuid: created.dashboard.tiles[0].uuid,
+            };
+        };
+
+        it('lets a role that views charts but not dashboards read and run a dashboard chart', async () => {
+            const { dashboard, chart, tileUuid } =
+                await createViewableDashboard();
+            const { client } = await roleUser(['view:SavedChart']);
+
+            const read = await client.get(`${chartsUrl}/${chart.uuid}`);
+            expect(read.status).toBe(200);
+            const run = await client.post<Body<ComposerChartRunResults>>(
+                runUrl(chart.uuid),
+                runRequest(dashboard.uuid, tileUuid),
+            );
+            expect(run.status).toBe(200);
+            const [{ queryUuid }] = run.body.results.queries;
+            expect((await pollRows(client, queryUuid)).length).toBeGreaterThan(
+                0,
+            );
+        });
+
+        it('refuses a role that views dashboards but not charts, as for a classic tile', async () => {
+            const { dashboard, chart, tileUuid } =
+                await createViewableDashboard();
+            const { client } = await roleUser(['view:Dashboard']);
+
+            const read = await client.get(`${chartsUrl}/${chart.uuid}`, {
+                failOnStatusCode: false,
+            });
+            expect(read.status).toBe(403);
+            const run = await client.post(
+                runUrl(chart.uuid),
+                runRequest(dashboard.uuid, tileUuid),
+                { failOnStatusCode: false },
+            );
+            expect(run.status).toBe(403);
+        });
+
+        it('saves a chart onto a dashboard by chart write, not dashboard write', async () => {
+            const dashboard = await createDashboard();
+            const authorScopes = [
+                'view:Dashboard',
+                'view:SavedChart',
+                'manage:ComposerChart',
+                'manage:Explore',
+            ];
+            const chartWriter = await roleUser([
+                ...authorScopes,
+                'manage:SavedChart',
+            ]);
+            const saved = await chartWriter.client.post(
+                chartsUrl,
+                composerChartBody(dashboard.uuid),
+            );
+            expect(saved.status).toBe(201);
+
+            const dashboardWriter = await roleUser([
+                ...authorScopes,
+                'manage:Dashboard',
+            ]);
+            const refused = await dashboardWriter.client.post(
+                chartsUrl,
+                composerChartBody(dashboard.uuid),
+                { failOnStatusCode: false },
+            );
+            expect(refused.status).toBe(403);
+        });
+
+        it('refuses a project viewer a chart on a dashboard in a space they cannot see', async () => {
+            const space = await admin.post<Body<{ uuid: string }>>(
+                `/api/v1/projects/${projectUuid}/spaces`,
+                {
+                    name: uniqueName('Composer private space'),
+                    inheritParentPermissions: false,
+                },
+            );
+            expect(space.status).toBe(200);
+            tracker.trackSpace(space.body.results.uuid);
+            const dashboard = await admin.post<Body<Dashboard>>(
+                `/api/v1/projects/${projectUuid}/dashboards`,
+                {
+                    name: uniqueName('Composer private dashboard'),
+                    tiles: [],
+                    tabs: [],
+                    spaceUuid: space.body.results.uuid,
+                },
+            );
+            expect(dashboard.status).toBe(201);
+            tracker.trackDashboard(dashboard.body.results.uuid);
+            const chart = await createChart(dashboard.body.results.uuid);
+
+            const viewer = await loginAsViewer();
+            const read = await viewer.get(`${chartsUrl}/${chart.uuid}`, {
+                failOnStatusCode: false,
+            });
+            expect(read.status).toBe(403);
         });
     });
 
