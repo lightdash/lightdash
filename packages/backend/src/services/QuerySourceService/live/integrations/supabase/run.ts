@@ -1,6 +1,7 @@
 import {
     DimensionType,
     getSupabaseTablePath,
+    isSupabaseTableName,
     type ApiConnectorType,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -83,9 +84,13 @@ const filterSchema = z
         }
     });
 
-/** One read of the source's table, as compile writes it and agents send it. */
+/** One read of a table, as compile writes it and agents send it. */
 export const supabaseRequestSchema = z
     .object({
+        /** The table or view to read. */
+        table: z
+            .string()
+            .refine(isSupabaseTableName, 'Use the name of one table or view'),
         /** Columns as the table names them. */
         select: z.array(z.string().min(1)).min(1),
         /** All must match. ilike takes a pattern with * as the wildcard. */
@@ -192,9 +197,8 @@ const toColumnType = (
     return DimensionType.STRING;
 };
 
-/** Reads the source's table, a page of up to 1,000 rows at a time. */
+/** Reads one table of the source, a page of up to 1,000 rows at a time. */
 export const runSupabaseQuery = async ({
-    settings,
     request,
     limit,
     runtime,
@@ -216,7 +220,7 @@ export const runSupabaseQuery = async ({
             const page = await runtime.fetch(
                 {
                     method: 'GET',
-                    path: getSupabaseTablePath(settings.table),
+                    path: getSupabaseTablePath(request.table),
                     query: {
                         ...query,
                         limit: String(pageLimit),

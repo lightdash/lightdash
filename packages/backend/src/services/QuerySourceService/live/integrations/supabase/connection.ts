@@ -1,6 +1,8 @@
 import {
     ApiConnectorType,
+    getSupabaseTablePath,
     isSupabaseOrigin,
+    isSupabaseTableName,
     LIVE_INTEGRATION_CATALOG,
     ParameterError,
     SUPABASE_REST_PATH,
@@ -14,10 +16,22 @@ export const supabaseConnection: LiveConnection<ApiConnectorType.SUPABASE> = {
     origins: ['https://<project ref>.supabase.co'],
     // Custom domains and self-hosted Supabase serve the same Data API
     acceptsOrigin: isSupabaseOrigin,
-    // GET on the Data API only reads: tables, views, and functions declared
-    // stable or immutable. Writes need POST, PATCH or DELETE.
-    access: () => ({
-        rules: [readRule('GET', SUPABASE_REST_PATH)],
+    // GET only reads. Exact paths keep to the table list and the tables
+    // discovered, never functions under /rpc/.
+    access: (_settings, explores) => ({
+        rules: [
+            readRule('GET', SUPABASE_REST_PATH, { exact: true }),
+            ...explores.flatMap(({ apiName }) =>
+                apiName !== undefined && isSupabaseTableName(apiName)
+                    ? [
+                          readRule('GET', getSupabaseTablePath(apiName), {
+                              exact: true,
+                              entry: apiName,
+                          }),
+                      ]
+                    : [],
+            ),
+        ],
     }),
     checkAuth: ({ type }) => {
         if (type !== 'api_key') {
@@ -26,6 +40,5 @@ export const supabaseConnection: LiveConnection<ApiConnectorType.SUPABASE> = {
             );
         }
     },
-    describeTarget: ({ settings: { table }, origin }) =>
-        `Supabase table "${table}" in the project at ${origin}`,
+    describeTarget: ({ origin }) => `the Supabase project at ${origin}`,
 };

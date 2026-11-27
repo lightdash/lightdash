@@ -1,9 +1,7 @@
 import {
     ApiConnectorType,
-    getSupabaseTablePath,
     getSupabaseKeyError,
     isSupabaseOrigin,
-    isSupabaseTableName,
     LIVE_INTEGRATION_CATALOG,
     SUPABASE_AUTH_HEADER,
     SUPABASE_REST_PATH,
@@ -14,7 +12,6 @@ import { useForm } from '@mantine/form';
 export type SupabaseConnectionValues = {
     name: string;
     projectUrl: string;
-    table: string;
     secret: string;
 };
 
@@ -41,7 +38,6 @@ export const useSupabaseConnectionForm = () =>
             name: LIVE_INTEGRATION_CATALOG[ApiConnectorType.SUPABASE]
                 .defaultName,
             projectUrl: '',
-            table: '',
             secret: '',
         },
         validate: {
@@ -51,10 +47,6 @@ export const useSupabaseConnectionForm = () =>
                 isSupabaseOrigin(toSupabaseOrigin(value))
                     ? null
                     : 'Paste the project URL, like https://abcd.supabase.co',
-            table: (value) =>
-                isSupabaseTableName(value.trim())
-                    ? null
-                    : 'Use the name of one table or view',
             secret: (value) => getSupabaseKeyError(value) ?? null,
         },
     });
@@ -74,7 +66,6 @@ export const toSupabaseCreatePayload = (
     secret: values.secret.trim(),
     apiSource: {
         connector: ApiConnectorType.SUPABASE,
-        table: values.table.trim(),
     },
     allowedMethods: ['GET'],
     allowedPathPrefixes: [SUPABASE_REST_PATH],
@@ -85,10 +76,8 @@ export const toSupabaseCreatePayload = (
     instructions: null,
 });
 
-/** A one-row read that proves the key reaches the table. */
-export const getSupabaseTestRequest = (table: string) =>
-    ({
-        method: 'GET',
-        path: getSupabaseTablePath(table.trim()),
-        query: { select: '*', limit: '1' },
-    }) as const;
+/** Reads the table list, which only a secret key may: what Refresh reads. */
+export const SUPABASE_TEST_REQUEST = {
+    method: 'GET',
+    path: SUPABASE_REST_PATH,
+} as const;

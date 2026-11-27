@@ -1,7 +1,7 @@
 import { ApiConnectorType, getSupabaseKeyError } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
-    getSupabaseTestRequest,
+    SUPABASE_TEST_REQUEST,
     toSupabaseCreatePayload,
     toSupabaseOrigin,
 } from './supabaseConnection';
@@ -26,13 +26,12 @@ describe('supabaseConnection', () => {
     it('creates a read-only source with the key on the apikey header', () => {
         expect(
             toSupabaseCreatePayload({
-                name: ' Orders ',
+                name: ' Shop ',
                 projectUrl: 'https://abcd.supabase.co/',
-                table: ' orders ',
                 secret: ' sb_secret_x ',
             }),
         ).toMatchObject({
-            name: 'Orders',
+            name: 'Shop',
             type: 'api_key',
             origin: 'https://abcd.supabase.co',
             apiKeyName: 'apikey',
@@ -40,18 +39,16 @@ describe('supabaseConnection', () => {
             secret: 'sb_secret_x',
             apiSource: {
                 connector: ApiConnectorType.SUPABASE,
-                table: 'orders',
             },
             allowedMethods: ['GET'],
             allowedPathPrefixes: ['/rest/v1/'],
         });
     });
 
-    it('tests by reading one row of the table', () => {
-        expect(getSupabaseTestRequest(' orders ')).toEqual({
+    it('tests by reading the table list', () => {
+        expect(SUPABASE_TEST_REQUEST).toEqual({
             method: 'GET',
-            path: '/rest/v1/orders',
-            query: { select: '*', limit: '1' },
+            path: '/rest/v1/',
         });
     });
 });

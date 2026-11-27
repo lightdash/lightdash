@@ -7,12 +7,10 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { supabaseIntegration } from '.';
-import {
-    connectLiveSource,
-    getExploresWithDiscoveredFields,
-} from '../../liveSource.mock';
+import { findAccessRule } from '../../integration';
+import { connectLiveSource } from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { SUPABASE_EXPLORES, SUPABASE_TABLE_EXPLORE } from './model';
+import { toSupabaseTableExplore } from './model';
 import { SUPABASE_MAX_QUERY_ROWS, toSupabaseQuery } from './run';
 import { OPEN_API, ORDERS_TABLE } from './supabase.fixtures';
 
@@ -29,7 +27,7 @@ const connect = (...responses: LiveHttpResponse[]) => {
         send,
         source: connectLiveSource(
             supabaseIntegration,
-            { connector: ApiConnectorType.SUPABASE, table: 'orders' },
+            { connector: ApiConnectorType.SUPABASE },
             send,
         ),
     };
@@ -39,7 +37,11 @@ const run = (
     source: ReturnType<typeof connect>['source'],
     request: Record<string, unknown>,
     limit = 10,
-) => source.run({ query: JSON.stringify(request), limit });
+) =>
+    source.run({
+        query: JSON.stringify({ table: 'orders', ...request }),
+        limit,
+    });
 
 const rows = (count: number, start = 0) =>
     Array.from({ length: count }, (_, index) => ({
@@ -52,6 +54,7 @@ describe('toSupabaseQuery', () => {
     it('writes select, an and=(…) of filters and the order', () => {
         expect(
             toSupabaseQuery({
+                table: 'orders',
                 select: ['id', 'Customer Name'],
                 filters: [
                     { column: 'status', operator: 'in', value: ['a,b', 'c'] },
@@ -147,6 +150,15 @@ describe('supabaseIntegration run', () => {
         expect(result.hasMoreRows).toBe(true);
     });
 
+    it('reads the table the request names', async () => {
+        const { source, send } = connect(response(rows(1)));
+        await run(source, { table: 'customers', select: ['id'] });
+        expect(send.mock.calls[0][0]).toMatchObject({
+            method: 'GET',
+            path: '/rest/v1/customers',
+        });
+    });
+
     it('refuses a malformed request before calling', async () => {
         const { source, send } = connect();
         await expect(
@@ -156,7 +168,10 @@ describe('supabaseIntegration run', () => {
             }),
         ).rejects.toBeInstanceOf(ParameterError);
         await expect(
-            run(source, { select: ['id'], table: 'secrets' }),
+            run(source, { select: ['id'], columns: ['id'] }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        await expect(
+            run(source, { select: ['id'], table: 'a/b' }),
         ).rejects.toBeInstanceOf(ParameterError);
         expect(send).not.toHaveBeenCalled();
     });
@@ -177,7 +192,7 @@ describe('supabaseIntegration run', () => {
             404,
             { code: 'PGRST205', message: 'Could not find the table' },
             WarehouseConnectionError,
-            'can\'t find the table "orders"',
+            "can't find the table: Could not find the table",
         ],
         [
             400,
@@ -201,7 +216,7 @@ describe('supabaseIntegration run', () => {
 });
 
 describe('supabaseIntegration discover', () => {
-    it('keeps only the source table from the OpenAPI description', async () => {
+    it('makes every table and view an explore named after it', async () => {
         const { source, send } = connect(
             response(OPEN_API, 200, {
                 'content-type': 'application/openapi+json',
@@ -210,20 +225,60 @@ describe('supabaseIntegration discover', () => {
         const explores = await source.discover();
 
         expect(
-            getExploresWithDiscoveredFields(SUPABASE_EXPLORES, explores),
-        ).toEqual([SUPABASE_TABLE_EXPLORE.name]);
+            explores.map(({ name, apiName }) => ({ name, apiName })),
+        ).toEqual([
+            { name: 'orders', apiName: 'orders' },
+            { name: 'customers', apiName: 'customers' },
+        ]);
+        expect(
+            explores[1].dimensions.map(({ name, type, description }) => ({
+                name,
+                type,
+                description,
+            })),
+        ).toEqual([
+            { name: 'id', type: 'number', description: 'id (bigint)' },
+            { name: 'name', type: 'string', description: 'name (text)' },
+        ]);
         expect(send.mock.calls[0][0]).toMatchObject({
             method: 'GET',
             path: '/rest/v1/',
         });
     });
 
-    it('names the tables it has when the source table is missing', async () => {
+    it('leaves out names that are no table path, and refuses an empty list', async () => {
         const { source } = connect(
-            response({ ...OPEN_API, definitions: { customers: {} } }),
+            response({ definitions: { 'a/b': {}, orders: ORDERS_TABLE } }),
         );
-        await expect(source.discover()).rejects.toThrow(
-            'Supabase has no table or view called "orders" in the exposed schema; it has customers.',
+        const explores = await source.discover();
+        expect(explores.map(({ apiName }) => apiName)).toEqual(['orders']);
+
+        const { source: empty } = connect(response({ definitions: {} }));
+        await expect(empty.discover()).rejects.toThrow(
+            'Supabase lists no tables or views.',
         );
+    });
+});
+
+describe('supabaseIntegration access', () => {
+    const { rules } = supabaseIntegration.connection.access(
+        { connector: ApiConnectorType.SUPABASE },
+        [
+            toSupabaseTableExplore('orders', ORDERS_TABLE),
+            toSupabaseTableExplore('customers', {}),
+        ],
+    );
+    const allows = (path: string) =>
+        findAccessRule(rules, { method: 'GET', path }) !== undefined;
+
+    it('reads the table list and the discovered tables only', () => {
+        expect(allows('/rest/v1/')).toBe(true);
+        expect(allows('/rest/v1/orders')).toBe(true);
+        expect(allows('/rest/v1/customers')).toBe(true);
+        expect(allows('/rest/v1/secrets')).toBe(false);
+        expect(allows('/rest/v1/rpc/delete_everything')).toBe(false);
+        expect(
+            findAccessRule(rules, { method: 'POST', path: '/rest/v1/orders' }),
+        ).toBeUndefined();
     });
 });

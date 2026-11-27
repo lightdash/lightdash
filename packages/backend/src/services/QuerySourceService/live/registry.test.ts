@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { buildLiveExplores, compileLiveMetricQuery } from './explores/build';
 import { getLiveSourceModels } from './explores/source';
-import { findAccessRule } from './integration';
+import { extendLiveModel, findAccessRule } from './integration';
 import { connectLiveSource } from './liveSource.mock';
 import {
     getLiveIntegration,
@@ -19,8 +19,10 @@ import { type LiveHttpResponse } from './types';
 /** What a Refresh stores for an integration whose declared explore has no fields of its own. */
 const SAMPLE_METADATA: Partial<Record<ApiConnectorType, unknown>> = {
     [ApiConnectorType.SUPABASE]: {
-        table: {
-            properties: { id: { type: 'integer', format: 'bigint' } },
+        tables: {
+            orders: {
+                properties: { id: { type: 'integer', format: 'bigint' } },
+            },
         },
     },
 };
@@ -78,7 +80,6 @@ const SAMPLE_SETTINGS: {
     },
     [ApiConnectorType.SUPABASE]: {
         connector: ApiConnectorType.SUPABASE,
-        table: 'orders',
     },
     [ApiConnectorType.SENTRY]: {
         connector: ApiConnectorType.SENTRY,
@@ -137,9 +138,11 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
             ).toEqual(settings);
         });
 
-        test('declares at least one explore, each under its own name', () => {
+        test('declares at least one explore, or discovers them, each under its own name', () => {
             const names = integration.model.explores.map(({ name }) => name);
-            expect(names.length).toBeGreaterThan(0);
+            if (names.length === 0) {
+                expect(integration.model.extend).toBeDefined();
+            }
             expect(new Set(names).size).toBe(names.length);
         });
 
@@ -167,6 +170,11 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
 
         test('runs what it compiles, and explains a failed call', async () => {
             const metadata = SAMPLE_METADATA[settings.connector];
+            const explores =
+                metadata === undefined
+                    ? []
+                    : (extendLiveModel(integration.model, metadata)?.explores ??
+                      []);
             const state = {
                 scan: metadata
                     ? { at: '2026-11-06T12:00:00Z', metadata }
@@ -220,10 +228,10 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
             await expect(run).rejects.not.toBeInstanceOf(ParameterError);
             expect(send).toHaveBeenCalled();
             // Every call it makes is one its access rules allow
-            const { rules } = integration.connection.access(
-                settings,
-                integration.model.explores,
-            );
+            const { rules } = integration.connection.access(settings, [
+                ...integration.model.explores,
+                ...explores,
+            ]);
             send.mock.calls.forEach(([request]) => {
                 expect(findAccessRule(rules, request)).toBeDefined();
             });

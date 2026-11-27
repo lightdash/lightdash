@@ -13,6 +13,7 @@ import {
 import {
     getApiName,
     getLiveExplore,
+    getLiveExploreApiName,
     type LiveCompiledRequest,
 } from '../../sdk';
 import { type SupabaseFilter, type SupabaseRequest } from './run';
@@ -136,7 +137,8 @@ const getFilteringRules = (group: FilterGroup | undefined): FilterRule[] =>
     );
 
 /**
- * Compiles a metric query on a Supabase explore into one read of its table:
+ * Compiles a metric query on a Supabase explore into one read of the table
+ * it stands for:
  * the selected columns, every filter ANDed, and the sorts, all applied by
  * the Data API.
  */
@@ -165,7 +167,12 @@ export const compileSupabaseQuery = ({
     if (metricQuery.dimensions.length === 0) {
         throw new ParameterError('Pick at least one column of the table.');
     }
+    const table = getLiveExploreApiName(explore);
+    if (table === null) {
+        throw new ParameterError('This explore reads no Supabase table.');
+    }
     const request: SupabaseRequest = {
+        table,
         select: metricQuery.dimensions.map(apiName),
         ...(filters.length > 0 ? { filters } : {}),
         ...(metricQuery.sorts.length > 0

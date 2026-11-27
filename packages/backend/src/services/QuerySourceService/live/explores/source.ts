@@ -341,7 +341,7 @@ const fromLegacyScan = (
     const byModel = new Map<string, LiveExtraFields>();
     const pins: LiveSourceFieldEdits = {};
     scan.fields.forEach((field) => {
-        const model = field.model ?? first.name;
+        const model = field.model ?? first?.name ?? '';
         const group = byModel.get(model) ?? { dimensions: [], metrics: [] };
         byModel.set(model, group);
         const onByDefault = !field.isInternal;

@@ -17,6 +17,7 @@ import { compileSearchConsoleQuery } from '../integrations/searchConsole/compile
 import { SEARCH_CONSOLE_PERFORMANCE_EXPLORE } from '../integrations/searchConsole/model';
 import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from '../integrations/searchConsole/run';
 import { getRefreshedLiveState } from '../liveSource.mock';
+import { getLiveIntegration } from '../registry';
 import {
     buildLiveExplores,
     compileLiveMetricQuery,
@@ -641,7 +642,10 @@ describe('definition hashes', () => {
                 scan: null,
                 explores: {},
             });
-            expect(Object.values(hashes).length).toBeGreaterThan(0);
+            // One per declared explore before a Refresh
+            expect(Object.values(hashes)).toHaveLength(
+                getLiveIntegration(connector).model.explores.length,
+            );
             Object.values(hashes).forEach((hash) =>
                 expect(hash).toMatch(/^[0-9a-f]{64}$/),
             );

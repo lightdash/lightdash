@@ -2,13 +2,14 @@ import {
     ApiConnectorType,
     DimensionType,
     FilterOperator,
+    isSupabaseTableName,
     ParameterError,
     SUPABASE_REST_PATH,
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
     defineLiveModel,
-    pickLiveFields,
+    toLiveModelName,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveModel,
@@ -72,24 +73,20 @@ export const SUPABASE_TIMESTAMP_FILTERS = [
 export const SUPABASE_STRUCTURED_FILTERS = SUPABASE_SET_FILTERS;
 
 /**
- * The one explore of a source: the rows of its table. Its columns come from
- * the scan, so the definition itself has none.
+ * What every table's explore shares. Each table or view is its own explore,
+ * named after it; its columns come from the scan.
  */
-export const SUPABASE_TABLE_EXPLORE: LiveExploreDefinition = {
-    name: 'table',
-    label: 'Table',
-    description:
-        'Rows of one table or view in a Supabase project, read live through its Data API, one row per record.',
+const SUPABASE_TABLE_EXPLORE: Omit<
+    LiveExploreDefinition,
+    'name' | 'apiName' | 'label' | 'description' | 'dimensions'
+> = {
     aiHint: 'Read live from the Supabase Data API (PostgREST), one row per record of the table. There are no metrics: count, sum or average by aggregating rows. Filters, sorts and the row limit run in Supabase; one query reads at most 4,999 rows, so filter large tables.',
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
     incompatible: [],
-    dimensions: [],
     metrics: [],
 };
-
-export const SUPABASE_EXPLORES = [SUPABASE_TABLE_EXPLORE] as const;
 
 /** Most columns one table brings in; wider tables keep their first ones. */
 export const SUPABASE_MAX_COLUMNS = 200;
@@ -126,6 +123,17 @@ export const readSupabaseColumns = (table: unknown): SupabaseColumn[] => {
     }));
 };
 
+/** Postgres number types, as the Data API names a column's format. */
+const NUMBER_FORMATS = new Set([
+    'smallint',
+    'integer',
+    'bigint',
+    'numeric',
+    'real',
+    'double precision',
+    'number',
+]);
+
 const toFieldRules = ({
     type,
     format,
@@ -133,19 +141,28 @@ const toFieldRules = ({
     LiveDimensionDefinition,
     'type' | 'filterOperators'
 > => {
-    if (type === 'integer' || type === 'number') {
+    if (
+        type === 'integer' ||
+        type === 'number' ||
+        NUMBER_FORMATS.has(format ?? '')
+    ) {
         return {
             type: DimensionType.NUMBER,
             filterOperators: SUPABASE_NUMBER_FILTERS,
         };
     }
-    if (type === 'boolean') {
+    if (type === 'boolean' || format === 'boolean') {
         return {
             type: DimensionType.BOOLEAN,
             filterOperators: SUPABASE_BOOLEAN_FILTERS,
         };
     }
-    if (type === 'array' || type === 'object' || format?.startsWith('json')) {
+    if (
+        type === 'array' ||
+        type === 'object' ||
+        format?.startsWith('json') ||
+        format?.endsWith('[]')
+    ) {
         return {
             type: DimensionType.STRING,
             filterOperators: SUPABASE_STRUCTURED_FILTERS,
@@ -191,13 +208,12 @@ const toDescription = ({ name, description, format }: SupabaseColumn) => {
     return comment || `${name}${format ? ` (${format})` : ''}`;
 };
 
-/** The explore with one dimension per column of the table. */
-export const withSupabaseColumns = <D extends LiveExploreDefinition>(
-    definition: D,
+/** One dimension per column of a table. */
+export const toSupabaseDimensions = (
     columns: SupabaseColumn[],
-): D => {
+): LiveDimensionDefinition[] => {
     const taken = new Set<string>();
-    const dimensions = columns
+    return columns
         .slice(0, SUPABASE_MAX_COLUMNS)
         .map((column): LiveDimensionDefinition => {
             const base = toBaseFieldName(column.name);
@@ -214,60 +230,67 @@ export const withSupabaseColumns = <D extends LiveExploreDefinition>(
                 ...toFieldRules(column),
             };
         });
-    return { ...definition, dimensions };
 };
 
 const openApiSchema = z.object({
     definitions: z.record(z.string(), z.unknown()).optional(),
 });
 
+/** One table or view as an explore, named after it and with its columns. */
+export const toSupabaseTableExplore = (
+    table: string,
+    definition: unknown,
+): LiveExploreDefinition => ({
+    ...SUPABASE_TABLE_EXPLORE,
+    name: toLiveModelName(table),
+    apiName: table,
+    label: toLabel(table),
+    description: `Rows of the ${table} table or view in a Supabase project, read live through its Data API, one row per record.`,
+    dimensions: toSupabaseDimensions(readSupabaseColumns(definition)),
+});
+
 /**
- * Reads the table's columns from the Data API's OpenAPI description. Only
- * secret (service role) keys may read it, and only tables the key can see
- * are listed.
+ * Every table and view the key can see, with its columns, from the Data
+ * API's OpenAPI description. Only secret keys may read it.
  */
-export const scanSupabaseTable = async ({
-    settings,
+export const scanSupabaseTables = async ({
     runtime,
 }: {
-    settings: { table: string };
     runtime: LiveRuntime;
 }): Promise<unknown> => {
     const description = await runtime.fetch(
         { method: 'GET', path: SUPABASE_REST_PATH, body: undefined },
         openApiSchema,
     );
-    const definitions = description.definitions ?? {};
-    if (!Object.hasOwn(definitions, settings.table)) {
-        const known = Object.keys(definitions).slice(0, 10);
+    const tables = Object.fromEntries(
+        Object.entries(description.definitions ?? {}).filter(([table]) =>
+            isSupabaseTableName(table),
+        ),
+    );
+    if (Object.keys(tables).length === 0) {
         throw new ParameterError(
-            `Supabase has no table or view called "${settings.table}" in the exposed schema${
-                known.length > 0 ? `; it has ${known.join(', ')}` : ''
-            }. Check the table name, and that the schema is exposed in the project's Data API settings.`,
+            "Supabase lists no tables or views. Check that the schema is exposed in the project's Data API settings.",
         );
     }
-    return { table: definitions[settings.table] };
+    return { tables };
 };
 
 export const supabaseModel: LiveModel<ApiConnectorType.SUPABASE> =
     defineLiveModel({
-        explores: SUPABASE_EXPLORES,
-        // The table's columns are the explore, every one in use from the start
-        scan: scanSupabaseTable,
+        // Every table is its own explore, named after it; all start on
+        explores: [],
+        scan: scanSupabaseTables,
         metadata: z.object({
-            table: tableSchema.optional().catch(undefined),
+            tables: z
+                .record(z.string(), tableSchema.optional().catch(undefined))
+                .optional(),
         }),
-        extend: ({ table: scanned }) => {
-            const [table] = SUPABASE_EXPLORES;
-            return {
-                fields: {
-                    [table.name]: pickLiveFields(
-                        withSupabaseColumns(
-                            table,
-                            readSupabaseColumns(scanned),
-                        ),
-                    ),
-                },
-            };
-        },
+        extend: ({ tables }) => ({
+            explores: Object.entries(tables ?? {}).flatMap(
+                ([table, definition]) =>
+                    definition
+                        ? [toSupabaseTableExplore(table, definition)]
+                        : [],
+            ),
+        }),
     });

@@ -70,13 +70,12 @@ export type GithubApiSource = {
 };
 
 /**
- * One table or view of a Supabase project, read through its Data API
- * (PostgREST). The project URL is the connection's origin.
+ * A Supabase project, read through its Data API (PostgREST); every table
+ * and view the key can see is an explore. The project URL is the
+ * connection's origin.
  */
 export type SupabaseApiSource = {
     connector: ApiConnectorType.SUPABASE;
-    /** The table or view in the exposed schema, as PostgREST names it. */
-    table: string;
 };
 
 /**

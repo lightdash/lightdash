@@ -14,15 +14,15 @@ import { parseLiveRequest } from '../../integration';
 import { compileSupabaseQuery } from './compile';
 import {
     readSupabaseColumns,
-    SUPABASE_TABLE_EXPLORE,
-    withSupabaseColumns,
+    toSupabaseDimensions,
+    toSupabaseTableExplore,
 } from './model';
 import { ORDERS_TABLE } from './supabase.fixtures';
 
-const DEFINITION = withSupabaseColumns(
-    SUPABASE_TABLE_EXPLORE,
-    readSupabaseColumns(ORDERS_TABLE),
-);
+const DEFINITION = {
+    ...toSupabaseTableExplore('orders', ORDERS_TABLE),
+    name: 'table',
+};
 
 const EXPLORE = buildLiveExplore({
     definition: DEFINITION,
@@ -134,13 +134,12 @@ describe('Supabase columns', () => {
     });
 
     it('gives clashing names a suffix and reads an unknown shape as no columns', () => {
-        const definition = withSupabaseColumns(
-            SUPABASE_TABLE_EXPLORE,
+        const dimensions = toSupabaseDimensions(
             readSupabaseColumns({
                 properties: { 'a-b': {}, a_b: {}, 'A B': {} },
             }),
         );
-        expect(definition.dimensions.map(({ name }) => name)).toEqual([
+        expect(dimensions.map(({ name }) => name)).toEqual([
             'a_b',
             'a_b_2',
             'a_b_3',
@@ -160,7 +159,7 @@ describe('compileSupabaseQuery', () => {
                     ],
                 }),
             ),
-        ).toEqual({ select: ['Customer Name', 'amount'] });
+        ).toEqual({ table: 'orders', select: ['Customer Name', 'amount'] });
     });
 
     it('sorts in Supabase', () => {
@@ -253,5 +252,53 @@ describe('compileSupabaseQuery', () => {
         expect(() =>
             parseLiveRequest(supabaseIntegration, compiled.query),
         ).not.toThrow();
+    });
+
+    it('reads the table the explore stands for, typing its columns', () => {
+        const explore = buildLiveExplore({
+            definition: {
+                ...toSupabaseTableExplore('customers', {
+                    properties: {
+                        id: { type: 'integer', format: 'bigint' },
+                        'Full Name': { type: 'string', format: 'text' },
+                        joined: { type: 'string', format: 'date' },
+                        tags: { type: 'array', format: 'text[]' },
+                    },
+                }),
+                name: 'customers',
+            },
+            exploreName: 'orders_customers',
+            label: 'Customers',
+            connectionUuid: 'connection-uuid',
+            integration: ApiConnectorType.SUPABASE,
+            baseVersion: 1,
+            capabilities: supabaseIntegration.query.capabilities,
+            warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                SupportedDbtAdapter.DUCKDB,
+            ),
+        });
+        const types = Object.fromEntries(
+            Object.values(getItemMap(explore)).map((item) => [
+                item.name,
+                'type' in item ? item.type : null,
+            ]),
+        );
+        expect(types).toEqual({
+            id: 'number',
+            full_name: 'string',
+            joined: 'date',
+            tags: 'string',
+        });
+        const compiled = compileSupabaseQuery({
+            explore,
+            metricQuery: query({
+                exploreName: 'orders_customers',
+                dimensions: ['orders_customers_full_name'],
+            }),
+        });
+        expect(JSON.parse(compiled.query)).toEqual({
+            table: 'customers',
+            select: ['Full Name'],
+        });
     });
 });
