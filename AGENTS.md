@@ -63,6 +63,7 @@ When the backend creates a presigned URL for browser-direct upload, it uses `S3_
 
 -   Assume the dev-server is always running and watching source files; a separate `api-routes-watch` process regenerates TSOA routes when controllers change, so backend and generated-route changes reload the API automatically.
 -   Always use package-specific commands for faster linting/typechecking/testing.
+-   After changing an exported `@lightdash/common` type, typecheck every dependent: `pnpm -F '...@lightdash/common' typecheck` covers `api-tests`, `e2e`, `cli` and `query-sdk` too.
 
 **Code Quality:**
 
