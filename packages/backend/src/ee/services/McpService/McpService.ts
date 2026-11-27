@@ -7184,14 +7184,13 @@ export class McpService extends BaseService {
             headerAgentUuid,
             sessionId,
         } = context.authInfo?.extra ?? {};
-        // Rejected arguments never passed the tool schema: only the pinned scope attributes them
+        // Rejected calls never reached a tool: only the pinned scope attributes them
+        const handled =
+            errorKind === null || McpService.ranToolHandler(errorKind);
         const pinnedScope = headerProjectUuid
             ? { projectUuid: headerProjectUuid, agentUuid: headerAgentUuid }
             : {};
-        const attributableArgs =
-            errorKind === null || McpService.ranToolHandler(errorKind)
-                ? toolArgs
-                : pinnedScope;
+        const attributableArgs = handled ? toolArgs : pinnedScope;
 
         // Prefer the explicit tool scope. Legacy global/context tools fall
         // back to stored context for activity enrichment only.
@@ -7205,7 +7204,7 @@ export class McpService extends BaseService {
             : null;
         let clientInfo: DbMcpSessionClientInfo | undefined;
         try {
-            if (!explicitScope.success) {
+            if (!explicitScope.success && handled) {
                 const contextRow = await this.mcpContextModel.getContext(
                     user.userUuid,
                     organizationUuid,

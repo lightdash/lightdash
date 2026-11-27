@@ -14,7 +14,11 @@ const pinnedProjectUuid = '11111111-1111-4111-8111-111111111111';
 const pinnedAgentUuid = '44444444-4444-4444-8444-444444444444';
 const argsProjectUuid = '22222222-2222-4222-8222-222222222222';
 
-const connect = async (headerAgentUuid?: string) => {
+const connect = async ({
+    pinned = true,
+    headerAgentUuid,
+}: { pinned?: boolean; headerAgentUuid?: string } = {}) => {
+    const headerProjectUuid = pinned ? pinnedProjectUuid : undefined;
     const createToolCall = vi.fn().mockResolvedValue(undefined);
     const track = vi.fn();
     const service = new McpService({
@@ -27,7 +31,11 @@ const connect = async (headerAgentUuid?: string) => {
             listMcpSkillResources: () => [],
             loadMcpSkill: vi.fn().mockResolvedValue(null),
         },
-        mcpContextModel: { getContext: vi.fn().mockResolvedValue(null) },
+        mcpContextModel: {
+            getContext: vi.fn().mockResolvedValue({
+                context: { projectUuid: argsProjectUuid, agentUuid: null },
+            }),
+        },
         mcpToolCallModel: {
             createToolCall,
             findSessionClientInfo: vi.fn().mockResolvedValue(undefined),
@@ -37,7 +45,7 @@ const connect = async (headerAgentUuid?: string) => {
     const user = defaultSessionUser;
     const options = makeMcpServerOptions(
         { queryPath: { type: 'composer', sqlRunnerEnabled: false } },
-        pinnedProjectUuid,
+        headerProjectUuid,
     );
     options.req.user = user;
     const server = await service.createServer(options);
@@ -55,7 +63,7 @@ const connect = async (headerAgentUuid?: string) => {
                 extra: {
                     user,
                     account: fromApiKey(user, 'token'),
-                    headerProjectUuid: pinnedProjectUuid,
+                    headerProjectUuid,
                     headerAgentUuid,
                     sessionId: '33333333-3333-4333-8333-333333333333',
                 },
@@ -114,8 +122,9 @@ describe('MCP calls rejected before a handler runs', () => {
     );
 
     it('attributes a rejected call to the pinned agent', async () => {
-        const { client, createToolCall, track } =
-            await connect(pinnedAgentUuid);
+        const { client, createToolCall, track } = await connect({
+            headerAgentUuid: pinnedAgentUuid,
+        });
         await client.callTool({
             name: 'run_metric_query',
             arguments: {
@@ -136,6 +145,23 @@ describe('MCP calls rejected before a handler runs', () => {
             projectId: pinnedProjectUuid,
             agentId: pinnedAgentUuid,
         });
+        await client.close();
+    });
+
+    it('leaves an unpinned rejected call unattributed rather than guessing from stored context', async () => {
+        const { client, createToolCall } = await connect({
+            pinned: false,
+        });
+        await client.callTool({ name: 'no_such_tool', arguments: {} });
+        await vi.waitFor(() =>
+            expect(createToolCall).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    project_uuid: null,
+                    agent_uuid: null,
+                    error_kind: 'unknown_tool',
+                }),
+            ),
+        );
         await client.close();
     });
 
