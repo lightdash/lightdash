@@ -20,6 +20,7 @@ import { type LiveScanResult } from '../types';
 import {
     buildLiveExplores,
     compileLiveMetricQuery,
+    describeLiveRowCap,
     describeLiveTarget,
     findSwitchedOffLiveExplore,
     getLiveDefinitionHashes,
@@ -243,6 +244,7 @@ describe('switching explores off and editing them', () => {
     it('adds the built-in explore hint after the source hints', () => {
         const [, users] = hydra({});
         expect(users.aiHint).toEqual([
+            describeLiveRowCap(ApiConnectorType.HYDRA),
             'Hydra target',
             'Source hint',
             HYDRA_USERS_EXPLORE.aiHint,
@@ -260,6 +262,7 @@ describe('switching explores off and editing them', () => {
         expect(users.label).toBe('Customers');
         expect(users.tables[users.baseTable].description).toBe('Paying users');
         expect(users.aiHint).toEqual([
+            describeLiveRowCap(ApiConnectorType.HYDRA),
             'Hydra target',
             'Source hint',
             'Seats are per workspace',
@@ -774,7 +777,7 @@ describe('explore AI hints', () => {
         expect(describeLiveTarget(apiSource, origin, label)).toBe(expected);
     });
 
-    it('stores the target first, then the admin text, and keeps the hash', () => {
+    it('starts every explore hint with the row cap, then the target and the admin text', () => {
         const apiSource = {
             connector: ApiConnectorType.SEARCH_CONSOLE,
             siteUrl: 'https://example.com/',
@@ -793,8 +796,13 @@ describe('explore AI hints', () => {
         });
         const [plain] = buildLiveExplores(args);
         expect(hinted.aiHint).toEqual([
+            'One query reads at most 24,999 Search Console rows. A query with more is refused, so add a filter or narrow the date range first.',
             'Search Console site https://example.com/',
             'EU store',
+            SEARCH_CONSOLE_PERFORMANCE_EXPLORE.aiHint,
+        ]);
+        expect(plain.aiHint).toEqual([
+            describeLiveRowCap(apiSource.connector),
             SEARCH_CONSOLE_PERFORMANCE_EXPLORE.aiHint,
         ]);
         expect(hinted.apiSource?.definitionHash).toBe(

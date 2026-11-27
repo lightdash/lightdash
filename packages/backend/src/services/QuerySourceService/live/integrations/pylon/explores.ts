@@ -135,7 +135,7 @@ export const PYLON_ISSUES_EXPLORE: LiveExploreDefinition = {
     label: 'Issues',
     description:
         'Support issues (conversations and tickets) in one Pylon workspace, one row per issue. Dates are in UTC.',
-    aiHint: 'Read live from Pylon issue search, one row per issue; a query reads at most 9,999 issues. Without a Created filter the query reads issues created in the last 30 days. There are no metrics: count, sum or average by aggregating rows. Tags "is" keeps issues with any of the tags. Title filters match part of the title. SLA fields are empty when the issue has no SLA.',
+    aiHint: 'Read live from Pylon issue search, one row per issue. Without a Created filter the query reads issues created in the last 30 days. There are no metrics: count, sum or average by aggregating rows. Tags "is" keeps issues with any of the tags. Title filters match part of the title. SLA fields are empty when the issue has no SLA.',
     dimensions: [
         dimension(
             'number',
@@ -354,7 +354,7 @@ export const PYLON_ACCOUNTS_EXPLORE: LiveExploreDefinition = {
     label: 'Accounts',
     description:
         'Customer accounts in one Pylon workspace, one row per account.',
-    aiHint: 'Read live from Pylon account search, one row per account; a query reads at most 9,999 accounts. No metrics: count rows to count accounts. Tags "is" keeps accounts with any of the tags. Dates are UTC days.',
+    aiHint: 'Read live from Pylon account search, one row per account. No metrics: count rows to count accounts. Tags "is" keeps accounts with any of the tags. Dates are UTC days.',
     dimensions: [
         text(
             'id',
@@ -417,7 +417,7 @@ export const PYLON_CONTACTS_EXPLORE: LiveExploreDefinition = {
     label: 'Contacts',
     description:
         'Customer contacts in one Pylon workspace, one row per contact.',
-    aiHint: 'Read live from Pylon contact search, one row per contact; a query reads at most 9,999 contacts. No metrics: count rows to count contacts.',
+    aiHint: 'Read live from Pylon contact search, one row per contact. No metrics: count rows to count contacts.',
     dimensions: [
         text(
             'id',

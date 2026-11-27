@@ -190,9 +190,7 @@ const toObjectExplore = (object: SalesforceObject): LiveExploreDefinition => ({
     } in Salesforce, one row per ${object.toLowerCase()}, with their fields.`,
     aiHint: `Read live with SOQL. With a metric, Salesforce groups and totals the records itself and returns at most ${SALESFORCE_MAX_AGGREGATE_ROWS.toLocaleString(
         'en-US',
-    )} rows in one call. Without a metric it lists records, at most ${SALESFORCE_MAX_RECORD_ROWS.toLocaleString(
-        'en-US',
-    )} per query. Date and time fields group by day, month, quarter or year (UTC); filter the base date field, not its grains. Long text, multi-select picklists and decimal fields are not offered as dimensions. Lookup fields have a companion "<name> name" field read through the lookup. Picklist values are listed in the field's description.`,
+    )} rows in one call. Without a metric it lists records. Date and time fields group by day, month, quarter or year (UTC); filter the base date field, not its grains. Long text, multi-select picklists and decimal fields are not offered as dimensions. Lookup fields have a companion "<name> name" field read through the lookup. Picklist values are listed in the field's description.`,
     dimensions: BUILT_IN_DIMENSIONS,
     metrics: [COUNT],
     maxDimensions: null,

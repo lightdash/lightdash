@@ -175,7 +175,7 @@ export const GITHUB_PULL_REQUESTS_EXPLORE: LiveExploreDefinition = {
     name: 'pull_requests',
     label: 'Pull requests',
     description: 'Pull requests in one GitHub repository.',
-    aiHint: "Read live from GitHub search. Count is GitHub's total for the filters and cannot be split by any dimension: query Count alone with filters, or list rows without Count. Listing reads at most 1,000 pull requests. Text filters match whole words. Dates are UTC days.",
+    aiHint: "Read live from GitHub search. Count is GitHub's total for the filters and cannot be split by any dimension: query Count alone with filters, or list rows without Count. Text filters match whole words. Dates are UTC days.",
     dimensions: PULL_REQUEST_DIMENSIONS,
     metrics: [searchCount('pull request')],
     maxDimensions: null,
@@ -208,7 +208,7 @@ export const GITHUB_ISSUES_EXPLORE: LiveExploreDefinition = {
     label: 'Issues',
     description:
         'Issues in one GitHub repository, not including pull requests.',
-    aiHint: "Read live from GitHub search. Count is GitHub's total for the filters and cannot be split by any dimension: query Count alone with filters, or list rows without Count. Listing reads at most 1,000 issues. Text filters match whole words. Dates are UTC days.",
+    aiHint: "Read live from GitHub search. Count is GitHub's total for the filters and cannot be split by any dimension: query Count alone with filters, or list rows without Count. Text filters match whole words. Dates are UTC days.",
     dimensions: ISSUE_DIMENSIONS,
     metrics: [searchCount('issue')],
     maxDimensions: null,

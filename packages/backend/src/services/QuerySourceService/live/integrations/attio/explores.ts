@@ -86,9 +86,7 @@ const toObjectExplore = (object: AttioObject): LiveExploreDefinition => ({
     name: object,
     label: OBJECT_LABELS[object],
     description: OBJECT_DESCRIPTIONS[object],
-    aiHint: `Read live, one row per record; a query lists at most ${ATTIO_MAX_RECORDS.toLocaleString(
-        'en-US',
-    )} records. There is no Count metric: count or sum by aggregating rows in the query. Multi-select attributes join several values with commas. Owner name fields are empty when the access token lacks the user_management:read scope.`,
+    aiHint: `Read live, one row per record. There is no Count metric: count or sum by aggregating rows in the query. Multi-select attributes join several values with commas. Owner name fields are empty when the access token lacks the user_management:read scope.`,
     dimensions: BUILT_IN_DIMENSIONS,
     metrics: [],
     maxDimensions: null,
