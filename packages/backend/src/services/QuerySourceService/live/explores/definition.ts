@@ -45,8 +45,8 @@ type ApiSourceFieldDefinition = {
     groups?: string[];
     /**
      * Whether a source starts with the field in use; absent means it does.
-     * Read only the first time a source sees the field: after that, its
-     * on/off state is the admin's.
+     * An admin's choice wins over it, and turning it off later never takes
+     * the field from a source that already has it.
      */
     onByDefault?: boolean;
 };
@@ -86,8 +86,8 @@ export type LiveExploreDefinition = {
     apiName?: string;
     /**
      * Whether a source starts with the explore on; absent means it does.
-     * Read only the first time a source sees the explore: after that, its
-     * on/off state is the admin's.
+     * An admin's choice wins over it, and turning it off later never takes
+     * the explore from a source that already has it.
      */
     onByDefault?: boolean;
     label: string;
