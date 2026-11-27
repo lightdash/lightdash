@@ -43,26 +43,19 @@ export const ALL_FEATURE_FLAG_IDS: readonly string[] = [
     ...Object.values(CommercialFeatureFlags),
 ].sort();
 
-/**
- * Every flag the preview flag panel lists and lets QA override: the enums
- * plus the integrations' flags. Integration flags are never forced on in
- * previews, since integrations are already on until a flag turns them off.
- */
-export const KNOWN_FEATURE_FLAG_IDS: readonly string[] = [
-    ...ALL_FEATURE_FLAG_IDS,
-    ...LIVE_SOURCE_FEATURE_FLAGS,
-].sort();
-
-const KNOWN_FEATURE_FLAG_ID_SET: ReadonlySet<string> = new Set(
-    KNOWN_FEATURE_FLAG_IDS,
+const KNOWN_FEATURE_FLAG_IDS: ReadonlySet<string> = new Set(
+    ALL_FEATURE_FLAG_IDS,
 );
 
 export const isKnownFeatureFlagId = (flagId: string): boolean =>
-    KNOWN_FEATURE_FLAG_ID_SET.has(flagId);
+    KNOWN_FEATURE_FLAG_IDS.has(flagId);
 
 /** Flags enabled by default in preview environments. */
 export const PREVIEW_ENABLED_FEATURE_FLAGS: ReadonlySet<string> = new Set(
     ALL_FEATURE_FLAG_IDS.filter(
-        (flagId) => !PREVIEW_EXCLUDED_FEATURE_FLAGS.has(flagId),
+        (flagId) =>
+            !PREVIEW_EXCLUDED_FEATURE_FLAGS.has(flagId) &&
+            // An integration flag forced on would stop previews turning that integration off
+            !LIVE_SOURCE_FEATURE_FLAGS.has(flagId),
     ),
 );

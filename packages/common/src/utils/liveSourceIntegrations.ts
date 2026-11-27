@@ -6,6 +6,7 @@ import {
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';
+import { type FeatureFlags } from '../types/featureFlags';
 import { ApiConnectorType } from '../types/querySources';
 import { HYDRA_SETTINGS_SCHEMA } from './hydraLiveSource';
 
@@ -46,7 +47,7 @@ type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
      * flag has no stored value; otherwise the organization's override, else
      * the flag's default, decides. Without one the integration is always on.
      */
-    featureFlag?: `live-source-${C}`;
+    featureFlag?: FeatureFlags;
 };
 
 /**
@@ -312,7 +313,7 @@ export const getLiveSourceFeatureFlag = (connector: ApiConnectorType) =>
     LIVE_INTEGRATION_CATALOG[connector].featureFlag;
 
 /** Every feature flag an integration declares. */
-export const LIVE_SOURCE_FEATURE_FLAGS: ReadonlySet<string> = new Set(
+export const LIVE_SOURCE_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>(
     Object.values(LIVE_INTEGRATION_CATALOG).flatMap(({ featureFlag }) =>
         featureFlag ? [featureFlag] : [],
     ),

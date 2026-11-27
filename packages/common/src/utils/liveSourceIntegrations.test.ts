@@ -1,7 +1,4 @@
-import {
-    isKnownFeatureFlagId,
-    PREVIEW_ENABLED_FEATURE_FLAGS,
-} from '../featureFlags/previewFeatureFlags';
+import { PREVIEW_ENABLED_FEATURE_FLAGS } from '../featureFlags/previewFeatureFlags';
 import {
     LIVE_INTEGRATION_CATALOG,
     LIVE_SOURCE_FEATURE_FLAGS,
@@ -17,9 +14,8 @@ describe('integration feature flags', () => {
         expect(LIVE_SOURCE_FEATURE_FLAGS.size).toBe(declared.length);
     });
 
-    it('lets previews override integration flags without forcing them on', () => {
+    it('never forces an integration flag on in previews', () => {
         declared.forEach((flagId) => {
-            expect(isKnownFeatureFlagId(flagId)).toBe(true);
             expect(PREVIEW_ENABLED_FEATURE_FLAGS.has(flagId)).toBe(false);
         });
     });
