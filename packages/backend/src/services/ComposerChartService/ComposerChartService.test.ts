@@ -1176,6 +1176,23 @@ describe('ComposerChartService.run', () => {
         expect(submitComposerRun).not.toHaveBeenCalled();
     });
 
+    test('refuses a dashboard missing from the project with the tile error', async () => {
+        const { service, submitComposerRun, dashboardModel } = setupRun();
+        dashboardModel.getByIdOrSlug.mockRejectedValue(
+            new NotFoundError('Dashboard not found'),
+        );
+        await expect(
+            service.run(
+                viewer(),
+                projectUuid,
+                'chart-uuid',
+                { ...runRequest, dashboardUuid: 'missing-dashboard' },
+                QueryExecutionContext.DASHBOARD,
+            ),
+        ).rejects.toThrow('not on that dashboard tile');
+        expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
     test('runs a tile of a chart a space owns, checking view on its space', async () => {
         const { service, submitComposerRun, getOwner, spacePermissionService } =
             setupRun();

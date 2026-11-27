@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { type CaslSubjectNames } from '../authorization/types';
 import { type DateZoom } from '../types/api/paginatedQuery';
+import { type UUID } from '../types/api/uuid';
 import { ParameterError } from '../types/errors';
 import { type Explore } from '../types/explore';
 import {
@@ -612,7 +613,7 @@ export const parseComposerChartRunRequest = (
 
 /** A tile run: the tile's run request plus the chart the tile shows. */
 export type DashboardComposerChartRunRequest = ComposerChartRunRequest & {
-    composerChartUuid: string;
+    composerChartUuid: UUID;
 };
 
 const dashboardRunRequestSchema = z.strictObject({

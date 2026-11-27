@@ -921,10 +921,12 @@ export class ComposerChartService extends BaseService {
         const notOnTile = new ForbiddenError(
             'This composer chart is not on that dashboard tile',
         );
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            request.dashboardUuid,
-            { projectUuid },
-        );
+        const dashboard = await this.dashboardModel
+            .getByIdOrSlug(request.dashboardUuid, { projectUuid })
+            .catch((error) => {
+                if (error instanceof NotFoundError) throw notOnTile;
+                throw error;
+            });
         // A uuid only, as before: a slug resolving here is refused
         if (dashboard.uuid !== request.dashboardUuid) throw notOnTile;
         const { dashboardUuid } = request;
