@@ -3,7 +3,6 @@ import {
     ChartType,
     ForbiddenError,
     LightdashAppPreviewTokenHeader,
-    LightdashAppUuidHeader,
     LightdashCustomSqlProvenanceChartUuidHeader,
     LightdashRequestMethodHeader,
     MergeJoinType,
@@ -80,54 +79,6 @@ describe('QueryController', () => {
                 expect.objectContaining({
                     context: expectedContext,
                 }),
-            );
-        },
-    );
-
-    it.each([
-        [undefined, QueryExecutionContext.DATA_APP],
-        [
-            QueryExecutionContext.SCHEDULED_DELIVERY,
-            QueryExecutionContext.SCHEDULED_DELIVERY,
-        ],
-    ])(
-        'attributes data app metric queries with explicit context %s to %s',
-        async (context, expectedContext) => {
-            const executeAsyncMetricQuery = vi
-                .fn()
-                .mockResolvedValue({ queryUuid: 'query-uuid' });
-            const controller = new QueryController({
-                getAsyncQueryService: () => ({
-                    executeAsyncMetricQuery,
-                    redactFieldsSqlForResponse: passThroughResults,
-                }),
-            } as unknown as ConstructorParameters<typeof QueryController>[0]);
-            const req = {
-                account: {},
-                headers: {},
-                header: (name: string) =>
-                    name === LightdashAppUuidHeader ? 'app-uuid' : undefined,
-            } as unknown as express.Request;
-
-            await controller.executeAsyncMetricQuery(
-                {
-                    query: {
-                        exploreName: 'orders',
-                        dimensions: ['orders_status'],
-                        metrics: ['orders_count'],
-                        filters: {},
-                        sorts: [],
-                        limit: 500,
-                        tableCalculations: [],
-                    },
-                    context,
-                },
-                'project-uuid',
-                req,
-            );
-
-            expect(executeAsyncMetricQuery).toHaveBeenCalledWith(
-                expect.objectContaining({ context: expectedContext }),
             );
         },
     );

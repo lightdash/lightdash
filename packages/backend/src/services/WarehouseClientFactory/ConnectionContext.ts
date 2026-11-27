@@ -138,7 +138,7 @@ export const surfaceFromQueryContext = (
         case QueryExecutionContext.CLI:
             return ConnectionSurface.API;
         case QueryExecutionContext.DATA_APP:
-            // Keeps the API surface app viewer queries had before DATA_APP existed
+            // Same surface as API; DATA_APP only changes attribution
             return ConnectionSurface.API;
         case QueryExecutionContext.DATA_APP_SAMPLE:
             return ConnectionSurface.DATA_APP;
