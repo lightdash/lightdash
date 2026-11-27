@@ -237,6 +237,21 @@ test('image submit retains before invoking the real promise, preserves rejected 
     expect(screen.getByRole('button', { name: 'Send message' })).toBeEnabled();
 });
 
+test('a submission rejected after the composer is gone still releases its uploads', async () => {
+    const request = deferred();
+    const { unmount } = renderInput({ onSubmit: () => request.promise });
+    attachReadyImage();
+    send();
+    expect(mocks.retain).toHaveBeenCalledWith(['image-1']);
+    unmount();
+    expect(mocks.release).not.toHaveBeenCalled();
+    await act(async () => {
+        request.reject(new Error('The agent pick was abandoned'));
+        await request.promise.catch(() => undefined);
+    });
+    expect(mocks.release).toHaveBeenCalledExactlyOnceWith(['image-1']);
+});
+
 test('successful image submission clears draft and releases preview resources only after acknowledgment', async () => {
     const request = deferred();
     const onSubmit = vi.fn(() => request.promise);

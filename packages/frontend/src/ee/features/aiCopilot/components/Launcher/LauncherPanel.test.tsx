@@ -16,18 +16,26 @@ import { store } from '../../store';
 import { LAUNCHER_AUTO_AGENT } from './launcherAgentSelection';
 import { LauncherPanel } from './LauncherPanel';
 
-const state = vi.hoisted(() => ({
-    refusal: null as AiAccessRefusal | null,
-    isLoading: false,
-    submit: vi.fn(),
-    login: vi.fn(),
-    isPickingAgent: false,
-    waitingPrompt: null as string | null,
-    waitingImages: [] as Extract<
-        AiPromptContextItem,
-        { type: 'thread_image' }
-    >[],
-}));
+type LauncherTestState = {
+    refusal: AiAccessRefusal | null;
+    isLoading: boolean;
+    submit: ReturnType<typeof vi.fn>;
+    login: ReturnType<typeof vi.fn>;
+    isPickingAgent: boolean;
+    waitingPrompt: string | null;
+    waitingImages: Extract<AiPromptContextItem, { type: 'thread_image' }>[];
+};
+const state = vi.hoisted(
+    (): LauncherTestState => ({
+        refusal: null,
+        isLoading: false,
+        submit: vi.fn(),
+        login: vi.fn(),
+        isPickingAgent: false,
+        waitingPrompt: null,
+        waitingImages: [],
+    }),
+);
 vi.mock('../../../../../features/aiAccess/api', () => ({
     useMyAiAccess: () => ({
         isAccessRequired: true,

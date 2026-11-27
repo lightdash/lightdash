@@ -113,7 +113,7 @@ describe('Slack prompt created after the user picks an agent', () => {
         );
     });
 
-    it('still records them when the message is not forwarded to the agent', async () => {
+    it('still hands them over when the message is not forwarded to the agent', async () => {
         const { createSlackPrompt, setThinkingStatusAndSchedule } =
             await createFromAction(false);
 

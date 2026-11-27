@@ -84,7 +84,9 @@ export const useAiAgentLauncherRouter = ({
                 context,
                 optimisticContext,
             }: SubmitArgs) => {
-                if (!isPinnedContextReady) return;
+                // Rejects so a composer holding uploads gets them back.
+                if (!isPinnedContextReady)
+                    throw new Error('The page context is still loading');
 
                 const mergedContext = mergeAiPromptContextInput(
                     contextInput,

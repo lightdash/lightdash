@@ -62,6 +62,17 @@ type HeldSubmission = {
     reject: (reason: unknown) => void;
 };
 
+// A submission that ends without a conversation must reject, never resolve:
+// the composer has retained the uploads and only releases them on a rejection.
+const PICK_ABANDONED = 'The agent pick was abandoned';
+
+const notCreated = (reason: string): { created: Promise<void> } => {
+    const created = Promise.reject<void>(new Error(reason));
+    // Not every submitter waits for the conversation.
+    created.catch(() => undefined);
+    return { created };
+};
+
 export type AiAgentRouterCandidate = AiRouterDecisionCandidate & {
     agent: AiAgentSummary | undefined;
     isRecommended: boolean;
@@ -111,17 +122,17 @@ export const useAiAgentRouterFlow = ({
     // A submission settles only once its conversation exists or cannot: the
     // composer keeps the draft and its uploads until then.
     const heldSubmissionRef = useRef<HeldSubmission | null>(null);
-    useEffect(
-        () => () => {
+    const isUnmountedRef = useRef(false);
+    useEffect(() => {
+        isUnmountedRef.current = false;
+        return () => {
+            isUnmountedRef.current = true;
             // Leaving at the picker abandons the message, so the composer
             // releases the uploads instead of waiting for a claim.
-            heldSubmissionRef.current?.reject(
-                new Error('The agent pick was abandoned'),
-            );
+            heldSubmissionRef.current?.reject(new Error(PICK_ABANDONED));
             heldSubmissionRef.current = null;
-        },
-        [],
-    );
+        };
+    }, []);
     const { mutateAsync: routePrompt } = useAiRouterRoute();
     const { mutate: commitDecisionMutate } = useAiRouterCommit();
 
@@ -178,7 +189,7 @@ export const useAiAgentRouterFlow = ({
         }: AiAgentRouterSubmitArgs): Promise<
             { created: Promise<void> } | undefined
         > => {
-            if (!projectUuid) return undefined;
+            if (!projectUuid) return notCreated('No project to send it in');
 
             dispatch({ type: 'routing' });
             let result: AiRouterRouteResponseResult;
@@ -204,7 +215,9 @@ export const useAiAgentRouterFlow = ({
                         : {}),
                     toolHints,
                 });
-                return undefined;
+                return onRouteError && agents[0]
+                    ? undefined
+                    : notCreated('No agent could take the message');
             }
 
             if (result.nextAction === 'create_thread') {
@@ -224,6 +237,9 @@ export const useAiAgentRouterFlow = ({
                 }
                 return undefined;
             }
+
+            // Left while routing: nobody can pick, so the pick is abandoned.
+            if (isUnmountedRef.current) return notCreated(PICK_ABANDONED);
 
             dispatch({
                 type: 'picker',

@@ -235,7 +235,9 @@ const AgentsRouterPage = () => {
             optimisticContext?: AiPromptContext;
             toolHints: string[];
         }) => {
-            if (!isPinnedContextReady) return;
+            // Rejects so a composer holding uploads gets them back.
+            if (!isPinnedContextReady)
+                throw new Error('The page context is still loading');
             setPendingPrompt('');
             const mergedContext = mergeAiPromptContextInput(
                 contextInput,

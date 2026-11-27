@@ -91,9 +91,11 @@ const fallbackAgent: AiAgentSummary = {
 const setup = ({
     agents = [],
     onRouteError,
+    hasProject = true,
 }: {
     agents?: AiAgentSummary[];
     onRouteError?: (args: AiAgentRouterErrorArgs) => Promise<unknown> | void;
+    hasProject?: boolean;
 } = {}) => {
     const createThreadForAgent = vi
         .fn<CreateThreadForAgent>()
@@ -103,7 +105,7 @@ const setup = ({
             agents,
             createThreadForAgent,
             onRouteError,
-            projectUuid: 'project-1',
+            projectUuid: hasProject ? 'project-1' : undefined,
         }),
     );
     return { ...rendered, createThreadForAgent };
@@ -315,7 +317,7 @@ describe('useAiAgentRouterFlow', () => {
             expect(result.current.isLocked).toBe(false);
         });
 
-        it('are handed back when the fallback conversation cannot be created', async () => {
+        it('have their submission rejected when the fallback conversation cannot be created', async () => {
             routePrompt.mockRejectedValue(new Error('Router unavailable'));
             const { result } = setup({
                 agents: [fallbackAgent],
@@ -328,7 +330,7 @@ describe('useAiAgentRouterFlow', () => {
             await waitFor(() => expect(outcome.settled).toBe('rejected'));
         });
 
-        it('are handed back when the routed conversation cannot be created', async () => {
+        it('have their submission rejected when the routed conversation cannot be created', async () => {
             routePrompt.mockResolvedValue(routeResult('create_thread'));
             const { result, createThreadForAgent } = setup();
             createThreadForAgent.mockRejectedValue(
@@ -342,7 +344,7 @@ describe('useAiAgentRouterFlow', () => {
             expect(commitDecision).not.toHaveBeenCalled();
         });
 
-        it('are handed back, and the composer unlocked, when a held image can no longer be claimed', async () => {
+        it('have their submission rejected, and the composer unlocked, when a held image can no longer be claimed', async () => {
             routePrompt.mockResolvedValue(routeResult('show_picker'));
             const { result, createThreadForAgent } = setup();
             createThreadForAgent.mockRejectedValue(
@@ -361,7 +363,7 @@ describe('useAiAgentRouterFlow', () => {
             expect(commitDecision).not.toHaveBeenCalled();
         });
 
-        it('are released without a conversation when the user leaves the picker', async () => {
+        it('have their submission rejected, without a conversation, when the user leaves the picker', async () => {
             routePrompt.mockResolvedValue(routeResult('show_picker'));
             const { result, createThreadForAgent, unmount } = setup();
 
@@ -374,6 +376,54 @@ describe('useAiAgentRouterFlow', () => {
             await waitFor(() => expect(outcome.settled).toBe('rejected'));
             expect(createThreadForAgent).not.toHaveBeenCalled();
             expect(commitDecision).not.toHaveBeenCalled();
+        });
+
+        it('have their submission rejected when the user leaves while the router is still answering', async () => {
+            let answer: (result: AiRouterRouteResponseResult) => void = () =>
+                undefined;
+            routePrompt.mockReturnValue(
+                new Promise<AiRouterRouteResponseResult>((resolve) => {
+                    answer = resolve;
+                }),
+            );
+            const { result, createThreadForAgent, unmount } = setup();
+
+            const outcome = submit(result);
+            await waitFor(() => expect(routePrompt).toHaveBeenCalledOnce());
+            unmount();
+            answer(routeResult('show_picker'));
+
+            await waitFor(() => expect(outcome.settled).toBe('rejected'));
+            expect(createThreadForAgent).not.toHaveBeenCalled();
+        });
+
+        it('have their submission rejected when routing fails and no agent can take the message', async () => {
+            routePrompt.mockRejectedValue(new Error('Router unavailable'));
+            const onRouteError = vi
+                .fn<(args: AiAgentRouterErrorArgs) => Promise<void>>()
+                .mockResolvedValue(undefined);
+            const { result, createThreadForAgent } = setup({
+                agents: [],
+                onRouteError,
+            });
+
+            const outcome = submit(result);
+
+            await waitFor(() => expect(outcome.settled).toBe('rejected'));
+            expect(createThreadForAgent).not.toHaveBeenCalled();
+            expect(result.current.isLocked).toBe(false);
+        });
+
+        it('have their submission rejected when there is no project to send them in', async () => {
+            const { result, createThreadForAgent } = setup({
+                hasProject: false,
+            });
+
+            const outcome = submit(result);
+
+            await waitFor(() => expect(outcome.settled).toBe('rejected'));
+            expect(routePrompt).not.toHaveBeenCalled();
+            expect(createThreadForAgent).not.toHaveBeenCalled();
         });
 
         it('are not released by leaving once the pick is being created', async () => {
