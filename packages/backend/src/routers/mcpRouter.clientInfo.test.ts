@@ -188,11 +188,13 @@ test('each session records its own client when clients share a user agent', asyn
     const events = analytics.track.mock.calls.map(([event]) => ({
         session: event.properties.sessionId,
         name: event.properties.clientName,
+        version: event.properties.clientVersion,
     }));
     expect(events).toEqual(
         rows.map((row) => ({
             session: row.session ?? undefined,
             name: row.name ?? undefined,
+            version: row.version ?? undefined,
         })),
     );
 });

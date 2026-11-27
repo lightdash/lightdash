@@ -79,16 +79,13 @@ export class McpToolCallModel {
     }
 
     async saveSessionClientInfo(data: SaveMcpSessionClientInfo): Promise<void> {
-        await this.database(McpSessionClientInfoTableName)
-            .insert({
-                mcp_session_id: data.sessionId,
-                user_uuid: data.userUuid,
-                organization_uuid: data.organizationUuid,
-                client_name: data.clientName,
-                client_version: data.clientVersion,
-            })
-            .onConflict('mcp_session_id')
-            .ignore();
+        await this.database(McpSessionClientInfoTableName).insert({
+            mcp_session_id: data.sessionId,
+            user_uuid: data.userUuid,
+            organization_uuid: data.organizationUuid,
+            client_name: data.clientName,
+            client_version: data.clientVersion,
+        });
     }
 
     // Scoped to the caller so an echoed session id of another user reads nothing

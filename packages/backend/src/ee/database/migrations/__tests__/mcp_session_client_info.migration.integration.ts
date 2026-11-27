@@ -3,8 +3,8 @@ import { Knex } from 'knex';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
-} from '../../testing/migratedDatabase';
-import { McpToolCallModel } from './McpToolCallModel';
+} from '../../../../testing/migratedDatabase';
+import { McpToolCallModel } from '../../../models/McpToolCallModel';
 
 describe('McpToolCallModel session client info (PostgreSQL)', () => {
     let migrated: MigratedDatabase;
@@ -67,23 +67,5 @@ describe('McpToolCallModel session client info (PostgreSQL)', () => {
                 organizationUuid,
             ),
         ).resolves.toBeUndefined();
-    });
-
-    test('a repeated session id keeps the first client', async () => {
-        const sessionId = randomUUID();
-        const save = (clientName: string, owner: string) =>
-            model.saveSessionClientInfo({
-                sessionId,
-                userUuid: owner,
-                organizationUuid,
-                clientName,
-                clientVersion: null,
-            });
-        await save('claude-ai', userUuid);
-        await save('claude-code', otherUserUuid);
-
-        await expect(
-            model.findSessionClientInfo(sessionId, userUuid, organizationUuid),
-        ).resolves.toMatchObject({ client_name: 'claude-ai' });
     });
 });

@@ -426,26 +426,23 @@ mcpRouter.all(
                 // Session ids group tool calls made over one client
                 // connection. Assigned on initialize (spec: clients MUST echo
                 // the header on all subsequent requests); the stateless
-                // transport skips session validation, so this stays a pure
-                // correlation token with no server-side session state.
+                // transport skips session validation, so the only state kept
+                // per session is the clientInfo its initialize declared.
                 const isInitialize = isInitializeRequest(req);
                 const sessionId = isInitialize
                     ? randomUUID()
                     : extractSessionIdFromHeader(req);
                 if (isInitialize && sessionId) {
                     res.setHeader(MCP_SESSION_ID_HEADER, sessionId);
-                }
-
-                // clientInfo only appears on initialize; store it under the
-                // minted session id so tool calls of that session record it.
-                const clientInfo = extractClientInfoFromInitialize(req);
-                if (clientInfo && sessionId && req.user) {
-                    await mcpService.captureClientInfo({
-                        user: req.user,
-                        sessionId,
-                        clientName: clientInfo.name,
-                        clientVersion: clientInfo.version,
-                    });
+                    const clientInfo = extractClientInfoFromInitialize(req);
+                    if (clientInfo) {
+                        await mcpService.captureClientInfo({
+                            user,
+                            sessionId,
+                            clientName: clientInfo.name,
+                            clientVersion: clientInfo.version,
+                        });
+                    }
                 }
                 // Content-write tools are only registered when the org-level
                 // setting allows it, so admins can lock down MCP edits.
