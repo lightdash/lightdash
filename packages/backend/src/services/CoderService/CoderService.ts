@@ -205,6 +205,7 @@ import {
 import {
     assertNotComposerChartFile,
     isComposerChartAsCodeUnchanged,
+    SpaceOwnedComposerChartUploadError,
     toComposerChartAsCode,
 } from './composerChartsAsCode';
 import {
@@ -3551,7 +3552,7 @@ export class CoderService extends BaseService {
     private async getComposerChartsAsCode(
         projectUuid: string,
         charts: Array<
-            ComposerChart & { dashboardSlug: string; spaceSlug: string }
+            ComposerChart & { dashboardSlug: string | null; spaceSlug: string }
         >,
     ): Promise<ComposerChartAsCode[]> {
         const dataAppVizUuids = charts.flatMap(({ chart }) =>
@@ -3633,7 +3634,7 @@ export class CoderService extends BaseService {
         );
     }
 
-    /** Slug-list read for AI/MCP read_content: no export gate; view through the chart's dashboard still applies. */
+    /** Slug-list read for AI/MCP read_content: no export gate; view through the chart's owner still applies. */
     async getComposerChartsForRead(
         account: RegisteredAccount,
         projectUuid: string,
@@ -3657,7 +3658,7 @@ export class CoderService extends BaseService {
             projectUuid,
             slugs,
         );
-        // Viewing a composer chart follows its dashboard, as on every other read
+        // Viewing a composer chart follows its owner, as on every other read
         const viewable = await Promise.all(
             charts.map((chart) =>
                 this.composerChartService
@@ -3748,11 +3749,15 @@ export class CoderService extends BaseService {
             projectUuid,
             slug,
         );
+        const dashboardSlug = file.dashboardSlug ?? null;
+        if (dashboardSlug === null || existing?.owner.type === 'space') {
+            throw new SpaceOwnedComposerChartUploadError(slug);
+        }
         const live = existing && !existing.deleted ? existing : null;
         if (live) {
             const stored = await this.composerChartModel.get(live.uuid);
             const [current] = await this.getComposerChartsAsCode(projectUuid, [
-                { ...stored, dashboardSlug: file.dashboardSlug, spaceSlug: '' },
+                { ...stored, dashboardSlug, spaceSlug: '' },
             ]);
             if (isComposerChartAsCodeUnchanged(file, current)) {
                 return {
@@ -3778,7 +3783,7 @@ export class CoderService extends BaseService {
             ? []
             : await this.dashboardModel.find({
                   projectUuid,
-                  slug: file.dashboardSlug,
+                  slug: dashboardSlug,
               });
         let dashboardUuid = dashboard?.uuid;
         let placeholderUuid: string | null = null;
@@ -3792,7 +3797,7 @@ export class CoderService extends BaseService {
                 placeholderUuid = await this.createPlaceholderDashboard(
                     user,
                     projectUuid,
-                    file,
+                    { dashboardSlug, spaceSlug: file.spaceSlug },
                     { ...options, allowSpaceCreate },
                 );
                 dashboardUuid = placeholderUuid;
@@ -3826,7 +3831,7 @@ export class CoderService extends BaseService {
     private async createPlaceholderDashboard(
         user: SessionUser,
         projectUuid: string,
-        file: Pick<ComposerChartAsCode, 'dashboardSlug' | 'spaceSlug'>,
+        file: { dashboardSlug: string; spaceSlug: string },
         options: Pick<
             UpsertContentAsCodeOptions,
             'skipSpaceCreate' | 'publicSpaceCreate' | 'spaceNames'

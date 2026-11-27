@@ -3731,6 +3731,28 @@ describe('AiAgentToolsService', () => {
             });
         });
 
+        it('reads a space-owned composer chart as code, linked to its page', async () => {
+            const spaceChart = { ...composerChartAsCode, dashboardSlug: null };
+            const { service } = makeComposerService({
+                getComposerChartsForRead: vi
+                    .fn()
+                    .mockResolvedValue({ composerCharts: [spaceChart] }),
+            });
+
+            const read = await service
+                .createRuntime(makeRuntimeContext())
+                .readContent({
+                    type: 'composer_chart',
+                    slug: 'revenue-vs-target',
+                });
+
+            expect(read).toEqual({
+                type: 'composer_chart',
+                content: spaceChart,
+                href: `/projects/${projectUuid}/composer-charts/revenue-vs-target`,
+            });
+        });
+
         it('hides a composer chart whose dashboard is outside the agent spaces', async () => {
             const { service } = makeComposerService({
                 spaceModel: {

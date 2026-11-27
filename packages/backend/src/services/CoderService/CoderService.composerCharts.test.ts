@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import { CoderService } from './CoderService';
+import { SpaceOwnedComposerChartUploadError } from './composerChartsAsCode';
 
 const PROJECT_UUID = 'project-uuid';
 const ORG_UUID = 'org-uuid';
@@ -50,7 +51,9 @@ const storedChart = (uuid: string): AnyType => ({
     updatedAt: new Date(),
 });
 
-const makeService = () => {
+const makeService = (
+    charts: AnyType[] = [storedChart('visible'), storedChart('hidden')],
+) => {
     const assertCanView = vi.fn(
         async (_account: unknown, _project: string, uuid: string) => {
             if (uuid === 'hidden') throw new ForbiddenError();
@@ -63,16 +66,14 @@ const makeService = () => {
             getSummary: vi.fn(async () => ({ organizationUuid: ORG_UUID })),
         },
         spaceModel: {
-            find: vi.fn(async () => [{ uuid: 'space-uuid', path: 'jaffle' }]),
+            find: vi.fn(async () => [
+                { uuid: 'space-uuid', path: 'jaffle' },
+                { uuid: 'marketing-uuid', path: 'marketing.growth' },
+            ]),
         },
         appModel: { findAppsByUuids: vi.fn(async () => []) },
         composerChartModel: {
-            findForCode: vi.fn(
-                async (): Promise<ComposerChart[]> => [
-                    storedChart('visible'),
-                    storedChart('hidden'),
-                ],
-            ),
+            findForCode: vi.fn(async (): Promise<ComposerChart[]> => charts),
         },
         composerChartService: { assertCanView },
     } as AnyType);
@@ -80,7 +81,49 @@ const makeService = () => {
 
 const account = { user: { userUuid: user.userUuid } } as RegisteredAccount;
 
+const spaceChart = (uuid: string): AnyType => ({
+    ...storedChart(uuid),
+    owner: { type: 'space', spaceUuid: 'marketing-uuid' },
+    dashboardUuid: undefined,
+    dashboardSlug: null,
+    spaceUuid: 'marketing-uuid',
+});
+
 describe('CoderService composer chart download', () => {
+    it('writes a space-owned chart with no dashboard and its own space', async () => {
+        const service = makeService([
+            storedChart('on-dashboard'),
+            spaceChart('in-space'),
+        ]);
+
+        const result = await service.getComposerCharts(
+            user,
+            account,
+            PROJECT_UUID,
+            undefined,
+            undefined,
+        );
+
+        expect(
+            result.composerCharts.map(({ slug, dashboardSlug, spaceSlug }) => ({
+                slug,
+                dashboardSlug,
+                spaceSlug,
+            })),
+        ).toEqual([
+            {
+                slug: 'on-dashboard',
+                dashboardSlug: 'on-dashboard-dashboard',
+                spaceSlug: 'jaffle',
+            },
+            {
+                slug: 'in-space',
+                dashboardSlug: null,
+                spaceSlug: 'marketing/growth',
+            },
+        ]);
+    });
+
     it('leaves out a chart whose dashboard the caller cannot view', async () => {
         const result = await makeService().getComposerCharts(
             user,
@@ -137,7 +180,10 @@ describe('CoderService composer chart upsert for the agent', () => {
         name: 'Renamed',
         spaceSlug: 'jaffle',
     });
-    const makeUpsertService = () => {
+    const makeUpsertService = ({
+        owner = { type: 'dashboard', dashboardUuid: 'd' },
+        deleted = false,
+    }: { owner?: AnyType; deleted?: boolean } = {}) => {
         const writeFromCode = vi.fn(async () => 'visible');
         const service = new CoderService({
             lightdashConfig: { contentAsCode: { maxDownloads: 100 } },
@@ -151,7 +197,8 @@ describe('CoderService composer chart upsert for the agent', () => {
             composerChartModel: {
                 findIdentityBySlug: vi.fn(async () => ({
                     uuid: 'visible',
-                    deleted: false,
+                    deleted,
+                    owner,
                 })),
                 get: vi.fn(async () => storedChart('visible')),
             },
@@ -193,4 +240,47 @@ describe('CoderService composer chart upsert for the agent', () => {
         );
         expect(writeFromCode).toHaveBeenCalledOnce();
     });
+
+    it.each([
+        ['names no dashboard', { dashboardSlug: null }],
+        ['omits its dashboard', { dashboardSlug: undefined }],
+    ])('refuses a file that %s, even unchanged', async (_, overrides) => {
+        const { service, writeFromCode } = makeUpsertService();
+        await expect(
+            service.upsertComposerChart(
+                user,
+                account,
+                PROJECT_UUID,
+                'visible',
+                {
+                    ...editedFile(),
+                    name: 'visible',
+                    ...overrides,
+                },
+                { authorization: 'space_access' },
+            ),
+        ).rejects.toThrow(SpaceOwnedComposerChartUploadError);
+        expect(writeFromCode).not.toHaveBeenCalled();
+    });
+
+    it.each([false, true])(
+        'refuses a file for a space-owned chart (deleted: %s), even naming a dashboard',
+        async (deleted) => {
+            const { service, writeFromCode } = makeUpsertService({
+                owner: { type: 'space', spaceUuid: 'marketing-uuid' },
+                deleted,
+            });
+            await expect(
+                service.upsertComposerChart(
+                    user,
+                    account,
+                    PROJECT_UUID,
+                    'visible',
+                    { ...editedFile(), name: 'visible' },
+                    { authorization: 'space_access' },
+                ),
+            ).rejects.toThrow(SpaceOwnedComposerChartUploadError);
+            expect(writeFromCode).not.toHaveBeenCalled();
+        },
+    );
 });

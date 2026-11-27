@@ -21,9 +21,9 @@ export type ComposerChartAsCode = {
     slug: string;
     name: string;
     description: string | null;
-    /** The owning dashboard. Ignored on upload when the chart already exists. */
-    dashboardSlug: string;
-    /** Only used to create a placeholder dashboard when dashboardSlug names none. */
+    /** The owning dashboard; null or missing for a chart a space owns. Ignored on upload when the chart exists. */
+    dashboardSlug?: string | null;
+    /** The owning space, or the dashboard's space; a missing dashboard is created there. */
     spaceSlug: string;
     pipeline: ComposerChartPipeline;
     chart: ComposerStoredChartAsCode;

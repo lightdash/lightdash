@@ -1127,8 +1127,8 @@
                     "$ref": "#/$defs/ContentAsCodeType.COMPOSER_CHART"
                 },
                 "dashboardSlug": {
-                    "description": "The owning dashboard. Ignored on upload when the chart already exists.",
-                    "type": "string"
+                    "description": "The owning dashboard; null or missing for a chart a space owns. Ignored on upload when the chart exists.",
+                    "type": ["string", "null"]
                 },
                 "description": {
                     "type": ["string", "null"]
@@ -1147,7 +1147,7 @@
                     "type": "string"
                 },
                 "spaceSlug": {
-                    "description": "Only used to create a placeholder dashboard when dashboardSlug names none.",
+                    "description": "The owning space, or the dashboard's space; a missing dashboard is created there.",
                     "type": "string"
                 },
                 "updatedAt": {
@@ -1163,7 +1163,6 @@
                 "chart",
                 "pipeline",
                 "spaceSlug",
-                "dashboardSlug",
                 "description",
                 "name",
                 "slug",

@@ -493,30 +493,39 @@ export class ComposerChartModel {
         return ComposerChartModel.toComposerChart(row);
     }
 
-    /** Live charts on live dashboards, for download; all of the project's when `slugs` is undefined. */
+    /** Live charts with a live owner in a live space, for download; all of the project's when `slugs` is undefined. */
     async findForCode(
         projectUuid: string,
         slugs: string[] | undefined,
     ): Promise<
-        Array<ComposerChart & { dashboardSlug: string; spaceUuid: string }>
+        Array<
+            ComposerChart & { dashboardSlug: string | null; spaceUuid: string }
+        >
     > {
         const query = this.latestVersionQuery()
-            .innerJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${ComposerChartsTableName}.dashboard_uuid`,
-            )
-            .innerJoin(
-                SpaceTableName,
-                `${SpaceTableName}.space_id`,
-                `${DashboardsTableName}.space_id`,
-            )
+            .leftJoin(DashboardsTableName, function joinLiveDashboard() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${ComposerChartsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
+            .innerJoin(SpaceTableName, function joinOwnerSpace() {
+                this.on(
+                    `${SpaceTableName}.space_uuid`,
+                    '=',
+                    `${ComposerChartsTableName}.space_uuid`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                );
+            })
             .select(
                 `${DashboardsTableName}.slug as dashboard_slug`,
-                `${SpaceTableName}.space_uuid as dashboard_space_uuid`,
+                `${SpaceTableName}.space_uuid as owner_space_uuid`,
             )
             .where(`${ComposerChartsTableName}.project_uuid`, projectUuid)
-            .whereNull(`${DashboardsTableName}.deleted_at`)
             .whereNull(`${SpaceTableName}.deleted_at`)
             .orderBy(`${ComposerChartsTableName}.slug`);
         const rows = await (slugs === undefined
@@ -525,7 +534,7 @@ export class ComposerChartModel {
         return rows.map((row) => ({
             ...ComposerChartModel.toComposerChart(row),
             dashboardSlug: row.dashboard_slug,
-            spaceUuid: row.dashboard_space_uuid,
+            spaceUuid: row.owner_space_uuid,
         }));
     }
 
@@ -533,18 +542,24 @@ export class ComposerChartModel {
     async findBySlugs(
         projectUuid: string,
         slugs: string[],
-    ): Promise<Array<{ uuid: string; slug: string; dashboardUuid: string }>> {
+    ): Promise<
+        Array<{ uuid: string; slug: string; owner: ComposerChartOwner }>
+    > {
         if (slugs.length === 0) return [];
         const rows = await this.database(ComposerChartsTableName)
-            .select('composer_chart_uuid', 'slug', 'dashboard_uuid')
+            .select(
+                'composer_chart_uuid',
+                'slug',
+                'dashboard_uuid',
+                'space_uuid',
+            )
             .where('project_uuid', projectUuid)
             .whereIn('slug', slugs)
-            .whereNull('deleted_at')
-            .whereNotNull('dashboard_uuid');
+            .whereNull('deleted_at');
         return rows.map((row) => ({
             uuid: row.composer_chart_uuid,
             slug: row.slug,
-            dashboardUuid: row.dashboard_uuid!,
+            owner: toOwner(row.composer_chart_uuid, row),
         }));
     }
 
@@ -552,15 +567,25 @@ export class ComposerChartModel {
     async findIdentityBySlug(
         projectUuid: string,
         slug: string,
-    ): Promise<{ uuid: string; deleted: boolean } | null> {
+    ): Promise<{
+        uuid: string;
+        deleted: boolean;
+        owner: ComposerChartOwner;
+    } | null> {
         const row = await this.database(ComposerChartsTableName)
-            .select('composer_chart_uuid', 'deleted_at')
+            .select(
+                'composer_chart_uuid',
+                'deleted_at',
+                'dashboard_uuid',
+                'space_uuid',
+            )
             .where({ project_uuid: projectUuid, slug })
             .first();
         return row
             ? {
                   uuid: row.composer_chart_uuid,
                   deleted: row.deleted_at !== null,
+                  owner: toOwner(row.composer_chart_uuid, row),
               }
             : null;
     }

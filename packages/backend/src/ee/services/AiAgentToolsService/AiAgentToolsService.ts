@@ -2280,6 +2280,14 @@ export class AiAgentToolsService extends BaseService {
         return `/projects/${context.projectUuid}/sql-runner/${slug}#chart-link`;
     }
 
+    /** A space-owned composer chart's page, which takes its uuid or slug. */
+    private static getComposerChartUrl(
+        context: AiAgentToolsRuntimeContext,
+        slug: string,
+    ) {
+        return `/projects/${context.projectUuid}/composer-charts/${slug}`;
+    }
+
     private static getSpaceUrl(
         context: AiAgentToolsRuntimeContext,
         uuid: string,
@@ -3393,6 +3401,16 @@ export class AiAgentToolsService extends BaseService {
             notFound,
             action,
         );
+        if (!composerChart.dashboardSlug) {
+            return {
+                type: 'composer_chart',
+                content: composerChart,
+                href: AiAgentToolsService.getComposerChartUrl(
+                    context,
+                    composerChart.slug,
+                ),
+            };
+        }
         const dashboard = await this.dashboardService.getByIdOrSlug(
             context.user,
             composerChart.dashboardSlug,

@@ -2,6 +2,7 @@ import {
     ChartType,
     ContentAsCodeType,
     currentVersion,
+    NotSupportedError,
     ParameterError,
     type ChartAsCodeConfig,
     type ComposerChart,
@@ -17,7 +18,7 @@ export const toComposerChartAsCode = (
         spaceSlug,
         dataAppVizSlugByUuid,
     }: {
-        dashboardSlug: string;
+        dashboardSlug: string | null;
         spaceSlug: string;
         dataAppVizSlugByUuid: ReadonlyMap<string, string>;
     },
@@ -110,3 +111,12 @@ export const assertNotComposerChartFile = (slug: string, body: unknown) => {
         );
     }
 };
+
+/** Upload refuses a composer chart a space owns until it can write one. */
+export class SpaceOwnedComposerChartUploadError extends NotSupportedError {
+    constructor(slug: string) {
+        super(
+            `Composer chart "${slug}" belongs to a space, not a dashboard. Uploading composer charts that belong to a space is not supported yet.`,
+        );
+    }
+}
