@@ -69,10 +69,10 @@ export class ComposerChartController extends BaseController {
     }
 
     /**
-     * Gets a composer chart's current version, pipeline included, with the
-     * space it lives in and who last changed it. Takes the chart's uuid or
-     * slug. Anyone who can view charts in its owning dashboard or space can
-     * read it.
+     * Gets the current version of a composer chart, including its pipeline.
+     * The response also includes the chart's space and the user who last
+     * changed it. Takes the chart's UUID or slug. Anyone who can view charts
+     * in the chart's dashboard or space can read it.
      * @summary Get composer chart
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -93,9 +93,9 @@ export class ComposerChartController extends BaseController {
     }
 
     /**
-     * Lists the parameters a composer chart's nodes reference, with their
-     * definitions from the project and the nodes' models. Anyone who can view
-     * the chart can read them.
+     * Lists the parameters that a composer chart's nodes reference. Each
+     * parameter includes its definition, from the project or from the
+     * referencing node's model. Anyone who can view the chart can read them.
      * @summary Get composer chart parameters
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

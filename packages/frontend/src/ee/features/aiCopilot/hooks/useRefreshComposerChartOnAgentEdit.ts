@@ -1,6 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { COMPOSER_CHART_PAGE_QUERY_KEYS } from '../../../../features/composerCharts/hooks/useComposerChartPage';
 import { getHandledAgentToolCallIds } from '../streaming/handledAgentToolCalls';
 import { useAiAgentProjectStreamParts } from '../streaming/useAiAgentThreadStreamQuery';
 
@@ -32,10 +31,9 @@ export const useRefreshComposerChartOnAgentEdit = ({
             if (edit.type === 'toolCall')
                 handledToolCallIds.add(edit.toolCallId);
         }
-        for (const key of COMPOSER_CHART_PAGE_QUERY_KEYS) {
-            void queryClient.invalidateQueries({
-                queryKey: [key, projectUuid],
-            });
-        }
+        // The page's run and parameters are keyed by version, so a new version reruns them
+        void queryClient.invalidateQueries({
+            queryKey: ['composerChart', projectUuid],
+        });
     }, [parts, projectUuid, composerChartUuid, queryClient]);
 };

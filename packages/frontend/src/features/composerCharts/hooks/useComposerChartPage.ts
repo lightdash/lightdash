@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type ComposerChart,
     type ComposerChartParameters,
     type ComposerChartRunResults,
     type ExecuteComposerChartRequest,
@@ -9,41 +10,38 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useRef, useState } from 'react';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
-/** Query keys the chart page reads; an agent edit invalidates them. */
-export const COMPOSER_CHART_PAGE_QUERY_KEYS = [
-    'composerChart',
-    'composerChartPageRun',
-    'composerChartParameters',
-] as const;
+type PageChart = Pick<ComposerChart, 'uuid' | 'versionUuid'>;
 
-/** A chart run of a space-owned chart for its page; `refresh` reruns it once, skipping the results cache. */
+/** A chart run of a space-owned chart for its page, per version; `refresh` reruns it once, skipping the results cache. */
 export const useComposerChartPageRun = ({
     projectUuid,
-    composerChartUuid,
+    chart,
     parameters,
 }: {
     projectUuid: string;
-    composerChartUuid: string;
+    chart: PageChart;
     parameters: ParametersValuesMap;
 }) => {
     const lightdashApi = useLightdashApi();
-    const [refreshCount, setRefreshCount] = useState(0);
+    // A timestamp, not a counter: a counter restarts on remount and would hit a cached run
+    const [refreshedAt, setRefreshedAt] = useState(0);
     const invalidateNextRun = useRef(false);
     const refresh = useCallback(() => {
         invalidateNextRun.current = true;
-        setRefreshCount((count) => count + 1);
+        setRefreshedAt(Date.now());
     }, []);
     const runQuery = useQuery<ComposerChartRunResults, ApiError>({
         queryKey: [
             'composerChartPageRun',
             projectUuid,
-            composerChartUuid,
+            chart.uuid,
+            chart.versionUuid,
             parameters,
-            refreshCount,
+            refreshedAt,
         ],
         queryFn: () => {
             const body: ExecuteComposerChartRequest = {
-                composerChartUuid,
+                composerChartUuid: chart.uuid,
                 parameters,
                 invalidateCache: invalidateNextRun.current,
             };
@@ -62,14 +60,19 @@ export const useComposerChartPageRun = ({
 
 export const useComposerChartParameters = (
     projectUuid: string,
-    composerChartUuid: string,
+    chart: PageChart,
 ) => {
     const lightdashApi = useLightdashApi();
     return useQuery<ComposerChartParameters, ApiError>({
-        queryKey: ['composerChartParameters', projectUuid, composerChartUuid],
+        queryKey: [
+            'composerChartParameters',
+            projectUuid,
+            chart.uuid,
+            chart.versionUuid,
+        ],
         queryFn: () =>
             lightdashApi<ComposerChartParameters>({
-                url: `/projects/${projectUuid}/composer-charts/${composerChartUuid}/parameters`,
+                url: `/projects/${projectUuid}/composer-charts/${chart.uuid}/parameters`,
                 version: 'v2',
                 method: 'GET',
                 body: undefined,
