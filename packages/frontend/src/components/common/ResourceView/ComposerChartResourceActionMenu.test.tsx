@@ -6,11 +6,19 @@ import {
     type ResourceViewComposerChartItem,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import ComposerChartResourceActionMenu from './ComposerChartResourceActionMenu';
 import { ResourceViewItemAction } from './types';
 
-const mocks = vi.hoisted(() => ({ spaceRole: 'editor' }));
+const mocks = vi.hoisted(() => ({ spaceRole: 'editor', canAsk: false }));
+vi.mock(
+    '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/useAskAiAgentAction',
+    () => ({ useAskAiAgentAction: () => ({ canAsk: mocks.canAsk }) }),
+);
+vi.mock(
+    '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem',
+    () => ({ AskAiAgentMenuItem: () => <div role="menuitem">Ask AI</div> }),
+);
 
 const ability = new Ability<PossibleAbilities>([
     {
@@ -72,6 +80,7 @@ const renderMenu = () => {
 describe('Composer chart resource actions', () => {
     it('offers rename and move to a space editor', () => {
         mocks.spaceRole = 'editor';
+        mocks.canAsk = false;
         const onAction = renderMenu();
         fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }));
         expect(onAction).toHaveBeenCalledWith({
@@ -85,8 +94,18 @@ describe('Composer chart resource actions', () => {
         });
     });
 
-    it('renders no menu for a space viewer', () => {
+    it('offers a space viewer only Ask AI, and no menu when they cannot ask', () => {
         mocks.spaceRole = 'viewer';
+        mocks.canAsk = true;
+        renderMenu();
+        expect(
+            screen.getByRole('menuitem', { name: 'Ask AI' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('menuitem', { name: 'Rename' }),
+        ).not.toBeInTheDocument();
+        cleanup();
+        mocks.canAsk = false;
         renderMenu();
         expect(
             screen.queryByRole('button', { name: 'Chart actions' }),
