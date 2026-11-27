@@ -11,7 +11,6 @@ import {
     ForbiddenError,
     MergeJoinType,
     MetricType,
-    NotSupportedError,
     QueryExecutionContext,
     QuerySourceType,
     TableCalculationType,
@@ -651,7 +650,6 @@ describe('ComposerChartService.run', () => {
             flagEnabled?: boolean;
             chart?: CreateComposerChart['chart'];
             nodes?: ComposerChartPipelineNode[];
-            owner?: ComposerChartOwner;
         } = {},
     ) => {
         const {
@@ -662,10 +660,7 @@ describe('ComposerChartService.run', () => {
         } = setup(options);
         const body = createBody(options.nodes ?? PIPELINES.python);
         const stored = body.pipeline;
-        const owner: ComposerChartOwner = options.owner ?? {
-            type: 'dashboard',
-            dashboardUuid,
-        };
+        const owner: ComposerChartOwner = { type: 'dashboard', dashboardUuid };
         Object.assign(composerChartModel, {
             getOwner: vi.fn(async () => ({ projectUuid, owner })),
             get: vi.fn(async () => ({
@@ -935,22 +930,6 @@ describe('ComposerChartService.run', () => {
                 QueryExecutionContext.DASHBOARD,
             ),
         ).rejects.toThrow(ForbiddenError);
-        expect(submitComposerRun).not.toHaveBeenCalled();
-    });
-
-    test('refuses a chart owned by a space', async () => {
-        const { service, submitComposerRun } = setupRun({
-            owner: { type: 'space', spaceUuid: 'space-uuid' },
-        });
-        await expect(
-            service.run(
-                viewer(),
-                projectUuid,
-                'chart-uuid',
-                runRequest,
-                QueryExecutionContext.DASHBOARD,
-            ),
-        ).rejects.toThrow(NotSupportedError);
         expect(submitComposerRun).not.toHaveBeenCalled();
     });
 

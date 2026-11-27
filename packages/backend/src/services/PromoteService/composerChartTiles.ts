@@ -74,7 +74,10 @@ export const getComposerChartChanges = async (
                         `Composer chart "${source.slug}" already belongs to a space in the upstream project`,
                     );
                 default:
-                    assertUnreachable(owner, 'Unknown composer chart owner');
+                    return assertUnreachable(
+                        owner,
+                        'Unknown composer chart owner',
+                    );
             }
             const current = await composerChartModel.get(identity.uuid);
             const unchanged =

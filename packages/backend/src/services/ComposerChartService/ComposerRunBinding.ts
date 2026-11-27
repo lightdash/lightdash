@@ -1,8 +1,6 @@
 import {
-    assertUnreachable,
     ForbiddenError,
     getComposerChartPivotStage,
-    NotSupportedError,
     type Account,
     type ComposerChart,
     type ComposerChartPipelineNode,
@@ -33,6 +31,7 @@ export class ComposerRunBinding {
     static forAuthorizedViewer({
         account,
         chart,
+        dashboardUuid,
         tileUuid,
         resolved,
         dashboardFilters,
@@ -40,6 +39,8 @@ export class ComposerRunBinding {
     }: {
         account: RegisteredAccount;
         chart: ComposerChart;
+        /** The dashboard the tile is on, checked against the chart's owner by the caller. */
+        dashboardUuid: string;
         tileUuid: string;
         /** The stored nodes with the dashboard's filters and parameters written on, and the shared parameter map. */
         resolved: {
@@ -50,21 +51,6 @@ export class ComposerRunBinding {
         dateZoomByNodeId: Record<string, DateZoom>;
     }): ComposerRunBinding {
         const stage = getComposerChartPivotStage(chart.pipeline, chart.chart);
-        let dashboardUuid: string;
-        switch (chart.owner.type) {
-            case 'dashboard':
-                dashboardUuid = chart.owner.dashboardUuid;
-                break;
-            case 'space':
-                throw new NotSupportedError(
-                    'Composer charts in a space do not run on a dashboard tile yet',
-                );
-            default:
-                return assertUnreachable(
-                    chart.owner,
-                    'Unknown composer chart owner',
-                );
-        }
         return new ComposerRunBinding(
             account.user.userUuid,
             chart.projectUuid,

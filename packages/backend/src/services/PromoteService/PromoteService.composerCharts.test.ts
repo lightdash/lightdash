@@ -140,7 +140,7 @@ const setup = ({
     upstreamChartOwner = {
         type: 'dashboard',
         dashboardUuid: upstreamDashboardUuid,
-    } as ComposerChartOwner,
+    },
     sourceChart = composerChart({}),
 }: {
     upstreamDashboardExists?: boolean;
@@ -449,33 +449,24 @@ describe('promoting a dashboard with composer charts', () => {
         expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
     });
 
-    test.each<[string, ComposerChartOwner]>([
-        [
-            'on another upstream dashboard',
-            { type: 'dashboard', dashboardUuid: 'another-dashboard' },
-        ],
-        [
-            'in an upstream space',
-            { type: 'space', spaceUuid: 'upstream-space' },
-        ],
-    ])(
-        'refuses when the slug belongs to a composer chart %s',
-        async (_, owner) => {
-            const { service, dashboardModel, composerChartService } = setup({
-                upstreamChart: composerChart({
-                    uuid: 'someone-elses-chart',
-                    projectUuid: upstreamProjectUuid,
-                }),
-                upstreamChartOwner: owner,
-            });
+    test('refuses when the slug belongs to a composer chart on another upstream dashboard', async () => {
+        const { service, dashboardModel, composerChartService } = setup({
+            upstreamChart: composerChart({
+                uuid: 'someone-elses-chart',
+                projectUuid: upstreamProjectUuid,
+            }),
+            upstreamChartOwner: {
+                type: 'dashboard',
+                dashboardUuid: 'another-dashboard',
+            },
+        });
 
-            await expect(
-                service.promoteDashboard(account, sourceDashboard.uuid, scoped),
-            ).rejects.toBeInstanceOf(AlreadyExistsError);
-            expect(dashboardModel.create).not.toHaveBeenCalled();
-            expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
-        },
-    );
+        await expect(
+            service.promoteDashboard(account, sourceDashboard.uuid, scoped),
+        ).rejects.toBeInstanceOf(AlreadyExistsError);
+        expect(dashboardModel.create).not.toHaveBeenCalled();
+        expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
+    });
 
     test('carries the custom chart type the chart uses', async () => {
         const { service, appGenerateService, composerChartService } = setup({

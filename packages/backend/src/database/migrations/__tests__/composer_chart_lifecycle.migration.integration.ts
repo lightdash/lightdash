@@ -192,9 +192,8 @@ describe('composer charts follow their dashboard on the real schema', () => {
         });
     });
 
-    it('reads a space owner and revives the chart onto a dashboard with one owner column', async () => {
-        const { dashboard } = await createDashboardWithChart();
-        const composerChartUuid = await composerChartModel.create({
+    const createSpaceChart = () =>
+        composerChartModel.create({
             uuid: null,
             slug: null,
             projectUuid: fixture.projectUuid,
@@ -205,12 +204,22 @@ describe('composer charts follow their dashboard on the real schema', () => {
             chart: storedChart,
             createdByUserUuid: fixture.userUuid,
         });
+
+    it('reads a space owner', async () => {
+        const composerChartUuid = await createSpaceChart();
+        const owner = { type: 'space', spaceUuid: fixture.spaceUuid };
+
         await expect(
             composerChartModel.getOwner(composerChartUuid),
-        ).resolves.toEqual({
-            projectUuid: fixture.projectUuid,
-            owner: { type: 'space', spaceUuid: fixture.spaceUuid },
-        });
+        ).resolves.toEqual({ projectUuid: fixture.projectUuid, owner });
+        await expect(
+            composerChartModel.get(composerChartUuid),
+        ).resolves.toMatchObject({ owner });
+    });
+
+    it('revives a space-owned chart onto a dashboard, leaving one owner column', async () => {
+        const { dashboard } = await createDashboardWithChart();
+        const composerChartUuid = await createSpaceChart();
         const { slug } = await composerChartModel.get(composerChartUuid);
         await database('composer_charts')
             .where('composer_chart_uuid', composerChartUuid)

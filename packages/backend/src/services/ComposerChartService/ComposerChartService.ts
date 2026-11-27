@@ -430,7 +430,7 @@ export class ComposerChartService extends BaseService {
         );
         const dashboardUuid =
             existing && !existing.deleted
-                ? ComposerChartService.getDashboardUuid(
+                ? ComposerChartService.requireDashboardOwner(
                       (await this.composerChartModel.getOwner(existing.uuid))
                           .owner,
                   )
@@ -492,7 +492,7 @@ export class ComposerChartService extends BaseService {
     }
 
     /** The owning dashboard; a chart in a space is not served yet. */
-    private static getDashboardUuid(owner: ComposerChartOwner): string {
+    private static requireDashboardOwner(owner: ComposerChartOwner): string {
         switch (owner.type) {
             case 'dashboard':
                 return owner.dashboardUuid;
@@ -516,7 +516,7 @@ export class ComposerChartService extends BaseService {
         if (chartProjectUuid !== projectUuid) {
             throw new NotFoundError('Composer chart not found');
         }
-        const dashboardUuid = ComposerChartService.getDashboardUuid(owner);
+        const dashboardUuid = ComposerChartService.requireDashboardOwner(owner);
         const dashboardAccess = await this.getDashboardAccess(
             account,
             projectUuid,
@@ -592,7 +592,8 @@ export class ComposerChartService extends BaseService {
                     } catch (error) {
                         if (
                             error instanceof ForbiddenError ||
-                            error instanceof NotFoundError
+                            error instanceof NotFoundError ||
+                            error instanceof NotSupportedError
                         )
                             return [];
                         throw error;
@@ -871,6 +872,7 @@ export class ComposerChartService extends BaseService {
         const binding = ComposerRunBinding.forAuthorizedViewer({
             account,
             chart,
+            dashboardUuid,
             tileUuid: request.tileUuid,
             resolved,
             dashboardFilters,

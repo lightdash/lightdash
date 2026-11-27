@@ -1807,6 +1807,7 @@ describe('composer bound run', () => {
                     chartConfig: { type: ChartType.TABLE },
                 },
             } as ComposerChart,
+            dashboardUuid: 'dashboard-uuid',
             tileUuid: 'tile-uuid',
             resolved: { nodes: storedNodes, parameters: {} },
             dashboardFilters: {

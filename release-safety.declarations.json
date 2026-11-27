@@ -399,7 +399,7 @@
             }
         },
         "composer-chart-owner-replaces-dashboard-uuid": {
-            "reason": "A composer chart returned by GET and POST /api/v2/projects/{projectUuid}/composer-charts now names its owner as owner, a dashboard or a space, instead of a top-level dashboardUuid, and @lightdash/common ComposerChart drops dashboardUuid. The create request still takes dashboardUuid. The composer-charts flag is off by default on Cloud and on self-hosted and the endpoints refuse writes and runs with it off. The web app's dashboard tile is the only caller and reads only the pipeline and chart, so an old tab during a rolling update keeps working.",
+            "reason": "A composer chart returned by GET and POST /api/v2/projects/{projectUuid}/composer-charts now names its owner as owner, a dashboard or a space, instead of a top-level dashboardUuid, and @lightdash/common ComposerChart drops dashboardUuid. The create request still takes dashboardUuid. The composer-charts flag is off by default on Cloud and on self-hosted and the endpoints refuse writes and runs with it off. The web app is the only caller: its dashboard tile reads only the pipeline and chart, and its save modal reads only uuid from a create, so an old tab during a rolling update keeps working.",
             "requiredStop": false,
             "impact": {
                 "kind": "no-external-callers",
