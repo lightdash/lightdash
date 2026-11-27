@@ -1,3 +1,10 @@
+# [3.420.0](https://github.com/lightdash/lightdash/compare/3.419.1...3.420.0) (2026-11-27)
+
+
+### Features
+
+* add Security page for self-hosted enterprise instances ([#33515](https://github.com/lightdash/lightdash/issues/33515)) ([4b767a2](https://github.com/lightdash/lightdash/commit/4b767a2444ceb509673d1813b95f8a94ad45905e))
+
 ## [3.419.1](https://github.com/lightdash/lightdash/compare/3.419.0...3.419.1) (2026-11-26)
 
 
