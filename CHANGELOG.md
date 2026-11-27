@@ -1,3 +1,10 @@
+## [3.420.6](https://github.com/lightdash/lightdash/compare/3.420.5...3.420.6) (2026-11-27)
+
+
+### Bug Fixes
+
+* **semantic-studio:** summarize a draft's unchanged fields once in the chat card ([#33526](https://github.com/lightdash/lightdash/issues/33526)) ([ce5c511](https://github.com/lightdash/lightdash/commit/ce5c51160b2219748b8539296e0e177422f518bb))
+
 ## [3.420.5](https://github.com/lightdash/lightdash/compare/3.420.4...3.420.5) (2026-11-27)
 
 
