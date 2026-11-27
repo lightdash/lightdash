@@ -438,6 +438,7 @@ const projectModel = {
         queryTimezone: null,
     })),
     findExploresFromCache: vi.fn(async () => allExplores),
+    findApiSourceExploreNamesByIntegration: vi.fn(async () => []),
     findExploreTableSummariesFromCache: vi.fn<
         ProjectModel['findExploreTableSummariesFromCache']
     >(async () => ({

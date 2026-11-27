@@ -224,7 +224,6 @@ import {
     type GoogleConnectorType,
 } from './googleOAuth';
 import { type GoogleServiceAccountTokenProvider } from './GoogleServiceAccountTokenProvider';
-import { fetchFromHydra } from './hydraFetch';
 import {
     buildLinkedInAdsAuthorizeUrl,
     getLinkedInAdsOAuthRedirectUri,
@@ -5236,31 +5235,17 @@ export class ExternalConnectionService extends BaseService {
             headers['Content-Type'] = 'application/json';
         }
 
-        // Delegate to the SSRF-hardened fetch. Hydra, the test integration,
-        // answers in-process and never reaches the network.
-        const { apiSource } = connection;
+        // Delegate to the SSRF-hardened fetch
         const fetchResource = () =>
-            apiSource?.connector === ApiConnectorType.HYDRA
-                ? fetchFromHydra({
-                      connectionUuid: connection.externalConnectionUuid,
-                      settings: apiSource,
-                      secret,
-                      timeoutMs: connection.timeoutMs,
-                      request: {
-                          method: req.method === 'GET' ? 'GET' : 'POST',
-                          path: validatedPath,
-                          body: req.body,
-                      },
-                  })
-                : secureFetch(url, {
-                      method: req.method,
-                      body,
-                      headers,
-                      timeoutMs: connection.timeoutMs,
-                      maxResponseBytes: connection.responseMaxBytes,
-                      allowedContentTypes: connection.allowedContentTypes,
-                      allowedPrivateHostCidrs: this.allowedPrivateHostCidrs,
-                  });
+            secureFetch(url, {
+                method: req.method,
+                body,
+                headers,
+                timeoutMs: connection.timeoutMs,
+                maxResponseBytes: connection.responseMaxBytes,
+                allowedContentTypes: connection.allowedContentTypes,
+                allowedPrivateHostCidrs: this.allowedPrivateHostCidrs,
+            });
 
         let fetched;
         try {

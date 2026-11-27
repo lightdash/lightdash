@@ -2,9 +2,6 @@ import {
     FilterOperator,
     HYDRA_DEFAULT_SOURCE,
     ParameterError,
-    TooManyRequestsError,
-    UnexpectedServerError,
-    WarehouseConnectionError,
     type Explore,
     type HydraApiSource,
     type MetricQuery,
@@ -16,7 +13,6 @@ import {
 } from '../../explores/build';
 import { assertLiveQuery } from '../../explores/definition';
 import { connectLiveSource } from '../../liveSource.mock';
-import { createHydraServer, type HydraServer } from './fake/server';
 import { HYDRA_MAX_QUERY_ROWS } from './run';
 
 const NOW = new Date('2026-11-23T12:00:00Z');
@@ -59,19 +55,9 @@ const compile = (explore: Explore, metricQuery: MetricQuery) => {
     });
 };
 
-/** A source whose calls reach a fresh Hydra server, the way the service sends them. */
-const connect = ({
-    settings = settingsWith(),
-    token = 'alice',
-    server = createHydraServer({ now: () => NOW, sleep: vi.fn() }),
-}: {
-    settings?: HydraApiSource;
-    token?: string | null;
-    server?: HydraServer;
-} = {}) => {
-    const send = vi.fn((request) =>
-        server.fetch({ sourceKey: 'source-1', settings, token, request }),
-    );
+/** A source run the way the service runs it; `send` would carry any call it made. */
+const connect = (settings: HydraApiSource = settingsWith()) => {
+    const send = vi.fn();
     const source = connectLiveSource(hydraIntegration, settings, send);
     const run = (explore: Explore, metricQuery: MetricQuery) => {
         const compiled = compile(explore, metricQuery);
@@ -162,9 +148,18 @@ describe('Hydra compile', () => {
 });
 
 describe('Hydra through the shared engine', () => {
-    it('returns the same totals for the same token and other rows for another', async () => {
-        const totals = (token: string) =>
-            connect({ token }).run(
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(NOW);
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('returns the same totals every time, without calling anything', async () => {
+        const totals = () => {
+            const { run, send } = connect();
+            return run(
                 EVENTS,
                 query(EVENTS, {
                     dimensions: [field(EVENTS, 'event_type')],
@@ -173,24 +168,23 @@ describe('Hydra through the shared engine', () => {
                         field(EVENTS, 'revenue'),
                     ],
                 }),
-            );
-        const alice = await totals('alice');
-        expect(await totals('alice')).toEqual(alice);
-        expect(await totals('bob')).not.toEqual(alice);
-        expect(alice.columns.map(({ name }) => name)).toEqual([
+            ).then((result) => ({ result, send }));
+        };
+        const first = await totals();
+        expect((await totals()).result).toEqual(first.result);
+        expect(first.send).not.toHaveBeenCalled();
+        expect(first.result.columns.map(({ name }) => name)).toEqual([
             'event_type',
             'event_count',
             'revenue',
         ]);
-        // Sorted by the first metric, largest first, by the API
-        const counts = alice.rows.map((row) => Number(row.event_count));
+        // Sorted by the first metric, largest first
+        const counts = first.result.rows.map((row) => Number(row.event_count));
         expect(counts).toEqual([...counts].sort((a, b) => b - a));
     });
 
     it('counts every seeded event when nothing narrows it', async () => {
-        const { rows } = await connect({
-            settings: settingsWith({ rowCount: 250 }),
-        }).run(
+        const { rows } = await connect(settingsWith({ rowCount: 250 })).run(
             EVENTS,
             query(EVENTS, {
                 metrics: [field(EVENTS, 'event_count')],
@@ -217,7 +211,7 @@ describe('Hydra through the shared engine', () => {
     });
 
     it('marks results cut at the limit and refuses a limit past its row cap', async () => {
-        const { run, send } = connect();
+        const { run } = connect();
         const byUser = (limit: number) =>
             query(EVENTS, {
                 dimensions: [field(EVENTS, 'user_id')],
@@ -227,185 +221,19 @@ describe('Hydra through the shared engine', () => {
         const cut = await run(EVENTS, byUser(5));
         expect(cut.rows).toHaveLength(5);
         expect(cut.hasMoreRows).toBe(true);
-        expect(send).toHaveBeenCalledTimes(1);
 
         await expect(
             run(EVENTS, byUser(HYDRA_MAX_QUERY_ROWS + 1)),
         ).rejects.toMatchObject({
             data: { liveSourceErrorCode: 'live_source.refused.row_limit' },
         });
-        expect(send).toHaveBeenCalledTimes(1);
     });
 
-    it('answers its mock responses for the calls they name, then as usual', async () => {
-        const { run } = connect({
-            settings: settingsWith({
-                mockResponses: [
-                    { call: 1, status: 200 },
-                    { call: 2, status: 429, retryAfterSeconds: 7 },
-                ],
-            }),
-        });
-        const count = query(EVENTS, {
-            metrics: [field(EVENTS, 'event_count')],
-        });
-        await expect(run(EVENTS, count)).resolves.toBeDefined();
-        const limited = run(EVENTS, count);
-        await expect(limited).rejects.toBeInstanceOf(TooManyRequestsError);
-        await expect(limited).rejects.toMatchObject({
-            data: { retryAfterSeconds: 7 },
-        });
-        await expect(run(EVENTS, count)).resolves.toBeDefined();
-    });
-
-    it('reads a page at a time when the source pages', async () => {
-        const byUser = query(EVENTS, {
-            dimensions: [field(EVENTS, 'user_id')],
-            metrics: [field(EVENTS, 'event_count')],
-            limit: 60,
-        });
-        const whole = await connect().run(EVENTS, byUser);
-        const paged = connect({ settings: settingsWith({ pageSize: 20 }) });
-        await expect(paged.run(EVENTS, byUser)).resolves.toEqual(whole);
-        // 61 rows asked for, 20 a page
-        expect(paged.send).toHaveBeenCalledTimes(4);
-    });
-
-    it('fails sign-in when told to, or without a token', async () => {
-        const count = query(EVENTS, {
-            metrics: [field(EVENTS, 'event_count')],
-        });
-        await expect(
-            connect({ settings: settingsWith({ failAuth: true }) }).run(
-                EVENTS,
-                count,
-            ),
-        ).rejects.toBeInstanceOf(WarehouseConnectionError);
-        await expect(
-            connect({ token: null }).run(EVENTS, count),
-        ).rejects.toBeInstanceOf(WarehouseConnectionError);
-    });
-
-    it('fails the share of calls its error rate says', async () => {
-        const count = query(EVENTS, {
-            metrics: [field(EVENTS, 'event_count')],
-        });
-        const failing = createHydraServer({
-            now: () => NOW,
-            sleep: vi.fn(),
-            random: () => 0.4,
-        });
-        await expect(
-            connect({
-                settings: settingsWith({ errorRate: 0.5 }),
-                server: failing,
-            }).run(EVENTS, count),
-        ).rejects.toBeInstanceOf(UnexpectedServerError);
-        await expect(
-            connect({
-                settings: settingsWith({ errorRate: 0.3 }),
-                server: failing,
-            }).run(EVENTS, count),
-        ).resolves.toBeDefined();
-    });
-
-    it('waits its latency before answering', async () => {
-        const sleep = vi.fn().mockResolvedValue(undefined);
-        await connect({
-            settings: settingsWith({ latencyMs: 1_500 }),
-            server: createHydraServer({ now: () => NOW, sleep }),
-        }).run(USERS, query(USERS, { metrics: [field(USERS, 'seats')] }));
-        expect(sleep).toHaveBeenCalledWith(1_500);
-    });
-
-    it('explains a request it does not understand', async () => {
-        const server = createHydraServer({ now: () => NOW });
-        const response = await server.fetch({
-            sourceKey: 'source-1',
-            settings: settingsWith(),
-            token: 'alice',
-            request: {
-                method: 'POST',
-                path: '/v1/report',
-                body: { report: 'users', metrics: ['revenue'] },
-            },
-        });
-        expect(response.status).toBe(400);
-        expect(response.body).toEqual({
-            message: expect.stringContaining('no field "revenue"'),
-        });
-    });
-
-    it('summarizes the setup test with the account the token reads', async () => {
-        const server = createHydraServer({ now: () => NOW });
-        const { body } = await server.fetch({
-            sourceKey: 'source-1',
-            settings: settingsWith({ rowCount: 40 }),
-            token: 'alice',
-            request: { method: 'GET', path: '/v1/account', body: undefined },
-        });
-        expect(
-            hydraIntegration.connection.summarizeTest?.(body, settingsWith()),
-        ).toMatchObject({
-            summary: expect.stringMatching(
-                /^Connected to Hydra account hydra-/,
-            ),
-            facts: [
-                { label: 'Events', value: '40' },
-                { label: 'Users', value: '10' },
-            ],
-        });
-    });
-
-    it('declares the vendor limits by default, its own, or none', () => {
-        expect(
-            hydraIntegration.query.limitsFor?.(settingsWith()),
-        ).toMatchObject({
-            concurrentCalls: 2,
-            callsPerSecond: null,
-            buckets: [
-                {
-                    id: 'minute',
-                    label: 'per minute',
-                    windowMs: 60_000,
-                    capacity: 30,
-                },
-                {
-                    id: 'hour',
-                    label: 'per hour',
-                    windowMs: 3_600_000,
-                    capacity: 300,
-                },
-            ],
-        });
-        expect(
-            hydraIntegration.query.limitsFor?.(
-                settingsWith({
-                    declaredLimits: {
-                        concurrentCalls: 1,
-                        callsPerSecond: 5,
-                        buckets: [
-                            { id: 'burst', windowMs: 2_000, capacity: 3 },
-                        ],
-                    },
-                }),
-            ),
-        ).toMatchObject({
-            concurrentCalls: 1,
-            callsPerSecond: 5,
-            buckets: [
-                {
-                    id: 'burst',
-                    label: 'per 2000 ms',
-                    windowMs: 2_000,
-                    capacity: 3,
-                },
-            ],
-        });
-        expect(
-            hydraIntegration.query.limitsFor?.(
-                settingsWith({ declaredLimits: null }),
-            ),
-        ).toMatchObject({ callsPerSecond: null, buckets: [] });
+    it('reads users too', async () => {
+        const { rows } = await connect().run(
+            USERS,
+            query(USERS, { metrics: [field(USERS, 'user_count')] }),
+        );
+        expect(Number(rows[0].user_count)).toBeGreaterThan(0);
     });
 });

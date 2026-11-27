@@ -5,31 +5,11 @@ import {
 } from '../ee/externalConnections/types';
 import { ApiConnectorType } from '../types/querySources';
 
-/**
- * A Hydra source that behaves like a healthy API: it enforces 2 calls at
- * once, 30 a minute and 300 an hour, and Lightdash declares the same.
- */
+/** What a Hydra source seeds when it sets nothing. */
 export const HYDRA_DEFAULT_SETTINGS: HydraSettings = {
     rowCount: 1_000,
-    pageSize: 0,
-    latencyMs: 0,
-    jitterMs: 0,
-    errorRate: 0,
-    failAuth: false,
-    vendorLimits: {
-        concurrentCalls: 2,
-        callsPerSecond: null,
-        buckets: [
-            { id: 'minute', windowMs: 60_000, capacity: 30 },
-            { id: 'hour', windowMs: 3_600_000, capacity: 300 },
-        ],
-    },
-    onLimit: { status: 429, retryAfterFormat: 'seconds' },
-    declaredLimits: 'vendor',
-    mockResponses: [],
     objects: [],
 };
-
 /** A Hydra source with no settings, so every one takes its default. */
 export const HYDRA_DEFAULT_SOURCE: HydraApiSource = {
     connector: ApiConnectorType.HYDRA,
@@ -50,10 +30,6 @@ export const withHydraDefaults = (source: HydraApiSource): HydraSettings => ({
     ),
 });
 
-// Caps keep one call's work small: the gate writes a row per bucket per call
-const MAX_BUCKETS = 5;
-const MAX_BUCKET_ID_LENGTH = 40;
-const MAX_MOCK_RESPONSES = 50;
 const MAX_OBJECTS = 10;
 const MAX_OBJECT_FIELDS = 20;
 const MAX_OBJECT_RECORDS = 10_000;
@@ -92,98 +68,8 @@ const objectSchema = z
     })
     .strict();
 
-const count = z.number().int().min(1);
-const errorStatus = z.number().int().min(400).max(599);
-const body = z.record(z.string(), z.unknown());
-
-const rateLimitsSchema = z.object({
-    concurrentCalls: count.nullable(),
-    callsPerSecond: count.nullable(),
-    buckets: z
-        .array(
-            z.object({
-                // "second" counts callsPerSecond
-                id: z
-                    .string()
-                    .min(1)
-                    .max(MAX_BUCKET_ID_LENGTH)
-                    .refine((id) => id !== 'second', 'must not be second'),
-                windowMs: count,
-                capacity: count,
-            }),
-        )
-        .max(MAX_BUCKETS)
-        .refine(
-            (buckets) =>
-                new Set(buckets.map(({ id }) => id)).size === buckets.length,
-            'must have unique ids',
-        ),
-});
-
-const mockResponseSchema = z
-    .object({
-        call: count.optional(),
-        fromCall: count.optional(),
-        toCall: count.optional(),
-        status: z.union([z.literal(200), errorStatus]),
-        retryAfterSeconds: z.number().int().min(0).max(3_600).optional(),
-        body: body.optional(),
-    })
-    .strict()
-    .refine(
-        ({ call, fromCall }) =>
-            (call === undefined) !== (fromCall === undefined),
-        'must set call, or fromCall',
-    )
-    .refine(
-        ({ call, toCall }) => call === undefined || toCall === undefined,
-        'must not set toCall with call',
-    )
-    .refine(
-        ({ fromCall, toCall }) =>
-            fromCall === undefined ||
-            toCall === undefined ||
-            toCall >= fromCall,
-        'must not set toCall before fromCall',
-    )
-    .refine(
-        ({ status, retryAfterSeconds, body: errorBody }) =>
-            status !== 200 ||
-            (retryAfterSeconds === undefined && errorBody === undefined),
-        'must not set retryAfterSeconds or body with status 200',
-    );
-
 const SETTING_SCHEMAS = {
     rowCount: z.number().int().min(0).max(100_000).optional(),
-    // At least 10, so the row cap fits in a query's 51 calls
-    pageSize: z
-        .number()
-        .int()
-        .refine((size) => size === 0 || (size >= 10 && size <= 10_000), {
-            message: 'must be 0, or from 10 to 10000',
-        })
-        .optional(),
-    latencyMs: z.number().int().min(0).max(120_000).optional(),
-    jitterMs: z.number().int().min(0).max(120_000).optional(),
-    errorRate: z.number().min(0).max(1).optional(),
-    failAuth: z.boolean().optional(),
-    vendorLimits: rateLimitsSchema.nullable().optional(),
-    onLimit: z
-        .object({
-            status: errorStatus,
-            retryAfterFormat: z.enum(['seconds', 'date', 'none']),
-            body: body.optional(),
-        })
-        .strict()
-        .optional(),
-    declaredLimits: z
-        .union([z.literal('vendor'), rateLimitsSchema])
-        .nullable()
-        .optional(),
-    mockResponses: z
-        .array(mockResponseSchema)
-        .max(MAX_MOCK_RESPONSES)
-        .optional(),
     objects: z
         .array(objectSchema)
         .max(MAX_OBJECTS)

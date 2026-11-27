@@ -236,9 +236,7 @@ export class HealthService extends BaseService {
             hasGoogleLiveSources:
                 !!this.lightdashConfig.auth.google.oauth2ClientId &&
                 !!this.lightdashConfig.auth.google.oauth2ClientSecret,
-            hasHydraLiveSource: isLiveIntegrationRegistered(
-                ApiConnectorType.HYDRA,
-            ),
+            hasHydraLiveSource: false,
             auth: {
                 disablePasswordAuthentication:
                     this.lightdashConfig.auth.disablePasswordAuthentication,

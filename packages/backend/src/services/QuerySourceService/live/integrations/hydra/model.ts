@@ -2,7 +2,6 @@ import {
     ApiConnectorType,
     DimensionType,
     FilterOperator,
-    HYDRA_OBJECTS_PATH,
     MetricType,
     TimeFrames,
     withHydraDefaults,
@@ -22,6 +21,7 @@ import {
 import {
     HYDRA_RECORD_COUNT,
     hydraObjectsResponseSchema,
+    listHydraObjects,
     type HydraObjectsResponse,
 } from './objects';
 
@@ -259,23 +259,13 @@ export const toHydraObjectExplore = (
     ],
 });
 
-/**
- * The workspace's objects. A source that declares no objects is never
- * asked, so its call numbers and limits stay as its tests expect.
- */
+/** The workspace's objects, as the source's settings state them. */
 export const readHydraObjects = async ({
     settings,
-    runtime,
 }: {
     settings: HydraApiSource;
-    runtime: LiveRuntime;
 }): Promise<HydraObjectsResponse> =>
-    withHydraDefaults(settings).objects.length === 0
-        ? { objects: [] }
-        : runtime.fetch(
-              { method: 'GET', path: HYDRA_OBJECTS_PATH, body: undefined },
-              hydraObjectsResponseSchema,
-          );
+    listHydraObjects(withHydraDefaults(settings).objects);
 
 /** The events and users explores, then one per object the workspace has. */
 export const hydraModel: LiveModel<ApiConnectorType.HYDRA> = defineLiveModel({

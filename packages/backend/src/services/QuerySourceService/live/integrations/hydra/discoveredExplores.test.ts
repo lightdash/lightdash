@@ -1,7 +1,6 @@
 import {
     ApiConnectorType,
     HYDRA_DEFAULT_SOURCE,
-    HYDRA_ENABLED_ENV,
     type HydraApiSource,
     type HydraObject,
     type MetricQuery,
@@ -17,12 +16,11 @@ import {
 } from '../../explores/definition';
 import { type LiveSourceExploreEdits } from '../../explores/fields';
 import { checkLiveExtension, getLiveExtension } from '../../explores/source';
-import { extendLiveModel, findAccessRule } from '../../integration';
+import { extendLiveModel } from '../../integration';
 import {
     connectLiveSource,
     getRefreshedLiveState,
 } from '../../liveSource.mock';
-import { createHydraServer } from './fake/server';
 
 const NOW = new Date('2026-11-23T12:00:00Z');
 
@@ -48,15 +46,7 @@ const settingsWith = (objects: HydraObject[]): HydraApiSource => ({
 });
 
 const connect = (settings: HydraApiSource) => {
-    const server = createHydraServer({ now: () => NOW, sleep: vi.fn() });
-    const send = vi.fn((request) =>
-        server.fetch({
-            sourceKey: 'source-1',
-            settings,
-            token: 'alice',
-            request,
-        }),
-    );
+    const send = vi.fn();
     return {
         send,
         source: connectLiveSource(hydraIntegration, settings, send),
@@ -94,10 +84,11 @@ const DEALS_ON = { deals: { inUse: true } };
 
 describe('Hydra explores found by a Refresh', () => {
     beforeEach(() => {
-        vi.stubEnv(HYDRA_ENABLED_ENV, 'true');
+        vi.useFakeTimers();
+        vi.setSystemTime(NOW);
     });
     afterEach(() => {
-        vi.unstubAllEnvs();
+        vi.useRealTimers();
     });
 
     it('finds only its declared explores, without a call, when it has no objects', async () => {
@@ -123,26 +114,6 @@ describe('Hydra explores found by a Refresh', () => {
             ['amount', undefined],
             ['sync_token', false],
         ]);
-    });
-
-    it('grants a report path per object it found, and no other', async () => {
-        const { explores } = await refresh([DEALS]);
-        const { rules } = hydraIntegration.connection.access(
-            settingsWith([DEALS]),
-            explores,
-        );
-        expect(
-            findAccessRule(rules, {
-                method: 'POST',
-                path: '/v1/objects/Deals/report',
-            }),
-        ).toBeDefined();
-        expect(
-            findAccessRule(rules, {
-                method: 'POST',
-                path: '/v1/objects/Other/report',
-            }),
-        ).toBeUndefined();
     });
 
     it('starts an object explore off', async () => {
@@ -193,9 +164,7 @@ describe('Hydra explores found by a Refresh', () => {
             limit: compiled.requestLimit,
         });
 
-        expect(send.mock.calls.map(([request]) => request.path)).toEqual([
-            '/v1/objects/Deals/report',
-        ]);
+        expect(send).not.toHaveBeenCalled();
         expect(
             rows.reduce((sum, row) => sum + Number(row.record_count), 0),
         ).toBe(30);
@@ -221,41 +190,28 @@ describe('Hydra explores found by a Refresh', () => {
         ).toEqual(['crm_events', 'crm_users', 'crm_deals']);
     });
 
-    it('answers 404 for an object it does not have, and 400 for a field it does not know', async () => {
-        const server = createHydraServer({ now: () => NOW, sleep: vi.fn() });
-        const report = (path: string, body: unknown) =>
-            server.fetch({
-                sourceKey: 'source-1',
-                settings: settingsWith([DEALS]),
-                token: 'alice',
-                request: { method: 'POST', path, body },
+    it('refuses an object it does not have, and a field it does not know', async () => {
+        const { source } = connect(settingsWith([DEALS]));
+        const report = (request: Record<string, unknown>) =>
+            source.run({
+                query: JSON.stringify({
+                    dimensions: ['stage'],
+                    metrics: ['record_count'],
+                    filters: [],
+                    orderBy: [],
+                    limit: 10,
+                    ...request,
+                }),
+                limit: 10,
             });
-        const body = {
-            object: 'Deals',
-            dimensions: ['stage'],
-            metrics: ['record_count'],
-            filters: [],
-            orderBy: [],
-            limit: 10,
-        };
-        expect((await report('/v1/objects/Deals/report', body)).status).toBe(
-            200,
+        await expect(report({ object: 'Deals' })).resolves.toMatchObject({
+            hasMoreRows: false,
+        });
+        await expect(report({ object: 'Other' })).rejects.toThrow(
+            'Hydra has no object Other',
         );
-        expect(
-            (
-                await report('/v1/objects/Other/report', {
-                    ...body,
-                    object: 'Other',
-                })
-            ).status,
-        ).toBe(404);
-        expect(
-            (
-                await report('/v1/objects/Deals/report', {
-                    ...body,
-                    dimensions: ['nope'],
-                })
-            ).status,
-        ).toBe(400);
+        await expect(
+            report({ object: 'Deals', dimensions: ['nope'] }),
+        ).rejects.toThrow('Deals has no field nope');
     });
 });

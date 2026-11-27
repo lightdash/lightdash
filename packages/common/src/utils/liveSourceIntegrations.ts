@@ -8,7 +8,7 @@ import {
     type ApiSourceOf,
     type ExternalConnectionApiSource,
 } from '../ee/externalConnections/types';
-import { type FeatureFlags } from '../types/featureFlags';
+import { FeatureFlags } from '../types/featureFlags';
 import { ApiConnectorType } from '../types/querySources';
 import { HYDRA_SETTINGS_SCHEMA } from './hydraLiveSource';
 
@@ -316,6 +316,7 @@ export const LIVE_INTEGRATION_CATALOG: {
         agentLabel: 'Hydra',
         description: 'Test integration with seeded events and users',
         setup: 'token',
+        featureFlag: FeatureFlags.LiveSourceHydra,
         settings: HYDRA_SETTINGS_SCHEMA,
         getTarget: () => 'Hydra test data',
     },

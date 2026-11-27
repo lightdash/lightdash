@@ -47,7 +47,7 @@ An integration describes its explores one way, whether its code declares them or
 4. `compile` reads the explore's `apiName` with `getLiveExploreApiName(explore)` and puts it in the request.
 5. `connection.access(settings, explores)` adds one exact rule per explore `apiName` it reads by path: `readRule('POST', `/v1/objects/${apiName}/report`, { exact: true, entry: apiName })`. The proxy checks method and path together, so an object the last Refresh didn't find is refused. A Refresh drops an explore whose `apiName` has `/`, `{`, `}`, `?`, `#`, `%` or whitespace, since it can't sit in one path segment as it is.
 
-The core does the rest: a Refresh diffs the explores the old metadata gave against the new ones by `name`, reports the explores and fields added and removed, and an explore gone from the list drops it. Hydra's `model.ts` (`readHydraObjects` and `extend`), `connection.ts` (access), `objects.ts` and `fake/server.ts` are the working example; `integrations/hydra/discoveredExplores.test.ts` and the Hydra block in `ExternalConnectionService.apiSource.test.ts` test it end to end.
+The core does the rest: a Refresh diffs the explores the old metadata gave against the new ones by `name`, reports the explores and fields added and removed, and an explore gone from the list drops it. Hydra's `model.ts` (`readHydraObjects` and `extend`) and `objects.ts` are the working example; `integrations/hydra/discoveredExplores.test.ts` and the Hydra block in `ExternalConnectionService.apiSource.test.ts` test it end to end.
 
 ## Wire it up
 
