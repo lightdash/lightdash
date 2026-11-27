@@ -1,3 +1,12 @@
+## [3.420.4](https://github.com/lightdash/lightdash/compare/3.420.3...3.420.4) (2026-11-27)
+
+
+### Bug Fixes
+
+* leave missing dates blank in Google Sheets syncs ([#33520](https://github.com/lightdash/lightdash/issues/33520)) ([a41e93a](https://github.com/lightdash/lightdash/commit/a41e93af8301ed6c2a1a28cd6b43e7903b2765d6))
+* **scheduler:** keep Sheets syncs enabled after Google internal errors ([#33521](https://github.com/lightdash/lightdash/issues/33521)) ([9a9e9a4](https://github.com/lightdash/lightdash/commit/9a9e9a4b9a135ee2d9ed25475b583393bea87a3d))
+* show scheduled delivery jobs in progress accurately ([#33523](https://github.com/lightdash/lightdash/issues/33523)) ([662a73d](https://github.com/lightdash/lightdash/commit/662a73dee4e3add9a995e14ab4c8253b80e62854))
+
 ## [3.420.3](https://github.com/lightdash/lightdash/compare/3.420.2...3.420.3) (2026-11-27)
 
 
