@@ -918,9 +918,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.externalFetch': [
         AgentCapability.ExternalTools,
     ],
-    'ExternalConnectionController.getEnabledLiveIntegrations': [
-        AgentCapability.ReadDiscover,
-    ],
     'ExternalConnectionController.getExternalConnection': [
         AgentCapability.ReadDiscover,
     ],
@@ -1217,6 +1214,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'OrgAppsController.getDataAppActivity': [AgentCapability.ReadDiscover],
+    'OrgLiveIntegrationsController.getEnabledLiveIntegrations': [
+        AgentCapability.ReadDiscover,
+    ],
     'OrgRoadmapController.followProject': [AgentCapability.Administration],
     'OrgRoadmapController.getOrgRoadmap': [AgentCapability.ReadDiscover],
     'OrgRoadmapController.getProjects': [AgentCapability.ReadDiscover],

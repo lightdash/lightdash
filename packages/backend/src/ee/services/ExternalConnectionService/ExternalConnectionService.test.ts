@@ -180,6 +180,7 @@ function buildService(opts: {
     const service = new ExternalConnectionService({
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ id: 'flag', enabled: true }),
+            getDisabledLiveIntegrations: vi.fn().mockResolvedValue(new Set()),
         },
         userAttributesModel: {
             getAttributeValuesForOrgMember: vi.fn().mockResolvedValue({}),

@@ -925,6 +925,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                     shareService: repository.getShareService(),
                     userService: repository.getUserService(),
                     getSchedulerAiAugmentationService: () =>

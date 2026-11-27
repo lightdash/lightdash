@@ -63,7 +63,8 @@ const RailFooter: FC<{
     view: ViewModel;
     onBuildModel: (() => void) | null;
 }> = ({ view, onBuildModel }) => {
-    const { options, pathOf, addInPlace, hasWarehouse } = useAddSource(view);
+    const { options, pathOf, addInPlace, hasWarehouse, enabledLiveSources } =
+        useAddSource(view);
     const { summary } = useWarehouseSummary(view.project.id);
     const option = (key: string) =>
         options.find((candidate) => candidate.key === key);
@@ -126,7 +127,10 @@ const RailFooter: FC<{
             ) : null;
         case 'addLiveSource':
             return live ? (
-                <LiveSourceSuggestion onAdd={() => addInPlace(live)} />
+                <LiveSourceSuggestion
+                    sources={enabledLiveSources}
+                    onAdd={() => addInPlace(live)}
+                />
             ) : null;
         case null:
             return null;

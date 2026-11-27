@@ -15,6 +15,12 @@ import {
 } from './ExternalConnectionService';
 import { OAuthAuthorizationCodeTokenClient } from './OAuthAuthorizationCodeTokenClient';
 
+// No integration declares a flag yet, so the tests declare PostHog's.
+vi.mock('@lightdash/common', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@lightdash/common')>()),
+    getLiveSourceFeatureFlag: () => 'live-source-posthog',
+}));
+
 vi.mock('../../../utils/secureFetch/secureFetch', async (importOriginal) => {
     const actual =
         await importOriginal<

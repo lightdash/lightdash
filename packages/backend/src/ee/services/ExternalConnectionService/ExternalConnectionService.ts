@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AlreadyExistsError,
     ApiConnectorType,
+    assertIsAccountWithOrg,
     assertRegisteredAccount,
     assertUnreachable,
     DATA_APP_VIZ_TEMPLATE,
@@ -285,7 +286,10 @@ type ExternalConnectionServiceArguments = {
         'siteUrl' | 'liveSources' | 'auth' | 'scheduler'
     >;
     prometheusMetrics?: PrometheusMetrics;
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
+    featureFlagModel: Pick<
+        FeatureFlagModel,
+        'get' | 'getDisabledLiveIntegrations'
+    >;
 };
 
 export type PostHogRegion = keyof typeof POSTHOG_REGION_ORIGINS;
@@ -445,7 +449,10 @@ export class ExternalConnectionService extends BaseService {
         this.featureFlagModel = args.featureFlagModel;
     }
 
-    /** Whether the organization has this integration turned on, by its feature flag. */
+    /**
+     * Whether the organization has this integration turned on, by its feature
+     * flag. Reads the one flag `getDisabledLiveIntegrations` would read for it.
+     */
     private async isLiveIntegrationEnabled(
         organizationUuid: string,
         connector: ApiConnectorType,
@@ -477,22 +484,32 @@ export class ExternalConnectionService extends BaseService {
         );
     }
 
-    /** The integrations people in the project's organization can add. */
+    /** The integrations the account's organization has turned on. */
     async getEnabledLiveIntegrations(
         account: RegisteredAccount,
-        projectUuid: string,
     ): Promise<ApiConnectorType[]> {
-        const organizationUuid = await this.assertCanManageLiveSources(
-            account,
-            projectUuid,
+        assertIsAccountWithOrg(account);
+        const disabled =
+            await this.featureFlagModel.getDisabledLiveIntegrations(
+                account.organization.organizationUuid,
+            );
+        return Object.values(ApiConnectorType).filter(
+            (connector) => !disabled.has(connector),
         );
-        const connectors = Object.values(ApiConnectorType);
-        const enabled = await Promise.all(
-            connectors.map((connector) =>
-                this.isLiveIntegrationEnabled(organizationUuid, connector),
-            ),
+    }
+
+    /** Leaves out live sources of integrations the organization has turned off. */
+    private async withoutDisabledIntegrations<
+        T extends Pick<ExternalConnection, 'apiSource'>,
+    >(organizationUuid: string, connections: T[]): Promise<T[]> {
+        const disabled =
+            await this.featureFlagModel.getDisabledLiveIntegrations(
+                organizationUuid,
+            );
+        if (disabled.size === 0) return connections;
+        return connections.filter(
+            ({ apiSource }) => !apiSource || !disabled.has(apiSource.connector),
         );
-        return connectors.filter((_, index) => enabled[index]);
     }
 
     /** Data app linking never applies to live data sources. */
@@ -758,10 +775,13 @@ export class ExternalConnectionService extends BaseService {
             );
         }
 
-        const connections = await this.externalConnectionModel.list(
-            projectUuid,
+        const connections = await this.withoutDisabledIntegrations(
             organizationUuid,
-            { kind: null },
+            await this.externalConnectionModel.list(
+                projectUuid,
+                organizationUuid,
+                { kind: null },
+            ),
         );
         // Each row by its own subject: live data sources need manage:LiveSource
         return connections.filter((connection) => {
@@ -1470,10 +1490,13 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        const connections = await this.externalConnectionModel.list(
-            projectUuid,
+        const connections = await this.withoutDisabledIntegrations(
             organizationUuid,
-            { kind: 'live_source' },
+            await this.externalConnectionModel.list(
+                projectUuid,
+                organizationUuid,
+                { kind: 'live_source' },
+            ),
         );
         const queryable = await Promise.all(
             connections.map(
@@ -2793,6 +2816,11 @@ export class ExternalConnectionService extends BaseService {
         );
         const apiSource =
             ExternalConnectionService.getLiveSourceSettings(connection);
+        const disabled =
+            await this.featureFlagModel.getDisabledLiveIntegrations(
+                connection.organizationUuid,
+            );
+        if (disabled.has(apiSource.connector)) return [];
         const deleted = await this.listDeletedSourcesToReattach(
             connection,
             apiSource.connector,

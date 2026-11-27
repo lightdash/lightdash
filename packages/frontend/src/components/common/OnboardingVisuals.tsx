@@ -13,6 +13,11 @@ import {
     IconGitPullRequest,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import {
+    describeLiveSources,
+    shortLiveSourceLabel,
+} from '../../features/externalConnections/liveSources/enabledLiveSources';
+import { getLiveSource } from '../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../features/externalConnections/liveSources/LiveSourceIcon';
 import SlackSvg from '../../svgs/slack.svg?react';
 import { WarehouseTypeLabels } from '../ProjectConnection/ProjectConnectFlow/utils';
@@ -163,19 +168,45 @@ const SOURCES: [ApiConnectorType, string][] = [
     [ApiConnectorType.SEARCH_CONSOLE, 'search clicks'],
 ];
 
+const ANSWER_ROWS: [
+    campaign: string,
+    signups: number,
+    connector: ApiConnectorType,
+][] = [
+    ['spring-launch', 1284, ApiConnectorType.GA4],
+    ['newsletter', 842, ApiConnectorType.POSTHOG],
+    ['brand search', 611, ApiConnectorType.SEARCH_CONSOLE],
+];
+
+const shortName = (connector: ApiConnectorType) =>
+    shortLiveSourceLabel(getLiveSource(connector).label);
+
 const getWarehouseLogo = (warehouse: WarehouseTypes) => {
     const entry = WarehouseTypeLabels.find((item) => item.key === warehouse);
     return entry?.iconType === 'image' ? entry.image : null;
 };
 
-/** The warehouse card from the previous step, with live sources beside it */
-export const ToolsVisual: FC<{ warehouse: WarehouseTypes | null }> = ({
-    warehouse,
-}) => {
+/** The warehouse card from the previous step, with the offered live sources beside it; none names no integration */
+export const ToolsVisual: FC<{
+    warehouse: WarehouseTypes | null;
+    sources: readonly ApiConnectorType[];
+}> = ({ warehouse, sources }) => {
     const warehouseLogo = warehouse ? getWarehouseLogo(warehouse) : null;
+    const shownSources = SOURCES.filter(([connector]) =>
+        sources.includes(connector),
+    );
     return (
         <Figure
-            title="PostHog, GA4 and Search Console"
+            title={
+                shownSources.length > 0
+                    ? describeLiveSources(
+                          shownSources.map(([connector]) =>
+                              shortName(connector),
+                          ),
+                          { shown: SOURCES.length },
+                      )
+                    : 'Your tools, queried live'
+            }
             body="Each query reads from the tool directly. Nothing is copied into your warehouse."
         >
             <Box className={classes.sourcePair}>
@@ -222,7 +253,7 @@ export const ToolsVisual: FC<{ warehouse: WarehouseTypes | null }> = ({
                             Live sources
                         </Text>
                     </Group>
-                    {SOURCES.map(([connector, detail]) => (
+                    {shownSources.map(([connector, detail]) => (
                         <Box key={connector} className={classes.sourceRow}>
                             <LiveSourceIcon connector={connector} size={12} />
                             <Text fz="xs" fw={500}>
@@ -240,13 +271,7 @@ export const ToolsVisual: FC<{ warehouse: WarehouseTypes | null }> = ({
                         Signups by campaign, last 30 days
                     </Text>
                 </Group>
-                {(
-                    [
-                        ['spring-launch', 1284, 'GA4'],
-                        ['newsletter', 842, 'PostHog'],
-                        ['brand search', 611, 'Search Console'],
-                    ] as const
-                ).map(([campaign, signups, source], index) => (
+                {ANSWER_ROWS.map(([campaign, signups, connector], index) => (
                     <Box
                         key={campaign}
                         className={classes.meterRow}
@@ -264,7 +289,9 @@ export const ToolsVisual: FC<{ warehouse: WarehouseTypes | null }> = ({
                             />
                         </Box>
                         <Text fz="xs" c="dimmed" className={classes.source}>
-                            {source}
+                            {sources.includes(connector)
+                                ? shortName(connector)
+                                : null}
                         </Text>
                     </Box>
                 ))}
@@ -488,7 +515,7 @@ export const StepVisual: FC<{ step: OnboardingVisualStep }> = ({ step }) => {
         case 'warehouse':
             return <WarehouseVisual nextUp={null} />;
         case 'tools':
-            return <ToolsVisual warehouse={null} />;
+            return <ToolsVisual warehouse={null} sources={[]} />;
         case 'team':
             return <TeamVisual />;
         default:

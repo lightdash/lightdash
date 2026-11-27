@@ -106,6 +106,9 @@ const setup = ({ granted = true } = {}) => {
         searchModel: searchModel as never,
         analytics: { track: vi.fn() } as never,
         spaceModel: {} as never,
+        featureFlagModel: {
+            getDisabledLiveIntegrations: vi.fn().mockResolvedValue(new Set()),
+        },
         userAttributesModel: {} as never,
         spacePermissionService: {
             getAccessibleSpaceUuids: vi.fn().mockResolvedValue([]),
@@ -137,6 +140,7 @@ describe('Document global search authorization', () => {
             'Weekly',
             undefined,
             expect.anything(),
+            new Set(),
         );
         expect(
             documentModel.listSummariesByUuid,

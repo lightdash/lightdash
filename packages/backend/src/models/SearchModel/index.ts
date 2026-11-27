@@ -26,6 +26,7 @@ import {
     TableErrorSearchResult,
     TableSearchResult,
     TableSelectionType,
+    type ApiConnectorType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -56,6 +57,7 @@ import {
     timeOmnibarSearch,
     timeOmnibarSearchSync,
 } from '../../logging/omnibarSearchTiming';
+import { excludeLiveIntegrationsSql } from '../../utils/disabledLiveIntegrations';
 import { AppModel } from '../AppModel';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import {
@@ -1730,6 +1732,7 @@ export class SearchModel {
 
     private async getProjectExplores(
         projectUuid: string,
+        excludedIntegrations: ReadonlySet<ApiConnectorType>,
         timing?: OmnibarSearchTiming,
     ): Promise<Explore[]> {
         const getProjects = () =>
@@ -1759,6 +1762,14 @@ export class SearchModel {
         // IS DISTINCT FROM rather than <>.
         const getRows = () =>
             this.database(CachedExploreTableName)
+                .modify((rowsQuery) => {
+                    if (excludedIntegrations.size > 0) {
+                        void rowsQuery.whereRaw(
+                            excludeLiveIntegrationsSql('explore'),
+                            [[...excludedIntegrations]],
+                        );
+                    }
+                })
                 .select<{ explore: Explore | ExploreError }[]>('explore')
                 .where('project_uuid', projectUuid)
                 .whereRaw("explore->>'type' IS DISTINCT FROM ?", [
@@ -1987,6 +1998,8 @@ export class SearchModel {
         query: string,
         filters?: SearchFilters,
         timing?: OmnibarSearchTiming,
+        /** Live source integrations whose explores are left out. */
+        excludedIntegrations: ReadonlySet<ApiConnectorType> = new Set(),
     ): Promise<SearchResults> {
         const verifiedOnly = filters?.verifiedOnly === true;
         const contentOptions: SearchContentOptions = { verifiedOnly };
@@ -2095,7 +2108,11 @@ export class SearchModel {
             filters,
         );
 
-        const explores = await this.getProjectExplores(projectUuid, timing);
+        const explores = await this.getProjectExplores(
+            projectUuid,
+            excludedIntegrations,
+            timing,
+        );
         const searchTableErrors = () =>
             this.searchTableErrors(projectUuid, query, explores);
         const tableErrors = await timeOmnibarSearch(

@@ -134,29 +134,6 @@ export class ExternalConnectionController extends BaseController {
     }
 
     /**
-     * The integrations the project's organization has turned on, each by its `live-source-<integration>` feature flag
-     * @summary List enabled live integrations
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('external-connections/live-integrations')
-    @OperationId('getEnabledLiveIntegrations')
-    async getEnabledLiveIntegrations(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-    ): Promise<ApiEnabledLiveIntegrationsResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getService().getEnabledLiveIntegrations(
-                req.account,
-                projectUuid,
-            ),
-        };
-    }
-
-    /**
      * API calls and response bytes each live source has used over the query history retention window (`windowDays` on each row)
      * @summary Get live source usage
      */
@@ -1035,5 +1012,37 @@ export class ExternalConnectionController extends BaseController {
 
     private getService(): ExternalConnectionService {
         return this.services.getExternalConnectionService<ExternalConnectionService>();
+    }
+}
+
+@Route('/api/v1/ee/org/live-integrations')
+@Hidden()
+@Response<ApiErrorPayload>('default', 'Error')
+export class OrgLiveIntegrationsController extends BaseController {
+    /**
+     * The live source integrations the caller's organization has turned on, each by its `live-source-<integration>` feature flag when it declares one
+     * @summary List enabled live integrations
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrgLiveIntegrationsController.getEnabledLiveIntegrations',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/')
+    @OperationId('getEnabledLiveIntegrations')
+    async getEnabledLiveIntegrations(
+        @Request() req: express.Request,
+    ): Promise<ApiEnabledLiveIntegrationsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getExternalConnectionService<ExternalConnectionService>()
+                .getEnabledLiveIntegrations(req.account),
+        };
     }
 }

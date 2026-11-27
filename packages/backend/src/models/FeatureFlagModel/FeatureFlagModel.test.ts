@@ -1,4 +1,8 @@
-import { FeatureFlags } from '@lightdash/common';
+import {
+    ApiConnectorType,
+    FeatureFlags,
+    getLiveSourceFeatureFlag,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -11,6 +15,13 @@ import {
 import Logger from '../../logging/logger';
 import { FeatureFlagModel } from './FeatureFlagModel';
 import { record } from './flagCheckAggregator';
+
+// No integration declares a flag yet, so the tests declare HubSpot's.
+vi.mock('@lightdash/common', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@lightdash/common')>()),
+    LIVE_SOURCE_FEATURE_FLAGS: new Set(['live-source-hubspot']),
+    getLiveSourceFeatureFlag: vi.fn(() => undefined),
+}));
 
 vi.mock('./flagCheckAggregator', async (importOriginal) => {
     const original =
@@ -1144,5 +1155,50 @@ describe('mobile app access', () => {
             ),
         );
         warn.mockRestore();
+    });
+});
+
+describe('FeatureFlagModel.getDisabledLiveIntegrations', () => {
+    afterEach(() => {
+        vi.mocked(getLiveSourceFeatureFlag).mockImplementation(() => undefined);
+    });
+
+    it('resolves empty without reading anything while no integration declares a flag', async () => {
+        const model = buildModel({}, throwingDatabase);
+        const get = vi.spyOn(model, 'get');
+        const organization = vi.fn(async () => 'org-uuid');
+
+        const disabled = await model.getDisabledLiveIntegrations(organization);
+
+        expect(disabled.size).toBe(0);
+        expect(get).not.toHaveBeenCalled();
+        expect(organization).not.toHaveBeenCalled();
+    });
+
+    it('lists the integrations whose flag is off for the organization', async () => {
+        vi.mocked(getLiveSourceFeatureFlag).mockImplementation((connector) =>
+            connector === ApiConnectorType.HUBSPOT ||
+            connector === ApiConnectorType.POSTHOG
+                ? `live-source-${connector}`
+                : undefined,
+        );
+        const model = buildModel();
+        const get = vi
+            .spyOn(model, 'get')
+            .mockImplementation(async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled: featureFlagId !== 'live-source-hubspot',
+            }));
+
+        const disabled = await model.getDisabledLiveIntegrations(
+            async () => 'org-uuid',
+        );
+
+        expect([...disabled]).toEqual([ApiConnectorType.HUBSPOT]);
+        expect(get).toHaveBeenCalledTimes(2);
+        expect(get).toHaveBeenCalledWith({
+            user: { organizationUuid: 'org-uuid' },
+            featureFlagId: 'live-source-hubspot',
+        });
     });
 });

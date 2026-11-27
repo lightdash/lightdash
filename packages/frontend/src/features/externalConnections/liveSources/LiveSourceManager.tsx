@@ -343,7 +343,7 @@ const LiveSourceDialogs: FC<{
 }) => {
     const navigate = useNavigate();
     const { data: enabledIntegrations, isError: isEnabledIntegrationsError } =
-        useEnabledLiveIntegrations(projectUuid);
+        useEnabledLiveIntegrations();
     // A new source opens on its own page, offering to reattach a deleted one
     const openConnected = (connectionUuid: string) => {
         void navigate(getSemanticStudioSourceUrl(projectUuid, connectionUuid));

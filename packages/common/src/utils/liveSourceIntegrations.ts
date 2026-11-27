@@ -58,7 +58,6 @@ export const LIVE_INTEGRATION_CATALOG: {
 } = {
     [ApiConnectorType.POSTHOG]: {
         id: 'posthog',
-        featureFlag: 'live-source-posthog',
         label: 'PostHog',
         defaultName: 'PostHog',
         messageLabel: 'PostHog',
@@ -75,7 +74,6 @@ export const LIVE_INTEGRATION_CATALOG: {
     },
     [ApiConnectorType.SEARCH_CONSOLE]: {
         id: 'google_search_console',
-        featureFlag: 'live-source-search-console',
         label: 'Google Search Console',
         defaultName: 'Search Console',
         messageLabel: 'Search Console',
@@ -91,7 +89,6 @@ export const LIVE_INTEGRATION_CATALOG: {
     },
     [ApiConnectorType.GA4]: {
         id: 'google_analytics',
-        featureFlag: 'live-source-ga4',
         label: 'Google Analytics 4',
         defaultName: 'Google Analytics',
         messageLabel: 'Google Analytics',
@@ -107,7 +104,6 @@ export const LIVE_INTEGRATION_CATALOG: {
     },
     [ApiConnectorType.META_ADS]: {
         id: 'meta_ads',
-        featureFlag: 'live-source-meta-ads',
         label: 'Meta Ads',
         defaultName: 'Meta Ads',
         messageLabel: 'Meta Ads',
@@ -123,7 +119,6 @@ export const LIVE_INTEGRATION_CATALOG: {
     },
     [ApiConnectorType.GOOGLE_ADS]: {
         id: 'google_ads',
-        featureFlag: 'live-source-google-ads',
         label: 'Google Ads',
         defaultName: 'Google Ads',
         messageLabel: 'Google Ads',
@@ -139,7 +134,6 @@ export const LIVE_INTEGRATION_CATALOG: {
     },
     [ApiConnectorType.YOUTUBE_ANALYTICS]: {
         id: 'youtube_analytics',
-        featureFlag: 'live-source-youtube-analytics',
         label: 'YouTube Analytics',
         defaultName: 'YouTube Analytics',
         messageLabel: 'YouTube Analytics',
@@ -154,7 +148,6 @@ export const LIVE_INTEGRATION_CATALOG: {
     },
     [ApiConnectorType.LINKEDIN_ADS]: {
         id: 'linkedin_ads',
-        featureFlag: 'live-source-linkedin-ads',
         label: 'LinkedIn Ads',
         defaultName: 'LinkedIn Ads',
         messageLabel: 'LinkedIn Ads',
@@ -169,7 +162,6 @@ export const LIVE_INTEGRATION_CATALOG: {
     },
     [ApiConnectorType.GITHUB]: {
         id: 'github',
-        featureFlag: 'live-source-github',
         label: 'GitHub',
         defaultName: 'GitHub',
         messageLabel: 'GitHub',
@@ -186,7 +178,6 @@ export const LIVE_INTEGRATION_CATALOG: {
     },
     [ApiConnectorType.PYLON]: {
         id: 'pylon',
-        featureFlag: 'live-source-pylon',
         label: 'Pylon',
         defaultName: 'Pylon',
         messageLabel: 'Pylon',
@@ -200,7 +191,6 @@ export const LIVE_INTEGRATION_CATALOG: {
     },
     [ApiConnectorType.ATTIO]: {
         id: 'attio',
-        featureFlag: 'live-source-attio',
         label: 'Attio',
         defaultName: 'Attio',
         messageLabel: 'Attio',
@@ -214,7 +204,6 @@ export const LIVE_INTEGRATION_CATALOG: {
     },
     [ApiConnectorType.HUBSPOT]: {
         id: 'hubspot',
-        featureFlag: 'live-source-hubspot',
         label: 'HubSpot',
         defaultName: 'HubSpot',
         messageLabel: 'HubSpot',
@@ -230,7 +219,6 @@ export const LIVE_INTEGRATION_CATALOG: {
     },
     [ApiConnectorType.SALESFORCE]: {
         id: 'salesforce',
-        featureFlag: 'live-source-salesforce',
         label: 'Salesforce',
         defaultName: 'Salesforce',
         messageLabel: 'Salesforce',
@@ -244,7 +232,6 @@ export const LIVE_INTEGRATION_CATALOG: {
     },
     [ApiConnectorType.AMPLITUDE]: {
         id: 'amplitude',
-        featureFlag: 'live-source-amplitude',
         label: 'Amplitude',
         defaultName: 'Amplitude',
         messageLabel: 'Amplitude',
@@ -258,7 +245,6 @@ export const LIVE_INTEGRATION_CATALOG: {
     },
     [ApiConnectorType.MIXPANEL]: {
         id: 'mixpanel',
-        featureFlag: 'live-source-mixpanel',
         label: 'Mixpanel',
         defaultName: 'Mixpanel',
         messageLabel: 'Mixpanel',
@@ -273,7 +259,6 @@ export const LIVE_INTEGRATION_CATALOG: {
     },
     [ApiConnectorType.SUPABASE]: {
         id: 'supabase',
-        featureFlag: 'live-source-supabase',
         label: 'Supabase',
         defaultName: 'Supabase',
         messageLabel: 'Supabase',

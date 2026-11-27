@@ -413,6 +413,7 @@ type RawSummaryRow = {
     baseTableAnyAttributes: Explore['tables'][string]['anyAttributes'] | null;
     aiHint: Explore['aiHint'] | null;
     customMeta: Explore['customMeta'] | null;
+    apiSourceIntegration: ApiConnectorType | null;
 };
 
 export type ExploreTableSummary = Pick<
@@ -3467,6 +3468,8 @@ export class ProjectModel {
             SummaryExplore & {
                 baseTableRequiredAttributes: Explore['tables'][string]['requiredAttributes'];
                 baseTableAnyAttributes: Explore['tables'][string]['anyAttributes'];
+                /** The integration a live data source explore reads. */
+                apiSourceIntegration?: ApiConnectorType;
             }
         >
     > {
@@ -3491,7 +3494,8 @@ export class ProjectModel {
                     base_table.value->'requiredAttributes' as "baseTableRequiredAttributes",
                     base_table.value->'anyAttributes' as "baseTableAnyAttributes",
                     explore_summary."aiHint" as "aiHint",
-                    explore_summary."customMeta" as "customMeta"
+                    explore_summary."customMeta" as "customMeta",
+                    explore_summary."apiSource"->>'integration' as "apiSourceIntegration"
                 `),
             )
             .joinRaw(
@@ -3515,7 +3519,8 @@ export class ProjectModel {
                     "baseTable" text,
                     "tables" jsonb,
                     "aiHint" jsonb,
-                    "customMeta" jsonb
+                    "customMeta" jsonb,
+                    "apiSource" jsonb
                 ) ON TRUE
                 LEFT JOIN LATERAL (
                     SELECT explore_summary."tables" -> explore_summary."baseTable" AS value
@@ -3541,6 +3546,9 @@ export class ProjectModel {
             baseTableRequiredAttributes:
                 row.baseTableRequiredAttributes ?? undefined,
             baseTableAnyAttributes: row.baseTableAnyAttributes ?? undefined,
+            ...(row.apiSourceIntegration
+                ? { apiSourceIntegration: row.apiSourceIntegration }
+                : {}),
             ...(row.errors ? { errors: row.errors } : {}), // Fatal errors from ExploreError
             ...(row.warnings ? { warnings: row.warnings } : {}), // Non-fatal warnings from partial compilation
         }));
@@ -9151,6 +9159,22 @@ export class ProjectModel {
             .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
             .whereRaw("explore->'apiSource'->>'connectionUuid' = ?", [
                 connectionUuid,
+            ]);
+        return rows.map(({ name }) => name);
+    }
+
+    /** Names of the project's live data source explores that read any of these integrations. */
+    async findApiSourceExploreNamesByIntegration(
+        projectUuid: string,
+        integrations: ApiConnectorType[],
+    ): Promise<string[]> {
+        if (integrations.length === 0) return [];
+        const rows = await this.database(CachedExploreTableName)
+            .select<{ name: string }[]>('name')
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
+            .whereRaw("explore->'apiSource'->>'integration' = ANY(?)", [
+                integrations,
             ]);
         return rows.map(({ name }) => name);
     }

@@ -116,6 +116,9 @@ const makeService = ({
         searchModel: searchModel as never,
         projectModel: projectModel as never,
         spaceModel: {} as never,
+        featureFlagModel: {
+            getDisabledLiveIntegrations: vi.fn().mockResolvedValue(new Set()),
+        },
         userAttributesModel: userAttributesModel as never,
         spacePermissionService: spacePermissionService as never,
         appGenerateService: appGenerateService as never,
@@ -169,6 +172,7 @@ describe('SearchService omnibar timing', () => {
             query,
             { type: malformedTypeFilter },
             expect.anything(),
+            new Set(),
         );
         expect(loggerInfo).toHaveBeenCalledOnce();
         const [message, record] = loggerInfo.mock.calls[0];
@@ -208,6 +212,7 @@ describe('SearchService omnibar timing', () => {
             query,
             undefined,
             undefined,
+            new Set(),
         );
     });
 
