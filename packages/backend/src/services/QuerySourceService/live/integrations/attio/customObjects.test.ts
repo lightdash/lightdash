@@ -35,19 +35,25 @@ const OBJECTS = response({
         object('companies', 'Company', 'Companies'),
         object('people', 'Person', 'People'),
         object('organizations', 'Organization', 'Organizations'),
+        object('projects', 'Project', 'Projects'),
         object('Bad Slug', 'Bad', 'Bads'),
         object(null, 'No slug', 'No slugs'),
     ],
 });
 
-/** Answers each call by its path; attributes are the deal fixture's. */
+/**
+ * Answers each call by its path: the objects list, the deal fixture's
+ * attributes, or what `answers` gives a path.
+ */
 const connect = (
     objects: LiveHttpResponse,
-    attributes = ATTIO_DEAL_ATTRIBUTES,
+    answers: Record<string, LiveHttpResponse> = {},
 ) => {
     const send = vi.fn((call: { path: string }) =>
         Promise.resolve(
-            call.path === '/v2/objects' ? objects : response(attributes),
+            call.path === '/v2/objects'
+                ? objects
+                : (answers[call.path] ?? response(ATTIO_DEAL_ATTRIBUTES)),
         ),
     );
     return {
@@ -68,8 +74,11 @@ describe('Attio custom objects', () => {
         expect(explores.map(({ name }) => name)).toEqual([
             ...ATTIO_EXPLORES.map(({ name }) => name),
             'organizations',
+            'projects',
         ]);
-        const organizations = explores.at(-1)!;
+        const organizations = explores.find(
+            ({ name }) => name === 'organizations',
+        )!;
         expect(organizations).toMatchObject({
             name: 'organizations',
             apiName: 'organizations',
@@ -95,6 +104,22 @@ describe('Attio custom objects', () => {
                 ['owner', false],
             ]),
         );
+    });
+
+    it("leaves out a custom object whose attributes the token can't read", async () => {
+        const { source } = connect(OBJECTS, {
+            '/v2/objects/projects/attributes': response(
+                { message: 'Forbidden' },
+                403,
+            ),
+        });
+
+        const explores = await source.discover();
+
+        expect(explores.map(({ name }) => name)).toEqual([
+            ...ATTIO_EXPLORES.map(({ name }) => name),
+            'organizations',
+        ]);
     });
 
     it("offers none when the token can't list objects", async () => {
@@ -173,7 +198,9 @@ describe('Attio custom objects', () => {
 
     it("queries a custom object's records by its slug", async () => {
         const { source } = connect(OBJECTS);
-        const definition = (await source.discover()).at(-1)!;
+        const definition = (await source.discover()).find(
+            ({ name }) => name === 'organizations',
+        )!;
         const explore = buildLiveExplore({
             definition,
             exploreName: 'attio_organizations',

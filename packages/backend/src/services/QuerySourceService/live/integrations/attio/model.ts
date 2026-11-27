@@ -557,8 +557,9 @@ const scanAttioCustomObjects = async (
 
 /**
  * Reads the workspace's custom objects, then each object's attributes,
- * which become its explore's fields. An object the token can't read, or the
- * workspace lacks, keeps its declared fields; any other failed call, such as
+ * which become its explore's fields. A standard object the token can't
+ * read, or the workspace lacks, keeps its declared fields, and such a
+ * custom object is left out; any other failed call, such as
  * a throttled one, fails the scan so the last good scan stays.
  */
 export const scanAttioAttributes = async ({
@@ -596,7 +597,14 @@ export const scanAttioAttributes = async ({
     if (read.length === 0) {
         throw failed[0];
     }
-    return { attributes: Object.fromEntries(read), customObjects };
+    const attributes = Object.fromEntries(read);
+    return {
+        attributes,
+        // A custom object whose attributes the token can't read is left out
+        customObjects: customObjects.filter(({ slug }) =>
+            Object.hasOwn(attributes, slug),
+        ),
+    };
 };
 
 /**

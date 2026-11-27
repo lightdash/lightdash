@@ -50,5 +50,5 @@ export const attioConnection: LiveConnection<ApiConnectorType.ATTIO> = {
         }
     },
     describeTarget: () =>
-        'Attio workspace: companies, people, deals, users and workspaces, plus the custom objects an admin turned on',
+        'Attio workspace: companies, people, deals, users, workspaces and custom objects',
 };
