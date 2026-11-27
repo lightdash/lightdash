@@ -2,6 +2,7 @@ import {
     ApiConnectorType,
     DimensionType,
     FilterOperator,
+    getItemId,
     MetricType,
     UnexpectedServerError,
     type LiveSourceRefreshSummary,
@@ -36,9 +37,10 @@ import {
  *   is left out when its name isn't a model name, or another explore has
  *   it
  * - every explore and field is on as an admin set it, else as its
- *   definition's `onByDefault` (on when absent). A Refresh that sees a
- *   default change keeps the state the source had, so `onByDefault` only
- *   counts the first time a source sees an item
+ *   definition's `onByDefault` (on when absent). A Refresh that sees the
+ *   vendor change a default keeps the state the source had, and a deploy
+ *   that turns a default off keeps on what the source has built. A default
+ *   that turns on in code shows the item
  */
 
 /** What a Refresh stored: the vendor's metadata, as the model's `scan` returned it. */
@@ -540,6 +542,75 @@ export const pinLiveDefaults = ({
         },
         { fields, explores },
     );
+
+/**
+ * Edits that keep on what a source has built today when its default now
+ * says off. A deploy can change a default in code, and that must not take
+ * away an explore or a field people already use. An item an admin set is
+ * left alone, and so is one the source hasn't built: a default that turns
+ * on simply shows the item.
+ */
+export const pinBuiltLiveItems = ({
+    models,
+    toExploreName,
+    builtExploreNames,
+    builtFieldIds,
+    fields,
+    explores,
+}: {
+    models: LiveSourceModel[];
+    toExploreName: (model: string) => string;
+    builtExploreNames: readonly string[];
+    builtFieldIds: readonly string[];
+    fields: LiveSourceFieldEdits;
+    explores: LiveSourceExploreEdits;
+}): { fields: LiveSourceFieldEdits; explores: LiveSourceExploreEdits } => {
+    const builtExplores = new Set(builtExploreNames);
+    const builtFields = new Set(builtFieldIds);
+    return models.reduce<{
+        fields: LiveSourceFieldEdits;
+        explores: LiveSourceExploreEdits;
+    }>(
+        (edits, model) => {
+            const exploreName = toExploreName(model.name);
+            if (!builtExplores.has(exploreName)) return edits;
+            const exploreEdit = getLiveExploreEdit(edits.explores, model.name);
+            const nextExplores =
+                exploreEdit?.inUse === undefined && !model.onByDefault
+                    ? {
+                          ...edits.explores,
+                          [model.name]: {
+                              ...exploreEdit,
+                              inUse: true,
+                              lastEdit: exploreEdit?.lastEdit ?? null,
+                          },
+                      }
+                    : edits.explores;
+            const nextFields = [
+                ...model.definition.dimensions,
+                ...model.definition.metrics,
+            ].reduce<LiveSourceFieldEdits>((current, field) => {
+                const key = getLiveFieldEditKey(model.editModel, field.name);
+                const edit: LiveSourceFieldEdit | undefined = Object.hasOwn(
+                    current,
+                    key,
+                )
+                    ? current[key]
+                    : undefined;
+                const isBuilt = builtFields.has(
+                    getItemId({ table: exploreName, name: field.name }),
+                );
+                return isBuilt &&
+                    edit?.inUse === undefined &&
+                    field.onByDefault === false
+                    ? { ...current, [key]: pinField(edit, true) }
+                    : current;
+            }, edits.fields);
+            return { fields: nextFields, explores: nextExplores };
+        },
+        { fields, explores },
+    );
+};
 
 /** What a Refresh changed: explores by name, and fields by explore. */
 export const getLiveRefreshSummary = ({

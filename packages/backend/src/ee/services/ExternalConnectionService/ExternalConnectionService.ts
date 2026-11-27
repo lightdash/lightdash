@@ -133,6 +133,7 @@ import {
     getLiveRefreshSummary,
     getLiveSourceModels,
     hasLiveRefresh,
+    pinBuiltLiveItems,
     pinLiveDefaults,
     type LiveSourceFieldState,
     type LiveSourceModel,
@@ -2156,7 +2157,7 @@ export class ExternalConnectionService extends BaseService {
         return this.externalConnectionModel.withLiveSourceBuildLock(
             externalConnectionUuid,
             async (lockTrx) => {
-                const [sourceName, state, stored] = await Promise.all([
+                const [sourceName, loaded, stored] = await Promise.all([
                     this.resolveLiveSourceName(connection, apiSource),
                     this.externalConnectionModel.getLiveSourceFieldState(
                         externalConnectionUuid,
@@ -2167,6 +2168,50 @@ export class ExternalConnectionService extends BaseService {
                         externalConnectionUuid,
                     ),
                 ]);
+                const storedFieldIds = keepFields
+                    ? await this.projectModel.getApiSourceFieldIds(
+                          projectUuid,
+                          externalConnectionUuid,
+                      )
+                    : [];
+                // A default changed in code can't switch off what the source has today
+                const kept = keepFields
+                    ? pinBuiltLiveItems({
+                          models: getLiveSourceModels(
+                              apiSource.connector,
+                              loaded,
+                          ),
+                          toExploreName: (model) =>
+                              getLiveExploreName(sourceName, model),
+                          builtExploreNames:
+                              await this.projectModel.getApiSourceExploreNames(
+                                  projectUuid,
+                                  externalConnectionUuid,
+                              ),
+                          builtFieldIds: storedFieldIds,
+                          fields: loaded.fields,
+                          explores: loaded.explores,
+                      })
+                    : loaded;
+                const isPinned =
+                    !isEqual(kept.fields, loaded.fields) ||
+                    !isEqual(kept.explores, loaded.explores);
+                if (isPinned) {
+                    await this.externalConnectionModel.updateLiveSourceEdits(
+                        externalConnectionUuid,
+                        (current) => ({
+                            scan: current.scan,
+                            fields: kept.fields,
+                            explores: kept.explores,
+                        }),
+                        lockTrx,
+                    );
+                }
+                const state = {
+                    ...loaded,
+                    fields: kept.fields,
+                    explores: kept.explores,
+                };
                 const built = buildLiveExplores({
                     connectionUuid: externalConnectionUuid,
                     sourceName,
@@ -2203,11 +2248,7 @@ export class ExternalConnectionService extends BaseService {
                 const explores = built.filter(({ name }) => !taken.has(name));
                 if (keepFields) {
                     const lost = getLostLiveFieldIds({
-                        storedFieldIds:
-                            await this.projectModel.getApiSourceFieldIds(
-                                projectUuid,
-                                externalConnectionUuid,
-                            ),
+                        storedFieldIds,
                         rebuilt: explores,
                         edits: state.fields,
                         exploreEdits: state.explores,

@@ -12,6 +12,7 @@ import {
     getLiveRefreshSummary,
     getLiveSourceModels,
     parseLiveSourceFieldState,
+    pinBuiltLiveItems,
     pinLiveDefaults,
 } from './source';
 
@@ -273,6 +274,65 @@ describe('a Refresh that changes a default', () => {
             addedFields: { hubspot_deals: ['amount_2'] },
             removedFields: {},
         });
+    });
+});
+
+describe('a deploy that changes a default', () => {
+    const models = getLiveSourceModels(
+        HUBSPOT,
+        getLiveStateWithExtension({
+            explores: [
+                explore([dimension('total', false), dimension('note')], {
+                    name: 'invoices',
+                    apiName: 'Invoice',
+                    onByDefault: false,
+                }),
+            ],
+        }),
+    );
+    const pin = (
+        built: { explores: string[]; fields: string[] },
+        edits: Pick<
+            Parameters<typeof pinBuiltLiveItems>[0],
+            'fields' | 'explores'
+        > = { fields: {}, explores: {} },
+    ) =>
+        pinBuiltLiveItems({
+            models,
+            toExploreName: (model) => `hubspot_${model}`,
+            builtExploreNames: built.explores,
+            builtFieldIds: built.fields,
+            ...edits,
+        });
+    const built = {
+        explores: ['hubspot_invoices'],
+        fields: ['hubspot_invoices_total', 'hubspot_invoices_note'],
+    };
+
+    it('keeps on an explore and a field the source has built', () => {
+        expect(pin(built)).toEqual({
+            fields: { 'invoices.total': { inUse: true, lastEdit: null } },
+            explores: { invoices: { inUse: true, lastEdit: null } },
+        });
+    });
+
+    it('leaves alone what the source has not built', () => {
+        expect(pin({ explores: [], fields: built.fields })).toEqual({
+            fields: {},
+            explores: {},
+        });
+        expect(pin({ explores: built.explores, fields: [] })).toEqual({
+            fields: {},
+            explores: { invoices: { inUse: true, lastEdit: null } },
+        });
+    });
+
+    it('leaves alone what an admin set', () => {
+        const curated = {
+            fields: { 'invoices.total': { inUse: false, lastEdit: null } },
+            explores: { invoices: { inUse: false } },
+        };
+        expect(pin(built, curated)).toEqual(curated);
     });
 });
 

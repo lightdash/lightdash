@@ -3734,6 +3734,46 @@ describe('ExternalConnectionService explores found by a Refresh, through Hydra',
         ]);
     });
 
+    it('keeps an object explore the source has built when a deploy rebuilds it', async () => {
+        const connection = hydraConnection([DEALS]);
+        const { service, projectModel, externalConnectionModel } = buildService(
+            { connections: [connection] },
+        );
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+        // Built while object explores still started on
+        projectModel.getApiSourceExploreNames.mockResolvedValue([
+            'crm_events',
+            'crm_users',
+            'crm_deals',
+        ]);
+        externalConnectionModel.listLiveSourceRefs.mockResolvedValue([
+            {
+                externalConnectionUuid: 'conn-1',
+                projectUuid: 'proj-1',
+                connector: ApiConnectorType.HYDRA,
+                state: await externalConnectionModel.getLiveSourceFieldState(
+                    'conn-1',
+                ),
+            },
+        ]);
+        projectModel.listApiSourceExploreHashes.mockResolvedValue([
+            { connectionUuid: 'conn-1', definitionHash: 'old' },
+        ]);
+
+        await expect(
+            service.rebuildOutdatedApiSourceExplores(),
+        ).resolves.toEqual({ rebuilt: 1, failed: 0 });
+
+        expect(lastExplores(projectModel).map(({ name }) => name)).toEqual([
+            'crm_events',
+            'crm_users',
+            'crm_deals',
+        ]);
+        const state =
+            await externalConnectionModel.getLiveSourceFieldState('conn-1');
+        expect(state.explores).toMatchObject({ deals: { inUse: true } });
+    });
+
     it('refuses to edit an explore the source does not have', async () => {
         const connection = hydraConnection([DEALS]);
         const { service } = buildService({ connections: [connection] });
