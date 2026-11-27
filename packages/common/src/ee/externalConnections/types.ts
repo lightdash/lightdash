@@ -954,6 +954,12 @@ export type ApiExternalConnectionApiUsageResponse = {
     results: ExternalConnectionApiUsage[];
 };
 
+/** The integrations turned on for the project's organization, by their feature flags. */
+export type ApiEnabledLiveIntegrationsResponse = {
+    status: 'ok';
+    results: ApiConnectorType[];
+};
+
 /** One limit on calls in a time window, with Lightdash's calls in its current window. */
 export type ExternalConnectionRateLimitBucket = {
     id: string;

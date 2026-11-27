@@ -201,8 +201,8 @@ const OptionsMenu = ({ hideNoTeam, canHideNoTeam, onHideNoTeam }: { hideNoTeam: 
     </DropdownMenu>
 );
 
-const toMapTeam = (bucket: TeamBucket, colourBy: ColourBy, unit: number): MapTeam => (
-    {
+const toMapTeam = (bucket: TeamBucket, colourBy: ColourBy, unit: number): MapTeam => {
+    return {
         id: bucket.team.id,
         name: bucket.team.name,
         people: bucket.people,
@@ -210,8 +210,8 @@ const toMapTeam = (bucket: TeamBucket, colourBy: ColourBy, unit: number): MapTea
         // People in more than one team are drawn like anyone else: no ring, and no entry in the legend
         marks: buildMarks(bucket, colourBy, unit).map((mark) => (mark.shared ? { ...mark, shared: false } : mark)),
         caption: formatPeople(bucket.people),
-    }
-);
+    };
+};
 
 // Loads one team's people by name. Mounted only while a team is open in an organisation too large to name everyone.
 const TeamPeople = ({

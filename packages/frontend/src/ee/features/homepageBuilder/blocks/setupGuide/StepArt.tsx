@@ -1,4 +1,4 @@
-import { ApiConnectorType } from '@lightdash/common';
+import { type ApiConnectorType } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import {
     IconChartDots3,
@@ -38,7 +38,12 @@ const ChartCard: FC = () => (
     </Box>
 );
 
-const SCENES: Record<SetupGuideRowId, () => ReactNode> = {
+const LIVE_TILES_SHOWN = 3;
+
+const SCENES: Record<
+    SetupGuideRowId,
+    (liveConnectors: readonly ApiConnectorType[]) => ReactNode
+> = {
     warehouse: () => (
         <Box className={classes.sheet}>
             {['orders', 'customers', 'payments'].map((name) => (
@@ -49,13 +54,9 @@ const SCENES: Record<SetupGuideRowId, () => ReactNode> = {
             ))}
         </Box>
     ),
-    'app-data': () => (
+    'app-data': (liveConnectors) => (
         <Box className={classes.tiles}>
-            {[
-                ApiConnectorType.POSTHOG,
-                ApiConnectorType.GA4,
-                ApiConnectorType.SEARCH_CONSOLE,
-            ].map((connector) => (
+            {liveConnectors.slice(0, LIVE_TILES_SHOWN).map((connector) => (
                 <Box key={connector} className={classes.tile}>
                     <LiveSourceIcon connector={connector} size={16} />
                 </Box>
@@ -163,10 +164,12 @@ export const StepArt: FC<{
     id: SetupGuideRowId;
     badge: string | null;
     size: 'sm' | 'lg';
-}> = ({ id, badge, size }) => (
+    /** Turned-on integrations, for steps that draw them */
+    liveConnectors: readonly ApiConnectorType[];
+}> = ({ id, badge, size, liveConnectors }) => (
     <Box className={classes.band} data-size={size} aria-hidden>
         {badge && <Box className={classes.badge}>{badge}</Box>}
-        <Box className={classes.scene}>{SCENES[id]()}</Box>
+        <Box className={classes.scene}>{SCENES[id](liveConnectors)}</Box>
     </Box>
 );
 

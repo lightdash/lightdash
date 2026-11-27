@@ -290,6 +290,9 @@ const makeService = ({
         aiAgentModel,
         documentService,
         featureFlagService,
+        featureFlagModel: {
+            getDisabledLiveIntegrations: vi.fn().mockResolvedValue(new Set()),
+        },
         shareService: {},
         userService: {},
         asyncQueryService,

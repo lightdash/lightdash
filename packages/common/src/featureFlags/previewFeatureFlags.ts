@@ -1,5 +1,6 @@
 import { CommercialFeatureFlags } from '../ee/commercialFeatureFlags';
 import { FeatureFlags } from '../types/featureFlags';
+import { LIVE_SOURCE_FEATURE_FLAGS } from '../utils/liveSourceIntegrations';
 
 /**
  * Flags that must NOT be force-enabled in preview environments. Everything
@@ -52,6 +53,9 @@ export const isKnownFeatureFlagId = (flagId: string): boolean =>
 /** Flags enabled by default in preview environments. */
 export const PREVIEW_ENABLED_FEATURE_FLAGS: ReadonlySet<string> = new Set(
     ALL_FEATURE_FLAG_IDS.filter(
-        (flagId) => !PREVIEW_EXCLUDED_FEATURE_FLAGS.has(flagId),
+        (flagId) =>
+            !PREVIEW_EXCLUDED_FEATURE_FLAGS.has(flagId) &&
+            // An integration flag forced on would stop previews turning that integration off
+            !LIVE_SOURCE_FEATURE_FLAGS.has(flagId),
     ),
 );

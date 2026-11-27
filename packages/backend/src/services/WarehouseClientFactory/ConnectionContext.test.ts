@@ -31,6 +31,7 @@ const expectedSurfaces = {
     [QueryExecutionContext.CHART]: ConnectionSurface.APP,
     [QueryExecutionContext.CHART_HISTORY]: ConnectionSurface.APP,
     [QueryExecutionContext.SQL_CHART]: ConnectionSurface.APP,
+    [QueryExecutionContext.COMPOSER_CHART_VIEW]: ConnectionSurface.APP,
     [QueryExecutionContext.SQL_RUNNER]: ConnectionSurface.APP,
     [QueryExecutionContext.VIEW_UNDERLYING_DATA]: ConnectionSurface.APP,
     [QueryExecutionContext.ALERT]: ConnectionSurface.SCHEDULE,

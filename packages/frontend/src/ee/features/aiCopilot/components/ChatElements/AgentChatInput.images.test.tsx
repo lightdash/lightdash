@@ -286,9 +286,10 @@ test('clearOnSubmit false keeps the draft and preview after acknowledgment', asy
 
 test('the picker is available for eligible chat and image clipboard paste alone is intercepted', async () => {
     renderInput();
-    expect(
-        screen.getAllByLabelText('Image attachments').length,
-    ).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Attachments')).toHaveAttribute(
+        'accept',
+        expect.stringContaining('image/'),
+    );
     const file = new File(['png'], 'clipboard.png', { type: 'image/png' });
     expect(paste(file)).toBe(false);
     expect(mocks.images).toHaveBeenCalledWith([file]);
@@ -402,8 +403,8 @@ test('unsupported host modes hide the picker and block image paste/drop without 
         imageAttachmentsUnavailableReason: reason,
     });
     expect(
-        screen.queryByLabelText('Image attachments'),
-    ).not.toBeInTheDocument();
+        screen.getByLabelText('Attachments').getAttribute('accept'),
+    ).not.toContain('image/');
     const file = new File(['png'], 'chart.png', { type: 'image/png' });
     const notes = new File(['notes'], 'notes.txt');
     expect(paste(file)).toBe(false);
@@ -436,25 +437,22 @@ test('changing to battle/auto after attachment blocks submit before retain and p
     expect(screen.getByAltText('chart.png')).toBeInTheDocument();
 });
 
-test('deep research cannot silently consume an image-bearing draft', async () => {
+test('deep research cannot be turned on while the draft has an attachment', async () => {
     const onResearch = vi.fn(async () => undefined);
     renderInput({ onStartDeepResearch: onResearch });
     attachReadyImage();
+
     await userEvent.click(
         screen.getByRole('button', { name: 'Composer options' }),
     );
-    await userEvent.click(
-        screen.getByRole('menuitem', { name: 'Enable deep research' }),
-    );
+
+    expect(
+        screen.getByRole('menuitem', {
+            name: 'Deep research unavailable. Remove the attachments to use deep research.',
+        }),
+    ).toBeDisabled();
     send();
     expect(onResearch).not.toHaveBeenCalled();
-    expect(mocks.retain).not.toHaveBeenCalled();
-    expect(mocks.toast).toHaveBeenCalledWith({
-        title: 'Remove the images or ask in regular chat',
-    });
-    expect(screen.getByRole('textbox')).toHaveTextContent(
-        'Recreate this chart',
-    );
     expect(screen.getByAltText('chart.png')).toBeInTheDocument();
 });
 

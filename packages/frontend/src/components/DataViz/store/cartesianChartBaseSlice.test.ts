@@ -1,6 +1,8 @@
 import {
     CartesianSeriesType,
     ChartKind,
+    CustomFormatType,
+    Format,
     VizAggregationOptions,
     VizIndexType,
     type VizCartesianChartConfig,
@@ -94,5 +96,89 @@ describe.each([
             '#ff00ff',
         );
         expect(reset.display?.series?.sales.valueLabelColor).toBeUndefined();
+    });
+
+    it('builds y-axis format options field by field, replacing the legacy preset', () => {
+        const initial = slice.reducer(
+            undefined,
+            setChartConfig({
+                ...config,
+                display: {
+                    ...config.display,
+                    yAxis: [{ label: 'Revenue', format: Format.PERCENT }],
+                },
+            }),
+        );
+
+        const rounded = slice.reducer(
+            initial,
+            slice.actions.setYAxisFormatOption({
+                index: 0,
+                path: 'round',
+                value: 1,
+            }),
+        );
+        expect(rounded.display?.yAxis?.[0]).toEqual({
+            label: 'Revenue',
+            formatOptions: { type: CustomFormatType.PERCENT, round: 1 },
+        });
+
+        // The format form sends these updates back to back on a type change
+        const currency = (
+            [
+                ['type', CustomFormatType.CURRENCY],
+                ['compact', undefined],
+                ['custom', undefined],
+                ['currency', 'AUD'],
+            ] as const
+        ).reduce(
+            (state, [path, value]) =>
+                slice.reducer(
+                    state,
+                    slice.actions.setYAxisFormatOption({
+                        index: 0,
+                        path,
+                        value,
+                    }),
+                ),
+            rounded,
+        );
+        expect(currency.display?.yAxis?.[0]).toEqual({
+            label: 'Revenue',
+            formatOptions: {
+                type: CustomFormatType.CURRENCY,
+                currency: 'AUD',
+                round: 1,
+            },
+        });
+
+        const cleared = slice.reducer(
+            currency,
+            slice.actions.setYAxisFormatOption({
+                index: 0,
+                path: 'type',
+                value: CustomFormatType.DEFAULT,
+            }),
+        );
+        expect(cleared.display?.yAxis?.[0]).toEqual({ label: 'Revenue' });
+    });
+
+    it('initializes display when formatting a chart without saved display settings', () => {
+        const initial = slice.reducer(
+            undefined,
+            setChartConfig({ ...config, display: undefined }),
+        );
+        const formatted = slice.reducer(
+            initial,
+            slice.actions.setYAxisFormatOption({
+                index: 1,
+                path: 'type',
+                value: CustomFormatType.PERCENT,
+            }),
+        );
+        expect(formatted.display?.yAxis).toEqual([
+            {},
+            { formatOptions: { type: CustomFormatType.PERCENT } },
+        ]);
     });
 });

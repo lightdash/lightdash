@@ -361,9 +361,9 @@ const SPREAD_STEPS = 60;
 // of the zoom buttons. The same circles always give the same arrangement.
 const spreadOverPanel = (circles: PackedCircle[], area: Area): PackedCircle[] => {
     if (circles.length < 2) return circles;
-    const {left} = MAP_MARGIN;
+    const left = MAP_MARGIN.left;
     const right = area.width - MAP_MARGIN.right;
-    const {top} = MAP_MARGIN;
+    const top = MAP_MARGIN.top;
     const bottom = area.height - MAP_MARGIN.bottom;
     if (right <= left || bottom <= top) return circles;
     const samples: { x: number; y: number }[] = [];

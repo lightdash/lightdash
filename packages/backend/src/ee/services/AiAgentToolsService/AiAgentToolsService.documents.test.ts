@@ -144,6 +144,9 @@ const setup = (
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         projectModel,
         documentService,
+        featureFlagModel: {
+            getDisabledLiveIntegrations: vi.fn().mockResolvedValue(new Set()),
+        },
         spaceModel,
         contentService,
         projectService: { getSpaces: vi.fn().mockResolvedValue([space]) },

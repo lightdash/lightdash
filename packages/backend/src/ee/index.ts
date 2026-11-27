@@ -925,6 +925,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                     shareService: repository.getShareService(),
                     userService: repository.getUserService(),
                     getSchedulerAiAugmentationService: () =>
@@ -1335,6 +1336,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     savedChartModel: models.getSavedChartModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                     encryptionUtil: utils.getEncryptionUtil(),
                     appGenerateService:
                         repository.getAppGenerateService<AppGenerateService>(),

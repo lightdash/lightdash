@@ -130,6 +130,9 @@ const buildService = (overrides?: {
         spaceModel: {} as SpaceModel,
         tagsModel: {} as TagsModel,
         spacePermissionService: {} as SpacePermissionService,
+        featureFlagModel: {
+            getDisabledLiveIntegrations: vi.fn().mockResolvedValue(new Set()),
+        },
     });
 
     return { service, projectModel, catalogModel, userAttributesModel };
@@ -206,6 +209,7 @@ describe('CatalogService.getCatalog', () => {
             excludeUnmatched: undefined,
             fullTextSearchOperator: undefined,
             filteredExplores: undefined,
+            excludedIntegrations: new Set(),
         });
     });
 

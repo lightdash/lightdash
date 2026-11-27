@@ -62,6 +62,9 @@ const makeService = ({ dataAppsEnabled = true } = {}) => {
             }),
         } as never,
         spaceModel: {} as never,
+        featureFlagModel: {
+            getDisabledLiveIntegrations: vi.fn().mockResolvedValue(new Set()),
+        },
         userAttributesModel: {} as never,
         spacePermissionService: {
             resolveAccessBatch: vi.fn().mockResolvedValue([]),
@@ -186,6 +189,11 @@ describe('SearchService resource-aware access', () => {
                 }),
             } as never,
             spaceModel: {} as never,
+            featureFlagModel: {
+                getDisabledLiveIntegrations: vi
+                    .fn()
+                    .mockResolvedValue(new Set()),
+            },
             userAttributesModel: {} as never,
             spacePermissionService: { resolveAccessBatch } as never,
             appGenerateService: undefined,
@@ -265,6 +273,11 @@ describe('SearchService resource-aware access', () => {
                 }),
             } as never,
             spaceModel: {} as never,
+            featureFlagModel: {
+                getDisabledLiveIntegrations: vi
+                    .fn()
+                    .mockResolvedValue(new Set()),
+            },
             userAttributesModel: {} as never,
             spacePermissionService: {
                 resolveAccessBatch,

@@ -12,6 +12,7 @@ import MantineModal from '../../../components/common/MantineModal';
 import useHealth from '../../../hooks/health/useHealth';
 import { getSemanticStudioSourceUrl } from '../../semanticStudio/urls';
 import { useDeleteExternalConnection } from '../hooks/useDeleteExternalConnection';
+import { useEnabledLiveIntegrations } from '../hooks/useEnabledLiveIntegrations';
 import { useLiveSourceFields } from '../hooks/useLiveSourceFields';
 import { AddLiveSourceModal } from './AddLiveSourceModal';
 import { AmplitudeConnectionModal } from './AmplitudeConnectionModal';
@@ -341,6 +342,8 @@ const LiveSourceDialogs: FC<{
     onRemoved,
 }) => {
     const navigate = useNavigate();
+    const { data: enabledIntegrations, isError: isEnabledIntegrationsError } =
+        useEnabledLiveIntegrations();
     // A new source opens on its own page, offering to reattach a deleted one
     const openConnected = (connectionUuid: string) => {
         void navigate(getSemanticStudioSourceUrl(projectUuid, connectionUuid));
@@ -369,6 +372,8 @@ const LiveSourceDialogs: FC<{
                 canUseLinkedInAds={canUseLinkedInAds}
                 canUseSalesforce={canUseSalesforce}
                 canUseHydra={canUseHydra}
+                enabledIntegrations={enabledIntegrations}
+                isEnabledIntegrationsError={isEnabledIntegrationsError}
                 onPick={(picked) =>
                     setDialog({ kind: 'create', connector: picked })
                 }

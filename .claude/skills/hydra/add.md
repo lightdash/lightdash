@@ -51,8 +51,9 @@ The core does the rest: Refresh diffs the catalogs, an object is listed off unti
 3. `packages/common/src/utils/liveSourceIntegrations.ts`: add the `LIVE_INTEGRATION_CATALOG` entry (id, labels, description, setup kind, `settings` zod schema, `getTarget`, `agentQueryGuide`). The backend integration reads its settings schema from here. Typecheck fails until you do.
 4. `registry.ts`: add it to `LIVE_INTEGRATIONS` (typecheck fails until you do).
 5. `registry.test.ts`: add `SAMPLE_SETTINGS` for it. `spec/spec.test.ts` picks it up too; update its auth score snapshot. The conformance test then checks settings round-trip, early refusals, and that what it compiles runs and a failed call is explained.
-6. Frontend `packages/frontend/src/features/externalConnections/liveSources/liveSourceCatalog.ts`: add the icon (`icons/<name>.svg`, square, brand color). A new setup kind also needs its connect dialog.
-7. Sign-in: Google sources reuse `integrations/google/signIn.ts`; OAuth scopes and token exchange live in `ee/services/ExternalConnectionService` (see `googleOAuth.ts`, `postHogOAuth.ts`, `linkedInAdsOAuth.ts`).
+6. To ship it behind a flag (a gated or beta release), add `LiveSource<Name> = 'live-source-<connector>'` to `FeatureFlags` and set `featureFlag` on the catalog entry; create the flag with default off in the Console before the deploy. See `docs/feature-flags.md#live-data-source-integrations`.
+7. Frontend `packages/frontend/src/features/externalConnections/liveSources/liveSourceCatalog.ts`: add the icon (`icons/<name>.svg`, square, brand color). A new setup kind also needs its connect dialog.
+8. Sign-in: Google sources reuse `integrations/google/signIn.ts`; OAuth scopes and token exchange live in `ee/services/ExternalConnectionService` (see `googleOAuth.ts`, `postHogOAuth.ts`, `linkedInAdsOAuth.ts`).
 
 ## Tests
 

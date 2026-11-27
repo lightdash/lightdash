@@ -145,6 +145,7 @@ export enum QueryExecutionContext {
     CHART = 'chartView',
     CHART_HISTORY = 'chartHistory',
     SQL_CHART = 'sqlChartView',
+    COMPOSER_CHART_VIEW = 'composerChartView',
     SQL_RUNNER = 'sqlRunner',
     VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
     ALERT = 'alert',

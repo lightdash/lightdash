@@ -33,7 +33,6 @@ test.each([false, true])(
         );
 
         expect(screen.getByText(node.title)).toBeVisible();
-        // Mantine Pill hides its remove control with CSS when disabled.
         const disabledPill = screen
             .getByText(node.title)
             .closest('[data-disabled]');

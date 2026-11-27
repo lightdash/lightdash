@@ -130,6 +130,7 @@ import {
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -179,6 +180,7 @@ import {
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import type { UserService } from '../../../services/UserService';
 import { wrapSentryTransaction } from '../../../utils';
+import { isExploreOfDisabledLiveIntegration } from '../../../utils/disabledLiveIntegrations';
 import { type DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
 import {
     composerSessionScope,
@@ -612,6 +614,7 @@ type AiAgentToolsServiceDependencies = {
         | 'useComposerSession'
     >;
     featureFlagService: FeatureFlagService;
+    featureFlagModel: Pick<FeatureFlagModel, 'getDisabledLiveIntegrations'>;
     shareService: ShareService;
     userService: UserService;
     // Lazy to break the construction cycle: schedulerAiAugmentationService →
@@ -701,6 +704,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly aiAgentModel: AiAgentToolsServiceDependencies['aiAgentModel'];
 
     private readonly featureFlagService: FeatureFlagService;
+
+    private readonly featureFlagModel: AiAgentToolsServiceDependencies['featureFlagModel'];
 
     private getRuntimeCached<T>(
         context: AiAgentToolsRuntimeContext,
@@ -800,6 +805,7 @@ export class AiAgentToolsService extends BaseService {
         aiDeepResearchRunModel,
         aiAgentModel,
         featureFlagService,
+        featureFlagModel,
         shareService,
         userService,
         getSchedulerAiAugmentationService,
@@ -840,6 +846,7 @@ export class AiAgentToolsService extends BaseService {
         this.aiDeepResearchRunModel = aiDeepResearchRunModel;
         this.aiAgentModel = aiAgentModel;
         this.featureFlagService = featureFlagService;
+        this.featureFlagModel = featureFlagModel;
         this.shareService = shareService;
         this.userService = userService;
         this.getSchedulerAiAugmentationService =
@@ -874,6 +881,7 @@ export class AiAgentToolsService extends BaseService {
                     { tableSelection },
                     liveExplores,
                     inDevelopment,
+                    disabledIntegrations,
                 ] = await Promise.all([
                     this.userAttributesModel.getAttributeValuesForOrgMember({
                         organizationUuid,
@@ -888,6 +896,9 @@ export class AiAgentToolsService extends BaseService {
                     developmentView
                         .getStore()
                         ?.findExplores(fromSession(user), projectUuid) ?? null,
+                    this.featureFlagModel.getDisabledLiveIntegrations(
+                        organizationUuid,
+                    ),
                 ]);
                 const userAttributes = mergeUserAttributes(
                     dbAttributes,
@@ -912,6 +923,13 @@ export class AiAgentToolsService extends BaseService {
                     .filter(
                         (explore): explore is Explore =>
                             !isExploreError(explore),
+                    )
+                    .filter(
+                        (explore) =>
+                            !isExploreOfDisabledLiveIntegration(
+                                explore,
+                                disabledIntegrations,
+                            ),
                     )
                     .filter((explore) =>
                         // Pre-aggregate explores follow their source explore's selection

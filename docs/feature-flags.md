@@ -708,3 +708,52 @@ Console overrides and the generic ENV lists apply. A change shows after the
 page is reloaded. The browser remembers the last answer and draws that layout
 while the flag loads, so the first load after a change starts in the old one. Phone-width windows and the chart editor opened from a
 dashboard keep the top navbar.
+
+## Live data source integrations
+
+Each live data source integration (PostHog, HubSpot, GA4 and so on) can have its
+own flag that turns it on or off for every organization or for one. Today none
+declares a flag, so every integration is on.
+
+To put an integration behind a flag, for example Attio:
+
+1. Add a `FeatureFlags` value in `packages/common/src/types/featureFlags.ts`,
+   named `LiveSource<Integration>` with the id `live-source-<connector>`:
+   `LiveSourceAttio = 'live-source-attio'`.
+2. Set `featureFlag: FeatureFlags.LiveSourceAttio` on its entry in
+   `LIVE_INTEGRATION_CATALOG` (`packages/common/src/utils/liveSourceIntegrations.ts`).
+
+Nothing else changes: no handler, no `isEnabled` check, no frontend code. The
+catalog field drives everything below.
+
+- **Resolution:** `LIGHTDASH_ENABLE/DISABLE_FEATURE_FLAGS` → organization
+  override → the flag's `default_enabled` → on. A missing flag row means on,
+  so declaring the flag changes nothing until the Console says otherwise. User
+  overrides are ignored: the flag is organization-scoped.
+- **Off means nowhere:** the integration leaves every UI surface (the
+  frontend reads `GET /api/v1/ee/org/live-integrations`); its stored live data
+  sources and their explores leave every listing (explores, catalog, search, AI
+  agent and MCP tools, SQL runner schema); creating, editing, testing, signing
+  in, querying and refreshing return 403. Delete still works. Nothing stored
+  changes, so turning it back on restores everything.
+- **Previews** never force these flags on, so a preview can still turn an
+  integration off; the preview flag panel lists them like any flag.
+
+Rollout through the Console:
+
+| Goal | Console |
+|---|---|
+| On for everyone | nothing (no row) |
+| Kill switch | flag `default_enabled` off |
+| Only chosen organizations | default off, plus an organization override `true` for each |
+| Off for one organization | organization override `false` |
+
+For a gated release, create the flag with default off in the Console before
+the deploy that declares it; otherwise every organization gets the integration
+in between. Self-hosted instances use
+`LIGHTDASH_DISABLE_FEATURE_FLAGS=live-source-<connector>`.
+
+Code: `getDisabledLiveIntegrations` in `FeatureFlagModel`,
+`ExternalConnectionService.assertLiveIntegrationEnabled`,
+`packages/backend/src/utils/disabledLiveIntegrations.ts`, and
+`useEnabledLiveIntegrations` in the frontend.

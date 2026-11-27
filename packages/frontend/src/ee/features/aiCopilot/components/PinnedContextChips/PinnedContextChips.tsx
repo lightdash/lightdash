@@ -3,6 +3,7 @@ import { ActionIcon, Box, Popover, Text, UnstyledButton } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { ComposerChip } from '../ChatElements/ComposerChip';
 import { ContentReferenceIcon } from '../ChatElements/ContentReferenceLink';
 import { getPromptContextItemKey } from '../ChatElements/contentReferenceUtils';
 import {
@@ -61,18 +62,16 @@ export const PinnedContextChips: FC<Props> = ({ items, onRemove }) => {
             {visible.map((item) => {
                 const { label } = getPinnableContextMeta(item);
                 return (
-                    <Box
+                    <ComposerChip
                         key={getPromptContextItemKey(item)}
-                        className={styles.chip}
-                        title={label}
-                    >
-                        <ContextIcon item={item} size={14} />
-                        <span className={styles.label}>{label}</span>
-                        <RemoveButton
-                            label={label}
-                            onRemove={() => onRemove(item)}
-                        />
-                    </Box>
+                        icon={<ContextIcon item={item} size={14} />}
+                        label={label}
+                        remove={{
+                            label: `Remove ${label}`,
+                            onClick: () => onRemove(item),
+                        }}
+                        disabled={false}
+                    />
                 );
             })}
             {hidden.length > 0 && (

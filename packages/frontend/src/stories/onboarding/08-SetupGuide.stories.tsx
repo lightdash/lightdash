@@ -1,4 +1,7 @@
-import { type HomepageRecommendedActionKey } from '@lightdash/common';
+import {
+    ApiConnectorType,
+    type HomepageRecommendedActionKey,
+} from '@lightdash/common';
 import { Container, Stack, Title } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
@@ -65,6 +68,7 @@ const Guide = ({ state }: { state: GuideState }) => {
         chartTypeNames: [],
         semanticStudioUrl: null,
         canAddLiveSources: true,
+        liveIntegrations: [ApiConnectorType.POSTHOG, ApiConnectorType.GA4],
         appSourceNames:
             state === 'mostly-done' ? ['PostHog', 'Wholesale accounts'] : [],
         brand: null,

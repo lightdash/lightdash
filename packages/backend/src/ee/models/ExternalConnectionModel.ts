@@ -57,8 +57,6 @@ import {
 } from '../../utils/credentialDestination';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
-    ApiSourceCallCountersTableName,
-    ApiSourceCallLeasesTableName,
     ApiSourceCallsTableName,
     ApiSourceRateBucketsTableName,
     ApiSourceRatePacingTableName,
@@ -2071,19 +2069,6 @@ export class ExternalConnectionModel {
         return this.database(ExternalConnectionRateCountersTableName)
             .where('window_started_at', '<', cutoff)
             .delete();
-    }
-
-    /** The old limiter's tables, kept for one release while servers on the old code drain. */
-    async deleteApiSourceCallWindowsBefore(cutoff: Date): Promise<number> {
-        const [counters, leases] = await Promise.all([
-            this.database(ApiSourceCallCountersTableName)
-                .where('window_started_at', '<', cutoff)
-                .delete(),
-            this.database(ApiSourceCallLeasesTableName)
-                .where('expires_at', '<', cutoff)
-                .delete(),
-        ]);
-        return counters + leases;
     }
 
     /**
