@@ -74,17 +74,20 @@ export const getSearchItemMap = (
         },
     }));
 
-    const composerCharts = results.composerCharts.map<SearchItem>((item) => ({
-        type: SearchItemType.COMPOSER_CHART,
-        title: item.name,
-        description: item.description ?? undefined,
-        icon: getChartIcon(item.chartType ?? undefined),
-        item,
-        searchRank: item.search_rank,
-        location: {
-            pathname: `/projects/${projectUuid}/composer-charts/${item.uuid}`,
-        },
-    }));
+    // Absent from an older server's response during a rolling deploy
+    const composerCharts = (results.composerCharts ?? []).map<SearchItem>(
+        (item) => ({
+            type: SearchItemType.COMPOSER_CHART,
+            title: item.name,
+            description: item.description ?? undefined,
+            icon: getChartIcon(item.chartType ?? undefined),
+            item,
+            searchRank: item.search_rank,
+            location: {
+                pathname: `/projects/${projectUuid}/composer-charts/${item.uuid}`,
+            },
+        }),
+    );
 
     const sqlCharts = results.sqlCharts.map<SearchItem>((item) => ({
         type: SearchItemType.SQL_CHART,

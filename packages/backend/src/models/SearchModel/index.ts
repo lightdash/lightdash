@@ -1413,10 +1413,18 @@ export class SearchModel {
                 { column: 'composer_chart_uuid' },
                 { column: 'created_at', order: 'desc' },
             ]);
+        const chartKindOf = ({ type, config }: ChartConfig) => {
+            // A cartesian config the strict parser accepts can still throw here
+            try {
+                return getChartKind(type, config) ?? null;
+            } catch {
+                return null;
+            }
+        };
         const chartKindByUuid = new Map(
             latestChartConfigs.map(({ composer_chart_uuid, chart_config }) => [
                 composer_chart_uuid,
-                getChartKind(chart_config.type, chart_config.config),
+                chartKindOf(chart_config),
             ]),
         );
 

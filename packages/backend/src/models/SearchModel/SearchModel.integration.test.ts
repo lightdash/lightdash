@@ -1290,13 +1290,14 @@ describe('SearchModel.searchComposerCharts', () => {
         composerChartUuid: string,
         type: ChartType,
         createdAt: Date,
+        config: object = {},
     ) =>
         database(ComposerChartVersionsTableName).insert({
             composer_chart_uuid: composerChartUuid,
             created_by_user_uuid: creatorUuid,
             created_at: createdAt,
             pipeline: JSON.stringify({}),
-            chart: JSON.stringify({ chartConfig: { type, config: {} } }),
+            chart: JSON.stringify({ chartConfig: { type, config } }),
         });
 
     beforeEach(async () => {
@@ -1412,6 +1413,15 @@ describe('SearchModel.searchComposerCharts', () => {
             inDescription,
         ]);
         expect(results[0].chartType).toBeNull();
+        await addVersion(
+            inName,
+            ChartType.CARTESIAN,
+            new Date('2025-01-17T00:00:00Z'),
+            { layout: {}, eChartsConfig: null },
+        );
+        expect(
+            (await model.searchComposerCharts(projectUuid, 'revenue'))[0],
+        ).toMatchObject({ uuid: inName, chartType: null });
     });
 
     it('skips dashboard-owned, soft-deleted, other-project charts and deleted spaces', async () => {
