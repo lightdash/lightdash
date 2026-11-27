@@ -8585,7 +8585,13 @@ const models: TsoaRoute.Models = {
                 chart: { ref: 'ComposerStoredChartAsCode', required: true },
                 pipeline: { ref: 'ComposerChartPipeline', required: true },
                 spaceSlug: { dataType: 'string', required: true },
-                dashboardSlug: { dataType: 'string', required: true },
+                dashboardSlug: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 description: {
                     dataType: 'union',
                     subSchemas: [
@@ -16159,6 +16165,7 @@ const models: TsoaRoute.Models = {
             'amplitude',
             'mixpanel',
             'supabase',
+            'sentry',
             'hydra',
         ],
     },
@@ -16492,81 +16499,69 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.SENTRY': {
+        dataType: 'refEnum',
+        enums: ['sentry'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SentryApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                projectSlugs: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                organizationSlug: { dataType: 'string', required: true },
+                connector: { ref: 'ApiConnectorType.SENTRY', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ApiConnectorType.HYDRA': {
         dataType: 'refEnum',
         enums: ['hydra'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    HydraRateLimits: {
+    HydraObjectField: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                buckets: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            capacity: { dataType: 'double', required: true },
-                            windowMs: { dataType: 'double', required: true },
-                            id: { dataType: 'string', required: true },
-                        },
-                    },
-                    required: true,
-                },
-                callsPerSecond: {
+                system: { dataType: 'boolean' },
+                type: {
                     dataType: 'union',
                     subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                concurrentCalls: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    HydraOnLimit: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                body: { ref: 'Record_string.unknown_' },
-                retryAfterFormat: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['seconds'] },
+                        { dataType: 'enum', enums: ['string'] },
+                        { dataType: 'enum', enums: ['number'] },
                         { dataType: 'enum', enums: ['date'] },
-                        { dataType: 'enum', enums: ['none'] },
+                        { dataType: 'enum', enums: ['boolean'] },
                     ],
                     required: true,
                 },
-                status: { dataType: 'double', required: true },
+                label: { dataType: 'string', required: true },
+                id: { dataType: 'string', required: true },
             },
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    HydraMockResponse: {
+    HydraObject: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                body: { ref: 'Record_string.unknown_' },
-                retryAfterSeconds: { dataType: 'double' },
-                status: { dataType: 'double', required: true },
-                toCall: { dataType: 'double' },
-                fromCall: { dataType: 'double' },
-                call: { dataType: 'double' },
+                fields: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'HydraObjectField' },
+                    required: true,
+                },
+                recordCount: { dataType: 'double' },
+                label: { dataType: 'string', required: true },
+                id: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -16577,31 +16572,10 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                mockResponses: {
+                objects: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'HydraMockResponse' },
+                    array: { dataType: 'refAlias', ref: 'HydraObject' },
                 },
-                declaredLimits: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['vendor'] },
-                        { ref: 'HydraRateLimits' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                onLimit: { ref: 'HydraOnLimit' },
-                vendorLimits: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'HydraRateLimits' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                failAuth: { dataType: 'boolean' },
-                errorRate: { dataType: 'double' },
-                jitterMs: { dataType: 'double' },
-                latencyMs: { dataType: 'double' },
-                pageSize: { dataType: 'double' },
                 rowCount: { dataType: 'double' },
                 connector: { ref: 'ApiConnectorType.HYDRA', required: true },
             },
@@ -16629,6 +16603,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'AmplitudeApiSource' },
                 { ref: 'MixpanelApiSource' },
                 { ref: 'SupabaseApiSource' },
+                { ref: 'SentryApiSource' },
                 { ref: 'HydraApiSource' },
             ],
             validators: {},
@@ -17918,6 +17893,46 @@ const models: TsoaRoute.Models = {
                     },
                 },
             ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LiveSourceRefreshSummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                removedFields: {
+                    ref: 'Record_string.string-Array_',
+                    required: true,
+                },
+                addedFields: {
+                    ref: 'Record_string.string-Array_',
+                    required: true,
+                },
+                removedExplores: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                addedExplores: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiLiveSourceRefreshResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'LiveSourceRefreshSummary', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
             validators: {},
         },
     },
@@ -21643,6 +21658,7 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+                apiName: { dataType: 'string' },
                 definitionHash: { dataType: 'string' },
                 baseVersion: { dataType: 'double', required: true },
                 integration: { ref: 'ApiConnectorType', required: true },
