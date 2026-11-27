@@ -368,5 +368,4 @@ export const META_ADS_EXPLORES = [META_ADS_INSIGHTS_EXPLORE] as const;
 
 export const metaAdsModel: LiveModel<ApiConnectorType.META_ADS> = {
     explores: META_ADS_EXPLORES,
-    plannedNames: ['demographics', 'placements', 'creatives'],
 };

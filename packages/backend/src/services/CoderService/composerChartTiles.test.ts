@@ -1,5 +1,6 @@
 import {
     DashboardTileTypes,
+    type ComposerChartOwner,
     type DashboardTileWithSlug,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
@@ -30,9 +31,25 @@ const markdown = {
     properties: { title: '', content: 'hello' },
 } as DashboardTileWithSlug;
 
-const charts = new Map([
-    ['mine', { uuid: 'mine-uuid', dashboardUuid: 'dashboard-uuid' }],
-    ['theirs', { uuid: 'theirs-uuid', dashboardUuid: 'other-dashboard' }],
+const charts = new Map<string, { uuid: string; owner: ComposerChartOwner }>([
+    [
+        'mine',
+        {
+            uuid: 'mine-uuid',
+            owner: { type: 'dashboard', dashboardUuid: 'dashboard-uuid' },
+        },
+    ],
+    [
+        'theirs',
+        {
+            uuid: 'theirs-uuid',
+            owner: { type: 'dashboard', dashboardUuid: 'other-dashboard' },
+        },
+    ],
+    [
+        'in-space',
+        { uuid: 'space-chart-uuid', owner: { type: 'space', spaceUuid: 's' } },
+    ],
 ]);
 
 const resolve = (
@@ -73,6 +90,12 @@ describe('composer chart tiles uploaded as code', () => {
     it('fails naming the slug when another dashboard owns the chart', () => {
         expect(() => resolve([uploaded('theirs')])).toThrow(
             'Composer chart "theirs" belongs to another dashboard',
+        );
+    });
+
+    it('fails naming the slug when a space owns the chart', () => {
+        expect(() => resolve([uploaded('in-space')])).toThrow(
+            'Composer chart "in-space" belongs to a space',
         );
     });
 

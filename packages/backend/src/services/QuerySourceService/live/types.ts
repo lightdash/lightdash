@@ -13,7 +13,9 @@ import type {
 import type { z } from 'zod';
 import type {
     LiveCompiledRequest,
+    LiveDimensionDefinition,
     LiveExploreDefinition,
+    LiveMetricDefinition,
     LivePeriodFormat,
 } from './explores/definition';
 import type {
@@ -25,17 +27,16 @@ import type {
 /**
  * One external API Lightdash queries live, in four parts read top to
  * bottom: how a source connects, what it can query, how a query runs, and
- * the vendor's facts. Write one with `defineLiveIntegration` and list it in
+ * what the vendor's workspace adds. Write one with `defineLiveIntegration` and list it in
  * `registry.ts`.
  *
  * Integrations hold no state. A function that takes `runtime` may call the
  * API; every other function is pure. The service owns credentials, rate
- * limits, stored catalogs and field edits.
+ * limits, what each source's last Refresh found, and field edits.
  */
 export type LiveIntegration<
     C extends ApiConnectorType = ApiConnectorType,
     Request = unknown,
-    Catalog extends LiveCatalog = LiveCatalog,
 > = {
     connector: C;
     label: string;
@@ -46,7 +47,7 @@ export type LiveIntegration<
      */
     kind: LiveIntegrationKind;
     connection: LiveConnection<C>;
-    model: LiveModel<C, Catalog>;
+    model: LiveModel<C>;
     query: LiveQuery<C, Request>;
     spec: LiveIntegrationSpec;
 };
@@ -63,8 +64,16 @@ export type LiveConnection<C extends ApiConnectorType = ApiConnectorType> = {
      * shape in errors.
      */
     acceptsOrigin?: (origin: string) => boolean;
-    /** What a source may call on its origin, whatever its stored connection says. */
-    access: (settings: ApiSourceOf<C>) => LiveAccess;
+    /**
+     * What a source may call on its origin, whatever its stored connection
+     * says. `explores` are the source's explores, built from what its last
+     * Refresh stored (`model.explores` before the first), so an explore's
+     * own paths can be allowed by its `apiName`.
+     */
+    access: (
+        settings: ApiSourceOf<C>,
+        explores: readonly LiveExploreDefinition[],
+    ) => LiveAccess;
     /** Throws a ParameterError when the connection signs in the wrong way. */
     checkAuth: (connection: LiveConnectionCheck) => void;
     /** Throws a ParameterError naming the setting the admin has to change. */
@@ -87,48 +96,85 @@ export type LiveConnection<C extends ApiConnectorType = ApiConnectorType> = {
         body: unknown,
         settings: ApiSourceOf<C>,
     ) => LiveTestSummary | null;
+    /**
+     * The one request the setup test sends, written from the source's
+     * settings. With it, an admin's test sends this request whatever the
+     * dialog asked for, and answers with the check alone, without the API's
+     * body or headers. For APIs whose token reads more than the source may.
+     * A saved secret is tested with the saved settings only, so a test of
+     * edited settings needs the secret again.
+     * Omitted, the test sends the dialog's request and returns the answer.
+     */
+    testRequest?: (settings: ApiSourceOf<C>) => LiveHttpRequest;
 };
 
-/** The explores a source offers. */
-export type LiveModel<
-    C extends ApiConnectorType = ApiConnectorType,
-    Catalog extends LiveCatalog = LiveCatalog,
-> = {
-    /** The first is the wide model; discovered fields and field edits apply to it and to `discovery.models`. */
+/** The fields stored metadata adds to one declared explore. */
+export type LiveExtraFields = {
+    dimensions: LiveDimensionDefinition[];
+    metrics: LiveMetricDefinition[];
+};
+
+/**
+ * What stored metadata adds to a model: more fields for the explores the
+ * code declares, and explores only the vendor has. It can't change or
+ * remove anything declared.
+ */
+export type LiveExtension = {
+    /**
+     * More fields for a declared explore, by its `name`. A field named
+     * like one the explore declares is left out.
+     */
+    fields?: Record<string, LiveExtraFields>;
+    /**
+     * Explores only the vendor has, each with its `apiName` and a `name`
+     * made from it.
+     */
+    explores?: LiveExploreDefinition[];
+};
+
+/**
+ * The explores a source offers. `explores` is the list the integration's
+ * code declares. For an API with a schema of its own, `scan` reads what
+ * the vendor's workspace has, the core stores that metadata, and `extend`
+ * turns it into more fields and explores on every build, so a deploy
+ * changes every source's explores without calling any API. `scan`,
+ * `metadata` and `extend` come together or not at all; write a model that
+ * has them with `defineLiveModel`.
+ */
+export type LiveModel<C extends ApiConnectorType = ApiConnectorType> = {
+    /**
+     * The explores every source has, each with its fixed name. The first
+     * one's field edits are stored under bare field names.
+     */
     explores: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
-    /** Explore names reserved for models not built yet. */
-    plannedNames?: readonly string[];
-    /** Reads fields the API reports itself; omitted when every field is built in. */
-    discovery?: LiveDiscovery<C, Catalog>;
-};
-
-export type LiveDiscovery<
-    C extends ApiConnectorType = ApiConnectorType,
-    Catalog extends LiveCatalog = LiveCatalog,
-> = {
-    /** Reads what the API has now; the service runs it when a source is created or refreshed. */
-    discover: (args: {
-        settings: ApiSourceOf<C>;
-        runtime: LiveRuntime;
-    }) => Promise<Catalog>;
-    /**
-     * Names of the explores besides the first that discovered fields are
-     * added to, each curated on its own. Omitted, only the first is.
-     */
-    models?: readonly string[];
-    /** One explore with the fields `discover` found; the service applies it to the first explore and `models`. */
-    withFields: (
-        definition: LiveExploreDefinition,
-        catalog: Catalog,
-    ) => LiveExploreDefinition;
-    /** Discovered fields kept out of the default field list. */
-    isInternalField?: (apiName: string) => boolean;
-    /**
-     * A new source starts with every discovered field in use, for
-     * integrations whose explore is only what discovery finds.
-     */
-    inUseByDefault?: true;
-};
+} & (
+    | { scan?: undefined; metadata?: undefined; extend?: undefined }
+    | {
+          /**
+           * Reads what the vendor's workspace has now, as plain JSON in
+           * the vendor's terms. The service runs it on Refresh and stores
+           * the parts `metadata` keeps.
+           */
+          scan: (args: {
+              settings: ApiSourceOf<C>;
+              runtime: LiveRuntime;
+          }) => Promise<unknown>;
+          /**
+           * The parts of a scan the model reads, with their types. A
+           * Refresh stores only these, and the core checks stored metadata
+           * against it before `extend` reads it, so metadata an older
+           * version stored in another shape reads as none until the next
+           * Refresh. Only ever add optional keys to it, so what sources
+           * already stored still fits.
+           */
+          metadata: z.ZodType<unknown>;
+          /**
+           * What the stored metadata adds to `explores`. The core calls it
+           * on every build.
+           */
+          extend: (metadata: unknown) => LiveExtension;
+      }
+);
 
 /** How a metric query becomes calls and rows. */
 export type LiveQuery<
@@ -257,19 +303,15 @@ export type LiveConnectionCheck = {
 };
 
 /**
- * What `discover` read, as plain JSON. Each integration gives it its own
- * type; the service only passes it back to `describe`.
- */
-export type LiveCatalog = Record<string, unknown>;
-
-/**
- * One request a source may send. `path` matches as a segment-aware prefix;
- * exact and templated paths come with stored catalogs. Only reads exist.
+ * One request a source may send. Only reads exist. A `{name}` segment
+ * matches any one segment; an `exact` path matches itself only, any other
+ * path also covers the paths under it, segment by segment.
  */
 export type LiveAccessRule = {
     method: 'GET' | 'POST';
     path: string;
     effect: 'read';
+    exact?: true;
     /** The explore model the rule serves; recorded, not checked yet. */
     entry?: string;
 };

@@ -7,6 +7,8 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
+    defineLiveModel,
+    pickLiveFields,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveModel,
@@ -190,10 +192,10 @@ const toDescription = ({ name, description, format }: SupabaseColumn) => {
 };
 
 /** The explore with one dimension per column of the table. */
-export const withSupabaseColumns = (
-    definition: LiveExploreDefinition,
+export const withSupabaseColumns = <D extends LiveExploreDefinition>(
+    definition: D,
     columns: SupabaseColumn[],
-): LiveExploreDefinition => {
+): D => {
     const taken = new Set<string>();
     const dimensions = columns
         .slice(0, SUPABASE_MAX_COLUMNS)
@@ -219,9 +221,6 @@ const openApiSchema = z.object({
     definitions: z.record(z.string(), z.unknown()).optional(),
 });
 
-/** The source's table under `definitions` in the Supabase Data API's OpenAPI description. */
-export type SupabaseCatalog = { supabaseTable?: unknown };
-
 /**
  * Reads the table's columns from the Data API's OpenAPI description. Only
  * secret (service role) keys may read it, and only tables the key can see
@@ -233,7 +232,7 @@ export const scanSupabaseTable = async ({
 }: {
     settings: { table: string };
     runtime: LiveRuntime;
-}): Promise<SupabaseCatalog> => {
+}): Promise<unknown> => {
     const description = await runtime.fetch(
         { method: 'GET', path: SUPABASE_REST_PATH, body: undefined },
         openApiSchema,
@@ -247,22 +246,28 @@ export const scanSupabaseTable = async ({
             }. Check the table name, and that the schema is exposed in the project's Data API settings.`,
         );
     }
-    return { supabaseTable: definitions[settings.table] };
+    return { table: definitions[settings.table] };
 };
 
-export const supabaseModel: LiveModel<
-    ApiConnectorType.SUPABASE,
-    SupabaseCatalog
-> = {
-    explores: SUPABASE_EXPLORES,
-    discovery: {
-        discover: scanSupabaseTable,
-        withFields: (definition, catalog: SupabaseCatalog) =>
-            withSupabaseColumns(
-                definition,
-                readSupabaseColumns(catalog.supabaseTable),
-            ),
-        // The columns are the explore, so a new source starts with all of them
-        inUseByDefault: true,
-    },
-};
+export const supabaseModel: LiveModel<ApiConnectorType.SUPABASE> =
+    defineLiveModel({
+        explores: SUPABASE_EXPLORES,
+        // The table's columns are the explore, every one in use from the start
+        scan: scanSupabaseTable,
+        metadata: z.object({
+            table: tableSchema.optional().catch(undefined),
+        }),
+        extend: ({ table: scanned }) => {
+            const [table] = SUPABASE_EXPLORES;
+            return {
+                fields: {
+                    [table.name]: pickLiveFields(
+                        withSupabaseColumns(
+                            table,
+                            readSupabaseColumns(scanned),
+                        ),
+                    ),
+                },
+            };
+        },
+    });

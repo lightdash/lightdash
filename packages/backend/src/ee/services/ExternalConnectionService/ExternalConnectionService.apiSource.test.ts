@@ -10,15 +10,18 @@ import {
     TimeoutError,
     type CreateExternalConnection,
     type ExternalConnection,
+    type HydraObject,
     type LiveSourceAccessRule,
     type PossibleAbilities,
+    type UpdateExternalConnection,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
-import { getLiveDefinitionHashes } from '../../../services/QuerySourceService/live/explores/build';
+import { getLiveSourceDefinitionHashes } from '../../../services/QuerySourceService/live/explores/build';
+import { type LiveSourceFieldEdits } from '../../../services/QuerySourceService/live/explores/fields';
 import {
-    type LiveSourceFieldEdits,
+    parseLiveSourceFieldState,
     type LiveSourceFieldState,
-} from '../../../services/QuerySourceService/live/explores/fields';
+} from '../../../services/QuerySourceService/live/explores/source';
 import { POSTHOG_EVENTS_EXPLORE } from '../../../services/QuerySourceService/live/integrations/postHog/model';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
@@ -116,8 +119,9 @@ const buildService = ({
     disabledIntegrations?: ApiConnectorType[];
 } = {}) => {
     let fieldState: LiveSourceFieldState = {
-        lastScan: null,
-        fields: null,
+        scan: null,
+        legacy: null,
+        fields: {},
         explores: {},
         aiHint: null,
         targetLabel: null,
@@ -189,8 +193,13 @@ const buildService = ({
                     _uuid: string,
                     _name: string,
                     fields: LiveSourceFieldEdits,
+                    explores: LiveSourceFieldState['explores'] = {},
                 ) => {
-                    fieldState = { ...fieldState, fields };
+                    fieldState = {
+                        ...fieldState,
+                        fields,
+                        explores,
+                    };
                     return true;
                 },
             ),
@@ -247,19 +256,6 @@ const buildService = ({
         getLiveSourceFieldState: vi
             .fn()
             .mockImplementation(async () => fieldState),
-        saveLiveSourceScan: vi
-            .fn()
-            .mockImplementation(async (_uuid: string, lastScan) => {
-                fieldState = { ...fieldState, lastScan };
-            }),
-        initLiveSourceFieldEdits: vi
-            .fn()
-            .mockImplementation(async (_uuid: string, fields) => {
-                fieldState = {
-                    ...fieldState,
-                    fields: fieldState.fields ?? fields,
-                };
-            }),
         updateLiveSourceEdits: vi
             .fn()
             .mockImplementation(
@@ -268,10 +264,12 @@ const buildService = ({
                     update: (current: LiveSourceEdits) => LiveSourceEdits,
                 ) => {
                     const next = update({
-                        fields: fieldState.fields ?? {},
+                        scan: fieldState.scan,
+                        fields: fieldState.fields,
                         explores: fieldState.explores,
                     });
                     fieldState = { ...fieldState, ...next };
+                    return next;
                 },
             ),
     };
@@ -1451,16 +1449,14 @@ describe('ExternalConnectionService live source explores', () => {
         return Object.keys(explores[0].apiSource.fields);
     };
 
-    it('offers scanned properties as available, not in use, when a source is created', async () => {
+    it('puts the properties it found in use when a source is created', async () => {
         respondToScan('ok');
         const { service, projectModel } = buildService();
         await service.create(account, 'proj-1', postHogSource);
 
         const fieldIds = savedFieldIds(projectModel);
         expect(fieldIds).toContain('product_analytics_events_event');
-        expect(fieldIds).not.toContain(
-            'product_analytics_events_property_plan',
-        );
+        expect(fieldIds).toContain('product_analytics_events_property_plan');
         expect(mockSecureFetch.mock.calls.map(([url]) => url)).toEqual([
             `https://eu.posthog.com${PROPERTY_DEFINITIONS}?type=event&limit=500`,
             `https://eu.posthog.com${PROPERTY_DEFINITIONS}?type=person&limit=500`,
@@ -1472,10 +1468,10 @@ describe('ExternalConnectionService live source explores', () => {
         );
         expect(
             fields.find((field) => field.name === 'property_plan'),
-        ).toMatchObject({ inUse: false, isBuiltIn: false });
+        ).toMatchObject({ inUse: true, isBuiltIn: false });
     });
 
-    it('keeps every scanned property in use on a source built before fields could be curated', async () => {
+    it('keeps every property it found in use on a source built before fields could be curated', async () => {
         respondToScan('ok');
         const { service, projectModel } = buildService({ hasExplores: true });
         await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
@@ -1658,7 +1654,8 @@ describe('ExternalConnectionService live source explores', () => {
             const { service, projectModel, externalConnectionModel } =
                 buildService();
             externalConnectionModel.getLiveSourceFieldState.mockResolvedValue({
-                lastScan: null,
+                scan: null,
+                explores: {},
                 fields: {},
                 aiHint: 'EU project',
                 targetLabel: null,
@@ -1708,7 +1705,8 @@ describe('ExternalConnectionService live source explores', () => {
             const { service, projectModel, externalConnectionModel } =
                 buildService();
             externalConnectionModel.getLiveSourceFieldState.mockResolvedValue({
-                lastScan: null,
+                scan: null,
+                explores: {},
                 fields: {},
                 aiHint: null,
                 targetLabel: null,
@@ -1816,22 +1814,30 @@ describe('ExternalConnectionService live source explores', () => {
     });
 
     describe('rebuilding after a code change', () => {
+        const neverCurated = parseLiveSourceFieldState({});
         const refs = [
             {
                 externalConnectionUuid: 'conn-1',
                 projectUuid: 'proj-1',
                 connector: ApiConnectorType.POSTHOG,
-                switchedOffModels: [] as string[],
+                state: neverCurated,
             },
         ];
         const currentHashes = Object.values(
-            getLiveDefinitionHashes(ApiConnectorType.POSTHOG),
+            getLiveSourceDefinitionHashes(
+                ApiConnectorType.POSTHOG,
+                neverCurated,
+            ),
         ).map((definitionHash) => ({
             connectionUuid: 'conn-1',
             definitionHash,
         }));
         const setUp = (
-            stored: { connectionUuid: string; definitionHash: string | null }[],
+            stored: {
+                connectionUuid: string;
+                definitionHash: string | null;
+                object?: string;
+            }[],
         ) => {
             const built = buildService();
             built.externalConnectionModel.listLiveSourceRefs.mockResolvedValue(
@@ -1866,8 +1872,28 @@ describe('ExternalConnectionService live source explores', () => {
             ).not.toHaveBeenCalled();
         });
 
+        it('leaves a source whose other built explores carry no hash', async () => {
+            const { service, projectModel } = setUp([
+                ...currentHashes,
+                {
+                    connectionUuid: 'conn-1',
+                    definitionHash: null,
+                    object: 'Deals',
+                },
+            ]);
+            await expect(
+                service.rebuildOutdatedApiSourceExplores(),
+            ).resolves.toEqual({ rebuilt: 0, failed: 0 });
+            expect(
+                projectModel.replaceApiSourceExplores,
+            ).not.toHaveBeenCalled();
+        });
+
         it('leaves a source whose only missing explore is switched off', async () => {
-            const hashes = getLiveDefinitionHashes(ApiConnectorType.HYDRA);
+            const hashes = getLiveSourceDefinitionHashes(
+                ApiConnectorType.HYDRA,
+                neverCurated,
+            );
             const { service, projectModel, externalConnectionModel } = setUp([
                 { connectionUuid: 'conn-1', definitionHash: hashes.events },
             ]);
@@ -1875,7 +1901,10 @@ describe('ExternalConnectionService live source explores', () => {
                 {
                     ...refs[0],
                     connector: ApiConnectorType.HYDRA,
-                    switchedOffModels: ['users'],
+                    state: {
+                        ...neverCurated,
+                        explores: { users: { inUse: false } },
+                    },
                 },
             ]);
             await expect(
@@ -1977,7 +2006,9 @@ describe('ExternalConnectionService live source explores', () => {
             ]);
 
             const editTrx =
-                externalConnectionModel.updateLiveSourceEdits.mock.calls[0][2];
+                externalConnectionModel.updateLiveSourceEdits.mock.calls.at(
+                    -1,
+                )?.[2];
             expect(editTrx).toBeDefined();
             expect(projectModel.replaceApiSourceExplores.mock.calls[0][3]).toBe(
                 editTrx,
@@ -2361,8 +2392,10 @@ describe('ExternalConnectionService live source explores', () => {
         origin: 'https://eu.posthog.com',
         apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '303731' },
         sourceName: 'posthog',
-        fieldEdits: null,
+        fieldEdits: {},
         exploreEdits: {},
+        scan: null,
+        legacy: null,
         tags: [],
         aiHint: null,
         targetLabel: null,
@@ -2450,18 +2483,6 @@ describe('ExternalConnectionService live source explores', () => {
         );
     });
 
-    it('refuses a prefix whose planned model name another explore has', async () => {
-        const { service } = buildService({
-            takenExploreNames: ['web_persons'],
-        });
-        await expect(
-            service.create(account, 'proj-1', {
-                ...postHogSource,
-                explorePrefix: 'web',
-            }),
-        ).rejects.toThrow(AlreadyExistsError);
-    });
-
     it('refuses a badly formatted prefix', async () => {
         const { service } = buildService();
         await expect(
@@ -2475,7 +2496,7 @@ describe('ExternalConnectionService live source explores', () => {
     it('reports a taken prefix with the explore names it would give', async () => {
         const { service } = buildService({
             deletedSources: [deletedSource()],
-            takenExploreNames: ['posthog_2_sessions'],
+            takenExploreNames: ['posthog_2_events'],
         });
 
         await expect(
@@ -2626,7 +2647,8 @@ describe('ExternalConnectionService live source explores', () => {
             async () => {
                 externalConnectionModel.getLiveSourceFieldState.mockResolvedValue(
                     {
-                        lastScan: null,
+                        scan: null,
+                        explores: {},
                         fields: {},
                         aiHint: 'EU project',
                         targetLabel: 'Default project',
@@ -3192,6 +3214,275 @@ describe('ExternalConnectionService integration feature flags', () => {
         expect(externalConnectionModel.update).not.toHaveBeenCalled();
     });
 
+    describe('the setup test of an integration that fixes its own request', () => {
+        const sentryCreate: CreateExternalConnection = {
+            name: 'Sentry',
+            type: 'bearer_token',
+            origin: 'https://sentry.io',
+            secret: 'token',
+            allowedPathPrefixes: ['/api/0/organizations/acme/events/'],
+            allowedMethods: ['GET'],
+            allowedContentTypes: ['application/json'],
+            apiSource: {
+                connector: ApiConnectorType.SENTRY,
+                organizationSlug: 'acme',
+                projectSlugs: ['mobile-ios'],
+            },
+        };
+        const sentryConnection = () =>
+            posthogConnection({
+                origin: 'https://sentry.io',
+                allowedMethods: ['GET'],
+                allowedPathPrefixes: ['/api/0/organizations/acme/events/'],
+                apiSource: sentryCreate.apiSource,
+            });
+        // What the organization's project list returns: teams and more
+        const upstream = (status: number, body: unknown) =>
+            mockSecureFetch.mockResolvedValueOnce({
+                status,
+                contentType: 'application/json',
+                headers: { 'x-sentry-rate-limit-remaining': '39' },
+                bodyText: JSON.stringify(body),
+                truncated: false,
+            });
+        // A request an admin could write to read another project
+        const otherProject = {
+            path: '/api/0/organizations/acme/events/',
+            query: { project: 'backend', field: 'user.email' },
+        };
+
+        it('sends the request of the integration, whatever the admin asks for', async () => {
+            upstream(200, { data: [{ 'count()': 7 }] });
+            const { service } = buildService({
+                connections: [sentryConnection()],
+            });
+
+            await service.testConnection(
+                account,
+                'proj-1',
+                'conn-1',
+                otherProject,
+            );
+
+            const [url] = mockSecureFetch.mock.calls[0];
+            const sent = new URL(url);
+            expect(sent.pathname).toBe('/api/0/organizations/acme/events/');
+            expect(sent.searchParams.getAll('project')).toEqual(['mobile-ios']);
+            expect(sent.searchParams.getAll('field')).toEqual(['count()']);
+        });
+
+        it.each([
+            [200, { data: [{ 'count()': 7 }], teams: [{ name: 'Payments' }] }],
+            [403, { detail: 'No access to project backend of team Payments' }],
+        ])(
+            'answers a %i with the check alone, for a saved and an unsaved source',
+            async (status, body) => {
+                const { service } = buildService({
+                    connections: [sentryConnection()],
+                });
+
+                upstream(status, body);
+                const saved = await service.testConnection(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                    otherProject,
+                );
+                upstream(status, body);
+                const unsaved = await service.testConfig(
+                    account,
+                    'proj-1',
+                    sentryCreate,
+                    otherProject,
+                );
+
+                [saved, unsaved].forEach((result) => {
+                    expect(result.liveCheck?.ok).toBe(status === 200);
+                    expect(result).toEqual({
+                        status,
+                        contentType: 'application/json',
+                        headers: {},
+                        body: null,
+                        truncated: false,
+                        liveCheck: result.liveCheck,
+                    });
+                    // The whole response as the API sends it
+                    expect(JSON.stringify(result)).not.toContain('Payments');
+                });
+            },
+        );
+
+        describe('with edited settings and the saved token', () => {
+            // The edits an admin could send to read more with the saved token
+            const edits: [string, UpdateExternalConnection, RegExp][] = [
+                [
+                    'another project',
+                    {
+                        apiSource: {
+                            connector: ApiConnectorType.SENTRY,
+                            organizationSlug: 'acme',
+                            projectSlugs: ['backend'],
+                        },
+                    },
+                    /Enter the token again/,
+                ],
+                [
+                    'another organization',
+                    {
+                        apiSource: {
+                            connector: ApiConnectorType.SENTRY,
+                            organizationSlug: 'other',
+                            projectSlugs: ['mobile-ios'],
+                        },
+                    },
+                    /Enter the token again/,
+                ],
+                [
+                    'no integration',
+                    {
+                        apiSource: null,
+                        allowedPathPrefixes: ['/api/0/'],
+                    },
+                    /cannot remove or change the integration/,
+                ],
+                [
+                    'another integration',
+                    {
+                        apiSource: {
+                            connector: ApiConnectorType.POSTHOG,
+                            projectId: '303731',
+                        },
+                    },
+                    /cannot remove or change the integration/,
+                ],
+            ];
+
+            it.each(edits)(
+                'refuses %s before a call',
+                async (_, config, message) => {
+                    upstream(200, { teams: [{ name: 'Payments' }] });
+                    const { service, externalConnectionModel } = buildService({
+                        connections: [sentryConnection()],
+                    });
+
+                    const test = service.testConnection(
+                        account,
+                        'proj-1',
+                        'conn-1',
+                        {
+                            path: '/api/0/organizations/acme/projects/',
+                            config,
+                        },
+                    );
+
+                    await expect(test).rejects.toThrow(ParameterError);
+                    await expect(test).rejects.toThrow(message);
+                    expect(mockSecureFetch).not.toHaveBeenCalled();
+                    expect(
+                        externalConnectionModel.getDecryptedSecret,
+                    ).not.toHaveBeenCalled();
+                },
+            );
+
+            it('tests the saved settings when the edit changes none of them', async () => {
+                upstream(200, { data: [{ 'count()': 7 }] });
+                const { service } = buildService({
+                    connections: [sentryConnection()],
+                });
+
+                const result = await service.testConnection(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                    {
+                        ...otherProject,
+                        config: {
+                            name: 'Renamed',
+                            apiSource: sentryCreate.apiSource,
+                        },
+                    },
+                );
+
+                const [url, init] = mockSecureFetch.mock.calls[0];
+                expect(new URL(url).searchParams.getAll('project')).toEqual([
+                    'mobile-ios',
+                ]);
+                expect(init.headers?.Authorization).toBe('Bearer phx_secret');
+                expect(result.body).toBeNull();
+            });
+        });
+
+        it('tests edited settings with a token that the admin enters again', async () => {
+            upstream(200, {
+                data: [{ 'count()': 7 }],
+                teams: [{ name: 'Payments' }],
+            });
+            const { service, externalConnectionModel } = buildService({
+                connections: [sentryConnection()],
+            });
+
+            const result = await service.testConnection(
+                account,
+                'proj-1',
+                'conn-1',
+                {
+                    ...otherProject,
+                    config: {
+                        secret: 'new-token',
+                        apiSource: {
+                            connector: ApiConnectorType.SENTRY,
+                            organizationSlug: 'acme',
+                            projectSlugs: ['mobile-android'],
+                        },
+                    },
+                },
+            );
+
+            const [url, init] = mockSecureFetch.mock.calls[0];
+            expect(new URL(url).searchParams.getAll('project')).toEqual([
+                'mobile-android',
+            ]);
+            expect(init.headers?.Authorization).toBe('Bearer new-token');
+            expect(
+                externalConnectionModel.getDecryptedSecret,
+            ).not.toHaveBeenCalled();
+            expect(result).toEqual({
+                status: 200,
+                contentType: 'application/json',
+                headers: {},
+                body: null,
+                truncated: false,
+                liveCheck: result.liveCheck,
+            });
+        });
+
+        it('still tests edited settings of an integration that does not fix its request', async () => {
+            mockSecureFetch.mockResolvedValueOnce({
+                status: 200,
+                contentType: 'application/json',
+                headers: {},
+                bodyText: JSON.stringify({ results: [] }),
+                truncated: false,
+            });
+            const { service } = buildService();
+
+            await service.testConnection(account, 'proj-1', 'conn-1', {
+                method: 'POST',
+                path: '/api/projects/42/query/',
+                config: {
+                    apiSource: {
+                        connector: ApiConnectorType.POSTHOG,
+                        projectId: '42',
+                    },
+                },
+            });
+
+            const [url, init] = mockSecureFetch.mock.calls[0];
+            expect(new URL(url).pathname).toBe('/api/projects/42/query/');
+            expect(init.headers?.Authorization).toBe('Bearer phx_secret');
+        });
+    });
+
     it('lists only the integrations the organization has turned on', async () => {
         const { service, featureFlagModel } = buildService({
             disabledIntegrations: [
@@ -3293,5 +3584,307 @@ describe('ExternalConnectionService integration feature flags', () => {
         ).resolves.toMatchObject({ externalConnectionUuid: 'conn-1' });
         await service.delete(account, 'proj-1', 'conn-1');
         expect(externalConnectionModel.softDelete).toHaveBeenCalled();
+    });
+});
+
+describe('ExternalConnectionService explores found by a Refresh, through Hydra', () => {
+    const DEALS: HydraObject = {
+        id: 'Deals',
+        label: 'Deals',
+        recordCount: 20,
+        fields: [
+            { id: 'stage', label: 'Stage', type: 'string' as const },
+            { id: 'amount', label: 'Amount', type: 'number' as const },
+            {
+                id: 'sync_token',
+                label: 'Sync token',
+                type: 'string',
+                system: true,
+            },
+        ],
+    };
+    const EVENTS: HydraObject = {
+        id: 'Events',
+        label: 'Events',
+        fields: [{ id: 'kind', label: 'Kind', type: 'string' as const }],
+    };
+    const hydraConnection = (objects: HydraObject[]) =>
+        posthogConnection({
+            origin: 'https://hydra.lightdash.dev',
+            allowedPathPrefixes: ['/v1/'],
+            allowedMethods: ['GET', 'POST'],
+            liveSourceName: 'crm',
+            apiSource: { connector: ApiConnectorType.HYDRA, objects },
+        });
+    /** Changes the objects Hydra's workspace has, as the next Refresh sees them. */
+    const setObjects = (
+        connection: ExternalConnection,
+        objects: HydraObject[],
+    ) => {
+        Object.assign(connection.apiSource ?? {}, { objects });
+    };
+    const lastExplores = (
+        projectModel: ReturnType<typeof buildService>['projectModel'],
+    ) =>
+        projectModel.replaceApiSourceExplores.mock.calls.at(-1)?.[2] as {
+            name: string;
+            apiSource?: { apiName?: string; fields?: Record<string, unknown> };
+            tables: Record<
+                string,
+                { dimensions: Record<string, { hidden?: boolean }> }
+            >;
+        }[];
+    const turnOn = (
+        service: ReturnType<typeof buildService>['service'],
+        exploreName: string,
+    ) =>
+        service.updateLiveSourceFields(
+            account,
+            'proj-1',
+            'conn-1',
+            [],
+            [{ exploreName, inUse: true }],
+        );
+
+    it('starts an object it finds off, under the name it keeps, and reports it', async () => {
+        const connection = hydraConnection([]);
+        const { service, externalConnectionModel } = buildService({
+            connections: [connection],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+        setObjects(connection, [DEALS]);
+
+        const summary = await service.refreshApiSourceExplores(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+
+        expect(summary.addedExplores).toEqual(['crm_deals']);
+        const { explores } = await service.getLiveSourceFields(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+        expect(
+            explores.find(({ exploreName }) => exploreName === 'crm_deals'),
+        ).toMatchObject({ inUse: false });
+    });
+
+    it('builds the explore of an object an admin turns on, with off-by-default fields hidden', async () => {
+        const connection = hydraConnection([DEALS]);
+        const { service, projectModel } = buildService({
+            connections: [connection],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+        expect(
+            lastExplores(projectModel).map(({ name }) => name),
+        ).not.toContain('crm_deals');
+
+        await turnOn(service, 'crm_deals');
+
+        const deals = lastExplores(projectModel).find(
+            ({ name }) => name === 'crm_deals',
+        );
+        expect(deals?.apiSource?.apiName).toBe('Deals');
+        const { dimensions } = deals!.tables.crm_deals;
+        expect(Object.keys(dimensions)).toEqual(
+            expect.arrayContaining(['id', 'stage', 'amount']),
+        );
+        expect(dimensions.sync_token).toBeUndefined();
+    });
+
+    it('leaves out an object whose name another explore of the project holds', async () => {
+        const connection = hydraConnection([DEALS]);
+        const { service, projectModel } = buildService({
+            connections: [connection],
+            takenExploreNames: ['crm_deals'],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        await turnOn(service, 'crm_deals');
+
+        expect(lastExplores(projectModel).map(({ name }) => name)).toEqual([
+            'crm_events',
+            'crm_users',
+        ]);
+    });
+
+    it('leaves out an object whose name a declared explore has', async () => {
+        const connection = hydraConnection([EVENTS]);
+        const { service } = buildService({ connections: [connection] });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        const { explores } = await service.getLiveSourceFields(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+        expect(explores.map(({ exploreName }) => exploreName)).toEqual([
+            'crm_events',
+            'crm_users',
+        ]);
+    });
+
+    it('keeps an object explore the source has built when a deploy rebuilds it', async () => {
+        const connection = hydraConnection([DEALS]);
+        const { service, projectModel, externalConnectionModel } = buildService(
+            { connections: [connection] },
+        );
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+        // Built while object explores still started on
+        projectModel.getApiSourceExploreNames.mockResolvedValue([
+            'crm_events',
+            'crm_users',
+            'crm_deals',
+        ]);
+        externalConnectionModel.listLiveSourceRefs.mockResolvedValue([
+            {
+                externalConnectionUuid: 'conn-1',
+                projectUuid: 'proj-1',
+                connector: ApiConnectorType.HYDRA,
+                state: await externalConnectionModel.getLiveSourceFieldState(
+                    'conn-1',
+                ),
+            },
+        ]);
+        projectModel.listApiSourceExploreHashes.mockResolvedValue([
+            { connectionUuid: 'conn-1', definitionHash: 'old' },
+        ]);
+
+        await expect(
+            service.rebuildOutdatedApiSourceExplores(),
+        ).resolves.toEqual({ rebuilt: 1, failed: 0 });
+
+        expect(lastExplores(projectModel).map(({ name }) => name)).toEqual([
+            'crm_events',
+            'crm_users',
+            'crm_deals',
+        ]);
+        const state =
+            await externalConnectionModel.getLiveSourceFieldState('conn-1');
+        expect(state.explores).toMatchObject({ deals: { inUse: true } });
+    });
+
+    it('refuses to edit an explore the source does not have', async () => {
+        const connection = hydraConnection([DEALS]);
+        const { service } = buildService({ connections: [connection] });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        await expect(turnOn(service, 'crm_x')).rejects.toThrow(ParameterError);
+    });
+
+    it('queries an object explore, and refuses an object it does not have', async () => {
+        const connection = hydraConnection([DEALS]);
+        const { service } = buildService({ connections: [connection] });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+        await turnOn(service, 'crm_deals');
+        const source = await service.getLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            60_000,
+        );
+
+        const result = await runLiveRequest(source, {
+            query: JSON.stringify({
+                object: 'Deals',
+                dimensions: ['stage'],
+                metrics: ['record_count'],
+                filters: [],
+                orderBy: [],
+                limit: 10,
+            }),
+            limit: 10,
+        });
+        const total = result.rows.reduce(
+            (sum, row) => sum + Number(row.record_count),
+            0,
+        );
+        expect(total).toBe(20);
+
+        await expect(
+            runLiveRequest(source, {
+                query: JSON.stringify({
+                    object: 'Other',
+                    dimensions: ['stage'],
+                    metrics: ['record_count'],
+                    filters: [],
+                    orderBy: [],
+                    limit: 10,
+                }),
+                limit: 10,
+            }),
+        ).rejects.toThrow('Hydra has no object Other');
+    });
+
+    it('drops the explore of an object a Refresh no longer finds, and reports it', async () => {
+        const connection = hydraConnection([DEALS]);
+        const { service, projectModel } = buildService({
+            connections: [connection],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+        await turnOn(service, 'crm_deals');
+        projectModel.getApiSourceFieldIds.mockResolvedValue(
+            lastExplores(projectModel).flatMap(({ apiSource }) =>
+                Object.keys(apiSource?.fields ?? {}),
+            ),
+        );
+        setObjects(connection, []);
+
+        const summary = await service.refreshApiSourceExplores(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+
+        expect(summary.removedExplores).toEqual(['crm_deals']);
+        expect(
+            lastExplores(projectModel).map(({ name }) => name),
+        ).not.toContain('crm_deals');
+    });
+
+    it('starts new fields of an explore it has as their definition says', async () => {
+        const connection = hydraConnection([DEALS]);
+        const { service } = buildService({ connections: [connection] });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+        await turnOn(service, 'crm_deals');
+        setObjects(connection, [
+            {
+                ...DEALS,
+                fields: [
+                    ...DEALS.fields,
+                    { id: 'owner', label: 'Owner', type: 'string' },
+                    {
+                        id: 'etag',
+                        label: 'Etag',
+                        type: 'string',
+                        system: true,
+                    },
+                ],
+            },
+        ]);
+
+        const summary = await service.refreshApiSourceExplores(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+
+        expect(summary.addedFields).toEqual({ crm_deals: ['owner', 'etag'] });
+        const { explores } = await service.getLiveSourceFields(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+        const deals =
+            explores.find(({ exploreName }) => exploreName === 'crm_deals')
+                ?.fields ?? [];
+        expect(deals.find(({ name }) => name === 'owner')).toMatchObject({
+            inUse: true,
+        });
+        expect(deals.find(({ name }) => name === 'etag')).toMatchObject({
+            inUse: false,
+        });
     });
 });

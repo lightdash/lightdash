@@ -7,8 +7,12 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { supabaseIntegration } from '.';
-import { connectLiveSource } from '../../liveSource.mock';
+import {
+    connectLiveSource,
+    getExploresWithDiscoveredFields,
+} from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
+import { SUPABASE_EXPLORES, SUPABASE_TABLE_EXPLORE } from './model';
 import { SUPABASE_MAX_QUERY_ROWS, toSupabaseQuery } from './run';
 import { OPEN_API, ORDERS_TABLE } from './supabase.fixtures';
 
@@ -196,16 +200,18 @@ describe('supabaseIntegration run', () => {
     });
 });
 
-describe('supabaseIntegration scan', () => {
+describe('supabaseIntegration discover', () => {
     it('keeps only the source table from the OpenAPI description', async () => {
         const { source, send } = connect(
             response(OPEN_API, 200, {
                 'content-type': 'application/openapi+json',
             }),
         );
-        await expect(source.discover()).resolves.toEqual({
-            supabaseTable: ORDERS_TABLE,
-        });
+        const explores = await source.discover();
+
+        expect(
+            getExploresWithDiscoveredFields(SUPABASE_EXPLORES, explores),
+        ).toEqual([SUPABASE_TABLE_EXPLORE.name]);
         expect(send.mock.calls[0][0]).toMatchObject({
             method: 'GET',
             path: '/rest/v1/',

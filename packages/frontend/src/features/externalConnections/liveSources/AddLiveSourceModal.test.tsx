@@ -32,7 +32,6 @@ const onPick = vi.fn();
 const renderModal = ({
     canUseLinkedInAds = true,
     canUseSalesforce = true,
-    canUseHydra = false,
     canAdd = true,
     // null stands for still loading, since undefined takes the default
     enabledIntegrations = Object.values(ApiConnectorType) as
@@ -50,7 +49,6 @@ const renderModal = ({
                 canUseGoogle
                 canUseLinkedInAds={canUseLinkedInAds}
                 canUseSalesforce={canUseSalesforce}
-                canUseHydra={canUseHydra}
                 enabledIntegrations={enabledIntegrations ?? undefined}
                 isEnabledIntegrationsError={isEnabledIntegrationsError}
                 onPick={onPick}
@@ -91,8 +89,6 @@ describe('AddLiveSourceModal', () => {
         expect(screen.queryByText('Jira')).not.toBeInTheDocument();
         expect(screen.queryByText('Coming soon')).not.toBeInTheDocument();
         expect(screen.getByText('PostHog')).toBeInTheDocument();
-        // Hydra, the test integration, only where the server registers it
-        expect(screen.queryByText('Hydra')).not.toBeInTheDocument();
     });
 
     it('hides integrations the organization has turned off', () => {
@@ -124,8 +120,8 @@ describe('AddLiveSourceModal', () => {
         expect(screen.queryByText('PostHog')).not.toBeInTheDocument();
     });
 
-    it('offers Hydra where the server registers it', async () => {
-        renderModal({ canUseHydra: true });
+    it('offers Hydra like any integration the organization has on', async () => {
+        renderModal();
 
         await userEvent.click(screen.getByText('Hydra'));
 

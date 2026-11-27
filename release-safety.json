@@ -1,32 +1,18 @@
 {
   "schemaVersion": "2",
-  "version": "3.430.0",
-  "previousVersion": "3.429.0",
-  "releaseDate": "2026-11-27T19:28:43.953Z",
+  "version": "3.434.0",
+  "previousVersion": "3.433.0",
+  "releaseDate": "2026-11-27T23:01:11.295Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261127180000_drop_api_source_call_counters_and_leases.ts",
-        "edition": "ee",
-        "tables": [
-          "api_source_call_counters",
-          "api_source_call_leases"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": false,
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
@@ -55,13 +41,6 @@
     "minPreviousVersion": "2.497.1",
     "requiredStops": []
   },
-  "declaredBreaks": [
-    {
-      "id": "spk-3175-drop-api-source-call-counters-and-leases",
-      "reason": "Drops the empty api_source_call_counters and api_source_call_leases tables. Live data source rate limits have used api_source_rate_buckets, api_source_rate_pacing and api_source_rate_slots since 3.375.0, and nothing writes the old tables. The previous release still deletes old rows from them in the daily rate counter cleanup job. A scheduler on the previous release that runs that job during a rolling update fails it on the missing tables after its other deletes have run, and retries it up to three times; the job succeeds again once the scheduler is updated. Queries and rate limiting are unaffected.",
-      "requiredStop": false,
-      "migration": "packages/backend/src/ee/database/migrations/20261127180000_drop_api_source_call_counters_and_leases.ts"
-    }
-  ],
+  "declaredBreaks": [],
   "declaredAdvisories": []
 }

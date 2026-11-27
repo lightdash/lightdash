@@ -467,5 +467,4 @@ export const MIXPANEL_EXPLORES = [
 
 export const mixpanelModel: LiveModel<ApiConnectorType.MIXPANEL> = {
     explores: MIXPANEL_EXPLORES,
-    plannedNames: ['profiles', 'insights', 'property_sums'],
 };

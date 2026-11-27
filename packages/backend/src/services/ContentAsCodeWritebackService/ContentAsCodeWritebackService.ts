@@ -1923,8 +1923,8 @@ export class ContentAsCodeWritebackService extends BaseService {
         );
     }
 
-    // Composer charts always belong to a dashboard; one owned by another
-    // dashboard stays out, as in collectDashboardOwnedCharts
+    // Only charts this dashboard owns; another dashboard's or a space's
+    // stays out, as in collectDashboardOwnedCharts
     private async collectDashboardComposerCharts(
         projectUuid: string,
         dashboardAsCode: DashboardAsCode,

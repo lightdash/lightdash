@@ -9,8 +9,11 @@ import {
 import { z } from 'zod';
 import {
     ADDITIVE,
+    defineLiveModel,
     dimension,
     metric,
+    pickLiveFields,
+    withFieldsOffByDefault,
     type LiveDimensionDefinition,
     type LiveExploreDefinition,
     type LiveModel,
@@ -68,7 +71,7 @@ export const HUBSPOT_DEALS_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
-    // The shared check only sees the built-in fields here; compile refuses Count
+    // The shared check only sees the declared fields here; compile refuses Count
     // with a scanned property, which the explore's rules don't name.
     incompatible: [
         {
@@ -127,7 +130,7 @@ export const HUBSPOT_CONTACTS_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
-    // The shared check only sees the built-in fields here; compile refuses Count
+    // The shared check only sees the declared fields here; compile refuses Count
     // with a scanned property, which the explore's rules don't name.
     incompatible: [
         {
@@ -186,7 +189,7 @@ export const HUBSPOT_COMPANIES_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
-    // The shared check only sees the built-in fields here; compile refuses Count
+    // The shared check only sees the declared fields here; compile refuses Count
     // with a scanned property, which the explore's rules don't name.
     incompatible: [
         {
@@ -245,7 +248,7 @@ export const HUBSPOT_TICKETS_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
-    // The shared check only sees the built-in fields here; compile refuses Count
+    // The shared check only sees the declared fields here; compile refuses Count
     // with a scanned property, which the explore's rules don't name.
     incompatible: [
         {
@@ -303,7 +306,7 @@ export const HUBSPOT_LEADS_EXPLORE: LiveExploreDefinition = {
     maxDimensions: null,
     maxMetrics: null,
     dateRange: null,
-    // The shared check only sees the built-in fields here; compile refuses Count
+    // The shared check only sees the declared fields here; compile refuses Count
     // with a scanned property, which the explore's rules don't name.
     incompatible: [
         {
@@ -459,8 +462,8 @@ export const HUBSPOT_EXPLORES = [
     HUBSPOT_PIPELINE_STAGES_EXPLORE,
 ] as const;
 
-/** Properties the built-in fields already read. */
-const BUILT_IN_PROPERTIES = new Set([
+/** Properties the declared fields already read. */
+const DECLARED_PROPERTIES = new Set([
     'hs_object_id',
     'createdate',
     'hs_createdate',
@@ -552,17 +555,17 @@ export const toHubspotPropertyName = (apiName: string) =>
         ? apiName.slice(0, -HUBSPOT_LABEL_SUFFIX.length)
         : apiName;
 
-export const isInternalHubspotField = (apiName: string) => {
+export const isHubspotSystemField = (apiName: string) => {
     const property = toHubspotPropertyName(apiName);
     return property.startsWith('hs_') && !USEFUL_HS_PROPERTIES.has(property);
 };
 
 /**
- * Names properties can't take: the built-in fields and Count. A property
+ * Names properties can't take: the declared fields and Count. A property
  * named like one gets a prefix, from its name alone, so it never changes.
  */
 const RESERVED_NAMES = new Set([
-    // Every object's explore has the same built-in fields
+    // Every object's explore has the same declared fields
     ...HUBSPOT_DEALS_EXPLORE.dimensions.map(({ name }) => name),
     ...HUBSPOT_DEALS_EXPLORE.metrics.map(({ name }) => name),
 ]);
@@ -659,10 +662,10 @@ const hintLabels = (property: HubspotProperty) => {
  * Adds a dimension per property of the object, people's own before
  * HubSpot's hs_ ones. Unknown types and unreadable lists add nothing.
  */
-export const withHubspotPropertyFields = (
-    definition: LiveExploreDefinition,
+export const withHubspotPropertyFields = <D extends LiveExploreDefinition>(
+    definition: D,
     properties: unknown,
-): LiveExploreDefinition => {
+): D => {
     const parsed = propertiesSchema.safeParse(properties);
     if (!parsed.success) {
         return definition;
@@ -671,12 +674,12 @@ export const withHubspotPropertyFields = (
         ({ name, type, hidden }) =>
             !hidden &&
             PROPERTY_NAME.test(name) &&
-            !BUILT_IN_PROPERTIES.has(name) &&
+            !DECLARED_PROPERTIES.has(name) &&
             Object.hasOwn(PROPERTY_RULES, type),
     );
     const scanned = [
-        ...kept.filter(({ name }) => !isInternalHubspotField(name)),
-        ...kept.filter(({ name }) => isInternalHubspotField(name)),
+        ...kept.filter(({ name }) => !isHubspotSystemField(name)),
+        ...kept.filter(({ name }) => isHubspotSystemField(name)),
     ].slice(0, MAX_SCANNED_PROPERTIES);
     const names = new Set([
         ...RESERVED_NAMES,
@@ -724,9 +727,6 @@ export const withHubspotPropertyFields = (
     };
 };
 
-/** Each object's property list, as HubSpot returns it. */
-export type HubspotCatalog = { hubspotProperties?: unknown };
-
 /**
  * Reads each object's properties, which become its explore's fields: one
  * call per object. An object the token can't read is left out, so the others
@@ -738,7 +738,7 @@ export const scanHubspotProperties = async ({
     runtime,
 }: {
     runtime: LiveRuntime;
-}): Promise<HubspotCatalog> => {
+}): Promise<unknown> => {
     const lists = await Promise.allSettled(
         HUBSPOT_OBJECTS.map((object) =>
             runtime.fetch(
@@ -759,7 +759,7 @@ export const scanHubspotProperties = async ({
         throw failure ?? rejected[0];
     }
     return {
-        hubspotProperties: Object.fromEntries(
+        properties: Object.fromEntries(
             HUBSPOT_OBJECTS.flatMap((object, index) => {
                 const list = lists[index];
                 return list.status === 'fulfilled'
@@ -770,21 +770,35 @@ export const scanHubspotProperties = async ({
     };
 };
 
-export const hubspotModel: LiveModel<ApiConnectorType.HUBSPOT, HubspotCatalog> =
-    {
+export const hubspotModel: LiveModel<ApiConnectorType.HUBSPOT> =
+    defineLiveModel({
         explores: HUBSPOT_EXPLORES,
-        discovery: {
-            discover: scanHubspotProperties,
-            withFields: (definition, catalog: HubspotCatalog) =>
-                withHubspotPropertyFields(
-                    definition,
-                    readHubspotProperties(
-                        catalog.hubspotProperties,
-                        definition.name,
+        // Every object's explore gets the properties the account has
+        scan: scanHubspotProperties,
+        metadata: z.object({
+            properties: z.record(
+                z.string(),
+                propertiesSchema.optional().catch(undefined),
+            ),
+        }),
+        extend: ({ properties }) => ({
+            fields: Object.fromEntries(
+                HUBSPOT_EXPLORES.map((definition) => [
+                    definition.name,
+                    pickLiveFields(
+                        withFieldsOffByDefault(
+                            definition,
+                            withHubspotPropertyFields(
+                                definition,
+                                readHubspotProperties(
+                                    properties,
+                                    definition.name,
+                                ),
+                            ),
+                            isHubspotSystemField,
+                        ),
                     ),
-                ),
-            isInternalField: isInternalHubspotField,
-            // Deals is the first explore; the other objects are scanned too
-            models: HUBSPOT_OBJECTS.slice(1),
-        },
-    };
+                ]),
+            ),
+        }),
+    });

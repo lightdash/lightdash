@@ -34,11 +34,7 @@ import {
     agentExecutionContext,
     createAgentExecutionContext,
 } from '../AiAccessService/agentExecutionContext';
-import {
-    buildLiveExplores,
-    toScannedLiveSourceFields,
-} from '../QuerySourceService/live/explores/build';
-import { getInitialLiveSourceFieldEdits } from '../QuerySourceService/live/explores/fields';
+import { buildLiveExplores } from '../QuerySourceService/live/explores/build';
 import { DocumentService } from './DocumentService';
 
 const userUuid = 'document-author';
@@ -1978,20 +1974,11 @@ describe('DocumentService live data source charts', () => {
             connector: ApiConnectorType.GA4,
             propertyId: '123',
         } as const;
-        const scannedFields = toScannedLiveSourceFields(
-            apiSource.connector,
-            {},
-        );
         const [explore] = buildLiveExplores({
             connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
             sourceName: 'google_analytics',
             name: 'Google Analytics',
             apiSource,
-            scannedFields,
-            edits: getInitialLiveSourceFieldEdits({
-                scannedFields,
-                isExistingSource: true,
-            }),
         });
         return explore;
     };
