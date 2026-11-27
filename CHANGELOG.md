@@ -1,3 +1,10 @@
+## [3.420.7](https://github.com/lightdash/lightdash/compare/3.420.6...3.420.7) (2026-11-27)
+
+
+### Bug Fixes
+
+* Google Sheets syncs turn off on tabs with a table filter and on token refresh failures ([#33512](https://github.com/lightdash/lightdash/issues/33512)) ([cb6c068](https://github.com/lightdash/lightdash/commit/cb6c06812043b534b12f33a5ae825197c6b3e4f4))
+
 ## [3.420.6](https://github.com/lightdash/lightdash/compare/3.420.5...3.420.6) (2026-11-27)
 
 
