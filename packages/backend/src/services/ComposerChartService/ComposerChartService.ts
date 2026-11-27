@@ -861,7 +861,6 @@ export class ComposerChartService extends BaseService {
         });
     }
 
-    /** Checks the caller may run this chart on this tile, then writes the dashboard's filters, parameters and date zoom onto its nodes. */
     private async resolveTileRun(
         account: RegisteredAccount,
         projectUuid: UUID,
@@ -958,7 +957,6 @@ export class ComposerChartService extends BaseService {
         };
     }
 
-    /** Binds the resolved nodes, submits the run and assembles its result; tags it first so resolution errors carry the chart kind. */
     private async runBound(
         account: RegisteredAccount,
         projectUuid: UUID,
@@ -972,6 +970,7 @@ export class ComposerChartService extends BaseService {
             invalidateCache: boolean;
         },
     ): Promise<ComposerChartRunResults> {
+        // Tagged before resolving so access errors carry the chart kind
         Sentry.setTag('lightdash.chartKind', 'composer');
         const { chart, exploreByNodeId, resolved, dateZoomByNodeId, tile } =
             await resolve();
