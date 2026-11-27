@@ -122,6 +122,15 @@ const SOURCES: {
         answers: {},
     },
     {
+        name: 'Sentry',
+        apiSource: {
+            connector: ApiConnectorType.SENTRY,
+            organizationSlug: 'acme',
+            projectSlugs: ['mobile-ios'],
+        },
+        answers: {},
+    },
+    {
         name: 'Attio',
         apiSource: { connector: ApiConnectorType.ATTIO },
         answers: {

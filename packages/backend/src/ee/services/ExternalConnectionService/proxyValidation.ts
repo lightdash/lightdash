@@ -329,6 +329,7 @@ const EXPOSED_RESPONSE_HEADER_NAMES = new Set([
     'link',
     'ratelimit',
     'retry-after',
+    'x-sentry-rate-limit-reset',
 ]);
 
 const EXPOSED_RESPONSE_HEADER_PREFIXES = [
