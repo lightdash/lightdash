@@ -22,10 +22,10 @@ type DrawState =
     | { status: 'ready'; draw: ComposerChartDraw }
     | { status: 'error'; message: string };
 
-export type ComposerChartDrawResult = {
+type ComposerChartDrawResult = {
     /** Null while loading or when the run no longer fits the chart. */
     draw: ComposerChartDraw | null;
-    /** The displayed query's results, fetched to the last row. */
+    /** The displayed query's results; draw the full chart only once `hasFetchedAllRows`. */
     results: InfiniteQueryResults;
     /** Rows keyed by the chart's field ids. */
     rows: ResultRow[];
