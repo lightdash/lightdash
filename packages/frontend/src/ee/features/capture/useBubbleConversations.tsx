@@ -124,6 +124,7 @@ export const useBubbleConversations = (
                 <LauncherAgentPicker
                     candidates={picker.candidates}
                     onPick={picker.onPick}
+                    waitingImages={[]}
                     waitingPrompt={null}
                 />
             ) : null;

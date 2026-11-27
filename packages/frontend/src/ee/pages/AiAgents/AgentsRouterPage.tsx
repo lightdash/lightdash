@@ -184,7 +184,7 @@ const AgentsRouterPage = () => {
     );
 
     const handleRouteError = useCallback(
-        ({
+        async ({
             fallbackAgent,
             context,
             createThreadForAgent: createThreadForAgentOverride,
@@ -194,7 +194,7 @@ const AgentsRouterPage = () => {
         }: AiAgentRouterErrorArgs) => {
             setPendingPrompt(message);
             if (fallbackAgent && projectUuid) {
-                void (createThreadForAgentOverride ?? createThreadForAgent)({
+                await (createThreadForAgentOverride ?? createThreadForAgent)({
                     agentUuid: fallbackAgent.uuid,
                     context,
                     message,
@@ -208,7 +208,8 @@ const AgentsRouterPage = () => {
 
     const {
         confirmPick,
-        handleSubmit: handleRouterSubmit,
+        // The composer keeps a draft with images until its conversation exists.
+        submitUntilCreated: handleRouterSubmit,
         isCreating,
         isLocked,
         isPickingAgent,
@@ -234,7 +235,9 @@ const AgentsRouterPage = () => {
             optimisticContext?: AiPromptContext;
             toolHints: string[];
         }) => {
-            if (!isPinnedContextReady) return;
+            // Rejects so a composer holding uploads gets them back.
+            if (!isPinnedContextReady)
+                throw new Error('The page context is still loading');
             setPendingPrompt('');
             const mergedContext = mergeAiPromptContextInput(
                 contextInput,
@@ -307,10 +310,11 @@ const AgentsRouterPage = () => {
             { pathname: location.pathname, search: location.search },
             { replace: true, state: undefined },
         );
+        // The creation mutation reports its own failure.
         void handleSubmit({
             message: autoSubmitPrompt,
             toolHints: [],
-        });
+        }).catch(() => undefined);
     }, [
         autoSubmitPrompt,
         handleSubmit,
@@ -421,7 +425,6 @@ const AgentsRouterPage = () => {
                             loading={isLocked}
                             disabled={!isPinnedContextReady}
                             onSubmit={handleSubmit}
-                            imageAttachmentsUnavailableReason="Choose an agent to attach images"
                             onStartDeepResearch={
                                 canStartDeepResearch
                                     ? handleStartDeepResearch
