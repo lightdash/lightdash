@@ -14,6 +14,7 @@ import {
 import type { DeletedContentItem, SessionUser } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { ContentModel } from '../../models/ContentModel/ContentModel';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SpaceModel } from '../../models/SpaceModel';
 import type { ValidationModel } from '../../models/ValidationModel/ValidationModel';
@@ -83,6 +84,7 @@ const createService = ({
         app: {},
         document: {},
     },
+    composerChartsEnabled = false,
 }: {
     contentModel?: ContentModel;
     spaceModel?: SpaceModel;
@@ -92,7 +94,11 @@ const createService = ({
         DirectAccessResourceType,
         Record<string, SpaceMemberRole[]>
     >;
+    composerChartsEnabled?: boolean;
 } = {}) => {
+    const featureFlagModel = {
+        get: vi.fn().mockResolvedValue({ enabled: composerChartsEnabled }),
+    };
     const projectModel = {
         getAllByOrganizationUuid: vi.fn().mockResolvedValue([
             {
@@ -174,7 +180,9 @@ const createService = ({
             validationModel: validationModel as unknown as ValidationModel,
             appMoveService: undefined,
             appGenerateService: undefined,
+            featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
         }),
+        featureFlagModel,
         projectModel,
         savedChartService,
         savedSqlService,
@@ -817,6 +825,59 @@ describe('ContentService.find', () => {
             expect.any(Object),
             expect.objectContaining({ page: 1, pageSize: 50 }),
         );
+    });
+
+    describe('composer charts', () => {
+        const findWith = async (
+            composerChartsEnabled: boolean,
+            contentTypes: ContentType[],
+        ) => {
+            const findSummaryContents = vi.fn().mockResolvedValue({
+                data: [],
+            });
+            const deps = createService({
+                composerChartsEnabled,
+                contentModel: {
+                    findSummaryContents,
+                } as unknown as ContentModel,
+                spaceModel: {
+                    find: vi.fn().mockResolvedValue([{ uuid: 'space-uuid' }]),
+                    getChildSpaceUuidsForParents: vi.fn().mockResolvedValue([]),
+                } as unknown as SpaceModel,
+                spacePermissionService: {
+                    getAccessibleSpaceUuids: vi
+                        .fn()
+                        .mockResolvedValue(['space-uuid']),
+                } as unknown as SpacePermissionService,
+            });
+            await deps.service.find(
+                createUser(),
+                {
+                    projectUuids: [projectUuid],
+                    spaceUuids: ['space-uuid'],
+                    contentTypes,
+                },
+                {},
+                { page: 1, pageSize: 25 },
+            );
+            return { deps, filters: findSummaryContents.mock.calls[0][0] };
+        };
+
+        it('lists and counts them only with the flag on', async () => {
+            const listed = [ContentType.COMPOSER_CHART, ContentType.SPACE];
+            expect((await findWith(true, listed)).filters).toMatchObject({
+                composerCharts: true,
+            });
+            expect((await findWith(false, listed)).filters).toMatchObject({
+                composerCharts: false,
+            });
+        });
+
+        it('skips the flag for a listing with no composer charts or spaces', async () => {
+            const { deps, filters } = await findWith(true, [ContentType.CHART]);
+            expect(filters).toMatchObject({ composerCharts: false });
+            expect(deps.featureFlagModel.get).not.toHaveBeenCalled();
+        });
     });
 
     // The vizs-only listing skips space scoping, so it must be gated on

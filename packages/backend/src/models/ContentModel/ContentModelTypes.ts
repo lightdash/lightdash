@@ -28,6 +28,8 @@ export type ContentFilters = {
             adminProjectUuids: string[];
         };
     };
+    /** Server-resolved composer-charts flag; absent hides composer charts and leaves them out of space counts. */
+    composerCharts?: boolean;
     projectUuids?: string[];
     spaceUuids?: string[];
     /** Restrict to specific content uuids (e.g. resolving curated collections) */

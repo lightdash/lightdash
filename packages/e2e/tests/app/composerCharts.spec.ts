@@ -12,7 +12,9 @@ import {
 import { composerChartBody } from '../../../api-tests/helpers/composerDashboard';
 import {
     createComposerDashboard,
+    createComposerSpaceChart,
     deleteComposerDashboard,
+    deleteComposerSpace,
     expect,
     json,
     loginAs,
@@ -293,5 +295,43 @@ test.describe('Composer charts on dashboards', () => {
         await expect(tile.getByText('I feel great!!!').first()).toBeVisible();
         await expect(tile.getByText('shipped')).toHaveCount(0);
         await expect(tile.getByText('I feel less than...')).toHaveCount(0);
+    });
+});
+
+test.describe('Composer charts in spaces', () => {
+    test('opens a chart from its space listing and draws it; a dashboard chart has no page', async ({
+        page,
+        api,
+    }) => {
+        await loginAs(api.raw, SEED_USERS.admin);
+        const { space, chart: spaceChart } =
+            await createComposerSpaceChart(api);
+        const owned = await createComposerDashboard(api);
+        try {
+            await page.goto(
+                `/projects/${space.projectUuid}/spaces/${space.uuid}`,
+            );
+            await page
+                .getByRole('link', { name: spaceChart.name, exact: true })
+                .click();
+            await expect(page).toHaveURL(
+                new RegExp(`/composer-charts/${spaceChart.uuid}$`),
+            );
+            await expect(
+                page
+                    .getByTestId('composer-chart-visualization')
+                    .locator('.echarts-for-react'),
+            ).toBeVisible({ timeout: 30_000 });
+
+            await page.goto(
+                `/projects/${space.projectUuid}/composer-charts/${owned.chart.uuid}`,
+            );
+            await expect(
+                page.getByText('Composer chart not found'),
+            ).toBeVisible();
+        } finally {
+            await deleteComposerDashboard(api, owned.dashboard.uuid);
+            await deleteComposerSpace(api, space.uuid);
+        }
     });
 });

@@ -1,6 +1,7 @@
 import { ContentType, SpaceContentBase } from '@lightdash/common';
 import { Knex } from 'knex';
 import { AppsTableName } from '../../../database/entities/apps';
+import { ComposerChartsTableName } from '../../../database/entities/composerCharts';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { OrganizationTableName } from '../../../database/entities/organizations';
 import { PinnedSpaceTableName } from '../../../database/entities/pinnedList';
@@ -63,6 +64,19 @@ const getDocumentCount = (
             `${SpaceTableName}.space_uuid`,
             filters.documents.allowedSpaceUuids,
         );
+};
+
+// Space-owned composer charts only; a dashboard-owned one has no space_uuid.
+const getComposerChartCountSql = (filters: ContentFilters): string => {
+    if (!filters.composerCharts) return '';
+    return filters.includeDescendantCounts
+        ? `UNION ALL
+            SELECT 1 FROM ${ComposerChartsTableName} cc
+                INNER JOIN ${SpaceTableName} s2 ON s2.space_uuid = cc.space_uuid
+                WHERE s2.project_id = ${SpaceTableName}.project_id AND s2.path <@ ${SpaceTableName}.path`
+        : ` + (SELECT count(*) FROM ${ComposerChartsTableName} cc
+                WHERE cc.space_uuid = ${SpaceTableName}.space_uuid
+                AND cc.deleted_at IS NULL)`;
 };
 
 export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
@@ -186,11 +200,12 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                         SELECT 1 FROM ${SavedSqlTableName} ss
                                             INNER JOIN ${DashboardsTableName} d ON d.dashboard_uuid = ss.dashboard_uuid
                                             INNER JOIN ${SpaceTableName} s2 ON s2.space_id = d.space_id WHERE s2.path <@ ${SpaceTableName}.path
+                                        ${getComposerChartCountSql(filters)}
                                     ) _`
-                                : `SELECT count(DISTINCT ${SavedChartsTableName}.saved_query_id)
+                                : `(SELECT count(DISTINCT ${SavedChartsTableName}.saved_query_id)
                                     FROM ${SavedChartsTableName}
                                     WHERE ${SavedChartsTableName}.space_id = ${SpaceTableName}.space_id
-                                    AND ${SavedChartsTableName}.deleted_at IS NULL`
+                                    AND ${SavedChartsTableName}.deleted_at IS NULL)${getComposerChartCountSql(filters)}`
                         }),
                         'childSpaceCount', (
                             SELECT count(*)

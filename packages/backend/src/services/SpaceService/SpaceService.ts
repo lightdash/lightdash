@@ -859,14 +859,17 @@ export class SpaceService
 
         const spaces = await this.spaceModel.find({ spaceUuids: allUuids });
 
-        const [charts, sqlCharts, dashboards, apps] = await Promise.all([
-            this.spaceModel.getSpaceQueries(allUuids),
-            this.spaceModel.getSpaceSqlCharts(allUuids),
-            this.spaceModel.getSpaceDashboards(allUuids),
-            this.spaceModel.getSpaceApps(allUuids),
-        ]);
+        // Composer charts count with the flag off too: deleting the space takes them.
+        const [charts, sqlCharts, composerCharts, dashboards, apps] =
+            await Promise.all([
+                this.spaceModel.getSpaceQueries(allUuids),
+                this.spaceModel.getSpaceSqlCharts(allUuids),
+                this.spaceModel.getSpaceComposerCharts(allUuids),
+                this.spaceModel.getSpaceDashboards(allUuids),
+                this.spaceModel.getSpaceApps(allUuids),
+            ]);
 
-        const allCharts = [...charts, ...sqlCharts];
+        const allCharts = [...charts, ...sqlCharts, ...composerCharts];
         const contexts = await this.spacePermissionService.resolveAccessBatch(
             user.userUuid,
             allUuids.map((uuid) => ({ type: 'space', spaceUuid: uuid })),

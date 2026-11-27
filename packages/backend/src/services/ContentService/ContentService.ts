@@ -14,6 +14,7 @@ import {
     DeletedContentItem,
     DeletedContentWithDescendants,
     DirectAccessResourceType,
+    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     KnexPaginateArgs,
@@ -35,6 +36,7 @@ import {
     ContentArgs,
     ContentFilters,
 } from '../../models/ContentModel/ContentModelTypes';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
@@ -72,6 +74,7 @@ type ContentServiceArguments = {
     validationModel: ValidationModel;
     appMoveService: BulkActionable<Knex> | undefined;
     appGenerateService: AppGenerateService | undefined;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class ContentService extends BaseService {
@@ -103,6 +106,8 @@ export class ContentService extends BaseService {
 
     appGenerateService: AppGenerateService | undefined;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     constructor(args: ContentServiceArguments) {
         super();
         this.documentService = args.documentService;
@@ -121,6 +126,29 @@ export class ContentService extends BaseService {
         this.validationModel = args.validationModel;
         this.appMoveService = args.appMoveService;
         this.appGenerateService = args.appGenerateService;
+        this.featureFlagModel = args.featureFlagModel;
+    }
+
+    /** Composer charts are listed, and counted in space rows, only with the flag on. */
+    private async isComposerChartsListed(
+        user: SessionUser,
+        contentTypes: ContentType[] | undefined,
+    ): Promise<boolean> {
+        if (
+            contentTypes &&
+            !contentTypes.includes(ContentType.SPACE) &&
+            !contentTypes.includes(ContentType.COMPOSER_CHART)
+        ) {
+            return false;
+        }
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ComposerCharts,
+        });
+        return enabled;
     }
 
     private getAppMoveService(): BulkActionable<Knex> {
@@ -330,6 +358,10 @@ export class ContentService extends BaseService {
         const results = await this.contentModel.findSummaryContents(
             {
                 ...filters,
+                composerCharts: await this.isComposerChartsListed(
+                    user,
+                    filters.contentTypes,
+                ),
                 projectUuids: allowedProjectUuids,
                 spaceUuids: isAllDocuments ? undefined : allowedSpaceUuids,
                 space: {
@@ -1003,6 +1035,10 @@ export class ContentService extends BaseService {
                 deletedByUserUuids,
                 dataAppVizsFilter: filters.dataAppVizsFilter,
                 documents: { allowedSpaceUuids: [] },
+                composerCharts: await this.isComposerChartsListed(
+                    user,
+                    contentTypes,
+                ),
             },
             paginateArgs,
         );

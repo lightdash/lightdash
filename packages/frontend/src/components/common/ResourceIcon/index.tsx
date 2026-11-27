@@ -83,9 +83,8 @@ export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
         case ResourceViewItemType.SPACE:
             return <IconBox icon={IconFolder} color="violet.6" />;
         case ResourceViewItemType.CHART:
-            return <ChartIcon chartKind={item.data.chartKind} />;
         case ResourceViewItemType.COMPOSER_CHART:
-            return null;
+            return <ChartIcon chartKind={item.data.chartKind} />;
         case ResourceViewItemType.DATA_APP:
             return <IconBox icon={IconAppWindow} color="orange.6" />;
         case ResourceViewItemType.DOCUMENT:

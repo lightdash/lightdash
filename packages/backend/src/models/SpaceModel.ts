@@ -23,6 +23,7 @@ import {
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
 import { AppsTableName } from '../database/entities/apps';
+import { ComposerChartsTableName } from '../database/entities/composerCharts';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -2472,6 +2473,28 @@ export class SpaceModel {
             appUuid: a.app_uuid,
             projectUuid: a.project_uuid,
         }));
+    }
+
+    /** Live charts these spaces own; dashboard-owned composer charts have no space. */
+    async getSpaceComposerCharts(
+        spaceUuids: string[],
+    ): Promise<{ uuid: string; name: string; spaceUuid: string }[]> {
+        if (spaceUuids.length === 0) return [];
+        const rows = await this.database(ComposerChartsTableName)
+            .select('composer_chart_uuid', 'name', 'space_uuid')
+            .whereIn('space_uuid', spaceUuids)
+            .whereNull('deleted_at');
+        return rows.flatMap((row) =>
+            row.space_uuid
+                ? [
+                      {
+                          uuid: row.composer_chart_uuid,
+                          name: row.name,
+                          spaceUuid: row.space_uuid,
+                      },
+                  ]
+                : [],
+        );
     }
 
     async getSpaceApps(

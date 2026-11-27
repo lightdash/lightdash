@@ -1,5 +1,7 @@
 import {
+    ChartKind,
     ChartType,
+    ContentType,
     DashboardTileTypes,
     FeatureFlags,
     FieldType,
@@ -28,6 +30,8 @@ import {
     type QueryHistoryListItem,
     type SearchResults,
     type Space,
+    type SpaceDeleteImpact,
+    type SummaryContent,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -1910,6 +1914,100 @@ describe('Composer charts', () => {
             client.post<
                 Body<ComposerChartRunResults> & { error: { message: string } }
             >(chartRunUrl, body, { failOnStatusCode: false });
+
+        it('lists in its space under Charts with its kind, counts in its space, and leaves both with the flag off', async () => {
+            const parent = await createSpace();
+            const childResp = await admin.post<Body<Space>>(
+                `/api/v1/projects/${projectUuid}/spaces`,
+                {
+                    name: uniqueName('Composer child space'),
+                    parentSpaceUuid: parent.uuid,
+                },
+            );
+            expect(childResp.status).toBe(200);
+            const child = childResp.body.results;
+            tracker.trackSpace(child.uuid);
+            const created = await postChart({
+                ...composerSpaceChartBody(child.uuid),
+                chart: {
+                    ...composerSpaceChartBody(child.uuid).chart,
+                    chartConfig: { type: ChartType.TABLE, config: {} },
+                },
+            });
+            expect(created.status).toBe(201);
+            const chart = created.body.results;
+
+            const viewer = await loginAsViewer();
+            const list = async (spaceUuid: string, types: ContentType[]) => {
+                const query = types.map((t) => `contentTypes=${t}`).join('&');
+                const resp = await viewer.get<Body<{ data: SummaryContent[] }>>(
+                    `/api/v2/content?projectUuids=${projectUuid}&spaceUuids=${spaceUuid}&${query}&pageSize=100`,
+                );
+                expect(resp.status).toBe(200);
+                return resp.body.results.data;
+            };
+            const charts = [ContentType.CHART, ContentType.COMPOSER_CHART];
+            const childChartCount = async () =>
+                (await list(parent.uuid, [ContentType.SPACE])).find(
+                    (item) => item.uuid === child.uuid,
+                );
+            const impact = async () =>
+                (
+                    await admin.get<Body<SpaceDeleteImpact>>(
+                        `/api/v1/projects/${projectUuid}/spaces/${parent.uuid}/delete-impact`,
+                    )
+                ).body.results;
+
+            expect(await list(child.uuid, charts)).toEqual([
+                expect.objectContaining({
+                    contentType: ContentType.COMPOSER_CHART,
+                    uuid: chart.uuid,
+                    name: chart.name,
+                    chartKind: ChartKind.TABLE,
+                    space: { uuid: child.uuid, name: child.name },
+                    views: 0,
+                    lastUpdatedBy: expect.objectContaining({
+                        firstName: expect.any(String),
+                    }),
+                }),
+            ]);
+            expect(await list(child.uuid, [ContentType.CHART])).toEqual([]);
+            expect(await childChartCount()).toMatchObject({ chartCount: 1 });
+            expect(await impact()).toMatchObject({
+                chartCount: 1,
+                charts: [expect.objectContaining({ uuid: chart.uuid })],
+            });
+
+            const editor = await loginAsEditor();
+            const privateSpace = await createSpace(false);
+            const hidden = await postChart(
+                composerSpaceChartBody(privateSpace.uuid),
+            );
+            expect(hidden.status).toBe(201);
+            const editorList = await editor.get<
+                Body<{ data: SummaryContent[] }>
+            >(
+                `/api/v2/content?projectUuids=${projectUuid}&contentTypes=${ContentType.COMPOSER_CHART}&pageSize=100`,
+            );
+            expect(
+                editorList.body.results.data.map((item) => item.uuid),
+            ).not.toContain(hidden.body.results.uuid);
+
+            expect((await admin.post(flagUrl, { enabled: false })).status).toBe(
+                200,
+            );
+            try {
+                expect(await list(child.uuid, charts)).toEqual([]);
+                expect(await childChartCount()).toMatchObject({
+                    chartCount: 0,
+                });
+                expect(await impact()).toMatchObject({ chartCount: 1 });
+            } finally {
+                expect(
+                    (await admin.post(flagUrl, { enabled: true })).status,
+                ).toBe(200);
+            }
+        });
 
         it('creates a chart the space owns, which a viewer of the space reads and no one from another organization', async () => {
             const { space, chart } = await createSpaceChart();

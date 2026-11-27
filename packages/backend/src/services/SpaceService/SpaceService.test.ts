@@ -74,6 +74,7 @@ describe('Document deletion impact', () => {
                     ]),
                     getSpaceQueries: vi.fn().mockResolvedValue([]),
                     getSpaceSqlCharts: vi.fn().mockResolvedValue([]),
+                    getSpaceComposerCharts: vi.fn().mockResolvedValue([]),
                     getSpaceDashboards: vi.fn().mockResolvedValue([]),
                     getSpaceApps: vi.fn().mockResolvedValue([]),
                     getDocumentsInSpaces,
@@ -99,6 +100,57 @@ describe('Document deletion impact', () => {
             expect(result.spaces[0].documentCount).toBe(result.documentCount);
         },
     );
+});
+
+describe('Composer charts in the deletion impact', () => {
+    it('counts the charts the space and its children own, with the composer flag off', async () => {
+        const user = createTestUser({
+            organizationUuid: 'org',
+            projectUuid: 'project',
+        }) as SessionUser;
+        const getSpaceComposerCharts = vi.fn().mockResolvedValue([
+            {
+                uuid: 'composer',
+                name: 'Composer chart',
+                spaceUuid: 'child',
+            },
+        ]);
+        const service = new SpaceService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            },
+            spaceModel: {
+                getDescendantSpaceUuids: vi.fn().mockResolvedValue(['child']),
+                find: vi.fn().mockResolvedValue([]),
+                getSpaceQueries: vi.fn().mockResolvedValue([
+                    {
+                        uuid: 'classic',
+                        name: 'Classic chart',
+                        spaceUuid: 'space',
+                    },
+                ]),
+                getSpaceSqlCharts: vi.fn().mockResolvedValue([]),
+                getSpaceComposerCharts,
+                getSpaceDashboards: vi.fn().mockResolvedValue([]),
+                getSpaceApps: vi.fn().mockResolvedValue([]),
+                getDocumentsInSpaces: vi.fn().mockResolvedValue([]),
+            },
+            spacePermissionService: {
+                can: vi.fn().mockResolvedValue(true),
+                resolveAccessBatch: vi.fn().mockResolvedValue([]),
+            },
+        } as unknown as ConstructorParameters<typeof SpaceService>[0]);
+
+        const result = await service.getDeleteImpact(user, 'space');
+
+        expect(getSpaceComposerCharts).toHaveBeenCalledWith(['space', 'child']);
+        expect(result.chartCount).toBe(2);
+        expect(result.charts).toContainEqual({
+            uuid: 'composer',
+            name: 'Composer chart',
+            spaceUuid: 'child',
+        });
+    });
 });
 
 describe('SpaceService', () => {
