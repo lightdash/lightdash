@@ -17,6 +17,7 @@ import {
     getLiveDateRange,
     getLiveDefinitionName,
     getLiveExplore,
+    getLiveExploreApiName,
     toAbsoluteDateRange,
     type LiveCompiledRequest,
 } from '../../sdk';
@@ -284,7 +285,10 @@ export const compileAttioQuery = ({
         typeOf,
     );
     const request: AttioRequest = {
-        object: toAttioObject(getLiveDefinitionName(explore)),
+        // A custom object's explore names its slug; a standard one is named for it
+        object:
+            getLiveExploreApiName(explore) ??
+            toAttioObject(getLiveDefinitionName(explore)),
         columns,
         ...(filter ? { filter } : {}),
         ...(sorts ? { sorts } : {}),

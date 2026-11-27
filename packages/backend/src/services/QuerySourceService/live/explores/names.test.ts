@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    ATTIO_OBJECTS_PATH,
     getAttioAttributesPath,
     getDefaultExplorePrefix,
     getHubspotPropertiesPath,
@@ -134,6 +135,8 @@ const SOURCES: {
         name: 'Attio',
         apiSource: { connector: ApiConnectorType.ATTIO },
         answers: {
+            // Custom objects start off, so they build no explore here
+            [ATTIO_OBJECTS_PATH]: { data: [] },
             [getAttioAttributesPath('deals')]: {
                 data: [
                     { api_slug: 'name', title: 'Deal name', type: 'text' },

@@ -1,6 +1,7 @@
 import {
     ApiConnectorType,
     ATTIO_OBJECTS,
+    ATTIO_OBJECTS_PATH,
     ATTIO_ORIGIN,
     ATTIO_WORKSPACE_MEMBERS_PATH,
     getAttioAttributesPath,
@@ -15,13 +16,30 @@ const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.ATTIO];
 export const attioConnection: LiveConnection<ApiConnectorType.ATTIO> = {
     settings: CATALOG.settings,
     origins: [ATTIO_ORIGIN],
-    access: () => ({
+    access: (_settings, explores) => ({
         rules: [
             ...ATTIO_OBJECTS.flatMap((object) => [
                 readRule('GET', getAttioAttributesPath(object)),
                 readRule('POST', getAttioRecordsQueryPath(object)),
             ]),
             readRule('GET', ATTIO_WORKSPACE_MEMBERS_PATH),
+            // A Refresh lists the custom objects, then reads each one's
+            // attributes before any of them is an explore
+            readRule('GET', ATTIO_OBJECTS_PATH, { exact: true }),
+            readRule('GET', getAttioAttributesPath('{object}'), {
+                exact: true,
+            }),
+            // Records of a custom object only once a Refresh offered it
+            ...explores.flatMap(({ name, apiName }) =>
+                apiName === undefined
+                    ? []
+                    : [
+                          readRule('POST', getAttioRecordsQueryPath(apiName), {
+                              exact: true,
+                              entry: name,
+                          }),
+                      ],
+            ),
         ],
     }),
     checkAuth: ({ type }) => {
@@ -32,5 +50,5 @@ export const attioConnection: LiveConnection<ApiConnectorType.ATTIO> = {
         }
     },
     describeTarget: () =>
-        'Attio workspace: companies, people, deals, users and workspaces',
+        'Attio workspace: companies, people, deals, users and workspaces, plus the custom objects an admin turned on',
 };
