@@ -1,5 +1,4 @@
 import {
-    ActionIcon,
     Box,
     Button,
     Group,
@@ -9,18 +8,8 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import {
-    IconInfoCircle,
-    IconLock,
-    IconPlus,
-    IconSettings,
-} from '@tabler/icons-react';
-import {
-    type FC,
-    type KeyboardEvent,
-    type MouseEvent,
-    type ReactNode,
-} from 'react';
+import { IconInfoCircle, IconLock, IconPlus } from '@tabler/icons-react';
+import { type FC, type KeyboardEvent, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import tableClasses from '../../../components/common/sourceTable.module.css';
 import { useExternalConnectionApiUsage } from '../hooks/useExternalConnectionApiUsage';
@@ -41,9 +30,6 @@ import {
 } from './liveSourceRows';
 import classes from './LiveSources.module.css';
 
-const stopPropagation = (event: MouseEvent) => event.stopPropagation();
-
-/** Opens one source's settings, in the table: an icon. */
 /** A lock beside a source that only some people can query, with its rule as a tooltip. */
 const AccessRuleBadge: FC<{ connection: LiveSourceConnection }> = ({
     connection,
@@ -62,26 +48,6 @@ const AccessRuleBadge: FC<{ connection: LiveSourceConnection }> = ({
         </Tooltip>
     );
 };
-
-const LiveSourceSettingsIcon: FC<{
-    connection: LiveSourceConnection;
-    onOpenSettings: (connectionUuid: string) => void;
-}> = ({ connection, onOpenSettings }) => (
-    <Tooltip label="Settings" withinPortal>
-        <ActionIcon
-            variant="subtle"
-            color="gray"
-            size="sm"
-            aria-label={`Settings for ${connection.name}`}
-            onClick={(event) => {
-                stopPropagation(event);
-                onOpenSettings(connection.externalConnectionUuid);
-            }}
-        >
-            <MantineIcon icon={IconSettings} />
-        </ActionIcon>
-    </Tooltip>
-);
 
 const EmptyLiveSources: FC = () => {
     const actions = useLiveSourceActions();
@@ -133,13 +99,29 @@ const UsageWindowInfo: FC<{ windowDays: number | undefined }> = ({
     );
 };
 
+/**
+ * How many of a source's explores are in use: the count its own page shows,
+ * from the same request, so the two can't disagree.
+ */
+const ExploresInUse: FC<{ projectUuid: string; connectionUuid: string }> = (
+    params,
+) => {
+    const { data: fields } = useLiveSourceFields(params);
+    return (
+        <>
+            {fields?.explores
+                .filter((explore) => explore.inUse)
+                .length.toLocaleString() ?? '—'}
+        </>
+    );
+};
+
 /** Every live data source, with how much it was used; a row opens it. */
 export const LiveSourcesTable: FC<{
     projectUuid: string;
     onOpen: (connectionUuid: string) => void;
-    onOpenSettings: (connectionUuid: string) => void;
-}> = ({ projectUuid, onOpen, onOpenSettings }) => {
-    const canManage = useLiveSourceActions() !== null;
+}> = ({ projectUuid, onOpen }) => {
+    const actions = useLiveSourceActions();
     const { data: connections } = useExternalConnections(projectUuid);
     const { data: usage } = useExternalConnectionApiUsage(projectUuid);
     const rows = toLiveSourceRows(connections ?? [], usage);
@@ -155,6 +137,24 @@ export const LiveSourcesTable: FC<{
         };
     return (
         <Box className={tableClasses.table} role="table">
+            {/* The header a settings card has: what the card holds, and its action */}
+            <Box className={classes.listHeader}>
+                <span className={classes.listTitle}>
+                    Sources
+                    <span className={classes.listCount}>{rows.length}</span>
+                </span>
+                {actions ? (
+                    <Button
+                        size="compact-xs"
+                        variant="subtle"
+                        color="gray"
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        onClick={actions.add}
+                    >
+                        Add
+                    </Button>
+                ) : null}
+            </Box>
             <Box className={classes.row} data-head role="row">
                 <span role="columnheader">Integration</span>
                 <span role="columnheader">Name</span>
@@ -162,20 +162,12 @@ export const LiveSourcesTable: FC<{
                     role="columnheader"
                     className={`${tableClasses.number} ${classes.headWithInfo}`}
                 >
-                    Data read
-                    <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
-                </span>
-                <span
-                    role="columnheader"
-                    className={`${tableClasses.number} ${classes.headWithInfo}`}
-                >
-                    API calls
+                    Queries
                     <UsageWindowInfo windowDays={usage?.[0]?.windowDays} />
                 </span>
                 <span role="columnheader" className={tableClasses.number}>
-                    Median latency
+                    Explores
                 </span>
-                <span />
             </Box>
             {rows.map(({ connection, integration, target, usage: used }) => (
                 <Box
@@ -205,36 +197,16 @@ export const LiveSourcesTable: FC<{
                         </Text>
                         <AccessRuleBadge connection={connection} />
                     </Group>
-                    {/* A dash until it has been called, as its own page shows */}
-                    <span
-                        role="cell"
-                        className={tableClasses.number}
-                        data-empty={!used.isUsed || undefined}
-                    >
-                        {used.dataRead}
+                    {/* The same facts, in the same words, as the top of its own page */}
+                    <span role="cell" className={tableClasses.number}>
+                        {used.queries}
                     </span>
-                    <span
-                        role="cell"
-                        className={tableClasses.number}
-                        data-empty={!used.isUsed || undefined}
-                    >
-                        {used.apiCalls}
+                    <span role="cell" className={tableClasses.number}>
+                        <ExploresInUse
+                            projectUuid={projectUuid}
+                            connectionUuid={connection.externalConnectionUuid}
+                        />
                     </span>
-                    <span
-                        role="cell"
-                        className={tableClasses.number}
-                        data-empty={!used.medianLatency || undefined}
-                    >
-                        {used.medianLatency ?? '—'}
-                    </span>
-                    <Box role="cell">
-                        {canManage ? (
-                            <LiveSourceSettingsIcon
-                                connection={connection}
-                                onOpenSettings={onOpenSettings}
-                            />
-                        ) : null}
-                    </Box>
                 </Box>
             ))}
         </Box>

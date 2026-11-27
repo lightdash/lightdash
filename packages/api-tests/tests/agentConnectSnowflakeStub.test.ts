@@ -14,7 +14,12 @@ import { setTimeout } from 'node:timers/promises';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, SITE_URL, type Body } from '../helpers/api-client';
 import { login, loginWithPermissions } from '../helpers/auth';
-import { mcpText, openMcpSession, personalAccessTokens } from '../helpers/mcp';
+import {
+    mcpText,
+    openMcpSession,
+    personalAccessTokens,
+    runMcpSql,
+} from '../helpers/mcp';
 import { createProject } from '../helpers/projects';
 
 const siteUrl = new URL(SITE_URL);
@@ -236,8 +241,8 @@ describe.skipIf(!stubUrl)(
                 AgentIdentityConnectEntryPoint.MCP_CONNECT_LINK,
             );
             const callTool = await openMcpSession(client);
-            const refused = await callTool('run_sql', {
-                projectUuid,
+            const { result: refused } = await runMcpSql(callTool, {
+                projectUuid: projectUuid!,
                 sql,
                 limit: 1,
             });
@@ -326,18 +331,14 @@ describe.skipIf(!stubUrl)(
                 expiresAt,
                 credentials: { type: WarehouseTypes.SNOWFLAKE },
             });
-            const result = await callTool('run_sql', {
-                projectUuid,
+            const { result, rows } = await runMcpSql(callTool, {
+                projectUuid: projectUuid!,
                 sql,
                 limit: 1,
             });
             if (result.isError) throw new Error(mcpText(result));
             expect(result.isError).toBeFalsy();
-            expect(result).toMatchObject({
-                structuredContent: {
-                    result: { rows: [{ GREETING: 'hello' }] },
-                },
-            });
+            expect(rows).toMatchObject([{ GREETING: 'hello' }]);
         });
 
         it('offers an agent connection on consent only to an unconnected person', async () => {
@@ -377,8 +378,8 @@ describe.skipIf(!stubUrl)(
             expect(callback.status).toBe(302);
             await setTimeout(1500);
             const callTool = await openMcpSession(client);
-            const result = await callTool('run_sql', {
-                projectUuid,
+            const { result } = await runMcpSql(callTool, {
+                projectUuid: projectUuid!,
                 sql,
                 limit: 1,
             });
@@ -407,8 +408,8 @@ describe.skipIf(!stubUrl)(
                 ).status,
             ).toBe(302);
             const callTool = await openMcpSession(client);
-            const result = await callTool('run_sql', {
-                projectUuid,
+            const { result } = await runMcpSql(callTool, {
+                projectUuid: projectUuid!,
                 sql,
                 limit: 1,
             });
@@ -441,8 +442,8 @@ describe.skipIf(!stubUrl)(
                         credentialsUrl,
                     );
                 const callTool = await openMcpSession(client);
-                const failed = await callTool('run_sql', {
-                    projectUuid,
+                const { result: failed } = await runMcpSql(callTool, {
+                    projectUuid: projectUuid!,
                     sql,
                     limit: 1,
                 });
@@ -455,8 +456,13 @@ describe.skipIf(!stubUrl)(
                     );
                 expect(after.body.results).toEqual(before.body.results);
                 expect(
-                    (await callTool('run_sql', { projectUuid, sql, limit: 1 }))
-                        .isError,
+                    (
+                        await runMcpSql(callTool, {
+                            projectUuid: projectUuid!,
+                            sql,
+                            limit: 1,
+                        })
+                    ).result.isError,
                 ).toBeFalsy();
             },
         );
@@ -478,8 +484,13 @@ describe.skipIf(!stubUrl)(
             const callTool = await openMcpSession(client);
             for (let index = 0; index < 3; index += 1) {
                 expect(
-                    (await callTool('run_sql', { projectUuid, sql, limit: 1 }))
-                        .isError,
+                    (
+                        await runMcpSql(callTool, {
+                            projectUuid: projectUuid!,
+                            sql,
+                            limit: 1,
+                        })
+                    ).result.isError,
                 ).toBeFalsy();
             }
         });

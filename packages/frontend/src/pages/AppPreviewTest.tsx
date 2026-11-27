@@ -416,6 +416,11 @@ export default function AppPreviewTest() {
                     }
                     onInsightAction={analysisController.handleAction}
                     onInsightInstructionsChange={setInsightInstructions}
+                    analysisTextMaxChars={
+                        analysisAvailability.status === 'available'
+                            ? analysisAvailability.textMaxChars
+                            : undefined
+                    }
                     onInsightAnalyseOnLoadChange={setInsightAnalyseOnLoad}
                     onMountedQueriesChange={
                         analysisController.setMountedQueryUuids

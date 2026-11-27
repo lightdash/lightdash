@@ -119,6 +119,8 @@ describe('validateDataAppAnalysisLimits', () => {
         ['investigateMaxWarehouseQueries', 201],
         ['dailyDetectCap', 0],
         ['dailyInvestigateCap', -1],
+        ['textMaxChars', 1999],
+        ['textMaxChars', 100_001],
     ] as const)('rejects %s = %s', (key, value) => {
         expect(() =>
             validateDataAppAnalysisLimits({
@@ -126,6 +128,20 @@ describe('validateDataAppAnalysisLimits', () => {
                 [key]: value,
             }),
         ).toThrow(ParameterError);
+    });
+
+    it('accepts a raised or omitted text cap', () => {
+        const { textMaxChars, ...withoutTextCap } =
+            DATA_APP_ANALYSIS_DEFAULT_LIMITS;
+        expect(() =>
+            validateDataAppAnalysisLimits(withoutTextCap),
+        ).not.toThrow();
+        expect(() =>
+            validateDataAppAnalysisLimits({
+                ...withoutTextCap,
+                textMaxChars: 100_000,
+            }),
+        ).not.toThrow();
     });
 
     it('rejects unknown limit keys', () => {
@@ -154,6 +170,15 @@ describe('normalizeAnalysisDefaultInstructions', () => {
         expect(() =>
             normalizeAnalysisDefaultInstructions('x'.repeat(2000)),
         ).not.toThrow();
+    });
+
+    it('honours a raised cap', () => {
+        expect(() =>
+            normalizeAnalysisDefaultInstructions('x'.repeat(2001), 5000),
+        ).not.toThrow();
+        expect(() =>
+            normalizeAnalysisDefaultInstructions('x'.repeat(5001), 5000),
+        ).toThrow('limited to 5000 characters');
     });
 });
 

@@ -137,8 +137,9 @@ const getInvalidFilterRules = (
                           )?.label ?? filterRule.operator)
                         : null,
                     sourceLabel:
+                        // A page loaded before an integration shipped does not know it.
                         LIVE_INTEGRATION_CATALOG[apiSource.integration]
-                            .messageLabel,
+                            ?.messageLabel ?? apiSource.integration,
                 },
             ];
         }

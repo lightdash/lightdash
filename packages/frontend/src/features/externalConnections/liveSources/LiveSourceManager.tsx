@@ -158,6 +158,7 @@ export const LiveSourceManager: FC<{
                     case 'amplitude':
                     case 'mixpanel':
                     case 'supabase':
+                    case 'unknown':
                         return null;
                     case 'linkedin_ads': {
                         const { apiSource } = connection;
@@ -309,6 +310,8 @@ const LiveSourceConnectDialog: FC<{
                     onCreated={onCreated}
                 />
             );
+        case 'unknown':
+            return null;
         default:
             return assertUnreachable(setup, 'Unknown source setup');
     }

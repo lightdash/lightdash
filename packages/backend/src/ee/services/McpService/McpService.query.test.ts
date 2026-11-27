@@ -421,7 +421,6 @@ const makeService = ({
 const composerQueryPath: McpQueryPath = {
     type: 'composer',
     sqlRunnerEnabled: false,
-    filterExpressionsEnabled: false,
 };
 
 const createServer = async (
@@ -753,7 +752,7 @@ describe('McpService query tool', () => {
         expect(runComposerQueriesUntilDeadline).not.toHaveBeenCalled();
     });
 
-    it('refuses sql nodes where run_sql is not allowed', async () => {
+    it('refuses sql nodes without SQL Runner access', async () => {
         const { service, call, runComposerQueriesUntilDeadline } = makeService({
             canManageSqlRunner: false,
         });
@@ -775,6 +774,7 @@ describe('McpService query tool', () => {
 
         expect(result.isError).toBe(true);
         expect(textOf(result)).toContain('"sql" nodes');
+        expect(textOf(result)).not.toContain('run_sql');
         expect(runComposerQueriesUntilDeadline).not.toHaveBeenCalled();
     });
 

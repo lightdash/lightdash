@@ -624,6 +624,17 @@ export type SemanticStudioPublishBody = {
     prUrl: string;
 };
 
+/** A field of a draft that reads a column the warehouse does not have until the draft merges and its model is built. */
+export type SemanticStudioUnbuiltField = {
+    model: string;
+    fieldId: string;
+    label: string;
+};
+
+export type ApiSemanticStudioUnbuiltFieldsResponse = ApiSuccess<
+    SemanticStudioUnbuiltField[]
+>;
+
 /** Null when the person is on what is published. */
 export type ApiSemanticStudioCheckoutResponse =
     ApiSuccess<SemanticStudioCheckout | null>;

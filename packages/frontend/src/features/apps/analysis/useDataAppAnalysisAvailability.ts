@@ -10,6 +10,8 @@ export type DataAppAnalysisAvailability =
     | {
           status: 'available';
           canContinueInAskAi: boolean;
+          /** The org's cap on analysis instructions; absent on older servers. */
+          textMaxChars?: number;
       }
     | {
           status: 'unavailable';
@@ -56,6 +58,7 @@ export const useAnalysisAvailability = (): DataAppAnalysisAvailability => {
     return {
         status: 'available',
         canContinueInAskAi: aiSettings.dataAppContinueInAskAiEnabled ?? true,
+        textMaxChars: aiSettings.dataAppAnalysisTextMaxChars,
     };
 };
 

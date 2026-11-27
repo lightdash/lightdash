@@ -66,8 +66,6 @@ import {
     CHANGE_KIND_LABELS,
     describeFieldChanges,
     getModelCodeSearch,
-    VIEW_PARAM,
-    type ModelTab,
 } from './modelCode';
 import { ModelMark } from './ModelMark';
 import { LiveSourceFlow, ModelTabs } from './ModelTabs';
@@ -77,7 +75,7 @@ import { SemanticLayerNudge } from './SemanticLayerNudge';
 import { NodeIcon } from './shared';
 import sharedClasses from './shared.module.css';
 import { useAddToStudioChat, startStudioChatRefDrag } from './studioChatRefs';
-import { getSemanticStudioSourceUrl, getSemanticStudioUrl } from './urls';
+import { getSemanticStudioUrl } from './urls';
 import { addPath } from './useAddSource';
 import { useExploreFields } from './useExploreFields';
 import { useFieldListState } from './useFieldListState';
@@ -411,9 +409,6 @@ const Crumbs: FC<{
     </Breadcrumbs>
 );
 
-/** The `view` of a live data source's page that shows its settings. */
-const SETTINGS_VIEW: ModelTab = 'settings';
-
 export const MainPane: FC<{
     view: ViewModel;
     onOpen: (ref: NodeRef | null) => void;
@@ -421,7 +416,6 @@ export const MainPane: FC<{
     onBuildModel: (() => void) | null;
 }> = ({ view, onOpen, onOpenNode, onBuildModel }) => {
     const [pageScroll, setPageScroll] = useState<HTMLElement | null>(null);
-    const navigate = useNavigate();
     const canDrag = useAddToStudioChat() !== null;
     const selected = view.selected;
     const ref = selected ? containerOf(selected) : null;
@@ -628,14 +622,6 @@ export const MainPane: FC<{
                                     type: 'source',
                                     sourceId: connectionUuid,
                                 })
-                            }
-                            onOpenSettings={(connectionUuid) =>
-                                void navigate(
-                                    `${getSemanticStudioSourceUrl(
-                                        view.project.id,
-                                        connectionUuid,
-                                    )}?${VIEW_PARAM}=${SETTINGS_VIEW}`,
-                                )
                             }
                         />
                     ) : isExternalSourcesPage ? (

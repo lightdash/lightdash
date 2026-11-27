@@ -6,6 +6,7 @@ const mcpHeaders = { Accept: 'application/json, text/event-stream' };
 export type McpResult = {
     isError?: boolean;
     content: Array<{ type: string; text?: string }>;
+    structuredContent?: Record<string, unknown>;
 };
 export type McpResponse<T> = { jsonrpc: string; id: number; result: T };
 
@@ -118,5 +119,75 @@ export async function openMcpSession(client: ApiClient) {
         expect(parsed.id).toBe(requestId);
         return parsed.result;
     };
-    return Object.assign(callTool, { readResource });
+    let toolNames: Promise<string[]> | null = null;
+    const listToolNames = () => {
+        toolNames ??= (async () => {
+            requestId += 1;
+            const listed = await mcp.post<
+                McpResponse<{ tools: Array<{ name: string }> }> | string
+            >(
+                '/api/v1/mcp',
+                { jsonrpc: '2.0', id: requestId, method: 'tools/list' },
+                { headers },
+            );
+            expect(listed.status).toBe(200);
+            return parseMcpResponse(listed.body).result.tools.map(
+                ({ name }) => name,
+            );
+        })();
+        return toolNames;
+    };
+    return Object.assign(callTool, { readResource, listToolNames });
+}
+
+export type McpSession = Awaited<ReturnType<typeof openMcpSession>>;
+
+type McpSqlRun = { result: McpResult; rows: Record<string, unknown>[] | null };
+
+const rowsOf = (result: McpResult) =>
+    (result.structuredContent?.result as { rows?: Record<string, unknown>[] })
+        ?.rows ?? null;
+
+/** Runs one SQL statement as the agent: run_sql when listed, else a one-node query. */
+export async function runMcpSql(
+    callTool: McpSession,
+    args: { projectUuid: string; sql: string; limit: number },
+): Promise<McpSqlRun> {
+    if ((await callTool.listToolNames()).includes('run_sql')) {
+        const result = await callTool('run_sql', args);
+        return { result, rows: result.isError ? null : rowsOf(result) };
+    }
+    const result = await callTool('query', {
+        projectUuid: args.projectUuid,
+        queries: [
+            {
+                sourceType: 'sql',
+                nodeId: 'agent_sql',
+                title: 'Agent SQL',
+                description: 'Runs the test statement.',
+                sql: args.sql,
+                limit: args.limit,
+            },
+        ],
+    });
+    if (result.isError) return { result, rows: null };
+    const content = result.structuredContent as {
+        status: 'done' | 'running';
+        rows: Record<string, unknown>[] | null;
+        nodes: Array<{ queryUuid: string }>;
+    };
+    if (content.status === 'done') return { result, rows: content.rows };
+    const { queryUuid } = content.nodes[0];
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+        const polled = await callTool('get_query_result', {
+            projectUuid: args.projectUuid,
+            queryUuid,
+        });
+        const status = (polled.structuredContent?.result as { status?: string })
+            ?.status;
+        if (polled.isError || (status !== 'running' && status !== 'done'))
+            return { result: { ...polled, isError: true }, rows: null };
+        if (status === 'done') return { result: polled, rows: rowsOf(polled) };
+    }
+    throw new Error(`MCP query ${queryUuid} still running after polling`);
 }

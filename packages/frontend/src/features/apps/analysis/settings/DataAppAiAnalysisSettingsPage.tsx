@@ -1,6 +1,8 @@
 import {
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
-    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
+    DATA_APP_ANALYSIS_TEXT_MAX_CHARS_CEILING,
+    DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT,
+    resolveDataAppAnalysisTextMaxChars,
     type DataAppAnalysisLimits,
 } from '@lightdash/common';
 import {
@@ -39,6 +41,10 @@ type LimitField = {
     description: string;
     /** Empty means no cap. */
     nullable: boolean;
+    min?: number;
+    max?: number;
+    /** Only editable when AI analysis runs on the organization's own key. */
+    ownKeyOnly?: boolean;
 };
 
 const LIMIT_FIELDS: LimitField[] = [
@@ -74,6 +80,16 @@ const LIMIT_FIELDS: LimitField[] = [
             'Queries the agent may run; when reached it explains what it found so far and the result is marked partial.',
         nullable: false,
     },
+    {
+        key: 'textMaxChars',
+        label: 'Maximum characters per prompt and instructions',
+        description:
+            'Applies to in-app AI prompts, analysis instructions and the summary instructions above.',
+        nullable: false,
+        min: DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT,
+        max: DATA_APP_ANALYSIS_TEXT_MAX_CHARS_CEILING,
+        ownKeyOnly: true,
+    },
 ];
 
 type LimitsFormValues = Record<keyof DataAppAnalysisLimits, number | ''>;
@@ -84,6 +100,8 @@ const toFormValues = (limits: DataAppAnalysisLimits): LimitsFormValues => ({
     dailyDetectCap: limits.dailyDetectCap ?? '',
     dailyInvestigateCap: limits.dailyInvestigateCap ?? '',
     dailyPromptCap: limits.dailyPromptCap ?? '',
+    textMaxChars:
+        limits.textMaxChars ?? DATA_APP_ANALYSIS_TEXT_MAX_CHARS_DEFAULT,
 });
 
 const toLimits = (values: LimitsFormValues): DataAppAnalysisLimits => ({
@@ -99,6 +117,7 @@ const toLimits = (values: LimitsFormValues): DataAppAnalysisLimits => ({
             : Number(values.dailyInvestigateCap),
     dailyPromptCap:
         values.dailyPromptCap === '' ? null : Number(values.dailyPromptCap),
+    textMaxChars: Number(values.textMaxChars),
 });
 
 // Per-run limits must hold a value; only the daily caps may be left empty.
@@ -107,8 +126,9 @@ const requiredLimit = (value: number | '') =>
 
 const InstructionsForm: FC<{
     initialInstructions: string | null;
+    maxChars: number;
     disabled: boolean;
-}> = ({ initialInstructions, disabled }) => {
+}> = ({ initialInstructions, maxChars, disabled }) => {
     const updateSettings = useUpdateAiOrganizationSettings();
     const initialValue = initialInstructions ?? '';
     const form = useForm({
@@ -132,11 +152,11 @@ const InstructionsForm: FC<{
                     <Stack gap="md">
                         <Textarea
                             placeholder="e.g. Write in British English. Show amounts in ZAR."
-                            description={`Up to ${DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS} characters. Changing this re-runs stored analyses on next view.`}
+                            description={`Up to ${maxChars.toLocaleString()} characters. Changing this re-runs stored analyses on next view.`}
                             autosize
                             minRows={3}
                             maxRows={8}
-                            maxLength={DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS}
+                            maxLength={maxChars}
                             disabled={disabled}
                             {...form.getInputProps('instructions')}
                         />
@@ -170,8 +190,9 @@ const InstructionsForm: FC<{
 
 const LimitsForm: FC<{
     initialLimits: DataAppAnalysisLimits;
+    isOwnKey: boolean;
     disabled: boolean;
-}> = ({ initialLimits, disabled }) => {
+}> = ({ initialLimits, isOwnKey, disabled }) => {
     const updateSettings = useUpdateAiOrganizationSettings();
     const initialValues = toFormValues(initialLimits);
     const form = useForm({
@@ -179,6 +200,7 @@ const LimitsForm: FC<{
         validate: {
             investigateMaxSteps: requiredLimit,
             investigateMaxWarehouseQueries: requiredLimit,
+            textMaxChars: requiredLimit,
         },
     });
     const isUnchanged = LIMIT_FIELDS.every(
@@ -191,7 +213,7 @@ const LimitsForm: FC<{
     return (
         <SettingsSection
             label="Limits"
-            description={`Caps on how much AI analysis your organization can run. Daily caps count across all apps and viewers and reset each UTC day. On the built-in AI key they cannot exceed ${DATA_APP_ANALYSIS_DEFAULT_LIMITS.dailyDetectCap} analyses and ${DATA_APP_ANALYSIS_DEFAULT_LIMITS.dailyInvestigateCap} investigations; on your own key they apply as set.`}
+            description={`Caps on how much AI analysis your organization can run. Daily caps count across all apps and viewers and reset each UTC day. On the built-in AI key they cannot exceed ${DATA_APP_ANALYSIS_DEFAULT_LIMITS.dailyDetectCap} analyses and ${DATA_APP_ANALYSIS_DEFAULT_LIMITS.dailyInvestigateCap} investigations; on your own key they apply as set. The character limit can only be raised on your own key.`}
         >
             <SettingsCard>
                 <form onSubmit={handleSubmit}>
@@ -200,15 +222,22 @@ const LimitsForm: FC<{
                             <NumberInput
                                 key={field.key}
                                 label={field.label}
-                                description={field.description}
+                                description={
+                                    field.ownKeyOnly && !isOwnKey
+                                        ? `${field.description} Add your own AI key to raise it.`
+                                        : field.description
+                                }
                                 placeholder={
                                     field.nullable ? 'No cap' : undefined
                                 }
-                                min={1}
+                                min={field.min ?? 1}
+                                max={field.max}
                                 allowDecimal={false}
                                 allowNegative={false}
                                 thousandSeparator=","
-                                disabled={disabled}
+                                disabled={
+                                    disabled || (field.ownKeyOnly && !isOwnKey)
+                                }
                                 {...form.getInputProps(field.key)}
                             />
                         ))}
@@ -248,6 +277,7 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
         ? settings.isCopilotEnabled || settings.isTrial
         : false;
     const analysisOn = settings?.dataAppRuntimeAiEnabled ?? false;
+    const isOwnKey = settings?.dataAppAnalysisTextMaxCharsConfigurable === true;
 
     return (
         <SettingsPage
@@ -338,9 +368,14 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
                         initialInstructions={
                             settings.dataAppAnalysisDefaultInstructions ?? null
                         }
+                        maxChars={resolveDataAppAnalysisTextMaxChars(
+                            settings.dataAppAnalysisLimits,
+                            isOwnKey,
+                        )}
                         disabled={isUpdating || !aiOn || !analysisOn}
                     />
                     <LimitsForm
+                        isOwnKey={isOwnKey}
                         key={JSON.stringify(
                             settings.dataAppAnalysisLimits ??
                                 DATA_APP_ANALYSIS_DEFAULT_LIMITS,

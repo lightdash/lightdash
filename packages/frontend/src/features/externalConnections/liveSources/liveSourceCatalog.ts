@@ -1,10 +1,11 @@
 import {
     ApiConnectorType,
     getLiveIntegrationCatalogEntry,
-    getLiveSourceTarget,
     REQUESTABLE_LIVE_INTEGRATIONS,
+    type ExternalConnectionApiSource,
     type LiveIntegrationCatalogEntry,
 } from '@lightdash/common';
+import { startCase } from 'es-toolkit/compat';
 import { ATTIO_TOKEN_FORM } from './attioConnection';
 import { GITHUB_TOKEN_FORM } from './githubConnection';
 import { HUBSPOT_TOKEN_FORM } from './hubspotConnection';
@@ -27,6 +28,7 @@ import salesforceIcon from './icons/salesforce.svg';
 import shopifyIcon from './icons/shopify.svg';
 import stripeIcon from './icons/stripe.svg';
 import supabaseIcon from './icons/supabase.svg';
+import unknownIcon from './icons/unknown.svg';
 import youtubeAnalyticsIcon from './icons/youtube-analytics.svg';
 import iconClasses from './LiveSourceIcon.module.css';
 import { META_ADS_TOKEN_FORM } from './metaAdsConnection';
@@ -42,7 +44,9 @@ export type LiveSourceSetup =
     | { kind: 'salesforce' }
     | { kind: 'amplitude' }
     | { kind: 'mixpanel' }
-    | { kind: 'supabase' };
+    | { kind: 'supabase' }
+    /** A connector this build does not know, so it cannot be connected or reconnected from here. */
+    | { kind: 'unknown' };
 
 export type AvailableLiveSource = Omit<LiveIntegrationCatalogEntry, 'setup'> & {
     status: 'available';
@@ -87,7 +91,7 @@ const ICONS: Record<string, string> = {
 };
 
 /** One-colour marks, such as GitHub's, drawn dark and lightened in dark mode. */
-const MONO_ICONS = new Set([githubIcon, attioIcon]);
+const MONO_ICONS = new Set([githubIcon, attioIcon, unknownIcon]);
 
 /** Coloured marks too dark for a dark background, drawn white there, as the vendor does. */
 const WHITE_ON_DARK_ICONS = new Set([pylonIcon]);
@@ -164,18 +168,38 @@ export const isAvailableLiveSource = (
     entry: LiveSourceCatalogEntry,
 ): entry is AvailableLiveSource => entry.status === 'available';
 
+/** Stands in for a connector this build does not know, such as one added after the page was loaded, so the page still renders. */
+const toUnknownLiveSource = (
+    connector: ApiConnectorType,
+): AvailableLiveSource => {
+    const label = startCase(connector);
+    return {
+        connector,
+        id: connector,
+        label,
+        defaultName: label,
+        messageLabel: label,
+        agentLabel: label,
+        description: '',
+        getTarget: () => label,
+        status: 'available',
+        icon: unknownIcon,
+        setup: { kind: 'unknown' },
+    };
+};
+
 export const getLiveSource = (
     connector: ApiConnectorType,
 ): AvailableLiveSource => {
     const entry = LIVE_SOURCE_CATALOG.filter(isAvailableLiveSource).find(
         (candidate) => candidate.connector === connector,
     );
-    if (!entry) throw new Error(`No catalog entry for connector ${connector}`);
-    return entry;
+    return entry ?? toUnknownLiveSource(connector);
 };
 
 export const formatChartCount = (count: number) =>
     `${count.toLocaleString()} ${count === 1 ? 'chart' : 'charts'}`;
 
 /** What a source reads: a PostHog project, a Search Console site, a GA4 property and so on. */
-export const getApiSourceTarget = getLiveSourceTarget;
+export const getApiSourceTarget = (apiSource: ExternalConnectionApiSource) =>
+    getLiveSource(apiSource.connector).getTarget(apiSource);

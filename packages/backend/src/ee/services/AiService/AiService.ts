@@ -97,6 +97,7 @@ import {
     pickAmbientAnthropicPreset,
     resolveKeyManagement,
 } from '../ai/models';
+import { pickAmbientProvider } from '../ai/models/ambientProvider';
 import { getAnthropicModel } from '../ai/models/anthropic-claude';
 import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import {
@@ -301,21 +302,8 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
             });
         return resolveKeyManagement(
             copilotConfig,
-            AiService.pickAmbientProvider(copilotConfig),
+            pickAmbientProvider(copilotConfig),
         );
-    }
-
-    /**
-     * Ambient calls run on the org's Anthropic key when it has one, else on
-     * the instance default provider. Shared by the model builder and the
-     * key-management lookup so the two can never disagree.
-     */
-    private static pickAmbientProvider(
-        copilotConfig: Parameters<typeof resolveKeyManagement>[0],
-    ): Parameters<typeof resolveKeyManagement>[1] {
-        return copilotConfig.providers.anthropic?.apiKey
-            ? 'anthropic'
-            : copilotConfig.defaultProvider;
     }
 
     /**
@@ -348,7 +336,7 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         const anthropicConfig = copilotConfig.providers.anthropic;
 
         if (
-            AiService.pickAmbientProvider(copilotConfig) === 'anthropic' &&
+            pickAmbientProvider(copilotConfig) === 'anthropic' &&
             anthropicConfig?.apiKey
         ) {
             // Prefer the fast model, but a BYO key may not have access to it

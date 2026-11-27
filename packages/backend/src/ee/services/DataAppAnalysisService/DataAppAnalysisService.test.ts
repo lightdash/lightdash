@@ -180,6 +180,7 @@ function buildService(
         getDataAppAnalysisDefaultInstructions: vi
             .fn()
             .mockResolvedValue(overrides.orgDefaultInstructions ?? null),
+        getDataAppAnalysisTextMaxChars: vi.fn().mockResolvedValue(2000),
     };
     const aiAgentModel = { deleteThread: vi.fn().mockResolvedValue(undefined) };
     const analytics = { track: vi.fn() };
@@ -955,6 +956,25 @@ describe('DataAppAnalysisService reuse', () => {
         );
     });
 
+    it('trims saved org instructions to the cap that applies now', async () => {
+        const { service, aiService, aiOrganizationSettingsService } =
+            buildService({ orgDefaultInstructions: 'x'.repeat(5000) });
+        // Saved on the org's own key; the org has since moved to a managed one.
+        aiOrganizationSettingsService.getDataAppAnalysisTextMaxChars.mockResolvedValue(
+            2000,
+        );
+        await service.detect(
+            account(),
+            'proj-1',
+            { kind: 'app', appUuid: 'app-1' },
+            { ...request, force: true },
+        );
+        expect(aiService.detectDataAppAnomalies).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ instructions: 'x'.repeat(2000) }),
+        );
+    });
+
     it('serves the org default alone when the app sends no instructions', async () => {
         const { service, aiService } = buildService({
             orgDefaultInstructions: 'Amounts in ZAR.',
@@ -998,6 +1018,25 @@ describe('DataAppAnalysisService reuse', () => {
             ),
         ).rejects.toThrow('limited to 2000 characters');
         expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+    });
+
+    it('accepts longer instructions once the organization raised its limit', async () => {
+        const { service, aiService, aiOrganizationSettingsService } =
+            buildService();
+        aiOrganizationSettingsService.getDataAppAnalysisTextMaxChars.mockResolvedValue(
+            5000,
+        );
+        const instructions = 'x'.repeat(2001);
+        await service.detect(
+            account(),
+            'proj-1',
+            { kind: 'app', appUuid: 'app-1' },
+            { ...request, instructions, force: true },
+        );
+        expect(aiService.detectDataAppAnomalies).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ instructions }),
+        );
     });
 
     it("serves the viewer's own analysis of identical rows without the model, rebound to the current queries", async () => {
@@ -1257,6 +1296,39 @@ describe('DataAppAnalysisService.prompt', () => {
                 },
             }),
         );
+    });
+
+    it('caps the prompt at the organization limit', async () => {
+        const { service, aiService, aiOrganizationSettingsService } =
+            buildService();
+        const prompt = 'x'.repeat(2001);
+        const ask = () =>
+            service.prompt(
+                buildAccount({ accountType: 'session' }),
+                'proj-1',
+                'app-1',
+                { prompt, sources: request.sources },
+            );
+        await expect(ask()).rejects.toThrow('limited to 2000 characters');
+        expect(aiService.answerDataAppPrompt).not.toHaveBeenCalled();
+
+        aiOrganizationSettingsService.getDataAppAnalysisTextMaxChars.mockResolvedValue(
+            5000,
+        );
+        await expect(ask()).resolves.toMatchObject({ prompt });
+    });
+
+    it('skips the limit lookup for a prompt within the default', async () => {
+        const { service, aiOrganizationSettingsService } = buildService();
+        await service.prompt(
+            buildAccount({ accountType: 'session' }),
+            'proj-1',
+            'app-1',
+            { prompt: 'x'.repeat(2000), sources: request.sources },
+        );
+        expect(
+            aiOrganizationSettingsService.getDataAppAnalysisTextMaxChars,
+        ).not.toHaveBeenCalled();
     });
 
     it('reports a prompt outcome with tokens', async () => {
@@ -2392,8 +2464,19 @@ describe('DataAppAnalysisService.investigateInstruction', () => {
                 : vi.fn().mockResolvedValue({ uuid: 'agent-1' });
         const service = base.service as unknown as Record<string, unknown>;
         service.schedulerClient = { dataAppInstructionInvestigate };
-        (service.aiAgentService as Record<string, unknown>).getAgent = getAgent;
-        return { ...base, dataAppInstructionInvestigate, getAgent };
+        const getAgentKeyManagement = vi
+            .fn()
+            .mockResolvedValue('lightdash-managed');
+        Object.assign(service.aiAgentService as Record<string, unknown>, {
+            getAgent,
+            getAgentKeyManagement,
+        });
+        return {
+            ...base,
+            dataAppInstructionInvestigate,
+            getAgent,
+            getAgentKeyManagement,
+        };
     }
 
     const body = {
@@ -2450,6 +2533,34 @@ describe('DataAppAnalysisService.investigateInstruction', () => {
             ),
         ).rejects.toBeInstanceOf(ParameterError);
         expect(dataAppInstructionInvestigate).not.toHaveBeenCalled();
+    });
+
+    it("caps a long instruction by the selected agent's key, not the ambient one", async () => {
+        const {
+            service,
+            dataAppInstructionInvestigate,
+            getAgentKeyManagement,
+            aiOrganizationSettingsService,
+        } = buildInstructionService();
+        aiOrganizationSettingsService.getDataAppAnalysisLimits.mockResolvedValue(
+            { ...DATA_APP_ANALYSIS_DEFAULT_LIMITS, textMaxChars: 5000 },
+        );
+        // The ambient key would allow it; the agent's managed key does not.
+        aiOrganizationSettingsService.getDataAppAnalysisTextMaxChars.mockResolvedValue(
+            5000,
+        );
+        const queue = () =>
+            service.investigateInstruction(
+                buildAccount(),
+                'proj-1',
+                { kind: 'app', appUuid: 'app-1' },
+                { ...body, instruction: 'x'.repeat(3000) },
+            );
+        await expect(queue()).rejects.toThrow('limited to 2000 characters');
+        expect(dataAppInstructionInvestigate).not.toHaveBeenCalled();
+
+        getAgentKeyManagement.mockResolvedValue('self-managed');
+        await expect(queue()).resolves.toEqual({ jobId: 'job-1' });
     });
 
     it('rejects a request without sources', async () => {
@@ -2529,6 +2640,21 @@ describe('DataAppAnalysisService.investigateInstruction', () => {
         });
         return { logSchedulerJob, create, createAgentThread };
     }
+
+    it('rechecks the instruction cap when the queued job runs', async () => {
+        const { service, getAgentKeyManagement } = buildInstructionService();
+        const { createAgentThread, create } = primeRun(service, 'unused');
+        getAgentKeyManagement.mockResolvedValue('lightdash-managed');
+        await service
+            .runInstructionInvestigation(
+                { ...jobPayload, instruction: 'x'.repeat(3000) },
+                'job-1',
+                new Date('2026-11-03T10:00:00Z'),
+            )
+            .catch(() => undefined);
+        expect(createAgentThread).not.toHaveBeenCalled();
+        expect(create).not.toHaveBeenCalled();
+    });
 
     it('runs the agent and persists the result under the viewer', async () => {
         const { service } = buildInstructionService();

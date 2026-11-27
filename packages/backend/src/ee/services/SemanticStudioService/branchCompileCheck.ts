@@ -1,8 +1,15 @@
+import { type SemanticStudioUnbuiltField } from '@lightdash/common';
+
 const COMPILE_OUTPUT_CHARS = 2000;
 
 /** What the agent learns when it checks its change: the branch compile, or why there is none to wait for. */
 export type BranchCompileCheck =
-    | { status: 'ready'; exploreErrors: { name: string; errors: string[] }[] }
+    | {
+          status: 'ready';
+          exploreErrors: { name: string; errors: string[] }[];
+          /** Fields that read columns the warehouse does not have until the model is built. */
+          unbuiltFields: SemanticStudioUnbuiltField[];
+      }
     | { status: 'failed'; error: string }
     | { status: 'saving' | 'compiling' | 'nothing_saved' | 'unavailable' };
 

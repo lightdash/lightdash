@@ -192,6 +192,8 @@ type Props = {
     onInsightAction?: (action: DataAppInsightAction) => void;
     onInsightsInUse?: () => void;
     onInsightInstructionsChange?: (instructions: string | null) => void;
+    /** The org's cap on analysis instructions; the default applies when absent. */
+    analysisTextMaxChars?: number;
     onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
     onMountedQueriesChange?: (queryUuids: string[]) => void;
     /** The capture hotkey was pressed inside the app. Absent = no capture. */
@@ -271,6 +273,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onInsightAction,
             onInsightsInUse,
             onInsightInstructionsChange,
+            analysisTextMaxChars,
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             onCaptureHotkey,
@@ -431,6 +434,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onInsightAction,
             onInsightsInUse,
             onInsightInstructionsChange,
+            analysisTextMaxChars,
             onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             onCaptureHotkey,

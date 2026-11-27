@@ -1,3 +1,44 @@
+# [3.423.0](https://github.com/lightdash/lightdash/compare/3.422.0...3.423.0) (2026-11-27)
+
+
+### Features
+
+* **live-sources:** give the integrations list a card header and the page's own facts ([#33539](https://github.com/lightdash/lightdash/issues/33539)) ([2d28f9e](https://github.com/lightdash/lightdash/commit/2d28f9ea4ca76c8b7eb8d0ac1158fd53ca588aed))
+
+# [3.422.0](https://github.com/lightdash/lightdash/compare/3.421.0...3.422.0) (2026-11-27)
+
+
+### Bug Fixes
+
+* **analytics:** attribute data app queries to a dataApp context instead of api ([#33536](https://github.com/lightdash/lightdash/issues/33536)) ([2bf9d7a](https://github.com/lightdash/lightdash/commit/2bf9d7a4722d4b97ad7cf7530e3e41c7458061d1))
+
+
+### Features
+
+* **data-apps:** let orgs on their own AI key raise the AI analysis character limit ([#33531](https://github.com/lightdash/lightdash/issues/33531)) ([7b62deb](https://github.com/lightdash/lightdash/commit/7b62debdd324d3bfbbfcc55e053fee3bdb92d786))
+* **mcp:** composer query path hides classic query tools ([#33439](https://github.com/lightdash/lightdash/issues/33439)) ([7438a11](https://github.com/lightdash/lightdash/commit/7438a11bd725370fce29a4a313907e1eaf7ca895))
+* **mcp:** composer rules on the query tool and a query-pipelines skill ([#33436](https://github.com/lightdash/lightdash/issues/33436)) ([c895b83](https://github.com/lightdash/lightdash/commit/c895b83bf3c138c73b64436404e4a414f3b6d4d4))
+* **mcp:** query field descriptions say when to use each node kind ([#33442](https://github.com/lightdash/lightdash/issues/33442)) ([1d0096f](https://github.com/lightdash/lightdash/commit/1d0096f4b25489a4b506decfc2b7e198a9b01117))
+
+# [3.421.0](https://github.com/lightdash/lightdash/compare/3.420.9...3.421.0) (2026-11-27)
+
+
+### Bug Fixes
+
+* **live-sources:** keep pages working for an integration the loaded app does not know ([#33532](https://github.com/lightdash/lightdash/issues/33532)) ([882af2b](https://github.com/lightdash/lightdash/commit/882af2b66fb45b6406ffe63af957790d066bb5a2))
+
+
+### Features
+
+* **semantic-studio:** say which draft fields are not built yet instead of failing in Try it ([#33530](https://github.com/lightdash/lightdash/issues/33530)) ([a3e8021](https://github.com/lightdash/lightdash/commit/a3e80215a14eb7ae2ec3ca0c64e9c6a6976c6488))
+
+## [3.420.9](https://github.com/lightdash/lightdash/compare/3.420.8...3.420.9) (2026-11-27)
+
+
+### Bug Fixes
+
+* **frontend:** reload at once when the app starts on an out-of-date build ([#33533](https://github.com/lightdash/lightdash/issues/33533)) ([54f9b1d](https://github.com/lightdash/lightdash/commit/54f9b1d71ae1ee1afdce8d1fdbd80cedda1b6a9a))
+
 ## [3.420.8](https://github.com/lightdash/lightdash/compare/3.420.7...3.420.8) (2026-11-27)
 
 
