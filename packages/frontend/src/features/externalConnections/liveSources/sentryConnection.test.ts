@@ -26,6 +26,9 @@ describe('sentryConnection', () => {
         expect(isValid('acme/../other')).toBe(false);
         // Sentry reads a slug of digits only as an ID
         expect(isValid('acme/12345')).toBe(false);
+        // A project named two times is read two times
+        expect(isValid('acme/mobile,mobile')).toBe(false);
+        expect(isValid(normalize('acme/Mobile, mobile'))).toBe(false);
     });
 
     it('creates a token-authenticated source that reads the named projects', () => {

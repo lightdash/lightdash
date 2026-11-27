@@ -23,7 +23,10 @@ const link = (cursor: string, hasResults: boolean) => ({
     link: `<https://sentry.io/api/0/organizations/acme/events/?cursor=0:0:1>; rel="previous"; results="false"; cursor="0:0:1", <https://sentry.io/api/0/organizations/acme/events/?cursor=${cursor}>; rel="next"; results="${hasResults}"; cursor="${cursor}"`,
 });
 
-const connect = (...responses: LiveHttpResponse[]) => {
+const connectTo = (
+    projectSlugs: string[],
+    ...responses: LiveHttpResponse[]
+) => {
     const send =
         vi.fn<(request: LiveHttpRequest) => Promise<LiveHttpResponse>>();
     responses.forEach((item) => send.mockResolvedValueOnce(item));
@@ -34,12 +37,15 @@ const connect = (...responses: LiveHttpResponse[]) => {
             {
                 connector: ApiConnectorType.SENTRY,
                 organizationSlug: 'acme',
-                projectSlugs: ['mobile-ios', 'mobile-android'],
+                projectSlugs,
             },
             send,
         ),
     };
 };
+
+const connect = (...responses: LiveHttpResponse[]) =>
+    connectTo(['mobile-ios', 'mobile-android'], ...responses);
 
 const run = (
     source: ReturnType<typeof connect>['source'],
@@ -331,6 +337,17 @@ describe('sentryIntegration errors', () => {
         );
     });
 
+    it('names a project one time when the source names it two times', async () => {
+        const { source, send } = connectTo(
+            ['mobile', 'mobile'],
+            response({ data: [{ 'count()': 7 }] }),
+        );
+
+        await run(source, { kind: 'errors', columns: ['events'], ...RANGE });
+
+        expect(sent(send).get('project')).toEqual(['mobile']);
+    });
+
     it('refuses a project the source does not name, before calling', async () => {
         const { source, send } = connect();
         const filterBy = (...filters: string[][]) =>
@@ -615,6 +632,23 @@ describe('sentryIntegration sessions', () => {
         ]);
     });
 
+    it('reads a project one time when the source names it two times', async () => {
+        const { source, send } = connectTo(
+            ['mobile', 'mobile'],
+            response({ groups: [{ by: {}, totals: { 'sum(session)': 7 } }] }),
+        );
+
+        const result = await run(source, {
+            kind: 'sessions',
+            columns: ['project', 'sessions'],
+            ...RANGE,
+        });
+
+        expect(send).toHaveBeenCalledTimes(1);
+        expect(sent(send).get('project')).toEqual(['mobile']);
+        expect(result.rows).toEqual([{ project: 'mobile', sessions: 7 }]);
+    });
+
     it('refuses Session status with another grouping, where Sentry can cut the list short unseen', async () => {
         const { source, send } = connect();
 
@@ -862,6 +896,24 @@ describe('sentryIntegration setup test', () => {
         });
     });
 
+    it('names a project one time when the source names it two times', () => {
+        const twice = { ...settings, projectSlugs: ['mobile', 'mobile'] };
+
+        expect(
+            new URLSearchParams(
+                sentryIntegration.connection.testRequest?.(twice).rawQuery,
+            ).getAll('project'),
+        ).toEqual(['mobile']);
+        expect(
+            sentryIntegration.connection.summarizeTest?.({ data: [] }, twice)
+                ?.facts[0],
+        ).toEqual({ label: 'Projects', value: 'mobile' });
+        // A saved source keeps each project one time
+        expect(
+            sentryIntegration.connection.settings.parse(twice).projectSlugs,
+        ).toEqual(['mobile']);
+    });
+
     it('refuses a slug of digits only, which Sentry reads as an ID', () => {
         const parse = (overrides: Record<string, unknown>) =>
             sentryIntegration.connection.settings.safeParse({
@@ -1034,6 +1086,73 @@ describe('sentryIntegration row cap', () => {
 
     it('still returns the top rows of a smaller limit, and says more exist', async () => {
         const { source } = connect(...pages(1_000));
+
+        const result = await run(source, request, 10);
+
+        expect(result.rows).toHaveLength(10);
+        expect(result.hasMoreRows).toBe(true);
+    });
+});
+
+describe('sentryIntegration row cap across projects', () => {
+    const request = {
+        kind: 'sessions',
+        columns: ['project', 'release', 'sessions'],
+        ...RANGE,
+    };
+    /** Sentry with this many releases in each project, a page at a time. */
+    const connectToReleases = (releases: Record<string, number>) => {
+        const { source, send } = connectTo(Object.keys(releases));
+        send.mockImplementation(async ({ rawQuery }) => {
+            const params = new URLSearchParams(rawQuery);
+            const total = releases[params.get('project') ?? ''];
+            const offset = Number(params.get('cursor')?.split(':')[1] ?? 0);
+            const end = Math.min(
+                total,
+                offset + Number(params.get('per_page')),
+            );
+            return response(
+                {
+                    groups: Array.from(
+                        { length: end - offset },
+                        (_, index) => ({
+                            by: { release: `1.0.${offset + index}` },
+                            totals: { 'sum(session)': 1 },
+                        }),
+                    ),
+                },
+                200,
+                link(`0:${end}:0`, end < total),
+            );
+        });
+        return source;
+    };
+
+    it('returns 999 rows of two projects when Sentry has 999', async () => {
+        const source = connectToReleases({ ios: 500, android: 499 });
+
+        const result = await run(source, request, SENTRY_MAX_QUERY_ROWS);
+
+        expect(result.rows).toHaveLength(999);
+        expect(result.hasMoreRows).toBe(false);
+    });
+
+    it.each([
+        // Neither project has 999 rows of its own
+        [{ ios: 500, android: 500 }],
+        [{ ios: 999, android: 1 }],
+    ])('refuses 1,000 rows of two projects: %o', async (releases) => {
+        const source = connectToReleases(releases);
+
+        await expect(
+            run(source, request, SENTRY_MAX_QUERY_ROWS),
+        ).rejects.toMatchObject({
+            data: { liveSourceErrorCode: 'live_source.refused.row_limit' },
+        });
+    });
+
+    it('still returns the top rows of a smaller limit, and says more exist', async () => {
+        const source = connectToReleases({ ios: 6, android: 6 });
 
         const result = await run(source, request, 10);
 

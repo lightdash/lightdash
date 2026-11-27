@@ -12,6 +12,7 @@ import {
     type ExternalConnection,
     type LiveSourceAccessRule,
     type PossibleAbilities,
+    type UpdateExternalConnection,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
 import { getLiveDefinitionHashes } from '../../../services/QuerySourceService/live/explores/build';
@@ -3289,6 +3290,176 @@ describe('ExternalConnectionService integration feature flags', () => {
                 });
             },
         );
+
+        describe('with edited settings and the saved token', () => {
+            // The edits an admin could send to read more with the saved token
+            const edits: [string, UpdateExternalConnection, RegExp][] = [
+                [
+                    'another project',
+                    {
+                        apiSource: {
+                            connector: ApiConnectorType.SENTRY,
+                            organizationSlug: 'acme',
+                            projectSlugs: ['backend'],
+                        },
+                    },
+                    /Enter the token again/,
+                ],
+                [
+                    'another organization',
+                    {
+                        apiSource: {
+                            connector: ApiConnectorType.SENTRY,
+                            organizationSlug: 'other',
+                            projectSlugs: ['mobile-ios'],
+                        },
+                    },
+                    /Enter the token again/,
+                ],
+                [
+                    'no integration',
+                    {
+                        apiSource: null,
+                        allowedPathPrefixes: ['/api/0/'],
+                    },
+                    /cannot remove or change the integration/,
+                ],
+                [
+                    'another integration',
+                    {
+                        apiSource: {
+                            connector: ApiConnectorType.POSTHOG,
+                            projectId: '303731',
+                        },
+                    },
+                    /cannot remove or change the integration/,
+                ],
+            ];
+
+            it.each(edits)(
+                'refuses %s before a call',
+                async (_, config, message) => {
+                    upstream(200, { teams: [{ name: 'Payments' }] });
+                    const { service, externalConnectionModel } = buildService({
+                        connections: [sentryConnection()],
+                    });
+
+                    const test = service.testConnection(
+                        account,
+                        'proj-1',
+                        'conn-1',
+                        {
+                            path: '/api/0/organizations/acme/projects/',
+                            config,
+                        },
+                    );
+
+                    await expect(test).rejects.toThrow(ParameterError);
+                    await expect(test).rejects.toThrow(message);
+                    expect(mockSecureFetch).not.toHaveBeenCalled();
+                    expect(
+                        externalConnectionModel.getDecryptedSecret,
+                    ).not.toHaveBeenCalled();
+                },
+            );
+
+            it('tests the saved settings when the edit changes none of them', async () => {
+                upstream(200, { data: [{ 'count()': 7 }] });
+                const { service } = buildService({
+                    connections: [sentryConnection()],
+                });
+
+                const result = await service.testConnection(
+                    account,
+                    'proj-1',
+                    'conn-1',
+                    {
+                        ...otherProject,
+                        config: {
+                            name: 'Renamed',
+                            apiSource: sentryCreate.apiSource,
+                        },
+                    },
+                );
+
+                const [url, init] = mockSecureFetch.mock.calls[0];
+                expect(new URL(url).searchParams.getAll('project')).toEqual([
+                    'mobile-ios',
+                ]);
+                expect(init.headers?.Authorization).toBe('Bearer phx_secret');
+                expect(result.body).toBeNull();
+            });
+        });
+
+        it('tests edited settings with a token that the admin enters again', async () => {
+            upstream(200, {
+                data: [{ 'count()': 7 }],
+                teams: [{ name: 'Payments' }],
+            });
+            const { service, externalConnectionModel } = buildService({
+                connections: [sentryConnection()],
+            });
+
+            const result = await service.testConnection(
+                account,
+                'proj-1',
+                'conn-1',
+                {
+                    ...otherProject,
+                    config: {
+                        secret: 'new-token',
+                        apiSource: {
+                            connector: ApiConnectorType.SENTRY,
+                            organizationSlug: 'acme',
+                            projectSlugs: ['mobile-android'],
+                        },
+                    },
+                },
+            );
+
+            const [url, init] = mockSecureFetch.mock.calls[0];
+            expect(new URL(url).searchParams.getAll('project')).toEqual([
+                'mobile-android',
+            ]);
+            expect(init.headers?.Authorization).toBe('Bearer new-token');
+            expect(
+                externalConnectionModel.getDecryptedSecret,
+            ).not.toHaveBeenCalled();
+            expect(result).toEqual({
+                status: 200,
+                contentType: 'application/json',
+                headers: {},
+                body: null,
+                truncated: false,
+                liveCheck: result.liveCheck,
+            });
+        });
+
+        it('still tests edited settings of an integration that does not fix its request', async () => {
+            mockSecureFetch.mockResolvedValueOnce({
+                status: 200,
+                contentType: 'application/json',
+                headers: {},
+                bodyText: JSON.stringify({ results: [] }),
+                truncated: false,
+            });
+            const { service } = buildService();
+
+            await service.testConnection(account, 'proj-1', 'conn-1', {
+                method: 'POST',
+                path: '/api/projects/42/query/',
+                config: {
+                    apiSource: {
+                        connector: ApiConnectorType.POSTHOG,
+                        projectId: '42',
+                    },
+                },
+            });
+
+            const [url, init] = mockSecureFetch.mock.calls[0];
+            expect(new URL(url).pathname).toBe('/api/projects/42/query/');
+            expect(init.headers?.Authorization).toBe('Bearer phx_secret');
+        });
     });
 
     it('lists only the integrations the organization has turned on', async () => {

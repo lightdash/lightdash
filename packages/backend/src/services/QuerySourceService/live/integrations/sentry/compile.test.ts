@@ -424,6 +424,86 @@ describe('compileSentryQuery on sessions', () => {
     });
 });
 
+describe('compileSentryQuery on a date the calendar does not have', () => {
+    const cases: [string, typeof ERRORS, string, Partial<MetricQuery>][] = [
+        ['errors', ERRORS, error('date'), { metrics: [error('events')] }],
+        [
+            'sessions',
+            SESSIONS,
+            session('date'),
+            { metrics: [session('sessions')] },
+        ],
+        [
+            'issues by First seen',
+            ISSUES,
+            issue('first_seen'),
+            { dimensions: [issue('short_id')] },
+        ],
+        [
+            'issues by Last seen',
+            ISSUES,
+            issue('last_seen'),
+            { dimensions: [issue('short_id')] },
+        ],
+    ];
+    const dateFilters: [FilterOperator, unknown[]][] = [
+        [FilterOperator.GREATER_THAN, ['2026-02-30']],
+        [FilterOperator.GREATER_THAN, ['2026-11-99']],
+        [FilterOperator.GREATER_THAN_OR_EQUAL, ['2026-02-30']],
+        [FilterOperator.LESS_THAN, ['2026-02-30']],
+        [FilterOperator.LESS_THAN, ['2026-11-99']],
+        [FilterOperator.LESS_THAN_OR_EQUAL, ['2026-11-31']],
+        [FilterOperator.EQUALS, ['2026-02-30']],
+        [FilterOperator.IN_BETWEEN, ['2026-02-01', '2026-02-30']],
+        [FilterOperator.IN_BETWEEN, ['2026-02-30', '2026-03-10']],
+        // A date with a time, as a date picker can send it
+        [FilterOperator.GREATER_THAN, ['2026-02-30T00:00:00Z']],
+    ];
+
+    describe.each(cases)('%s', (_, explore, fieldId, overrides) => {
+        it.each(dateFilters)('refuses "%s" %j', (operator, values) => {
+            const compileIt = () =>
+                compileLiveMetricQuery({
+                    explore,
+                    metricQuery: query(explore.name, {
+                        ...overrides,
+                        filters: filters(rule(fieldId, operator, values)),
+                    }),
+                    timezone: 'UTC',
+                    now: new Date('2026-11-27T12:00:00Z'),
+                });
+
+            expect(compileIt).toThrow(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        liveSourceErrorCode: 'live_source.refused.date_range',
+                    }),
+                }),
+            );
+            expect(compileIt).toThrow(/isn't a day of the calendar/);
+        });
+    });
+
+    it('still reads a real date at the end of a month', () => {
+        const { request } = compile(
+            ERRORS,
+            query('sentry_errors', {
+                metrics: [error('events')],
+                filters: filters(
+                    rule(error('date'), FilterOperator.GREATER_THAN, [
+                        '2026-10-31',
+                    ]),
+                ),
+            }),
+        );
+
+        expect(request).toMatchObject({
+            start: '2026-11-01',
+            end: '2026-11-27',
+        });
+    });
+});
+
 describe('the shared check on Sentry explores', () => {
     const issuesOf = (explore: typeof ERRORS, metricQuery: MetricQuery) =>
         getApiSourceQueryIssues(explore.apiSource!, metricQuery).map(
