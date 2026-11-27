@@ -30,7 +30,10 @@ export const useComposerChartPageRun = ({
         invalidateNextRun.current = true;
         setRefreshedAt(Date.now());
     }, []);
-    const runQuery = useQuery<ComposerChartRunResults, ApiError>({
+    const runQuery = useQuery<
+        { versionUuid: string; run: ComposerChartRunResults },
+        ApiError
+    >({
         queryKey: [
             'composerChartPageRun',
             projectUuid,
@@ -51,11 +54,16 @@ export const useComposerChartPageRun = ({
                 version: 'v2',
                 method: 'POST',
                 body: JSON.stringify(body),
-            });
+            }).then((run) => ({ versionUuid: chart.versionUuid, run }));
         },
         keepPreviousData: true,
     });
-    return { runQuery, refresh };
+    // A kept run of an older version would draw the new chart with old columns
+    const run =
+        runQuery.data?.versionUuid === chart.versionUuid
+            ? runQuery.data.run
+            : null;
+    return { runQuery, run, refresh };
 };
 
 export const useComposerChartParameters = (

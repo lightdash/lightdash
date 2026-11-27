@@ -87,13 +87,12 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
     useRefreshComposerChartOnAgentEdit({ projectUuid, composerChartUuid });
     const [view, setView] = useState<View>(View.CHART);
     const [picks, setPicks] = useState<ParametersValuesMap>({});
-    const { runQuery, refresh } = useComposerChartPageRun({
+    const { runQuery, run, refresh } = useComposerChartPageRun({
         projectUuid,
         chart,
         parameters: picks,
     });
     const parametersQuery = useComposerChartParameters(projectUuid, chart);
-    const run = runQuery.data ?? null;
     const {
         draw,
         results,
