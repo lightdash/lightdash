@@ -1127,7 +1127,7 @@
                     "$ref": "#/$defs/ContentAsCodeType.COMPOSER_CHART"
                 },
                 "dashboardSlug": {
-                    "description": "The owning dashboard; null or missing for a chart a space owns. Ignored on upload when the chart exists.",
+                    "description": "The owning dashboard; null or missing for a chart a space owns. An existing chart keeps its dashboard on upload.",
                     "type": ["string", "null"]
                 },
                 "description": {

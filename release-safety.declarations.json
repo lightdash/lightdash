@@ -9,9 +9,7 @@
                 "firstPartyOnly": "No client could ever call run_composer_queries because the MCP server never registered it; it existed only in the generated schema file.",
                 "covers": {
                     "rest": [],
-                    "mcp": [
-                        "run_composer_queries"
-                    ]
+                    "mcp": ["run_composer_queries"]
                 }
             }
         },
@@ -209,9 +207,7 @@
                 "kind": "no-external-callers",
                 "firstPartyOnly": "The AI Credits organization settings page is the only client of this operation. During a rolling update an old tab on that page shows the app error state until refresh, and nothing is written or lost.",
                 "covers": {
-                    "rest": [
-                        "GET /api/v1/org/ai-credits/usage/daily"
-                    ],
+                    "rest": ["GET /api/v1/org/ai-credits/usage/daily"],
                     "mcp": []
                 }
             }
@@ -377,9 +373,7 @@
                 "kind": "no-external-callers",
                 "featureFlag": "dashboard-capture",
                 "covers": {
-                    "rest": [
-                        "POST /api/v1/org/aiRouter/capture/{projectUuid}"
-                    ],
+                    "rest": ["POST /api/v1/org/aiRouter/capture/{projectUuid}"],
                     "mcp": []
                 }
             }
@@ -420,7 +414,7 @@
             }
         },
         "composer-chart-code-dashboard-slug-nullable": {
-            "reason": "GET /api/v1/projects/{projectUuid}/code/composerCharts now returns dashboardSlug as null, or leaves it out, for a composer chart a space owns. The Lightdash CLI is the only caller. A CLI older than this change downloads such a chart, and its lint and upload then reject the file because they expect a dashboard slug. No space-owned chart can be created until a later release, so during a rolling update every file an old CLI downloads still names its dashboard.",
+            "reason": "GET /api/v1/projects/{projectUuid}/code/composerCharts now returns dashboardSlug as null for a composer chart a space owns. The Lightdash CLI is the only caller. A CLI older than this change downloads such a chart, and its lint and upload then reject the file because they expect a dashboard slug. No space-owned chart can be created until a later release, so during a rolling update every file an old CLI downloads still names its dashboard.",
             "requiredStop": false,
             "impact": {
                 "kind": "no-external-callers",

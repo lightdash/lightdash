@@ -241,10 +241,15 @@ describe('CoderService composer chart upsert for the agent', () => {
         expect(writeFromCode).toHaveBeenCalledOnce();
     });
 
+    const withoutDashboard = (): AnyType => {
+        const { dashboardSlug: _, ...file } = editedFile();
+        return { ...file, name: 'visible' };
+    };
+
     it.each([
-        ['names no dashboard', { dashboardSlug: null }],
-        ['omits its dashboard', { dashboardSlug: undefined }],
-    ])('refuses a file that %s, even unchanged', async (_, overrides) => {
+        ['names no dashboard', { ...withoutDashboard(), dashboardSlug: null }],
+        ['omits its dashboard', withoutDashboard()],
+    ])('refuses a file that %s, even unchanged', async (_, file) => {
         const { service, writeFromCode } = makeUpsertService();
         await expect(
             service.upsertComposerChart(
@@ -252,11 +257,7 @@ describe('CoderService composer chart upsert for the agent', () => {
                 account,
                 PROJECT_UUID,
                 'visible',
-                {
-                    ...editedFile(),
-                    name: 'visible',
-                    ...overrides,
-                },
+                file,
                 { authorization: 'space_access' },
             ),
         ).rejects.toThrow(SpaceOwnedComposerChartUploadError);

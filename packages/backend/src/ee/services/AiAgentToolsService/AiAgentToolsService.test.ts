@@ -3731,9 +3731,14 @@ describe('AiAgentToolsService', () => {
             });
         });
 
-        it('reads a space-owned composer chart as code, linked to its page', async () => {
+        it('reads a space-owned composer chart as code, linked to its space', async () => {
             const spaceChart = { ...composerChartAsCode, dashboardSlug: null };
             const { service } = makeComposerService({
+                spaceModel: {
+                    find: vi
+                        .fn()
+                        .mockResolvedValue([{ uuid: 'allowed-space-uuid' }]),
+                },
                 getComposerChartsForRead: vi
                     .fn()
                     .mockResolvedValue({ composerCharts: [spaceChart] }),
@@ -3749,7 +3754,7 @@ describe('AiAgentToolsService', () => {
             expect(read).toEqual({
                 type: 'composer_chart',
                 content: spaceChart,
-                href: `/projects/${projectUuid}/composer-charts/revenue-vs-target`,
+                href: `/projects/${projectUuid}/spaces/allowed-space-uuid`,
             });
         });
 

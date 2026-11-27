@@ -79,7 +79,7 @@ export const resolveComposerChartTiles = (
         }
         if (chart.owner.type === 'space') {
             throw new ParameterError(
-                `Composer chart "${chartSlug}" belongs to a space. A dashboard can only show composer charts it owns.`,
+                `Composer chart "${chartSlug}" belongs to a space. A dashboard can only show composer charts that belong to it.`,
             );
         }
         if (chart.owner.dashboardUuid !== dashboardUuid) {
