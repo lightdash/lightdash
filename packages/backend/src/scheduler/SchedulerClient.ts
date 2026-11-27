@@ -248,6 +248,7 @@ export class SchedulerClient {
         maxAttempts: number = SCHEDULED_JOB_MAX_ATTEMPTS,
         explicitJobKey?: string,
         queueName?: string,
+        cronScheduledAt?: string,
     ) {
         const normalizedPayload = normalizeAgentConnectionTaskPayload(payload);
         const messageId = nanoid();
@@ -268,6 +269,8 @@ export class SchedulerClient {
                 const payloadWithSentryHeaders: TaskPayloadMap[T] &
                     QueueTraceProperties = {
                     ...normalizedPayload,
+                    // Keep queue metadata outside the payload hash so upgrades reuse existing jobs.
+                    ...(cronScheduledAt && { cronScheduledAt }),
                     traceHeader: traceHeaders.sentryTrace,
                     baggageHeader: traceHeaders.baggage,
                     otelTraceparent: traceHeaders.traceparent,
@@ -459,6 +462,7 @@ export class SchedulerClient {
         scheduler: ScheduledDeliveryPayload,
         schedulerUuid: string | undefined, // This detects if a scheduled delivery is to be sent "now"
         queueName?: string, // When set, jobs run serially in this named queue (per-org delivery cap)
+        cronScheduledAt?: string,
     ) {
         const graphileClient = await this.graphileUtils;
 
@@ -501,6 +505,7 @@ export class SchedulerClient {
             maxAttempts,
             undefined,
             queueName,
+            cronScheduledAt,
         );
         await this.schedulerModel.logSchedulerJob({
             task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
@@ -539,6 +544,7 @@ export class SchedulerClient {
         jobGroup: string,
         scheduler: Scheduler,
         traceProperties: TraceTaskBase,
+        cronScheduledAt?: string,
     ) {
         const graphileClient = await this.graphileUtils;
 
@@ -555,6 +561,9 @@ export class SchedulerClient {
             date,
             JobPriority.LOW,
             6, // Max attempts, 6 retries with natural backoff means it can be retried during the next ~10mins, useful when triggering max quota errors
+            undefined,
+            undefined,
+            cronScheduledAt,
         );
 
         this.analytics.track({
@@ -946,6 +955,9 @@ export class SchedulerClient {
                     },
                     scheduler.schedulerUuid,
                     queueName,
+                    scheduler.format === SchedulerFormat.GSHEETS
+                        ? date.toISOString()
+                        : undefined,
                 ),
             );
 
@@ -1003,6 +1015,7 @@ export class SchedulerClient {
             googlechat?: NotificationPayloadBase['page'];
         },
         aiSummary?: SchedulerAiSummaryDelivery,
+        cronScheduledAt?: string,
     ) {
         const schedulerUuid = getSchedulerUuid(scheduler);
 
@@ -1021,6 +1034,7 @@ export class SchedulerClient {
                     parentJobId,
                     scheduler,
                     traceProperties,
+                    cronScheduledAt,
                 );
                 return [{ ...job, target: undefined }];
             }

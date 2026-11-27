@@ -1082,6 +1082,9 @@ export class SchedulerWorker extends SchedulerTask {
 
     protected getFullTaskList(): TypedTaskList {
         return {
+            [SCHEDULER_TASKS.NOTIFY_SHEETS_FAILURE]: async (payload) => {
+                await this.schedulerService.deliverSheetsFailureNotice(payload);
+            },
             [SCHEDULER_TASKS.GENERATE_DAILY_JOBS]: async () => {
                 const currentDateStartOfDay = moment()
                     .utc()
@@ -1567,20 +1570,21 @@ export class SchedulerWorker extends SchedulerTask {
                         isFinalAttempt,
                     );
 
-                    if (action.notify && deliveryError) {
-                        await this.notifyGsheetsDeliveryFailure(
-                            deliveryError,
-                            helpers.job.id,
-                        );
-                    }
-
                     if (action.disableReason !== null && deliveryError) {
                         await this.disableGsheetsScheduler(
                             payload.schedulerUuid,
                             deliveryError.createdByUserUuid,
                             action.disableReason,
+                            payload,
                         );
                         return; // Swallow so graphile does not retry
+                    }
+
+                    if (action.notify && deliveryError) {
+                        await this.notifyGsheetsDeliveryFailure(
+                            deliveryError,
+                            helpers.job.id,
+                        );
                     }
 
                     // Re-throw the original error (not the envelope) so graphile

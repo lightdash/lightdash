@@ -747,6 +747,7 @@ export type ScheduledDeliveryPayload = TraceTaskBase &
         | SendNowScheduler
         | (Pick<Scheduler, 'schedulerUuid'> & {
               executionUserUuid?: string;
+              cronScheduledAt?: string;
           })
     );
 
@@ -847,6 +848,8 @@ export type EmailNotificationPayload = TraceTaskBase &
     };
 
 export type GsheetsNotificationPayload = TraceTaskBase & {
+    // Original cron occurrence; absent on manual and previously queued jobs.
+    cronScheduledAt?: string;
     schedulerUuid: string;
     scheduledTime: Date;
     jobGroup: string;

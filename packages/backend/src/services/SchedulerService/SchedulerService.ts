@@ -55,6 +55,7 @@ import {
     UserSchedulersSummary,
     type Account,
     type SchedulerAppState,
+    type SheetsFailureNoticePayload,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import {
@@ -86,8 +87,15 @@ import type { SoftDeleteOptions } from '../SoftDeletableService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import { assertCanReplaceChartFilters } from './chartFilterOverridesAccess';
+import type { SheetsFailureNotification } from './SheetsFailureNotifications';
+
+type SendSheetsNotice = (
+    notice: SheetsFailureNotification,
+    channel: SheetsFailureNoticePayload['channel'],
+) => Promise<void>;
 
 type SchedulerServiceArguments = {
+    sendSheetsNotice: SendSheetsNotice;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     schedulerModel: SchedulerModel;
@@ -158,7 +166,10 @@ export class SchedulerService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    private readonly sendSheetsNotice: SendSheetsNotice;
+
     constructor({
+        sendSheetsNotice,
         lightdashConfig,
         analytics,
         schedulerModel,
@@ -177,6 +188,7 @@ export class SchedulerService extends BaseService {
         spacePermissionService,
     }: SchedulerServiceArguments) {
         super();
+        this.sendSheetsNotice = sendSheetsNotice;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.schedulerModel = schedulerModel;
@@ -1162,6 +1174,33 @@ export class SchedulerService extends BaseService {
         );
 
         return scheduler;
+    }
+
+    async deliverSheetsFailureNotice({
+        schedulerUuid,
+        event,
+        channel,
+    }: SheetsFailureNoticePayload): Promise<void> {
+        const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
+        const { projectUuid, organizationUuid } = scheduler.projectUuid
+            ? await this.projectModel.getSummary(scheduler.projectUuid)
+            : await this.getSchedulerProjectContext(scheduler);
+        const search = new URLSearchParams({
+            needsAttention: 'true',
+            nameSearch: scheduler.name,
+        });
+        const deliveryUrl = `${this.lightdashConfig.siteUrl}/generalSettings/projectManagement/${projectUuid}/scheduledDeliveries?${search}`;
+        await this.sendSheetsNotice(
+            {
+                organizationUuid,
+                schedulerUuid,
+                ownerUuid: scheduler.createdBy,
+                schedulerName: scheduler.name,
+                deliveryUrl,
+                event,
+            },
+            channel,
+        );
     }
 
     async setSchedulerEnabled(

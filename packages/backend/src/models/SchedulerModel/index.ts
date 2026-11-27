@@ -79,6 +79,7 @@ import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
+import { enqueueSheetsFailureNotice } from '../../scheduler/SheetsFailureNoticeQueue';
 import { validateSchedulerWebhookTargets } from '../../utils/schedulerWebhookValidation';
 
 type SelectScheduler = SchedulerDb & {
@@ -1237,27 +1238,131 @@ export class SchedulerModel {
         return this.getSchedulerAndTargets(schedulerUuid);
     }
 
+    private static async removeFutureSheetsJobs(
+        trx: Knex.Transaction,
+        schedulerUuid: string,
+    ): Promise<void> {
+        // remove_job also alters locked jobs. Lock only future cron jobs we can remove.
+        const { rows: removedJobs } = await trx.raw<{
+            rows: Array<{ id: string }>;
+        }>(
+            `SELECT (graphile_worker.remove_job(pending.key)).id::text AS id
+             FROM (
+                 SELECT key FROM graphile_worker.jobs
+                 WHERE key LIKE ? AND run_at > now()
+                   AND payload->>'cronScheduledAt' IS NOT NULL
+                   AND attempts = 0 AND locked_at IS NULL
+                 FOR UPDATE SKIP LOCKED
+             ) AS pending`,
+            [`scheduler:${schedulerUuid}:%`],
+        );
+        await trx(SchedulerLogTableName)
+            .where({
+                scheduler_uuid: schedulerUuid,
+                status: SchedulerJobStatus.SCHEDULED,
+            })
+            .whereIn(
+                'job_id',
+                removedJobs.map(({ id }) => id),
+            )
+            .delete();
+    }
+
+    async pauseScheduledSheetsForError({
+        schedulerUuid,
+        projectUuid,
+        organizationUuid,
+        ownerUuid,
+        scheduledTime,
+        reason,
+    }: {
+        schedulerUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        ownerUuid: string;
+        scheduledTime: Date;
+        reason: string;
+    }): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            const updated = await trx(SchedulerTableName)
+                .where({
+                    scheduler_uuid: schedulerUuid,
+                    project_uuid: projectUuid,
+                    created_by: ownerUuid,
+                    format: SchedulerFormat.GSHEETS,
+                    enabled: true,
+                })
+                .whereNull('deleted_at')
+                .where('updated_at', '<=', scheduledTime)
+                .whereExists(
+                    trx(ProjectTableName)
+                        .join(
+                            OrganizationTableName,
+                            `${OrganizationTableName}.organization_id`,
+                            `${ProjectTableName}.organization_id`,
+                        )
+                        .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                        .where(
+                            `${OrganizationTableName}.organization_uuid`,
+                            organizationUuid,
+                        ),
+                )
+                .update({
+                    enabled: false,
+                    automatically_disabled_reason: reason,
+                    updated_at: new Date(),
+                });
+            if (!updated) return;
+            await SchedulerModel.removeFutureSheetsJobs(trx, schedulerUuid);
+            await enqueueSheetsFailureNotice(trx, {
+                schedulerUuid,
+                event: {
+                    type: 'paused',
+                    reason,
+                    scheduledTime: scheduledTime.toISOString(),
+                },
+            });
+        });
+    }
+
     async setSchedulerEnabled(
         schedulerUuid: string,
         enabled: boolean,
         automaticallyDisabledReason: string | null = null,
     ): Promise<SchedulerAndTargets> {
-        const scheduler = this.database(SchedulerTableName).where(
-            'scheduler_uuid',
-            schedulerUuid,
-        );
-        if (automaticallyDisabledReason !== null) {
-            // A delayed worker must not relabel a schedule that was already paused.
-            scheduler.andWhere('enabled', true);
-        }
-        await scheduler.update({
-            enabled,
-            automatically_disabled_reason: enabled
-                ? null
-                : automaticallyDisabledReason,
-            updated_at: new Date(),
+        await this.database.transaction(async (trx) => {
+            const scheduler = trx(SchedulerTableName).where(
+                'scheduler_uuid',
+                schedulerUuid,
+            );
+            if (automaticallyDisabledReason !== null) {
+                scheduler.andWhere('enabled', true);
+            }
+            const updatedAt = new Date();
+            const [updated] = await scheduler
+                .update({
+                    enabled,
+                    automatically_disabled_reason: enabled
+                        ? null
+                        : automaticallyDisabledReason,
+                    updated_at: updatedAt,
+                })
+                .returning('format');
+            if (
+                !enabled &&
+                automaticallyDisabledReason &&
+                updated?.format === SchedulerFormat.GSHEETS
+            ) {
+                await enqueueSheetsFailureNotice(trx, {
+                    schedulerUuid,
+                    event: {
+                        type: 'paused',
+                        reason: automaticallyDisabledReason,
+                        scheduledTime: updatedAt.toISOString(),
+                    },
+                });
+            }
         });
-
         return this.getSchedulerAndTargets(schedulerUuid);
     }
 

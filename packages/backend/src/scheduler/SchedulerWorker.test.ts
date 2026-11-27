@@ -1,4 +1,8 @@
-import { ForbiddenError } from '@lightdash/common';
+import {
+    ForbiddenError,
+    SCHEDULER_TASKS,
+    type GsheetsNotificationPayload,
+} from '@lightdash/common';
 import { getDailyDatesFromCron } from './SchedulerClient';
 import { SchedulerWorker } from './SchedulerWorker';
 
@@ -177,4 +181,120 @@ describe('connection jobs at the Graphile dispatch boundary', () => {
             expect(session).not.toHaveBeenCalled();
         },
     );
+});
+
+describe('permanent Google Sheets failures', () => {
+    class SheetsWorker extends SchedulerWorker {
+        public get tasks() {
+            return this.getFullTaskList();
+        }
+    }
+
+    const setup = () => {
+        const reason =
+            'Configuration required by this Google Sheets sync is missing.';
+        const owner = 'service-account-owner';
+        const session = { userUuid: owner };
+        const getSessionByUserUuid = vi.fn().mockResolvedValue(session);
+        const setSchedulerEnabled = vi.fn().mockResolvedValue(undefined);
+        const pauseScheduledSheetsForError = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const worker = new SheetsWorker({
+            lightdashConfig: {
+                siteUrl: 'https://example.test',
+                scheduler: { tasks: [], jobTimeout: 1000 },
+            },
+            analytics: { track: vi.fn() },
+            googleDriveClient: { isEnabled: false },
+            userService: { getSessionByUserUuid },
+            schedulerService: {
+                schedulerModel: {
+                    getSchedulerAndTargets: vi.fn().mockResolvedValue({
+                        createdBy: owner,
+                        name: 'Report',
+                    }),
+                    pauseScheduledSheetsForError,
+                },
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+                setSchedulerEnabled,
+            },
+        } as unknown as ConstructorParameters<typeof SchedulerWorker>[0]);
+        const payload: GsheetsNotificationPayload = {
+            schedulerUuid: 'schedule',
+            projectUuid: 'project',
+            organizationUuid: 'org',
+            userUuid: 'admin-who-generated-jobs',
+            scheduledTime: new Date(),
+            jobGroup: 'parent',
+        };
+        const run = (cronScheduledAt?: string) =>
+            worker.tasks[SCHEDULER_TASKS.UPLOAD_GSHEETS](
+                { ...payload, cronScheduledAt },
+                {
+                    job: {
+                        id: 'job',
+                        run_at: new Date(),
+                        attempts: 1,
+                        max_attempts: 6,
+                    },
+                } as never,
+            );
+        return {
+            owner,
+            run,
+            reason,
+            session,
+            getSessionByUserUuid,
+            setSchedulerEnabled,
+            pauseScheduledSheetsForError,
+        };
+    };
+
+    it('pauses a recurring sync even when Google Drive is disabled and its owner cannot manage it interactively', async () => {
+        const {
+            run,
+            owner,
+            reason,
+            getSessionByUserUuid,
+            setSchedulerEnabled,
+            pauseScheduledSheetsForError,
+        } = setup();
+        const occurrence = '2026-11-20T09:00:00.000Z';
+        await run(occurrence);
+        expect(pauseScheduledSheetsForError).toHaveBeenCalledExactlyOnceWith({
+            schedulerUuid: 'schedule',
+            projectUuid: 'project',
+            organizationUuid: 'org',
+            ownerUuid: owner,
+            scheduledTime: new Date(occurrence),
+            reason,
+        });
+        expect(getSessionByUserUuid).not.toHaveBeenCalled();
+        expect(setSchedulerEnabled).not.toHaveBeenCalled();
+    });
+
+    it('retains the existing authorization check on Send now and older jobs', async () => {
+        const {
+            run,
+            owner,
+            reason,
+            session,
+            getSessionByUserUuid,
+            setSchedulerEnabled,
+            pauseScheduledSheetsForError,
+        } = setup();
+        await run();
+        expect(getSessionByUserUuid).toHaveBeenCalledExactlyOnceWith(owner);
+        expect(setSchedulerEnabled).toHaveBeenCalledExactlyOnceWith(
+            session,
+            'schedule',
+            false,
+            reason,
+        );
+        expect(pauseScheduledSheetsForError).not.toHaveBeenCalled();
+        setSchedulerEnabled.mockRejectedValue(new ForbiddenError());
+        await expect(run()).rejects.toBeInstanceOf(ForbiddenError);
+        expect(pauseScheduledSheetsForError).not.toHaveBeenCalled();
+    });
 });

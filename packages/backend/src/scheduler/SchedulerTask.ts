@@ -4777,15 +4777,15 @@ export default class SchedulerTask {
 
         let deliveryUrl = `${this.lightdashConfig.siteUrl}/generalSettings/projectManagement/${notification.projectUuid}/scheduledDeliveries?tab=scheduled-deliveries&schedulerUuid=${schedulerUuid}`;
         try {
+            scheduler =
+                await this.schedulerService.schedulerModel.getSchedulerAndTargets(
+                    schedulerUuid,
+                );
             if (!this.googleDriveClient.isEnabled) {
                 throw new MissingConfigError(
                     'Unable to upload Google Sheet from scheduler, Google Drive is not enabled',
                 );
             }
-            scheduler =
-                await this.schedulerService.schedulerModel.getSchedulerAndTargets(
-                    schedulerUuid,
-                );
             const invalidateCache = scheduler.useCachedResults !== true;
 
             const {
@@ -5645,7 +5645,24 @@ export default class SchedulerTask {
         schedulerUuid: string,
         createdByUserUuid: string,
         disableReason: string,
+        context: Pick<
+            GsheetsNotificationPayload,
+            'organizationUuid' | 'projectUuid' | 'cronScheduledAt'
+        >,
     ): Promise<void> {
+        if (context.cronScheduledAt) {
+            await this.schedulerService.schedulerModel.pauseScheduledSheetsForError(
+                {
+                    schedulerUuid,
+                    ownerUuid: createdByUserUuid,
+                    projectUuid: context.projectUuid,
+                    organizationUuid: context.organizationUuid,
+                    scheduledTime: new Date(context.cronScheduledAt),
+                    reason: disableReason,
+                },
+            );
+            return;
+        }
         const sessionUser =
             await this.userService.getSessionByUserUuid(createdByUserUuid);
         await this.schedulerService.setSchedulerEnabled(
@@ -6222,6 +6239,9 @@ export default class SchedulerTask {
                     traceProperties,
                     perChannelPages,
                     aiSummaryDelivery,
+                    !isInlineScheduler
+                        ? schedulerPayload.cronScheduledAt
+                        : undefined,
                 );
 
             // The notification jobs are now queued: nothing below may
@@ -6353,13 +6373,18 @@ export default class SchedulerTask {
                 },
             });
 
-            // Send failure notification email to scheduler creator
+            const disableReason = getScheduledDeliveryDisableReason(e);
+            const pausesSheets =
+                !!schedulerUuid &&
+                scheduler.format === SchedulerFormat.GSHEETS &&
+                disableReason !== null;
+            // The Sheets pause queues the owner notification in the same transaction.
             try {
                 const user =
                     await this.userService.getSessionByUserUuid(
                         schedulerOwnerUuid,
                     );
-                if (user.email) {
+                if (!pausesSheets && user.email) {
                     const schedulerUrl =
                         scheduler.savedChartUuid || scheduler.dashboardUuid
                             ? appendUuidQueryParam(
@@ -6506,7 +6531,22 @@ export default class SchedulerTask {
                 return; // Do not cascade error
             }
 
-            const disableReason = getScheduledDeliveryDisableReason(e);
+            if (pausesSheets && schedulerUuid && disableReason !== null) {
+                await this.disableGsheetsScheduler(
+                    schedulerUuid,
+                    schedulerOwnerUuid,
+                    disableReason,
+                    {
+                        projectUuid: schedulerPayload.projectUuid,
+                        organizationUuid: schedulerPayload.organizationUuid,
+                        cronScheduledAt: !isInlineScheduler
+                            ? schedulerPayload.cronScheduledAt
+                            : undefined,
+                    },
+                );
+                return;
+            }
+
             if (disableReason !== null) {
                 Logger.warn(
                     `Disabling scheduler with non-retryable error: ${e}`,
