@@ -669,9 +669,9 @@ export class ComposerChartService extends BaseService {
     /** The live chart's space, after checking write on it; a dashboard's chart lives and dies with its tile. */
     private async assertCanWriteSpaceChart(
         account: RegisteredAccount,
-        projectUuid: string,
-        composerChartUuid: string,
-    ): Promise<string> {
+        projectUuid: UUID,
+        composerChartUuid: UUID,
+    ): Promise<UUID> {
         const { projectUuid: chartProjectUuid, owner } =
             await this.composerChartModel.getOwner(composerChartUuid);
         if (chartProjectUuid !== projectUuid) {
@@ -728,9 +728,9 @@ export class ComposerChartService extends BaseService {
             itemUuid: composerChartUuid,
             targetSpaceUuid,
         }: {
-            projectUuid: string;
-            itemUuid: string;
-            targetSpaceUuid: string | null;
+            projectUuid: UUID;
+            itemUuid: UUID;
+            targetSpaceUuid: UUID | null;
         },
         { tx }: { tx?: Knex } = {},
     ): Promise<void> {

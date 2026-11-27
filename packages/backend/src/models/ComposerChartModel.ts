@@ -146,7 +146,6 @@ export class ComposerChartModel {
         return this.get(uuid);
     }
 
-    /** Moves a live chart still in the space checked. */
     async moveToSpace(
         {
             projectUuid,
