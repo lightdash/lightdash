@@ -1,3 +1,15 @@
+# [3.434.0](https://github.com/lightdash/lightdash/compare/3.433.0...3.434.0) (2026-11-27)
+
+
+### Bug Fixes
+
+* **live-sources:** a deploy that turns a default off keeps what a source has built ([#33602](https://github.com/lightdash/lightdash/issues/33602)) ([66caaf6](https://github.com/lightdash/lightdash/commit/66caaf64a474caaccd53f6d5ad1d140db63166a8))
+
+
+### Features
+
+* **live-sources:** build explores a Refresh discovers like declared ones ([#33584](https://github.com/lightdash/lightdash/issues/33584)) ([f2ec042](https://github.com/lightdash/lightdash/commit/f2ec0426a94a8460d7c7acda0181ead8aa5dad9a))
+
 # [3.433.0](https://github.com/lightdash/lightdash/compare/3.432.0...3.433.0) (2026-11-27)
 
 
