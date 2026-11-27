@@ -46,7 +46,7 @@ type LiveIntegrationCatalogFields<C extends ApiConnectorType> = {
      * flag has no stored value; otherwise the organization's override, else
      * the flag's default, decides. Without one the integration is always on.
      */
-    featureFlag?: `live-source-${string}`;
+    featureFlag?: `live-source-${C}`;
 };
 
 /**
