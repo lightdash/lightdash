@@ -562,10 +562,11 @@ describe('ComposerChartService.create', () => {
 });
 
 describe('ComposerChartService.create owner', () => {
+    const spaceUuid = '7c3f6a52-1d2b-4c8e-9f0a-3b5d7e9f1a2c';
     const spaceBody = (): CreateComposerChart => ({
         ...createBody(PIPELINES.sql),
         dashboardUuid: null,
-        spaceUuid: 'space-uuid',
+        spaceUuid,
     });
 
     test('creates a chart the space owns when no dashboard is named, checked on the space', async () => {
@@ -577,21 +578,21 @@ describe('ComposerChartService.create owner', () => {
         );
         expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
             defaultSessionUser.userUuid,
-            { type: 'space', spaceUuid: 'space-uuid' },
+            { type: 'space', spaceUuid },
         );
         expect(composerChartModel.create).toHaveBeenCalledWith(
             expect.objectContaining({
-                owner: { type: 'space', spaceUuid: 'space-uuid' },
+                owner: { type: 'space', spaceUuid },
             }),
         );
     });
 
-    test('ignores the space when a dashboard is named', async () => {
+    test('ignores the space, even a malformed one, when a dashboard is named', async () => {
         const { service, composerChartModel } = setup();
         await service.create(
             sessionAccount(abilityWithout(null)),
             projectUuid,
-            { ...createBody(PIPELINES.sql), spaceUuid: 'space-uuid' },
+            { ...createBody(PIPELINES.sql), spaceUuid: 'not-a-uuid' },
         );
         expect(composerChartModel.create).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -603,7 +604,8 @@ describe('ComposerChartService.create owner', () => {
     test.each([
         ['both null', { dashboardUuid: null, spaceUuid: null }],
         ['both missing', {}],
-    ])('refuses a create naming no owner: %s', async (_, owner) => {
+        ['a malformed space', { dashboardUuid: null, spaceUuid: 'space-uuid' }],
+    ])('refuses a create naming no usable owner: %s', async (_, owner) => {
         const { service, composerChartModel } = setup();
         const { dashboardUuid: _d, ...body } = createBody(PIPELINES.sql);
         await expect(

@@ -49,6 +49,7 @@ import {
     type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { validate as isUuid } from 'uuid';
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import { ComposerChartModel } from '../../models/ComposerChartModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -437,7 +438,7 @@ export class ComposerChartService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         data: Pick<CreateComposerChart, 'pipeline' | 'chart'> & {
-            dashboardUuid: string;
+            dashboardUuid: UUID;
         },
     ): Promise<void> {
         await this.authorizeWrite(
@@ -473,7 +474,12 @@ export class ComposerChartService extends BaseService {
         'dashboardUuid' | 'spaceUuid'
     >): ComposerChartOwner {
         if (dashboardUuid !== null) return { type: 'dashboard', dashboardUuid };
-        if (spaceUuid !== null) return { type: 'space', spaceUuid };
+        if (spaceUuid !== null) {
+            if (!isUuid(spaceUuid)) {
+                throw new ParameterError('spaceUuid must be a UUID');
+            }
+            return { type: 'space', spaceUuid };
+        }
         throw new ParameterError(
             'A composer chart requires a dashboardUuid or a spaceUuid',
         );
