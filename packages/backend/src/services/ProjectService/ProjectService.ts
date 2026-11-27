@@ -8467,6 +8467,15 @@ export class ProjectService
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
         projectUuid: string,
         branch: string,
+        /** Reworks the explores while the branch is still checked out and dbt can render its models. */
+        finish: (compiled: {
+            explores: (Explore | ExploreError)[];
+            manifest: DbtManifest | null;
+            compileModelSql: (
+                selectors: string[],
+            ) => Promise<Map<string, string>>;
+        }) => Promise<(Explore | ExploreError)[]> = async ({ explores }) =>
+            explores,
     ): Promise<{
         explores: (Explore | ExploreError)[];
         timings: DbtSourcePreparation['timings'] & { dbtCompileMs: number };
@@ -8477,11 +8486,24 @@ export class ProjectService
             async ({ adapter }) => {
                 const { timings } = await adapter.prepareDbtSource();
                 const startedAt = Date.now();
-                const explores = await adapter.compileAllExplores(
+                const compiled = await adapter.compileAllExplores(
                     undefined,
                     false,
                     true,
                 );
+                const explores = await finish({
+                    explores: compiled,
+                    ...(adapter instanceof DbtBaseProjectAdapter
+                        ? {
+                              manifest: adapter.lastManifest,
+                              compileModelSql: (selectors) =>
+                                  adapter.compileModelSql(selectors),
+                          }
+                        : {
+                              manifest: null,
+                              compileModelSql: async () => new Map(),
+                          }),
+                });
                 return {
                     explores,
                     timings: {

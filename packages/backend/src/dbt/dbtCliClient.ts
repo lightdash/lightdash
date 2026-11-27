@@ -567,6 +567,30 @@ export class DbtCliClient implements DbtClient {
         );
     }
 
+    async compileModelSql(selectors: string[]): Promise<Map<string, string>> {
+        if (!selectors.every(DbtCliClient.validateSelector)) {
+            throw new ParseError('Invalid dbt selector format');
+        }
+        await this._runDbtCommand([
+            'compile',
+            '--full-refresh',
+            '--select',
+            ...selectors,
+        ]);
+        const manifest = await this.loadDbtTargetArtifact('manifest.json');
+        const nodes: Record<
+            string,
+            Record<string, unknown>
+        > = manifest?.nodes ?? {};
+        return new Map(
+            Object.entries(nodes).flatMap(([id, node]): [string, string][] => {
+                // dbt before 1.3 names it compiled_sql.
+                const sql = node.compiled_code ?? node.compiled_sql;
+                return typeof sql === 'string' ? [[id, sql]] : [];
+            }),
+        );
+    }
+
     async getDbtPackages(): Promise<DbtPackages | undefined> {
         const packagesPath = path.join(
             this.dbtProjectDirectory,

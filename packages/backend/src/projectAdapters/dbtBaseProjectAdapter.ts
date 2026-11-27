@@ -287,6 +287,13 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         }
     }
 
+    /** The SQL dbt renders for the models these selectors pick, by unique id; none when this adapter's dbt cannot compile. */
+    public async compileModelSql(
+        selectors: string[],
+    ): Promise<Map<string, string>> {
+        return (await this.dbtClient.compileModelSql?.(selectors)) ?? new Map();
+    }
+
     public async compileAllExplores(
         trackingParams?: TrackingParams,
         loadSources: boolean = false,

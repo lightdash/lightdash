@@ -100,6 +100,9 @@ export interface DbtClient {
 
     getDbtPackages?(): Promise<DbtPackages | undefined>;
 
+    /** The SQL dbt renders for the models these selectors pick, by unique id, with incremental models rendered as a full build. */
+    compileModelSql?(selectors: string[]): Promise<Map<string, string>>;
+
     getSelector(): string | undefined;
 
     test(

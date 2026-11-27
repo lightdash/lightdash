@@ -1066,6 +1066,7 @@ describe('SemanticStudioCheckoutService', () => {
                 },
                 PROJECT_UUID,
                 'studio-branch',
+                expect.any(Function),
             );
             const explores = await context.service.findPreviewExplores(
                 repoWriter,

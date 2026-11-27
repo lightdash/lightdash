@@ -35,6 +35,7 @@ import {
 } from '../../../analytics/LightdashAnalytics';
 import { type JobModel } from '../../../models/JobModel/JobModel';
 import { BaseService } from '../../../services/BaseService';
+import { readCompiledDbtManifest } from '../../../services/ProjectService/compiledDbtManifest';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
 import { startStepTimings } from '../../../utils/stepTimings';
 import { type AiAgentModel } from '../../models/AiAgentModel';
@@ -66,6 +67,7 @@ import {
     type ModelProject,
 } from './studioProject';
 import { getStudioProjectMode, getStudioTurnSetup } from './studioTurn';
+import { readUnbuiltModelsFromSql, withDraftSqlFrom } from './unbuiltModelSql';
 
 export type SemanticStudioCheckoutServiceArguments = {
     analytics: Pick<LightdashAnalytics, 'track'>;
@@ -703,6 +705,32 @@ export class SemanticStudioCheckoutService extends BaseService {
         return result;
     }
 
+    /** A branch's explores with each model whose SQL it changes read from that SQL; as compiled when that cannot be worked out. */
+    private async readUnbuiltModelsFromSql(
+        projectUuid: string,
+        branchCompile: Parameters<typeof readUnbuiltModelsFromSql>[1],
+    ): ReturnType<typeof readUnbuiltModelsFromSql> {
+        try {
+            const live = this.fileStorageClient.isEnabled()
+                ? await readCompiledDbtManifest(
+                      this.fileStorageClient,
+                      projectUuid,
+                  )
+                : null;
+            if (live !== null) {
+                return await readUnbuiltModelsFromSql(
+                    live.manifest,
+                    branchCompile,
+                );
+            }
+        } catch (error) {
+            this.logger.warn(
+                `SemanticStudio: could not render the SQL a branch changes for project ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+        return { explores: branchCompile.explores, rendered: 0 };
+    }
+
     /** The worker's compile of a change's branch; a failure is kept for the person to see, with the last good explores. */
     async compileBranch({
         organizationUuid,
@@ -716,6 +744,7 @@ export class SemanticStudioCheckoutService extends BaseService {
             'failed';
         let counts = { exploreCount: 0, exploreErrorCount: 0 };
         let dbtTimings: Record<string, number | null> = {};
+        let renderedModelCount = 0;
         const fail = (branch: string | null, error: string) =>
             this.workspaceModel.finishBranchCompile(
                 workspaceUuid,
@@ -761,6 +790,15 @@ export class SemanticStudioCheckoutService extends BaseService {
                         { userUuid, organizationUuid },
                         projectUuid,
                         branch,
+                        async (branchCompile) => {
+                            const rendered =
+                                await this.readUnbuiltModelsFromSql(
+                                    projectUuid,
+                                    branchCompile,
+                                );
+                            renderedModelCount = rendered.rendered;
+                            return rendered.explores;
+                        },
                     );
                 timings.mark('compile');
                 dbtTimings = compiled.timings;
@@ -788,6 +826,7 @@ export class SemanticStudioCheckoutService extends BaseService {
                 compileRequestUuid,
                 outcome,
                 ...counts,
+                renderedModelCount,
                 ...dbtTimings,
                 ...timings.summary(),
             });
@@ -863,6 +902,8 @@ export class SemanticStudioCheckoutService extends BaseService {
             const tryOut = await draftExplores();
             if (tryOut) return tryOut;
         }
+        // The preview compiles the same branch against the same unbuilt tables.
+        const drafts = await draftExplores();
         return new Map<string, Explore | ExploreError | null>([
             // A model the branch removes is in the live project and not in its preview.
             ...live.flatMap((explore): [string, null][] =>
@@ -871,7 +912,7 @@ export class SemanticStudioCheckoutService extends BaseService {
             ...Object.values(explores).map(
                 (explore): [string, Explore | ExploreError] => [
                     explore.name,
-                    explore,
+                    withDraftSqlFrom(explore, drafts?.get(explore.name)),
                 ],
             ),
         ]);
