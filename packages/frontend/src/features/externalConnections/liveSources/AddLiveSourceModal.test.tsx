@@ -32,7 +32,7 @@ const onPick = vi.fn();
 const renderModal = ({
     canUseLinkedInAds = true,
     canUseSalesforce = true,
-    canUseHydra = false,
+    canAdd = true,
     // null stands for still loading, since undefined takes the default
     enabledIntegrations = Object.values(ApiConnectorType) as
         | ApiConnectorType[]
@@ -45,10 +45,10 @@ const renderModal = ({
                 opened
                 onClose={vi.fn()}
                 projectUuid="project-1"
+                canAdd={canAdd}
                 canUseGoogle
                 canUseLinkedInAds={canUseLinkedInAds}
                 canUseSalesforce={canUseSalesforce}
-                canUseHydra={canUseHydra}
                 enabledIntegrations={enabledIntegrations ?? undefined}
                 isEnabledIntegrationsError={isEnabledIntegrationsError}
                 onPick={onPick}
@@ -89,8 +89,6 @@ describe('AddLiveSourceModal', () => {
         expect(screen.queryByText('Jira')).not.toBeInTheDocument();
         expect(screen.queryByText('Coming soon')).not.toBeInTheDocument();
         expect(screen.getByText('PostHog')).toBeInTheDocument();
-        // Hydra, the test integration, only where the server registers it
-        expect(screen.queryByText('Hydra')).not.toBeInTheDocument();
     });
 
     it('hides integrations the organization has turned off', () => {
@@ -122,8 +120,8 @@ describe('AddLiveSourceModal', () => {
         expect(screen.queryByText('PostHog')).not.toBeInTheDocument();
     });
 
-    it('offers Hydra where the server registers it', async () => {
-        renderModal({ canUseHydra: true });
+    it('offers Hydra like any integration the organization has on', async () => {
+        renderModal();
 
         await userEvent.click(screen.getByText('Hydra'));
 
@@ -222,6 +220,33 @@ describe('AddLiveSourceModal', () => {
             expect(track).not.toHaveBeenCalled();
         },
     );
+
+    it('greys out every integration for someone who cannot add one', async () => {
+        renderModal({ canAdd: false });
+
+        expect(screen.getByRole('note')).toHaveTextContent(
+            "You can't add live data sources in this project",
+        );
+        const postHog = screen.getByRole('button', { name: /PostHog/ });
+        expect(postHog).toBeDisabled();
+        await userEvent.click(postHog);
+        expect(onPick).not.toHaveBeenCalled();
+    });
+
+    it('still takes a request from someone who cannot add one', async () => {
+        renderModal({ canAdd: false });
+        await openRequest();
+
+        await userEvent.type(customInput(), 'Hubspot{Enter}');
+
+        expect(track).toHaveBeenCalledOnce();
+    });
+
+    it('shows no notice to someone who can add one', () => {
+        renderModal();
+
+        expect(screen.queryByRole('note')).not.toBeInTheDocument();
+    });
 
     it('still opens setup for an available source', async () => {
         renderModal();

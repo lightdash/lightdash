@@ -30,7 +30,7 @@ These live next to the code and load when Claude works there. Read the linked fi
 - **LIGHTDASH_SECRET-derived state** must register for rotation; see `packages/backend/AGENTS.md`.
 - **Slugs and uuid-or-slug params**: rules in `packages/backend/AGENTS.md`.
 - **Native warehouse types** that `DimensionType` collapses (e.g. BigQuery `DATETIME` vs `TIMESTAMP`): see `packages/warehouses/src/warehouseClients/AGENTS.md`.
-- **Testing live data sources**: use Hydra, the test integration with no credentials and controllable latency, 429s, failures and limits; see `packages/backend/src/services/QuerySourceService/live/integrations/hydra/AGENTS.md`.
+- **Testing live data sources**: use Hydra, the integration with seeded data, no credentials and no vendor behind it; see `packages/backend/src/services/QuerySourceService/live/integrations/hydra/AGENTS.md`.
 
 ## Architecture
 

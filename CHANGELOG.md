@@ -1,3 +1,83 @@
+# [3.438.0](https://github.com/lightdash/lightdash/compare/3.437.0...3.438.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** dashboards leave a composer chart they do not own alone ([#33581](https://github.com/lightdash/lightdash/issues/33581)) ([09af86a](https://github.com/lightdash/lightdash/commit/09af86ad16d93ba445680d76874d8e0f50fe6a2a))
+
+# [3.437.0](https://github.com/lightdash/lightdash/compare/3.436.0...3.437.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** run a space-owned composer chart on its own ([#33594](https://github.com/lightdash/lightdash/issues/33594)) ([56e8c59](https://github.com/lightdash/lightdash/commit/56e8c5903a1838c33c95f638d7b52ceb15a10a15))
+
+# [3.436.0](https://github.com/lightdash/lightdash/compare/3.435.0...3.436.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** tile run endpoint; old composer chart run deprecated ([#33591](https://github.com/lightdash/lightdash/issues/33591)) ([3e6543c](https://github.com/lightdash/lightdash/commit/3e6543cb3130b3eb707243ab06f21920a52aa21d))
+
+# [3.435.0](https://github.com/lightdash/lightdash/compare/3.434.0...3.435.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** create a space-owned composer chart by API ([#33586](https://github.com/lightdash/lightdash/issues/33586)) ([7364ff9](https://github.com/lightdash/lightdash/commit/7364ff94de412ee53738df4e084fa1d753f50ce6))
+
+# [3.434.0](https://github.com/lightdash/lightdash/compare/3.433.0...3.434.0) (2026-11-27)
+
+
+### Bug Fixes
+
+* **live-sources:** a deploy that turns a default off keeps what a source has built ([#33602](https://github.com/lightdash/lightdash/issues/33602)) ([66caaf6](https://github.com/lightdash/lightdash/commit/66caaf64a474caaccd53f6d5ad1d140db63166a8))
+
+
+### Features
+
+* **live-sources:** build explores a Refresh discovers like declared ones ([#33584](https://github.com/lightdash/lightdash/issues/33584)) ([f2ec042](https://github.com/lightdash/lightdash/commit/f2ec0426a94a8460d7c7acda0181ead8aa5dad9a))
+
+# [3.433.0](https://github.com/lightdash/lightdash/compare/3.432.0...3.433.0) (2026-11-27)
+
+
+### Features
+
+* **composer:** content as code downloads space-owned charts ([#33583](https://github.com/lightdash/lightdash/issues/33583)) ([0e7aecd](https://github.com/lightdash/lightdash/commit/0e7aecdb8e57d37cce2d52e09f193adeeae63ec4))
+
+# [3.432.0](https://github.com/lightdash/lightdash/compare/3.431.0...3.432.0) (2026-11-27)
+
+
+### Features
+
+* **composer:** check every composer chart through SavedChart ([#33579](https://github.com/lightdash/lightdash/issues/33579)) ([8ad7bc1](https://github.com/lightdash/lightdash/commit/8ad7bc1239ca57c28ec3a1a72b2e85bbc68358e4))
+
+# [3.431.0](https://github.com/lightdash/lightdash/compare/3.430.0...3.431.0) (2026-11-27)
+
+
+### Bug Fixes
+
+* grouped table exports cut long merged values, and every merged value shows a tooltip ([#33513](https://github.com/lightdash/lightdash/issues/33513)) ([550f193](https://github.com/lightdash/lightdash/commit/550f1931ae08af1698c34bdea224029285e83e43)), closes [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461) [#33461](https://github.com/lightdash/lightdash/issues/33461)
+
+
+### Features
+
+* **live-sources:** add a Sentry integration for errors, issues and release health ([#33555](https://github.com/lightdash/lightdash/issues/33555)) ([769eb9c](https://github.com/lightdash/lightdash/commit/769eb9cf3893176e891f91342b4732a58599b3b1))
+
+# [3.430.0](https://github.com/lightdash/lightdash/compare/3.429.0...3.430.0) (2026-11-27)
+
+
+### Features
+
+* **live-data-sources:** explain who can add a live data source ([#33595](https://github.com/lightdash/lightdash/issues/33595)) ([a978546](https://github.com/lightdash/lightdash/commit/a978546f57863f37cf547c6cc09dadc27301a009))
+
+# [3.429.0](https://github.com/lightdash/lightdash/compare/3.428.0...3.429.0) (2026-11-27)
+
+
+### Features
+
+* **composer:** read run records without a dashboard ([#33574](https://github.com/lightdash/lightdash/issues/33574)) ([11f3ea7](https://github.com/lightdash/lightdash/commit/11f3ea7ac8e533909ffa01750c10da1a5373b759))
+
 # [3.428.0](https://github.com/lightdash/lightdash/compare/3.427.1...3.428.0) (2026-11-27)
 
 

@@ -6677,7 +6677,8 @@
                                     {
                                         "properties": {
                                             "chartSlug": {
-                                                "type": "string"
+                                                "type": "string",
+                                                "nullable": true
                                             }
                                         },
                                         "required": ["chartSlug"],
@@ -6693,7 +6694,7 @@
                         "type": "object"
                     }
                 ],
-                "description": "Names a composer chart the dashboard owns; the slug is looked up among composer charts only."
+                "description": "Names a composer chart the dashboard owns; the slug is looked up among composer charts only. Null when the chart is gone."
             },
             "DashboardTileTypes.MARKDOWN": {
                 "enum": ["markdown"],
@@ -8728,11 +8729,12 @@
                     },
                     "spaceSlug": {
                         "type": "string",
-                        "description": "Only used to create a placeholder dashboard when dashboardSlug names none."
+                        "description": "The owning space, or the dashboard's space; a missing dashboard is created there."
                     },
                     "dashboardSlug": {
                         "type": "string",
-                        "description": "The owning dashboard. Ignored on upload when the chart already exists."
+                        "nullable": true,
+                        "description": "The owning dashboard; null or missing for a chart a space owns. An existing chart keeps its dashboard on upload."
                     },
                     "description": {
                         "type": "string",
@@ -8756,7 +8758,6 @@
                     "chart",
                     "pipeline",
                     "spaceSlug",
-                    "dashboardSlug",
                     "description",
                     "name",
                     "slug",
@@ -16595,6 +16596,7 @@
                     "amplitude",
                     "mixpanel",
                     "supabase",
+                    "sentry",
                     "hydra"
                 ],
                 "type": "string"
@@ -16892,163 +16894,93 @@
                 "type": "object",
                 "description": "One table or view of a Supabase project, read through its Data API\n(PostgREST). The project URL is the connection's origin."
             },
+            "ApiConnectorType.SENTRY": {
+                "enum": ["sentry"],
+                "type": "string"
+            },
+            "SentryApiSource": {
+                "properties": {
+                    "projectSlugs": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Slugs of the only projects the source reads, such as an app's."
+                    },
+                    "organizationSlug": {
+                        "type": "string",
+                        "description": "The organization slug, as in https://<slug>.sentry.io."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.SENTRY"
+                    }
+                },
+                "required": ["projectSlugs", "organizationSlug", "connector"],
+                "type": "object",
+                "description": "The projects of a Sentry organization a source reads, with an internal\nintegration's token. The token reads every project of the organization,\nso the source names the ones it may read. The connection's origin says\nwhere the data lives."
+            },
             "ApiConnectorType.HYDRA": {
                 "enum": ["hydra"],
                 "type": "string"
             },
-            "HydraRateLimits": {
+            "HydraObjectField": {
                 "properties": {
-                    "buckets": {
-                        "items": {
-                            "properties": {
-                                "capacity": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "windowMs": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "id": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["capacity", "windowMs", "id"],
-                            "type": "object"
-                        },
-                        "type": "array",
-                        "description": "Fixed windows of calls, like a minute or an hour: up to 5, unique ids, \"second\" kept for `callsPerSecond`."
+                    "system": {
+                        "type": "boolean",
+                        "description": "A field the vendor keeps for itself, such as a sync timestamp."
                     },
-                    "callsPerSecond": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "concurrentCalls": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true,
-                        "description": "Calls in flight at once; null for no cap."
-                    }
-                },
-                "required": ["buckets", "callsPerSecond", "concurrentCalls"],
-                "type": "object",
-                "description": "Rate limits, in the shape the rate-limit gate reads."
-            },
-            "HydraOnLimit": {
-                "properties": {
-                    "body": {
-                        "$ref": "#/components/schemas/Record_string.unknown_",
-                        "description": "The body Hydra answers; `{\"code\": \"rate_limited\"}` marks a throttle in a non-429."
-                    },
-                    "retryAfterFormat": {
+                    "type": {
                         "type": "string",
-                        "enum": ["seconds", "date", "none"],
-                        "description": "How Retry-After is written: as seconds, as an HTTP date, or left out."
+                        "enum": ["string", "number", "date", "boolean"]
                     },
-                    "status": {
-                        "type": "number",
-                        "format": "double"
+                    "label": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
                     }
                 },
-                "required": ["retryAfterFormat", "status"],
+                "required": ["type", "label", "id"],
                 "type": "object"
             },
-            "HydraMockResponse": {
+            "HydraObject": {
                 "properties": {
-                    "body": {
-                        "$ref": "#/components/schemas/Record_string.unknown_",
-                        "description": "The error body; error statuses only."
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/HydraObjectField"
+                        },
+                        "type": "array"
                     },
-                    "retryAfterSeconds": {
+                    "recordCount": {
                         "type": "number",
                         "format": "double",
-                        "description": "Sent as Retry-After; error statuses only."
+                        "description": "Records seeded."
                     },
-                    "status": {
-                        "type": "number",
-                        "format": "double"
+                    "label": {
+                        "type": "string"
                     },
-                    "toCall": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "fromCall": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "call": {
-                        "type": "number",
-                        "format": "double"
+                    "id": {
+                        "type": "string",
+                        "description": "The vendor id, e.g. `Invoice__c`; letters, digits and underscores."
                     }
                 },
-                "required": ["status"],
+                "required": ["fields", "label", "id"],
                 "type": "object",
-                "description": "A fake answer a test sets for one call (`call`) or a range (`fromCall`, and `toCall`\nor every call after). Status 200 answers as usual, skipping `errorRate`;\n400 to 599 is answered as given."
+                "description": "One object a Hydra workspace made."
             },
             "HydraApiSource": {
                 "properties": {
-                    "mockResponses": {
+                    "objects": {
                         "items": {
-                            "$ref": "#/components/schemas/HydraMockResponse"
+                            "$ref": "#/components/schemas/HydraObject"
                         },
                         "type": "array",
-                        "description": "Fake answers a test sets for given calls, counted per source from 1; the first match wins."
-                    },
-                    "declaredLimits": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/HydraRateLimits"
-                            },
-                            {
-                                "type": "string",
-                                "enum": ["vendor"]
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "The limits Lightdash keeps the source's calls under: \"vendor\" copies\n`vendorLimits`, and null declares none."
-                    },
-                    "onLimit": {
-                        "$ref": "#/components/schemas/HydraOnLimit",
-                        "description": "How Hydra refuses a call past `vendorLimits`."
-                    },
-                    "vendorLimits": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/HydraRateLimits"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "The limits Hydra's API enforces, refusing calls past them; null enforces none."
-                    },
-                    "failAuth": {
-                        "type": "boolean",
-                        "description": "Every call answers 401, as a revoked sign-in would."
-                    },
-                    "errorRate": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Share of calls, 0 to 1, that fail with a 500."
-                    },
-                    "jitterMs": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Up to this many milliseconds more, at random, per call."
-                    },
-                    "latencyMs": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Milliseconds each call waits before answering."
-                    },
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Rows per call, 10 or more; a bigger report takes several calls. 0 never pages."
+                        "description": "Objects the workspace made; each becomes an explore, as a CRM's own objects do."
                     },
                     "rowCount": {
                         "type": "number",
                         "format": "double",
-                        "description": "Events seeded per sign-in token, over the last 90 days."
+                        "description": "Events seeded, over the last 90 days."
                     },
                     "connector": {
                         "$ref": "#/components/schemas/ApiConnectorType.HYDRA"
@@ -17056,7 +16988,7 @@
                 },
                 "required": ["connector"],
                 "type": "object",
-                "description": "Hydra, the test integration: its rows are seeded from the sign-in token,\nand these settings make its fake API slow, fail, page or rate limit.\nEvery setting is optional; one left out takes its default\n(`HYDRA_DEFAULT_SETTINGS`)."
+                "description": "Hydra, an integration with seeded data and no vendor behind it: it\nanswers from rows it makes itself, so it calls nothing. Every setting is\noptional; one left out takes its default (`HYDRA_DEFAULT_SETTINGS`)."
             },
             "ExternalConnectionApiSource": {
                 "anyOf": [
@@ -17104,6 +17036,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/SupabaseApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SentryApiSource"
                     },
                     {
                         "$ref": "#/components/schemas/HydraApiSource"
@@ -18439,6 +18374,54 @@
                     }
                 ]
             },
+            "LiveSourceRefreshSummary": {
+                "properties": {
+                    "removedFields": {
+                        "$ref": "#/components/schemas/Record_string.string-Array_",
+                        "description": "Fields gone from the source's explores, by explore name."
+                    },
+                    "addedFields": {
+                        "$ref": "#/components/schemas/Record_string.string-Array_",
+                        "description": "Fields new on the source's explores, by explore name."
+                    },
+                    "removedExplores": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Explores gone from the integration, by explore name; they are no longer built."
+                    },
+                    "addedExplores": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Explores found for the first time, by explore name."
+                    }
+                },
+                "required": [
+                    "removedFields",
+                    "addedFields",
+                    "removedExplores",
+                    "addedExplores"
+                ],
+                "type": "object",
+                "description": "What a Refresh changed: explores and fields the integration added or removed."
+            },
+            "ApiLiveSourceRefreshResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LiveSourceRefreshSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiUpdateLiveSourceCacheRequest": {
                 "properties": {
                     "ttlSeconds": {
@@ -18533,11 +18516,11 @@
                     },
                     "isInternal": {
                         "type": "boolean",
-                        "description": "The integration's own bookkeeping field, hidden by default."
+                        "description": "Off unless an admin turns it on, so lists hide it until it is in use."
                     },
                     "isBuiltIn": {
                         "type": "boolean",
-                        "description": "Written by Lightdash for the integration, not found by a scan."
+                        "description": "Declared in the integration's code; false for a field a Refresh found."
                     },
                     "group": {
                         "type": "string",
@@ -18598,7 +18581,7 @@
                     },
                     "canEditFields": {
                         "type": "boolean",
-                        "description": "False for an explore scans add no fields to; its `fields` is then empty."
+                        "description": "Always true: every explore's fields can be curated."
                     },
                     "lastEdit": {
                         "allOf": [
@@ -18663,7 +18646,7 @@
                     "scannedAt": {
                         "type": "string",
                         "nullable": true,
-                        "description": "ISO timestamp of the last scan, or null when the source was never scanned."
+                        "description": "ISO timestamp of the last Refresh, or null when the source was never refreshed."
                     },
                     "usedByChartCount": {
                         "type": "number",
@@ -22813,6 +22796,10 @@
                         },
                         "required": ["nested", "or"],
                         "type": "object"
+                    },
+                    "apiName": {
+                        "type": "string",
+                        "description": "The vendor's id of what the explore reads, e.g. Salesforce\n`Invoice__c`, when its integration gave one."
                     },
                     "definitionHash": {
                         "type": "string",
@@ -32270,6 +32257,7 @@
                     "chartView",
                     "chartHistory",
                     "sqlChartView",
+                    "composerChartView",
                     "sqlRunner",
                     "viewUnderlyingData",
                     "alert",
@@ -34550,6 +34538,221 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "QuerySourceType": {
+                "description": "Discriminator for every query source a project can execute queries against.\nA query source is anything that can scan a schema and run a query returning\nthe standard table format (ResultColumns + rows behind a queryUuid): the\nproject warehouse, the semantic layer, the DuckDB compose engine, and —\nlater — CSV uploads, HTTP APIs, Google Sheets, etc.\n\nDeliberately NOT WarehouseTypes: sources are not warehouses, they plug in\nabove the warehouse client layer.",
+                "enum": [
+                    "semanticLayer",
+                    "sql",
+                    "duckdb",
+                    "external",
+                    "python",
+                    "api",
+                    "merge"
+                ],
+                "type": "string"
+            },
+            "Record_string.ParametersValuesMap_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ParametersValuesMap"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ChartZoomableField": {
+                "properties": {
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "label", "fieldId"],
+                "type": "object"
+            },
+            "ComposerChartRunResults": {
+                "properties": {
+                    "zoomedFieldLabels": {
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Each zoomed field's label at the zoomed grain, by field id."
+                    },
+                    "zoomableFields": {
+                        "items": {
+                            "$ref": "#/components/schemas/ChartZoomableField"
+                        },
+                        "type": "array",
+                        "description": "The date fields the tile can be zoomed on, so the dashboard offers its date zoom."
+                    },
+                    "dateZoomApplied": {
+                        "type": "boolean",
+                        "description": "Whether the date zoom re-grained at least one semantic-layer node."
+                    },
+                    "usedParameterValuesByNodeId": {
+                        "$ref": "#/components/schemas/Record_string.ParametersValuesMap_",
+                        "description": "The parameter values each node query ran with, keyed by node; nodes can run different values."
+                    },
+                    "sqlColumns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultColumn"
+                        },
+                        "type": "array",
+                        "description": "The SQL nodes' columns, one per name, that a filter can target on this tile."
+                    },
+                    "parameterReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The parameters the tile reports to its dashboard: its non-Python nodes' references."
+                    },
+                    "appliedDashboardFiltersByNodeId": {
+                        "$ref": "#/components/schemas/Record_string.DashboardFilters_",
+                        "description": "The same rules, keyed by the semantic-layer node they were pushed into."
+                    },
+                    "appliedDashboardFilters": {
+                        "$ref": "#/components/schemas/DashboardFilters",
+                        "description": "Dashboard filter rules that reached at least one node."
+                    },
+                    "chartStageQueryUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The server-built series-split stage the chart draws from; null without a group-by."
+                    },
+                    "fields": {
+                        "$ref": "#/components/schemas/ItemsMap",
+                        "description": "The terminal node's fields map from its run; the tile draws a semantic-layer or merge result from it."
+                    },
+                    "queries": {
+                        "items": {
+                            "properties": {
+                                "queryUuid": {
+                                    "type": "string"
+                                },
+                                "sourceType": {
+                                    "$ref": "#/components/schemas/QuerySourceType"
+                                },
+                                "nodeId": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["queryUuid", "sourceType", "nodeId"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "zoomedFieldLabels",
+                    "zoomableFields",
+                    "dateZoomApplied",
+                    "usedParameterValuesByNodeId",
+                    "sqlColumns",
+                    "parameterReferences",
+                    "appliedDashboardFiltersByNodeId",
+                    "appliedDashboardFilters",
+                    "chartStageQueryUuid",
+                    "fields",
+                    "queries"
+                ],
+                "type": "object"
+            },
+            "ApiComposerChartRunResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ComposerChartRunResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ExecuteComposerChartRequest": {
+                "properties": {
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Override the values saved on the chart's nodes and the parameter defaults."
+                    },
+                    "composerChartUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": ["invalidateCache", "composerChartUuid"],
+                "type": "object",
+                "description": "A chart run: a space-owned chart on its own, with no dashboard filters or date zoom."
+            },
+            "ComposerChartRunRequest": {
+                "properties": {
+                    "dateZoom": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DateZoom"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The tile's resolved date zoom; optional for clients that predate it."
+                    },
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
+                    "excludedParameterKeys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The parameter keys this tile keeps as its own."
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "dashboardFilters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "invalidateCache",
+                    "excludedParameterKeys",
+                    "parameters",
+                    "dashboardFilters",
+                    "tileUuid",
+                    "dashboardUuid"
+                ],
+                "type": "object",
+                "description": "A bound run of a stored chart where a dashboard shows it; it never carries nodes."
+            },
+            "DashboardComposerChartRunRequest": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ComposerChartRunRequest"
+                    },
+                    {
+                        "properties": {
+                            "composerChartUuid": {
+                                "$ref": "#/components/schemas/UUID"
+                            }
+                        },
+                        "required": ["composerChartUuid"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A tile run: the tile's run request plus the chart the tile shows."
             },
             "ApiDownloadAsyncQueryResults": {
                 "properties": {
@@ -77604,19 +77807,6 @@
                 "required": ["contentUuid", "contentType", "projectUuid"],
                 "type": "object"
             },
-            "QuerySourceType": {
-                "description": "Discriminator for every query source a project can execute queries against.\nA query source is anything that can scan a schema and run a query returning\nthe standard table format (ResultColumns + rows behind a queryUuid): the\nproject warehouse, the semantic layer, the DuckDB compose engine, and —\nlater — CSV uploads, HTTP APIs, Google Sheets, etc.\n\nDeliberately NOT WarehouseTypes: sources are not warehouses, they plug in\nabove the warehouse client layer.",
-                "enum": [
-                    "semanticLayer",
-                    "sql",
-                    "duckdb",
-                    "external",
-                    "python",
-                    "api",
-                    "merge"
-                ],
-                "type": "string"
-            },
             "QuerySourceDefinition": {
                 "properties": {
                     "description": {
@@ -80532,180 +80722,18 @@
                     "name": {
                         "type": "string"
                     },
-                    "dashboardUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["chart", "pipeline", "name", "dashboardUuid"],
-                "type": "object"
-            },
-            "Record_string.ParametersValuesMap_": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/ParametersValuesMap"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ChartZoomableField": {
-                "properties": {
-                    "tableName": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "fieldId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["tableName", "label", "fieldId"],
-                "type": "object"
-            },
-            "ComposerChartRunResults": {
-                "properties": {
-                    "zoomedFieldLabels": {
-                        "$ref": "#/components/schemas/Record_string.string_",
-                        "description": "Each zoomed field's label at the zoomed grain, by field id."
-                    },
-                    "zoomableFields": {
-                        "items": {
-                            "$ref": "#/components/schemas/ChartZoomableField"
-                        },
-                        "type": "array",
-                        "description": "The date fields the tile can be zoomed on, so the dashboard offers its date zoom."
-                    },
-                    "dateZoomApplied": {
-                        "type": "boolean",
-                        "description": "Whether the date zoom re-grained at least one semantic-layer node."
-                    },
-                    "usedParameterValuesByNodeId": {
-                        "$ref": "#/components/schemas/Record_string.ParametersValuesMap_",
-                        "description": "The parameter values each node query ran with, keyed by node; nodes can run different values."
-                    },
-                    "sqlColumns": {
-                        "items": {
-                            "$ref": "#/components/schemas/ResultColumn"
-                        },
-                        "type": "array",
-                        "description": "The SQL nodes' columns, one per name, that a filter can target on this tile."
-                    },
-                    "parameterReferences": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "The parameters the tile reports to its dashboard: its non-Python nodes' references."
-                    },
-                    "appliedDashboardFiltersByNodeId": {
-                        "$ref": "#/components/schemas/Record_string.DashboardFilters_",
-                        "description": "The same rules, keyed by the semantic-layer node they were pushed into."
-                    },
-                    "appliedDashboardFilters": {
-                        "$ref": "#/components/schemas/DashboardFilters",
-                        "description": "Dashboard filter rules that reached at least one node."
-                    },
-                    "chartStageQueryUuid": {
+                    "spaceUuid": {
                         "type": "string",
-                        "nullable": true,
-                        "description": "The server-built series-split stage the chart draws from; null without a group-by."
-                    },
-                    "fields": {
-                        "$ref": "#/components/schemas/ItemsMap",
-                        "description": "The terminal node's fields map from its run; the tile draws a semantic-layer or merge result from it."
-                    },
-                    "queries": {
-                        "items": {
-                            "properties": {
-                                "queryUuid": {
-                                    "type": "string"
-                                },
-                                "sourceType": {
-                                    "$ref": "#/components/schemas/QuerySourceType"
-                                },
-                                "nodeId": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["queryUuid", "sourceType", "nodeId"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "zoomedFieldLabels",
-                    "zoomableFields",
-                    "dateZoomApplied",
-                    "usedParameterValuesByNodeId",
-                    "sqlColumns",
-                    "parameterReferences",
-                    "appliedDashboardFiltersByNodeId",
-                    "appliedDashboardFilters",
-                    "chartStageQueryUuid",
-                    "fields",
-                    "queries"
-                ],
-                "type": "object"
-            },
-            "ApiComposerChartRunResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/ComposerChartRunResults"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ComposerChartRunRequest": {
-                "properties": {
-                    "dateZoom": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DateZoom"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "The tile's resolved date zoom; optional for clients that predate it."
-                    },
-                    "invalidateCache": {
-                        "type": "boolean"
-                    },
-                    "excludedParameterKeys": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "The parameter keys this tile keeps as its own."
-                    },
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
-                    "dashboardFilters": {
-                        "$ref": "#/components/schemas/DashboardFilters"
-                    },
-                    "tileUuid": {
-                        "type": "string"
+                        "nullable": true
                     },
                     "dashboardUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     }
                 },
-                "required": [
-                    "invalidateCache",
-                    "excludedParameterKeys",
-                    "parameters",
-                    "dashboardFilters",
-                    "tileUuid",
-                    "dashboardUuid"
-                ],
+                "required": ["chart", "pipeline", "name"],
                 "type": "object",
-                "description": "A bound run of a stored chart where a dashboard shows it; it never carries nodes."
+                "description": "A dashboard owns the chart; with no dashboard, `spaceUuid` does. A missing field reads as null."
             },
             "KnexPaginatedData_CatalogField-Array_": {
                 "properties": {
@@ -81890,7 +81918,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.428.0",
+        "version": "3.438.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -91366,6 +91394,108 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/composer-chart": {
+            "post": {
+                "operationId": "executeAsyncComposerChartQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Runs a composer chart that belongs to a space. The run applies no\ndashboard filters or date zoom. Parameters override the values saved on\nthe chart's nodes. The endpoint rejects a chart that belongs to a\ndashboard. Run that chart with Execute dashboard composer chart. Poll\neach node's query with GET /api/v2/projects/{projectUuid}/query/{queryUuid}.",
+                "summary": "Execute composer chart",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteComposerChartRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/dashboard-composer-chart": {
+            "post": {
+                "operationId": "executeAsyncDashboardComposerChartQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Runs a composer chart shown on a dashboard tile, with the dashboard's\nfilters, parameters, and date zoom. The request does not include nodes.\nPoll each node's query with the standard results endpoint.",
+                "summary": "Execute dashboard composer chart",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DashboardComposerChartRunRequest"
                             }
                         }
                     }
@@ -129492,7 +129622,7 @@
                         }
                     }
                 },
-                "description": "Creates a composer chart owned by a dashboard: a stored pipeline and the\nchart drawn from its terminal node. Adds no tile; add one with the\ndashboard update. Requires the composer-charts feature flag.",
+                "description": "Creates a composer chart: a stored pipeline and the chart drawn from its\nterminal node. If you pass `dashboardUuid`, that dashboard owns the\nchart and `spaceUuid` is ignored; otherwise the space in `spaceUuid`\nowns it. Adds no tile; add one with the dashboard update. Requires the\ncomposer-charts feature flag and permission to save charts on the owner.",
                 "summary": "Create composer chart",
                 "tags": ["v2", "Charts"],
                 "security": [],
@@ -129543,7 +129673,7 @@
                         }
                     }
                 },
-                "description": "Gets a composer chart's current version, pipeline included. Anyone who\ncan view the owning dashboard can read it.",
+                "description": "Gets a composer chart's current version, pipeline included. Anyone who\ncan view charts in its owning dashboard or space can read it.",
                 "summary": "Get composer chart",
                 "tags": ["v2", "Charts"],
                 "security": [],
@@ -129592,9 +129722,10 @@
                         }
                     }
                 },
-                "description": "Runs a composer chart's stored pipeline where a dashboard shows it, for\nanyone who can view the chart. The request carries no nodes; each node's\nquery is polled with the standard results endpoint.",
+                "description": "Deprecated — use the v2 Execute dashboard composer chart endpoint instead.\n\nThis endpoint was deprecated on 27 November 2026 and will be removed after 27 February 2027. It runs a composer chart shown on a dashboard tile. Execute dashboard composer chart takes the same request with composerChartUuid in the body.",
                 "summary": "Run composer chart",
                 "tags": ["v2", "Charts"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -129623,6 +129754,9 @@
                             }
                         }
                     }
+                },
+                "x-mint": {
+                    "content": "<Warning>\n**This endpoint is deprecated and will be removed after 27 February 2027.**\n\nUse [Execute dashboard composer chart](https://docs.lightdash.com/api-reference/v2/execute-dashboard-composer-chart), `POST /api/v2/projects/{projectUuid}/query/dashboard-composer-chart`, instead. It takes the same request with `composerChartUuid` in the body and returns the same response.\n</Warning>"
                 }
             }
         },

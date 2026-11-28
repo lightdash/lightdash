@@ -12560,40 +12560,56 @@ export class AiAgentService extends BaseService {
                 projectUuid,
             )
         ).filter(({ tags }) => isTaggedForAgent(tags, agentTags));
-        return connections.flatMap(
-            ({
-                externalConnectionUuid,
-                name,
-                apiSource,
-                origin,
-                liveSourceName,
-                aiHint,
-                targetLabel,
-            }) =>
-                apiSource
-                    ? [
-                          {
-                              connectionUuid: externalConnectionUuid,
-                              name,
-                              connector: apiSource.connector,
-                              exploreNames: getLiveExploreNames(
-                                  apiSource.connector,
-                                  liveSourceName ??
-                                      getLegacyLiveSourceName(
-                                          apiSource.connector,
-                                          externalConnectionUuid,
-                                      ),
-                              ),
-                              target: describeLiveTarget(
-                                  apiSource,
-                                  origin,
-                                  targetLabel ?? null,
-                              ),
-                              hint: aiHint ?? null,
-                          },
-                      ]
-                    : [],
+        const sources = await Promise.all(
+            connections.map(
+                async ({
+                    externalConnectionUuid,
+                    name,
+                    apiSource,
+                    origin,
+                    liveSourceName,
+                    aiHint,
+                    targetLabel,
+                }): Promise<AgentLiveSource[]> => {
+                    if (!apiSource) return [];
+                    const declared = getLiveExploreNames(
+                        apiSource.connector,
+                        liveSourceName ??
+                            getLegacyLiveSourceName(
+                                apiSource.connector,
+                                externalConnectionUuid,
+                            ),
+                    );
+                    // A source also has the explores its scan added, once built
+                    const built =
+                        await this.projectModel.getApiSourceExploreNames(
+                            projectUuid,
+                            externalConnectionUuid,
+                        );
+                    return [
+                        {
+                            connectionUuid: externalConnectionUuid,
+                            name,
+                            connector: apiSource.connector,
+                            exploreNames: [
+                                ...declared,
+                                ...built.filter(
+                                    (exploreName) =>
+                                        !declared.includes(exploreName),
+                                ),
+                            ],
+                            target: describeLiveTarget(
+                                apiSource,
+                                origin,
+                                targetLabel ?? null,
+                            ),
+                            hint: aiHint ?? null,
+                        },
+                    ];
+                },
+            ),
         );
+        return sources.flat();
     }
 
     private async getAgentSettings(

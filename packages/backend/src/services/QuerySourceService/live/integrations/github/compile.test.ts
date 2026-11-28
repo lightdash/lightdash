@@ -19,7 +19,7 @@ import {
     GITHUB_CONTRIBUTORS_EXPLORE,
     GITHUB_ISSUES_EXPLORE,
     GITHUB_PULL_REQUESTS_EXPLORE,
-} from './explores';
+} from './model';
 import { GITHUB_MAX_QUERY_ROWS } from './run';
 
 const build = (definition: LiveExploreDefinition) =>
@@ -30,7 +30,7 @@ const build = (definition: LiveExploreDefinition) =>
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.GITHUB,
         baseVersion: 1,
-        capabilities: githubIntegration.capabilities,
+        capabilities: githubIntegration.query.capabilities,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),
