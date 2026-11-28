@@ -3267,7 +3267,7 @@ describe('Composer charts', () => {
                 expect((await restore(chart.uuid)).status).toBe(404);
             });
 
-            it('lets anyone who manages deleted content restore it, and no one else', async (ctx) => {
+            it('lets anyone who manages deleted content restore it, with the flag off too, and no one else', async (ctx) => {
                 await skipWithoutSoftDelete(ctx);
                 const { chart } = await createSpaceChart();
                 const editor = await loginAsEditor();
@@ -3279,7 +3279,17 @@ describe('Composer charts', () => {
                 expect(
                     (await permanentlyDelete(chart.uuid, viewer)).status,
                 ).toBe(403);
-                expect((await restore(chart.uuid)).status).toBe(200);
+                // Turning the flag off never strands a deleted chart
+                expect(
+                    (await admin.post(flagUrl, { enabled: false })).status,
+                ).toBe(200);
+                try {
+                    expect((await restore(chart.uuid)).status).toBe(200);
+                } finally {
+                    expect(
+                        (await admin.post(flagUrl, { enabled: true })).status,
+                    ).toBe(200);
+                }
                 expect((await getChart(chart.uuid)).status).toBe(200);
             });
 
