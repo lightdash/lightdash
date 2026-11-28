@@ -1,3 +1,4 @@
+import { toolCreateContentOutputSchema } from '@lightdash/common';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
 import { getCreateContent } from './createContent';
 
@@ -97,6 +98,44 @@ describe('createContent composer_chart', () => {
         expect(output.metadata.status).toBe('success');
     });
 
+    it('passes a space chart through, with spaceSlug left out as a cached MCP tool list sends it', async () => {
+        const { create, save } = makeTool({ mode: 'client_approved' });
+        const toSpace = {
+            ...fromNode,
+            dashboardSlug: null,
+            spaceSlug: 'jaffle',
+        };
+        const { spaceSlug: _, ...withoutSpace } = toSpace;
+
+        const outputs = [
+            await create(toSpace),
+            await create({
+                ...fromJson,
+                dashboardSlug: null,
+                spaceSlug: 'jaffle',
+            }),
+            await create(withoutSpace),
+        ];
+
+        for (const output of outputs) {
+            expect(
+                toolCreateContentOutputSchema.safeParse(output).success,
+            ).toBe(true);
+        }
+
+        expect(save.mock.calls.map(([args]) => args.content)).toEqual([
+            expect.objectContaining({
+                dashboardSlug: null,
+                spaceSlug: 'jaffle',
+            }),
+            expect.objectContaining({
+                dashboardSlug: null,
+                spaceSlug: 'jaffle',
+            }),
+            expect.not.objectContaining({ spaceSlug: expect.anything() }),
+        ]);
+    });
+
     it('refuses content that mixes a node with a pipeline, saving nothing', async () => {
         const { create, save } = makeTool({ mode: 'client_approved' });
 
@@ -106,6 +145,9 @@ describe('createContent composer_chart', () => {
         });
 
         expect(output.metadata.status).toBe('error');
+        expect(toolCreateContentOutputSchema.safeParse(output).success).toBe(
+            true,
+        );
         expect(save).not.toHaveBeenCalled();
     });
 });

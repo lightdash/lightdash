@@ -9,7 +9,7 @@
                 "readOnlyHint": false,
                 "title": "Create content"
             },
-            "description": "Create a dashboard, chart, SQL chart or composer chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in find_content or list_content results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them. A composer chart (type composer_chart) is saved onto an existing dashboard, from a query node (from: \"node\") or from full pipeline and chart JSON (from: \"json\"); the composer-chart-reference skill resource has both shapes and when each needs SQL approval.",
+            "description": "Create a dashboard, chart, SQL chart or composer chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in find_content or list_content results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them. A composer chart (type composer_chart) is saved into a space or onto an existing dashboard, from a query node (from: \"node\") or from full pipeline and chart JSON (from: \"json\"); the composer-chart-reference skill resource has both shapes and when each needs SQL approval.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -241,9 +241,16 @@
                                 "description": "Composer chart built from a query node.",
                                 "properties": {
                                     "dashboardSlug": {
-                                        "description": "The existing dashboard the chart belongs to.",
-                                        "minLength": 1,
-                                        "type": "string"
+                                        "anyOf": [
+                                            {
+                                                "minLength": 1,
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ],
+                                        "description": "The existing dashboard that owns the chart and gets its tile. Null or left out saves the chart into spaceSlug."
                                     },
                                     "description": {
                                         "type": "string"
@@ -263,6 +270,18 @@
                                     "sessionId": {
                                         "description": "The query result's sessionId; null in an agent conversation.",
                                         "type": "string"
+                                    },
+                                    "spaceSlug": {
+                                        "anyOf": [
+                                            {
+                                                "minLength": 1,
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ],
+                                        "description": "The space that owns the chart when there is no dashboardSlug."
                                     },
                                     "vizConfig": {
                                         "anyOf": [
@@ -509,7 +528,6 @@
                                 },
                                 "required": [
                                     "from",
-                                    "dashboardSlug",
                                     "name",
                                     "nodeId",
                                     "vizConfig"
@@ -527,9 +545,16 @@
                                         "type": "object"
                                     },
                                     "dashboardSlug": {
-                                        "description": "The existing dashboard the chart belongs to.",
-                                        "minLength": 1,
-                                        "type": "string"
+                                        "anyOf": [
+                                            {
+                                                "minLength": 1,
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ],
+                                        "description": "The existing dashboard that owns the chart and gets its tile. Null or left out saves the chart into spaceSlug."
                                     },
                                     "description": {
                                         "type": "string"
@@ -548,11 +573,22 @@
                                             "type": "string"
                                         },
                                         "type": "object"
+                                    },
+                                    "spaceSlug": {
+                                        "anyOf": [
+                                            {
+                                                "minLength": 1,
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ],
+                                        "description": "The space that owns the chart when there is no dashboardSlug."
                                     }
                                 },
                                 "required": [
                                     "from",
-                                    "dashboardSlug",
                                     "name",
                                     "pipeline",
                                     "chart"
