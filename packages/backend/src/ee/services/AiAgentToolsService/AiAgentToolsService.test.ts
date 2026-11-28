@@ -4279,7 +4279,7 @@ describe('AiAgentToolsService', () => {
                     slug: 'orders-by-status',
                     patch: addDuckdbNode,
                 }),
-            ).resolves.toEqual({ approvalSql: null });
+            ).resolves.toEqual({ sqlNodes: [] });
             await runtime.editContent({
                 type: 'composer_chart',
                 slug: 'orders-by-status',
@@ -4305,7 +4305,7 @@ describe('AiAgentToolsService', () => {
             });
 
             expect(approveSql).toHaveBeenCalledExactlyOnceWith({
-                sql: '-- orders\nselect status from orders',
+                nodes: [{ nodeId: 'orders', sql: 'select status from orders' }],
                 chartName: 'Orders by status',
                 sqlChanged: true,
             });
@@ -4666,7 +4666,7 @@ describe('AiAgentToolsService', () => {
             });
 
             expect(approveSql).toHaveBeenCalledExactlyOnceWith({
-                sql: '-- orders\nselect status from orders',
+                nodes: [{ nodeId: 'orders', sql: 'select status from orders' }],
                 chartName: 'Orders by status',
                 sqlChanged: true,
             });
@@ -4694,7 +4694,9 @@ describe('AiAgentToolsService', () => {
                     patch: changeSql,
                 }),
             ).resolves.toEqual({
-                approvalSql: '-- orders\nselect status from orders',
+                sqlNodes: [
+                    { nodeId: 'orders', sql: 'select status from orders' },
+                ],
             });
             const edited = await runtime.editContent({
                 type: 'composer_chart',
@@ -5486,7 +5488,7 @@ describe('AiAgentToolsService', () => {
             });
 
             expect(approveSql).toHaveBeenCalledWith({
-                sql,
+                nodes: [{ nodeId: null, sql }],
                 chartName: 'Orders by status',
                 sqlChanged: true,
             });
@@ -5516,7 +5518,7 @@ describe('AiAgentToolsService', () => {
             });
 
             expect(approveSql).toHaveBeenCalledWith({
-                sql,
+                nodes: [{ nodeId: null, sql }],
                 chartName: 'Orders by status',
                 sqlChanged: false,
             });
@@ -6079,7 +6081,9 @@ describe('AiAgentToolsService createContent composer_chart', () => {
         });
 
         expect(approveSql).toHaveBeenCalledWith({
-            sql: '-- raw\nselect status, amount from orders',
+            nodes: [
+                { nodeId: 'raw', sql: 'select status, amount from orders' },
+            ],
             chartName: 'Amount by status',
             sqlChanged: true,
         });

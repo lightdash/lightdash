@@ -195,14 +195,19 @@ export const getRunSql = ({
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,
         needsApproval: ({ sql }, { toolCallId }) =>
-            approvalGate.needsNativeApproval({ toolCallId, sql }),
+            approvalGate.needsNativeApproval({
+                toolCallId,
+                nodes: [{ nodeId: null, sql }],
+            }),
         execute: async ({ sql, limit }, { toolCallId }) => {
             const prompt = await getPrompt();
             const isSlack = isSlackPrompt(prompt);
             // Every return routes through persistIfResumed so a resumed call
             // always stores a result; otherwise the resumed request 400s.
             const { approveSql, renderState, persistIfResumed } =
-                await approvalGate.forToolCall(toolCallId, { sql });
+                await approvalGate.forToolCall(toolCallId, {
+                    nodes: [{ nodeId: null, sql }],
+                });
 
             // Pre-section errors (bad SQL shape) — no Slack message exists
             // yet, just return the error to the agent.
@@ -228,6 +233,7 @@ export const getRunSql = ({
                 try {
                     await approveSql({
                         sql,
+                        nodes: [{ nodeId: null, sql }],
                         heading: RUN_SQL_APPROVAL_HEADING,
                         steps: null,
                     });

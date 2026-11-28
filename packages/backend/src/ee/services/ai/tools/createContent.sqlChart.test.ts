@@ -75,7 +75,7 @@ const makeCreateContent = () => {
                 throw new Error('Unexpected content type');
             }
             await args.approveSql({
-                sql: args.content.sql,
+                nodes: [{ nodeId: null, sql: args.content.sql }],
                 chartName: args.content.name,
                 sqlChanged: true,
             });

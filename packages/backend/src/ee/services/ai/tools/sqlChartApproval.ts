@@ -1,10 +1,12 @@
 import {
-    getSqlApprovalSql,
+    getSqlApprovalNodes,
     isComposerChartContentArgs,
     isSqlApprovalToolCall,
     isSqlChartContentArgs,
     ParameterError,
+    type SqlApprovalNode,
 } from '@lightdash/common';
+import { isEqual } from 'es-toolkit/compat';
 import {
     toolFailure,
     type ExecuteToolErrorResult,
@@ -61,10 +63,11 @@ const getSqlChartApprovalHeading = (chartName: string) =>
 /** The approval step a content tool hands the content service. */
 const getSqlChartApproveSql =
     (call: SqlApprovalCall): ApproveSqlFn =>
-    ({ sql, chartName, sqlChanged }) =>
+    ({ nodes, chartName, sqlChanged }) =>
         sqlChanged
             ? call.approveSql({
-                  sql,
+                  sql: nodes.map(({ sql }) => sql).join('\n\n'),
+                  nodes,
                   heading: getSqlChartApprovalHeading(chartName),
                   steps: null,
               })
@@ -72,7 +75,9 @@ const getSqlChartApproveSql =
 
 type SqlChartToolName = 'createContent' | 'editContent';
 
-export type GetComposerChartSqlFn = (args: unknown) => Promise<string | null>;
+export type GetComposerChartSqlFn = (
+    args: unknown,
+) => Promise<SqlApprovalNode[]>;
 
 type ToolOutput = { result: string; metadata?: Record<string, unknown> };
 
@@ -93,16 +98,16 @@ export const createSqlChartGate = (
             : null;
 
     // What needsApproval found for each composer edit, so execution cannot save SQL it never asked about.
-    const askedComposerSql = new Map<string, string | null | 'failed'>();
+    const askedComposerSql = new Map<string, SqlApprovalNode[] | 'failed'>();
 
-    /** The SQL a call asks to save; null when the call does not gate on it. */
-    const getGatedSql = async (args: unknown): Promise<string | null> => {
+    /** The SQL a call asks to save; empty when the call does not gate on it. */
+    const getGatedSql = async (args: unknown): Promise<SqlApprovalNode[]> => {
         if (isComposerChartContentArgs(args)) {
-            return getComposerChartSql ? getComposerChartSql(args) : null;
+            return getComposerChartSql ? getComposerChartSql(args) : [];
         }
         return isSqlApprovalToolCall(toolName, args)
-            ? getSqlApprovalSql(args)
-            : null;
+            ? getSqlApprovalNodes(args)
+            : [];
     };
 
     /** For the AI SDK: a gated call on Slack suspends until the user decides. */
@@ -114,15 +119,15 @@ export const createSqlChartGate = (
         if (!isComposerChartContentArgs(args)) {
             return approvalGate.needsNativeApproval({
                 toolCallId,
-                sql: await getGatedSql(args),
+                nodes: await getGatedSql(args),
             });
         }
         // A refused edit asks nothing; running it reports the refusal.
-        const sql = await getGatedSql(args).catch(() => 'failed' as const);
-        askedComposerSql.set(toolCallId, sql);
+        const nodes = await getGatedSql(args).catch(() => 'failed' as const);
+        askedComposerSql.set(toolCallId, nodes);
         return (
-            sql !== 'failed' &&
-            approvalGate.needsNativeApproval({ toolCallId, sql })
+            nodes !== 'failed' &&
+            approvalGate.needsNativeApproval({ toolCallId, nodes })
         );
     };
 
@@ -160,7 +165,7 @@ export const createSqlChartGate = (
                 (isSqlChart || isComposerChart) && approvalGate
                     ? await approvalGate.forToolCall(toolCallId, {
                           // A refused edit saves nothing; running it reports the refusal.
-                          sql: await getGatedSql(args).catch(() => null),
+                          nodes: await getGatedSql(args).catch(() => []),
                       })
                     : null;
             const approveSql = call ? getSqlChartApproveSql(call) : null;
@@ -171,7 +176,8 @@ export const createSqlChartGate = (
                           if (
                               isComposerChart &&
                               askedSql !== undefined &&
-                              askedSql !== request.sql
+                              (askedSql === 'failed' ||
+                                  !isEqual(askedSql, request.nodes))
                           ) {
                               throw new ParameterError(
                                   COMPOSER_CHART_SQL_UNASKED_RESULT,

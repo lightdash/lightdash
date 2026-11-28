@@ -42,7 +42,7 @@ const makeTool = (
         if (args.type === 'composer_chart' && args.content.from === 'json') {
             if (!args.approveSql) throw new Error('SQL mode is off');
             await args.approveSql({
-                sql: 'select 1',
+                nodes: [{ nodeId: 'raw', sql: 'select 1' }],
                 chartName: args.content.name,
                 sqlChanged: true,
             });

@@ -1,6 +1,7 @@
 import {
     createToolComposerQueriesArgsSchema,
     getSourceQueryResultReferences,
+    getSqlApprovalNodes,
     getSqlApprovalSql,
     getToolComposerQueriesDescription,
     QuerySourceType,
@@ -228,7 +229,7 @@ export const getRunComposerQueries = ({
         needsApproval: (args, { toolCallId }) =>
             approvalGate.needsNativeApproval({
                 toolCallId,
-                sql: getSqlApprovalSql(args),
+                nodes: getSqlApprovalNodes(args),
             }),
         execute: async (
             args,
@@ -245,7 +246,7 @@ export const getRunComposerQueries = ({
             // always stores a result.
             const { approveSql, renderState, persistIfResumed } =
                 await approvalGate.forToolCall(toolCallId, {
-                    sql: approvalSql,
+                    nodes: getSqlApprovalNodes(args),
                 });
             try {
                 const prompt = await getPrompt();
@@ -281,6 +282,7 @@ export const getRunComposerQueries = ({
                     try {
                         await approveSql({
                             sql: approvalSql,
+                            nodes: getSqlApprovalNodes(args),
                             heading: getSqlApprovalHeading('query'),
                             steps: getSqlApprovalSteps('query', args),
                         });

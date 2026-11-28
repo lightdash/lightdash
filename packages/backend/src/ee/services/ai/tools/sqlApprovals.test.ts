@@ -150,15 +150,50 @@ describe('findSameTurnSqlApproval', () => {
         decision: 'approved',
         decidedByUserUuid: 'user-uuid',
     };
+    const contentQueryApproved = (
+        toolCallId: string,
+        sql: string,
+    ): SqlApprovalDecisionOnCall => ({
+        ...runSqlApproved,
+        toolCallId,
+        toolName: 'runContentQuery',
+        toolArgs: { source: { type: 'sql', sql, limit: null } },
+    });
+    const single = (sql: string) => ({
+        toolCallId: 'call-2',
+        nodes: [{ nodeId: null, sql }],
+    });
+    const edit = (nodes: Array<[string, string]>) => ({
+        toolCallId: 'edit-1',
+        nodes: nodes.map(([nodeId, sql]) => ({ nodeId, sql })),
+    });
 
-    it('finds an approved call in the turn with the same SQL', () => {
+    it('covers SQL approved earlier in the turn, character for character', () => {
         expect(
-            findSameTurnSqlApproval([runSqlApproved], {
-                toolCallId: 'create-1',
-                sql: 'select 1;',
-            }),
+            findSameTurnSqlApproval([runSqlApproved], single('select 1')),
+        ).toEqual({ decidedByUserUuid: 'user-uuid' });
+        expect(
+            findSameTurnSqlApproval(
+                [contentQueryApproved('query-1', 'select 1')],
+                edit([['payments', 'select 1']]),
+            ),
         ).toEqual({ decidedByUserUuid: 'user-uuid' });
     });
+
+    it.each(['select 2', 'select 1;', 'select 1 ', ' select 1', 'SELECT 1'])(
+        'asks for SQL %j that differs in any character',
+        (sql) => {
+            expect(
+                findSameTurnSqlApproval([runSqlApproved], single(sql)),
+            ).toBeNull();
+            expect(
+                findSameTurnSqlApproval(
+                    [runSqlApproved],
+                    edit([['payments', sql]]),
+                ),
+            ).toBeNull();
+        },
+    );
 
     it('reads the SQL a SQL chart save or edit was approved for', () => {
         const createApproved: SqlApprovalDecisionOnCall = {
@@ -169,7 +204,7 @@ describe('findSameTurnSqlApproval', () => {
             decidedByUserUuid: null,
         };
         const editApproved: SqlApprovalDecisionOnCall = {
-            toolCallId: 'edit-1',
+            toolCallId: 'edit-0',
             toolName: 'editContent',
             toolArgs: {
                 type: 'sql_chart',
@@ -179,36 +214,48 @@ describe('findSameTurnSqlApproval', () => {
             decidedByUserUuid: 'user-uuid',
         };
         const approvals = [createApproved, editApproved];
-        expect(
-            findSameTurnSqlApproval(approvals, {
-                toolCallId: 'run-sql-1',
-                sql: 'select 2',
-            }),
-        ).toEqual({ decidedByUserUuid: null });
-        expect(
-            findSameTurnSqlApproval(approvals, {
-                toolCallId: 'run-sql-1',
-                sql: 'select 3',
-            }),
-        ).toEqual({ decidedByUserUuid: 'user-uuid' });
+        expect(findSameTurnSqlApproval(approvals, single('select 2'))).toEqual({
+            decidedByUserUuid: null,
+        });
+        expect(findSameTurnSqlApproval(approvals, single('select 3'))).toEqual({
+            decidedByUserUuid: 'user-uuid',
+        });
     });
 
-    it('ignores different SQL and rejected calls', () => {
+    it('never counts rejected SQL', () => {
+        const rejected = {
+            ...contentQueryApproved('query-1', 'select 1'),
+            decision: 'rejected' as const,
+        };
         expect(
-            findSameTurnSqlApproval([runSqlApproved], {
-                toolCallId: 'create-1',
-                sql: 'select 2',
-            }),
+            findSameTurnSqlApproval([rejected], single('select 1')),
         ).toBeNull();
         expect(
             findSameTurnSqlApproval(
-                [{ ...runSqlApproved, decision: 'rejected' }],
-                { toolCallId: 'create-1', sql: 'select 1' },
+                [rejected],
+                edit([['payments', 'select 1']]),
             ),
         ).toBeNull();
     });
 
-    it('matches a composer approval only against its whole pipeline SQL', () => {
+    it('asks unless every node was approved', () => {
+        const decisions = [
+            contentQueryApproved('query-1', 'select 1'),
+            contentQueryApproved('query-2', 'select 2'),
+        ];
+        const twoNodes = edit([
+            ['a', 'select 1'],
+            ['b', 'select 2'],
+        ]);
+        expect(
+            findSameTurnSqlApproval(decisions.slice(0, 1), twoNodes),
+        ).toBeNull();
+        expect(findSameTurnSqlApproval(decisions, twoNodes)).toEqual({
+            decidedByUserUuid: 'user-uuid',
+        });
+    });
+
+    it('covers each node the user saw in an approved pipeline', () => {
         const composerApproved: SqlApprovalDecisionOnCall = {
             ...runSqlApproved,
             toolCallId: 'composer-1',
@@ -216,21 +263,62 @@ describe('findSameTurnSqlApproval', () => {
             toolArgs: {
                 queries: [
                     { nodeId: 'raw', sourceType: 'sql', sql: 'select 1' },
+                    { nodeId: 'other', sourceType: 'sql', sql: 'select 2' },
                 ],
             },
         };
         expect(
-            findSameTurnSqlApproval([composerApproved], {
-                toolCallId: 'run-sql-2',
-                sql: 'select 1',
-            }),
+            findSameTurnSqlApproval(
+                [composerApproved],
+                edit([['payments', 'select 1']]),
+            ),
+        ).toEqual({ decidedByUserUuid: 'user-uuid' });
+        expect(
+            findSameTurnSqlApproval(
+                [composerApproved],
+                edit([
+                    ['payments', 'select 1'],
+                    ['new', 'select 3'],
+                ]),
+            ),
+        ).toBeNull();
+    });
+
+    it('never reuses a composer chart edit approval', () => {
+        const editApproved: SqlApprovalDecisionOnCall = {
+            ...runSqlApproved,
+            toolCallId: 'edit-0',
+            toolName: 'editContent',
+            toolArgs: {
+                type: 'composer_chart',
+                slug: 'payments',
+                patch: [
+                    {
+                        op: 'replace',
+                        path: '/pipeline/nodes/0/sql',
+                        value: 'select 1',
+                    },
+                ],
+            },
+        };
+        expect(
+            findSameTurnSqlApproval([editApproved], single('select 1')),
         ).toBeNull();
         expect(
-            findSameTurnSqlApproval([composerApproved], {
-                toolCallId: 'composer-2',
-                sql: '-- raw\nselect 1',
+            findSameTurnSqlApproval(
+                [editApproved],
+                edit([['payments', 'select 1']]),
+            ),
+        ).toBeNull();
+    });
+
+    it('asks for a call with no SQL nodes', () => {
+        expect(
+            findSameTurnSqlApproval([runSqlApproved], {
+                toolCallId: 'call-2',
+                nodes: [],
             }),
-        ).toEqual({ decidedByUserUuid: 'user-uuid' });
+        ).toBeNull();
     });
 
     it('leaves a call that has its own decision to that decision', () => {
@@ -240,11 +328,11 @@ describe('findSameTurnSqlApproval', () => {
                     runSqlApproved,
                     {
                         ...runSqlApproved,
-                        toolCallId: 'run-sql-2',
+                        toolCallId: 'call-2',
                         decision: 'rejected',
                     },
                 ],
-                { toolCallId: 'run-sql-2', sql: 'select 1' },
+                single('select 1'),
             ),
         ).toBeNull();
     });

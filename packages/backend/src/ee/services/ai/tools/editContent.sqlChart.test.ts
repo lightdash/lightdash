@@ -57,7 +57,7 @@ const makeEditContent = () => {
         const sql = sqlOperation?.value ?? currentSql;
         if (sqlOperation) {
             await args.approveSql({
-                sql,
+                nodes: [{ nodeId: null, sql }],
                 chartName: 'Orders by status',
                 sqlChanged: sql !== currentSql,
             });

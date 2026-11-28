@@ -7,6 +7,7 @@ import { type AiSqlApprovalDecision } from '../../../database/entities/ai';
 import type {
     CreateContentFn,
     EditContentFn,
+    PrepareComposerChartEditFn,
     RecordSqlApprovalFn,
 } from '../types/aiAgentDependencies';
 import { getCreateContent } from './createContent';
@@ -50,6 +51,8 @@ const makeSlackPrompt = (): SlackPrompt => ({
 });
 
 type UserAnswer = 'approved' | 'rejected' | 'timeout';
+
+type ComposerNode = { nodeId: string; sourceType: 'sql'; sql: string };
 
 /**
  * Stands in for the stored tool calls and SQL approval decisions: the agent
@@ -119,11 +122,22 @@ const makeTurns = ({
     };
 
     const saved: string[] = [];
+    // Mirrors the content service: every added node is new warehouse SQL.
+    const prepareComposerChartEdit: PrepareComposerChartEditFn = async ({
+        patch,
+    }) => {
+        const nodes = (patch as Array<{ value: ComposerNode }>).map(
+            ({ value }) => value,
+        );
+        return {
+            sqlNodes: nodes.map(({ nodeId, sql }) => ({ nodeId, sql })),
+        };
+    };
     const createContent = vi.fn(
         async (args: Parameters<CreateContentFn>[0]) => {
             if (args.type !== 'sql_chart') throw new Error('Unexpected type');
             await args.approveSql({
-                sql: args.content.sql,
+                nodes: [{ nodeId: null, sql: args.content.sql }],
                 chartName: args.content.name,
                 sqlChanged: true,
             });
@@ -137,10 +151,30 @@ const makeTurns = ({
         },
     );
     const editContent = vi.fn(async (args: Parameters<EditContentFn>[0]) => {
+        if (args.type === 'composer_chart') {
+            const { sqlNodes } = await prepareComposerChartEdit(args);
+            if (sqlNodes.length > 0) {
+                if (!args.approveSql) throw new Error('Needs SQL mode');
+                await args.approveSql({
+                    nodes: sqlNodes,
+                    chartName: 'Payments',
+                    sqlChanged: true,
+                });
+                saved.push(...sqlNodes.map(({ sql }) => sql));
+            }
+            return {
+                type: 'composer_chart' as const,
+                content: { slug: 'payments', name: 'Payments' } as never,
+                uuid: 'composer-chart-uuid',
+                href: '/projects/project-uuid/composer/payments',
+                versionUuids: { before: 'v1', after: 'v2' },
+                warnings: [],
+            };
+        }
         if (args.type !== 'sql_chart') throw new Error('Unexpected type');
         const [operation] = args.patch as [{ value: string }];
         await args.approveSql({
-            sql: operation.value,
+            nodes: [{ nodeId: null, sql: operation.value }],
             chartName: 'Orders by status',
             sqlChanged: true,
         });
@@ -210,6 +244,12 @@ const makeTurns = ({
             editContent,
             sqlChartSaving,
         }),
+        editComposerChart: getEditContent({
+            prepareComposerChartEdit,
+            siteUrl: 'https://app.lightdash.cloud',
+            editContent,
+            sqlChartSaving,
+        }),
     };
 
     const argsFor = {
@@ -245,6 +285,27 @@ const makeTurns = ({
             type: 'sql_chart' as const,
             slug: 'orders-by-status',
             patch: [{ op: 'replace', path: '/sql', value: sql }],
+        }),
+        // Each blank-line-separated statement becomes its own SQL node.
+        editComposerChart: (sql: string) => ({
+            type: 'composer_chart' as const,
+            slug: 'payments',
+            patch: sql
+                .split('\n\n')
+                .map(
+                    (
+                        nodeSql,
+                        index,
+                    ): { op: string; path: string; value: ComposerNode } => ({
+                        op: 'add',
+                        path: '/pipeline/nodes/-',
+                        value: {
+                            nodeId: `node_${index + 1}`,
+                            sourceType: 'sql',
+                            sql: nodeSql,
+                        },
+                    }),
+                ),
         }),
     };
 
@@ -393,12 +454,12 @@ describe('SQL approved earlier in the same turn', () => {
         const output = await turns.call(
             'createContent',
             'create-1',
-            `${approvedSql};\n`,
+            approvedSql,
         );
 
         expect(output.metadata?.status).toBe('success');
         expect(turns.asked).toEqual(['run-1']);
-        expect(turns.saved).toEqual([`${approvedSql};\n`]);
+        expect(turns.saved).toEqual([approvedSql]);
         expect(turns.recorded).toEqual([
             {
                 toolCallId: 'create-1',
@@ -436,11 +497,14 @@ describe('SQL approved earlier in the same turn', () => {
         expect(turns.saved).toEqual([approvedSql]);
     });
 
-    it('asks again for different SQL', async () => {
+    it.each([
+        ['different SQL', otherSql],
+        ['a trailing semicolon', `${approvedSql};`],
+    ])('asks again for %s', async (_label, sql) => {
         const turns = makeTurns();
 
         await turns.call('runSql', 'run-1', approvedSql);
-        await turns.call('createContent', 'create-1', otherSql);
+        await turns.call('createContent', 'create-1', sql);
 
         expect(turns.asked).toEqual(['run-1', 'create-1']);
     });
@@ -514,6 +578,95 @@ describe('SQL approved earlier in the same turn', () => {
 
         await expect(
             turns.needsApproval('createContent', 'create-1', approvedSql),
+        ).resolves.toBe(true);
+    });
+});
+
+describe('composer chart edit after SQL approved earlier in the same turn', () => {
+    it('saves new SQL without asking again once it ran as a content query', async () => {
+        const turns = makeTurns();
+
+        await turns.call('runContentQuery', 'query-1', approvedSql);
+        const output = await turns.call(
+            'editComposerChart',
+            'edit-1',
+            approvedSql,
+        );
+
+        expect(output.metadata?.status).toBe('success');
+        expect(turns.asked).toEqual(['query-1']);
+        expect(turns.saved).toEqual([approvedSql]);
+        expect(turns.recorded).toEqual([
+            expect.objectContaining({
+                toolCallId: 'edit-1',
+                source: 'same_turn_approval',
+            }),
+        ]);
+    });
+
+    it('asks again in a later turn', async () => {
+        const turns = makeTurns();
+
+        await turns.call('runContentQuery', 'query-1', approvedSql);
+        turns.startTurn('prompt-2');
+        await turns.call('editComposerChart', 'edit-1', approvedSql);
+
+        expect(turns.asked).toEqual(['query-1', 'edit-1']);
+    });
+
+    it.each([`${approvedSql};`, `${approvedSql} `, approvedSql.toUpperCase()])(
+        'asks again for node SQL %j that differs in one place',
+        async (sql) => {
+            const turns = makeTurns();
+
+            await turns.call('runContentQuery', 'query-1', approvedSql);
+            await turns.call('editComposerChart', 'edit-1', sql);
+
+            expect(turns.asked).toEqual(['query-1', 'edit-1']);
+        },
+    );
+
+    it('asks for a two-node edit unless both nodes were approved', async () => {
+        const turns = makeTurns();
+        const twoNodes = `${approvedSql}\n\n${otherSql}`;
+
+        await turns.call('runContentQuery', 'query-1', approvedSql);
+        await turns.call('editComposerChart', 'edit-1', twoNodes);
+        await turns.call('runContentQuery', 'query-2', otherSql);
+        await turns.call('editComposerChart', 'edit-2', twoNodes);
+
+        expect(turns.asked).toEqual(['query-1', 'edit-1', 'query-2']);
+    });
+
+    it('asks again when the user rejected the same SQL', async () => {
+        const turns = makeTurns();
+        turns.answer('query-1', 'rejected');
+
+        await turns.call('runContentQuery', 'query-1', approvedSql);
+        await turns.call('editComposerChart', 'edit-1', approvedSql);
+
+        expect(turns.asked).toEqual(['query-1', 'edit-1']);
+        expect(turns.recorded).toEqual([]);
+    });
+
+    it('does not suspend a Slack edit for SQL approved earlier in the turn', async () => {
+        const turns = makeTurns({
+            prompt: makeSlackPrompt(),
+            useSlackStreamCard: true,
+        });
+
+        turns.storeCall('runContentQuery', 'query-1', approvedSql);
+        turns.clickSlackButton('query-1', 'approved');
+
+        await expect(
+            turns.needsApproval('editComposerChart', 'edit-1', approvedSql),
+        ).resolves.toBe(false);
+        await expect(
+            turns.needsApproval(
+                'editComposerChart',
+                'edit-2',
+                `${approvedSql}\n\n${otherSql}`,
+            ),
         ).resolves.toBe(true);
     });
 });

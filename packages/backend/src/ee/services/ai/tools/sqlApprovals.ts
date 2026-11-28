@@ -1,8 +1,8 @@
 import {
     assertUnreachable,
-    getSqlApprovalSql,
-    isSameApprovalSql,
+    getSqlApprovalNodes,
     isSqlApprovalToolCall,
+    type SqlApprovalNode,
     type SqlApprovalToolName,
 } from '@lightdash/common';
 import {
@@ -113,25 +113,32 @@ export type SqlApprovalDecisionOnCall = {
 
 export type SameTurnSqlApproval = { decidedByUserUuid: string | null };
 
-/** Another call's approval of this SQL in the turn; null once this call has its own decision. */
+/** Another call's approval of every node in the turn; null once this call has its own decision. */
 export const findSameTurnSqlApproval = (
     decisions: SqlApprovalDecisionOnCall[],
-    { toolCallId, sql }: { toolCallId: string; sql: string },
+    { toolCallId, nodes }: { toolCallId: string; nodes: SqlApprovalNode[] },
 ): SameTurnSqlApproval | null => {
     if (decisions.some((decision) => decision.toolCallId === toolCallId)) {
         return null;
     }
-    const match = decisions.find((decision) => {
-        if (
-            decision.decision !== 'approved' ||
-            !isNativeSqlApprovalToolCall(decision.toolName, decision.toolArgs)
-        ) {
-            return false;
-        }
-        const approvedSql = getSqlApprovalSql(decision.toolArgs);
-        return approvedSql !== null && isSameApprovalSql(approvedSql, sql);
-    });
-    return match ? { decidedByUserUuid: match.decidedByUserUuid } : null;
+    const approved = decisions.filter(
+        (decision) =>
+            decision.decision === 'approved' &&
+            // A composer chart edit lists no nodes, so its approval covers nothing later.
+            isNativeSqlApprovalToolCall(decision.toolName, decision.toolArgs),
+    );
+    const approvers = nodes.map(({ sql }) =>
+        approved.find((decision) =>
+            getSqlApprovalNodes(decision.toolArgs).some(
+                (node) => node.sql === sql,
+            ),
+        ),
+    );
+    const [first] = approvers;
+    return first !== undefined &&
+        approvers.every((approver) => approver !== undefined)
+        ? { decidedByUserUuid: first.decidedByUserUuid }
+        : null;
 };
 
 /** `approved_always` is stored as `approved`; `timed_out` is tracked but never stored. */
@@ -253,7 +260,7 @@ export const sqlNotApprovedOutput = (
  * Unchanged SQL needs no approval but still settles a resumed call.
  */
 export type ApproveSqlFn = (request: {
-    sql: string;
+    nodes: SqlApprovalNode[];
     chartName: string;
     sqlChanged: boolean;
 }) => Promise<void>;
