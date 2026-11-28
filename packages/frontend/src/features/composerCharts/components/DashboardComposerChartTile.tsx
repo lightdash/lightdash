@@ -21,6 +21,7 @@ import {
     useState,
     type ComponentProps,
     type FC,
+    type ReactElement,
     type ReactNode,
     type RefObject,
 } from 'react';
@@ -311,7 +312,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
     // The Lineage panel draws the chart too, outside the tile body
     const withChartBoundary = (
         chartNode: ReactNode,
-        renderError: (message: string) => ReactNode,
+        renderError: (message: string) => ReactElement,
     ) => (
         <Sentry.ErrorBoundary
             beforeCapture={(scope) => scope.setTags(COMPOSER_CHART_SENTRY_TAGS)}
