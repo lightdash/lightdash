@@ -4,7 +4,9 @@ import {
     type AppFrame,
 } from '../../../features/apps/appFrameRegistry';
 import { appFramePlacement } from './appFramePlacement';
+import { liftCharts } from './chartPictures';
 import { CAPTURE_IGNORE_ATTRIBUTE, pageRectForRegion } from './frameSource';
+import { offPageFinder } from './offPage';
 import { type TabFrame } from './tabFrame';
 
 // How long a frame gets to answer before the picture goes without it.
@@ -100,16 +102,35 @@ export const grabDomFrame = async (region: DOMRect): Promise<TabFrame> => {
     if (rect.width === 0 || rect.height === 0) {
         throw new Error('Capture area is off screen');
     }
-    const canvas = await html2canvas(document.documentElement, {
-        ...rect,
-        // Same pixel density as a tab capture frame.
-        scale: window.devicePixelRatio || 1,
-        useCORS: true,
-        logging: false,
-        // The pill and the ink are drawn on afterwards, never in the frame.
-        ignoreElements: (element) =>
-            element.hasAttribute(CAPTURE_IGNORE_ATTRIBUTE),
-    });
+    const inView = (element: Element) => {
+        const box = element.getBoundingClientRect();
+        return (
+            box.bottom > region.top &&
+            box.top < region.bottom &&
+            box.right > region.left &&
+            box.left < region.right
+        );
+    };
+    const charts = liftCharts(document, inView);
+    const isOffPage = offPageFinder(inView);
+    let canvas: HTMLCanvasElement;
+    try {
+        canvas = await html2canvas(document.documentElement, {
+            ...rect,
+            // Same pixel density as a tab capture frame.
+            scale: window.devicePixelRatio || 1,
+            useCORS: true,
+            logging: false,
+            // The pill and the ink are drawn on afterwards, never in the frame.
+            ignoreElements: (element) =>
+                element.hasAttribute(CAPTURE_IGNORE_ATTRIBUTE) ||
+                charts.isLifted(element) ||
+                isOffPage(element),
+            onclone: (copy) => charts.placeIn(copy),
+        });
+    } finally {
+        charts.release();
+    }
     await drawAppFrames(canvas, rect);
     const bitmap = await createImageBitmap(canvas);
     return { bitmap };
