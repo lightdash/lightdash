@@ -235,7 +235,7 @@ export type DuckdbExecutionSpec = {
     refusal: { kind: 'row_cap' } | null;
 };
 
-/** Dashboard and tile are where the chart was shown, for tracing only; null when run outside a dashboard. */
+/** Dashboard and tile are where the chart was shown; reading the results needs view on that dashboard. Null when run outside a dashboard. */
 export type ComposerChartRunSource = {
     composerChartUuid: string;
     dashboardUuid: string | null;
