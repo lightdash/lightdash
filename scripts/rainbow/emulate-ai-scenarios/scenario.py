@@ -293,8 +293,10 @@ def advance_emulator_ids():
     current = 0
     with ThreadPoolExecutor(max_workers=16) as pool:
         while current <= floor:
+            # The emulator slows as its call log grows, so clear it between batches.
+            emulator("DELETE", "/_ai/calls")
             # Each plain reply takes two ids (response and message).
-            batch = max(1, (floor - current) // 2 + 1)
+            batch = min(200, (floor - current) // 2 + 1)
             current = max(pool.map(advance, range(batch)))
     emulator("DELETE", "/_ai/calls")
 
