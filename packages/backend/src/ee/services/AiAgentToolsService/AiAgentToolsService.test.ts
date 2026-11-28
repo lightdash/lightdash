@@ -4646,7 +4646,7 @@ describe('AiAgentToolsService', () => {
                 expect.objectContaining({
                     slug: 'orders-by-status',
                     owner: null,
-                    spaceOwner: 'keep',
+                    liveOwner: { type: 'space', spaceUuid: 'jaffle-uuid' },
                 }),
             );
             expect(update).not.toHaveBeenCalled();
@@ -4774,7 +4774,10 @@ describe('AiAgentToolsService', () => {
             expect(writeFromCode).toHaveBeenCalledExactlyOnceWith(
                 account,
                 projectUuid,
-                expect.objectContaining({ owner: null, spaceOwner: 'keep' }),
+                expect.objectContaining({
+                    owner: null,
+                    liveOwner: { type: 'space', spaceUuid: 'jaffle-uuid' },
+                }),
             );
             expect(moveToSpace).toHaveBeenCalledExactlyOnceWith(account, {
                 projectUuid,

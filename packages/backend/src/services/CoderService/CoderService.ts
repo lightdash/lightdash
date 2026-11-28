@@ -3853,7 +3853,14 @@ export class CoderService extends BaseService {
                 slug,
                 file,
                 chart,
-                live: live && current ? { uuid: live.uuid, current } : null,
+                live:
+                    live?.owner.type === 'space' && current
+                        ? {
+                              uuid: live.uuid,
+                              spaceUuid: live.owner.spaceUuid,
+                              current,
+                          }
+                        : null,
                 options: { ...options, allowSpaceCreate },
             });
         }
@@ -3891,7 +3898,7 @@ export class CoderService extends BaseService {
                             dashboardUuid === undefined
                                 ? null
                                 : { type: 'dashboard', dashboardUuid },
-                        spaceOwner: 'refuse',
+                        liveOwner: { type: 'dashboard' },
                         name: file.name,
                         description: file.description ?? null,
                         pipeline: file.pipeline,
@@ -3961,7 +3968,11 @@ export class CoderService extends BaseService {
             slug: string;
             file: ComposerChartAsCode;
             chart: ComposerStoredChart;
-            live: { uuid: string; current: ComposerChartAsCode } | null;
+            live: {
+                uuid: string;
+                spaceUuid: string;
+                current: ComposerChartAsCode;
+            } | null;
             options: Pick<
                 UpsertContentAsCodeOptions,
                 'skipSpaceCreate' | 'publicSpaceCreate' | 'spaceNames'
@@ -4029,17 +4040,15 @@ export class CoderService extends BaseService {
                 pipeline: file.pipeline,
                 chart,
             });
+            const spaceUuid = await getOrCreateSpace();
             const composerChartUuid =
                 await this.composerChartService.writeFromCode(
                     account,
                     projectUuid,
                     {
                         slug,
-                        owner: {
-                            type: 'space',
-                            spaceUuid: await getOrCreateSpace(),
-                        },
-                        spaceOwner: 'refuse',
+                        owner: { type: 'space', spaceUuid },
+                        liveOwner: { type: 'space', spaceUuid },
                         name: file.name,
                         description: file.description ?? null,
                         pipeline: file.pipeline,
@@ -4095,7 +4104,7 @@ export class CoderService extends BaseService {
                 {
                     slug,
                     owner: null,
-                    spaceOwner: 'keep',
+                    liveOwner: { type: 'space', spaceUuid: live.spaceUuid },
                     name: file.name,
                     description: file.description ?? null,
                     pipeline: file.pipeline,

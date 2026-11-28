@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     AgentCapability,
     ChartType,
+    ConflictError,
     CustomDimensionType,
     DashboardTileTypes,
     DateGranularity,
@@ -39,7 +40,10 @@ import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlag
 import type { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
-import { ComposerChartService } from './ComposerChartService';
+import {
+    ComposerChartService,
+    type ComposerChartLiveOwner,
+} from './ComposerChartService';
 import type { ComposerRunBinding } from './ComposerRunBinding';
 
 const projectUuid = grantFixture().approvedProjectUuids[0];
@@ -704,22 +708,23 @@ describe('ComposerChartService.writeFromCode owner', () => {
     };
     const write = (
         service: ComposerChartService,
-        spaceOwner: 'refuse' | 'keep',
+        liveOwner: ComposerChartLiveOwner,
         ability = abilityWithout(null),
     ) =>
         service.writeFromCode(sessionAccount(ability), projectUuid, {
             ...createBody(PIPELINES.sql),
             slug: 'orders',
             owner: null,
-            spaceOwner,
+            liveOwner,
         });
+    const inSpace = { type: 'space', spaceUuid } as const;
 
     test('writes a version of a chart its space owns for the agent edit, checked on the space', async () => {
         const { service, writeFromCode, spacePermissionService } = setupLive({
             type: 'space',
             spaceUuid,
         });
-        await write(service, 'keep');
+        await write(service, inSpace);
         expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
             defaultSessionUser.userUuid,
             { type: 'space', spaceUuid },
@@ -736,7 +741,7 @@ describe('ComposerChartService.writeFromCode owner', () => {
             type: 'space',
             spaceUuid,
         });
-        await expect(write(service, 'refuse')).rejects.toThrow(
+        await expect(write(service, { type: 'dashboard' })).rejects.toThrow(
             NotSupportedError,
         );
         expect(writeFromCode).not.toHaveBeenCalled();
@@ -759,7 +764,7 @@ describe('ComposerChartService.writeFromCode owner', () => {
             type: 'space',
             spaceUuid,
         });
-        await expect(write(service, 'keep', ability)).rejects.toThrow(
+        await expect(write(service, inSpace, ability)).rejects.toThrow(
             ForbiddenError,
         );
         expect(writeFromCode).not.toHaveBeenCalled();
@@ -791,7 +796,7 @@ describe('ComposerChartService.writeFromCode owner', () => {
                     ...createBody(PIPELINES.sql),
                     slug: 'orders',
                     owner: { type: 'space', spaceUuid },
-                    spaceOwner: 'refuse',
+                    liveOwner: { type: 'space', spaceUuid },
                 },
             );
             expect(
@@ -809,12 +814,26 @@ describe('ComposerChartService.writeFromCode owner', () => {
         },
     );
 
-    test('keeps a dashboard owner either way', async () => {
+    test.each([
+        ['another space', { type: 'space', spaceUuid: 'other-space-uuid' }],
+        ['a dashboard', { type: 'dashboard', dashboardUuid: 'dashboard-uuid' }],
+    ] as const)(
+        'refuses a version for a chart moved to %s since it was read',
+        async (_, owner) => {
+            const { service, writeFromCode } = setupLive(owner);
+            await expect(write(service, inSpace)).rejects.toThrow(
+                ConflictError,
+            );
+            expect(writeFromCode).not.toHaveBeenCalled();
+        },
+    );
+
+    test('keeps a dashboard owner for a dashboard write', async () => {
         const { service, writeFromCode } = setupLive({
             type: 'dashboard',
             dashboardUuid,
         });
-        await write(service, 'keep');
+        await write(service, { type: 'dashboard' });
         expect(writeFromCode).toHaveBeenCalledWith(
             expect.objectContaining({
                 owner: { type: 'dashboard', dashboardUuid },

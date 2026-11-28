@@ -452,7 +452,7 @@ describe('CoderService composer chart upload into a space', () => {
             expect.objectContaining({
                 slug: 'visible',
                 owner: { type: 'space', spaceUuid: 'marketing-uuid' },
-                spaceOwner: 'refuse',
+                liveOwner: { type: 'space', spaceUuid: 'marketing-uuid' },
             }),
         );
         expect(dashboardModel.find).not.toHaveBeenCalled();
@@ -565,7 +565,7 @@ describe('CoderService composer chart upload into a space', () => {
             expect.objectContaining({
                 name: 'Renamed',
                 owner: null,
-                spaceOwner: 'keep',
+                liveOwner: { type: 'space', spaceUuid: 'jaffle-uuid' },
             }),
         );
         expect(

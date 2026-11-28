@@ -305,7 +305,7 @@ describe('promoting a dashboard with composer charts', () => {
                     type: 'dashboard',
                     dashboardUuid: upstreamDashboardUuid,
                 },
-                spaceOwner: 'refuse',
+                liveOwner: { type: 'dashboard' },
                 name: 'Revenue',
                 description: null,
                 pipeline,

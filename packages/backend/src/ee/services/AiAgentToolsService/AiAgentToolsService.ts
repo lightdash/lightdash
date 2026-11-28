@@ -4932,11 +4932,8 @@ export class AiAgentToolsService extends BaseService {
         const { account } = context;
         assertRegisteredAccount(account);
         const { composerChartUuid, targetSpaceUuid, read } = spaceEdit;
-        const { content: now } = await this.readComposerChartAsCode(
-            context,
-            slug,
-            'update',
-        );
+        const { composerChart: now, spaceUuid } =
+            await this.findComposerChartForAgent(context, slug, 'update');
         if (
             now.name !== read.name ||
             (now.description ?? null) !== read.description ||
@@ -4945,14 +4942,14 @@ export class AiAgentToolsService extends BaseService {
             throw new ParameterError(composerChartChangedWhileWaiting(slug));
         }
         if (spaceEdit.write === 'version') {
-            // In place: a live chart keeps its space, a deleted one is refused
+            // In place, in the space just checked: a moved or deleted chart is refused
             await this.composerChartService.writeFromCode(
                 account,
                 context.projectUuid,
                 {
                     slug,
                     owner: null,
-                    spaceOwner: 'keep',
+                    liveOwner: { type: 'space', spaceUuid },
                     name: edited.name,
                     description: edited.description ?? null,
                     pipeline: edited.pipeline,
