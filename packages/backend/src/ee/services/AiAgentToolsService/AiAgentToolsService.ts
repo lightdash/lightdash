@@ -77,6 +77,7 @@ import {
     UnexpectedServerError,
     UserAttributeValueMap,
     UUID,
+    UuidOrSlug,
     WarehouseQueryError,
     type AgentSqlScope,
     type AgentToolName,
@@ -87,7 +88,6 @@ import {
     type AppExternalConnectionLink,
     type ChartAsCode,
     type ComposerChartAsCode,
-    type ComposerChartContent,
     type ComposerChartPipeline,
     type ComposerStoredChart,
     type ComposerStoredChartAsCode,
@@ -590,6 +590,7 @@ type AiAgentToolsServiceDependencies = {
         | 'get'
         | 'create'
         | 'runWithSavedDashboardState'
+        | 'runChart'
         | 'isEnabled'
         | 'preflightPipeline'
         | 'preflightCreate'
@@ -2143,6 +2144,15 @@ export class AiAgentToolsService extends BaseService {
                                 },
                             ];
                         }
+                        if (item.contentType === 'composer_chart') {
+                            return [
+                                {
+                                    ...item,
+                                    space: spaceMetadata,
+                                    verification: null,
+                                },
+                            ];
+                        }
 
                         return [
                             {
@@ -2287,6 +2297,13 @@ export class AiAgentToolsService extends BaseService {
         uuid: string,
     ) {
         return `/projects/${context.projectUuid}/spaces/${uuid}`;
+    }
+
+    private static getComposerChartUrl(
+        context: AiAgentToolsRuntimeContext,
+        uuid: string,
+    ) {
+        return `/projects/${context.projectUuid}/composer-charts/${uuid}`;
     }
 
     private static getScheduledDeliveryUrl(
@@ -3375,19 +3392,53 @@ export class AiAgentToolsService extends BaseService {
     ): Promise<
         Extract<Awaited<ReturnType<ReadContentFn>>, { type: 'composer_chart' }>
     > {
-        const notFound = `Composer chart "${slug}" was not found`;
+        const { composerChart, composerChartUuid } =
+            await this.findComposerChartForAgent(context, slug, action);
+        if (!composerChart.dashboardSlug) {
+            return {
+                type: 'composer_chart',
+                content: composerChart,
+                href: AiAgentToolsService.getComposerChartUrl(
+                    context,
+                    composerChartUuid,
+                ),
+            };
+        }
+        const dashboard = await this.dashboardService.getByIdOrSlug(
+            context.user,
+            composerChart.dashboardSlug,
+            { projectUuid: context.projectUuid },
+        );
+        return {
+            type: 'composer_chart',
+            content: composerChart,
+            href: AiAgentToolsService.getContentUrl(
+                context,
+                'dashboard',
+                dashboard.uuid,
+            ),
+        };
+    }
+
+    /** A composer chart the caller can view and the agent's spaces reach, by slug or uuid. */
+    private async findComposerChartForAgent(
+        context: AiAgentToolsRuntimeContext,
+        composerChartUuidOrSlug: UuidOrSlug,
+        action: 'read' | 'update',
+    ) {
+        const notFound = `Composer chart "${composerChartUuidOrSlug}" was not found`;
         await this.assertComposerChartsEnabled(context, notFound);
         const { account } = context;
         assertRegisteredAccount(account);
         const read = await this.coderService.getComposerChartForRead(
             account,
             context.projectUuid,
-            slug,
+            composerChartUuidOrSlug,
         );
         if (!read) {
             throw new NotFoundError(notFound);
         }
-        const { composerChart, spaceUuid } = read;
+        const { spaceUuid } = read;
         // By uuid: two spaces can share a path
         if (
             !AiAgentToolsService.hasAgentSpaceAccess(
@@ -3413,27 +3464,7 @@ export class AiAgentToolsService extends BaseService {
             spaceUuid,
             null,
         );
-        if (!composerChart.dashboardSlug) {
-            return {
-                type: 'composer_chart',
-                content: composerChart,
-                href: AiAgentToolsService.getSpaceUrl(context, spaceUuid),
-            };
-        }
-        const dashboard = await this.dashboardService.getByIdOrSlug(
-            context.user,
-            composerChart.dashboardSlug,
-            { projectUuid: context.projectUuid },
-        );
-        return {
-            type: 'composer_chart',
-            content: composerChart,
-            href: AiAgentToolsService.getContentUrl(
-                context,
-                'dashboard',
-                dashboard.uuid,
-            ),
-        };
+        return read;
     }
 
     private async readContentAsCode(
@@ -5461,33 +5492,25 @@ export class AiAgentToolsService extends BaseService {
     private getComposerChartForRuntime(
         context: AiAgentToolsRuntimeContext,
         { chartSlug, dashboardSlug }: Parameters<GetComposerChartFn>[0],
-    ) {
+    ): Promise<{
+        summary: ComposerChartSummary;
+        tile: { dashboardUuid: string; tileUuid: string } | null;
+    }> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.getComposerChart`,
             { chartSlug, dashboardSlug },
             async () => {
-                const notFound = `Composer chart ${chartSlug} not found on dashboard ${dashboardSlug}`;
-                await this.assertComposerChartsEnabled(context, notFound);
-                const dashboard = await this.dashboardService.getByIdOrSlug(
-                    context.user,
-                    dashboardSlug,
-                    { projectUuid: context.projectUuid },
-                );
-                AiAgentToolsService.assertSpaceInAgentScope(
-                    context,
-                    dashboard.spaceUuid,
-                    `Dashboard not found: ${dashboardSlug}`,
-                );
-                const tile = dashboard.tiles
-                    .filter(isDashboardComposerChartTile)
-                    .find(
-                        (composerTile) =>
-                            composerTile.properties.chartSlug === chartSlug,
-                    );
-                const composerChartUuid = tile?.properties.composerChartUuid;
-                if (!tile || !composerChartUuid) {
-                    throw new NotFoundError(notFound);
-                }
+                const { composerChartUuid, tile } =
+                    dashboardSlug === null
+                        ? await this.findSpaceComposerChartForRun(
+                              context,
+                              chartSlug,
+                          )
+                        : await this.findComposerChartTileForRun(
+                              context,
+                              chartSlug,
+                              dashboardSlug,
+                          );
                 const { account } = context;
                 assertRegisteredAccount(account);
                 const chart = await this.composerChartService.get(
@@ -5505,9 +5528,57 @@ export class AiAgentToolsService extends BaseService {
                     name: chart.name,
                     terminalNodeId: chart.pipeline.terminalNodeId,
                 };
-                return { summary, dashboard, tileUuid: tile.uuid };
+                return { summary, tile };
             },
         );
+    }
+
+    /** A chart run takes a chart a space owns; a dashboard's chart runs on its tile. */
+    private async findSpaceComposerChartForRun(
+        context: AiAgentToolsRuntimeContext,
+        chartSlug: string,
+    ) {
+        const { composerChart, composerChartUuid } =
+            await this.findComposerChartForAgent(context, chartSlug, 'read');
+        if (composerChart.dashboardSlug) {
+            throw new ParameterError(
+                `Composer chart "${chartSlug}" belongs to the dashboard "${composerChart.dashboardSlug}". To run it, use source type "dashboardChart" with dashboardSlug "${composerChart.dashboardSlug}".`,
+            );
+        }
+        return { composerChartUuid, tile: null };
+    }
+
+    private async findComposerChartTileForRun(
+        context: AiAgentToolsRuntimeContext,
+        chartSlug: string,
+        dashboardSlug: string,
+    ) {
+        const notFound = `Composer chart ${chartSlug} not found on dashboard ${dashboardSlug}`;
+        await this.assertComposerChartsEnabled(context, notFound);
+        const dashboard = await this.dashboardService.getByIdOrSlug(
+            context.user,
+            dashboardSlug,
+            { projectUuid: context.projectUuid },
+        );
+        AiAgentToolsService.assertSpaceInAgentScope(
+            context,
+            dashboard.spaceUuid,
+            `Dashboard not found: ${dashboardSlug}`,
+        );
+        const tile = dashboard.tiles
+            .filter(isDashboardComposerChartTile)
+            .find(
+                (composerTile) =>
+                    composerTile.properties.chartSlug === chartSlug,
+            );
+        const composerChartUuid = tile?.properties.composerChartUuid;
+        if (!tile || !composerChartUuid) {
+            throw new NotFoundError(notFound);
+        }
+        return {
+            composerChartUuid,
+            tile: { dashboardUuid: dashboard.uuid, tileUuid: tile.uuid },
+        };
     }
 
     /** A tag-scoped agent may only open a composer chart whose explores and fields its tags expose. */
@@ -5540,23 +5611,31 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.runComposerChartQuery`,
             args,
             async () => {
-                const { summary, dashboard, tileUuid } =
-                    await this.getComposerChartForRuntime(context, args);
+                const { summary, tile } = await this.getComposerChartForRuntime(
+                    context,
+                    args,
+                );
                 const { account } = context;
                 assertRegisteredAccount(account);
                 await context.onWarehouseQuery?.();
+                const invalidateCache = context.invalidateQueryCache ?? false;
                 const { queries } =
-                    await this.composerChartService.runWithSavedDashboardState(
-                        account,
-                        context.projectUuid,
-                        summary.uuid,
-                        {
-                            dashboardUuid: dashboard.uuid,
-                            tileUuid,
-                            invalidateCache:
-                                context.invalidateQueryCache ?? false,
-                        },
-                    );
+                    tile === null
+                        ? await this.composerChartService.runChart(
+                              account,
+                              context.projectUuid,
+                              {
+                                  composerChartUuid: summary.uuid,
+                                  invalidateCache,
+                              },
+                              QueryExecutionContext.AI,
+                          )
+                        : await this.composerChartService.runWithSavedDashboardState(
+                              account,
+                              context.projectUuid,
+                              summary.uuid,
+                              { ...tile, invalidateCache },
+                          );
                 const terminal = queries.find(
                     ({ nodeId }) => nodeId === summary.terminalNodeId,
                 );
@@ -7142,6 +7221,7 @@ export class AiAgentToolsService extends BaseService {
                 contentTypes: [
                     ContentType.DASHBOARD,
                     ContentType.CHART,
+                    ContentType.COMPOSER_CHART,
                     ContentType.SPACE,
                     ContentType.DATA_APP,
                     ...(context.source === 'mcp' || context.enableDocuments
@@ -7181,12 +7261,6 @@ export class AiAgentToolsService extends BaseService {
                             agentSpaceAccess,
                             item.uuid,
                         ),
-                )
-                .filter(
-                    (
-                        item,
-                    ): item is Exclude<typeof item, ComposerChartContent> =>
-                        item.contentType !== ContentType.COMPOSER_CHART,
                 )
                 .map((item): AgentListContentItem => {
                     if (item.contentType === ContentType.SPACE) {
@@ -7233,21 +7307,38 @@ export class AiAgentToolsService extends BaseService {
                                 ),
                             };
                         case ContentType.CHART:
+                            return item.source === ChartSourceType.SQL
+                                ? {
+                                      contentType: item.contentType,
+                                      name: item.name,
+                                      slug: item.slug,
+                                      href: AiAgentToolsService.getSqlChartUrl(
+                                          context,
+                                          item.slug,
+                                      ),
+                                      chartSource: 'sql',
+                                  }
+                                : {
+                                      contentType: item.contentType,
+                                      name: item.name,
+                                      slug: item.slug,
+                                      href: AiAgentToolsService.getContentUrl(
+                                          context,
+                                          'chart',
+                                          item.uuid,
+                                      ),
+                                      chartSource: 'saved',
+                                  };
+                        case ContentType.COMPOSER_CHART:
                             return {
-                                contentType: item.contentType,
+                                contentType: ContentType.CHART,
                                 name: item.name,
                                 slug: item.slug,
-                                href:
-                                    item.source === ChartSourceType.SQL
-                                        ? AiAgentToolsService.getSqlChartUrl(
-                                              context,
-                                              item.slug,
-                                          )
-                                        : AiAgentToolsService.getContentUrl(
-                                              context,
-                                              'chart',
-                                              item.uuid,
-                                          ),
+                                href: AiAgentToolsService.getComposerChartUrl(
+                                    context,
+                                    item.uuid,
+                                ),
+                                chartSource: 'composer',
                             };
                         case ContentType.DATA_APP:
                             return {

@@ -44,6 +44,7 @@ const makeService = ({ dataAppsEnabled = true } = {}) => {
         searchDashboards: vi.fn().mockResolvedValue([]),
         searchAllCharts: vi.fn().mockResolvedValue([]),
         searchDataApps: vi.fn().mockResolvedValue([dataApp]),
+        searchComposerCharts: vi.fn().mockResolvedValue([]),
     };
     const appGenerateService = {
         dataAppsEnabledFor: vi.fn().mockResolvedValue(dataAppsEnabled),
@@ -182,6 +183,7 @@ describe('SearchService resource-aware access', () => {
                 searchDashboards: vi.fn().mockResolvedValue([dashboard]),
                 searchAllCharts: vi.fn().mockResolvedValue([]),
                 searchDataApps: vi.fn(),
+                searchComposerCharts: vi.fn().mockResolvedValue([]),
             } as never,
             projectModel: {
                 getSummary: vi.fn().mockResolvedValue({

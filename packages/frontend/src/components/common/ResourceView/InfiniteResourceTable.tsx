@@ -1052,7 +1052,7 @@ const InfiniteResourceTable = ({
                       typeof contentTableProps.enableRowSelection === 'function'
                           ? contentTableProps.enableRowSelection(row)
                           : true;
-                  // No actions on composer charts yet, so nothing to select them for.
+                  // No bulk actions on composer charts yet, so nothing to select them for.
                   if (isResourceViewComposerChartItem(row.original)) {
                       return false;
                   }

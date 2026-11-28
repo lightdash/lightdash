@@ -54,6 +54,7 @@ import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import useFavoritesContext from '../../../providers/Favorites/useFavoritesContext';
 import MantineIcon from '../MantineIcon';
+import ComposerChartResourceActionMenu from './ComposerChartResourceActionMenu';
 import DocumentResourceActionMenu from './DocumentResourceActionMenu';
 import { ResourceActionMenuItems } from './ResourceActionMenuItems';
 import { type ResourceViewItemActionState } from './types';
@@ -619,9 +620,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = (props) => {
     switch (props.item.type) {
         case ResourceViewItemType.DOCUMENT:
             return <DocumentResourceActionMenu {...props} item={props.item} />;
-        // Composer chart actions arrive with the lifecycle work.
         case ResourceViewItemType.COMPOSER_CHART:
-            return null;
+            return (
+                <ComposerChartResourceActionMenu {...props} item={props.item} />
+            );
         default:
             return (
                 <ExistingResourceViewActionMenu {...props} item={props.item} />

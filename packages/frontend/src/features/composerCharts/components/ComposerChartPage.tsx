@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
     getComposerChartExportLabels,
     type ApiErrorDetail,
     type ComposerChartWithDetails,
@@ -39,7 +40,9 @@ import { type EChartsReact } from '../../../components/EChartsReactWrapper';
 import explorerClasses from '../../../components/Explorer/Explorer.module.css';
 import { TitleBreadCrumbs } from '../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import { NO_CELL_LIMITED_SCOPES } from '../../../components/ExportResults/exportCellEstimate';
+import { AskAiAgentButton } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
 import { useRefreshComposerChartOnAgentEdit } from '../../../ee/features/aiCopilot/hooks/useRefreshComposerChartOnAgentEdit';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { ParameterSelection } from '../../parameters';
 import {
@@ -74,6 +77,9 @@ type Props = {
 export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
     const { uuid: composerChartUuid } = chart;
     useRefreshComposerChartOnAgentEdit({ projectUuid, composerChartUuid });
+    const composerChartsEnabled =
+        useServerFeatureFlag(FeatureFlags.ComposerCharts).data?.enabled ===
+        true;
     // As on a saved chart: the chart starts open, parameters and lineage closed
     const [isChartOpen, setIsChartOpen] = useState(true);
     const [isParametersOpen, setIsParametersOpen] = useState(false);
@@ -213,6 +219,16 @@ export const ComposerChartPage: FC<Props> = ({ projectUuid, chart }) => {
                         </HeaderTitle>
                     </HeaderMain>
                     <HeaderActions gap="sm" wrap="nowrap">
+                        {/* The agent only takes a composer chart with the flag on */}
+                        {composerChartsEnabled && (
+                            <AskAiAgentButton
+                                projectUuid={projectUuid}
+                                composerChartUuid={composerChartUuid}
+                                clickedFrom="composer_chart_header"
+                                variant="default"
+                                size="md"
+                            />
+                        )}
                         <Tooltip label="Refresh" position="bottom">
                             <ActionIcon
                                 variant="default"

@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AllChartsSearchResult,
+    ComposerChartSearchResult,
     DashboardSearchResult,
     DashboardTabResult,
     DataAppSearchResult,
@@ -16,6 +17,8 @@ import {
     SpaceSearchResult,
     TableErrorSearchResult,
     TableSearchResult,
+    type RegisteredAccount,
+    type UUID,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromSession } from '../../auth/account';
@@ -58,6 +61,7 @@ type SearchServiceArguments = {
 export type FindContentSearchResult =
     | (DashboardSearchResult & { contentType: 'dashboard' })
     | (AllChartsSearchResult & { contentType: 'chart' })
+    | (ComposerChartSearchResult & { contentType: 'composer_chart' })
     | (DataAppSearchResult & { contentType: 'data_app' });
 
 export class SearchService extends BaseService {
@@ -148,6 +152,7 @@ export class SearchService extends BaseService {
             dashboardSearchResults,
             chartSearchResults,
             dataAppSearchResults,
+            composerChartSearchResults,
         ] = await Promise.all([
             searchReservingVerified(verifiedOnly, (opts) =>
                 this.searchModel.searchDashboards(
@@ -180,13 +185,23 @@ export class SearchService extends BaseService {
                               : [],
                       )
                 : Promise.resolve([]),
+            this.findComposerCharts(
+                fromSession(user),
+                projectUuid,
+                query,
+                verifiedOnly,
+            ),
         ]);
 
         const allContent = [
             ...dashboardSearchResults,
             ...chartSearchResults,
         ] satisfies (DashboardSearchResult | AllChartsSearchResult)[];
-        if (allContent.length === 0 && dataAppSearchResults.length === 0) {
+        if (
+            allContent.length === 0 &&
+            dataAppSearchResults.length === 0 &&
+            composerChartSearchResults.length === 0
+        ) {
             return { content: [] };
         }
 
@@ -255,8 +270,65 @@ export class SearchService extends BaseService {
                         contentType: 'data_app',
                     }),
                 ),
+                ...composerChartSearchResults.map(
+                    (composerChart): FindContentSearchResult => ({
+                        ...composerChart,
+                        contentType: 'composer_chart',
+                    }),
+                ),
             ],
         };
+    }
+
+    /** Space-owned composer charts the user can view as charts in their space; none with the flag off or verified only. */
+    private async findComposerCharts(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        query: string,
+        verifiedOnly: boolean,
+    ): Promise<ComposerChartSearchResult[]> {
+        if (verifiedOnly) return [];
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.userUuid,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ComposerCharts,
+        });
+        if (!enabled) return [];
+        const composerCharts = await this.searchModel.searchComposerCharts(
+            projectUuid,
+            query,
+            undefined,
+            { fullTextSearchOperator: 'OR' },
+        );
+        if (composerCharts.length === 0) return [];
+        const resolved = await this.spacePermissionService.resolveAccessBatch(
+            account.user.userUuid,
+            composerCharts.map(({ spaceUuid }) => ({
+                type: 'space' as const,
+                spaceUuid,
+            })),
+        );
+        const withContext = composerCharts.flatMap((composerChart, index) => {
+            const context = resolved[index]?.context;
+            return context ? [{ composerChart, context }] : [];
+        });
+        const allowed = this.createAuditedAbility(account).canBulk(
+            'view',
+            withContext.map(({ composerChart, context }) =>
+                subject('SavedChart', {
+                    ...context,
+                    metadata: {
+                        composerChartUuid: composerChart.uuid,
+                        composerChartName: composerChart.name,
+                    },
+                }),
+            ),
+        );
+        return withContext
+            .filter((_, index) => allowed[index])
+            .map(({ composerChart }) => composerChart);
     }
 
     async getSearchResults(

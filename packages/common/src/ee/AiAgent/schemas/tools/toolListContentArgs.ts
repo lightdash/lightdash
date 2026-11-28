@@ -51,14 +51,25 @@ const toolListContentDocumentItemSchema = z.object({
     ...listContentItemBaseShape,
 });
 
+const toolListContentChartItemSchema = z.object({
+    contentType: z.literal('chart'),
+    ...listContentItemBaseShape,
+    chartSource: z
+        .enum(['saved', 'sql', 'composer'])
+        .describe(
+            '"saved" for explore charts (type chart), "sql" for SQL Runner charts (type sql_chart), "composer" for composer charts (type composer_chart).',
+        ),
+});
+
 const toolListContentLeafItemSchema = z.object({
-    contentType: z.enum(['chart', 'dashboard', 'data_app']),
+    contentType: z.enum(['dashboard', 'data_app']),
     ...listContentItemBaseShape,
 });
 
 export const toolListContentItemSchema = z.discriminatedUnion('contentType', [
     toolListContentSpaceItemSchema,
     toolListContentDocumentItemSchema,
+    toolListContentChartItemSchema,
     toolListContentLeafItemSchema,
 ]);
 

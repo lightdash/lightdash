@@ -62,6 +62,17 @@ const renderContent = (
                     />
                 );
             }
+            if (item.contentType === ContentType.CHART) {
+                return (
+                    <content
+                        contentType={item.contentType}
+                        chartSource={item.chartSource}
+                        name={item.name}
+                        slug={item.slug}
+                        href={toAbsoluteHref(siteUrl, item.href)}
+                    />
+                );
+            }
             if (item.contentType === ContentType.DOCUMENT) {
                 return (
                     <content

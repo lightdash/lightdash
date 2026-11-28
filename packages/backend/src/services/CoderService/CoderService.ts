@@ -128,6 +128,7 @@ import {
     type RegisteredAccount,
     type SpaceSummaryBase,
     type UUID,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import { isEqual, isPlainObject, omit } from 'es-toolkit/compat';
 import type { Knex } from 'knex';
@@ -314,7 +315,11 @@ type CoderServiceArguments = {
     >;
     composerChartModel: Pick<
         ComposerChartModel,
-        'findForCode' | 'findBySlugs' | 'findIdentityBySlug' | 'get'
+        | 'findForCode'
+        | 'findBySlugs'
+        | 'findIdentityBySlug'
+        | 'get'
+        | 'getUuidByUuidOrSlug'
     >;
     composerChartService: Pick<
         ComposerChartService,
@@ -3632,26 +3637,50 @@ export class CoderService extends BaseService {
         );
     }
 
-    /** One chart for AI/MCP read_content, with its owner's space: no export gate; view through the owner still applies. */
+    /** One chart for AI/MCP read_content, by slug or the uuid a page link carries, with its owner's space: no export gate; view through the owner still applies. */
     async getComposerChartForRead(
         account: RegisteredAccount,
         projectUuid: UUID,
-        slug: string,
+        composerChartUuidOrSlug: UuidOrSlug,
     ): Promise<{
         composerChart: ComposerChartAsCode;
+        composerChartUuid: string;
         spaceUuid: string;
     } | null> {
+        // A uuid resolves in this project only; slugs are unique per project
+        const resolved = CoderService.isUuid(composerChartUuidOrSlug)
+            ? await this.composerChartModel
+                  .getUuidByUuidOrSlug(projectUuid, composerChartUuidOrSlug)
+                  .then((uuid) => this.composerChartModel.get(uuid))
+                  .then(
+                      ({ uuid, slug }) => ({ uuid, slug }),
+                      (error) => {
+                          if (error instanceof NotFoundError) return null;
+                          throw error;
+                      },
+                  )
+            : { uuid: null, slug: composerChartUuidOrSlug };
+        if (resolved === null) return null;
         const [chart] = await this.findViewableComposerCharts(
             account,
             projectUuid,
-            [slug],
+            [resolved.slug],
         );
-        if (!chart) return null;
+        if (
+            !chart ||
+            (resolved.uuid !== null && chart.uuid !== resolved.uuid)
+        ) {
+            return null;
+        }
         const [composerChart] = await this.getComposerChartsAsCode(
             projectUuid,
             CoderService.withSpaceSlugs([chart]),
         );
-        return { composerChart, spaceUuid: chart.spaceUuid };
+        return {
+            composerChart,
+            composerChartUuid: chart.uuid,
+            spaceUuid: chart.spaceUuid,
+        };
     }
 
     // Viewing a composer chart follows its owner, as on every other read

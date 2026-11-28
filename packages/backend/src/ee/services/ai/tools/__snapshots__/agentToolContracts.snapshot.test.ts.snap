@@ -3553,10 +3553,11 @@ Usage tips:
                                   "additionalProperties": false,
                                   "properties": {
                                     "chartSource": {
-                                      "description": ""saved" for explore charts, "sql" for SQL Runner charts.",
+                                      "description": ""saved" for explore charts (type chart), "sql" for SQL Runner charts (type sql_chart), "composer" for composer charts (type composer_chart).",
                                       "enum": [
                                         "saved",
                                         "sql",
+                                        "composer",
                                       ],
                                       "type": "string",
                                     },
@@ -4124,10 +4125,11 @@ Usage tips:
                                   "additionalProperties": false,
                                   "properties": {
                                     "chartSource": {
-                                      "description": ""saved" for explore charts, "sql" for SQL Runner charts.",
+                                      "description": ""saved" for explore charts (type chart), "sql" for SQL Runner charts (type sql_chart), "composer" for composer charts (type composer_chart).",
                                       "enum": [
                                         "saved",
                                         "sql",
+                                        "composer",
                                       ],
                                       "type": "string",
                                     },
@@ -8294,9 +8296,44 @@ Read the full text of one knowledge document or Deep Research report by its uuid
                       {
                         "additionalProperties": false,
                         "properties": {
+                          "chartSource": {
+                            "description": ""saved" for explore charts (type chart), "sql" for SQL Runner charts (type sql_chart), "composer" for composer charts (type composer_chart).",
+                            "enum": [
+                              "saved",
+                              "sql",
+                              "composer",
+                            ],
+                            "type": "string",
+                          },
+                          "contentType": {
+                            "const": "chart",
+                            "type": "string",
+                          },
+                          "href": {
+                            "description": "Relative Lightdash URL of the item.",
+                            "type": "string",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "slug": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "contentType",
+                          "name",
+                          "slug",
+                          "href",
+                          "chartSource",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
                           "contentType": {
                             "enum": [
-                              "chart",
                               "dashboard",
                               "data_app",
                             ],
@@ -15554,8 +15591,9 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
 
 Sources:
 - metricQuery: an unsaved chart-as-code metricQuery with its tableName, exactly as the chart will save it, limit included.
-- chart: a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval.
-- dashboardChart: a saved chart by chartSlug in a dashboardSlug context, with the dashboard filters applied. chartType works the same, and "composer_chart" runs a composer chart as its dashboard tile does, returning its final node's rows; a composer chart runs only here.
+- chart: a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval. Set chartType "composer_chart" for a composer chart a space owns (its readContent dashboardSlug is null).
+- dashboardChart: a saved chart by chartSlug in a dashboardSlug context, with the dashboard filters applied. chartType works the same; "composer_chart" runs the chart's tile as that dashboard shows it.
+A composer chart returns its final node's rows.
 - sql: a raw SELECT, to check a SQL chart's sql before saving it. The user approves the SQL first; saving the same SQL in a SQL chart in this response needs no second approval.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -15631,10 +15669,11 @@ Sources:
                   "type": "string",
                 },
                 "chartType": {
-                  "description": "Content type of the saved chart, as in readContent: "chart" (explore chart) or "sql_chart". Null means "chart".",
+                  "description": "Content type of the chart, as in readContent: "chart" (explore chart), "sql_chart" or "composer_chart". Null means "chart".",
                   "enum": [
                     "chart",
                     "sql_chart",
+                    "composer_chart",
                     null,
                   ],
                   "type": [
@@ -15662,7 +15701,7 @@ Sources:
                   "type": "string",
                 },
                 "chartType": {
-                  "description": "Content type of the dashboard chart, as in readContent: "chart" (explore chart), "sql_chart" or "composer_chart". Null means "chart".",
+                  "description": "Content type of the chart, as in readContent: "chart" (explore chart), "sql_chart" or "composer_chart". Null means "chart".",
                   "enum": [
                     "chart",
                     "sql_chart",

@@ -14,6 +14,7 @@ import type { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { rankCandidates } from '../decisions/rankCandidates';
 import type {
     FindContentChartResult,
+    FindContentComposerChartResult,
     FindContentDashboardResult,
     FindContentDataAppResult,
     FindContentFn,
@@ -154,6 +155,33 @@ const toChartItem = (
     lastUpdatedBy: chart.lastUpdatedBy ? fullName(chart.lastUpdatedBy) : null,
 });
 
+// No views, verification or edit history are recorded for composer charts.
+const toComposerChartItem = (
+    chart: FindContentComposerChartResult,
+    siteUrl: string,
+    toolDescriptionMaxChars: number,
+): ContentItemOf<'chart'> => ({
+    contentType: 'chart',
+    uuid: chart.uuid,
+    name: chart.name,
+    slug: chart.slug,
+    searchRank: chart.search_rank,
+    chartType: chart.chartType ?? 'unknown',
+    chartSource: 'composer',
+    spaceUuid: chart.spaceUuid,
+    viewsCount: 0,
+    href: `${siteUrl}/projects/${chart.projectUuid}/composer-charts/${chart.uuid}`,
+    space: toSpaceMetadata(chart.space),
+    description: toDescription(chart.description, toolDescriptionMaxChars),
+    verification: null,
+    firstViewedAt: null,
+    firstViewedAgo: null,
+    lastModified: null,
+    lastModifiedAgo: null,
+    createdBy: chart.createdBy ? fullName(chart.createdBy) : null,
+    lastUpdatedBy: null,
+});
+
 const toDashboardItem = (
     dashboard: FindContentDashboardResult,
     siteUrl: string,
@@ -249,6 +277,12 @@ const toContentItem = (
             return toDashboardItem(content, siteUrl, toolDescriptionMaxChars);
         case 'chart':
             return toChartItem(content, siteUrl, toolDescriptionMaxChars);
+        case 'composer_chart':
+            return toComposerChartItem(
+                content,
+                siteUrl,
+                toolDescriptionMaxChars,
+            );
         default:
             return assertUnreachable(content, 'Unknown content type');
     }

@@ -405,6 +405,7 @@ describe('AI context compaction helpers', () => {
                         type: 'composer_chart',
                         composerChartUuid: 'composer-1',
                         composerChartSlug: 'revenue-vs-target',
+                        composerChartOwnerType: 'dashboard',
                         displayName: 'Revenue vs target',
                         pinnedVersionUuid: null,
                     },
