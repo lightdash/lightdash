@@ -2,7 +2,6 @@ import { CartesianSeriesType, type ItemsMap } from '@lightdash/common';
 import { Button, Checkbox, Group, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import {
-    selectCartesianDirtyChartType,
     selectCartesianEchartsConfig,
     selectCartesianLayout,
     selectCartesianSeries,
@@ -32,11 +31,17 @@ const selectHasSeriesOnRightAxis = (state: VisualizationStoreState) =>
     (selectCartesianSeries(state) || []).some(
         (series) => series.yAxisIndex === 1,
     );
+const selectHasLineOrAreaSeries = (state: VisualizationStoreState) =>
+    selectCartesianSeries(state)?.some(
+        ({ type }) =>
+            type === CartesianSeriesType.LINE ||
+            type === CartesianSeriesType.AREA,
+    ) ?? false;
 
 export const Axes: FC<Props> = ({ itemsMap }) => {
     const dirtyLayout = useVisualizationSelector(selectCartesianLayout);
-    const dirtyChartType = useVisualizationSelector(
-        selectCartesianDirtyChartType,
+    const hasLineOrAreaSeries = useVisualizationSelector(
+        selectHasLineOrAreaSeries,
     );
     const showAxisTicks = useVisualizationSelector(selectShowAxisTicks);
     const axisLabelFontSize = useVisualizationSelector(selectAxisLabelFontSize);
@@ -182,8 +187,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     />
                 </Config.Section>
             </Config>
-            {(dirtyChartType === CartesianSeriesType.LINE ||
-                dirtyChartType === CartesianSeriesType.AREA) && (
+            {hasLineOrAreaSeries && (
                 <Config>
                     <Config.Section>
                         <Config.Heading>Connect nulls</Config.Heading>
