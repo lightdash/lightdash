@@ -177,8 +177,8 @@ import {
 } from '../verifiedContentGuards';
 import { withVersionAgentIdentity } from '../VersionAgentIdentity';
 import {
-    assertCanRollbackComposerCharts,
     duplicateComposerChartTiles,
+    lockAndCheckComposerChartRollback,
     rollbackComposerCharts,
 } from './composerChartTiles';
 
@@ -2714,6 +2714,7 @@ export class DashboardService
             const copiedComposerTiles = await duplicateComposerChartTiles(
                 this.composerChartModel,
                 duplicatedDashboard.tiles,
+                { dashboardUuid: dashboard.uuid },
                 { dashboardUuid: newDashboard.uuid, userUuid: user.userUuid },
             );
             copiedComposerTiles.forEach(({ from, tile }) =>
@@ -5085,7 +5086,7 @@ export class DashboardService
             // Dashboard before its charts, the order permanent delete takes them in
             await this.dashboardModel.lockForVersioning(dashboardDao.uuid, tx);
             await this.savedChartService.lockCheckedRestores(chartRestores, tx);
-            await assertCanRollbackComposerCharts(
+            const composerChartUuids = await lockAndCheckComposerChartRollback(
                 this.composerChartModel,
                 this.getComposerChartService,
                 account,
@@ -5128,7 +5129,7 @@ export class DashboardService
             );
             await rollbackComposerCharts(
                 this.composerChartModel,
-                targetVersion.tiles,
+                composerChartUuids,
                 targetVersion.versionUuid,
                 user.userUuid,
                 tx,

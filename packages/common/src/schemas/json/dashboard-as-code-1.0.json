@@ -413,7 +413,7 @@
                     "description": "From T, pick a set of properties whose keys are in the union K",
                     "properties": {
                         "chartSlug": {
-                            "type": "string"
+                            "type": ["string", "null"]
                         },
                         "hideTitle": {
                             "type": "boolean"
