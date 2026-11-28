@@ -85562,6 +85562,90 @@ const models: TsoaRoute.Models = {
         type: { ref: 'DeletedSqlChartContentSummary', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DeletedChartBase.Exclude_keyofDeletedChartBase.contentType-or-chartKind__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    description: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    name: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
+                    organizationUuid: { dataType: 'string', required: true },
+                    projectUuid: { dataType: 'string', required: true },
+                    spaceUuid: { dataType: 'string', required: true },
+                    spaceName: { dataType: 'string', required: true },
+                    deletedAt: { dataType: 'datetime', required: true },
+                    deletedBy: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    lastName: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                    firstName: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                    userUuid: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                },
+                            },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_DeletedChartBase.contentType-or-chartKind_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_DeletedChartBase.Exclude_keyofDeletedChartBase.contentType-or-chartKind__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DeletedComposerChartContentSummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Omit_DeletedChartBase.contentType-or-chartKind_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        chartKind: { ref: 'ChartKind', required: true },
+                        contentType: {
+                            ref: 'ContentType.COMPOSER_CHART',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'WithDescendantCounts_DeletedComposerChartContentSummary.never_': {
+        dataType: 'refAlias',
+        type: { ref: 'DeletedComposerChartContentSummary', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DeletedDashboardContentSummary: {
         dataType: 'refAlias',
         type: {
@@ -85885,6 +85969,9 @@ const models: TsoaRoute.Models = {
                 },
                 {
                     ref: 'WithDescendantCounts_DeletedSqlChartContentSummary.never_',
+                },
+                {
+                    ref: 'WithDescendantCounts_DeletedComposerChartContentSummary.never_',
                 },
                 {
                     ref: 'WithDescendantCounts_DeletedDashboardContentSummary.chart-or-scheduler_',

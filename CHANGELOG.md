@@ -1,3 +1,10 @@
+# [3.445.0](https://github.com/lightdash/lightdash/compare/3.444.0...3.445.0) (2026-11-28)
+
+
+### Features
+
+* **composer:** restore, permanently delete and space cascade for space-owned composer charts ([#33610](https://github.com/lightdash/lightdash/issues/33610)) ([2b7e63a](https://github.com/lightdash/lightdash/commit/2b7e63a3c1514c181f80d09cf312132de5c6d793))
+
 # [3.444.0](https://github.com/lightdash/lightdash/compare/3.443.0...3.444.0) (2026-11-28)
 
 
