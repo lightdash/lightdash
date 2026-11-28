@@ -87,20 +87,24 @@ export const useAiAgentContentEdits = ({
     contentUuid: string | undefined;
 }): AgentEditToolCall[] =>
     useAiAgentStoreSelector(
-        (state) =>
-            Object.values(state.aiAgentThreadStream).flatMap((threadStream) =>
-                threadStream.projectUuid === projectUuid && contentUuid
-                    ? threadStream.parts.filter(
-                          (part): part is AgentEditToolCall =>
-                              part.type === 'toolCall' &&
-                              part.toolName === 'editContent' &&
-                              part.toolArgs.type === contentType &&
-                              part.isPreliminary === false &&
-                              part.toolResult?.metadata.status === 'success' &&
-                              part.toolResult.metadata.uuid === contentUuid,
-                      )
-                    : [],
-            ),
+        (state) => {
+            if (!contentUuid) return [];
+            return Object.values(state.aiAgentThreadStream).flatMap(
+                (threadStream) =>
+                    threadStream.projectUuid === projectUuid
+                        ? threadStream.parts.filter(
+                              (part): part is AgentEditToolCall =>
+                                  part.type === 'toolCall' &&
+                                  part.toolName === 'editContent' &&
+                                  part.toolArgs.type === contentType &&
+                                  part.isPreliminary === false &&
+                                  part.toolResult?.metadata.status ===
+                                      'success' &&
+                                  part.toolResult.metadata.uuid === contentUuid,
+                          )
+                        : [],
+            );
+        },
         // A finished edit's result is final, so its id identifies it
         isSameToolCalls,
     );

@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -57,7 +58,10 @@ const edit = ({
         },
     }) as StreamPart;
 
-const setup = (useHook: () => void) => {
+const setup = (
+    useHook: (contentUuid: string) => void,
+    initialContentUuid: string,
+) => {
     const store = configureStore({
         reducer: { aiAgentThreadStream: aiAgentThreadStreamSlice.reducer },
         // Notify on every dispatch so each chunk is observable
@@ -69,18 +73,22 @@ const setup = (useHook: () => void) => {
         .spyOn(queryClient, 'invalidateQueries')
         .mockResolvedValue();
     let renders = 0;
-    const Consumer = () => {
+    const Consumer = ({ contentUuid }: { contentUuid: string }) => {
         renders += 1;
-        useHook();
+        useHook(contentUuid);
         return null;
     };
-    render(
-        <QueryClientProvider client={queryClient}>
-            <Provider store={store}>
-                <Consumer />
-            </Provider>
-        </QueryClientProvider>,
+    // StrictMode double-runs effects, which must not double-refresh
+    const page = (contentUuid: string) => (
+        <StrictMode>
+            <QueryClientProvider client={queryClient}>
+                <Provider store={store}>
+                    <Consumer contentUuid={contentUuid} />
+                </Provider>
+            </QueryClientProvider>
+        </StrictMode>
     );
+    const { rerender } = render(page(initialContentUuid));
     act(() => {
         store.dispatch(
             startStreaming({
@@ -97,16 +105,19 @@ const setup = (useHook: () => void) => {
         act(() => {
             store.dispatch(setParts({ threadUuid, parts: parts() }));
         });
-    return { stream, invalidate, renders: () => renders };
+    const switchTo = (contentUuid: string) => rerender(page(contentUuid));
+    return { stream, switchTo, invalidate, renders: () => renders };
 };
 
 describe('refresh on agent edit', () => {
     it('leaves the composer chart page alone until an edit of its chart finishes', () => {
-        const { stream, invalidate, renders } = setup(() =>
-            useRefreshComposerChartOnAgentEdit({
-                projectUuid,
-                composerChartUuid: 'composer',
-            }),
+        const { stream, invalidate, renders } = setup(
+            (composerChartUuid) =>
+                useRefreshComposerChartOnAgentEdit({
+                    projectUuid,
+                    composerChartUuid,
+                }),
+            'composer',
         );
         const settled = renders();
 
@@ -146,12 +157,14 @@ describe('refresh on agent edit', () => {
     });
 
     it('leaves the saved chart page alone until an edit of its chart finishes', () => {
-        const { stream, invalidate, renders } = setup(() =>
-            useRefreshSavedChartOnAgentEdit({
-                projectUuid,
-                chartUuid: 'chart',
-                chartSlug: 'chart-page-slug',
-            }),
+        const { stream, invalidate, renders } = setup(
+            (chartUuid) =>
+                useRefreshSavedChartOnAgentEdit({
+                    projectUuid,
+                    chartUuid,
+                    chartSlug: 'chart-page-slug',
+                }),
+            'chart',
         );
         const settled = renders();
 
@@ -182,5 +195,35 @@ describe('refresh on agent edit', () => {
             [{ queryKey: ['saved_query', 'chart-page-slug', projectUuid] }],
             [{ queryKey: ['saved_query', 'chart-slug', projectUuid] }],
         ]);
+    });
+
+    it('refreshes once per finished edit after switching charts without unmounting', () => {
+        const { stream, switchTo, invalidate, renders } = setup(
+            (composerChartUuid) =>
+                useRefreshComposerChartOnAgentEdit({
+                    projectUuid,
+                    composerChartUuid,
+                }),
+            'a',
+        );
+        const editOfA = edit({
+            toolCallId: 'edit-a',
+            type: 'composer_chart',
+            uuid: 'a',
+        });
+        stream(() => [editOfA]);
+        expect(invalidate).toHaveBeenCalledOnce();
+
+        switchTo('b');
+        const switched = renders();
+        stream(() => [editOfA, text('Unrelated')]);
+        expect(renders()).toBe(switched);
+        expect(invalidate).toHaveBeenCalledOnce();
+
+        stream(() => [
+            editOfA,
+            edit({ toolCallId: 'edit-b', type: 'composer_chart', uuid: 'b' }),
+        ]);
+        expect(invalidate).toHaveBeenCalledTimes(2);
     });
 });
