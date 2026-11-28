@@ -2,7 +2,7 @@
 name: yoda
 description: Review a Lightdash PR, branch or diff through lenses, or explain a system, bug or change. /yoda [review|json|explain|triage] [text|json|html|github] [quick|deep] [lens names] <PR(s), topic or question>
 disable-model-invocation: true
-version: 1795104641
+version: 1795701619
 ---
 
 # yoda

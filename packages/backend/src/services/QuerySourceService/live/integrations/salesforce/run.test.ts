@@ -9,13 +9,18 @@ import {
 } from '@lightdash/common';
 import { salesforceIntegration } from '.';
 import { validateLiveConnection } from '../../integration';
-import { connectLiveSource } from '../../liveSource.mock';
+import {
+    connectLiveSource,
+    getExploresWithDiscoveredFields,
+} from '../../liveSource.mock';
 import { type LiveHttpResponse } from '../../types';
-import { toSalesforceError } from './errors';
 import {
     SALESFORCE_MAX_AGGREGATE_ROWS,
     SALESFORCE_MAX_RECORD_ROWS,
-} from './explores';
+    toSalesforceError,
+} from './api';
+import { summarizeSalesforceTest } from './connection';
+import { SALESFORCE_EXPLORES } from './model';
 import {
     AGGREGATE_RESPONSE,
     LIMITS_RESPONSE,
@@ -23,7 +28,6 @@ import {
     recordsBatch,
     salesforceError,
 } from './salesforce.fixtures';
-import { summarizeSalesforceTest } from './testSummary';
 
 const SETTINGS = { connector: ApiConnectorType.SALESFORCE } as const;
 
@@ -303,7 +307,7 @@ describe('salesforceIntegration requests', () => {
     });
 });
 
-describe('salesforceIntegration scan and setup test', () => {
+describe('salesforceIntegration discover and setup test', () => {
     it('reads every object describe in one scan', async () => {
         const { source, send } = connect(
             response(OPPORTUNITY_DESCRIBE),
@@ -312,7 +316,7 @@ describe('salesforceIntegration scan and setup test', () => {
             response({ name: 'Contact', fields: [] }),
         );
 
-        const scan = await source.scan();
+        const explores = await source.discover();
 
         expect(send.mock.calls.map(([call]) => call.path)).toEqual([
             '/services/data/v62.0/sobjects/Opportunity/describe',
@@ -320,10 +324,9 @@ describe('salesforceIntegration scan and setup test', () => {
             '/services/data/v62.0/sobjects/Lead/describe',
             '/services/data/v62.0/sobjects/Contact/describe',
         ]);
-        expect(scan.salesforceDescribe).toMatchObject({
-            Opportunity: OPPORTUNITY_DESCRIBE,
-            Contact: { name: 'Contact' },
-        });
+        expect(
+            getExploresWithDiscoveredFields(SALESFORCE_EXPLORES, explores),
+        ).toEqual(['opportunities']);
     });
 
     it('skips objects the user cannot read, and fails only when none can be read', async () => {
@@ -338,11 +341,14 @@ describe('salesforceIntegration scan and setup test', () => {
             forbidden,
         );
         expect(
-            Object.keys((await partial.source.scan()).salesforceDescribe ?? {}),
-        ).toEqual(['Opportunity']);
+            getExploresWithDiscoveredFields(
+                SALESFORCE_EXPLORES,
+                await partial.source.discover(),
+            ),
+        ).toEqual(['opportunities']);
 
         const none = connect(forbidden, forbidden, forbidden, forbidden);
-        await expect(none.source.scan()).rejects.toThrow('read access');
+        await expect(none.source.discover()).rejects.toThrow('read access');
     });
 
     it('fails the scan when a describe is throttled, so the last good scan stays', async () => {
@@ -352,7 +358,7 @@ describe('salesforceIntegration scan and setup test', () => {
             response({ name: 'Lead', fields: [] }),
             response({ name: 'Contact', fields: [] }),
         );
-        await expect(source.scan()).rejects.toBeInstanceOf(
+        await expect(source.discover()).rejects.toBeInstanceOf(
             TooManyRequestsError,
         );
     });
@@ -429,16 +435,20 @@ describe('salesforceIntegration access', () => {
     });
 
     it('reads only the query, describe and limits endpoints, with GET', () => {
-        expect(salesforceIntegration.access(SETTINGS)).toEqual({
-            pathPrefixes: [
+        expect(
+            salesforceIntegration.connection.access(
+                SETTINGS,
+                SALESFORCE_EXPLORES,
+            ),
+        ).toEqual({
+            rules: [
                 '/services/data/v62.0/query',
                 '/services/data/v62.0/sobjects/Opportunity/describe',
                 '/services/data/v62.0/sobjects/Account/describe',
                 '/services/data/v62.0/sobjects/Lead/describe',
                 '/services/data/v62.0/sobjects/Contact/describe',
                 '/services/data/v62.0/limits',
-            ],
-            methods: ['GET'],
+            ].map((path) => ({ method: 'GET', path, effect: 'read' })),
         });
     });
 });

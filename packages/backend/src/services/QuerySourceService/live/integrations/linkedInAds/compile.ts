@@ -9,15 +9,15 @@ import {
     getActiveFilterRules,
     getApiName,
     getLiveExplore,
+    resolveAbsoluteDateRange,
     toFieldCombinationIssue,
     toLiveQueryError,
     type LiveCompiledRequest,
-} from '../../explores/definition';
-import { resolveAbsoluteDateRange } from '../../query/dateRange';
+} from '../../sdk';
 import {
     LINKEDIN_ADS_CAMPAIGN_COLUMNS,
     LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS,
-} from './explores';
+} from './api';
 import { LINKEDIN_ADS_MAX_QUERY_ROWS, type LinkedInAdsPivot } from './run';
 
 const REACH_METRIC = 'approximateMemberReach';

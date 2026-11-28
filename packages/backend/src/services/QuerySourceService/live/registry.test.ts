@@ -1,29 +1,25 @@
 import {
     ApiConnectorType,
     HYDRA_DEFAULT_SOURCE,
-    HYDRA_ENABLED_ENV,
     ParameterError,
     type ExternalConnectionApiSource,
     type MetricQuery,
 } from '@lightdash/common';
-import {
-    buildLiveExplores,
-    compileLiveMetricQuery,
-    toScannedLiveSourceFields,
-} from './explores/build';
-import { getInitialLiveSourceFieldEdits } from './explores/fields';
+import { buildLiveExplores, compileLiveMetricQuery } from './explores/build';
+import { getLiveSourceModels } from './explores/source';
+import { findAccessRule } from './integration';
 import { connectLiveSource } from './liveSource.mock';
 import {
     getLiveIntegration,
     isLiveIntegrationRegistered,
     parseStoredApiSource,
 } from './registry';
-import { type LiveHttpResponse, type LiveScanResult } from './types';
+import { type LiveHttpResponse } from './types';
 
-/** A scan for integrations whose explore has no fields until scanned. */
-const SAMPLE_SCANS: Partial<Record<ApiConnectorType, LiveScanResult>> = {
+/** What a Refresh stores for an integration whose declared explore has no fields of its own. */
+const SAMPLE_METADATA: Partial<Record<ApiConnectorType, unknown>> = {
     [ApiConnectorType.SUPABASE]: {
-        supabaseTable: {
+        table: {
             properties: { id: { type: 'integer', format: 'bigint' } },
         },
     },
@@ -84,6 +80,11 @@ const SAMPLE_SETTINGS: {
         connector: ApiConnectorType.SUPABASE,
         table: 'orders',
     },
+    [ApiConnectorType.SENTRY]: {
+        connector: ApiConnectorType.SENTRY,
+        organizationSlug: 'acme',
+        projectSlugs: ['mobile-ios'],
+    },
     [ApiConnectorType.PYLON]: {
         connector: ApiConnectorType.PYLON,
     },
@@ -92,6 +93,11 @@ const SAMPLE_SETTINGS: {
     [ApiConnectorType.SALESFORCE]: { connector: ApiConnectorType.SALESFORCE },
     [ApiConnectorType.HYDRA]: HYDRA_DEFAULT_SOURCE,
 };
+
+/** Integrations that answer from their own data, so they call nothing. */
+const CALLS_NOTHING: ReadonlySet<ApiConnectorType> = new Set([
+    ApiConnectorType.HYDRA,
+]);
 
 const SERVER_ERROR: LiveHttpResponse = {
     status: 500,
@@ -115,11 +121,12 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         const integration = getLiveIntegration(settings.connector);
 
         test('stores its settings as they are', () => {
-            expect(integration.settings.parse(settings)).toEqual(settings);
+            expect(integration.connection.settings.parse(settings)).toEqual(
+                settings,
+            );
         });
 
         test('reads a stored source that carries the engine keys too', () => {
-            vi.stubEnv(HYDRA_ENABLED_ENV, 'true');
             expect(
                 parseStoredApiSource({
                     ...settings,
@@ -128,17 +135,12 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
                     lastScan: { fields: [], scannedAt: '2026-11-23' },
                 }),
             ).toEqual(settings);
-            vi.unstubAllEnvs();
         });
 
-        test('scans only explores it has, besides its first', () => {
-            const [first, ...others] = integration.explores.map(
-                ({ name }) => name,
-            );
-            (integration.scan?.models ?? []).forEach((model) => {
-                expect(others).toContain(model);
-                expect(model).not.toBe(first);
-            });
+        test('declares at least one explore, each under its own name', () => {
+            const names = integration.model.explores.map(({ name }) => name);
+            expect(names.length).toBeGreaterThan(0);
+            expect(new Set(names).size).toBe(names.length);
         });
 
         test('refuses a limit that is not a positive number before calling', async () => {
@@ -164,27 +166,27 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         });
 
         test('runs what it compiles, and explains a failed call', async () => {
-            const scan = SAMPLE_SCANS[settings.connector];
-            const scannedFields = scan
-                ? toScannedLiveSourceFields(settings.connector, scan)
-                : [];
+            const metadata = SAMPLE_METADATA[settings.connector];
+            const state = {
+                scan: metadata
+                    ? { at: '2026-11-06T12:00:00Z', metadata }
+                    : null,
+                modelNames: {},
+                fields: {},
+                explores: {},
+            };
             const [explore] = buildLiveExplores({
                 connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
                 sourceName: settings.connector,
                 name: 'Source',
                 apiSource: settings,
-                scannedFields,
-                edits: getInitialLiveSourceFieldEdits({
-                    scannedFields,
-                    isExistingSource: true,
-                }),
+                state,
             });
             // A metric where the explore has one, else a dimension
-            const [builtIn] = integration.explores;
-            const definition =
-                scan && integration.scan
-                    ? integration.scan.withScannedFields(builtIn, scan)
-                    : builtIn;
+            const [{ definition }] = getLiveSourceModels(
+                settings.connector,
+                state,
+            );
             const [metric] = definition.metrics;
             const [dimension] = definition.dimensions;
             const metricQuery: MetricQuery = {
@@ -208,33 +210,37 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
                 query: compiled.query,
                 limit: compiled.requestLimit,
             });
+            if (CALLS_NOTHING.has(settings.connector)) {
+                await expect(run).resolves.toBeDefined();
+                expect(send).not.toHaveBeenCalled();
+                return;
+            }
 
             await expect(run).rejects.toThrow();
             await expect(run).rejects.not.toBeInstanceOf(ParameterError);
             expect(send).toHaveBeenCalled();
+            // Every call it makes is one its access rules allow
+            const { rules } = integration.connection.access(
+                settings,
+                integration.model.explores,
+            );
+            send.mock.calls.forEach(([request]) => {
+                expect(findAccessRule(rules, request)).toBeDefined();
+            });
+        });
+
+        test('states its access as read rules', () => {
+            const { rules } = integration.connection.access(
+                settings,
+                integration.model.explores,
+            );
+            expect(rules.length > 0).toBe(
+                !CALLS_NOTHING.has(settings.connector),
+            );
+            rules.forEach((rule) => {
+                expect(rule.effect).toBe('read');
+                expect(rule.path).toMatch(/^\//);
+            });
         });
     },
 );
-
-describe('Hydra, the test integration', () => {
-    afterEach(() => {
-        vi.unstubAllEnvs();
-    });
-
-    test('is absent from the registry unless turned on', () => {
-        vi.stubEnv(HYDRA_ENABLED_ENV, '');
-        expect(isLiveIntegrationRegistered(ApiConnectorType.HYDRA)).toBe(false);
-        expect(() => getLiveIntegration(ApiConnectorType.HYDRA)).toThrow(
-            ParameterError,
-        );
-        // A source saved while it was on reads as no live source
-        expect(parseStoredApiSource(HYDRA_DEFAULT_SOURCE)).toBeNull();
-        expect(isLiveIntegrationRegistered(ApiConnectorType.PYLON)).toBe(true);
-
-        vi.stubEnv(HYDRA_ENABLED_ENV, 'true');
-        expect(isLiveIntegrationRegistered(ApiConnectorType.HYDRA)).toBe(true);
-        expect(parseStoredApiSource(HYDRA_DEFAULT_SOURCE)).toEqual(
-            HYDRA_DEFAULT_SOURCE,
-        );
-    });
-});

@@ -14,15 +14,13 @@ import {
 } from '@lightdash/common';
 import {
     getApiName,
-    getLiveExplore,
-    type LiveCompiledRequest,
-    type LivePeriodFormat,
-} from '../../explores/definition';
-import {
     getLiveDateRange,
+    getLiveExplore,
     splitDateRangeFilter,
+    type LiveCompiledRequest,
     type LiveDateBound,
-} from '../../query/dateRange';
+    type LivePeriodFormat,
+} from '../../sdk';
 import { toGa4ColumnName } from './run';
 
 type Ga4Expression = Record<string, unknown>;

@@ -8728,11 +8728,12 @@
                     },
                     "spaceSlug": {
                         "type": "string",
-                        "description": "Only used to create a placeholder dashboard when dashboardSlug names none."
+                        "description": "The owning space, or the dashboard's space; a missing dashboard is created there."
                     },
                     "dashboardSlug": {
                         "type": "string",
-                        "description": "The owning dashboard. Ignored on upload when the chart already exists."
+                        "nullable": true,
+                        "description": "The owning dashboard; null or missing for a chart a space owns. An existing chart keeps its dashboard on upload."
                     },
                     "description": {
                         "type": "string",
@@ -8756,7 +8757,6 @@
                     "chart",
                     "pipeline",
                     "spaceSlug",
-                    "dashboardSlug",
                     "description",
                     "name",
                     "slug",
@@ -16595,6 +16595,7 @@
                     "amplitude",
                     "mixpanel",
                     "supabase",
+                    "sentry",
                     "hydra"
                 ],
                 "type": "string"
@@ -16892,163 +16893,93 @@
                 "type": "object",
                 "description": "One table or view of a Supabase project, read through its Data API\n(PostgREST). The project URL is the connection's origin."
             },
+            "ApiConnectorType.SENTRY": {
+                "enum": ["sentry"],
+                "type": "string"
+            },
+            "SentryApiSource": {
+                "properties": {
+                    "projectSlugs": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Slugs of the only projects the source reads, such as an app's."
+                    },
+                    "organizationSlug": {
+                        "type": "string",
+                        "description": "The organization slug, as in https://<slug>.sentry.io."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.SENTRY"
+                    }
+                },
+                "required": ["projectSlugs", "organizationSlug", "connector"],
+                "type": "object",
+                "description": "The projects of a Sentry organization a source reads, with an internal\nintegration's token. The token reads every project of the organization,\nso the source names the ones it may read. The connection's origin says\nwhere the data lives."
+            },
             "ApiConnectorType.HYDRA": {
                 "enum": ["hydra"],
                 "type": "string"
             },
-            "HydraRateLimits": {
+            "HydraObjectField": {
                 "properties": {
-                    "buckets": {
-                        "items": {
-                            "properties": {
-                                "capacity": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "windowMs": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "id": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["capacity", "windowMs", "id"],
-                            "type": "object"
-                        },
-                        "type": "array",
-                        "description": "Fixed windows of calls, like a minute or an hour: up to 5, unique ids, \"second\" kept for `callsPerSecond`."
+                    "system": {
+                        "type": "boolean",
+                        "description": "A field the vendor keeps for itself, such as a sync timestamp."
                     },
-                    "callsPerSecond": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "concurrentCalls": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true,
-                        "description": "Calls in flight at once; null for no cap."
-                    }
-                },
-                "required": ["buckets", "callsPerSecond", "concurrentCalls"],
-                "type": "object",
-                "description": "Rate limits, in the shape the rate-limit gate reads."
-            },
-            "HydraOnLimit": {
-                "properties": {
-                    "body": {
-                        "$ref": "#/components/schemas/Record_string.unknown_",
-                        "description": "The body Hydra answers; `{\"code\": \"rate_limited\"}` marks a throttle in a non-429."
-                    },
-                    "retryAfterFormat": {
+                    "type": {
                         "type": "string",
-                        "enum": ["seconds", "date", "none"],
-                        "description": "How Retry-After is written: as seconds, as an HTTP date, or left out."
+                        "enum": ["string", "number", "date", "boolean"]
                     },
-                    "status": {
-                        "type": "number",
-                        "format": "double"
+                    "label": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
                     }
                 },
-                "required": ["retryAfterFormat", "status"],
+                "required": ["type", "label", "id"],
                 "type": "object"
             },
-            "HydraMockResponse": {
+            "HydraObject": {
                 "properties": {
-                    "body": {
-                        "$ref": "#/components/schemas/Record_string.unknown_",
-                        "description": "The error body; error statuses only."
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/HydraObjectField"
+                        },
+                        "type": "array"
                     },
-                    "retryAfterSeconds": {
+                    "recordCount": {
                         "type": "number",
                         "format": "double",
-                        "description": "Sent as Retry-After; error statuses only."
+                        "description": "Records seeded."
                     },
-                    "status": {
-                        "type": "number",
-                        "format": "double"
+                    "label": {
+                        "type": "string"
                     },
-                    "toCall": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "fromCall": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "call": {
-                        "type": "number",
-                        "format": "double"
+                    "id": {
+                        "type": "string",
+                        "description": "The vendor id, e.g. `Invoice__c`; letters, digits and underscores."
                     }
                 },
-                "required": ["status"],
+                "required": ["fields", "label", "id"],
                 "type": "object",
-                "description": "A fake answer a test sets for one call (`call`) or a range (`fromCall`, and `toCall`\nor every call after). Status 200 answers as usual, skipping `errorRate`;\n400 to 599 is answered as given."
+                "description": "One object a Hydra workspace made."
             },
             "HydraApiSource": {
                 "properties": {
-                    "mockResponses": {
+                    "objects": {
                         "items": {
-                            "$ref": "#/components/schemas/HydraMockResponse"
+                            "$ref": "#/components/schemas/HydraObject"
                         },
                         "type": "array",
-                        "description": "Fake answers a test sets for given calls, counted per source from 1; the first match wins."
-                    },
-                    "declaredLimits": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/HydraRateLimits"
-                            },
-                            {
-                                "type": "string",
-                                "enum": ["vendor"]
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "The limits Lightdash keeps the source's calls under: \"vendor\" copies\n`vendorLimits`, and null declares none."
-                    },
-                    "onLimit": {
-                        "$ref": "#/components/schemas/HydraOnLimit",
-                        "description": "How Hydra refuses a call past `vendorLimits`."
-                    },
-                    "vendorLimits": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/HydraRateLimits"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "The limits Hydra's API enforces, refusing calls past them; null enforces none."
-                    },
-                    "failAuth": {
-                        "type": "boolean",
-                        "description": "Every call answers 401, as a revoked sign-in would."
-                    },
-                    "errorRate": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Share of calls, 0 to 1, that fail with a 500."
-                    },
-                    "jitterMs": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Up to this many milliseconds more, at random, per call."
-                    },
-                    "latencyMs": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Milliseconds each call waits before answering."
-                    },
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Rows per call, 10 or more; a bigger report takes several calls. 0 never pages."
+                        "description": "Objects the workspace made; each becomes an explore, as a CRM's own objects do."
                     },
                     "rowCount": {
                         "type": "number",
                         "format": "double",
-                        "description": "Events seeded per sign-in token, over the last 90 days."
+                        "description": "Events seeded, over the last 90 days."
                     },
                     "connector": {
                         "$ref": "#/components/schemas/ApiConnectorType.HYDRA"
@@ -17056,7 +16987,7 @@
                 },
                 "required": ["connector"],
                 "type": "object",
-                "description": "Hydra, the test integration: its rows are seeded from the sign-in token,\nand these settings make its fake API slow, fail, page or rate limit.\nEvery setting is optional; one left out takes its default\n(`HYDRA_DEFAULT_SETTINGS`)."
+                "description": "Hydra, an integration with seeded data and no vendor behind it: it\nanswers from rows it makes itself, so it calls nothing. Every setting is\noptional; one left out takes its default (`HYDRA_DEFAULT_SETTINGS`)."
             },
             "ExternalConnectionApiSource": {
                 "anyOf": [
@@ -17104,6 +17035,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/SupabaseApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SentryApiSource"
                     },
                     {
                         "$ref": "#/components/schemas/HydraApiSource"
@@ -18439,6 +18373,54 @@
                     }
                 ]
             },
+            "LiveSourceRefreshSummary": {
+                "properties": {
+                    "removedFields": {
+                        "$ref": "#/components/schemas/Record_string.string-Array_",
+                        "description": "Fields gone from the source's explores, by explore name."
+                    },
+                    "addedFields": {
+                        "$ref": "#/components/schemas/Record_string.string-Array_",
+                        "description": "Fields new on the source's explores, by explore name."
+                    },
+                    "removedExplores": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Explores gone from the integration, by explore name; they are no longer built."
+                    },
+                    "addedExplores": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Explores found for the first time, by explore name."
+                    }
+                },
+                "required": [
+                    "removedFields",
+                    "addedFields",
+                    "removedExplores",
+                    "addedExplores"
+                ],
+                "type": "object",
+                "description": "What a Refresh changed: explores and fields the integration added or removed."
+            },
+            "ApiLiveSourceRefreshResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LiveSourceRefreshSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiUpdateLiveSourceCacheRequest": {
                 "properties": {
                     "ttlSeconds": {
@@ -18533,11 +18515,11 @@
                     },
                     "isInternal": {
                         "type": "boolean",
-                        "description": "The integration's own bookkeeping field, hidden by default."
+                        "description": "Off unless an admin turns it on, so lists hide it until it is in use."
                     },
                     "isBuiltIn": {
                         "type": "boolean",
-                        "description": "Written by Lightdash for the integration, not found by a scan."
+                        "description": "Declared in the integration's code; false for a field a Refresh found."
                     },
                     "group": {
                         "type": "string",
@@ -18598,7 +18580,7 @@
                     },
                     "canEditFields": {
                         "type": "boolean",
-                        "description": "False for an explore scans add no fields to; its `fields` is then empty."
+                        "description": "Always true: every explore's fields can be curated."
                     },
                     "lastEdit": {
                         "allOf": [
@@ -18663,7 +18645,7 @@
                     "scannedAt": {
                         "type": "string",
                         "nullable": true,
-                        "description": "ISO timestamp of the last scan, or null when the source was never scanned."
+                        "description": "ISO timestamp of the last Refresh, or null when the source was never refreshed."
                     },
                     "usedByChartCount": {
                         "type": "number",
@@ -22813,6 +22795,10 @@
                         },
                         "required": ["nested", "or"],
                         "type": "object"
+                    },
+                    "apiName": {
+                        "type": "string",
+                        "description": "The vendor's id of what the explore reads, e.g. Salesforce\n`Invoice__c`, when its integration gave one."
                     },
                     "definitionHash": {
                         "type": "string",
@@ -32270,6 +32256,7 @@
                     "chartView",
                     "chartHistory",
                     "sqlChartView",
+                    "composerChartView",
                     "sqlRunner",
                     "viewUnderlyingData",
                     "alert",
@@ -80532,12 +80519,18 @@
                     "name": {
                         "type": "string"
                     },
+                    "spaceUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "dashboardUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     }
                 },
-                "required": ["chart", "pipeline", "name", "dashboardUuid"],
-                "type": "object"
+                "required": ["chart", "pipeline", "name"],
+                "type": "object",
+                "description": "A dashboard owns the chart; with no dashboard, `spaceUuid` does. A missing field reads as null."
             },
             "Record_string.ParametersValuesMap_": {
                 "properties": {},
@@ -81890,7 +81883,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.428.0",
+        "version": "3.435.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -129492,7 +129485,7 @@
                         }
                     }
                 },
-                "description": "Creates a composer chart owned by a dashboard: a stored pipeline and the\nchart drawn from its terminal node. Adds no tile; add one with the\ndashboard update. Requires the composer-charts feature flag.",
+                "description": "Creates a composer chart: a stored pipeline and the chart drawn from its\nterminal node. If you pass `dashboardUuid`, that dashboard owns the\nchart and `spaceUuid` is ignored; otherwise the space in `spaceUuid`\nowns it. Adds no tile; add one with the dashboard update. Requires the\ncomposer-charts feature flag and permission to save charts on the owner.",
                 "summary": "Create composer chart",
                 "tags": ["v2", "Charts"],
                 "security": [],
@@ -129543,7 +129536,7 @@
                         }
                     }
                 },
-                "description": "Gets a composer chart's current version, pipeline included. Anyone who\ncan view the owning dashboard can read it.",
+                "description": "Gets a composer chart's current version, pipeline included. Anyone who\ncan view charts in its owning dashboard or space can read it.",
                 "summary": "Get composer chart",
                 "tags": ["v2", "Charts"],
                 "security": [],
