@@ -165,7 +165,6 @@ export const invalidateContent = async (
         queryClient.invalidateQueries(['space']),
         queryClient.invalidateQueries(['spaces']),
         queryClient.invalidateQueries([projectUuid, 'search']),
-        queryClient.invalidateQueries(['composerChart', projectUuid]),
     ]);
 };
 
@@ -202,6 +201,13 @@ export const useContentAction = (
             }
 
             await invalidateContent(queryClient, projectUuid);
+            // Only for composer items: a deleted dashboard's open tiles would refetch into a 404.
+            if (variables.item.contentType === ContentType.COMPOSER_CHART) {
+                await queryClient.invalidateQueries([
+                    'composerChart',
+                    projectUuid,
+                ]);
+            }
 
             options?.onSuccess?.(data, variables, context);
 
