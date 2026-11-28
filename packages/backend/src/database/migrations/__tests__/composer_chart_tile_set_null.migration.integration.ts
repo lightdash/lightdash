@@ -80,7 +80,7 @@ describe('a composer tile outlives its permanently deleted chart', () => {
         properties: { title, composerChartUuid, chartName: null },
     });
 
-    /** A dashboard whose one version shows its own chart and a chart that is then permanently deleted. */
+    /** A dashboard whose two versions show its own chart and a chart that is then permanently deleted. */
     const setUp = async () => {
         const created = await dashboardModel.create(
             fixture.spaceUuid,
@@ -95,19 +95,22 @@ describe('a composer tile outlives its permanently deleted chart', () => {
         );
         const keptUuid = await createChart(created.uuid);
         const deletedUuid = await createChart(created.uuid);
-        const dashboard = await dashboardModel.addVersion(
-            created.uuid,
-            {
-                tiles: [
-                    composerTile('Kept', keptUuid),
-                    composerTile('Gone', deletedUuid),
-                ],
-                filters: created.filters,
-                tabs: created.tabs,
-            },
-            { userUuid: fixture.userUuid },
-            fixture.projectUuid,
-        );
+        const addVersion = () =>
+            dashboardModel.addVersion(
+                created.uuid,
+                {
+                    tiles: [
+                        composerTile('Kept', keptUuid),
+                        composerTile('Gone', deletedUuid),
+                    ],
+                    filters: created.filters,
+                    tabs: created.tabs,
+                },
+                { userUuid: fixture.userUuid },
+                fixture.projectUuid,
+            );
+        await addVersion();
+        const dashboard = await addVersion();
         await database(COMPOSER_CHARTS)
             .where('composer_chart_uuid', deletedUuid)
             .delete();
@@ -126,8 +129,24 @@ describe('a composer tile outlives its permanently deleted chart', () => {
         await migrated?.destroy();
     });
 
-    it('keeps the tile with its title and no chart', async () => {
+    it('keeps the tile in every version with its title and no chart', async () => {
         const { dashboard } = await setUp();
+
+        const goneTiles = await database(DASHBOARD_TILE_COMPOSER_CHARTS)
+            .join(
+                'dashboard_versions',
+                'dashboard_versions.dashboard_version_id',
+                `${DASHBOARD_TILE_COMPOSER_CHARTS}.dashboard_version_id`,
+            )
+            .join(
+                'dashboards',
+                'dashboards.dashboard_id',
+                'dashboard_versions.dashboard_id',
+            )
+            .where('dashboards.dashboard_uuid', dashboard.uuid)
+            .where('title', 'Gone')
+            .pluck(`${DASHBOARD_TILE_COMPOSER_CHARTS}.composer_chart_uuid`);
+        expect(goneTiles).toEqual([null, null]);
 
         const { tiles } = await dashboardModel.getByIdOrSlug(dashboard.uuid);
 
