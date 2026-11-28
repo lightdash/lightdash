@@ -13,7 +13,7 @@ export const toolEditContentArgsSchema = z.object({
         .string()
         .min(1)
         .describe(
-            'Exact slug of the content to edit; a composer chart also takes its uuid',
+            'Exact slug of the content to edit. For a composer chart, a uuid also works.',
         ),
     type: z
         .enum(['dashboard', 'chart', 'sql_chart', 'composer_chart'])

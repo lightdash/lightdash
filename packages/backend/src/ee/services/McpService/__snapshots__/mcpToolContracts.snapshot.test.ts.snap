@@ -2703,7 +2703,7 @@ Usage tips:
         "readOnlyHint": true,
         "title": "Read content",
       },
-      "description": "Read a dashboard, chart, SQL chart, composer chart or data app as JSON by its slug; a composer chart also by its uuid. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. A composer_chart tile names a composer chart (a pipeline of queries plus a chart) by chartSlug; read it with type composer_chart, since a chart may share its slug. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.",
+      "description": "Read a dashboard, chart, SQL chart, composer chart or data app as JSON by its slug. For a composer chart, a uuid also works. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. A composer_chart tile names a composer chart (a pipeline of queries plus a chart) by chartSlug; read it with type composer_chart, since a chart may share its slug. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -2720,7 +2720,7 @@ Usage tips:
             "type": "string",
           },
           "slug": {
-            "description": "Slug of the content to read; a composer chart also takes its uuid.",
+            "description": "Slug of the content to read. For a composer chart, a uuid also works.",
             "minLength": 1,
             "type": "string",
           },
@@ -3428,7 +3428,7 @@ A custom chart type is chosen the same way: by its own description first, then a
             "type": "string",
           },
           "slug": {
-            "description": "Exact slug of the content to edit; a composer chart also takes its uuid",
+            "description": "Exact slug of the content to edit. For a composer chart, a uuid also works.",
             "minLength": 1,
             "type": "string",
           },

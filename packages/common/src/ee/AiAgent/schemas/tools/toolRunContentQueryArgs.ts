@@ -42,7 +42,7 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
                 chartSlug: z
                     .string()
                     .describe(
-                        'Slug of the saved chart; a composer chart also takes its uuid.',
+                        'Slug of the saved chart. For a composer chart, a uuid also works.',
                     ),
             }),
             z.object({
