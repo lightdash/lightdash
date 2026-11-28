@@ -86,7 +86,7 @@ export const resolveComposerChartTiles = (
             const left = keepable.get(chartUuid) ?? 0;
             if (left === 0) {
                 throw new ForbiddenError(
-                    `Composer charts are not enabled for this organization, so composer chart tile ${chartSlug === null ? 'with no chart' : `"${chartSlug}"`} cannot be added`,
+                    `Composer charts are not enabled for this organization, so ${chartSlug === null ? 'a composer chart tile whose chart was deleted' : `composer chart tile "${chartSlug}"`} cannot be added`,
                     { featureFlagId: FeatureFlags.ComposerCharts },
                 );
             }

@@ -503,7 +503,7 @@ describe('promoting a dashboard with composer charts', () => {
 
         await expect(
             service.promoteDashboard(account, sourceDashboard.uuid, scoped),
-        ).rejects.toThrow('from a space, which cannot be promoted yet');
+        ).rejects.toThrow('cannot be promoted yet');
         expect(dashboardModel.create).not.toHaveBeenCalled();
         expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
     });

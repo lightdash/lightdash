@@ -47,7 +47,7 @@ export const getComposerChartChanges = async (
         const source = await composerChartModel.get(chartUuid);
         if (source.owner.type === 'space') {
             throw new NotSupportedError(
-                `This dashboard shows composer chart "${source.slug}" from a space, which cannot be promoted yet`,
+                `This dashboard cannot be promoted yet because it shows the composer chart "${source.slug}", which is saved in a space`,
             );
         }
         const promoted: PromotedComposerChart = {
