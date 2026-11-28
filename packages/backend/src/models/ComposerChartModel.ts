@@ -251,6 +251,21 @@ export class ComposerChartModel {
             .pluck('composer_chart_uuid');
     }
 
+    /** Charts among `uuids` a space owns, live in a live space. */
+    async findLiveInSpaces(uuids: string[]): Promise<string[]> {
+        if (uuids.length === 0) return [];
+        return this.database(ComposerChartsTableName)
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_uuid`,
+                `${ComposerChartsTableName}.space_uuid`,
+            )
+            .whereIn(`${ComposerChartsTableName}.composer_chart_uuid`, uuids)
+            .whereNull(`${ComposerChartsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .pluck(`${ComposerChartsTableName}.composer_chart_uuid`);
+    }
+
     /** Locks the dashboard's own charts among `uuids` against new versions, then returns each one's pipeline as of the dashboard version beside its current one. */
     async lockRollbackPipelines(
         dashboardUuid: string,

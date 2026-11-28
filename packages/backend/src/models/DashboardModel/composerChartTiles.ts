@@ -94,45 +94,56 @@ export const insertComposerChartTiles = async (
                     .select('project_id')
                     .where('space_id', dashboardSpaceId),
             );
-        // A trashed chart keeps the tiles that showed it, so its restore brings them back
-        const shownByThisDashboard = trx(DashboardTileComposerChartsTableName)
-            .innerJoin(
-                DashboardVersionsTableName,
-                `${DashboardVersionsTableName}.dashboard_version_id`,
-                `${DashboardTileComposerChartsTableName}.dashboard_version_id`,
-            )
-            .where(`${DashboardVersionsTableName}.dashboard_id`, dashboardId)
-            .whereNotNull(
-                `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
-            )
-            .select(
-                `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
-            );
-        const foundUuids = await trx(ComposerChartsTableName)
-            .whereIn('composer_chart_uuid', chartUuids)
-            .where((allowed) =>
-                allowed
-                    .where((live) =>
-                        live
-                            .whereNull('deleted_at')
-                            .where((owner) =>
-                                owner
-                                    .whereIn(
-                                        'dashboard_uuid',
-                                        trx(DashboardsTableName)
-                                            .select('dashboard_uuid')
-                                            .where('dashboard_id', dashboardId),
-                                    )
-                                    .orWhereIn(
-                                        'space_uuid',
-                                        liveSpacesInProject,
-                                    ),
-                            ),
-                    )
-                    .orWhereIn('composer_chart_uuid', shownByThisDashboard),
-            )
-            .pluck('composer_chart_uuid');
-        if (foundUuids.length !== chartUuids.length) {
+        const liveUuids = new Set(
+            await trx(ComposerChartsTableName)
+                .whereIn('composer_chart_uuid', chartUuids)
+                .whereNull('deleted_at')
+                .where((owner) =>
+                    owner
+                        .whereIn(
+                            'dashboard_uuid',
+                            trx(DashboardsTableName)
+                                .select('dashboard_uuid')
+                                .where('dashboard_id', dashboardId),
+                        )
+                        .orWhereIn('space_uuid', liveSpacesInProject),
+                )
+                .pluck('composer_chart_uuid'),
+        );
+        // A tile keeps a trashed chart it already showed, so the chart's restore brings it back
+        const kept = rows.flatMap(
+            ({
+                dashboard_tile_uuid: tileUuid,
+                composer_chart_uuid: chartUuid,
+            }) =>
+                chartUuid && !liveUuids.has(chartUuid)
+                    ? [[tileUuid, chartUuid]]
+                    : [],
+        );
+        const shown =
+            kept.length === 0
+                ? []
+                : await trx(DashboardTileComposerChartsTableName)
+                      .innerJoin(
+                          DashboardVersionsTableName,
+                          `${DashboardVersionsTableName}.dashboard_version_id`,
+                          `${DashboardTileComposerChartsTableName}.dashboard_version_id`,
+                      )
+                      .where(
+                          `${DashboardVersionsTableName}.dashboard_id`,
+                          dashboardId,
+                      )
+                      .whereIn(
+                          [
+                              `${DashboardTileComposerChartsTableName}.dashboard_tile_uuid`,
+                              `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
+                          ],
+                          kept,
+                      )
+                      .distinct(
+                          `${DashboardTileComposerChartsTableName}.dashboard_tile_uuid`,
+                      );
+        if (shown.length !== kept.length) {
             throw new NotFoundError(
                 'Composer chart not found, or owned by another dashboard',
             );

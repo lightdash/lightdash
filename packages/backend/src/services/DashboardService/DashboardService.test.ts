@@ -271,6 +271,7 @@ const catalogModel = {
 const composerChartModel = {
     deleteOrphans: vi.fn(async () => {}),
     findOwnedByDashboard: vi.fn(async (): Promise<string[]> => []),
+    findLiveInSpaces: vi.fn(async (): Promise<string[]> => []),
     lockRollbackPipelines: vi.fn(
         async (): Promise<ComposerChartRollbackPipeline[]> => [],
     ),
