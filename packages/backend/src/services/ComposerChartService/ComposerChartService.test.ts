@@ -13,6 +13,7 @@ import {
     MergeJoinType,
     MetricType,
     NotFoundError,
+    NotSupportedError,
     ParameterError,
     QueryExecutionContext,
     QuerySourceType,
@@ -682,6 +683,99 @@ describe('ComposerChartService.create owner', () => {
             ),
         ).rejects.toThrow(FeatureNotEnabledError);
         expect(composerChartModel.create).not.toHaveBeenCalled();
+    });
+});
+
+describe('ComposerChartService.writeFromCode owner', () => {
+    const spaceUuid = 'chart-space-uuid';
+    const setupLive = (owner: ComposerChartOwner) => {
+        const deps = setup();
+        const writeFromCode = vi.fn(async () => 'chart-uuid');
+        Object.assign(deps.composerChartModel, {
+            findIdentityBySlug: vi.fn(async () => ({
+                uuid: 'chart-uuid',
+                deleted: false,
+                owner,
+            })),
+            getOwner: vi.fn(async () => ({ projectUuid, owner })),
+            writeFromCode,
+        });
+        return { ...deps, writeFromCode };
+    };
+    const write = (
+        service: ComposerChartService,
+        spaceOwner: 'refuse' | 'keep',
+        ability = abilityWithout(null),
+    ) =>
+        service.writeFromCode(sessionAccount(ability), projectUuid, {
+            ...createBody(PIPELINES.sql),
+            slug: 'orders',
+            dashboardUuid: null,
+            spaceOwner,
+        });
+
+    test('writes a version of a chart its space owns for the agent edit, checked on the space', async () => {
+        const { service, writeFromCode, spacePermissionService } = setupLive({
+            type: 'space',
+            spaceUuid,
+        });
+        await write(service, 'keep');
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            defaultSessionUser.userUuid,
+            { type: 'space', spaceUuid },
+        );
+        expect(writeFromCode).toHaveBeenCalledWith(
+            expect.objectContaining({
+                owner: { type: 'space', spaceUuid },
+            }),
+        );
+    });
+
+    test('refuses a chart its space owns for an upload', async () => {
+        const { service, writeFromCode } = setupLive({
+            type: 'space',
+            spaceUuid,
+        });
+        await expect(write(service, 'refuse')).rejects.toThrow(
+            NotSupportedError,
+        );
+        expect(writeFromCode).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        ['manage:ComposerChart', abilityWithout('ComposerChart')],
+        [
+            'write on its space',
+            new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: 'view' as const },
+                ...AUTHOR_SUBJECTS.map((name) => ({
+                    subject: name,
+                    action: 'manage' as const,
+                })),
+            ]),
+        ],
+    ])('refuses the agent edit without %s', async (_, ability) => {
+        const { service, writeFromCode } = setupLive({
+            type: 'space',
+            spaceUuid,
+        });
+        await expect(write(service, 'keep', ability)).rejects.toThrow(
+            ForbiddenError,
+        );
+        expect(writeFromCode).not.toHaveBeenCalled();
+    });
+
+    test('keeps a dashboard owner either way', async () => {
+        const { service, writeFromCode } = setupLive({
+            type: 'dashboard',
+            dashboardUuid,
+        });
+        await write(service, 'keep');
+        expect(writeFromCode).toHaveBeenCalledWith(
+            expect.objectContaining({
+                owner: { type: 'dashboard', dashboardUuid },
+            }),
+        );
     });
 });
 
@@ -2079,6 +2173,39 @@ describe('ComposerChartService lifecycle writes', () => {
                 service.update(account, projectUuid, 'chart-uuid', body),
             ).rejects.toThrow(ParameterError);
             expect(update).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('preflightSpaceChartEdit', () => {
+        test.each([
+            ['its own space', [targetSpaceUuid], null],
+            ['its own space, moving it', [targetSpaceUuid], targetSpaceUuid],
+            ['the target space', [sourceSpaceUuid], targetSpaceUuid],
+        ])(
+            'refuses a user who cannot write %s',
+            async (_, writableSpaces, target) => {
+                const { service, account } = setupWrite({ writableSpaces });
+                await expect(
+                    service.preflightSpaceChartEdit(
+                        account,
+                        projectUuid,
+                        'chart-uuid',
+                        { targetSpaceUuid: target },
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+            },
+        );
+
+        test('passes with write on both spaces, writing nothing', async () => {
+            const { service, account, update, moveToSpace } = setupWrite();
+            await service.preflightSpaceChartEdit(
+                account,
+                projectUuid,
+                'chart-uuid',
+                { targetSpaceUuid },
+            );
+            expect(update).not.toHaveBeenCalled();
+            expect(moveToSpace).not.toHaveBeenCalled();
         });
     });
 

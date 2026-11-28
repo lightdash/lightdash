@@ -173,7 +173,10 @@ export const executeEditContent = async (
             return { slug, type, patch };
         };
         const result = await editContent(await getEditArgs());
-        const warnings = getContentWarnings(result);
+        const warnings = [
+            ...getContentWarnings(result),
+            ...(result.type === 'composer_chart' ? result.warnings : []),
+        ];
         const metadata = {
             status: 'success' as const,
             slug: result.content.slug,
