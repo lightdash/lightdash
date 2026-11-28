@@ -1579,7 +1579,7 @@ describe('CoderService', () => {
     });
 
     describe('convertTileWithSlugsToUuids', () => {
-        it('should allow chart tiles with null chartSlug, leaving out a composer tile whose chart is gone', async () => {
+        it('should allow chart tiles with null chartSlug, a composer tile whose chart is gone included', async () => {
             const service = new CoderService({
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
@@ -1680,6 +1680,10 @@ describe('CoderService', () => {
                         chartSlug: null,
                         savedSqlUuid: null,
                     },
+                },
+                {
+                    type: DashboardTileTypes.COMPOSER_CHART,
+                    properties: { title: 'Gone', chartSlug: null },
                 },
             ]);
             expect(result[0].uuid).toEqual(expect.any(String));
@@ -2176,7 +2180,7 @@ describe('CoderService', () => {
             ).toThrow('Space space-uuid not found');
         });
 
-        it('writes a composer chart tile by its chart slug, and leaves out one whose chart is gone', () => {
+        it('writes a composer chart tile by its chart slug, and one whose chart is gone with a null slug', () => {
             const exported = (
                 CoderService as unknown as {
                     transformDashboard: (...args: AnyType[]) => AnyType;
@@ -2257,7 +2261,11 @@ describe('CoderService', () => {
                     chartSlug: 'orders',
                 },
             });
-            expect(exported.tiles).toHaveLength(2);
+            expect(exported.tiles[2]).toMatchObject({
+                type: DashboardTileTypes.COMPOSER_CHART,
+                properties: { title: 'Gone', chartSlug: null },
+            });
+            expect(exported.tiles).toHaveLength(3);
         });
 
         it('leaves the control order out of the file with the flag off', () => {

@@ -1,7 +1,6 @@
 import {
     DashboardTileTypes,
     NotFoundError,
-    ParameterError,
     type CreateDashboard,
     type CreateDashboardComposerChartTile,
     type DashboardComposerChartTile,
@@ -14,7 +13,9 @@ import {
 import {
     DashboardsTableName,
     DashboardTilesTableName,
+    DashboardVersionsTableName,
 } from '../../database/entities/dashboards';
+import { SpaceTableName } from '../../database/entities/spaces';
 
 export function onComposerChartTile(this: Knex.JoinClause) {
     this.on(
@@ -69,33 +70,73 @@ export const insertComposerChartTiles = async (
     );
     if (composerTiles.length === 0) return;
 
-    const rows = composerTiles.map(({ uuid, properties }) => {
-        if (!properties.composerChartUuid) {
-            throw new ParameterError('Composer chart tile has no chart');
+    const rows = composerTiles.map(({ uuid, properties }) => ({
+        dashboard_version_id: dashboardVersionId,
+        dashboard_tile_uuid: uuid,
+        // Null: a tile whose chart was permanently deleted
+        composer_chart_uuid: properties.composerChartUuid ?? null,
+        title: properties.title ?? null,
+        hide_title: properties.hideTitle ?? false,
+    }));
+    const chartUuids = [
+        ...new Set(rows.flatMap((row) => row.composer_chart_uuid ?? [])),
+    ];
+    if (chartUuids.length > 0) {
+        const dashboardSpaceId = trx(DashboardsTableName)
+            .select('space_id')
+            .where('dashboard_id', dashboardId);
+        const liveSpacesInProject = trx(SpaceTableName)
+            .select('space_uuid')
+            .whereNull('deleted_at')
+            .where(
+                'project_id',
+                trx(SpaceTableName)
+                    .select('project_id')
+                    .where('space_id', dashboardSpaceId),
+            );
+        // A trashed chart keeps the tiles that showed it, so its restore brings them back
+        const shownByThisDashboard = trx(DashboardTileComposerChartsTableName)
+            .innerJoin(
+                DashboardVersionsTableName,
+                `${DashboardVersionsTableName}.dashboard_version_id`,
+                `${DashboardTileComposerChartsTableName}.dashboard_version_id`,
+            )
+            .where(`${DashboardVersionsTableName}.dashboard_id`, dashboardId)
+            .whereNotNull(
+                `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
+            )
+            .select(
+                `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
+            );
+        const foundUuids = await trx(ComposerChartsTableName)
+            .whereIn('composer_chart_uuid', chartUuids)
+            .where((allowed) =>
+                allowed
+                    .where((live) =>
+                        live
+                            .whereNull('deleted_at')
+                            .where((owner) =>
+                                owner
+                                    .whereIn(
+                                        'dashboard_uuid',
+                                        trx(DashboardsTableName)
+                                            .select('dashboard_uuid')
+                                            .where('dashboard_id', dashboardId),
+                                    )
+                                    .orWhereIn(
+                                        'space_uuid',
+                                        liveSpacesInProject,
+                                    ),
+                            ),
+                    )
+                    .orWhereIn('composer_chart_uuid', shownByThisDashboard),
+            )
+            .pluck('composer_chart_uuid');
+        if (foundUuids.length !== chartUuids.length) {
+            throw new NotFoundError(
+                'Composer chart not found, or owned by another dashboard',
+            );
         }
-        return {
-            dashboard_version_id: dashboardVersionId,
-            dashboard_tile_uuid: uuid,
-            composer_chart_uuid: properties.composerChartUuid,
-            title: properties.title ?? null,
-            hide_title: properties.hideTitle ?? false,
-        };
-    });
-    const chartUuids = [...new Set(rows.map((row) => row.composer_chart_uuid))];
-    const foundUuids = await trx(ComposerChartsTableName)
-        .whereIn('composer_chart_uuid', chartUuids)
-        .whereNull('deleted_at')
-        .whereIn(
-            'dashboard_uuid',
-            trx(DashboardsTableName)
-                .select('dashboard_uuid')
-                .where('dashboard_id', dashboardId),
-        )
-        .pluck('composer_chart_uuid');
-    if (foundUuids.length !== chartUuids.length) {
-        throw new NotFoundError(
-            'Composer chart not found, or owned by another dashboard',
-        );
     }
     await trx(DashboardTileComposerChartsTableName).insert(rows);
 };

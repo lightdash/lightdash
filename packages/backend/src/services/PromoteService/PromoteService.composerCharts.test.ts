@@ -494,6 +494,20 @@ describe('promoting a dashboard with composer charts', () => {
         expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
     });
 
+    test("refuses before any write when a tile shows a space's chart", async () => {
+        const { service, dashboardModel, composerChartService } = setup({
+            sourceChart: composerChart({
+                owner: { type: 'space', spaceUuid: 'preview-space' },
+            }),
+        });
+
+        await expect(
+            service.promoteDashboard(account, sourceDashboard.uuid, scoped),
+        ).rejects.toThrow('from a space, which cannot be promoted yet');
+        expect(dashboardModel.create).not.toHaveBeenCalled();
+        expect(composerChartService.writeFromCode).not.toHaveBeenCalled();
+    });
+
     test('carries the custom chart type the chart uses', async () => {
         const { service, appGenerateService, composerChartService } = setup({
             sourceChart: composerChart({ chart: storedChart('pills') }),

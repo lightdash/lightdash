@@ -365,6 +365,7 @@ const setup = ({ flagEnabled = true } = {}) => {
         getByIdOrSlug: vi.fn(async (uuidOrSlug: string) => ({
             uuid: uuidOrSlug,
             name: 'Sales',
+            spaceUuid: 'dashboard-space-uuid',
             filters: savedDashboardFilters,
             tiles: [
                 {
@@ -768,6 +769,7 @@ describe('ComposerChartService.run', () => {
         sessionAccount(
             new Ability<PossibleAbilities>([
                 { subject: 'SavedChart', action: 'view' as const },
+                { subject: 'Dashboard', action: 'view' as const },
             ]),
         );
     const runRequest = {
@@ -1171,6 +1173,7 @@ describe('ComposerChartService.run', () => {
         dashboardModel.getByIdOrSlug.mockImplementation(async () => ({
             uuid: dashboardUuid,
             name: 'Sales',
+            spaceUuid: 'dashboard-space-uuid',
             filters: savedDashboardFilters,
             tiles: [
                 {
@@ -1230,11 +1233,39 @@ describe('ComposerChartService.run', () => {
         expect(submitComposerRun).toHaveBeenCalledTimes(1);
     });
 
+    test('refuses a chart viewer who cannot view the dashboard the tile is on', async () => {
+        const { service, submitComposerRun, spacePermissionService } =
+            setupRun();
+        await expect(
+            service.run(
+                sessionAccount(
+                    new Ability<PossibleAbilities>([
+                        { subject: 'SavedChart', action: 'view' as const },
+                    ]),
+                ),
+                projectUuid,
+                'chart-uuid',
+                { ...runRequest, dashboardUuid: 'showing-dashboard' },
+                QueryExecutionContext.DASHBOARD,
+            ),
+        ).rejects.toThrow("You don't have access to this dashboard");
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            expect.anything(),
+            {
+                type: 'dashboard',
+                dashboardUuid: 'showing-dashboard',
+                spaceUuid: 'dashboard-space-uuid',
+            },
+        );
+        expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
     test('refuses a run naming a dashboard whose tiles do not show the chart', async () => {
         const { service, submitComposerRun, dashboardModel } = setupRun();
         dashboardModel.getByIdOrSlug.mockResolvedValue({
             uuid: 'another-dashboard',
             name: 'Another',
+            spaceUuid: 'dashboard-space-uuid',
             filters: savedDashboardFilters,
             tiles: [
                 {

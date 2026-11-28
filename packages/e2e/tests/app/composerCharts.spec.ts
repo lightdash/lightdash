@@ -1,5 +1,6 @@
 import {
     ChartType,
+    ContentType,
     DashboardTileTypes,
     FieldType,
     FilterOperator,
@@ -7,9 +8,13 @@ import {
     SCREENSHOT_READY_INDICATOR_ID,
     SEED_DATA_APP_VIZ,
     type CreateChartInDashboard,
+    type Dashboard,
     type SavedChart,
 } from '@lightdash/common';
-import { composerChartBody } from '../../../api-tests/helpers/composerDashboard';
+import {
+    composerChartBody,
+    composerTile as composerTileFor,
+} from '../../../api-tests/helpers/composerDashboard';
 import {
     createComposerDashboard,
     createComposerSpaceChart,
@@ -332,6 +337,81 @@ test.describe('Composer charts in spaces', () => {
         } finally {
             await deleteComposerDashboard(api, owned.dashboard.uuid);
             await deleteComposerSpace(api, space.uuid);
+        }
+    });
+
+    test('a space chart shown on a dashboard leaves a deleted-chart tile once permanently deleted, and the dashboard still saves', async ({
+        page,
+        api,
+    }) => {
+        await loginAs(api.raw, SEED_USERS.admin);
+        const { space, chart: spaceChart } =
+            await createComposerSpaceChart(api);
+        const created = await api.post(
+            `/api/v1/projects/${space.projectUuid}/dashboards`,
+            {
+                data: {
+                    name: `Shows a space chart ${Date.now()}`,
+                    tiles: [composerTileFor(spaceChart.uuid)],
+                    tabs: [],
+                },
+            },
+        );
+        expect(created.status()).toBe(201);
+        const dashboard = await json<Dashboard>(created);
+        try {
+            expect(
+                (
+                    await api.delete(
+                        `/api/v1/projects/${space.projectUuid}/spaces/${space.uuid}`,
+                    )
+                ).status(),
+            ).toBe(200);
+            const health = await json<{ softDelete: { enabled: boolean } }>(
+                await api.get('/api/v1/health'),
+            );
+            if (health.softDelete.enabled) {
+                const purged = await api.delete(
+                    `/api/v2/content/${space.projectUuid}/permanent`,
+                    {
+                        data: {
+                            item: {
+                                uuid: space.uuid,
+                                contentType: ContentType.SPACE,
+                            },
+                        },
+                    },
+                );
+                expect(purged.status()).toBe(200);
+            }
+
+            await page.goto(
+                `/projects/${space.projectUuid}/dashboards/${dashboard.uuid}/view`,
+            );
+            const deletedTile = page.getByText('This chart has been deleted.');
+            await expect(deletedTile).toBeVisible();
+
+            await page.getByLabel('Edit dashboard').click();
+            await page
+                .getByRole('button', { name: 'Add tile' })
+                .first()
+                .click();
+            await page
+                .getByRole('menuitem', { name: 'Markdown' })
+                .click({ force: true });
+            await page.getByLabel('Title', { exact: true }).fill('Note');
+            await page.getByText('Add', { exact: true }).click();
+            const saved = page.waitForResponse(
+                (res) =>
+                    res.request().method() === 'PATCH' &&
+                    res.url().includes(`/dashboards/${dashboard.uuid}`),
+            );
+            await page.getByRole('button', { name: 'Save changes' }).click();
+            expect((await saved).status()).toBe(200);
+            await expect(page.getByLabel('Edit dashboard')).toBeVisible();
+            await expect(deletedTile).toBeVisible();
+        } finally {
+            await deleteComposerDashboard(api, dashboard.uuid);
         }
     });
 });

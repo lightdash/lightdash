@@ -1067,6 +1067,26 @@ export class ComposerChartService extends BaseService {
                 tile.properties.composerChartUuid === composerChartUuid,
         );
         if (!shown) throw notOnTile;
+        // The run reads this dashboard's filters and parameters, so it needs view on it too
+        const dashboardAccess = await this.spacePermissionService.resolveAccess(
+            account.user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid,
+                spaceUuid: dashboard.spaceUuid,
+            },
+        );
+        if (
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('Dashboard', {
+                    ...dashboardAccess,
+                    metadata: { dashboardUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError("You don't have access to this dashboard");
+        }
         const chart = await this.composerChartModel.get(composerChartUuid);
         const exploreByNodeId = await this.getNodeExplores(
             account,
