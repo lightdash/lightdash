@@ -1,6 +1,10 @@
 import { ContentType } from '@lightdash/common';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook } from '@testing-library/react';
+import {
+    QueryClient,
+    QueryClientProvider,
+    useQuery,
+} from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { type FC, type PropsWithChildren } from 'react';
 import { useContentAction, useContentBulkAction } from './useContent';
 
@@ -70,5 +74,31 @@ describe('content actions refresh composer chart reads only when they include on
             }),
         );
         expect(refreshedComposerCharts()).toBe(expected);
+    });
+});
+
+// Refetching on delete made the deleted chart's own page show "not found" before it navigated away.
+describe('composer chart reads an open page holds', () => {
+    it.each([
+        [{ type: 'delete' } as const, 1],
+        [{ type: 'move', targetSpaceUuid: 'space' } as const, 2],
+    ])('after %o are fetched %i times', async (action, expected) => {
+        const { wrapper } = setup();
+        const read = vi.fn(() => Promise.resolve('chart'));
+        const { result } = renderHook(
+            () => ({
+                chart: useQuery(['composerChart', 'project', 'item'], read),
+                action: useContentAction('project'),
+            }),
+            { wrapper },
+        );
+        await waitFor(() => expect(result.current.chart.isSuccess).toBe(true));
+        await act(() =>
+            result.current.action.mutateAsync({
+                action,
+                item: { uuid: 'item', contentType: ContentType.COMPOSER_CHART },
+            }),
+        );
+        expect(read).toHaveBeenCalledTimes(expected);
     });
 });

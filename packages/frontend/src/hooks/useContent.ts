@@ -6,6 +6,7 @@ import {
     type ApiContentResponse,
     type ApiError,
     type ApiSuccessEmpty,
+    type ContentAction,
     type ContentSortByColumns,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -173,9 +174,13 @@ const invalidateComposerCharts = async (
     queryClient: QueryClient,
     projectUuid: string,
     items: { contentType: ContentType }[],
+    actionType: ContentAction['type'],
 ) => {
     if (items.some((i) => i.contentType === ContentType.COMPOSER_CHART)) {
-        await queryClient.invalidateQueries(['composerChart', projectUuid]);
+        // A deleted chart's open page would refetch into a 404 before it navigates away
+        await queryClient.invalidateQueries(['composerChart', projectUuid], {
+            refetchType: actionType === 'delete' ? 'none' : 'active',
+        });
     }
 };
 
@@ -212,9 +217,12 @@ export const useContentAction = (
             }
 
             await invalidateContent(queryClient, projectUuid);
-            await invalidateComposerCharts(queryClient, projectUuid, [
-                variables.item,
-            ]);
+            await invalidateComposerCharts(
+                queryClient,
+                projectUuid,
+                [variables.item],
+                variables.action.type,
+            );
 
             options?.onSuccess?.(data, variables, context);
 
@@ -312,6 +320,7 @@ export const useContentBulkAction = (
                 queryClient,
                 projectUuid,
                 variables.content,
+                variables.action.type,
             );
 
             options?.onSuccess?.(data, variables, context);
