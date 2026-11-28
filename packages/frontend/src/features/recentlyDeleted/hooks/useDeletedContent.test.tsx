@@ -128,10 +128,16 @@ describe('Recently deleted actions on composer chart reads', () => {
                 expect(result.current.chart.isSuccess).toBe(true),
             );
             await act(async () =>
-                result.current[operation].mutateAsync({
-                    uuid: 'item',
-                    contentType,
-                }),
+                operation === 'restore'
+                    ? result.current.restore.mutateAsync(
+                          contentType === ContentType.COMPOSER_CHART
+                              ? { uuid: 'item', contentType, slug: 'item' }
+                              : { uuid: 'item', contentType },
+                      )
+                    : result.current.remove.mutateAsync({
+                          uuid: 'item',
+                          contentType,
+                      }),
             );
             expect(read).toHaveBeenCalledTimes(fetches);
             expect(
@@ -141,7 +147,7 @@ describe('Recently deleted actions on composer chart reads', () => {
         },
     );
 
-    it('restore of a composer chart links to its page', async () => {
+    it('restore of a composer chart links to its page by slug', async () => {
         const client = new QueryClient();
         const wrapper = ({ children }: PropsWithChildren) => (
             <QueryClientProvider client={client}>
@@ -159,13 +165,24 @@ describe('Recently deleted actions on composer chart reads', () => {
             result.current.mutateAsync({
                 uuid: 'item',
                 contentType: ContentType.COMPOSER_CHART,
+                slug: 'orders-by-status',
             }),
+        );
+        expect(mocks.restore).toHaveBeenCalledWith(
+            expect.anything(),
+            'project',
+            {
+                uuid: 'item',
+                contentType: ContentType.COMPOSER_CHART,
+            },
         );
         const toast = mocks.success.mock.calls[0][0];
         expect(toast.action.children).toBe('Go to chart');
         await act(async () => toast.action.onClick());
         expect(
-            screen.getByText('/projects/project/composer-charts/item'),
+            screen.getByText(
+                '/projects/project/composer-charts/orders-by-status',
+            ),
         ).toBeInTheDocument();
     });
 });

@@ -4,8 +4,8 @@ import {
     type ComposerStoredChart,
     type LightdashUserWithAbilityRules,
 } from '@lightdash/common';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -69,6 +69,8 @@ const bodyOf = (url: string, method: string) => {
     }
 };
 
+const Location = () => <div>{useLocation().pathname}</div>;
+
 const renderModal = (onSaved = vi.fn().mockResolvedValue(undefined)) => {
     renderWithProviders(
         <MemoryRouter>
@@ -85,6 +87,7 @@ const renderModal = (onSaved = vi.fn().mockResolvedValue(undefined)) => {
                 }
                 onSaved={onSaved}
             />
+            <Location />
         </MemoryRouter>,
         { user: { abilityRules } },
     );
@@ -103,7 +106,7 @@ describe('SaveComposerChartModal to a space', () => {
             if (url === '/projects/project/spaces/' && method === 'POST')
                 return { uuid: 'new-space', name: 'Drafts' };
             if (url === '/projects/project/composer-charts')
-                return { uuid: 'chart-uuid' };
+                return { uuid: 'chart-uuid', slug: 'orders-by-week' };
             return [];
         }) as never);
     });
@@ -123,6 +126,7 @@ describe('SaveComposerChartModal to a space', () => {
         await waitFor(() =>
             expect(onSaved).toHaveBeenCalledWith({
                 composerChartUuid: 'chart-uuid',
+                composerChartSlug: 'orders-by-week',
                 dashboardUuid: null,
             }),
         );
@@ -138,6 +142,14 @@ describe('SaveComposerChartModal to a space', () => {
                 action: expect.objectContaining({ children: 'Open' }),
             }),
         );
+        await act(async () =>
+            mocks.showToastSuccess.mock.calls[0][0].action.onClick(),
+        );
+        expect(
+            screen.getByText(
+                '/projects/project/composer-charts/orders-by-week',
+            ),
+        ).toBeInTheDocument();
     });
 
     it('does not save on Enter back on the name step', async () => {

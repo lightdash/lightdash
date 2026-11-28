@@ -148,7 +148,7 @@ describe('getSearchItemMap', () => {
             icon: IconChartLine,
             location: {
                 pathname:
-                    '/projects/project-uuid/composer-charts/composer-uuid',
+                    '/projects/project-uuid/composer-charts/composer-slug',
             },
         });
     });

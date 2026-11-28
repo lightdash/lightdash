@@ -61,6 +61,7 @@ export type DeletedComposerChartContentSummary = Omit<
 > & {
     contentType: ContentType.COMPOSER_CHART;
     chartKind: ChartKind;
+    slug: string;
 };
 
 export type DeletedDashboardContentSummary = {

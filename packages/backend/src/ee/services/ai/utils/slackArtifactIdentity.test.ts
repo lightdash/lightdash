@@ -20,6 +20,7 @@ const chart = (version: number, query: object = {}): AiArtifact =>
         savedDashboardUuid: null,
         savedComposerChartUuid: null,
         savedComposerChartDashboardUuid: null,
+        savedComposerChartSlug: null,
         createdAt: new Date('2026-09-20T00:00:00Z'),
         versionCreatedAt: new Date('2026-09-20T00:00:00Z'),
         chartConfig: {

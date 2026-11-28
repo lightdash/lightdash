@@ -84,7 +84,7 @@ export const getSearchItemMap = (
             item,
             searchRank: item.search_rank,
             location: {
-                pathname: `/projects/${projectUuid}/composer-charts/${item.uuid}`,
+                pathname: `/projects/${projectUuid}/composer-charts/${item.slug}`,
             },
         }),
     );

@@ -765,17 +765,27 @@ export class ComposerChartModel {
         projectUuid: UUID,
         composerChartUuidOrSlug: UuidOrSlug,
     ): Promise<UUID> {
-        const row = await this.database(ComposerChartsTableName)
+        const query = this.database(ComposerChartsTableName)
             .select('composer_chart_uuid')
             .where('project_uuid', projectUuid)
-            .where(
-                isValidUuid(composerChartUuidOrSlug)
-                    ? 'composer_chart_uuid'
-                    : 'slug',
-                composerChartUuidOrSlug,
-            )
-            .whereNull('deleted_at')
-            .first();
+            .whereNull('deleted_at');
+        // A slug can be uuid-shaped, so a uuid also matches a slug; the uuid wins
+        const row = await (
+            isValidUuid(composerChartUuidOrSlug)
+                ? query
+                      .where((builder) =>
+                          builder
+                              .where(
+                                  'composer_chart_uuid',
+                                  composerChartUuidOrSlug,
+                              )
+                              .orWhere('slug', composerChartUuidOrSlug),
+                      )
+                      .orderByRaw('composer_chart_uuid = ? desc', [
+                          composerChartUuidOrSlug,
+                      ])
+                : query.where('slug', composerChartUuidOrSlug)
+        ).first();
         if (!row) throw new NotFoundError('Composer chart not found');
         return row.composer_chart_uuid;
     }

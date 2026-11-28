@@ -903,7 +903,7 @@ describe('AiAgentToolsService', () => {
             },
             {
                 contentType: ContentType.CHART,
-                href: `/projects/${projectUuid}/composer-charts/composer-chart-uuid`,
+                href: `/projects/${projectUuid}/composer-charts/composer-chart`,
                 chartSource: 'composer',
             },
             {
@@ -3772,7 +3772,7 @@ describe('AiAgentToolsService', () => {
             expect(read).toEqual({
                 type: 'composer_chart',
                 content: { ...composerChartAsCode, dashboardSlug: null },
-                href: `/projects/${projectUuid}/composer-charts/composer-chart-uuid`,
+                href: `/projects/${projectUuid}/composer-charts/revenue-vs-target`,
             });
         });
 
@@ -3861,7 +3861,7 @@ describe('AiAgentToolsService', () => {
             await expect(
                 runtime.readContent({ type: 'composer_chart', slug: 'mine' }),
             ).resolves.toMatchObject({
-                href: `/projects/${projectUuid}/composer-charts/mine-chart-uuid`,
+                href: `/projects/${projectUuid}/composer-charts/mine`,
             });
             await expect(
                 runtime.readContent({ type: 'composer_chart', slug: 'theirs' }),
@@ -4646,7 +4646,7 @@ describe('AiAgentToolsService', () => {
             expect(preflightWrite).not.toHaveBeenCalled();
             expect(approveSql).not.toHaveBeenCalled();
             expect(edited).toMatchObject({
-                href: `/projects/${projectUuid}/composer-charts/composer-chart-uuid`,
+                href: `/projects/${projectUuid}/composer-charts/orders-by-status`,
                 versionUuids: { before: 'version-1', after: 'version-1' },
             });
         });
@@ -4684,7 +4684,7 @@ describe('AiAgentToolsService', () => {
             });
         });
 
-        it('edits a space chart addressed by its uuid, the id its read link carries', async () => {
+        it('edits a space chart addressed by its uuid, as an old page link carries it', async () => {
             const { runtime, upsertComposerChart } = makeSpaceEditService();
             const approveSql = vi.fn();
 
@@ -4713,7 +4713,7 @@ describe('AiAgentToolsService', () => {
                 { authorization: 'space_access', spaceOwner: 'keep' },
             );
             expect(edited).toMatchObject({
-                href: `/projects/${projectUuid}/composer-charts/composer-chart-uuid`,
+                href: `/projects/${projectUuid}/composer-charts/orders-by-status`,
                 versionUuids: { before: 'version-1', after: 'version-2' },
             });
         });

@@ -315,7 +315,7 @@ test.describe('Composer charts in spaces', () => {
                 .getByRole('link', { name: spaceChart.name, exact: true })
                 .click();
             await expect(page).toHaveURL(
-                new RegExp(`/composer-charts/${spaceChart.uuid}$`),
+                new RegExp(`/composer-charts/${spaceChart.slug}$`),
             );
             await expect(
                 page

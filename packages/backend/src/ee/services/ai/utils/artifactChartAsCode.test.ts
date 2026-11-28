@@ -35,6 +35,7 @@ const artifact: AiArtifact = {
     savedDashboardUuid: null,
     savedComposerChartUuid: null,
     savedComposerChartDashboardUuid: null,
+    savedComposerChartSlug: null,
     createdAt: new Date(),
     versionCreatedAt: new Date(),
     versionNumber: 1,

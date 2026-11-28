@@ -1983,7 +1983,7 @@ describe('Composer charts', () => {
                 expect(viewerFinds).toContain(`chartUuid="${shown.uuid}"`);
                 expect(viewerFinds).toMatch(
                     new RegExp(
-                        `chartUuid="${shown.uuid}"[^>]*chartSource="composer"[^>]*href="[^"]*/projects/${projectUuid}/composer-charts/${shown.uuid}"`,
+                        `chartUuid="${shown.uuid}"[^>]*chartSource="composer"[^>]*href="[^"]*/projects/${projectUuid}/composer-charts/${shown.slug}"`,
                     ),
                 );
                 expect(await found(adminMcp, hidden.name)).toContain(
@@ -2214,6 +2214,27 @@ describe('Composer charts', () => {
                 { failOnStatusCode: false },
             );
             expect(unknown.status).toBe(404);
+        });
+
+        it('opens a chart whose slug looks like a uuid by that slug, and by its uuid', async () => {
+            const space = await createSpace();
+            const name = randomUUID();
+            const created = await postChart({
+                ...composerSpaceChartBody(space.uuid),
+                name,
+            });
+            expect(created.status).toBe(201);
+            const chart = created.body.results;
+            expect(chart.slug).toBe(name);
+
+            const viewer = await loginAsViewer();
+            for (const id of [chart.slug, chart.uuid]) {
+                const read = await viewer.get<Body<ComposerChartWithDetails>>(
+                    `${chartsUrl}/${id}`,
+                );
+                expect(read.status).toBe(200);
+                expect(read.body.results.uuid).toBe(chart.uuid);
+            }
         });
 
         it("lists the parameters its nodes reference for the page's parameter bar", async () => {

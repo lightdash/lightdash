@@ -895,7 +895,7 @@ describe('getFindContent', () => {
                 chartSource: 'composer',
                 chartType: ChartKind.LINE,
                 viewsCount: 0,
-                href: '/projects/project-uuid-1/composer-charts/composer-uuid',
+                href: '/projects/project-uuid-1/composer-charts/revenue-vs-target',
             });
             expect(output.result).toContain('chartSource="composer"');
         });

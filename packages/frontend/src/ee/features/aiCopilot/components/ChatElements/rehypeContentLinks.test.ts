@@ -104,14 +104,25 @@ describe('rehypeAiAgentContentLinks', () => {
     });
 
     it.each([
-        '/projects/project-uuid/composer-charts/composer-uuid',
-        'https://app.lightdash.cloud/projects/project-uuid/composer-charts/composer-uuid?x=1',
-    ])('marks composer chart page links as chart links: %s', (href) => {
+        [
+            '/projects/project-uuid/composer-charts/orders-by-status',
+            'orders-by-status',
+        ],
+        [
+            'https://app.lightdash.cloud/projects/project-uuid/composer-charts/orders-by-status?x=1',
+            'orders-by-status',
+        ],
+        // Links from before slugs carry the uuid
+        [
+            '/projects/project-uuid/composer-charts/8f4c3b2a-1d5e-4f6a-9b7c-0e1d2f3a4b5c',
+            '8f4c3b2a-1d5e-4f6a-9b7c-0e1d2f3a4b5c',
+        ],
+    ])('marks composer chart page links as chart links: %s', (href, id) => {
         expect(processHref(href)).toEqual({
             href,
             'data-content-type': 'chart-link',
             'data-chart-source': 'composer-chart',
-            'data-chart-uuid': 'composer-uuid',
+            'data-chart-uuid': id,
         });
     });
 
